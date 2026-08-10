@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NULL</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<style>
+/* ── Y2K 파스텔 OS 팔레트 ──
+   잉크 #4a4276 · 보더 #5d5490/#8a7fc0/#b0a6d8 · 크롬 #dcd6f2 · 핑크 #ff9ec6 · 라벤더 #c3b2f0 */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
+ background:linear-gradient(165deg,#c9bff1 0%,#b3a7e6 60%,#c4b0e8 100%);
+ -webkit-font-smoothing:none}
+#root{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative}
+/* 메인 창(폰) */
+.phone{position:relative;z-index:1;width:390px;height:844px;max-height:min(94vh,844px);overflow:hidden;
+ background:#dcd6f2;border:1px solid #5d5490;border-radius:12px;
+ box-shadow:inset 1px 1px 0 #fff,inset -1px -1px 0 #b0a6d8,6px 6px 0 rgba(93,84,144,.3),0 30px 60px rgba(93,84,144,.35)}
+@media(max-width:500px){
+ #root{align-items:stretch}
+ .phone{width:100%;height:100dvh;max-height:none;border-radius:0;border:none;box-shadow:none}
+}
+.screen{position:absolute;inset:4px;display:flex;flex-direction:column;overflow:hidden;border-radius:9px;
+ background:#ece8fa;animation:fade .25s steps(4)}
+@media(max-width:500px){.screen{inset:0;border-radius:0}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes blinkc{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+@keyframes recblink{0%,49%{opacity:1}50%,100%{opacity:.15}}
+@keyframes spk{0%,100%{transform:scale(.35) rotate(0deg);opacity:.15}50%{transform:scale(1) rotate(90deg);opacity:.95}}
+/* 키라키라 반짝이 */
+.spark{position:absolute;pointer-events:none;z-index:6;
+ clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
+ animation:spk 2.6s ease-in-out infinite;filter:drop-shadow(0 0 3px rgba(255,255,255,.9))}
+/* ── 창 타이틀바 + 동그란 ─□✕ ── */
+.tb{flex:none;display:flex;align-items:center;gap:8px;padding:8px 11px;
+ background:linear-gradient(90deg,#ff9ec6,#c3b2f0);color:#fff;border-bottom:1px solid #5d5490;
+ font-size:12px;letter-spacing:.1em;text-shadow:1px 1px 0 rgba(93,84,144,.55)}
+.dots{margin-left:auto;display:flex;gap:5px}
+.dots span{width:16px;height:16px;border-radius:50%;border:1px solid #5d5490;display:flex;align-items:center;justify-content:center;
+ font-size:8px;line-height:1;color:#fff;text-shadow:none;
+ box-shadow:inset -1px -2px 0 rgba(93,84,144,.3),inset 1px 1px 0 rgba(255,255,255,.7)}
+.dots .d1{background:#ffd0e6;color:#c46a97}
+.dots .d2{background:#ff9ec6}
+.dots .d3{background:#ff7fae}
+/* 메뉴바 / 베벨 버튼 / 선큰 패널 */
+.menubar{flex:none;display:flex;gap:15px;padding:6px 13px;font-size:11px;color:#6b5fa8;
+ background:rgba(240,236,252,.78);border-bottom:1px solid #c5bce8}
+.bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;
+ box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec,2px 2px 0 rgba(93,84,144,.22)}
+.bevel:active{box-shadow:inset 1px 1px 0 #cdc3ec;transform:translate(1px,1px)}
+.bevel:disabled{opacity:.45;cursor:default}
+.sunken{background:#fff;border:1px solid #8a7fc0;box-shadow:inset 1px 1px 0 rgba(93,84,144,.28),inset 2px 2px 4px rgba(93,84,144,.12)}
+/* ── 온보딩: 폰 속 파스텔 데스크톱 + now loading 창 ── */
+.onb{justify-content:center;align-items:center;padding:26px;
+ background:linear-gradient(rgba(203,186,240,.5),rgba(203,186,240,.5)),#c6b4ee url("bg-extra.png") center/cover}
+.loadwin{position:relative;z-index:2;width:100%;max-width:290px;background:#ffd0e4;border:1px solid #5d5490;border-radius:8px;
+ overflow:hidden;box-shadow:inset 1px 1px 0 rgba(255,255,255,.8),5px 5px 0 rgba(93,84,144,.28);animation:fadeUp .5s steps(5) both}
+.loadwin .tb{background:linear-gradient(90deg,#ff8fbe,#ffb0d4);letter-spacing:.14em}
+.loadbody{padding:30px 24px 26px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.loadbody .logo{font-family:"Galmuri9","Galmuri11",sans-serif;font-size:24px;letter-spacing:.5em;text-indent:.5em;color:#fff;
+ text-shadow:0 0 8px #ff8fbe,2px 2px 0 #c3a0d8;margin-bottom:26px}
+.loadbody .logo::after{content:"_";animation:blinkc 1s infinite}
+.loadbody h1{font-size:14px;font-weight:400;color:#8a4f74;margin-bottom:24px}
+.loadbody input{width:100%;padding:11px 12px;font-size:16px;font-family:inherit;color:#4a4276;text-align:center;outline:none;border-radius:0}
+.loadbody input::placeholder{color:#c9a6c2}
+.loadbody button{margin-top:12px;width:100%;padding:11px;font-size:13px;letter-spacing:.3em;text-indent:.3em;border-radius:0;
+ background:linear-gradient(180deg,#fff0f7,#ffc2dd)}
+.taskbar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:6px;padding:5px 7px calc(5px + env(safe-area-inset-bottom));
+ background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
+.taskbar .start{display:flex;align-items:center;gap:5px;padding:5px 11px;font-size:11px}
+.taskbar .clock{margin-left:auto;padding:5px 10px;font-size:10.5px;color:#6b5fa8}
+/* 방 목록: 크롬 스타 월페이퍼 위 메신저 창 */
+.desk{background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#c6b9f0 url("bg-wallpaper.png") center/cover}
+.hdrsub{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(240,236,252,.78);
+ border-bottom:1px solid #c5bce8;font-size:11px;color:#6b5fa8}
+.iconbtn{margin-left:auto;width:34px;height:30px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
+.iconbtn.loading{animation:blink 1s steps(2) infinite}
+.tabs{flex:none;display:flex;gap:4px;padding:9px 12px 0}
+.tab{padding:6px 13px 7px;font-size:11px;color:#8a7fc0;background:rgba(226,220,246,.85);border:1px solid #8a7fc0;border-bottom:none;
+ border-radius:7px 7px 0 0}
+.tab.on{background:#fff;color:#4a4276;position:relative;top:1px}
+.roomswrap{flex:1;display:flex;flex-direction:column;margin:0 12px;background:rgba(255,255,255,.9);border:1px solid #8a7fc0;
+ box-shadow:inset 1px 1px 0 rgba(93,84,144,.2);overflow:hidden}
+.rooms{flex:1;overflow-y:auto;padding:10px}
+.sect{margin:12px 4px 6px;font-size:9.5px;letter-spacing:.32em;color:#b0a6d8}
+.roomcard{position:relative;display:flex;align-items:center;gap:11px;padding:11px 9px;cursor:pointer;
+ border-bottom:1px dotted #d8d1f0;animation:fadeUp .3s steps(4) both}
+.roomcard:hover{background:#f3eefd}
+.roomcard:active{background:#e9e2fa}
+.roomcard.watch{background:linear-gradient(180deg,#ffffff,#e2e7f6);border:1px solid #9aa3d8;border-radius:6px;margin-top:2px;
+ box-shadow:inset 0 1px 0 #fff,1px 2px 0 rgba(93,84,144,.22)}
+.roomcard.watch:hover{background:linear-gradient(180deg,#ffffff,#eaeefb)}
+.avatar{position:relative;width:42px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;
+ border:1px solid #8a7fc0;border-radius:50%;
+ box-shadow:inset 0 2px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(93,84,144,.14),1px 2px 0 rgba(93,84,144,.28)}
+.rinfo{flex:1;min-width:0}
+.rtop{display:flex;align-items:baseline;gap:7px}
+.rname{font-size:13.5px}
+.rtag{font-size:9px;padding:2px 6px;border:1px solid currentColor;border-radius:8px;letter-spacing:.05em;white-space:nowrap;flex:none}
+.rtime{margin-left:auto;font-size:9.5px;color:#b0a6d8;flex:none}
+.rprev{margin-top:5px;font-size:11px;color:#9a8fc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.watch .rprev{color:#8a90b8}
+.watch .rtime{color:#6d74a3}
+.rbadge{flex:none;min-width:20px;height:20px;padding:0 6px;font-size:10px;color:#fff;border-radius:10px;
+ display:flex;align-items:center;justify-content:center;background:#ff7fae;border:1px solid #5d5490;
+ box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),1px 1px 0 rgba(93,84,144,.3)}
+.statusbar{flex:none;display:flex;gap:4px;padding:7px 8px calc(8px + env(safe-area-inset-bottom))}
+.statusbar span{padding:5px 9px;font-size:10px;color:#6b5fa8;background:#ece8fa;border:1px solid #b0a6d8;
+ box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
+.statusbar span:first-child{flex:1}
+/* ── 채팅방 ── */
+.chatbar{flex:none;display:flex;align-items:center;gap:9px;padding:8px 11px;background:#ece8fa;border-bottom:1px solid #c5bce8}
+.backbtn{width:30px;height:27px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
+.cname{font-size:13.5px}
+.csub{font-size:9.5px;color:#9a8fc8;margin-top:3px}
+.msgs{flex:1;overflow-y:auto;padding:16px 12px 10px;display:flex;flex-direction:column;gap:3px;
+ background:#fdfcff;border-top:1px solid #fff;box-shadow:inset 1px 2px 4px rgba(93,84,144,.14)}
+/* 관전방: 미디어 플레이어 흰 스크린 */
+.watchbg .msgs{background:#fdfffe}
+.divider{align-self:center;margin:12px 0 8px;font-size:9.5px;color:#c39ede;letter-spacing:.1em}
+.mrow{display:flex;align-items:flex-end;gap:8px;animation:fadeUp .28s steps(4) both}
+.mrow.me{justify-content:flex-end}
+.mrow .sp{width:26px;flex:none}
+.mavatar{width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;
+ border:1px solid #8a7fc0;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),1px 1px 0 rgba(93,84,144,.25)}
+.mcol{display:flex;flex-direction:column;max-width:76%}
+.mname{font-size:9.5px;margin:6px 0 3px 2px;letter-spacing:.04em;color:#9a8fc8}
+.bubble{padding:8px 11px;font-size:12.5px;line-height:1.65;word-break:break-word;white-space:pre-wrap;border-radius:8px;
+ background:#fff;border:1px solid #8a7fc0;color:#4a4276;box-shadow:2px 2px 0 rgba(138,127,192,.28)}
+.mrow:not(.me) .bubble{border-bottom-left-radius:2px}
+.mrow.me .bubble{border-bottom-right-radius:2px;box-shadow:-2px 2px 0 rgba(255,143,190,.4)}
+.typing{display:flex;gap:5px;padding:12px 12px}
+.typing i{width:5px;height:5px;border-radius:50%;background:#8a7fc0;animation:blink 1s steps(2) infinite}
+.typing i:nth-child(2){animation-delay:.15s}
+.typing i:nth-child(3){animation-delay:.3s}
+.retry{align-self:flex-start;margin:8px 0 4px 34px;padding:8px 13px;font-family:inherit;font-size:11px;border-radius:0;
+ border:1px solid #d4586b;background:#fff0f3;color:#c23b50;cursor:pointer;
+ box-shadow:inset 1px 1px 0 #fff,2px 2px 0 rgba(212,88,107,.3);animation:fadeUp .3s steps(4)}
+.retry:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 #ffd7de}
+/* 입력바 */
+.inputbar{flex:none;display:flex;align-items:center;gap:8px;padding:9px 10px calc(11px + env(safe-area-inset-bottom));
+ background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
+.inputbar input{flex:1;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;outline:none;border-radius:0}
+.inputbar input::placeholder{color:#b0a6d8}
+.sendbtn{width:40px;height:37px;display:flex;align-items:center;justify-content:center;flex:none;color:#4a4276}
+.watchbar{flex:none;display:flex;align-items:center;justify-content:center;gap:8px;
+ padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:11px;letter-spacing:.08em;color:#2f9e5a;
+ background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
+.rec{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5470;animation:recblink 1.2s infinite}
+.empty{margin:auto;text-align:center;color:#b0a6d8;font-size:11.5px;line-height:2;letter-spacing:.04em;padding:0 30px}
+.msgs::-webkit-scrollbar,.rooms::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+const API = "https://null-api.re-moonroom.workers.dev/";
+
+/* 캐릭터 / 방 정의 */
+const CHARS = {
+  jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.png",pos:"47% 9%",
+    gallery:["jaeeon-treat.png","jaeeon-care.png","jaeeon-cook.png","jaeeon-work.png"]},
+  minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.png",pos:"38% 11%",
+    gallery:["minhyun-candy.png","minhyun-corridor.png","minhyun-rain.png","minhyun-gate.png"]},
+};
+const ROOMS = [
+  {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사"},
+  {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년"},
+  {id:"group",  name:"단톡방", color:"#B8A5E3", type:"group", sub:"group chat"},
+  {id:"health", name:"보건실", color:"#9aa3d8", type:"watch", sub:"LIVE cam"},
+];
+const roomOf = id => ROOMS.find(r=>r.id===id);
+
+/* 색 유틸: hex → rgba */
+const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
+
+/* localStorage */
+const loadStore=()=>{try{const s=JSON.parse(localStorage.getItem("null_store_v1"));if(s&&s.msgs)return{msgs:s.msgs,unread:s.unread||{}}}catch(e){}return{msgs:{},unread:{}}};
+const saveStore=s=>{try{localStorage.setItem("null_store_v1",JSON.stringify(s))}catch(e){}};
+
+/* 시간 포맷 */
+const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
+const isToday=ts=>{const d=new Date(ts),n=new Date();return d.toDateString()===n.toDateString()};
+const fmtDivider=ts=>isToday(ts)?fmtClock(ts):`${new Date(ts).getMonth()+1}월 ${new Date(ts).getDate()}일 ${fmtClock(ts)}`;
+const fmtListTime=ts=>isToday(ts)?fmtClock(ts):`${new Date(ts).getMonth()+1}월 ${new Date(ts).getDate()}일`;
+
+/* 아이콘: 픽셀풍 (crispEdges) */
+const px={shapeRendering:"crispEdges"};
+const MoonIcon=()=><svg width="14" height="14" viewBox="0 0 14 14" style={px}><path d="M9 1h2v1h1v1h-1v-1h-2v1H7v1H6v2H5v3h1v1h1v1h2v1h2v1h1v1h-1v1H8v-1H6v-1H4v-1H3v-1H2v-2H1V6h1V4h1V3h1V2h2V1h3z" fill="currentColor" opacity=".9"/><rect x="8" y="2" width="3" height="1" fill="currentColor"/><rect x="7" y="3" width="1" height="1" fill="currentColor"/></svg>;
+const BackIcon=()=><svg width="13" height="13" viewBox="0 0 14 14" style={px}><path d="M8 2h2v2H8v2H6v2h2v2h2v2H8v-2H6V8H4V6h2V4h2V2z" fill="currentColor"/></svg>;
+const SendIcon=()=><svg width="14" height="14" viewBox="0 0 14 14" style={px}><path d="M6 1h2v2h2v2h2v2h-2V5H8v8H6V5H4v2H2V5h2V3h2V1z" fill="currentColor"/></svg>;
+const EyeIcon=({size=16})=><svg width={size} height={size} viewBox="0 0 16 16" style={px}><path d="M4 4h8v1h2v2h1v2h-1v2h-2v1H4v-1H2V9H1V7h1V5h2V4z" fill="none" stroke="currentColor" strokeWidth="1.4"/><rect x="6.5" y="6.5" width="3" height="3" fill="currentColor"/></svg>;
+const StarGlyph=({color="#fff"})=><span style={{fontSize:11,color,textShadow:"1px 1px 0 rgba(93,84,144,.4)"}}>✦</span>;
+/* 캐릭터 프로필 아이콘: 재언=픽셀 크로스, 민현=스타, 단톡=하트 2개, 보건실=레트로 TV */
+const CrossIcon=({size=14,color="#3fbdb4"})=><svg width={size} height={size} viewBox="0 0 14 14" style={px}><path d="M5 2h4v3h3v4H9v3H5V9H2V5h3V2z" fill={color}/></svg>;
+const Star4Icon=({size=14,color="#ff8a5f"})=><svg width={size} height={size} viewBox="0 0 14 14"><path d="M7 0l1.8 5.2L14 7l-5.2 1.8L7 14 5.2 8.8 0 7l5.2-1.8z" fill={color}/></svg>;
+const HeartIcon=({size=14,color="#ff8fbe"})=><svg width={size} height={size} viewBox="0 0 14 14" style={px}><path d="M3 2h3v1h2v-1h3v1h1v1h1v3h-1v1h-1v1h-1v1h-1v1h-1v1h-2v-1h-1v-1h-1v-1h-1v-1h-1v-1h-1v-3h1v-1h1z" fill={color}/></svg>;
+const TvIcon=({size=16})=><svg width={size} height={size} viewBox="0 0 16 16"><path d="M5 1l3 3 3-3" fill="none" stroke="#6b5fa8" strokeWidth="1.2"/><rect x="1.5" y="4.5" width="13" height="9" rx="1.5" fill="#fff" stroke="#6b5fa8"/><rect x="3.5" y="6.5" width="6" height="5" rx=".5" fill="#9fe8c4" stroke="#6b5fa8" strokeWidth=".8"/><circle cx="12" cy="8" r=".9" fill="#ff8fbe"/><circle cx="12" cy="10.5" r=".9" fill="#8fb8ff"/></svg>;
+const CharIcon=({id,size=15})=>id==="jaeeon"?<CrossIcon size={size} color={CHARS.jaeeon.dk}/>:id==="minhyun"?<Star4Icon size={size} color={CHARS.minhyun.dk}/>:<HeartIcon size={size}/>;
+
+/* 떠다니는 반짝이 레이어 */
+const SPARKS=[[6,10,10,"#fff"],[86,7,8,"#ffd0e6"],[70,24,12,"#fff"],[13,42,9,"#ffe9a8"],[91,50,10,"#d5c8ff"],[38,68,8,"#fff"],[76,84,11,"#ffd0e6"],[8,88,8,"#d5c8ff"]];
+const Sparkles=()=><React.Fragment>{SPARKS.map((s,i)=><span key={i} className="spark" style={{left:s[0]+"%",top:s[1]+"%",width:s[2],height:s[2],background:s[3],animationDelay:(i*0.4)+"s"}}/>)}</React.Fragment>;
+
+/* 창 타이틀바의 동그란 ─ □ ✕ */
+const WinDots=()=><div className="dots"><span className="d1">─</span><span className="d2">□</span><span className="d3">✕</span></div>;
+
+/* 아바타 */
+/* 프로필 사진 줄맄 스타일 */
+const faceBg=ch=>({backgroundImage:`url("${ch.img}")`,backgroundSize:"240%",backgroundPosition:ch.pos,backgroundColor:ch.pale});
+function Avatar({room,size=42}){
+  const st={width:size,height:size};
+  if(room.type==="group"){ // 겹친 픽셀 하트 두 개 (테마컬러)
+    return <div className="avatar" style={{...st,background:"linear-gradient(180deg,#ffffff,#e9defc)"}}>
+      <div style={{position:"relative",width:size*.64,height:size*.52}}>
+        <span style={{position:"absolute",left:0,top:0,lineHeight:0}}><HeartIcon size={size*.42} color={CHARS.jaeeon.color}/></span>
+        <span style={{position:"absolute",right:0,bottom:0,lineHeight:0}}><HeartIcon size={size*.42} color={CHARS.minhyun.color}/></span>
+      </div></div>;
+  }
+  if(room.type==="watch"){ // 관전방: 레트로 TV
+    return <div className="avatar" style={{...st,background:"linear-gradient(180deg,#ffffff,#dde3f4)"}}><TvIcon size={size*.58}/></div>;
+  }
+  return <div className="avatar" style={{...st,...faceBg(CHARS[room.id])}}/>;
+}
+
+/* ── 온보딩: now loading 창 ── */
+function Onboarding({onEnter}){
+  const [v,setV]=useState("");
+  const go=()=>{const t=v.trim();if(t)onEnter(t)};
+  return <div className="screen onb">
+    <Sparkles/>
+    <div className="loadwin">
+      <div className="tb">now loading...<WinDots/></div>
+      <div className="loadbody">
+        <div className="logo">NULL</div>
+        <h1>안녕, 널 입력해줘.</h1>
+        <input className="sunken" value={v} maxLength={12} placeholder="이름" autoFocus
+          onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()}/>
+        <button className="bevel" disabled={!v.trim()} onClick={go}>입장</button>
+      </div>
+    </div>
+    <div className="taskbar">
+      <button className="bevel start"><StarGlyph color="#ff8fbe"/>시작</button>
+      <span className="clock sunken">{fmtClock(Date.now())}</span>
+    </div>
+  </div>;
+}
+
+/* ── 방 목록: 메신저 창 ── */
+function RoomList({store,name,onOpen,onAuto,autoLoading}){
+  return <div className="screen desk">
+    <Sparkles/>
+    <div className="tb"><StarGlyph/>NULL messenger<WinDots/></div>
+    <div className="menubar"><span>파일</span><span>편집</span><span>대화</span><span>도움말</span></div>
+    <div className="hdrsub">
+      <span>{name} · 교생</span>
+      <button className={"iconbtn bevel"+(autoLoading?" loading":"")} title="시간 경과" onClick={onAuto} disabled={autoLoading}><MoonIcon/></button>
+    </div>
+    <div className="tabs"><span className="tab on">대화방 (4)</span><span className="tab">Cam</span></div>
+    <div className="roomswrap">
+      <div className="rooms">
+        {ROOMS.map((r,i)=>{
+          const ms=store.msgs[r.id]||[], last=ms[ms.length-1], un=store.unread[r.id]||0;
+          const watch=r.type==="watch";
+          return <React.Fragment key={r.id}>
+            {watch&&<div className="sect">✧ LIVE</div>}
+            <div className={"roomcard"+(watch?" watch":"")} style={{animationDelay:`${i*0.05}s`}} onClick={()=>onOpen(r.id)}>
+              <Avatar room={r}/>
+              <div className="rinfo">
+                <div className="rtop">
+                  <span className="rname">{r.name}</span>
+                  <span className="rtag" style={{color:watch?"#8d93bd":"#9a8fc8",background:watch?"transparent":rgba(r.color,.22)}}>{r.sub}</span>
+                  {last&&<span className="rtime">{fmtListTime(last.ts)}</span>}
+                </div>
+                <div className="rprev">{last?(last.sender==="user"?"나: ":"")+last.text : (watch?"조용하다. 아직은.":"대화를 시작해보세요")}</div>
+              </div>
+              {un>0&&<span className="rbadge">{un}</span>}
+            </div>
+          </React.Fragment>;
+        })}
+      </div>
+    </div>
+    <div className="statusbar"><span>있지만 없는 존재 — NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
+  </div>;
+}
+
+/* ── 채팅방 ── */
+function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry}){
+  const [v,setV]=useState("");
+  const boxRef=useRef(null);
+  const watch=room.type==="watch";
+  useEffect(()=>{const el=boxRef.current;if(el)requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight})},[msgs.length,busy,failed]);
+  const send=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
+  const senderMeta=s=>s==="user"?null:(CHARS[s]||{name:s,color:"#9aa3d8",pale:"#e2e6f5",dk:"#6b5fa8"});
+  return <div className={"screen"+(watch?" watchbg":"")}>
+    <div className="tb" style={{background:watch?"linear-gradient(90deg,#aab3d6,#c9c0ee)":`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
+      {room.name}{watch?".cam":".chat"}<WinDots/>
+    </div>
+    <div className="chatbar">
+      <button className="backbtn bevel" onClick={onBack}><BackIcon/></button>
+      <Avatar room={room} size={31}/>
+      <div>
+        <div className="cname">{room.name}</div>
+        <div className="csub">{watch?<><span className="rec"/> 두 사람의 대화를 보는 중</>:room.sub}</div>
+      </div>
+    </div>
+    <div className="msgs" ref={boxRef}>
+      {msgs.length===0&&!busy&&<div className="empty">
+        {watch?<>아직 아무 일도 일어나지 않았다.<br/>시간이 흐르면, 무언가 들릴지도 모른다.</>:<><span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>아직 대화가 없어요.<br/>먼저 말을 걸어보세요.</>}
+      </div>}
+      {msgs.map((m,i)=>{
+        const prev=msgs[i-1];
+        const gap=!prev||m.ts-prev.ts>10*60*1000;
+        const me=m.sender==="user";
+        const meta=senderMeta(m.sender);
+        const head=gap||!prev||prev.sender!==m.sender; // 클러스터 시작
+        const showName=head&&!me&&(room.type==="group"||watch);
+        return <React.Fragment key={m.id||i}>
+          {gap&&<div className="divider">✦ {fmtDivider(m.ts)} ✦</div>}
+          <div className={"mrow"+(me?" me":"")} style={{marginTop:head?8:0}}>
+            {!me&&(head?
+              <div className="mavatar" style={meta.img?faceBg(meta):{background:`linear-gradient(180deg,#ffffff, ${meta.pale}`+")"}}>{!meta.img&&<CharIcon id={m.sender} size={13}/>}</div>
+              :<div className="sp"/>)}
+            <div className="mcol">
+              {showName&&<span className="mname" style={{color:meta.dk}}>{meta.name}</span>}
+              <div className="bubble" style={me?{background:`linear-gradient(135deg, ${rgba(room.color,.5)} 0%, #ffffff 135%)`}:null}>{m.text}</div>
+            </div>
+          </div>
+        </React.Fragment>;
+      })}
+      {busy&&<div className="mrow" style={{marginTop:8}}>
+        <div className="mavatar" style={{background:"#ece8fa"}}/>
+        <div className="bubble typing"><i/><i/><i/></div>
+      </div>}
+      {failed&&!busy&&<button className="retry" onClick={onRetry}>응답이 오지 않았어요 · 다시 시도</button>}
+    </div>
+    {watch?
+      <div className="watchbar"><span className="rec"/>이 대화에는 참여할 수 없습니다</div>
+      :<div className="inputbar">
+        <input className="sunken" value={v} placeholder="메시지 입력..." onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
+        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
+      </div>}
+  </div>;
+}
+
+/* ── 앱 ── */
+function App(){
+  const [name,setName]=useState(()=>localStorage.getItem("null_name")||"");
+  const [store,setStore]=useState(loadStore);
+  const [view,setView]=useState("list");            // 'list' | roomId
+  const [busy,setBusy]=useState({});                // 방별 타이핑 인디케이터
+  const [failed,setFailed]=useState({});            // 방별 실패 payload (재시도용)
+  const [autoLoading,setAutoLoading]=useState(false);
+  const viewRef=useRef(view); viewRef.current=view;
+  const storeRef=useRef(store); storeRef.current=store;
+  const queueRef=useRef([]);                        // 순차 표시 대기열
+  const runningRef=useRef(false);
+  const inflightRef=useRef({});
+  useEffect(()=>{saveStore(store)},[store]);
+
+  /* 메시지 추가 (+현재 안 보고 있는 방이면 unread 증가) */
+  const appendMsg=(room,msg)=>setStore(s=>({
+    msgs:{...s.msgs,[room]:[...(s.msgs[room]||[]),msg]},
+    unread:viewRef.current!==room?{...s.unread,[room]:(s.unread[room]||0)+1}:s.unread
+  }));
+
+  /* 대기열 처리: 0.6초 간격 순차 등장 */
+  const pump=()=>{
+    if(runningRef.current)return;
+    runningRef.current=true;
+    const step=()=>{
+      const it=queueRef.current.shift();
+      if(!it){runningRef.current=false;return}
+      appendMsg(it.room,{id:Date.now()+Math.random(),sender:it.sender,text:it.text,ts:Date.now()});
+      if(!queueRef.current.some(q=>q.room===it.room)&&!inflightRef.current[it.room])
+        setBusy(b=>({...b,[it.room]:false}));
+      setTimeout(step,600);
+    };
+    setTimeout(step,500); // 타이핑 인디케이터를 잠깐 보여준 뒤 첫 버블
+  };
+  const enqueue=(room,messages)=>{
+    messages.forEach(m=>{if(m&&m.text)queueRef.current.push({room,sender:m.sender||room,text:m.text})});
+    pump();
+  };
+
+  /* history / signals 구성 */
+  const buildHistory=ms=>ms.slice(-30).map(m=>({role:m.sender==="user"?"user":"assistant",sender:m.sender,content:m.text}));
+  const buildSignals=exclude=>{
+    const sig={},t0=new Date();t0.setHours(0,0,0,0);
+    ["jaeeon","minhyun","group"].forEach(r=>{
+      if(r===exclude)return;
+      const ms=storeRef.current.msgs[r]||[];if(!ms.length)return;
+      sig[r]={count:ms.filter(m=>m.ts>=t0.getTime()).length,minsAgo:Math.max(0,Math.floor((Date.now()-ms[ms.length-1].ts)/60000))};
+    });
+    return sig;
+  };
+
+  /* API 요청 — 실패 시 조용한 재시도 버튼 */
+  const request=async(bucket,payload)=>{
+    inflightRef.current[bucket]=true;
+    setBusy(b=>({...b,[bucket]:true}));
+    setFailed(f=>({...f,[bucket]:null}));
+    try{
+      const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      if(!res.ok)throw new Error(res.status);
+      const data=await res.json();
+      inflightRef.current[bucket]=false;
+      const list=(data&&data.messages)||[];
+      if(list.length)enqueue(bucket,list);
+      else setBusy(b=>({...b,[bucket]:false}));
+    }catch(e){
+      inflightRef.current[bucket]=false;
+      setBusy(b=>({...b,[bucket]:false}));
+      setFailed(f=>({...f,[bucket]:payload}));
+    }
+  };
+
+  /* 일반 대화 전송 */
+  const send=(room,text)=>{
+    const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};
+    appendMsg(room,userMsg);
+    const history=buildHistory([...(storeRef.current.msgs[room]||[]),userMsg]);
+    request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room)});
+  };
+  /* 재시도: 저장해둔 payload를 최신 history로 갱신해 다시 전송 */
+  const retry=room=>{
+    const p=failed[room];if(!p)return;
+    if(p.mode==="chat")p.history=buildHistory(storeRef.current.msgs[room]||[]);
+    request(room,p);
+  };
+  /* 시간 경과(달 버튼): 자율 대화 생성 → 관전방에 축적 */
+  const doAuto=async()=>{
+    if(autoLoading)return;
+    setAutoLoading(true);
+    await request("health",{mode:"auto",user_name:name,
+      history:buildHistory(storeRef.current.msgs.health||[]),signals:buildSignals(null)});
+    setAutoLoading(false);
+  };
+
+  const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}))};
+  const enter=n=>{localStorage.setItem("null_name",n);setName(n)};
+
+  return <div className="phone">
+    {!name?<Onboarding onEnter={enter}/>
+    :view==="list"?<RoomList store={store} name={name} onOpen={openRoom} onAuto={doAuto} autoLoading={autoLoading}/>
+    :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]}
+       onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)}/>}
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#b8a5e3"/><text x="50" y="58" text-anchor="middle" font-family="monospace" font-size="26" letter-spacing="4" fill="#fff">NULL</text></svg></template>
+</body>
+</html>
