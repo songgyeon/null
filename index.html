@@ -237,12 +237,8 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 /* 배경만 크게 — 카드도 어둡기도 없이 사진 그대로 */
 .bgfull{position:absolute;inset:0;z-index:44;background:#2b244e center/cover no-repeat;cursor:pointer;
  animation:fadeUp .2s steps(3) both}
-.bgfull .cvtag{left:12px;top:12px}
 .bgclose{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-size:9px;letter-spacing:.2em;
  color:rgba(255,255,255,.85);text-shadow:0 1px 3px rgba(0,0,0,.6)}
-.cvtag{position:absolute;left:10px;top:9px;z-index:1;padding:3px 9px;border-radius:999px;
- font-size:8.5px;letter-spacing:.16em;color:#fff;background:rgba(43,36,78,.5);
- border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(3px)}
 .pftop{display:flex;flex-direction:column;align-items:center;padding:0 18px;margin-top:-52px;position:relative}
 .pfpola{position:relative;background:#fff;padding:7px 7px 5px;border:1px solid #e7dcf4;
  box-shadow:2px 2px 3px rgba(0,0,0,.12)}
@@ -550,13 +546,13 @@ const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:
 
 /* 단계별 상태메시지 — 없으면 안 띄운다 */
 const PROFILES={
-  jaeeon:{bg:"jaeeon-bg.png",bgName:"exhibition",stages:[
+  jaeeon:{bg:"jaeeon-bg.png",stages:[
     {status:"",                  track:"jaeeon-1"},
     {status:"별일 없음.",                  track:"jaeeon-1"},
     {status:"약 채워 놓을 것.",                  track:"jaeeon-1"},
     {status:"정리할 것들.",                  track:"jaeeon-1"},
   ]},
-  minhyun:{bg:"minhyun-bg.png",bgName:"rock festival",stages:[
+  minhyun:{bg:"minhyun-bg.png",stages:[
     {status:"",                  track:"minhyun-1"},
     {status:"보건실 침대가 제일 낫다",                  track:"minhyun-1"},
     {status:"안 물어보면 말 안 함",                  track:"minhyun-1"},
@@ -604,7 +600,6 @@ function Profile({char,count,onBack}){
         </div>
         <div className="pfcover" style={{backgroundImage:`url("${p.bg}")`}}
              onClick={()=>setFull(true)} title="배경만 보기">
-          {p.bgName&&<span className="cvtag">{p.bgName}</span>}
           <span className="cvzoom">↗</span>
         </div>
         <div className="pftop">
@@ -632,7 +627,6 @@ function Profile({char,count,onBack}){
       </div>
     </div>
     {full&&<div className="bgfull" style={{backgroundImage:`url("${p.bg}")`}} onClick={()=>setFull(false)}>
-      {p.bgName&&<span className="cvtag">{p.bgName}</span>}
       <span className="bgclose">tap to close</span>
     </div>}
   </div>;
