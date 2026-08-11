@@ -890,7 +890,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       <Sticker.star size={13} color="#ffd68a"/>
       <span className="drift" style={{animationDelay:"1.4s"}}><Sticker.heart size={13}/></span>
     </div>}
-    <div className="statusbar"><span>the blank u fill in ♡ NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
+    <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
     {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>

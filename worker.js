@@ -434,6 +434,9 @@ const MINHYUN = `
 8. **집착이 사소한 확인으로 샌다.** 큰 요구가 아니라 자꾸 확인한다.
    "지금 어디예요?" / "아직 안 갔죠?" / "내일도 있죠?"
 9. ㅋ, ㅡㅡ, 말줄임표를 쓴다. 문장이 길어지다 갑자기 끊긴다.
+   말줄임표는 **끝에서** 끊길 때 쓰는 것이다. 문장 앞에 붙이지 않는다.
+   ("...누구요." x / "누구요." o / "누구세요, 그게..." o)
+   한 응답에서 말줄임표는 한 번이면 충분하다. 매번 붙으면 말버릇이 아니라 말투 고장이다.
 
 ### 말투 예시
 "뭐야..." (웃으면서) / "뭐라고 안 해요?" / "그럼 뭔데요." / "소문낼 거예요." (협박인데 웃고 있다) / "진짜죠?" / "봐서요." / "그게 설명인데. 삼촌도 참." / "선생님 밥 사주세요." (협박인데 웃고 있다) / "저 어디 안 가요." (뻔뻔한데 간절하다) / "...근데 진짜예요?" / "별로요." / "그냥 사는 중인데요."
@@ -716,6 +719,9 @@ const TICS = `
   한 대화 안에서 같은 표현을 두 번 쓰지 않고, 최근에 이미 쓴 말은 다른 말로 바꾼다.
   특히 "밥은?" "삼촌도 참" "진짜죠?" 처럼 입에 붙는 말일수록 간격을 둔다.
 - 말줄임표만으로 이루어진 말풍선은 정말로 말이 막혔을 때만 쓴다. 한 응답에 한 번을 넘기지 않고, 연달아 두 번은 쓰지 않는다.
+- 말줄임표를 **문장 앞에** 붙이지 않는다. 말끝이 흐려지는 것이지, 말머리가 흐려지는 게 아니다.
+  한 응답의 모든 말풍선이 "..."으로 시작하면 그건 머뭇거림이 아니라 고장 난 말투다.
+  (x) "...누구요." / "...삼촌이요?" / "...진짜예요?"   (o) "누구요." / "삼촌이요?" / "진짜예요?"
 - 침묵은 점 세 개가 아니라 짧은 대답, 화제 전환, 대답하지 않고 다른 말을 하는 것으로도 표현된다. 그쪽을 먼저 쓴다.
 - 최근 대화에서 이미 쓴 문장("됐어", "그러든가", "봐서요", "진짜죠?", "별로요")은 다시 쓰지 않는다. 같은 뜻을 다른 말로 한다.
 `;
@@ -994,42 +1000,46 @@ async function narrowDown(env, m, system, messages, maxTokens, first) {
   throw new Error(`anthropic ${first.status}: ${first.body} | ${shape}`);
 }
 
-// 괄호만으로 이뤄진 줄 — 대사가 아니라 행동 지문이다
-const NARRATION = /^[（(][^()（）]*[)）]$/;
-
-/* 지문은 말풍선이 아니라 채팅창에 쳐진 줄로 보여준다.
-   모델이 지문과 대사를 한 말풍선에 섞어 보내면 프론트가 쪼갤 수 없으므로
-   여기서 줄 단위로 갈라둔다. 사진이 붙은 말풍선은 건드리지 않는다. */
-function splitNarration(list) {
+/* 줄바꿈이 든 말풍선은 줄마다 하나씩 갈라놓는다.
+   메신저에서 줄바꿈은 곧 다음 말풍선이고, 무엇보다 아래 trimTics가
+   "말풍선 단위"로 말버릇을 거르기 때문이다. 한 말풍선 안에 "..."이
+   여러 줄 들어 있으면 필터가 손도 못 대고 그대로 나간다(점돌이 현상).
+   지문 줄도 이 과정에서 자기 말풍선을 갖게 된다.
+   사진이 붙은 말풍선은 건드리지 않는다 — 캡션이 사진에서 떨어져 나간다. */
+function splitLines(list) {
   const out = [];
   for (const m of list) {
     const text = (m.text || "").toString();
-    if (m.photo || !/[（(]/.test(text)) { out.push(m); continue; }
+    if (m.photo || !text.includes("\n")) { out.push(m); continue; }
     const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
     if (!lines.length) { out.push(m); continue; }
-    let buf = [];
-    const flush = () => { if (buf.length) { out.push({ ...m, text: buf.join("\n") }); buf = []; } };
-    for (const line of lines) {
-      if (NARRATION.test(line)) { flush(); out.push({ sender: m.sender, text: line }); }
-      else buf.push(line);
-    }
-    flush();
+    for (const line of lines) out.push({ ...m, text: line });
   }
   return out.length ? out : list;
 }
 
 // 점만 있는 말풍선(..., ㆍㆍㆍ, …)인지
 const ONLY_DOTS = /^[.·ㆍ…\s]+$/;
+// 문장 앞에 달라붙은 말줄임표 ("...아니었어요. 사고." 의 맨 앞)
+const LEAD_DOTS = /^[.·ㆍ…]{2,}\s*/;
 
 // 프롬프트로 눌러도 새는 말버릇을 응답 단계에서 한 번 더 거른다.
 // - 점만 있는 말풍선은 한 응답에 하나만 남긴다
-// - 그것이 마지막에 홀로 남으면 아예 버린다 (대화가 끊긴 것처럼 보이므로)
+// - 문장을 말줄임표로 시작하는 것도 한 응답에 하나만 (나머지는 앞의 점만 뗀다)
+//   민현이 모든 줄을 "..."으로 시작해 화면이 점으로 뒤덮이던 것을 막는다
+// - 점만 있는 말풍선이 마지막에 홀로 남으면 아예 버린다 (대화가 끊긴 것처럼 보이므로)
 function trimTics(list) {
   const out = [];
-  let dots = 0;
+  let dots = 0, lead = 0;
   for (const m of list) {
     const isDots = !m.photo && ONLY_DOTS.test(m.text || "");
-    if (isDots) { if (dots) continue; dots++; }
+    // 점만 있는 말풍선도 화면에서는 같은 몸짓이다 — 말줄임표 예산을 같이 쓴다.
+    // 안 그러면 "..." 다음 줄이 "...아니었어요"로 이어져 점이 두 번 연달아 보인다.
+    if (isDots) { if (dots) continue; dots++; lead++; out.push(m); continue; }
+    if (!m.photo && LEAD_DOTS.test(m.text || "")) {
+      if (lead) { out.push({ ...m, text: m.text.replace(LEAD_DOTS, "") }); continue; }
+      lead++;
+    }
     out.push(m);
   }
   while (out.length > 1) {
@@ -1313,7 +1323,7 @@ export default {
       const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
-      const messages = trimTics(sanitizePhotos(splitNarration(parseMessages(raw, fallbackSender, chars)), photoChars, fallbackSender, recentPhotos));
+      const messages = trimTics(sanitizePhotos(splitLines(parseMessages(raw, fallbackSender, chars)), photoChars, fallbackSender, recentPhotos));
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts), status: statusOf(counts) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
