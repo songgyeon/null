@@ -405,11 +405,13 @@ function allowedChars(mode, room) {
   return [room === "jaeeon" ? "jaeeon" : "minhyun"];
 }
 
-function buildPhotoGuide(chars, recent) {
+// 최근에 쓴 사진 목록은 매 턴 바뀐다. 여기서 걸러내면 프롬프트가 매번 달라져
+// 캐시가 깨지므로, 목록 자체는 고정해두고 제외는 뒤쪽(가변부)에서 말해준다.
+function buildPhotoGuide(chars) {
   const lines = Object.entries(PHOTOS)
-    .filter(([k, p]) => chars.includes(p.char) && !recent.includes(k))
+    .filter(([, p]) => chars.includes(p.char))
     .map(([k, p]) => `- "${k}" (${CHAR_LABEL[p.char]}): ${p.when}`);
-  if (!lines.length) return ""; // 보낼 수 있는 사진이 남아있지 않다
+  if (!lines.length) return ""; // 보낼 수 있는 사진이 없다
   return `
 ## 사진 보내기 (선택)
 캐릭터는 직접 찍은 사진을 보낼 수 있다. 말풍선 대신, 또는 짧은 말과 함께.
@@ -456,8 +458,9 @@ const FORMAT_AUTO = `
 - 대화 어딘가에서 유저({user_name}) 이야기가 나온다 — 직접적이든("그 교생...") 에둘러서든.
 - 각자의 자율 대화 가이드를 따른다: 이재언은 교생 얘기에 경직되고, 이민현은 떠보고 읽는다.
 - 유저에 대해 아는 것은 [눈치 신호]에 주어진 것뿐이다. 1:1 대화 내용을 직접 아는 것처럼 말하지 않는다.
+- 유저가 없는 자리다. 사진은 쓰지 않는다 — "photo" 필드를 넣지 않는다.
 - 반드시 아래 JSON만 출력한다. 다른 텍스트 금지:
-{"messages": [{"sender": "jaeeon", "text": "밥은 먹었고."}, {"sender": "minhyun", "text": "먹었다고요", "photo": "사진키"}]}
+{"messages": [{"sender": "jaeeon", "text": "밥은 먹었고."}, {"sender": "minhyun", "text": "먹었다고요"}]}
 `;
 
 // ─────────────────────────────────────────────
@@ -583,6 +586,12 @@ function buildProfile(p) {
   return `\n## [유저에 대해 아는 것]\n지내면서 자연스럽게 알게 된 것들이다. 목록을 읊지 말고, 말이 나올 자리에만 스치듯 쓴다.\n${lines.join("\n")}\n`;
 }
 
+// 시스템 프롬프트를 두 덩어리로 나눈다.
+//   고정부 — 세계관·인물·형식·말버릇·사진 목록. 같은 방이면 매 턴 완전히 같다.
+//   가변부 — 관계 단계, 유저 프로필, 신호, 최근 사진 제외.
+// 고정부에 cache_control을 걸면 두 번째 요청부터 그 부분의 입력 요금이
+// 1/10로 떨어진다. 캐시는 바이트가 1자라도 다르면 안 맞으므로,
+// 매 턴 바뀌는 것은 반드시 가변부(뒤쪽)에 둬야 한다.
 function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "교생");
   let sys;
@@ -596,9 +605,22 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
     sys = WORLD + MINHYUN + FORMAT_CHAT;
   }
   sys += TICS;
-  sys += buildPhotoGuide(allowedChars(mode, room), recentPhotos || []);
-  return sub(sys) + buildStage(mode, room, counts) + buildProfile(userProfile)
-       + buildSignals(signals, mode === "auto" ? null : room);
+  // 「두 사람」방(auto)은 유저가 없는 자리를 훔쳐보는 것이다. 사진을 보낼 상대가
+  // 없으므로 사진 목록 자체를 주지 않는다. (프롬프트도 줄어 비용도 준다)
+  if (mode !== "auto") sys += buildPhotoGuide(allowedChars(mode, room));
+
+  const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
+  const exclude = recent.length
+    ? `\n## 지금 쓰지 않는 사진\n최근에 이미 보냈다. 다시 보내지 않는다: ${recent.map(k => `"${k}"`).join(", ")}\n`
+    : "";
+
+  const stable = sub(sys);
+  const volatile = buildStage(mode, room, counts) + buildProfile(userProfile)
+                 + buildSignals(signals, mode === "auto" ? null : room) + exclude;
+
+  const blocks = [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }];
+  if (volatile.trim()) blocks.push({ type: "text", text: volatile });
+  return blocks;
 }
 
 // ─────────────────────────────────────────────
@@ -691,7 +713,8 @@ async function callModel(env, m, system, messages, maxTokens) {
              body: `${(await r.text()).slice(0, 300)} [${from || "헤더없음"}]` };
   }
   const data = await r.json();
-  return { ok: true, text: (data.content || []).map(b => b.text || "").join("").trim() };
+  return { ok: true, text: (data.content || []).map(b => b.text || "").join("").trim(),
+           usage: data.usage || null };
 }
 
 async function askClaude(env, system, messages, maxTokens) {
@@ -975,15 +998,17 @@ export default {
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts);
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
+    // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
+    const photoChars = mode === "auto" ? [] : chars;
     const lastUserText = mode === "auto" ? "" : (msgs[msgs.length - 1]?.content || "");
 
     try {
       // Sonnet 5는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
       const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
-      let messages = trimTics(sanitizePhotos(parseMessages(raw, fallbackSender), chars, fallbackSender, recentPhotos));
-      // 모델이 사진을 안 골랐으면 키워드로 한 번 더 시도한다
-      if (messages.length && !messages.some(m => m.photo)) {
-        const hit = keywordPhoto(lastUserText, chars, recentPhotos);
+      let messages = trimTics(sanitizePhotos(parseMessages(raw, fallbackSender), photoChars, fallbackSender, recentPhotos));
+      // 모델이 사진을 안 골랐으면 키워드로 한 번 더 시도한다 (auto는 photoChars가 비어 건너뛴다)
+      if (photoChars.length && messages.length && !messages.some(m => m.photo)) {
+        const hit = keywordPhoto(lastUserText, photoChars, recentPhotos);
         if (hit) messages = attachPhoto(messages, hit);
       }
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts) }),
