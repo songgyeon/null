@@ -3,8 +3,13 @@
   // 이게 없으면 정적 파일만 있는 저장소로 보고 빌드가 실패한다.
   "name": "null-api",
   "main": "worker.js",
-  "compatibility_date": "2025-01-01"
+  "compatibility_date": "2025-01-01",
+
+  // 대시보드에서 등록한 시크릿(ANTHROPIC_API_KEY)을 배포 때 지우지 않는다.
+  // 이 값이 없으면 배포마다 바인딩이 설정 파일 기준으로 덮어써져
+  // 워커가 env.ANTHROPIC_API_KEY를 못 보게 된다.
+  "keep_vars": true
 
   // index.html과 png들은 GitHub Pages가 서빙하므로 여기서 올리지 않는다.
-  // ANTHROPIC_API_KEY는 대시보드에 등록된 시크릿을 그대로 쓴다(코드에 넣지 말 것).
+  // 키는 절대 이 파일에 적지 말 것 — 저장소는 공개다.
 }
