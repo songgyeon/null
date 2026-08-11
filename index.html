@@ -224,22 +224,12 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  overflow-y:auto;padding:22px;background:rgba(20,14,44,.42)}
 .pfcard{position:relative;width:100%;max-width:320px;background:#fff6fb;border:1px solid #5d5490;
  border-radius:10px;overflow:hidden;box-shadow:5px 5px 0 rgba(20,14,44,.45)}
-/* 커버 — 배경을 카드 뒤가 아니라 카드 안에서 보여준다.
-   뒤에만 깔면 카드에 가려 무슨 사진인지 안 보인다. */
-.pfcover{position:relative;height:116px;background:#2b244e center 38%/cover no-repeat;
- border-bottom:1px solid #e7dcf4}
-.pfcover::after{content:"";position:absolute;left:0;right:0;bottom:0;height:46%;
- background:linear-gradient(180deg,rgba(255,246,251,0),rgba(255,246,251,.92))}
-.pfcover{cursor:pointer}
-.cvzoom{position:absolute;right:9px;top:9px;z-index:1;width:20px;height:20px;border-radius:50%;
- display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;
- background:rgba(43,36,78,.5);border:1px solid rgba(255,255,255,.4)}
 /* 배경만 크게 — 카드도 어둡기도 없이 사진 그대로 */
 .bgfull{position:absolute;inset:0;z-index:44;background:#2b244e center/cover no-repeat;cursor:pointer;
  animation:fadeUp .2s steps(3) both}
 .bgclose{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-size:9px;letter-spacing:.2em;
  color:rgba(255,255,255,.85);text-shadow:0 1px 3px rgba(0,0,0,.6)}
-.pftop{display:flex;flex-direction:column;align-items:center;padding:0 18px;margin-top:-52px;position:relative}
+.pftop{display:flex;flex-direction:column;align-items:center;padding:22px 18px 0}
 .pfpola{position:relative;background:#fff;padding:7px 7px 5px;border:1px solid #e7dcf4;
  box-shadow:2px 2px 3px rgba(0,0,0,.12)}
 .pfpola .tape{position:absolute;width:44px;height:15px;border-radius:1px}
@@ -597,10 +587,6 @@ function Profile({char,count,onBack}){
       <div className="pfcard">
         <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(ch.color,.95)}, #ffb0d4)`}}>
           {char}.hompy<WinDots onClose={onBack}/>
-        </div>
-        <div className="pfcover" style={{backgroundImage:`url("${p.bg}")`}}
-             onClick={()=>setFull(true)} title="배경만 보기">
-          <span className="cvzoom">↗</span>
         </div>
         <div className="pftop">
           <div className="pfpola">
