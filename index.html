@@ -39,20 +39,13 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
  animation:spk 2.6s ease-in-out infinite;filter:drop-shadow(0 0 3px rgba(255,255,255,.9))}
 /* ── 창 타이틀바 + 동그란 ─□✕ ── */
-.tb{position:relative;flex:none;display:flex;align-items:center;gap:8px;padding:9px 11px 10px;
- font-size:12px;letter-spacing:.14em;color:#fff;overflow:hidden;
- background:linear-gradient(90deg,#ff7fbf 0%,#c98cf5 38%,#8fb6ff 68%,#7fe6f0 100%);
- border-bottom:1px solid #5d5490;
- text-shadow:1px 1px 0 rgba(93,84,144,.55)}
-.tb::before{content:"";position:absolute;left:0;right:0;top:0;height:48%;pointer-events:none;
- background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0))}
-.tb>*{position:relative}
+.tb{flex:none;display:flex;align-items:center;gap:8px;padding:8px 11px;
+ background:linear-gradient(90deg,#ff9ec6,#c3b2f0);color:#fff;border-bottom:1px solid #5d5490;
+ font-size:12px;letter-spacing:.1em;text-shadow:1px 1px 0 rgba(93,84,144,.55)}
 .dots{margin-left:auto;display:flex;gap:5px}
-.dots span{position:relative;width:17px;height:17px;border-radius:50%;border:1px solid #7a5f9a;
- display:flex;align-items:center;justify-content:center;font-size:8px;line-height:1;color:#fff;
- box-shadow:inset 0 -2px 3px rgba(122,95,154,.45),0 1px 0 rgba(255,255,255,.6)}
-.dots span::after{content:"";position:absolute;left:3px;top:2px;width:8px;height:5px;border-radius:50%;
- background:rgba(255,255,255,.85)}
+.dots span{width:16px;height:16px;border-radius:50%;border:1px solid #5d5490;display:flex;align-items:center;justify-content:center;
+ font-size:8px;line-height:1;color:#fff;text-shadow:none;
+ box-shadow:inset -1px -2px 0 rgba(93,84,144,.3),inset 1px 1px 0 rgba(255,255,255,.7)}
 .dots .d1{background:#ffd0e6;color:#c46a97}
 .dots .d2{background:#ff9ec6}
 .dots .d3{background:#ff7fae}
@@ -62,12 +55,9 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
 .mbtn:hover{background:#e6def8}
 .mbtn.open{background:#fff;border-color:#8a7fc0;color:#4a4276;box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
-.bevel{position:relative;font-family:inherit;color:#4a4276;cursor:pointer;overflow:hidden;
- background:linear-gradient(180deg,#ffffff,#ddd2f7);border:1px solid #8a7fc0;border-radius:6px;
- box-shadow:0 1px 0 rgba(255,255,255,.9) inset,1px 2px 0 rgba(93,84,144,.22)}
-.bevel::after{content:"";position:absolute;left:3px;right:3px;top:2px;height:40%;border-radius:5px;
- background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,0));pointer-events:none}
-.bevel:active{transform:translate(1px,2px);box-shadow:0 0 0 rgba(0,0,0,0)}
+.bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;
+ box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec,2px 2px 0 rgba(93,84,144,.22)}
+.bevel:active{box-shadow:inset 1px 1px 0 #cdc3ec;transform:translate(1px,1px)}
 .bevel:disabled{opacity:.45;cursor:default}
 .sunken{background:#fff;border:1px solid #8a7fc0;box-shadow:inset 1px 1px 0 rgba(93,84,144,.28),inset 2px 2px 4px rgba(93,84,144,.12)}
 /* 드롭다운 */
@@ -116,24 +106,14 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .desk{background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#c6b9f0 url("bg-wallpaper.png") center/cover}
 .iconbtn{width:34px;height:28px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
 .iconbtn.loading{animation:blink 1s steps(2) infinite}
-.tabs{flex:none;display:flex;gap:6px;padding:10px 12px 0}
-.tab{position:relative;padding:7px 15px;font-size:11px;letter-spacing:.04em;color:#7a6cae;cursor:pointer;
- border:1px solid #a996d8;border-radius:999px;overflow:hidden;
- background:linear-gradient(180deg,#ffffff,#e6ddfb);
- box-shadow:0 1px 0 rgba(255,255,255,.9) inset,1px 2px 0 rgba(93,84,144,.16)}
-.tab::after{content:"";position:absolute;left:4px;right:4px;top:2px;height:42%;border-radius:999px;
- background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
-.tab.on{color:#fff;border-color:#8a5fd0;
- background:linear-gradient(180deg,#ffa7d8,#b57ef0);
- box-shadow:1px 2px 0 rgba(93,84,144,.3);text-shadow:1px 1px 0 rgba(93,84,144,.45)}
+.tabs{flex:none;display:flex;gap:4px;padding:9px 12px 0}
+.tab{padding:6px 13px 7px;font-size:11px;color:#8a7fc0;background:rgba(226,220,246,.85);border:1px solid #8a7fc0;border-bottom:none;
+ border-radius:7px 7px 0 0;cursor:pointer}
+.tab.on{background:#fff;color:#4a4276;position:relative;top:1px}
 .roomswrap{flex:1;display:flex;flex-direction:column;margin:0 12px;background:rgba(255,255,255,.9);border:1px solid #8a7fc0;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.2);overflow:hidden}
 .rooms{flex:1;overflow-y:auto;padding:10px}
-.sect{position:relative;display:inline-block;margin:12px 0 7px;padding:4px 18px 4px 10px;
- font-size:9px;letter-spacing:.3em;color:#fff;
- background:linear-gradient(90deg,#b57ef0,#ffa7d8);
- clip-path:polygon(0 0,100% 0,calc(100% - 9px) 100%,0 100%);
- text-shadow:1px 1px 0 rgba(93,84,144,.4)}
+.sect{margin:12px 4px 6px;font-size:9.5px;letter-spacing:.32em;color:#b0a6d8}
 .roomcard{position:relative;display:flex;align-items:center;gap:11px;padding:11px 9px;cursor:pointer;
  border-bottom:1px dotted #d8d1f0;animation:fadeUp .3s steps(4) both}
 .roomcard:hover{background:#f3eefd}
@@ -155,8 +135,7 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .rbadge{flex:none;min-width:20px;height:20px;padding:0 6px;font-size:10px;color:#fff;border-radius:10px;
  display:flex;align-items:center;justify-content:center;background:#ff7fae;border:1px solid #5d5490;
  box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),1px 1px 0 rgba(93,84,144,.3)}
-.statusbar{flex:none;display:flex;gap:5px;padding:7px 8px calc(8px + env(safe-area-inset-bottom));
- background:linear-gradient(90deg,#ffe6f4,#eee3ff,#e0f5ff);border-top:1px solid #cfc6ee}
+.statusbar{flex:none;display:flex;gap:4px;padding:7px 8px calc(8px + env(safe-area-inset-bottom))}
 .statusbar span{padding:5px 9px;font-size:10px;color:#6b5fa8;background:#ece8fa;border:1px solid #b0a6d8;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
 .statusbar span:first-child{flex:1}
@@ -319,13 +298,6 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .galcell .glock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
  font-size:15px;color:#b7addb}
 /* ── Y2K 디테일 ── */
-/* 광택: 버튼 위쪽에 하이라이트 한 줄. 과하면 촌스러우니 위 40%만 */
-.bevel{position:relative}
-.bevel.gloss::after{content:"";position:absolute;left:2px;right:2px;top:2px;height:38%;
- border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,0));
- pointer-events:none}
-.pill{border-radius:999px}
-.pill.gloss::after{border-radius:999px}
 /* 체크무늬 띠 — 구분선 대신 한 곳에만 쓴다 */
 .checker{height:6px;flex:none;
  background-image:linear-gradient(45deg,#e4dcf7 25%,transparent 25%,transparent 75%,#e4dcf7 75%),
@@ -335,13 +307,23 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 /* 흐르는 띠 — 한 줄, 느리게. 이게 두 줄이 되는 순간 정신없어진다 */
 .marquee{flex:none;overflow:hidden;white-space:nowrap;padding:4px 0;
  background:linear-gradient(90deg,#ffe6f2,#efe6ff,#e2f4ff);border-bottom:1px solid #cfc6ee}
-.marquee{display:flex}
-.marquee span{display:inline-block;flex:none;padding-right:2.5em;font-size:9px;letter-spacing:.2em;
- color:#a06cc9;animation:slide 22s linear infinite}
-@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+.marquee span{display:inline-block;padding-left:100%;font-size:9px;letter-spacing:.22em;
+ color:#a898cf;animation:slide 26s linear infinite}
+@keyframes slide{to{transform:translateX(-100%)}}
 /* now playing 뱃지 */
 .pfbgm .np{flex:none;padding:2px 6px;border-radius:999px;font-size:7.5px;letter-spacing:.14em;
  color:#fff;background:#ff8fbe}
+/* ── 스티커 배치 ──
+   흩뿌리지 않는다. 자리는 셋뿐 — 목록 아래 빈 공간, 메뉴 항목 앞, 탭 옆. */
+.deskfoot{flex:none;display:flex;align-items:flex-end;justify-content:center;gap:16px;
+ padding:14px 0 10px;opacity:.55;pointer-events:none}
+.deskfoot .spin{animation:spin 9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.deskfoot .drift{animation:drift 5s ease-in-out infinite}
+@keyframes drift{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-6px) rotate(6deg)}}
+.dditem svg{flex:none}
+.tabdeco{margin-left:auto;display:flex;align-items:center;gap:6px;padding-right:4px;opacity:.85}
+.sect .deco{margin-left:6px;vertical-align:-3px;opacity:.9}
 </style>
 </head>
 <body>
@@ -474,6 +456,37 @@ const LockIcon=({size=16})=><svg width={size} height={size} viewBox="0 0 14 14" 
 const BubbleIcon=({size=16})=><svg width={size} height={size} viewBox="0 0 16 16"><circle cx="7" cy="8" r="5.4" fill="none" stroke="#9db7e8" strokeWidth="1.3"/><circle cx="7" cy="8" r="5.4" fill="#cfe0f8" opacity=".45"/><path d="M4.4 6.2a3.4 3.4 0 0 1 2-1.7" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12.6" cy="3.6" r="1.7" fill="none" stroke="#9db7e8" strokeWidth="1"/><circle cx="12.6" cy="3.6" r="1.7" fill="#e2edfb" opacity=".5"/><circle cx="13.4" cy="12.4" r="1.1" fill="none" stroke="#9db7e8" strokeWidth=".9"/></svg>;
 const CharIcon=({id,size=15})=>id==="jaeeon"?<CrossIcon size={size} color={CHARS.jaeeon.dk}/>:id==="minhyun"?<Star4Icon size={size} color={CHARS.minhyun.dk}/>:<BubbleIcon size={size}/>;
 
+/* ── Y2K 스티커 세트 ──
+   전부 인라인 SVG다. 파일을 안 받으므로 로딩이 없고 색도 코드로 맞춘다.
+   많이 뿌리면 촌스러워지니 자리를 정해두고 거기에만 쓴다. */
+const Sticker={
+  cd:({size=34})=><svg width={size} height={size} viewBox="0 0 32 32">
+    <defs><linearGradient id="cdg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stopColor="#ffd6f0"/><stop offset=".35" stopColor="#c9e6ff"/>
+      <stop offset=".65" stopColor="#d9ffe8"/><stop offset="1" stopColor="#ffe9b8"/></linearGradient></defs>
+    <circle cx="16" cy="16" r="15" fill="url(#cdg)" stroke="#a996d8"/>
+    <circle cx="16" cy="16" r="9" fill="none" stroke="#fff" strokeOpacity=".7"/>
+    <circle cx="16" cy="16" r="4.2" fill="#fdfbff" stroke="#a996d8"/>
+    <circle cx="16" cy="16" r="1.6" fill="#c9c0ee"/></svg>,
+  floppy:({size=26})=><svg width={size} height={size} viewBox="0 0 24 24" shapeRendering="crispEdges">
+    <rect x="2" y="2" width="20" height="20" fill="#b8a5e3" stroke="#5d5490"/>
+    <rect x="7" y="3" width="10" height="7" fill="#efeaf9"/><rect x="13" y="4" width="3" height="5" fill="#8a7fc0"/>
+    <rect x="6" y="13" width="12" height="8" fill="#fdfbff" stroke="#8a7fc0"/>
+    <rect x="8" y="15" width="8" height="1" fill="#c9c0ee"/><rect x="8" y="17" width="8" height="1" fill="#c9c0ee"/></svg>,
+  butterfly:({size=18,color="#ff9ec6"})=><svg width={size} height={size} viewBox="0 0 20 20">
+    <path d="M10 10 C6 2 1 3 2 8 C2.6 11.4 6.6 11.4 10 10z" fill={color} opacity=".85"/>
+    <path d="M10 10 C14 2 19 3 18 8 C17.4 11.4 13.4 11.4 10 10z" fill={color} opacity=".85"/>
+    <path d="M10 10 C7 15 3 16 4 18 C5 19.6 8.6 14.6 10 10z" fill={color} opacity=".6"/>
+    <path d="M10 10 C13 15 17 16 16 18 C15 19.6 11.4 14.6 10 10z" fill={color} opacity=".6"/>
+    <rect x="9.4" y="6" width="1.2" height="9" rx=".6" fill="#6b5fa8"/></svg>,
+  cursor:({size=17})=><svg width={size} height={size} viewBox="0 0 16 16" shapeRendering="crispEdges">
+    <path d="M3 2h1v1h1v1h1v1h1v1h1v1h1v1h1v1h-4v1h-1v1h-1v1h-1V2z" fill="#fff" stroke="#5d5490" strokeWidth=".8"/></svg>,
+  star:({size=16,color="#ffd68a"})=><svg width={size} height={size} viewBox="0 0 16 16">
+    <path d="M8 0l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill={color}/></svg>,
+  heart:({size=15,color="#ff7fae"})=><svg width={size} height={size} viewBox="0 0 16 16" shapeRendering="crispEdges">
+    <path d="M3 4h2v-1h2v1h2v-1h2v1h2v3h-1v2h-1v2h-1v1h-1v1H7v-1H6v-1H5v-2H4V7H3z" fill={color}/></svg>,
+};
+
 /* 떠다니는 반짝이 레이어 */
 const SPARKS=[[6,10,10,"#fff"],[86,7,8,"#ffd0e6"],[70,24,12,"#fff"],[13,42,9,"#ffe9a8"],[91,50,10,"#d5c8ff"],[38,68,8,"#fff"],[76,84,11,"#ffd0e6"],[8,88,8,"#d5c8ff"]];
 const Sparkles=()=><React.Fragment>{SPARKS.map((s,i)=><span key={i} className="spark" style={{left:s[0]+"%",top:s[1]+"%",width:s[2],height:s[2],background:s[3],animationDelay:(i*0.4)+"s"}}/>)}</React.Fragment>;
@@ -591,7 +604,7 @@ function Profile({char,count,onBack}){
         <div className="pfstickers">
           {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#ff9ec6","#ffd68a","#c3b2f0","#8fd8e8","#ffb0d4"][i]}}>{x}</span>)}
         </div>
-        <button className="pfclose bevel gloss pill" onClick={onBack}>◁  back</button>
+        <button className="pfclose bevel" onClick={onBack}>◁  back</button>
       </div>
     </div>
   </div>;
@@ -610,7 +623,7 @@ function Onboarding({onEnter}){
         <h1>hi ♡ enter ur null.</h1>
         <input className="sunken" value={v} maxLength={12} placeholder="ur name" autoFocus
           onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()}/>
-        <button className="bevel gloss" disabled={!v.trim()} onClick={go}>Click!</button>
+        <button className="bevel" disabled={!v.trim()} onClick={go}>Click!</button>
       </div>
     </div>
     <div className="taskbar">
@@ -746,19 +759,19 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       <span className="ddwrap">
         {mb("edit","file")}
         {menu==="edit"&&<div className="dd">
-          <div className="dditem" onClick={()=>{setMenu(null);onExport()}}>💾 save all (.txt)</div>
-          <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}>my stats</div>
+          <div className="dditem" onClick={()=>{setMenu(null);onExport()}}><Sticker.floppy size={15}/> save all (.txt)</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}><Sticker.heart size={12} color="#c3b2f0"/> my stats</div>
         </div>}
       </span>
       <span className="ddwrap">
         {mb("chat","chat")}
         {menu==="chat"&&<div className="dd">
-          <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ mark all read</div>
-          <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}>search</div>
+          <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}><Sticker.star size={13} color="#ffb0d4"/> mark all read</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}><Sticker.cursor size={13}/> search</div>
         </div>}
       </span>
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
-      <button className={"moonbtn bevel gloss pill"+(left>0&&!autoLoading?" cool":"")} style={{marginLeft:"auto"}}
+      <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")} style={{marginLeft:"auto"}}
         title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;
           if(left>0){onToast("too soon · "+mmss(left));return}
@@ -769,14 +782,15 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       </button>
     </div>
     <div className="checker"/>
-    <div className="marquee">
-      {[0,1].map(k=><span key={k}>✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; best viewed in 800×600 &nbsp; ✦ &nbsp;
-      {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧</span>)}
-    </div>
+    <div className="marquee"><span>
+      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; best viewed in 800×600 &nbsp; ✦ &nbsp;
+      {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧
+    </span></div>
     <div className="tabs">
       <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms (4)</span>
       <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
       <span className={"tab hid"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
+      <span className="tabdeco"><Sticker.cursor size={15}/></span>
     </div>
     <div className="roomswrap">
       {tab==="rooms"
@@ -786,7 +800,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
           const watch=r.type==="watch";
           const pr=presence(r.id,new Date(now));
           return <React.Fragment key={r.id}>
-            {watch&&<div className="sect">✧ LIVE</div>}
+            {watch&&<div className="sect">✧ LIVE<span className="deco"><Sticker.butterfly size={13} color="#9aa3d8"/></span></div>}
             <div className={"roomcard"+(watch?" watch":"")} style={{animationDelay:`${i*0.05}s`}} onClick={()=>onOpen(r.id)}>
               <Avatar room={r} onProfile={onProfile} heat={CHARS[r.id]?stageIdx(counts[r.id]||0):null}/>
               <div className="rinfo">
@@ -841,6 +855,12 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
         <div className="hnote">LOCK! UNLOCK?<br/>keep talking · they open one by one</div>
       </div>}
     </div>
+    {tab==="rooms"&&<div className="deskfoot">
+      <span className="drift"><Sticker.butterfly size={20}/></span>
+      <span className="spin"><Sticker.cd size={38}/></span>
+      <Sticker.star size={13} color="#ffd68a"/>
+      <span className="drift" style={{animationDelay:"1.4s"}}><Sticker.heart size={13}/></span>
+    </div>}
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
@@ -924,7 +944,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile}){
       <div className="watchbar"><span className="rec"/>u can't join this one</div>
       :<div className="inputbar">
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
-        <button className="sendbtn bevel gloss" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
+        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
       </div>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
