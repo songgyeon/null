@@ -39,13 +39,20 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
  animation:spk 2.6s ease-in-out infinite;filter:drop-shadow(0 0 3px rgba(255,255,255,.9))}
 /* ── 창 타이틀바 + 동그란 ─□✕ ── */
-.tb{flex:none;display:flex;align-items:center;gap:8px;padding:8px 11px;
- background:linear-gradient(90deg,#ff9ec6,#c3b2f0);color:#fff;border-bottom:1px solid #5d5490;
- font-size:12px;letter-spacing:.1em;text-shadow:1px 1px 0 rgba(93,84,144,.55)}
+.tb{position:relative;flex:none;display:flex;align-items:center;gap:8px;padding:9px 11px 10px;
+ font-size:12px;letter-spacing:.14em;color:#fff;overflow:hidden;
+ background:linear-gradient(90deg,#ff7fbf 0%,#c98cf5 38%,#8fb6ff 68%,#7fe6f0 100%);
+ border-bottom:1px solid #5d5490;
+ text-shadow:1px 1px 0 rgba(93,84,144,.55)}
+.tb::before{content:"";position:absolute;left:0;right:0;top:0;height:48%;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0))}
+.tb>*{position:relative}
 .dots{margin-left:auto;display:flex;gap:5px}
-.dots span{width:16px;height:16px;border-radius:50%;border:1px solid #5d5490;display:flex;align-items:center;justify-content:center;
- font-size:8px;line-height:1;color:#fff;text-shadow:none;
- box-shadow:inset -1px -2px 0 rgba(93,84,144,.3),inset 1px 1px 0 rgba(255,255,255,.7)}
+.dots span{position:relative;width:17px;height:17px;border-radius:50%;border:1px solid #7a5f9a;
+ display:flex;align-items:center;justify-content:center;font-size:8px;line-height:1;color:#fff;
+ box-shadow:inset 0 -2px 3px rgba(122,95,154,.45),0 1px 0 rgba(255,255,255,.6)}
+.dots span::after{content:"";position:absolute;left:3px;top:2px;width:8px;height:5px;border-radius:50%;
+ background:rgba(255,255,255,.85)}
 .dots .d1{background:#ffd0e6;color:#c46a97}
 .dots .d2{background:#ff9ec6}
 .dots .d3{background:#ff7fae}
@@ -55,9 +62,12 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
 .mbtn:hover{background:#e6def8}
 .mbtn.open{background:#fff;border-color:#8a7fc0;color:#4a4276;box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
-.bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;
- box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec,2px 2px 0 rgba(93,84,144,.22)}
-.bevel:active{box-shadow:inset 1px 1px 0 #cdc3ec;transform:translate(1px,1px)}
+.bevel{position:relative;font-family:inherit;color:#4a4276;cursor:pointer;overflow:hidden;
+ background:linear-gradient(180deg,#ffffff,#ddd2f7);border:1px solid #8a7fc0;border-radius:6px;
+ box-shadow:0 1px 0 rgba(255,255,255,.9) inset,1px 2px 0 rgba(93,84,144,.22)}
+.bevel::after{content:"";position:absolute;left:3px;right:3px;top:2px;height:40%;border-radius:5px;
+ background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,0));pointer-events:none}
+.bevel:active{transform:translate(1px,2px);box-shadow:0 0 0 rgba(0,0,0,0)}
 .bevel:disabled{opacity:.45;cursor:default}
 .sunken{background:#fff;border:1px solid #8a7fc0;box-shadow:inset 1px 1px 0 rgba(93,84,144,.28),inset 2px 2px 4px rgba(93,84,144,.12)}
 /* 드롭다운 */
@@ -106,14 +116,24 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .desk{background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#c6b9f0 url("bg-wallpaper.png") center/cover}
 .iconbtn{width:34px;height:28px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
 .iconbtn.loading{animation:blink 1s steps(2) infinite}
-.tabs{flex:none;display:flex;gap:4px;padding:9px 12px 0}
-.tab{padding:6px 13px 7px;font-size:11px;color:#8a7fc0;background:rgba(226,220,246,.85);border:1px solid #8a7fc0;border-bottom:none;
- border-radius:7px 7px 0 0;cursor:pointer}
-.tab.on{background:#fff;color:#4a4276;position:relative;top:1px}
+.tabs{flex:none;display:flex;gap:6px;padding:10px 12px 0}
+.tab{position:relative;padding:7px 15px;font-size:11px;letter-spacing:.04em;color:#7a6cae;cursor:pointer;
+ border:1px solid #a996d8;border-radius:999px;overflow:hidden;
+ background:linear-gradient(180deg,#ffffff,#e6ddfb);
+ box-shadow:0 1px 0 rgba(255,255,255,.9) inset,1px 2px 0 rgba(93,84,144,.16)}
+.tab::after{content:"";position:absolute;left:4px;right:4px;top:2px;height:42%;border-radius:999px;
+ background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
+.tab.on{color:#fff;border-color:#8a5fd0;
+ background:linear-gradient(180deg,#ffa7d8,#b57ef0);
+ box-shadow:1px 2px 0 rgba(93,84,144,.3);text-shadow:1px 1px 0 rgba(93,84,144,.45)}
 .roomswrap{flex:1;display:flex;flex-direction:column;margin:0 12px;background:rgba(255,255,255,.9);border:1px solid #8a7fc0;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.2);overflow:hidden}
 .rooms{flex:1;overflow-y:auto;padding:10px}
-.sect{margin:12px 4px 6px;font-size:9.5px;letter-spacing:.32em;color:#b0a6d8}
+.sect{position:relative;display:inline-block;margin:12px 0 7px;padding:4px 18px 4px 10px;
+ font-size:9px;letter-spacing:.3em;color:#fff;
+ background:linear-gradient(90deg,#b57ef0,#ffa7d8);
+ clip-path:polygon(0 0,100% 0,calc(100% - 9px) 100%,0 100%);
+ text-shadow:1px 1px 0 rgba(93,84,144,.4)}
 .roomcard{position:relative;display:flex;align-items:center;gap:11px;padding:11px 9px;cursor:pointer;
  border-bottom:1px dotted #d8d1f0;animation:fadeUp .3s steps(4) both}
 .roomcard:hover{background:#f3eefd}
@@ -135,7 +155,8 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .rbadge{flex:none;min-width:20px;height:20px;padding:0 6px;font-size:10px;color:#fff;border-radius:10px;
  display:flex;align-items:center;justify-content:center;background:#ff7fae;border:1px solid #5d5490;
  box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),1px 1px 0 rgba(93,84,144,.3)}
-.statusbar{flex:none;display:flex;gap:4px;padding:7px 8px calc(8px + env(safe-area-inset-bottom))}
+.statusbar{flex:none;display:flex;gap:5px;padding:7px 8px calc(8px + env(safe-area-inset-bottom));
+ background:linear-gradient(90deg,#ffe6f4,#eee3ff,#e0f5ff);border-top:1px solid #cfc6ee}
 .statusbar span{padding:5px 9px;font-size:10px;color:#6b5fa8;background:#ece8fa;border:1px solid #b0a6d8;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
 .statusbar span:first-child{flex:1}
@@ -314,9 +335,10 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 /* 흐르는 띠 — 한 줄, 느리게. 이게 두 줄이 되는 순간 정신없어진다 */
 .marquee{flex:none;overflow:hidden;white-space:nowrap;padding:4px 0;
  background:linear-gradient(90deg,#ffe6f2,#efe6ff,#e2f4ff);border-bottom:1px solid #cfc6ee}
-.marquee span{display:inline-block;padding-left:100%;font-size:9px;letter-spacing:.22em;
- color:#a898cf;animation:slide 26s linear infinite}
-@keyframes slide{to{transform:translateX(-100%)}}
+.marquee{display:flex}
+.marquee span{display:inline-block;flex:none;padding-right:2.5em;font-size:9px;letter-spacing:.2em;
+ color:#a06cc9;animation:slide 22s linear infinite}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-100%)}}
 /* now playing 뱃지 */
 .pfbgm .np{flex:none;padding:2px 6px;border-radius:999px;font-size:7.5px;letter-spacing:.14em;
  color:#fff;background:#ff8fbe}
@@ -747,10 +769,10 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       </button>
     </div>
     <div className="checker"/>
-    <div className="marquee"><span>
-      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; best viewed in 800×600 &nbsp; ✦ &nbsp;
-      {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧
-    </span></div>
+    <div className="marquee">
+      {[0,1].map(k=><span key={k}>✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; best viewed in 800×600 &nbsp; ✦ &nbsp;
+      {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧</span>)}
+    </div>
     <div className="tabs">
       <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms (4)</span>
       <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
