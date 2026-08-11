@@ -8,7 +8,16 @@
   // 대시보드에서 등록한 시크릿(ANTHROPIC_API_KEY)을 배포 때 지우지 않는다.
   // 이 값이 없으면 배포마다 바인딩이 설정 파일 기준으로 덮어써져
   // 워커가 env.ANTHROPIC_API_KEY를 못 보게 된다.
-  "keep_vars": true
+  "keep_vars": true,
+
+  // ★ 이 줄을 지우지 말 것.
+  // Smart Placement가 켜지면 워커가 사용자와 먼 데이터센터(홍콩 등)에서
+  // 실행되고, 그쪽에서 나가는 api.anthropic.com 요청은
+  // 403 {"type":"forbidden","message":"Request not allowed"} 로 막힌다.
+  // off로 두면 사용자와 가까운 곳(인천)에서 실행돼 정상 통과한다.
+  // keep_vars는 변수만 지켜주고 이 설정은 안 지켜주므로,
+  // 대시보드에서 고쳐도 다음 배포 때 되돌아간다. 여기에 박아둬야 한다.
+  "placement": { "mode": "off" }
 
   // index.html과 png들은 GitHub Pages가 서빙하므로 여기서 올리지 않는다.
   // 키는 절대 이 파일에 적지 말 것 — 저장소는 공개다.
