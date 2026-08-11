@@ -230,6 +230,16 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  border-bottom:1px solid #e7dcf4}
 .pfcover::after{content:"";position:absolute;left:0;right:0;bottom:0;height:46%;
  background:linear-gradient(180deg,rgba(255,246,251,0),rgba(255,246,251,.92))}
+.pfcover{cursor:pointer}
+.cvzoom{position:absolute;right:9px;top:9px;z-index:1;width:20px;height:20px;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;
+ background:rgba(43,36,78,.5);border:1px solid rgba(255,255,255,.4)}
+/* 배경만 크게 — 카드도 어둡기도 없이 사진 그대로 */
+.bgfull{position:absolute;inset:0;z-index:44;background:#2b244e center/cover no-repeat;cursor:pointer;
+ animation:fadeUp .2s steps(3) both}
+.bgfull .cvtag{left:12px;top:12px}
+.bgclose{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-size:9px;letter-spacing:.2em;
+ color:rgba(255,255,255,.85);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 .cvtag{position:absolute;left:10px;top:9px;z-index:1;padding:3px 9px;border-radius:999px;
  font-size:8.5px;letter-spacing:.16em;color:#fff;background:rgba(43,36,78,.5);
  border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(3px)}
@@ -581,18 +591,21 @@ function MusicBar({track,color}){
 
 function Profile({char,count,onBack}){
   const ch=CHARS[char], p=PROFILES[char], room=roomOf(char);
+  const [full,setFull]=useState(false);   // 배경만 크게 보기
   if(!ch||!p)return null;
   const st=p.stages[stageIdx(count)]||p.stages[0];
   const status=(st.status||"").trim();
   return <div className="pfscreen" style={{backgroundImage:`url("${p.bg}")`}}>
-    <div className="pfdim">
+    <div className="pfdim" onClick={e=>{if(e.target===e.currentTarget)setFull(true)}}>
       <Sparkles/>
       <div className="pfcard">
         <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(ch.color,.95)}, #ffb0d4)`}}>
           {char}.hompy<WinDots onClose={onBack}/>
         </div>
-        <div className="pfcover" style={{backgroundImage:`url("${p.bg}")`}}>
+        <div className="pfcover" style={{backgroundImage:`url("${p.bg}")`}}
+             onClick={()=>setFull(true)} title="배경만 보기">
           {p.bgName&&<span className="cvtag">{p.bgName}</span>}
+          <span className="cvzoom">↗</span>
         </div>
         <div className="pftop">
           <div className="pfpola">
@@ -618,6 +631,10 @@ function Profile({char,count,onBack}){
         <button className="pfclose bevel" onClick={onBack}>◁  back</button>
       </div>
     </div>
+    {full&&<div className="bgfull" style={{backgroundImage:`url("${p.bg}")`}} onClick={()=>setFull(false)}>
+      {p.bgName&&<span className="cvtag">{p.bgName}</span>}
+      <span className="bgclose">tap to close</span>
+    </div>}
   </div>;
 }
 
