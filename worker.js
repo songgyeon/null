@@ -872,8 +872,11 @@ export default {
       // HKG 등으로 나오면 placement가 풀린 것이고, 그 자체가 403의 원인이다.
       const colo = request.cf && request.cf.colo;
       if (colo) {
-        lines.push(`[0] 워커 실행 위치: ${colo}` +
-          (colo === "ICN" || colo === "SEL" ? " (한국 — 정상)" : " ★ 한국이 아닙니다 — Settings → Runtime → Placement 확인"));
+        // 참고용이다. 여기가 한국이 아니어도 [1]이 200이면 문제가 아니다 —
+        // 실제로 막히는지는 나가는 요청이 어디에 닿았는지([1]의 cf-ray)로 갈린다.
+        const kr = colo === "ICN" || colo === "SEL";
+        lines.push(`[0] 이 요청을 받은 곳: ${colo}${kr ? " (한국)" : ""}`);
+        if (!kr) lines.push("    한국이 아니지만, 아래 [1]이 200이면 문제 없다.");
         lines.push("");
       }
       const found = resolveKey(env);
@@ -974,7 +977,7 @@ export default {
       }
 
       lines.push("");
-      lines.push(anyOk ? "→ [3]에서 처음 ✗ 가 뜬 항목이 원인입니다."
+      lines.push(anyOk ? "→ 전부 ✓ 면 정상이다. ✗ 가 있으면 처음 뜬 항목이 원인이다."
                        : "→ 전부 실패했습니다. 위 [1]의 결과가 원인을 가려줍니다.");
       return new Response(lines.join("\n"), { headers: { ...CORS, "content-type": "text/plain; charset=utf-8" } });
     }
