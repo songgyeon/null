@@ -145,6 +145,19 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .galgrid img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:5px;border:1px solid #cfc6ee;background:#efeaf9;cursor:pointer;
  box-shadow:1px 2px 0 rgba(93,84,144,.2)}
 .galgrid img:active{opacity:.82}
+/* .hidden 탭: 잠긴 사진 */
+.tab.hid{color:#8f86c9;letter-spacing:.04em}
+.tab.hid.on{color:#4a4276}
+.hcell{position:relative;aspect-ratio:2/3;border-radius:5px;overflow:hidden;border:1px solid #cfc6ee;background:#efeaf9;cursor:pointer;
+ box-shadow:1px 2px 0 rgba(93,84,144,.2)}
+.hcell img{width:100%;height:100%;object-fit:cover;display:block}
+.hcell.lock{cursor:default}
+.hcell.lock img{filter:blur(8px) grayscale(.65) brightness(.7);transform:scale(1.08)}
+.hlock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+ filter:drop-shadow(1px 1px 0 rgba(43,36,78,.6))}
+.hlabel{position:absolute;left:0;right:0;bottom:0;padding:5px 7px;font-size:9.5px;letter-spacing:.08em;color:#fff;
+ background:rgba(43,36,78,.55);text-shadow:1px 1px 0 rgba(43,36,78,.5)}
+.hnote{margin:14px 4px 8px;text-align:center;font-size:10px;color:#b0a6d8;letter-spacing:.08em;line-height:1.9}
 /* ── 채팅방 ── */
 .chatbar{flex:none;display:flex;align-items:center;gap:9px;padding:8px 11px;background:#ece8fa;border-bottom:1px solid #c5bce8}
 .backbtn{width:30px;height:27px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
@@ -209,9 +222,9 @@ const API = "https://null-api.re-moonroom.workers.dev/";
 /* 캐릭터 / 방 정의 */
 const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.png",pos:"47% 9%",
-    gallery:["jaeeon-treat.png","jaeeon-care.png","jaeeon-cook.png","jaeeon-work.png"]},
+    gallery:["jaeeon-treat.png","jaeeon-care.png","jaeeon-cook.png","jaeeon-work.png","jaeeon-evening.png","jaeeon-market.png","jaeeon-laundry.png","jaeeon-car.png","jaeeon-classroom.png","jaeeon-rooftop.png"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.png",pos:"38% 11%",
-    gallery:["minhyun-candy.png","minhyun-corridor.png","minhyun-rain.png","minhyun-gate.png"]},
+    gallery:["minhyun-candy.png","minhyun-corridor.png","minhyun-rain.png","minhyun-gate.png","minhyun-morning.png","minhyun-alley.png","minhyun-store.png","minhyun-gym.png","minhyun-busstop.png","minhyun-winter.png","minhyun-snow.png"]},
 };
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
@@ -225,6 +238,17 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
 const PHOTO_FILES={};
 Object.values(CHARS).forEach(c=>c.gallery.forEach(f=>{PHOTO_FILES[f.replace(/\.png$/,"")]=f}));
 const photoSrc = k => (k&&PHOTO_FILES[k])||null;
+
+/* .hidden: 관계가 깊어지거나 과금으로 해금되는 사진 — localStorage "null_unlocked"에 해금된 key 배열을 넣으면 열린다 */
+const HIDDEN=[
+  {key:"jaeeon-room",     file:"jaeeon-room.png",     label:"재언의 방"},
+  {key:"minhyun-room",    file:"minhyun-room.png",    label:"민현의 방"},
+  {key:"jaeeon-yearbook", file:"jaeeon-yearbook.png", label:"재언의 졸업사진"},
+  {key:"minhyun-yearbook",file:"minhyun-yearbook.png",label:"민현의 졸업사진"},
+  {key:"jaeeon-diary",    file:"jaeeon-diary.png",    label:"재언의 일기"},
+  {key:"minhyun-diary",   file:"minhyun-diary.png",   label:"민현의 일기"},
+];
+const loadUnlocked=()=>{try{return JSON.parse(localStorage.getItem("null_unlocked"))||[]}catch(e){return[]}};
 
 /* 색 유틸: hex → rgba */
 const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
@@ -249,6 +273,7 @@ const StarGlyph=({color="#fff"})=><span style={{fontSize:11,color,textShadow:"1p
 /* 캐릭터 프로필 아이콘 */
 const CrossIcon=({size=14,color="#3fbdb4"})=><svg width={size} height={size} viewBox="0 0 14 14" style={px}><path d="M5 2h4v3h3v4H9v3H5V9H2V5h3V2z" fill={color}/></svg>;
 const Star4Icon=({size=14,color="#ff8a5f"})=><svg width={size} height={size} viewBox="0 0 14 14"><path d="M7 0l1.8 5.2L14 7l-5.2 1.8L7 14 5.2 8.8 0 7l5.2-1.8z" fill={color}/></svg>;
+const LockIcon=({size=16})=><svg width={size} height={size} viewBox="0 0 14 14" style={px}><path d="M4 6V4h1V3h1V2h2v1h1v1h1v2" fill="none" stroke="#fff" strokeWidth="1.5"/><rect x="3" y="6" width="8" height="6" fill="#fff"/><rect x="6" y="8" width="2" height="3" fill="#8f86c9"/></svg>;
 /* 단톡방: 물방울(비누방울) 아이콘 */
 const BubbleIcon=({size=16})=><svg width={size} height={size} viewBox="0 0 16 16"><circle cx="7" cy="8" r="5.4" fill="none" stroke="#9db7e8" strokeWidth="1.3"/><circle cx="7" cy="8" r="5.4" fill="#cfe0f8" opacity=".45"/><path d="M4.4 6.2a3.4 3.4 0 0 1 2-1.7" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12.6" cy="3.6" r="1.7" fill="none" stroke="#9db7e8" strokeWidth="1"/><circle cx="12.6" cy="3.6" r="1.7" fill="#e2edfb" opacity=".5"/><circle cx="13.4" cy="12.4" r="1.1" fill="none" stroke="#9db7e8" strokeWidth=".9"/></svg>;
 const CharIcon=({id,size=15})=>id==="jaeeon"?<CrossIcon size={size} color={CHARS.jaeeon.dk}/>:id==="minhyun"?<Star4Icon size={size} color={CHARS.minhyun.dk}/>:<BubbleIcon size={size}/>;
@@ -353,6 +378,7 @@ function RoomList({store,name,onOpen,onAuto,autoLoading,onExport,onReadAll,onRen
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'
   const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'
   const [zoom,setZoom]=useState(null);
+  const unlocked=loadUnlocked();   // 해금된 .hidden 사진 key들
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
@@ -374,12 +400,13 @@ function RoomList({store,name,onOpen,onAuto,autoLoading,onExport,onReadAll,onRen
         {mb("chat","대화")}
         {menu==="chat"&&<div className="dd"><div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ 읽음 처리</div></div>}
       </span>
-      {mb("help","도움말",()=>{setMenu(null);setDlg("help")})}
+      {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
       <button className={"iconbtn bevel"+(autoLoading?" loading":"")} style={{marginLeft:"auto"}} title="시간 경과" onClick={onAuto} disabled={autoLoading}><MoonIcon/></button>
     </div>
     <div className="tabs">
       <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>대화방 (4)</span>
       <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>Cam</span>
+      <span className={"tab hid"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
     </div>
     <div className="roomswrap">
       {tab==="rooms"
@@ -403,19 +430,34 @@ function RoomList({store,name,onOpen,onAuto,autoLoading,onExport,onReadAll,onRen
           </React.Fragment>;
         })}
       </div>
-      :<div className="gal">{/* Cam 탭: 캐릭터별 갤러리 */}
+      :tab==="cam"
+      ?<div className="gal">{/* Cam 탭: 캐릭터별 갤러리 */}
         {Object.entries(CHARS).map(([id,ch])=><React.Fragment key={id}>
           <div className="sect" style={{color:ch.dk}}>✧ {ch.name}</div>
           <div className="galgrid">
             {ch.gallery.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom(f)}/>)}
           </div>
         </React.Fragment>)}
+      </div>
+      :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
+        <div className="sect" style={{color:"#8f86c9"}}>ENCRYPTED</div>
+        <div className="galgrid">
+          {HIDDEN.map(h=>{
+            const un=unlocked.includes(h.key);
+            return <div key={h.key} className={"hcell"+(un?"":" lock")} onClick={()=>un&&setZoom(h.file)}>
+              <img src={h.file} alt="" loading="lazy"/>
+              {!un&&<div className="hlock"><LockIcon/></div>}
+              <div className="hlabel">{un?h.label:"???"}</div>
+            </div>;
+          })}
+        </div>
+        <div className="hnote">LOCK! UNLOCK?</div>
       </div>}
     </div>
     <div className="statusbar"><span>당신이 채워갈 빈칸, NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
-    {dlg==="help"&&<Dialog title="도움말" onClose={()=>setDlg(null)}>
+    {dlg==="help"&&<Dialog title="etc." onClose={()=>setDlg(null)}>
       <div className="dlgline" style={{textAlign:"center",padding:"14px 0",fontSize:13,color:"#8a4f74"}}>NULL, 기다리고 있었어.</div>
     </Dialog>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
