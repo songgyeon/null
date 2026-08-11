@@ -124,6 +124,10 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .avatar{position:relative;width:42px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;
  border:1px solid #8a7fc0;border-radius:50%;
  box-shadow:inset 0 2px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(93,84,144,.14),1px 2px 0 rgba(93,84,144,.28)}
+/* 사진 아바타는 안쪽 베벨을 빼서 얼굴을 가리지 않게 한다.
+   아이콘 아바타(단톡방·두 사람)는 그대로 입체감을 유지한다. */
+.avatar.face{box-shadow:1px 2px 0 rgba(93,84,144,.28)}
+.mavatar.face{box-shadow:1px 1px 0 rgba(93,84,144,.25)}
 .rinfo{flex:1;min-width:0}
 .rtop{display:flex;align-items:baseline;gap:7px}
 .rname{font-size:13.5px}
@@ -506,8 +510,8 @@ function Avatar({room,size=42,onProfile,heat}){
   const st={width:size,height:size,...(heat!=null?heatRing(CHARS[room.id],heat):null)};
   // 1:1 방의 얼굴만 눌러서 프로필로 들어간다. 단톡/관전방은 대상이 없다.
   const hit=onProfile&&room.type==="dm"
-    ? {className:"avatar clickable",onClick:e=>{e.stopPropagation();onProfile(room.id)}}
-    : {className:"avatar"};
+    ? {className:"avatar face clickable",onClick:e=>{e.stopPropagation();onProfile(room.id)}}
+    : {className:"avatar face"};
   if(room.type==="group"){ // 물방울
     return <div className="avatar" style={{...st,background:"linear-gradient(180deg,#ffffff,#e0ecfa)"}}><BubbleIcon size={size*.6}/></div>;
   }
@@ -921,7 +925,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile}){
           {gap&&<div className="divider">✦ {fmtDivider(m.ts)} ✦</div>}
           <div className={"mrow"+(me?" me":"")} style={{marginTop:head?8:0}}>
             {!me&&(head?
-              <div className={"mavatar"+(CHARS[m.sender]?" clickable":"")}
+              <div className={"mavatar"+(meta.img?" face":"")+(CHARS[m.sender]?" clickable":"")}
                    onClick={()=>CHARS[m.sender]&&onProfile&&onProfile(m.sender)}
                    style={meta.img?faceBg(meta):{background:`linear-gradient(180deg,#ffffff, ${meta.pale}`+")"}}>{!meta.img&&<CharIcon id={m.sender} size={13}/>}</div>
               :<div className="sp"/>)}
