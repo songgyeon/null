@@ -965,7 +965,9 @@ export default {
         lines.push(`[3] 시스템 프롬프트 조각별 (${m.id})`);
         for (const [label, sys, mt] of probes) {
           const res = await callModel(env, m, sys, [{ role: "user", content: "안녕하세요" }], mt);
-          const size = `${Math.round(sys.length / 1000)}k자`;
+          // buildSystem은 캐시 블록 배열을 돌려준다. 길이를 그냥 재면 2가 나와 0k로 찍힌다.
+          const chars = Array.isArray(sys) ? sys.reduce((n, b) => n + (b.text || "").length, 0) : String(sys || "").length;
+          const size = `${Math.round(chars / 1000)}k자`;
           lines.push(res.ok ? `  ✓ ${label} (${size})`
                             : `  ✗ ${label} (${size}) — ${res.status}: ${res.body.slice(0, 160)}`);
         }
