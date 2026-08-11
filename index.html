@@ -136,6 +136,16 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  background:#fff;border:1px solid #8a7fc0;color:#4a4276;box-shadow:2px 2px 0 rgba(138,127,192,.28)}
 .mrow:not(.me) .bubble{border-bottom-left-radius:2px}
 .mrow.me .bubble{border-bottom-right-radius:2px;box-shadow:-2px 2px 0 rgba(255,143,190,.4)}
+/* 사진 말풍선 */
+.bubble.photo{padding:4px;white-space:normal}
+.bubble.photo img{display:block;width:100%;max-width:172px;border-radius:5px;border:1px solid #cfc6ee;
+ background:#efeaf9;cursor:pointer;aspect-ratio:2/3;object-fit:cover}
+.bubble.photo img:active{opacity:.82}
+.bubble.photo .cap{padding:5px 7px 3px;font-size:12.5px;line-height:1.6;color:#4a4276;white-space:pre-wrap}
+.lightbox{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+ background:rgba(43,36,78,.82);animation:fadeUp .18s steps(3) both;cursor:pointer;padding:22px}
+.lightbox img{max-width:100%;max-height:100%;border:2px solid #fff;border-radius:4px;
+ box-shadow:0 6px 24px rgba(0,0,0,.45)}
 .typing{display:flex;gap:5px;padding:12px 12px}
 .typing i{width:5px;height:5px;border-radius:50%;background:#8a7fc0;animation:blink 1s steps(2) infinite}
 .typing i:nth-child(2){animation-delay:.15s}
@@ -178,6 +188,11 @@ const ROOMS = [
   {id:"health", name:"보건실", color:"#9aa3d8", type:"watch", sub:"LIVE cam"},
 ];
 const roomOf = id => ROOMS.find(r=>r.id===id);
+
+/* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.png). 목록에 없는 key는 무시한다. */
+const PHOTO_FILES={};
+Object.values(CHARS).forEach(c=>c.gallery.forEach(f=>{PHOTO_FILES[f.replace(/\.png$/,"")]=f}));
+const photoSrc = k => (k&&PHOTO_FILES[k])||null;
 
 /* 색 유틸: hex → rgba */
 const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
@@ -280,7 +295,7 @@ function RoomList({store,name,onOpen,onAuto,autoLoading}){
                   <span className="rtag" style={{color:watch?"#8d93bd":"#9a8fc8",background:watch?"transparent":rgba(r.color,.22)}}>{r.sub}</span>
                   {last&&<span className="rtime">{fmtListTime(last.ts)}</span>}
                 </div>
-                <div className="rprev">{last?(last.sender==="user"?"나: ":"")+last.text : (watch?"조용하다. 아직은.":"대화를 시작해보세요")}</div>
+                <div className="rprev">{last?(last.sender==="user"?"나: ":"")+(last.photo?"[사진] "+(last.text||""):last.text) : (watch?"조용하다. 아직은.":"대화를 시작해보세요")}</div>
               </div>
               {un>0&&<span className="rbadge">{un}</span>}
             </div>
@@ -295,6 +310,7 @@ function RoomList({store,name,onOpen,onAuto,autoLoading}){
 /* ── 채팅방 ── */
 function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry}){
   const [v,setV]=useState("");
+  const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
   const boxRef=useRef(null);
   const watch=room.type==="watch";
   useEffect(()=>{const el=boxRef.current;if(el)requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight})},[msgs.length,busy,failed]);
@@ -331,7 +347,14 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry}){
               :<div className="sp"/>)}
             <div className="mcol">
               {showName&&<span className="mname" style={{color:meta.dk}}>{meta.name}</span>}
-              <div className="bubble" style={me?{background:`linear-gradient(135deg, ${rgba(room.color,.5)} 0%, #ffffff 135%)`}:null}>{m.text}</div>
+              <div className={"bubble"+(m.photo?" photo":"")} style={me?{background:`linear-gradient(135deg, ${rgba(room.color,.5)} 0%, #ffffff 135%)`}:null}>
+                {m.photo
+                  ?<React.Fragment>
+                    <img src={photoSrc(m.photo)} alt="" loading="lazy" onClick={()=>setZoom(photoSrc(m.photo))}/>
+                    {m.text&&<div className="cap">{m.text}</div>}
+                  </React.Fragment>
+                  :m.text}
+              </div>
             </div>
           </div>
         </React.Fragment>;
@@ -348,6 +371,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry}){
         <input className="sunken" value={v} placeholder="메시지 입력..." onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
         <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
       </div>}
+    {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
 }
 
@@ -379,7 +403,7 @@ function App(){
     const step=()=>{
       const it=queueRef.current.shift();
       if(!it){runningRef.current=false;return}
-      appendMsg(it.room,{id:Date.now()+Math.random(),sender:it.sender,text:it.text,ts:Date.now()});
+      appendMsg(it.room,{id:Date.now()+Math.random(),sender:it.sender,text:it.text,photo:it.photo,ts:Date.now()});
       if(!queueRef.current.some(q=>q.room===it.room)&&!inflightRef.current[it.room])
         setBusy(b=>({...b,[it.room]:false}));
       setTimeout(step,600);
@@ -387,12 +411,24 @@ function App(){
     setTimeout(step,500); // 타이핑 인디케이터를 잠깐 보여준 뒤 첫 버블
   };
   const enqueue=(room,messages)=>{
-    messages.forEach(m=>{if(m&&m.text)queueRef.current.push({room,sender:m.sender||room,text:m.text})});
+    messages.forEach(m=>{
+      if(!m)return;
+      const photo=photoSrc(m.photo)?m.photo:null;   // 없는 파일이면 사진은 버리고 말만 남긴다
+      const text=(m.text||"").trim();
+      if(text||photo)queueRef.current.push({room,sender:m.sender||room,text,photo});
+    });
     pump();
   };
 
   /* history / signals 구성 */
-  const buildHistory=ms=>ms.slice(-30).map(m=>({role:m.sender==="user"?"user":"assistant",sender:m.sender,content:m.text}));
+  const buildHistory=ms=>ms.slice(-30).map(m=>({role:m.sender==="user"?"user":"assistant",sender:m.sender,
+    content:m.photo?((m.text?m.text+" ":"")+"(사진을 보냈다)"):m.text}));
+  /* 최근에 보낸 사진 — 같은 사진이 연달아 나오지 않게 백엔드에 알려준다 */
+  const recentPhotos=room=>{
+    const ms=(storeRef.current.msgs[room]||[]).slice(-24),out=[];
+    for(let i=ms.length-1;i>=0&&out.length<4;i--) if(ms[i].photo&&!out.includes(ms[i].photo))out.push(ms[i].photo);
+    return out;
+  };
   const buildSignals=exclude=>{
     const sig={},t0=new Date();t0.setHours(0,0,0,0);
     ["jaeeon","minhyun","group"].forEach(r=>{
@@ -428,12 +464,13 @@ function App(){
     const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};
     appendMsg(room,userMsg);
     const history=buildHistory([...(storeRef.current.msgs[room]||[]),userMsg]);
-    request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room)});
+    request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),recent_photos:recentPhotos(room)});
   };
   /* 재시도: 저장해둔 payload를 최신 history로 갱신해 다시 전송 */
   const retry=room=>{
     const p=failed[room];if(!p)return;
     if(p.mode==="chat")p.history=buildHistory(storeRef.current.msgs[room]||[]);
+    p.recent_photos=recentPhotos(p.mode==="auto"?"health":room);
     request(room,p);
   };
   /* 시간 경과(달 버튼): 자율 대화 생성 → 관전방에 축적 */
@@ -441,7 +478,7 @@ function App(){
     if(autoLoading)return;
     setAutoLoading(true);
     await request("health",{mode:"auto",user_name:name,
-      history:buildHistory(storeRef.current.msgs.health||[]),signals:buildSignals(null)});
+      history:buildHistory(storeRef.current.msgs.health||[]),signals:buildSignals(null),recent_photos:recentPhotos("health")});
     setAutoLoading(false);
   };
 
