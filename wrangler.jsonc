@@ -1,0 +1,10 @@
+{
+  // Cloudflare가 이 저장소에서 무엇을 배포할지 알려주는 파일.
+  // 이게 없으면 정적 파일만 있는 저장소로 보고 빌드가 실패한다.
+  "name": "null-api",
+  "main": "worker.js",
+  "compatibility_date": "2025-01-01"
+
+  // index.html과 png들은 GitHub Pages가 서빙하므로 여기서 올리지 않는다.
+  // ANTHROPIC_API_KEY는 대시보드에 등록된 시크릿을 그대로 쓴다(코드에 넣지 말 것).
+}
