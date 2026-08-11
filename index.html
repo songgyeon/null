@@ -275,6 +275,10 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 const {useState,useEffect,useRef} = React;
 const API = "https://null-api.re-moonroom.workers.dev/";
 
+/* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
+   사진을 갈아끼울 때마다 이 숫자를 올린다. */
+const AV_V = "?v=2";
+
 /* 캐릭터 / 방 정의 */
 const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.png",pos:"47% 24%",
@@ -350,7 +354,7 @@ const Sparkles=()=><React.Fragment>{SPARKS.map((s,i)=><span key={i} className="s
 const WinDots=({onClose})=><div className="dots"><span className="d1">─</span><span className="d2">□</span><span className="d3" onClick={onClose} style={onClose?{cursor:"pointer"}:null}>✕</span></div>;
 
 /* 프로필 사진 줄맄 스타일 */
-const faceBg=ch=>({backgroundImage:`url("${ch.img}")`,backgroundSize:"240%",backgroundPosition:ch.pos,backgroundColor:ch.pale});
+const faceBg=ch=>({backgroundImage:`url("${ch.img+AV_V}")`,backgroundSize:"240%",backgroundPosition:ch.pos,backgroundColor:ch.pale});
 function Avatar({room,size=42,onProfile}){
   const st={width:size,height:size};
   // 1:1 방의 얼굴만 눌러서 프로필로 들어간다. 단톡/관전방은 대상이 없다.
@@ -438,7 +442,7 @@ function Profile({char,count,onBack}){
         <div className="pftop">
           <div className="pfpola">
             <span className="tape t1"/><span className="tape t2"/>
-            <img className="shot" src={ch.img} alt=""/>
+            <img className="shot" src={ch.img+AV_V} alt=""/>
             <div className="cap">{room?room.empty:""}</div>
           </div>
           <div className="pfnamerow">
