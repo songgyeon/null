@@ -221,18 +221,24 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .pfscreen{position:absolute;inset:0;z-index:38;display:flex;flex-direction:column;
  background:#2b244e center/cover no-repeat;animation:fadeUp .22s steps(4) both}
 .pfdim{flex:1;display:flex;flex-direction:column;background:rgba(20,14,44,.42)}
-.pfbar{flex:none;padding:9px 10px}
+.pfbar{flex:none;display:flex;align-items:center;gap:10px;padding:9px 10px}
 .pfinfo{margin-top:auto;display:flex;flex-direction:column;align-items:center;padding:0 26px}
-.pfface{width:76px;height:76px;border-radius:50%;border:2px solid;background-size:240%;
- box-shadow:0 3px 14px rgba(0,0,0,.4)}
-.pfname{margin-top:10px;font-size:16px;color:#fff;letter-spacing:.06em;text-shadow:1px 1px 0 rgba(0,0,0,.55)}
-.pfstatus{margin-top:9px;font-size:11.5px;line-height:1.75;color:rgba(255,255,255,.88);text-align:center;
+.pfface{width:132px;height:132px;border-radius:50%;border:2px solid;background-size:240%;
+ box-shadow:0 6px 26px rgba(0,0,0,.5)}
+.pfname{margin-top:16px;font-size:18px;color:#fff;letter-spacing:.06em;text-shadow:1px 1px 0 rgba(0,0,0,.55)}
+.pfstatus{margin-top:11px;font-size:11.5px;line-height:1.75;color:rgba(255,255,255,.88);text-align:center;
  text-shadow:1px 1px 0 rgba(0,0,0,.45);white-space:pre-wrap}
-.pfmusic{display:flex;align-items:center;gap:8px;margin-top:15px;padding:8px 16px;border-radius:18px;
- font-family:inherit;font-size:10.5px;letter-spacing:.09em;color:#fff;cursor:pointer;
- background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(2px)}
-.pfmusic:active{transform:translateY(1px);background:rgba(255,255,255,.26)}
-.pfmusic .bars{display:flex;align-items:flex-end;gap:2px;height:11px}
+/* 프로필 뮤직 — 상단 우측 반투명 타원 */
+.pfmusic{margin-left:auto;display:flex;align-items:center;gap:9px;max-width:62%;
+ padding:7px 16px;border-radius:999px;cursor:pointer;
+ font-family:Georgia,"Times New Roman","Nanum Myeongjo","Noto Serif KR",serif;
+ font-size:11.5px;font-style:italic;letter-spacing:.02em;color:#fff;
+ background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);
+ backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+ box-shadow:0 2px 10px rgba(0,0,0,.25);text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.pfmusic:active{transform:translateY(1px);background:rgba(255,255,255,.24)}
+.pfmusic .mlabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pfmusic .bars{flex:none;display:flex;align-items:flex-end;gap:2px;height:11px}
 .pfmusic .bars i{width:2px;background:currentColor;height:4px}
 .pfmusic.on .bars i{animation:eq .7s steps(3) infinite}
 .pfmusic.on .bars i:nth-child(2){animation-delay:.2s}
@@ -349,11 +355,15 @@ const stageIdx=n=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a)i=k});return i};
    R2 같은 외부 호스팅을 쓰면 MEDIA만 그 주소로 바꾸면 된다.
    파일이 없으면 재생 버튼은 조용히 숨는다. */
 const MEDIA="";
+/* artist/title은 화면에 그대로 찍히므로 실제로 있는 곡만 적는다.
+   비워두면 그 자리는 안 그린다 — 없는 제목을 지어내지 않기 위해서다. */
 const TRACKS={
-  "jaeeon-1":"jaeeon-bgm1.mp3", "jaeeon-2":"jaeeon-bgm2.mp3",
-  "minhyun-1":"minhyun-bgm1.mp3","minhyun-2":"minhyun-bgm2.mp3",
+  "jaeeon-1": {file:"jaeeon-bgm1.mp3", artist:"", title:""},
+  "jaeeon-2": {file:"jaeeon-bgm2.mp3", artist:"", title:""},
+  "minhyun-1":{file:"minhyun-bgm1.mp3",artist:"", title:""},
+  "minhyun-2":{file:"minhyun-bgm2.mp3",artist:"", title:""},
 };
-const trackSrc=k=>(k&&TRACKS[k])?MEDIA+TRACKS[k]:null;
+const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:null};
 
 /* 단계별 상태메시지 — 없으면 안 띄운다 */
 const PROFILES={
@@ -371,24 +381,25 @@ const PROFILES={
   ]},
 };
 
-/* 프로필 뮤직 — 싸이월드 BGM. 자동재생 안 하고 눌러야 나온다.
+/* 프로필 뮤직 — 상단 우측 타원형 바. 자동재생 안 하고 눌러야 나온다.
    (모바일 브라우저는 사용자 조작 없는 재생을 어차피 막는다) */
-function MusicPlayer({src,color}){
+function MusicBar({track,color}){
   const ref=useRef(null);
   const [playing,setPlaying]=useState(false);
-  const [dead,setDead]=useState(false);   // 파일이 없으면 버튼 자체를 숨긴다
-  useEffect(()=>()=>{const a=ref.current;if(a){a.pause()}},[]);
-  if(!src||dead)return null;
+  const [dead,setDead]=useState(false);   // 파일이 없으면 바 자체를 숨긴다
+  useEffect(()=>{const a=ref.current;return()=>{if(a)a.pause()}},[]);
+  if(!track||dead)return null;
+  const label=[track.artist,track.title].filter(Boolean).join(" — ");
   const toggle=()=>{
     const a=ref.current;if(!a)return;
     if(playing){a.pause();setPlaying(false)}
     else a.play().then(()=>setPlaying(true)).catch(()=>setDead(true));
   };
   return <React.Fragment>
-    <audio ref={ref} src={src} loop preload="none" onError={()=>setDead(true)} onEnded={()=>setPlaying(false)}/>
+    <audio ref={ref} src={track.src} loop preload="none" onError={()=>setDead(true)} onEnded={()=>setPlaying(false)}/>
     <button className={"pfmusic"+(playing?" on":"")} onClick={toggle} style={{color}}>
       <span className="bars"><i/><i/><i/></span>
-      {playing?"재생 중...":"프로필 뮤직"}
+      {label&&<span className="mlabel">{label}</span>}
     </button>
   </React.Fragment>;
 }
@@ -403,12 +414,14 @@ function Profile({char,count,onBack}){
       <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(ch.color,.95)}, #c3b2f0)`}}>
         {ch.name}.profile<WinDots/>
       </div>
-      <div className="pfbar"><button className="backbtn bevel" onClick={onBack}><BackIcon/></button></div>
+      <div className="pfbar">
+        <button className="backbtn bevel" onClick={onBack}><BackIcon/></button>
+        <MusicBar track={trackOf(st.track)} color={ch.color}/>
+      </div>
       <div className="pfinfo">
         <div className="pfface" style={{borderColor:ch.color,...faceBg(ch)}}/>
         <div className="pfname">{ch.name}</div>
         {status&&<div className="pfstatus">{status}</div>}
-        <MusicPlayer src={trackSrc(st.track)} color={ch.color}/>
       </div>
       <div className="pfcount">{count}개의 대화</div>
     </div>
