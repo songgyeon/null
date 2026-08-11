@@ -628,7 +628,7 @@ function FindPanel({store,name,onOpen}){
       placeholder="찾을 말" style={{width:"100%",padding:"9px 11px",fontSize:15,
       fontFamily:"inherit",color:"#4a4276",outline:"none",borderRadius:0}}/>
     <div style={{maxHeight:260,overflowY:"auto",marginTop:10}}>
-      {key&&!hits.length&&<div className="dlgline" style={{textAlign:"center",color:"#b0a6d8",fontSize:11}}>없습니다</div>}
+      {key&&!hits.length&&<div className="dlgline" style={{textAlign:"center",color:"#b0a6d8",fontSize:11}}>없다</div>}
       {hits.map(({r,m},i)=><div key={i} onClick={()=>onOpen(r.id)}
         style={{padding:"7px 8px",marginBottom:5,cursor:"pointer",background:"#fff",
         border:"1px solid #e7dcf4",fontSize:11,lineHeight:1.6}}>
@@ -662,7 +662,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
         <button className="bevel pink" onClick={()=>setConfirming(true)}>새로 시작</button>
       </div>
       :<React.Fragment>
-        <div className="dlgline" style={{marginTop:8,color:"#c23b50"}}>모든 대화가 사라져요. 정말?</div>
+        <div className="dlgline" style={{marginTop:8,color:"#c23b50"}}>전부 사라진다. 정말?</div>
         <div className="dlgbtns">
           <button className="bevel" onClick={()=>setConfirming(false)}>취소</button>
           <button className="bevel pink" onClick={onReset}>지우고 새로 시작</button>
@@ -698,22 +698,22 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       <span className="ddwrap">
         {mb("edit","편집")}
         {menu==="edit"&&<div className="dd">
-          <div className="dditem" onClick={()=>{setMenu(null);onExport()}}>💾 대화 저장 (.txt)</div>
-          <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}>📊 기록</div>
+          <div className="dditem" onClick={()=>{setMenu(null);onExport()}}>💾 남기기 (.txt)</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}>📊 기록.log</div>
         </div>}
       </span>
       <span className="ddwrap">
         {mb("chat","대화")}
         {menu==="chat"&&<div className="dd">
-          <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ 읽음 처리</div>
-          <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}>🔍 대화 찾기</div>
+          <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ 모두 읽음</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}>🔍 찾기</div>
         </div>}
       </span>
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")} style={{marginLeft:"auto"}}
-        title={autoLoading?"두 사람의 대화를 엿보는 중":left>0?"관찰은 자주 할 수 없다":"두 사람이 뭘 하고 있는지 본다"}
+        title={autoLoading?"엿보는 중":left>0?"자주 들여다볼 수는 없다":"두 사람이 지금 뭘 하고 있는지"}
         onClick={()=>{ if(autoLoading)return;
-          if(left>0){onToast("아직은 볼 수 없습니다 · "+mmss(left));return}
+          if(left>0){onToast("아직 이르다 · "+mmss(left));return}
           const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
         {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
         <MoonIcon/>
@@ -763,7 +763,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
         })}
         {!album.size&&<div className="empty" style={{marginTop:60}}>
           <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>
-          아직 아무 사진도 없습니다{"\n"}대화 중에 받은 사진이 여기 남습니다
+          아직 받은 사진이 없다{"\n"}보내온 것만 여기 남는다
         </div>}
       </div>
       :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
@@ -777,7 +777,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
             const un=unlocked.includes(h.key);
             const need=Math.max(0,h.at-(counts[h.room]||0));   // 이 방에서 몇 번 더 주고받아야 하나
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
-              onClick={()=>un?setZoom(h.file):onToast(need?"아직 열 수 없습니다 · "+need+"번 남음":"곧 열립니다")}>
+              onClick={()=>un?setZoom(h.file):onToast(need?"ACCESS DENIED · "+need+"번 남음":"곧 열린다")}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
               {!un&&need>0&&<div className="need">{need}번 남음</div>}
@@ -791,10 +791,10 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
     <div className="statusbar"><span>당신이 채워갈 빈칸, NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
-    {dlg==="log"&&<Dialog title="기록" onClose={()=>setDlg(null)}>
+    {dlg==="log"&&<Dialog title="기록.log" onClose={()=>setDlg(null)}>
       <LogPanel store={store} counts={counts} unlocked={unlocked} album={album}/>
     </Dialog>}
-    {dlg==="find"&&<Dialog title="대화 찾기" onClose={()=>setDlg(null)}>
+    {dlg==="find"&&<Dialog title="찾기" onClose={()=>setDlg(null)}>
       <FindPanel store={store} name={name} onOpen={id=>{setDlg(null);onOpen(id)}}/>
     </Dialog>}
     {dlg==="help"&&<Dialog title="etc." onClose={()=>setDlg(null)}>
@@ -863,12 +863,12 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile}){
         <div className="bubble typing"><i/><i/><i/></div>
       </div>}
       {failed&&!busy&&<button className="retry" onClick={onRetry}>
-        응답이 오지 않았어요 · 다시 시도
+        대답이 없다 · 다시
         {failed.detail&&<span className="why">{failed.detail}</span>}
       </button>}
     </div>
     {watch?
-      <div className="watchbar"><span className="rec"/>이 대화에는 참여할 수 없습니다</div>
+      <div className="watchbar"><span className="rec"/>이 대화에는 낄 수 없다</div>
       :<div className="inputbar">
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
         <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
@@ -1034,7 +1034,7 @@ function App(){
 
   /* [편집] 대화 저장: 전체 방 → .txt 다운로드 */
   const exportTxt=()=>{
-    const lines=["NULL — 대화 기록","내보낸 시각: "+new Date().toLocaleString("ko-KR"),""];
+    const lines=["NULL — 대화 기록","남긴 시각: "+new Date().toLocaleString("ko-KR"),""];
     ROOMS.forEach(r=>{
       const ms=storeRef.current.msgs[r.id]||[];if(!ms.length)return;
       lines.push("──── "+r.name+" ────");
