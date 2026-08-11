@@ -231,7 +231,7 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .pfpola .tape{position:absolute;width:44px;height:15px;border-radius:1px}
 .pfpola .t1{left:-14px;top:-8px;transform:rotate(-18deg);background:rgba(255,158,198,.75)}
 .pfpola .t2{right:-14px;bottom:14px;transform:rotate(12deg);background:rgba(195,178,240,.75)}
-.pfpola .shot{width:126px;height:126px;border-radius:3px;background:#efeaf9 no-repeat;background-size:240%}
+.pfpola .shot{display:block;width:126px;height:126px;border-radius:3px;background:#efeaf9;object-fit:cover;object-position:50% 22%}
 .pfpola .cap{margin-top:6px;font-size:8.5px;letter-spacing:.1em;color:#b3a6cf;text-align:center}
 .pfnamerow{display:flex;align-items:center;gap:7px;margin-top:14px}
 .pfnamerow .nm{font-size:16px;color:#4a4276;letter-spacing:.06em}
@@ -375,28 +375,27 @@ const stageIdx=n=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a)i=k});return i};
 /* 음원 위치. 저장소에 파일을 올리면 그대로 잡히고,
    R2 같은 외부 호스팅을 쓰면 MEDIA만 그 주소로 바꾸면 된다.
    파일이 없으면 재생 버튼은 조용히 숨는다. */
-const MEDIA="";
-/* artist/title은 프로필 BGM 바에 그대로 찍힌다.
-   음원 파일이 없으면 재생 시 "BGM 없음"으로 떨어진다. */
+/* 앱(lib/profiles.ts)과 같은 R2 버킷·같은 파일명을 쓴다 */
+const MEDIA="https://pub-6e08882e001c49cbb013168e4b9e8d38.r2.dev/";
 const TRACKS={
-  "jaeeon": {file:"jaeeon-bgm.mp3", artist:"Noah Vane", title:"Two Bowls"},
-  "minhyun":{file:"minhyun-bgm.mp3",artist:"Luca Riot", title:"Ask Again Tomorrow"},
+  "jaeeon-1": {file:"jaeeon-1.mp3", artist:"Noah Vane", title:"Two Bowls"},
+  "minhyun-1":{file:"minhyun-1.mp3",artist:"Luca Riot", title:"Ask Again Tomorrow"},
 };
 const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:null};
 
 /* 단계별 상태메시지 — 없으면 안 띄운다 */
 const PROFILES={
   jaeeon:{bg:"jaeeon-bg.png",stages:[
-    {status:"",                                              track:"jaeeon"},
-    {status:"오늘도 별일 없음.",                                track:"jaeeon"},
-    {status:"자꾸 시계를 본다.\n몇 시인지는 안 중요한데.",          track:"jaeeon"},
-    {status:"어차피 다 지나갈 일에\n오래 서 있었다.",              track:"jaeeon"},
+    {status:"",                                              track:"jaeeon-1"},
+    {status:"오늘도 별일 없음.",                                track:"jaeeon-1"},
+    {status:"자꾸 시계를 본다.\n몇 시인지는 안 중요한데.",          track:"jaeeon-1"},
+    {status:"어차피 다 지나갈 일에\n오래 서 있었다.",              track:"jaeeon-1"},
   ]},
   minhyun:{bg:"minhyun-bg.png",stages:[
-    {status:"ㅡㅡ",                                           track:"minhyun"},
-    {status:"요즘 보건실 자주 감 ㅋ",                            track:"minhyun"},
-    {status:"아무한테도 말 안 함.\n말할 사람도 없고.",             track:"minhyun"},
-    {status:"남은 날 세는 중",                                  track:"minhyun"},
+    {status:"ㅡㅡ",                                           track:null},
+    {status:"요즘 보건실 자주 감 ㅋ",                            track:"minhyun-1"},
+    {status:"아무한테도 말 안 함.\n말할 사람도 없고.",             track:"minhyun-1"},
+    {status:"남은 날 세는 중",                                  track:"minhyun-1"},
   ]},
 };
 
@@ -439,7 +438,7 @@ function Profile({char,count,onBack}){
         <div className="pftop">
           <div className="pfpola">
             <span className="tape t1"/><span className="tape t2"/>
-            <div className="shot" style={faceBg(ch)}/>
+            <img className="shot" src={ch.img} alt=""/>
             <div className="cap">{room?room.empty:""}</div>
           </div>
           <div className="pfnamerow">

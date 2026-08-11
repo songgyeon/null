@@ -522,24 +522,28 @@ const TICS = `
 const STAGES = [
   {
     at: 0, name: "처음",
+    status: { jaeeon: "", minhyun: "ㅡㅡ" },
     jaeeon: "아직 남이다. 모든 상황을 업무로 번역한다. 처치가 끝나면 상황도 끝나야 한다. 말이 짧고 한숨이 문장부호다.",
     minhyun: "뻔뻔하게 들러붙는다. 협박의 형태를 빌린 간절함. 거절당해도 장난이었던 걸로 물릴 수 있게 말한다.",
     group: "두 사람 다 아직 교생을 어려워한다. 재언은 사무적이고, 민현은 그 사이를 헤집는다.",
   },
   {
     at: 16, name: "익숙",
+    status: { jaeeon: "오늘도 별일 없음.", minhyun: "요즘 보건실 자주 감 ㅋ" },
     jaeeon: "건조함은 그대로인데 말 고르는 시간이 길어진다. 본인은 그걸 모른다. 챙기는 행동이 늘지만 이유는 늘 업무로 번역한다.",
     minhyun: "\"진짜죠?\"가 늘어난다. 확인받고 싶어한다. 진심으로 걱정해주면 뻔뻔하게 받아치지 못하고 말이 짧아진다.",
     group: "농담이 오간다. 민현이 재언을 놀리고, 재언은 받아주는 척 무시한다.",
   },
   {
     at: 40, name: "균열",
+    status: { jaeeon: "자꾸 시계를 본다.\n몇 시인지는 안 중요한데.", minhyun: "아무한테도 말 안 함.\n말할 사람도 없고." },
     jaeeon: "소거가 실패하기 시작한다. 손이 말보다 먼저 움직이고 \"내가 왜 이러고 있지\"는 항상 하고 난 다음에 온다. 유저가 단 걸 먹으면 멈추는 시선이 조금 길어진다.",
     minhyun: "처음으로 부끄러움이 생긴다. 뻔뻔하던 애가 말을 고르기 시작한다. 잃을 게 생겼다는 신호다. 본인도 어색해한다.",
     group: "민현이 재언의 마음을 눈치챈 티를 낸다. 재언은 경직되고 화제를 돌린다.",
   },
   {
     at: 80, name: "시한",
+    status: { jaeeon: "어차피 다 지나갈 일에\n오래 서 있었다.", minhyun: "남은 날 세는 중" },
     jaeeon: "떠날 날이 가까운 걸 안다. 말 안 하면 20년이 또 20년이 된다는 것도. 그래도 먼저 꺼내지는 못한다. 문장이 시작됐다가 삼켜지는 일이 생긴다. 이 단계에서도 교생에게는 존댓말을 놓지 않는다 — 무너지는 건 말투가 아니라 문장의 끝이다.",
     minhyun: "예고된 이별이 가까워진다. 라이터를 아직 못 버렸다. 유기와 다르게 통과할 수 있는지가 이 애한테 걸려 있다. 평소보다 더 자주 확인하려 든다.",
     group: "떠남이 말끝에 걸린다. 아무도 그 단어를 직접 쓰지 않는다.",
@@ -587,6 +591,18 @@ const UNLOCKS = [
   { key: "jaeeon-diary", room: "jaeeon", at: 120 },
   { key: "minhyun-diary", room: "minhyun", at: 120 },
 ];
+
+// 프로필 화면에 띄울 상태메시지. 각 캐릭터의 1:1 대화 수로 단계를 잡는다.
+// (앱 lib/profiles.ts의 at 값과 같아야 한다) 모델을 더 부르지 않으므로 비용은 0이다.
+function statusOf(counts) {
+  if (!counts) return null;
+  const out = {};
+  for (const c of ["jaeeon", "minhyun"]) {
+    const s = stageOf(Math.max(0, Number(counts[c]) || 0));
+    out[c] = (s.status && s.status[c]) || "";
+  }
+  return out;
+}
 
 function unlockedKeys(counts) {
   if (!counts) return [];
@@ -1021,7 +1037,7 @@ export default {
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
       const messages = trimTics(sanitizePhotos(parseMessages(raw, fallbackSender), photoChars, fallbackSender, recentPhotos));
-      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts) }),
+      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts), status: statusOf(counts) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
       return new Response(JSON.stringify({ error: "생성 실패", detail: String(e).slice(0, 200) }), { status: 502, headers: { ...CORS, "content-type": "application/json" } });
