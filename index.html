@@ -791,7 +791,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
     </div>
     <div className="checker"/>
     <div className="marquee"><span>
-      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; best viewed in 800×600 &nbsp; ✦ &nbsp;
+      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; 
       {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧
     </span></div>
     <div className="tabs">
@@ -879,7 +879,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       <FindPanel store={store} name={name} onOpen={id=>{setDlg(null);onOpen(id)}}/>
     </Dialog>}
     {dlg==="help"&&<Dialog title="etc." onClose={()=>setDlg(null)}>
-      <div className="dlgline" style={{textAlign:"center",padding:"14px 0",fontSize:13,color:"#8a4f74"}}>NULL has been waiting 4 u ✧</div>
+      <div className="dlgline" style={{textAlign:"center",padding:"14px 0",fontSize:13,color:"#8a4f74"}}>안녕, NULL 기다렸어. ✧</div>
     </Dialog>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
