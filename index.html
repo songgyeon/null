@@ -297,6 +297,29 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .galcell.lock img{filter:blur(9px) grayscale(.8) brightness(1.06);transform:scale(1.1);opacity:.5}
 .galcell .glock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
  font-size:15px;color:#b7addb}
+/* ── Y2K 디테일 ── */
+/* 광택: 버튼 위쪽에 하이라이트 한 줄. 과하면 촌스러우니 위 40%만 */
+.bevel{position:relative}
+.bevel.gloss::after{content:"";position:absolute;left:2px;right:2px;top:2px;height:38%;
+ border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,0));
+ pointer-events:none}
+.pill{border-radius:999px}
+.pill.gloss::after{border-radius:999px}
+/* 체크무늬 띠 — 구분선 대신 한 곳에만 쓴다 */
+.checker{height:6px;flex:none;
+ background-image:linear-gradient(45deg,#e4dcf7 25%,transparent 25%,transparent 75%,#e4dcf7 75%),
+   linear-gradient(45deg,#e4dcf7 25%,transparent 25%,transparent 75%,#e4dcf7 75%);
+ background-size:8px 8px;background-position:0 0,4px 4px;background-color:#fdfbff;
+ border-bottom:1px solid #cfc6ee}
+/* 흐르는 띠 — 한 줄, 느리게. 이게 두 줄이 되는 순간 정신없어진다 */
+.marquee{flex:none;overflow:hidden;white-space:nowrap;padding:4px 0;
+ background:linear-gradient(90deg,#ffe6f2,#efe6ff,#e2f4ff);border-bottom:1px solid #cfc6ee}
+.marquee span{display:inline-block;padding-left:100%;font-size:9px;letter-spacing:.22em;
+ color:#a898cf;animation:slide 26s linear infinite}
+@keyframes slide{to{transform:translateX(-100%)}}
+/* now playing 뱃지 */
+.pfbgm .np{flex:none;padding:2px 6px;border-radius:999px;font-size:7.5px;letter-spacing:.14em;
+ color:#fff;background:#ff8fbe}
 </style>
 </head>
 <body>
@@ -363,8 +386,9 @@ const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"
 const isToday=ts=>{const d=new Date(ts),n=new Date();return d.toDateString()===n.toDateString()};
 const fmtDivider=ts=>isToday(ts)?fmtClock(ts):`${new Date(ts).getMonth()+1}월 ${new Date(ts).getDate()}일 ${fmtClock(ts)}`;
 const fmtListTime=ts=>isToday(ts)?fmtClock(ts):`${new Date(ts).getMonth()+1}월 ${new Date(ts).getDate()}일`;
+const MON=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 const fmtDay=ts=>{const d=new Date(ts),y=d.getFullYear();
-  return (y!==new Date().getFullYear()?y+"년 ":"")+`${d.getMonth()+1}월 ${d.getDate()}일`};
+  return `${MON[d.getMonth()]} ${d.getDate()}`+(y!==new Date().getFullYear()?", "+y:"")};
 
 /* 아이콘: 픽셀풍 (crispEdges) */
 const px={shapeRendering:"crispEdges"};
@@ -495,7 +519,7 @@ function MusicBar({track,color}){
   const [dead,setDead]=useState(false);   // 파일이 없으면 재생 불가로 처리
   useEffect(()=>{const a=ref.current;return()=>{if(a)a.pause()}},[]);
   const label=track?[track.artist,track.title].filter(Boolean).join(" — "):"";
-  if(!track||dead)return <div className="pfbgmoff">♪  BGM 없음</div>;
+  if(!track||dead)return <div className="pfbgmoff">♪  no bgm</div>;
   const toggle=()=>{
     const a=ref.current;if(!a)return;
     if(playing){a.pause();setPlaying(false)}
@@ -504,8 +528,9 @@ function MusicBar({track,color}){
   return <React.Fragment>
     <audio ref={ref} src={track.src} loop preload="none" onError={()=>setDead(true)} onEnded={()=>setPlaying(false)}/>
     <button className={"pfbgm"+(playing?" on":"")} onClick={toggle} style={{color}}>
+      {playing&&<span className="np">now playing</span>}
       <span className="play" style={{borderColor:color,color}}>{playing?"❚❚":"▶"}</span>
-      <span className="lab">{label||(playing?"재생 중 ♪♪♪":"PROFILE BGM ♪")}</span>
+      <span className="lab">{label||"press play ♪"}</span>
       <span className="eq"><i/><i/><i/></span>
     </button>
   </React.Fragment>;
@@ -544,7 +569,7 @@ function Profile({char,count,onBack}){
         <div className="pfstickers">
           {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#ff9ec6","#ffd68a","#c3b2f0","#8fd8e8","#ffb0d4"][i]}}>{x}</span>)}
         </div>
-        <button className="pfclose bevel" onClick={onBack}>◁  돌아가기</button>
+        <button className="pfclose bevel gloss pill" onClick={onBack}>◁  back</button>
       </div>
     </div>
   </div>;
@@ -560,10 +585,10 @@ function Onboarding({onEnter}){
       <div className="tb">now loading...<WinDots/></div>
       <div className="loadbody">
         <div className="logo">NULL</div>
-        <h1>안녕, 널 입력해줘.</h1>
-        <input className="sunken" value={v} maxLength={12} placeholder="이름" autoFocus
+        <h1>hi ♡ enter ur null.</h1>
+        <input className="sunken" value={v} maxLength={12} placeholder="ur name" autoFocus
           onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()}/>
-        <button className="bevel" disabled={!v.trim()} onClick={go}>Click!</button>
+        <button className="bevel gloss" disabled={!v.trim()} onClick={go}>Click!</button>
       </div>
     </div>
     <div className="taskbar">
@@ -600,10 +625,10 @@ function LogPanel({store,counts,unlocked,album}){
   const allPhotos=Object.values(CHARS).reduce((n,c)=>n+c.gallery.length,0);
   const first=Object.values(store.msgs||{}).flat().reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
   const rows=[
-    ["재언이랑", (counts.jaeeon||0)+"번"],
-    ["민현이랑", (counts.minhyun||0)+"번"],
-    ["셋이서", (counts.group||0)+"번"],
-    ["받은 사진", album.size+" / "+allPhotos],
+    ["w/ 재언", (counts.jaeeon||0)],
+    ["w/ 민현", (counts.minhyun||0)],
+    ["group", (counts.group||0)],
+    ["pics", album.size+" / "+allPhotos],
     [".hidden", unlocked.length+" / "+HIDDEN.length],
   ];
   return <div style={{padding:"4px 2px"}}>
@@ -611,7 +636,7 @@ function LogPanel({store,counts,unlocked,album}){
       style={{display:"flex",justifyContent:"space-between",gap:14,fontSize:12}}>
       <span style={{color:"#8a4f74"}}>{k}</span><span style={{color:"#4a4276"}}>{v}</span></div>)}
     <div className="dlgline" style={{marginTop:10,fontSize:10.5,color:"#b0a6d8",textAlign:"center"}}>
-      {first?"처음 널 만난 날 · "+fmtDay(first):"아직 아무 말도 안 했어"}
+      {first?"first met u · "+fmtDay(first):"nothing yet"}
     </div>
   </div>;
 }
@@ -625,10 +650,10 @@ function FindPanel({store,name,onOpen}){
     .map(m=>({r,m}))).slice(-40).reverse();
   return <div style={{padding:"2px"}}>
     <input className="sunken" value={q} onChange={e=>setQ(e.target.value)} autoFocus
-      placeholder="뭐 찾아?" style={{width:"100%",padding:"9px 11px",fontSize:15,
+      placeholder="search..." style={{width:"100%",padding:"9px 11px",fontSize:15,
       fontFamily:"inherit",color:"#4a4276",outline:"none",borderRadius:0}}/>
     <div style={{maxHeight:260,overflowY:"auto",marginTop:10}}>
-      {key&&!hits.length&&<div className="dlgline" style={{textAlign:"center",color:"#b0a6d8",fontSize:11}}>못 찾았어</div>}
+      {key&&!hits.length&&<div className="dlgline" style={{textAlign:"center",color:"#b0a6d8",fontSize:11}}>nothing found</div>}
       {hits.map(({r,m},i)=><div key={i} onClick={()=>onOpen(r.id)}
         style={{padding:"7px 8px",marginBottom:5,cursor:"pointer",background:"#fff",
         border:"1px solid #e7dcf4",fontSize:11,lineHeight:1.6}}>
@@ -647,7 +672,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
   const [nv,setNv]=useState(name);
   const [confirming,setConfirming]=useState(false);
   const doRename=()=>{const t=nv.trim();if(t)onRename(t);setRenaming(false)};
-  return <Dialog title="당신.txt" onClose={onClose}>
+  return <Dialog title="you.txt" onClose={onClose}>
     {renaming
       ?<input className="blankin sunken" style={{width:"100%",fontSize:14,padding:"8px"}} value={nv} autoFocus maxLength={12}
         onChange={e=>setNv(e.target.value)} onBlur={doRename} onKeyDown={e=>e.key==="Enter"&&doRename()}/>
@@ -659,13 +684,13 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
     {!confirming
       ?<div className="dlgbtns">
         <button className="bevel" onClick={()=>{setNv(name);setRenaming(true)}}>이름 변경</button>
-        <button className="bevel pink" onClick={()=>setConfirming(true)}>새로 시작</button>
+        <button className="bevel pink" onClick={()=>setConfirming(true)}>restart</button>
       </div>
       :<React.Fragment>
-        <div className="dlgline" style={{marginTop:8,color:"#c23b50"}}>전부 지워질 건데. 진짜?</div>
+        <div className="dlgline" style={{marginTop:8,color:"#c23b50"}}>this cannot be undone. rly?</div>
         <div className="dlgbtns">
           <button className="bevel" onClick={()=>setConfirming(false)}>취소</button>
-          <button className="bevel pink" onClick={onReset}>지우고 새로 시작</button>
+          <button className="bevel pink" onClick={onReset}>erase all</button>
         </div>
       </React.Fragment>}
   </Dialog>;
@@ -682,6 +707,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
   const left=Math.max(0,autoAt+AUTO_COOL-now);
   const album=seenPhotos(store.msgs);
+  const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
@@ -694,35 +720,40 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
     <Sparkles/>
     <div className="tb"><StarGlyph/>NULL messenger<WinDots/></div>
     <div className="menubar">
-      {mb("you","당신",()=>{setMenu(null);setDlg("profile")})}
+      {mb("you","you",()=>{setMenu(null);setDlg("profile")})}
       <span className="ddwrap">
-        {mb("edit","편집")}
+        {mb("edit","file")}
         {menu==="edit"&&<div className="dd">
-          <div className="dditem" onClick={()=>{setMenu(null);onExport()}}>💾 다 받아두기 (.txt)</div>
-          <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}>얼마나 왔나</div>
+          <div className="dditem" onClick={()=>{setMenu(null);onExport()}}>💾 save all (.txt)</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}>my stats</div>
         </div>}
       </span>
       <span className="ddwrap">
-        {mb("chat","대화")}
+        {mb("chat","chat")}
         {menu==="chat"&&<div className="dd">
-          <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ 다 읽은 걸로</div>
-          <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}>찾기</div>
+          <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ mark all read</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}>search</div>
         </div>}
       </span>
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
-      <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")} style={{marginLeft:"auto"}}
-        title={autoLoading?"엿보는 중":left>0?"조금 이따 다시 와":"둘이 지금 뭐 하나 볼래?"}
+      <button className={"moonbtn bevel gloss pill"+(left>0&&!autoLoading?" cool":"")} style={{marginLeft:"auto"}}
+        title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;
-          if(left>0){onToast("아직 이르대 · "+mmss(left));return}
+          if(left>0){onToast("too soon · "+mmss(left));return}
           const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
         {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
         <MoonIcon/>
-        <span>{autoLoading?"시간이 흐르는 중":left>0?mmss(left):"관찰"}</span>
+        <span>{autoLoading?"time passing...":left>0?mmss(left):"peek"}</span>
       </button>
     </div>
+    <div className="checker"/>
+    <div className="marquee"><span>
+      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; best viewed in 800×600 &nbsp; ✦ &nbsp;
+      {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧
+    </span></div>
     <div className="tabs">
-      <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>대화방 (4)</span>
-      <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>Cam</span>
+      <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms (4)</span>
+      <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
       <span className={"tab hid"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
     </div>
     <div className="roomswrap">
@@ -755,7 +786,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
           const got=ch.gallery.filter(f=>album.has(f.replace(/\.png$/,"")));
           if(!got.length)return null;
           return <React.Fragment key={id}>
-            <div className="sect" style={{color:ch.dk}}>✧ {ch.name} — {got.length}장</div>
+            <div className="sect" style={{color:ch.dk}}>✧ {ch.name} · {got.length} pics</div>
             <div className="galgrid">
               {got.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom(f)}/>)}
             </div>
@@ -763,7 +794,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
         })}
         {!album.size&&<div className="empty" style={{marginTop:60}}>
           <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>
-          아직 아무도 안 보냈어{"\n"}받은 사진은 여기 모여
+          nothing here yet{"\n"}whatever they send lands here
         </div>}
       </div>
       :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
@@ -777,28 +808,28 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
             const un=unlocked.includes(h.key);
             const need=Math.max(0,h.at-(counts[h.room]||0));   // 이 방에서 몇 번 더 주고받아야 하나
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
-              onClick={()=>un?setZoom(h.file):onToast(need?"아직 못 열어 · "+need+"번 더":"거의 다 왔어")}>
+              onClick={()=>un?setZoom(h.file):onToast(need?"still locked · "+need+" more":"almost there")}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
-              {!un&&need>0&&<div className="need">{need}번 남음</div>}
+              {!un&&need>0&&<div className="need">{need} more</div>}
               <div className="hlabel">{un?h.label:"???"}</div>
             </div>;
           })}
         </div>
-        <div className="hnote">LOCK! UNLOCK?<br/>얘기하다 보면 하나씩 열려</div>
+        <div className="hnote">LOCK! UNLOCK?<br/>keep talking · they open one by one</div>
       </div>}
     </div>
-    <div className="statusbar"><span>당신이 채워갈 빈칸, NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
+    <div className="statusbar"><span>the blank u fill in ♡ NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
-    {dlg==="log"&&<Dialog title="얼마나 왔나" onClose={()=>setDlg(null)}>
+    {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>
       <LogPanel store={store} counts={counts} unlocked={unlocked} album={album}/>
     </Dialog>}
-    {dlg==="find"&&<Dialog title="찾기" onClose={()=>setDlg(null)}>
+    {dlg==="find"&&<Dialog title="search" onClose={()=>setDlg(null)}>
       <FindPanel store={store} name={name} onOpen={id=>{setDlg(null);onOpen(id)}}/>
     </Dialog>}
     {dlg==="help"&&<Dialog title="etc." onClose={()=>setDlg(null)}>
-      <div className="dlgline" style={{textAlign:"center",padding:"14px 0",fontSize:13,color:"#8a4f74"}}>NULL, 기다리고 있었어.</div>
+      <div className="dlgline" style={{textAlign:"center",padding:"14px 0",fontSize:13,color:"#8a4f74"}}>NULL has been waiting 4 u ✧</div>
     </Dialog>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
@@ -822,7 +853,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile}){
       <Avatar room={room} size={31} onProfile={onProfile}/>
       <div>
         <div className="cname">{room.name}</div>
-        <div className="csub">{watch?<><span className="rec"/> 훔쳐보는 중</>:room.sub}</div>
+        <div className="csub">{watch?<><span className="rec"/> watching</>:room.sub}</div>
       </div>
     </div>
     <div className="msgs" ref={boxRef}>
@@ -863,15 +894,15 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile}){
         <div className="bubble typing"><i/><i/><i/></div>
       </div>}
       {failed&&!busy&&<button className="retry" onClick={onRetry}>
-        답이 없어... 다시 불러볼까?
+        no reply... try again?
         {failed.detail&&<span className="why">{failed.detail}</span>}
       </button>}
     </div>
     {watch?
-      <div className="watchbar"><span className="rec"/>넌 여기 못 껴</div>
+      <div className="watchbar"><span className="rec"/>u can't join this one</div>
       :<div className="inputbar">
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
-        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
+        <button className="sendbtn bevel gloss" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
       </div>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
