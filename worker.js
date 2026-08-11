@@ -669,7 +669,7 @@ async function callModel(env, m, system, messages, maxTokens) {
       headers: {
         "content-type": "application/json",
         // trim(): 대시보드에 붙여넣을 때 딸려온 줄바꿈·공백이 헤더를 깨뜨리는 일이 잦다
-        "x-api-key": (env.ANTHROPIC_API_KEY || "").trim(),
+        "x-api-key": resolveKey(env)?.value || "",
         "anthropic-version": "2023-06-01",
         // 브라우저에서 시작된 요청으로 판정되면 403이 돌아오는 경우가 있어 함께 붙인다.
         // (키는 워커 안에만 있고 브라우저로 나가지 않는다)
@@ -790,6 +790,32 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+// 대시보드에서 이름을 잘못 넣는 일이 잦다(앞뒤 공백, 소문자, ANTHROPIC-API-KEY 등).
+// 정확한 이름을 먼저 찾고, 없으면 같은 이름으로 볼 수 있는 것을 찾는다.
+// 값은 어디에도 출력하지 않는다.
+const KEY_NAME = "ANTHROPIC_API_KEY";
+const norm = (s) => String(s).trim().toUpperCase().replace(/[^A-Z]/g, "");
+function resolveKey(env) {
+  if (typeof env?.[KEY_NAME] === "string" && env[KEY_NAME].trim()) {
+    return { name: KEY_NAME, value: env[KEY_NAME].trim(), exact: true };
+  }
+  for (const k of Object.keys(env || {})) {
+    const v = env[k];
+    if (typeof v === "string" && v.trim() && norm(k) === norm(KEY_NAME)) {
+      return { name: k, value: v.trim(), exact: false };
+    }
+  }
+  return null;
+}
+// 바인딩이 무엇이 붙어 있는지 이름만 나열한다 (값은 절대 안 찍는다).
+function bindingNames(env) {
+  return Object.keys(env || {}).map(k => {
+    const v = env[k];
+    const t = typeof v === "string" ? `문자열 ${v.length}자` : typeof v;
+    return `  - ${JSON.stringify(k)} (${t})`;
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
@@ -797,16 +823,34 @@ export default {
     // (브라우저에서 워커 주소를 그냥 열면 된다)
     if (request.method !== "POST") {
       const lines = ["NULL 백엔드 자가 진단", "=".repeat(34), ""];
-      if (!env.ANTHROPIC_API_KEY) {
+      const found = resolveKey(env);
+      if (!found) {
         lines.push("✗ ANTHROPIC_API_KEY 없음");
+        lines.push("");
+        // 아무것도 없는 것과 이름이 틀린 것은 대응이 완전히 다르다. 구분해서 보여준다.
+        const names = bindingNames(env);
+        if (names.length === 0) {
+          lines.push("이 워커에 붙어 있는 변수: 하나도 없음");
+          lines.push("→ 저장이 안 됐거나, 저장 후 재배포가 안 된 것입니다.");
+        } else {
+          lines.push("이 워커에 붙어 있는 변수:");
+          lines.push(...names);
+          lines.push("→ 위 목록에 키가 보인다면 이름이 정확히");
+          lines.push(`   ${KEY_NAME} 인지 확인하세요 (공백·대소문자·하이픈).`);
+        }
         lines.push("");
         lines.push("Cloudflare → Workers → null-api → Settings →");
         lines.push("Variables and Secrets 에 ANTHROPIC_API_KEY를 추가하세요.");
         return new Response(lines.join("\n"), { headers: { ...CORS, "content-type": "text/plain; charset=utf-8" } });
       }
+      if (!found.exact) {
+        lines.push(`★ 이름이 ${JSON.stringify(found.name)}로 등록돼 있습니다 — ${KEY_NAME}로 고치세요.`);
+        lines.push("  (지금은 워커가 알아서 찾아 쓰고 있습니다)");
+        lines.push("");
+      }
       // 키의 앞부분만 보고 종류를 판별한다. 비밀 부분은 절대 출력하지 않는다.
-      const raw = env.ANTHROPIC_API_KEY;
-      const key = raw.trim();
+      const raw = env[found.name];
+      const key = found.value;
       const kind =
         key.startsWith("sk-ant-api") ? "일반 API 키 — 이 용도에 맞습니다"
         : key.startsWith("sk-ant-admin") ? "★ Admin 키 — 메시지 API를 호출할 수 없습니다(403의 원인)"
@@ -880,8 +924,8 @@ export default {
       return new Response(lines.join("\n"), { headers: { ...CORS, "content-type": "text/plain; charset=utf-8" } });
     }
 
-    if (!env.ANTHROPIC_API_KEY)
-      return new Response(JSON.stringify({ error: "서버 설정 오류", detail: "ANTHROPIC_API_KEY 미설정" }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
+    if (!resolveKey(env))
+      return new Response(JSON.stringify({ error: "서버 설정 오류", detail: "ANTHROPIC_API_KEY 미설정 — 워커 주소를 브라우저로 열면 원인이 나옵니다" }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
 
     let body;
     try { body = await request.json(); } catch { body = {}; }
