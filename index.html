@@ -267,6 +267,36 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .pfstickers{display:flex;justify-content:center;gap:12px;margin-top:16px;font-size:12px}
 .pfclose{display:block;width:calc(100% - 36px);margin:14px 18px 18px;padding:10px 0;
  font-family:inherit;font-size:11px;letter-spacing:.2em;color:#4a4276;background:#ffe3f0;cursor:pointer}
+/* ── 접속 상태 점 ── */
+.pres{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:9px;color:#a79cd0}
+.pres i{width:6px;height:6px;border-radius:50%;flex:none}
+.pres.on i{background:#4fc98a;box-shadow:0 0 0 2px rgba(79,201,138,.22)}
+.pres.away i{background:#f0b34a;box-shadow:0 0 0 2px rgba(240,179,74,.2)}
+.pres.off i{background:#c3bcd8}
+/* ── 🌙 관찰 버튼 ── */
+.moonbtn{position:relative;display:flex;align-items:center;gap:6px;padding:0 9px;height:30px;
+ font-family:inherit;font-size:10px;letter-spacing:.06em;color:#4a4276;white-space:nowrap;overflow:hidden}
+.moonbtn .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(195,178,240,.5);
+ transition:width .4s linear;pointer-events:none}
+.moonbtn span{position:relative}
+.moonbtn.cool{color:#9a8fc8}
+/* ── 진행도 헤더 ── */
+.progline{display:flex;align-items:center;gap:8px;margin:12px 4px 8px}
+.progline .t{font-size:9.5px;letter-spacing:.3em;color:#b0a6d8;white-space:nowrap}
+.progline .bar{flex:1;height:5px;background:#e6e0f6;border:1px solid #cfc6ee;overflow:hidden}
+.progline .bar i{display:block;height:100%;background:linear-gradient(90deg,#ffb0d4,#c3b2f0)}
+.progline .n{font-size:9.5px;color:#8a7fc0;white-space:nowrap}
+/* 잠긴 칸의 남은 횟수 */
+.hcell .need{position:absolute;left:0;right:0;top:50%;margin-top:14px;text-align:center;
+ font-size:9px;letter-spacing:.05em;color:rgba(255,255,255,.9);text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.galcell{position:relative;aspect-ratio:2/3;border-radius:5px;overflow:hidden;border:1px solid #cfc6ee;
+ background:#efeaf9;cursor:pointer;box-shadow:1px 2px 0 rgba(93,84,144,.2)}
+.galcell img{width:100%;height:100%;object-fit:cover;display:block}
+.galcell:active{opacity:.85}
+.galcell.lock{background:#efeaf9;cursor:default}
+.galcell.lock img{filter:blur(9px) grayscale(.8) brightness(1.06);transform:scale(1.1);opacity:.5}
+.galcell .glock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+ font-size:15px;color:#b7addb}
 </style>
 </head>
 <body>
@@ -300,19 +330,21 @@ Object.values(CHARS).forEach(c=>c.gallery.forEach(f=>{PHOTO_FILES[f.replace(/\.p
 const photoSrc = k => (k&&PHOTO_FILES[k])||null;
 
 /* .hidden: 대화가 쌓이면 백엔드가 해금해준다 */
+/* .hidden — room/at은 worker.js의 UNLOCKS와 같아야 한다.
+   어긋나면 화면에 표시되는 "N번 남음"이 실제 해금 시점과 달라진다. */
 const HIDDEN=[
-  {key:"jaeeon-bag",      file:"jaeeon-bag.png",      label:"재언의 가방"},
-  {key:"minhyun-bag",     file:"minhyun-bag.png",     label:"민현의 가방"},
-  {key:"jaeeon-room",     file:"jaeeon-room.png",     label:"재언의 방"},
-  {key:"minhyun-room",    file:"minhyun-room.png",    label:"민현의 방"},
-  {key:"jaeeon-playlist", file:"jaeeon-playlist.png", label:"재언의 플레이리스트"},
-  {key:"minhyun-playlist",file:"minhyun-playlist.png",label:"민현의 플레이리스트"},
-  {key:"jaeeon-ticket",   file:"jaeeon-ticket.png",   label:"재언의 티켓"},
-  {key:"minhyun-ticket",  file:"minhyun-ticket.png",  label:"민현의 티켓"},
-  {key:"jaeeon-yearbook", file:"jaeeon-yearbook.png", label:"재언의 졸업사진"},
-  {key:"minhyun-yearbook",file:"minhyun-yearbook.png",label:"민현의 졸업사진"},
-  {key:"jaeeon-diary",    file:"jaeeon-diary.png",    label:"재언의 일기"},
-  {key:"minhyun-diary",   file:"minhyun-diary.png",   label:"민현의 일기"},
+  {key:"jaeeon-bag",             file:"jaeeon-bag.png",             label:"재언의 가방", room:"jaeeon", at:12},
+  {key:"minhyun-bag",            file:"minhyun-bag.png",            label:"민현의 가방", room:"minhyun", at:12},
+  {key:"jaeeon-room",            file:"jaeeon-room.png",            label:"재언의 방", room:"jaeeon", at:26},
+  {key:"minhyun-room",           file:"minhyun-room.png",           label:"민현의 방", room:"minhyun", at:26},
+  {key:"jaeeon-playlist",        file:"jaeeon-playlist.png",        label:"재언의 플레이리스트", room:"jaeeon", at:44},
+  {key:"minhyun-playlist",       file:"minhyun-playlist.png",       label:"민현의 플레이리스트", room:"minhyun", at:44},
+  {key:"jaeeon-ticket",          file:"jaeeon-ticket.png",          label:"재언의 티켓", room:"jaeeon", at:64},
+  {key:"minhyun-ticket",         file:"minhyun-ticket.png",         label:"민현의 티켓", room:"minhyun", at:64},
+  {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.png",        label:"재언의 졸업사진", room:"jaeeon", at:90},
+  {key:"minhyun-yearbook",       file:"minhyun-yearbook.png",       label:"민현의 졸업사진", room:"minhyun", at:90},
+  {key:"jaeeon-diary",           file:"jaeeon-diary.png",           label:"재언의 일기", room:"jaeeon", at:120},
+  {key:"minhyun-diary",          file:"minhyun-diary.png",          label:"민현의 일기", room:"minhyun", at:120},
 ];
 const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
 const loadUnlocked=()=>{try{return JSON.parse(localStorage.getItem("null_unlocked"))||[]}catch(e){return[]}};
@@ -338,6 +370,54 @@ const MoonIcon=({size=14,color})=><svg width={size} height={size} viewBox="0 0 1
 const BackIcon=()=><svg width="13" height="13" viewBox="0 0 14 14" style={px}><path d="M8 2h2v2H8v2H6v2h2v2h2v2H8v-2H6V8H4V6h2V4h2V2z" fill="currentColor"/></svg>;
 const SendIcon=()=><svg width="14" height="14" viewBox="0 0 14 14" style={px}><path d="M6 1h2v2h2v2h2v2h-2V5H8v8H6V5H4v2H2V5h2V3h2V1z" fill="currentColor"/></svg>;
 const StarGlyph=({color="#fff"})=><span style={{fontSize:11,color,textShadow:"1px 1px 0 rgba(93,84,144,.4)"}}>✦</span>;
+/* ── 접속 상태 ──
+   시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다.
+   재언은 근무 시간에 보건실에 있고, 민현은 학교에 매여 있다. */
+function presence(id, now){
+  const h=(now||new Date()).getHours();
+  if(id==="jaeeon"){
+    if(h>=8&&h<17)  return {s:"on",  t:"보건실"};
+    if(h>=17&&h<23) return {s:"away",t:"퇴근"};
+    if(h>=23||h<1)  return {s:"away",t:"집"};
+    return {s:"off", t:"자는 중"};
+  }
+  if(id==="minhyun"){
+    if(h>=8&&h<16)  return {s:"away",t:"수업 중"};
+    if(h>=16&&h<22) return {s:"on",  t:"야자"};
+    if(h>=22||h<2)  return {s:"on",  t:"안 자는 중"};
+    return {s:"off", t:"꺼짐"};
+  }
+  return null;
+}
+
+/* ── 관계 온도 ──
+   단계 이름은 화면에 쓰지 않는다. 대놓고 쓰면 몰입이 깨진다 — 색으로만 말한다. */
+const HEAT=[
+  {w:1,  a:.28},   // 처음
+  {w:1.5,a:.55},   // 익숙
+  {w:2,  a:.8 },   // 균열
+  {w:2.5,a:1  },   // 시한
+];
+const heatRing=(ch,idx)=>({borderWidth:HEAT[idx].w+"px",borderStyle:"solid",
+  borderColor:rgba(ch.dk,HEAT[idx].a)});
+
+/* ── 🌙 관찰 쿨타임 ──
+   관찰은 흔하면 값이 떨어진다. 연타로 새는 API 비용도 여기서 막힌다. */
+const AUTO_COOL=5*60*1000;
+const loadAutoAt=()=>{const v=+localStorage.getItem("null_auto_at");return v||0};
+const saveAutoAt=t=>{try{localStorage.setItem("null_auto_at",String(t))}catch(e){}};
+const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));
+  return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
+
+/* ── 사진첩(Cam) ──
+   처음부터 다 보여주면 앨범이 아니라 목록이다.
+   실제로 받은 사진만 한 장씩 꽂힌다. 대화 기록에서 그대로 뽑으므로 별도 저장이 없다. */
+function seenPhotos(msgs){
+  const set=new Set();
+  Object.values(msgs||{}).forEach(list=>(list||[]).forEach(m=>{if(m.photo)set.add(m.photo)}));
+  return set;
+}
+
 /* 캐릭터 프로필 아이콘 */
 const CrossIcon=({size=14,color="#3fbdb4"})=><svg width={size} height={size} viewBox="0 0 14 14" style={px}><path d="M5 2h4v3h3v4H9v3H5V9H2V5h3V2z" fill={color}/></svg>;
 const Star4Icon=({size=14,color="#ff8a5f"})=><svg width={size} height={size} viewBox="0 0 14 14"><path d="M7 0l1.8 5.2L14 7l-5.2 1.8L7 14 5.2 8.8 0 7l5.2-1.8z" fill={color}/></svg>;
@@ -357,8 +437,8 @@ const WinDots=({onClose})=><div className="dots"><span className="d1">─</span>
 /* 확대율·위치는 사진마다 다르다. 사진을 갈아끼우면 CHARS의 zoom/pos를 다시 잡을 것.
    너무 키우면 머리 위가 잘린다 — 150% 근처가 머리 전체가 들어오는 한계다. */
 const faceBg=ch=>({backgroundImage:`url("${ch.img+AV_V}")`,backgroundSize:ch.zoom||"150%",backgroundPosition:ch.pos,backgroundColor:ch.pale});
-function Avatar({room,size=42,onProfile}){
-  const st={width:size,height:size};
+function Avatar({room,size=42,onProfile,heat}){
+  const st={width:size,height:size,...(heat!=null?heatRing(CHARS[room.id],heat):null)};
   // 1:1 방의 얼굴만 눌러서 프로필로 들어간다. 단톡/관전방은 대상이 없다.
   const hit=onProfile&&room.type==="dm"
     ? {className:"avatar clickable",onClick:e=>{e.stopPropagation();onProfile(room.id)}}
@@ -512,6 +592,53 @@ function Blank({value,onSave,width}){
   return <span className={"blank"+(value?" filled":"")} onClick={()=>setEdit(true)}>{value||"□□"}</span>;
 }
 
+/* [편집 → 기록] 지금까지 채운 빈칸을 숫자로 보여준다.
+   대사로 못 하는 말을 통계가 대신한다 — 이 앱의 주제 그대로. */
+function LogPanel({store,counts,unlocked,album}){
+  const allPhotos=Object.values(CHARS).reduce((n,c)=>n+c.gallery.length,0);
+  const first=Object.values(store.msgs||{}).flat().reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
+  const rows=[
+    ["이재언과", (counts.jaeeon||0)+"번"],
+    ["이민현과", (counts.minhyun||0)+"번"],
+    ["단톡방에서", (counts.group||0)+"번"],
+    ["받은 사진", album.size+" / "+allPhotos],
+    [".hidden", unlocked.length+" / "+HIDDEN.length],
+  ];
+  return <div style={{padding:"4px 2px"}}>
+    {rows.map(([k,v])=><div key={k} className="dlgline"
+      style={{display:"flex",justifyContent:"space-between",gap:14,fontSize:12}}>
+      <span style={{color:"#8a4f74"}}>{k}</span><span style={{color:"#4a4276"}}>{v}</span></div>)}
+    <div className="dlgline" style={{marginTop:10,fontSize:10.5,color:"#b0a6d8",textAlign:"center"}}>
+      {first?"처음 말을 건 날 · "+fmtDivider(first):"아직 아무 말도 오가지 않았다"}
+    </div>
+  </div>;
+}
+
+/* [대화 → 찾기] 방을 넘나들며 찾는다. 어디서 그 말을 했는지 기억나지 않을 때. */
+function FindPanel({store,name,onOpen}){
+  const [q,setQ]=useState("");
+  const key=q.trim();
+  const hits=!key?[]:ROOMS.flatMap(r=>(store.msgs[r.id]||[])
+    .filter(m=>(m.text||"").includes(key))
+    .map(m=>({r,m}))).slice(-40).reverse();
+  return <div style={{padding:"2px"}}>
+    <input className="sunken" value={q} onChange={e=>setQ(e.target.value)} autoFocus
+      placeholder="찾을 말" style={{width:"100%",padding:"9px 11px",fontSize:15,
+      fontFamily:"inherit",color:"#4a4276",outline:"none",borderRadius:0}}/>
+    <div style={{maxHeight:260,overflowY:"auto",marginTop:10}}>
+      {key&&!hits.length&&<div className="dlgline" style={{textAlign:"center",color:"#b0a6d8",fontSize:11}}>없습니다</div>}
+      {hits.map(({r,m},i)=><div key={i} onClick={()=>onOpen(r.id)}
+        style={{padding:"7px 8px",marginBottom:5,cursor:"pointer",background:"#fff",
+        border:"1px solid #e7dcf4",fontSize:11,lineHeight:1.6}}>
+        <div style={{fontSize:9,color:CHARS[m.sender]?CHARS[m.sender].dk:"#8a7fc0",letterSpacing:".06em"}}>
+          {m.sender==="user"?name:(CHARS[m.sender]?CHARS[m.sender].name:r.name)} · {r.name}
+        </div>
+        <div style={{color:"#4a4276",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.text}</div>
+      </div>)}
+    </div>
+  </div>;
+}
+
 /* [당신] 프로필 카드 */
 function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
   const [renaming,setRenaming]=useState(false);
@@ -543,11 +670,16 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,profile,onSaveField}){
+function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
-  const [dlg,setDlg]=useState(null);       // 'profile'|'help'
+  const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
+  const [now,setNow]=useState(Date.now()); // 접속 상태·쿨타임 갱신용
+  const [autoAt,setAutoAt]=useState(loadAutoAt);
+  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
+  const left=Math.max(0,autoAt+AUTO_COOL-now);
+  const album=seenPhotos(store.msgs);
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
@@ -563,14 +695,28 @@ function RoomList({store,name,unlocked,onOpen,onProfile,onAuto,autoLoading,onExp
       {mb("you","당신",()=>{setMenu(null);setDlg("profile")})}
       <span className="ddwrap">
         {mb("edit","편집")}
-        {menu==="edit"&&<div className="dd"><div className="dditem" onClick={()=>{setMenu(null);onExport()}}>💾 대화 저장 (.txt)</div></div>}
+        {menu==="edit"&&<div className="dd">
+          <div className="dditem" onClick={()=>{setMenu(null);onExport()}}>💾 대화 저장 (.txt)</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}>📊 기록</div>
+        </div>}
       </span>
       <span className="ddwrap">
         {mb("chat","대화")}
-        {menu==="chat"&&<div className="dd"><div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ 읽음 처리</div></div>}
+        {menu==="chat"&&<div className="dd">
+          <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}>✔ 읽음 처리</div>
+          <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}>🔍 대화 찾기</div>
+        </div>}
       </span>
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
-      <button className={"iconbtn bevel"+(autoLoading?" loading":"")} style={{marginLeft:"auto"}} title="시간 경과" onClick={onAuto} disabled={autoLoading}><MoonIcon/></button>
+      <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")} style={{marginLeft:"auto"}}
+        title={autoLoading?"두 사람의 대화를 엿보는 중":left>0?"관찰은 자주 할 수 없다":"두 사람이 뭘 하고 있는지 본다"}
+        onClick={()=>{ if(autoLoading)return;
+          if(left>0){onToast("아직은 볼 수 없습니다 · "+mmss(left));return}
+          const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
+        {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
+        <MoonIcon/>
+        <span>{autoLoading?"시간이 흐르는 중":left>0?mmss(left):"관찰"}</span>
+      </button>
     </div>
     <div className="tabs">
       <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>대화방 (4)</span>
@@ -583,13 +729,15 @@ function RoomList({store,name,unlocked,onOpen,onProfile,onAuto,autoLoading,onExp
         {ROOMS.map((r,i)=>{
           const ms=store.msgs[r.id]||[], last=ms[ms.length-1], un=store.unread[r.id]||0;
           const watch=r.type==="watch";
+          const pr=presence(r.id,new Date(now));
           return <React.Fragment key={r.id}>
             {watch&&<div className="sect">✧ LIVE</div>}
             <div className={"roomcard"+(watch?" watch":"")} style={{animationDelay:`${i*0.05}s`}} onClick={()=>onOpen(r.id)}>
-              <Avatar room={r} onProfile={onProfile}/>
+              <Avatar room={r} onProfile={onProfile} heat={CHARS[r.id]?stageIdx(counts[r.id]||0):null}/>
               <div className="rinfo">
                 <div className="rtop">
                   <span className="rname">{r.name}</span>
+                  {pr&&<span className={"pres "+pr.s}><i/>{pr.t}</span>}
                   {last&&<span className="rtime">{fmtListTime(last.ts)}</span>}
                 </div>
                 <div className="rprev">{last?(last.sender==="user"?"나: ":"")+(last.photo?"[사진] "+(last.text||""):last.text) : r.empty.split("\n")[0]}</div>
@@ -600,22 +748,37 @@ function RoomList({store,name,unlocked,onOpen,onProfile,onAuto,autoLoading,onExp
         })}
       </div>
       :tab==="cam"
-      ?<div className="gal">{/* Cam 탭: 캐릭터별 갤러리 */}
-        {Object.entries(CHARS).map(([id,ch])=><React.Fragment key={id}>
-          <div className="sect" style={{color:ch.dk}}>✧ {ch.name}</div>
-          <div className="galgrid">
-            {ch.gallery.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom(f)}/>)}
-          </div>
-        </React.Fragment>)}
+      ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
+        {Object.entries(CHARS).map(([id,ch])=>{
+          const got=ch.gallery.filter(f=>album.has(f.replace(/\.png$/,"")));
+          if(!got.length)return null;
+          return <React.Fragment key={id}>
+            <div className="sect" style={{color:ch.dk}}>✧ {ch.name} — {got.length}장</div>
+            <div className="galgrid">
+              {got.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom(f)}/>)}
+            </div>
+          </React.Fragment>;
+        })}
+        {!album.size&&<div className="empty" style={{marginTop:60}}>
+          <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>
+          아직 아무 사진도 없습니다{"\n"}대화 중에 받은 사진이 여기 남습니다
+        </div>}
       </div>
       :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
-        <div className="sect" style={{color:"#8f86c9"}}>ENCRYPTED — {unlocked.length}/{HIDDEN.length}</div>
+        <div className="progline">
+          <span className="t">ENCRYPTED</span>
+          <span className="bar"><i style={{width:(unlocked.length/HIDDEN.length*100)+"%"}}/></span>
+          <span className="n">{unlocked.length} / {HIDDEN.length}</span>
+        </div>
         <div className="galgrid">
           {HIDDEN.map(h=>{
             const un=unlocked.includes(h.key);
-            return <div key={h.key} className={"hcell"+(un?"":" lock")} onClick={()=>un&&setZoom(h.file)}>
+            const need=Math.max(0,h.at-(counts[h.room]||0));   // 이 방에서 몇 번 더 주고받아야 하나
+            return <div key={h.key} className={"hcell"+(un?"":" lock")}
+              onClick={()=>un?setZoom(h.file):onToast(need?"아직 열 수 없습니다 · "+need+"번 남음":"곧 열립니다")}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
+              {!un&&need>0&&<div className="need">{need}번 남음</div>}
               <div className="hlabel">{un?h.label:"???"}</div>
             </div>;
           })}
@@ -626,6 +789,12 @@ function RoomList({store,name,unlocked,onOpen,onProfile,onAuto,autoLoading,onExp
     <div className="statusbar"><span>당신이 채워갈 빈칸, NULL v1.0</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
+    {dlg==="log"&&<Dialog title="기록" onClose={()=>setDlg(null)}>
+      <LogPanel store={store} counts={counts} unlocked={unlocked} album={album}/>
+    </Dialog>}
+    {dlg==="find"&&<Dialog title="대화 찾기" onClose={()=>setDlg(null)}>
+      <FindPanel store={store} name={name} onOpen={id=>{setDlg(null);onOpen(id)}}/>
+    </Dialog>}
     {dlg==="help"&&<Dialog title="etc." onClose={()=>setDlg(null)}>
       <div className="dlgline" style={{textAlign:"center",padding:"14px 0",fontSize:13,color:"#8a4f74"}}>NULL, 기다리고 있었어.</div>
     </Dialog>}
@@ -895,8 +1064,9 @@ function App(){
 
   return <div className="phone">
     {!name?<Onboarding onEnter={enter}/>
-    :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} onOpen={openRoom} onProfile={setProf} onAuto={doAuto} autoLoading={autoLoading}
-       onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset}
+    :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
+       onOpen={openRoom} onProfile={setProf} onAuto={doAuto} autoLoading={autoLoading}
+       onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={setProf}/>}
