@@ -216,8 +216,8 @@ const CHARS = {
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
   {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},
-  {id:"group",  name:"단톡방", color:"#B8A5E3", type:"group", sub:"group chat", empty:""},
-  {id:"health", name:"두 사람", color:"#9aa3d8", type:"watch", sub:"LIVE cam",  empty:""},
+  {id:"group",  name:"단톡방", color:"#B8A5E3", type:"group", sub:"group chat", empty:"loading..."},
+  {id:"health", name:"두 사람", color:"#9aa3d8", type:"watch", sub:"LIVE cam",  empty:"access denied"},
 ];
 const roomOf = id => ROOMS.find(r=>r.id===id);
 
@@ -396,7 +396,7 @@ function RoomList({store,name,onOpen,onAuto,autoLoading,onExport,onReadAll,onRen
                   <span className="rname">{r.name}</span>
                   {last&&<span className="rtime">{fmtListTime(last.ts)}</span>}
                 </div>
-                <div className="rprev">{last?(last.sender==="user"?"나: ":"")+(last.photo?"[사진] "+(last.text||""):last.text) : (watch?"":r.empty.split("\n")[0])}</div>
+                <div className="rprev">{last?(last.sender==="user"?"나: ":"")+(last.photo?"[사진] "+(last.text||""):last.text) : r.empty.split("\n")[0]}</div>
               </div>
               {un>0&&<span className="rbadge">{un}</span>}
             </div>
