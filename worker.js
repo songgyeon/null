@@ -594,7 +594,12 @@ ${lines.join("\n")}
 const FORMAT_CHAT = `
 ## 출력 형식 (반드시 지킬 것)
 - 메신저 대화다. 소설 지문이 아니라 채팅 메시지로만 답한다.
-- 행동 묘사가 필요하면 괄호 없이 메시지 자체의 뉘앙스로 처리하거나, (...) 같은 최소한의 표기만 쓴다.
+- 행동 묘사는 괄호로 쓸 수 있다. 그 줄은 말풍선이 아니라 화면에 지문처럼 따로 표시된다.
+  - 괄호 줄은 그것만으로 하나의 말풍선이어야 한다. 대사와 한 말풍선에 섞지 않는다.
+    (o) {"messages": ["(소독약 뚜껑을 여는 소리)", "가만히 계세요."]}
+    (x) {"messages": ["(소독약 뚜껑을 여는 소리) 가만히 계세요."]}
+  - 짧게, 한 호흡. 소리나 손짓 하나. 문단짜리 설명을 쓰지 않는다.
+  - 자주 쓰지 않는다. 말로 될 일은 말로 한다.
 - 한 번에 1~3개의 짧은 말풍선으로 답한다. 카톡처럼.
 - 반드시 아래 JSON만 출력한다. 다른 텍스트 금지:
 {"messages": ["지금요?", "그건 아까 말했잖아요."]}
@@ -607,6 +612,9 @@ const FORMAT_GROUP = `
 - 단톡방이다. 유저의 마지막 말에 자연스럽게 이어질 다음 발화를 생성한다.
 - 두 캐릭터 중 반응할 사람만 반응한다. 항상 둘 다 말할 필요 없다. 상황상 자연스러운 쪽이 1~3개 발화.
 - 캐릭터끼리 서로에게 반응해도 된다 (티격태격, 견제).
+- 지난 대화에는 "[이재언] 말" 처럼 이름표가 붙어 있다. 그건 누가 한 말인지
+  읽으라고 붙여둔 것이지 답하는 형식이 아니다. **답할 때는 이름표를 쓰지 않는다.**
+  누가 말하는지는 오직 "sender" 값으로만 밝힌다. text 안에 이름을 적지 않는다.
 - 반드시 아래 JSON만 출력한다. 다른 텍스트 금지:
 {"messages": [{"sender": "jaeeon", "text": "그건 네가 알아서 해."}, {"sender": "minhyun", "text": "알아서 하고 있는데요", "photo": "사진키"}]}
 `;
@@ -622,6 +630,9 @@ const FORMAT_AUTO = `
 - 각자의 자율 대화 가이드를 따른다: 이재언은 교생 얘기에 경직되고, 이민현은 떠보고 읽는다.
 - 유저에 대해 아는 것은 [눈치 신호]에 주어진 것뿐이다. 1:1 대화 내용을 직접 아는 것처럼 말하지 않는다.
 - 유저가 없는 자리다. 사진은 쓰지 않는다 — "photo" 필드를 넣지 않는다.
+- 지난 대화에는 "[이재언] 말" 처럼 이름표가 붙어 있다. 그건 누가 한 말인지
+  읽으라고 붙여둔 것이지 답하는 형식이 아니다. **답할 때는 이름표를 쓰지 않는다.**
+  누가 말하는지는 오직 "sender" 값으로만 밝힌다. text 안에 이름을 적지 않는다.
 - 반드시 아래 JSON만 출력한다. 다른 텍스트 금지:
 {"messages": [{"sender": "jaeeon", "text": "그건 네가 알아서 해."}, {"sender": "minhyun", "text": "알아서 하고 있는데요"}]}
 `;
@@ -983,6 +994,30 @@ async function narrowDown(env, m, system, messages, maxTokens, first) {
   throw new Error(`anthropic ${first.status}: ${first.body} | ${shape}`);
 }
 
+// 괄호만으로 이뤄진 줄 — 대사가 아니라 행동 지문이다
+const NARRATION = /^[（(][^()（）]*[)）]$/;
+
+/* 지문은 말풍선이 아니라 채팅창에 쳐진 줄로 보여준다.
+   모델이 지문과 대사를 한 말풍선에 섞어 보내면 프론트가 쪼갤 수 없으므로
+   여기서 줄 단위로 갈라둔다. 사진이 붙은 말풍선은 건드리지 않는다. */
+function splitNarration(list) {
+  const out = [];
+  for (const m of list) {
+    const text = (m.text || "").toString();
+    if (m.photo || !/[（(]/.test(text)) { out.push(m); continue; }
+    const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    if (!lines.length) { out.push(m); continue; }
+    let buf = [];
+    const flush = () => { if (buf.length) { out.push({ ...m, text: buf.join("\n") }); buf = []; } };
+    for (const line of lines) {
+      if (NARRATION.test(line)) { flush(); out.push({ sender: m.sender, text: line }); }
+      else buf.push(line);
+    }
+    flush();
+  }
+  return out.length ? out : list;
+}
+
 // 점만 있는 말풍선(..., ㆍㆍㆍ, …)인지
 const ONLY_DOTS = /^[.·ㆍ…\s]+$/;
 
@@ -1004,7 +1039,44 @@ function trimTics(list) {
   return out;
 }
 
-function parseMessages(text, fallbackSender) {
+const NAME_TO_ID = { "이재언": "jaeeon", "이민현": "minhyun" };
+
+/* 단톡방·「두 사람」방은 이력을 "[이재언] 말" 형태로 넣어준다. 모델이 JSON을
+   안 쓰고 그 형식을 그대로 따라 쓸 때가 있는데, 그러면 세 사람 대사가 말풍선
+   하나에 통째로 들어가고 화자도 엉뚱하게 붙는다.
+   그래서 이름표가 붙은 줄은 화자별 말풍선으로 풀어준다. 모델이 형식을 어겨도
+   화면은 멀쩡하게 나오도록. 이름표가 하나도 없으면 null을 돌려 원래대로 둔다. */
+function parseTagged(text, allowed) {
+  const lines = String(text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  const out = [];
+  let tagged = 0;
+  for (const line of lines) {
+    // "[이재언] 말" 과 "이재언: 말" 둘 다 받는다
+    const m = line.match(/^\[\s*([^\]]{1,20})\s*\]\s*(.*)$/) ||
+              line.match(/^([가-힣A-Za-z]{2,10})\s*[:：]\s*(.*)$/);
+    let id = m && NAME_TO_ID[m[1].trim()];
+    // 이 방에 없는 사람은 말하지 않는다. 1:1 방에 상대가 끼어드는 걸 막는다
+    if (id && !allowed.includes(id)) id = null;
+    if (id) {
+      tagged++;
+      const t = m[2].trim();
+      if (t) out.push({ sender: id, text: t });
+    } else if (m && m[1] && !id) {
+      // 유저 이름표. 모델이 유저 말을 되뇐 것이므로 버린다 (유저 말을 캐릭터가 하면 안 된다)
+      tagged++;
+    } else if (out.length) {
+      // 이름표 없는 줄은 바로 앞 사람이 이어 말한 것으로 본다
+      out[out.length - 1].text += "\n" + line;
+    } else {
+      return null; // 이름표가 나오기도 전에 딴 게 있다 — 이 형식이 아니다
+    }
+  }
+  return tagged && out.length ? out : null;
+}
+
+function parseMessages(text, fallbackSender, allowed) {
+  const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
   try {
     const cleaned = text.replace(/```json|```/g, "").trim();
     const start = cleaned.indexOf("{");
@@ -1013,11 +1085,16 @@ function parseMessages(text, fallbackSender) {
       if (Array.isArray(j.messages)) {
         return j.messages.map(m =>
           typeof m === "string" ? { sender: fallbackSender, text: m } : m
-        ).filter(m => m && m.text);
+        ).filter(m => m && m.text)
+         // 이 방에 없는 사람 이름이 오면 그 방 주인의 말로 돌린다 (1:1에 난입 방지)
+         .map(m => ok.includes(m.sender) ? m : { ...m, sender: fallbackSender });
       }
     }
   } catch (e) { /* fall through */ }
-  // JSON 파싱 실패 시 — 원문을 한 덩어리 메시지로
+  // JSON이 아니다 — 이름표 형식이면 화자별로 풀어준다
+  const tagged = parseTagged(text, ok);
+  if (tagged) return tagged;
+  // 그것도 아니면 원문을 한 덩어리 메시지로
   return [{ sender: fallbackSender, text: text }];
 }
 
@@ -1236,7 +1313,7 @@ export default {
       const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
-      const messages = trimTics(sanitizePhotos(parseMessages(raw, fallbackSender), photoChars, fallbackSender, recentPhotos));
+      const messages = trimTics(sanitizePhotos(splitNarration(parseMessages(raw, fallbackSender, chars)), photoChars, fallbackSender, recentPhotos));
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts), status: statusOf(counts) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
