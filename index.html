@@ -249,8 +249,7 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .pfbgm .play{flex:none;width:20px;height:20px;border-radius:50%;border:1px solid;background:#fff;
  display:flex;align-items:center;justify-content:center;font-size:9px}
 .pfbgm .lab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;
- font-family:Georgia,"Times New Roman","Nanum Myeongjo","Noto Serif KR",serif;
- font-style:italic;font-size:11px;letter-spacing:.02em;color:#7a6cae}
+ font-family:inherit;font-size:9.5px;letter-spacing:.1em;color:#7a6cae}
 .pfbgm .eq{flex:none;display:flex;align-items:flex-end;gap:2px;height:14px}
 .pfbgm .eq i{width:3px;height:3px;border-radius:1px;background:currentColor}
 .pfbgm.on .eq i{animation:eq .7s steps(3) infinite}
@@ -377,29 +376,27 @@ const stageIdx=n=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a)i=k});return i};
    R2 같은 외부 호스팅을 쓰면 MEDIA만 그 주소로 바꾸면 된다.
    파일이 없으면 재생 버튼은 조용히 숨는다. */
 const MEDIA="";
-/* artist/title은 화면에 그대로 찍히므로 실제로 있는 곡만 적는다.
-   비워두면 그 자리는 안 그린다 — 없는 제목을 지어내지 않기 위해서다. */
+/* artist/title은 프로필 BGM 바에 그대로 찍힌다.
+   음원 파일이 없으면 재생 시 "BGM 없음"으로 떨어진다. */
 const TRACKS={
-  "jaeeon-1": {file:"jaeeon-bgm1.mp3", artist:"", title:""},
-  "jaeeon-2": {file:"jaeeon-bgm2.mp3", artist:"", title:""},
-  "minhyun-1":{file:"minhyun-bgm1.mp3",artist:"", title:""},
-  "minhyun-2":{file:"minhyun-bgm2.mp3",artist:"", title:""},
+  "jaeeon": {file:"jaeeon-bgm.mp3", artist:"Noah Vane", title:"Two Bowls"},
+  "minhyun":{file:"minhyun-bgm.mp3",artist:"Luca Riot", title:"Ask Again Tomorrow"},
 };
 const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:null};
 
 /* 단계별 상태메시지 — 없으면 안 띄운다 */
 const PROFILES={
   jaeeon:{bg:"jaeeon-bg.png",stages:[
-    {status:"",                                              track:"jaeeon-1"},
-    {status:"오늘도 별일 없음.",                                track:"jaeeon-1"},
-    {status:"자꾸 시계를 본다.\n몇 시인지는 안 중요한데.",          track:"jaeeon-2"},
-    {status:"어차피 다 지나갈 일에\n오래 서 있었다.",              track:"jaeeon-2"},
+    {status:"",                                              track:"jaeeon"},
+    {status:"오늘도 별일 없음.",                                track:"jaeeon"},
+    {status:"자꾸 시계를 본다.\n몇 시인지는 안 중요한데.",          track:"jaeeon"},
+    {status:"어차피 다 지나갈 일에\n오래 서 있었다.",              track:"jaeeon"},
   ]},
   minhyun:{bg:"minhyun-bg.png",stages:[
-    {status:"ㅡㅡ",                                           track:"minhyun-1"},
-    {status:"요즘 보건실 자주 감 ㅋ",                            track:"minhyun-1"},
-    {status:"아무한테도 말 안 함.\n말할 사람도 없고.",             track:"minhyun-2"},
-    {status:"남은 날 세는 중",                                  track:"minhyun-2"},
+    {status:"ㅡㅡ",                                           track:"minhyun"},
+    {status:"요즘 보건실 자주 감 ㅋ",                            track:"minhyun"},
+    {status:"아무한테도 말 안 함.\n말할 사람도 없고.",             track:"minhyun"},
+    {status:"남은 날 세는 중",                                  track:"minhyun"},
   ]},
 };
 
