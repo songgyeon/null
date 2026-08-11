@@ -751,7 +751,8 @@ async function askClaude(env, system, messages, maxTokens) {
 // 대화가 길어질수록 실패한다면 최근 대화만으로 다시 시도하면 통과한다.
 async function narrowDown(env, m, system, messages, maxTokens, first) {
   const lastUser = [...messages].reverse().find(x => x.role === "user");
-  const shape = `요청: 메시지 ${messages.length}개, 시스템 ${system.length}자, 대화 ${
+  const sysLen = Array.isArray(system) ? system.reduce((n, b) => n + (b.text || "").length, 0) : String(system || "").length;
+  const shape = `요청: 메시지 ${messages.length}개, 시스템 ${sysLen}자, 대화 ${
     messages.reduce((n, x) => n + x.content.length, 0)}자`;
 
   if (lastUser) {
@@ -851,6 +852,14 @@ export default {
     // (브라우저에서 워커 주소를 그냥 열면 된다)
     if (request.method !== "POST") {
       const lines = ["NULL 백엔드 자가 진단", "=".repeat(34), ""];
+      // 워커가 실제로 실행되는 데이터센터. ICN(인천)이어야 한다.
+      // HKG 등으로 나오면 placement가 풀린 것이고, 그 자체가 403의 원인이다.
+      const colo = request.cf && request.cf.colo;
+      if (colo) {
+        lines.push(`[0] 워커 실행 위치: ${colo}` +
+          (colo === "ICN" || colo === "SEL" ? " (한국 — 정상)" : " ★ 한국이 아닙니다 — Settings → Runtime → Placement 확인"));
+        lines.push("");
+      }
       const found = resolveKey(env);
       if (!found) {
         lines.push("✗ ANTHROPIC_API_KEY 없음");
