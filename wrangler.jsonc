@@ -15,9 +15,11 @@
   // api.anthropic.com 요청이 403 {"type":"forbidden"} 으로 막힌다.
   // 대시보드 Settings → Runtime → Placement 에서 고른 값과 같아야 한다:
   //   Region / Microsoft Azure / koreasouth
+  // region은 provider:region 형식이어야 한다. koreasouth만 쓰면
+  // 배포가 10021 validation error로 실패한다.
   // keep_vars는 변수만 지켜주고 이 설정은 안 지켜준다. 대시보드에서만
   // 고쳐두면 다음 Git 배포 때 되돌아가므로 여기에 같이 박아둔다.
-  "placement": { "mode": "targeted", "region": "koreasouth" }
+  "placement": { "mode": "targeted", "region": "azure:koreasouth" }
 
   // index.html과 png들은 GitHub Pages가 서빙하므로 여기서 올리지 않는다.
   // 키는 절대 이 파일에 적지 말 것 — 저장소는 공개다.
