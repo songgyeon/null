@@ -154,6 +154,8 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  border:1px solid #d4586b;background:#fff0f3;color:#c23b50;cursor:pointer;
  box-shadow:inset 1px 1px 0 #fff,2px 2px 0 rgba(212,88,107,.3);animation:fadeUp .3s steps(4)}
 .retry:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 #ffd7de}
+.retry .why{display:block;margin-top:5px;font-size:9.5px;line-height:1.5;color:#a04255;
+ opacity:.85;word-break:break-all;text-align:left;max-width:250px}
 /* 입력바 */
 .inputbar{flex:none;display:flex;align-items:center;gap:8px;padding:9px 10px calc(11px + env(safe-area-inset-bottom));
  background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
@@ -363,7 +365,10 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry}){
         <div className="mavatar" style={{background:"#ece8fa"}}/>
         <div className="bubble typing"><i/><i/><i/></div>
       </div>}
-      {failed&&!busy&&<button className="retry" onClick={onRetry}>응답이 오지 않았어요 · 다시 시도</button>}
+      {failed&&!busy&&<button className="retry" onClick={onRetry}>
+        응답이 오지 않았어요 · 다시 시도
+        {failed.detail&&<span className="why">{failed.detail}</span>}
+      </button>}
     </div>
     {watch?
       <div className="watchbar"><span className="rec"/>이 대화에는 참여할 수 없습니다</div>
@@ -446,8 +451,13 @@ function App(){
     setFailed(f=>({...f,[bucket]:null}));
     try{
       const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-      if(!res.ok)throw new Error(res.status);
-      const data=await res.json();
+      const data=await res.json().catch(()=>null);
+      if(!res.ok){
+        // 서버가 알려준 실패 사유를 그대로 들고 올라간다
+        const err=new Error("HTTP "+res.status);
+        err.detail=(data&&(data.detail||data.error))||("HTTP "+res.status);
+        throw err;
+      }
       inflightRef.current[bucket]=false;
       const list=(data&&data.messages)||[];
       if(list.length)enqueue(bucket,list);
@@ -455,7 +465,8 @@ function App(){
     }catch(e){
       inflightRef.current[bucket]=false;
       setBusy(b=>({...b,[bucket]:false}));
-      setFailed(f=>({...f,[bucket]:payload}));
+      // 실패 사유를 화면에 남긴다 — 콘솔을 열지 않아도 원인이 보이게
+      setFailed(f=>({...f,[bucket]:{payload,detail:String(e.detail||e.message||e).slice(0,300)}}));
     }
   };
 
@@ -468,7 +479,7 @@ function App(){
   };
   /* 재시도: 저장해둔 payload를 최신 history로 갱신해 다시 전송 */
   const retry=room=>{
-    const p=failed[room];if(!p)return;
+    const p=failed[room]&&failed[room].payload;if(!p)return;
     if(p.mode==="chat")p.history=buildHistory(storeRef.current.msgs[room]||[]);
     p.recent_photos=recentPhotos(p.mode==="auto"?"health":room);
     request(room,p);
