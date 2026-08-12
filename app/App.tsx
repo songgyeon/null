@@ -581,7 +581,12 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
         <TouchableOpacity style={tab==='cam'?rl.tabOn:rl.tab} onPress={()=>setTab('cam')}><Text style={tab==='cam'?rl.tabOnT:rl.tabT}>cam</Text></TouchableOpacity>
         <TouchableOpacity style={tab==='hidden'?rl.tabOn:rl.tab} onPress={()=>setTab('hidden')}><Text style={[tab==='hidden'?rl.tabOnT:rl.tabT,tab!=='hidden'&&{color:'#8f86c9'}]}>.hidden</Text></TouchableOpacity>
       </View>
-      <View style={rl.wrap}><ScrollView style={{padding:10}}>
+      {/* padding을 ScrollView 자체 style에 주면 스크롤 프레임이 패딩되어 내용 끝이
+          잘린다(.hidden 안내문이 끝까지 내려도 반쯤 잘리던 원인). 여백은 반드시
+          contentContainerStyle 쪽에 준다. 아래 여백을 넉넉히 두는 것도 같은 이유다. */}
+      <View style={rl.wrap}><ScrollView style={{flex:1}}
+        contentContainerStyle={{padding:10,paddingBottom:34}}
+        showsVerticalScrollIndicator={false}>
         {tab==='cam'
         ? <>
             {Object.entries(CHARS).map(([id,c]:[string,any])=>{

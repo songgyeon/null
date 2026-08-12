@@ -174,6 +174,22 @@ const missing = [...wanted].filter(f => { try { readFileSync(join(ROOT, f)); ret
 eq('배경 파일이 전부 저장소에 있다', missing, []);
 
 // ─────────────────────────────────────────────
+section('앱 레이아웃 — 헤드리스로 못 돌리는 것은 소스로 막는다');
+// ─────────────────────────────────────────────
+const appSrc = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+
+/* React Native에서 padding을 ScrollView 자체 style에 주면 스크롤 프레임이 패딩되어
+   내용 끝이 잘린다. .hidden 안내문이 끝까지 내려도 반쯤 잘리던 원인이 이것이었다.
+   여백은 contentContainerStyle에 줘야 한다. 눈으로만 잡히는 종류라 소스로 막는다. */
+eq('ScrollView 자체 style에 padding을 주지 않는다',
+  [...appSrc.matchAll(/<ScrollView[^>]*?\sstyle=\{\{([^}]*)\}\}/g)]
+    .map(m => m[1]).filter(v => /padding/.test(v)), []);
+
+/* HEAT는 stageIdx로 색인한다. 배열이 짧으면 마지막 단계에서 undefined를 읽고 터진다. */
+const appHeat = (appSrc.match(/\{w:[\d.]+,\s*o:'[0-9a-f]{2}'\}/g) || []).length;
+eq('앱 HEAT 길이가 단계 수와 같다', appHeat, webAt.length);
+
+// ─────────────────────────────────────────────
 section('데모 모드 — 키 없이 들어온 사람도 빈 화면을 보지 않는다');
 // ─────────────────────────────────────────────
 const demoSrc = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('const fmtClock=ts=>'));
