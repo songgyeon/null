@@ -532,13 +532,13 @@ const PHOTOS = {
     char: "jaeeon",
     when: "집. 커튼 앞에 서 있는 옆모습. 뭐 하냐고 물었는데 딱히 하는 게 없을 때. 대답 대신 이걸 보낸다.",
   },
-  "jaeeon-bench": {
-    char: "jaeeon",
-    when: "밤에 길가에 앉아 있는 참. 턱을 괴고 있다. 늦은 시간에 안 자고 뭐 하냐는 물음에.",
+  "minhyun-bench": {
+    char: "minhyun",
+    when: "밤에 길가에 나와 앉아 있는 참. 턱을 괴고 있다. 안 자고 뭐 하냐고 물었을 때 — 집에 안 들어가고 있는 거지만 그 말은 안 한다.",
   },
-  "jaeeon-desk": {
-    char: "jaeeon",
-    when: "자기 고3 때 사진. 교실 책상에 엎드려 자고 있다. 민현이 얘기나 옛날 얘기가 나왔을 때만. 자주 보내지 않는다.",
+  "minhyun-desk": {
+    char: "minhyun",
+    when: "교실에서 엎드려 자다가 찍힌 사진. 짝이 찍어서 보내준 것이다. 수업·야자·졸리다는 얘기에.",
   },
   "minhyun-morning": {
     char: "minhyun",
