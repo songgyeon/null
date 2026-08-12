@@ -38,7 +38,10 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
    살짝 겹치는 음수 여백으로 낸다 — 좌표로 흩어놓으면 화면 높이가 바뀔 때마다
    겹치거나 잘린다. */
 .spstack{position:absolute;left:0;right:0;top:0;bottom:0;z-index:12;
- display:flex;flex-direction:column;justify-content:center;gap:16px;padding:0 26px 54px}
+ display:flex;flex-direction:column;justify-content:center;gap:12px;padding:0 26px 34px}
+/* 세로가 모자라면 flex가 창들을 눌러버리고, overflow:hidden이라 안쪽 버튼이
+   잘려나간다. 창은 절대 줄이지 않는다 — 모자라면 차라리 위아래가 잘리는 게 낫다. */
+.spstack>*{flex:none}
 .spstack .w1{align-self:flex-start;width:182px;margin-top:14px}
 .spstack .w2{align-self:flex-end;width:194px;margin-top:-6px}
 .spstack .w3{align-self:stretch;margin-top:8px}
@@ -220,7 +223,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 @keyframes pop{0%{opacity:0;transform:scale(.94)}100%{opacity:1;transform:scale(1)}}
 .splash{display:block;cursor:pointer;background:linear-gradient(180deg,#dcd3f7 0%,#c3b2f0 50%,#f0c2de 100%)}
 /* CD도 흐름에 얹는다. 좌표로 두면 짧은 화면에서 카드 뒤로 숨는다 */
-.spcd{align-self:flex-end;margin-right:-4px;width:88px;height:88px;border-radius:50%;z-index:5;flex:none;
+.spcd{align-self:flex-end;margin-right:-4px;width:76px;height:76px;border-radius:50%;z-index:5;flex:none;
  animation:spin 7s linear infinite;
  background:conic-gradient(from 0deg,#ffd0e6,#c3b2f0,#a8e6e0,#ffe9a8,#ffc2dd,#b9e3ff,#ffd0e6);
  box-shadow:0 0 0 1px rgba(255,255,255,.9),0 6px 20px rgba(60,40,100,.32)}

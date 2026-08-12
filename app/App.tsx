@@ -438,8 +438,8 @@ function Splash({onEnter}:{onEnter:(n:string)=>void}) {
         세로 흐름에 얹고, 흩어진 데스크톱처럼 보이는 건 좌우 정렬과
         살짝 겹치는 음수 여백으로 낸다. */}
     <View style={[sp.stack,kb?{justifyContent:'flex-start',paddingTop:12}:null]}>
-      <View style={sp.cdSlot}><SpinCD/></View>
-      <View style={sp.card}>
+      <View style={sp.cdSlot}><SpinCD size={76}/></View>
+      <View style={[sp.card,sp.noShrink]}>
         <TB colors={['#ff8fbe','#c3b2f0']}><Text style={tbT}>null.exe</Text><Dots/></TB>
         <View style={sp.body}>
           <Text style={sp.logo}>NULL</Text>
@@ -452,19 +452,19 @@ function Splash({onEnter}:{onEnter:(n:string)=>void}) {
 
       {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
       {!kb&&<>
-        <SpWin title="Error" colors={['#b9a8ea','#8a7fc0']} style={sp.w1}>
+        <SpWin title="Error" colors={['#b9a8ea','#8a7fc0']} style={[sp.w1,sp.noShrink]}>
           <Text style={sp.wtx}>이름을 입력해야 존재할 수 있어요.</Text>
           <View style={sp.wbtn}><Text style={sp.wbtnT}>ok</Text></View>
         </SpWin>
         {/* 커서는 창에 매달아 둔다 — 좌표로 놓으면 글자를 깔고 앉는다 */}
-        <View style={sp.w2}>
+        <View style={[sp.w2,sp.noShrink]}>
           <SpWin title="System error" colors={['#ff7fae','#ff5fa8']}>
             <Text style={sp.wtx}>당신을 찾을 수 없습니다.</Text>
             <View style={sp.wbtn}><Text style={sp.wbtnT}>Cancel</Text></View>
           </SpWin>
           <SpCursor/>
         </View>
-        <SpWin title="loading..." colors={['#8fd8e8','#c3b2f0']} style={sp.w3}>
+        <SpWin title="loading..." colors={['#8fd8e8','#c3b2f0']} style={[sp.w3,sp.noShrink]}>
           <View style={sp.bar}><LoadStripe/></View>
         </SpWin>
       </>}
@@ -487,8 +487,11 @@ function LoadStripe() {
   </Animated.View>;
 }
 const sp=StyleSheet.create({
-  stack:{...StyleSheet.absoluteFillObject,justifyContent:'center',paddingHorizontal:26,paddingBottom:54,gap:16},
-  cdSlot:{alignSelf:'flex-end',marginRight:-4},
+  stack:{...StyleSheet.absoluteFillObject,justifyContent:'center',paddingHorizontal:26,paddingBottom:34,gap:12},
+  /* 세로가 모자라면 flex가 창들을 눌러버리고, overflow:hidden이라 안쪽 버튼이
+     잘려나간다. 창은 절대 줄이지 않는다 — 모자라면 차라리 위아래가 잘리는 게 낫다. */
+  noShrink:{flexShrink:0},
+  cdSlot:{alignSelf:'flex-end',marginRight:-4,flexShrink:0},
   card:{width:'100%',backgroundColor:'#fff8fc',borderWidth:1,borderColor:P.border,
         borderRadius:9,overflow:'hidden'},
   body:{paddingHorizontal:18,paddingTop:26,paddingBottom:22,alignItems:'center'},
