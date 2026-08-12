@@ -201,6 +201,134 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .blank:hover{background:#fff0f7}
 .blank.filled{color:#8a4f74;border-style:solid}
 .blankin{width:74px;padding:2px 5px;font-family:inherit;font-size:12px;color:#4a4276;text-align:center;outline:none;border-radius:0}
+/* ── 소개 영상 ──
+   데스크 CD를 누르면 나오는 11초짜리. 사진 넉 장과 문장 네 줄이 넘어가고
+   NULL 로고로 끝난다. 실제 동영상 파일이 아니라 전부 CSS다.
+
+   시작할 때 강제로 보여주면 프롤로그 나레이션이 되지만, 눌러야 나오는
+   소개 영상이면 다르다 — 안 볼 사람은 안 보고, 궁금한 사람만 본다.
+
+   .logo·.sub·.scan처럼 흔한 이름이 많아 전부 .film 아래로 가뒀다. */
+.film{position:absolute;inset:0;z-index:70;display:flex;flex-direction:column;
+ overflow:hidden;background:#0e0a24;cursor:pointer}
+.film.out{animation:filmOut .45s ease-in both}
+@keyframes filmOut{to{opacity:0;visibility:hidden}}
+/* ══ NULL 소개 영상 (11초) · VHS 테이프 재생 느낌 ══
+   좌표 대신 % / flex 로만 배치 → 높이 640까지 줄어도 안 잘림 */
+
+/* ── 폰 화면 ── */
+
+/* ── 사진 스테이지 ── */
+.film .stage{position:relative;flex:1;overflow:hidden;
+ animation:jump 11s steps(1) both}           /* 세로로 튀는 글리치 */
+@keyframes jump{
+ 0%,20.9%{transform:translateY(0)}
+ 21%{transform:translateY(-9px)}21.6%{transform:translateY(4px)}22%{transform:translateY(0)}
+ 46.9%{transform:translateY(0)}47%{transform:translateY(7px)}47.5%{transform:translateY(-5px)}48%{transform:translateY(0)}
+ 74.9%{transform:translateY(0)}75%{transform:translateY(-6px)}75.6%{transform:translateY(3px)}76%,100%{transform:translateY(0)}}
+
+/* 사진 4장 — 지금은 색 블록, 나중에 background-image 로 교체 */
+.film .fr{position:absolute;inset:0;opacity:0;background-size:cover;background-position:center;
+ animation:cut .7s ease-out both}
+@keyframes cut{from{opacity:0;transform:scale(1.06)}to{opacity:1;transform:scale(1)}}
+/* jaeeon-museum.webp */
+.film .f1{animation-delay:.2s;background-image:linear-gradient(160deg,#8fa8e8,#c3b2f0 55%,#f0c2de)}
+/* minhyun-record.webp */
+.film .f2{animation-delay:2.2s;background-image:linear-gradient(160deg,#ffb38f,#f0a2c8 55%,#c3b2f0)}
+/* jaeeon-night.webp */
+.film .f3{animation-delay:4.2s;background-image:linear-gradient(160deg,#3b2c6e,#7d5f9e 55%,#c98fb8)}
+/* minhyun-roof.webp */
+.film .f4{animation-delay:6.2s;background-image:linear-gradient(160deg,#ffd7a8,#ff9ec6 55%,#a2a8ea)}
+
+/* 사진 위 글리터 · 반짝이 */
+.film .glitter{position:absolute;inset:0;pointer-events:none;opacity:.5;
+ background-image:radial-gradient(rgba(255,255,255,.9) 1px,transparent 1px),
+   radial-gradient(rgba(255,214,240,.8) 1px,transparent 1px);
+ background-size:38px 38px,53px 53px;background-position:0 0,17px 21px;
+ animation:glit 1.2s steps(2) infinite}
+@keyframes glit{0%{background-position:0 0,17px 21px}100%{background-position:3px -2px,14px 24px}}
+.film .tw{position:absolute;pointer-events:none;color:#fff;font-size:15px;text-shadow:0 0 6px #ffb2d6;
+ animation:tw 2.4s ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.25;transform:scale(.5) rotate(0)}50%{opacity:1;transform:scale(1) rotate(90deg)}}
+
+/* ── 문장 ── */
+.film .lines{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+ display:flex;align-items:center;justify-content:center;padding:0 26px;pointer-events:none}
+.film .ln{position:absolute;padding:22px 26px;
+ background:radial-gradient(ellipse at center,rgba(16,10,36,.62) 0%,rgba(16,10,36,.3) 46%,rgba(16,10,36,0) 74%);width:100%;text-align:center;font-size:19px;line-height:1.75;color:#fff;
+ letter-spacing:.02em;opacity:0;
+ text-shadow:2px 2px 0 rgba(120,70,120,.65),0 0 14px rgba(255,158,198,.8);
+ animation:say 2s ease-out both}
+@keyframes say{
+ 0%{opacity:0;transform:translateY(8px) scale(.98)}
+ 14%{opacity:1;transform:translateY(0) scale(1)}
+ 72%{opacity:1}
+ 100%{opacity:0;transform:translateY(-6px)}}
+.film .ln1{animation-delay:.7s}
+.film .ln2{animation-delay:2.7s}
+.film .ln3{animation-delay:4.7s}
+.film .ln4{animation-delay:6.7s}
+.film .ln b{color:#ffe3f6}
+.film .ln .deco{display:block;margin-top:10px;font-size:12px;letter-spacing:.4em;color:#ffd0e6}
+
+/* ── 암전 + 로고 ── */
+.film .blackout{position:absolute;inset:0;background:#0e0a24;opacity:0;
+ animation:bo .6s ease-in 8.4s both}
+@keyframes bo{to{opacity:1}}
+.film .ending{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:16px;opacity:0;animation:endin 1s ease-out 9.3s both}
+@keyframes endin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.film .logo{font-family:"Galmuri9","Galmuri11",sans-serif;font-size:44px;letter-spacing:.34em;text-indent:.34em;
+ background:linear-gradient(118deg,#fff 0 12%,#ffd8f2 28%,#bfe6ff 48%,#fff 64%,#e0cdff 86%,#fff 100%);
+ background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+ -webkit-text-stroke:1.4px #ff9ec6;filter:drop-shadow(0 0 12px rgba(255,158,198,.75));
+ animation:shim 4s linear infinite}
+@keyframes shim{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+.film .sub{font-size:11px;letter-spacing:.34em;color:#ffd0e6;text-shadow:0 0 8px rgba(255,158,198,.8)}
+.film .rainbow{width:150px;height:5px;border-radius:3px;
+ background:linear-gradient(90deg,#ff9ec6,#ffd68a,#a8e6e0,#b9e3ff,#c3b2f0,#ff9ec6)}
+.film .ending .heart{position:absolute;font-size:13px;color:#ff9ec6;animation:tw 2.6s ease-in-out infinite}
+
+/* ── VHS 껍데기 ── */
+.film .scan{position:absolute;inset:0;z-index:20;pointer-events:none;
+ background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px)}
+.film .rgb{position:absolute;inset:0;z-index:19;pointer-events:none;mix-blend-mode:screen;opacity:.28;
+ background:linear-gradient(90deg,rgba(255,0,90,.45),transparent 12%,transparent 88%,rgba(0,190,255,.45));
+ animation:fringe 2.6s steps(3) infinite}
+@keyframes fringe{0%{transform:translateX(0)}33%{transform:translateX(1.5px)}66%{transform:translateX(-1.5px)}100%{transform:translateX(0)}}
+.film .track{position:absolute;left:0;right:0;height:26px;z-index:21;pointer-events:none;opacity:.5;
+ background:repeating-linear-gradient(0deg,rgba(255,255,255,.55) 0 1px,rgba(255,255,255,0) 1px 2px,
+   rgba(255,255,255,.25) 2px 3px,rgba(255,255,255,0) 3px 5px);
+ filter:blur(.4px)}
+.film .track.t1{top:0;animation:tr1 5.5s linear infinite}
+.film .track.t2{bottom:0;animation:tr2 7.5s linear infinite}
+@keyframes tr1{0%{transform:translateY(-26px);opacity:0}
+ 8%{opacity:.6}50%{transform:translateY(46vh);opacity:.45}92%{opacity:.5}100%{transform:translateY(90vh);opacity:0}}
+@keyframes tr2{0%{transform:translateY(26px);opacity:0}
+ 10%{opacity:.55}55%{transform:translateY(-40vh);opacity:.4}100%{transform:translateY(-88vh);opacity:0}}
+.film .hud{position:absolute;left:0;right:0;z-index:22;display:flex;align-items:center;justify-content:space-between;
+ padding:12px 14px;font-family:"Galmuri9","Galmuri11",sans-serif;font-size:11px;color:#fff;
+ text-shadow:1px 1px 0 rgba(0,0,0,.55);pointer-events:none;letter-spacing:.08em}
+.film .hud.top{top:0}
+.film .hud.bot{bottom:0;align-items:flex-end}
+.film .rec{display:flex;align-items:center;gap:6px}
+.film .dot{width:9px;height:9px;border-radius:50%;background:#ff5470;box-shadow:0 0 8px #ff5470;
+ animation:rb 1.1s steps(2) infinite}
+@keyframes rb{0%,49%{opacity:1}50%,100%{opacity:.15}}
+.film .tc{letter-spacing:.14em}
+.film .play{letter-spacing:.16em}
+.film .skip{color:#ffd0e6;font-size:10px;letter-spacing:.24em;animation:rb 1.7s steps(2) infinite}
+/* 스티커 */
+.film .sticker{position:absolute;z-index:23;pointer-events:none;font-size:13px;
+ text-shadow:1px 1px 0 rgba(120,70,120,.5)}
+.film .tape{position:absolute;z-index:23;width:52px;height:16px;pointer-events:none;
+ background:repeating-linear-gradient(90deg,rgba(255,255,255,.55) 0 4px,rgba(255,214,240,.45) 4px 8px);
+ border-left:1px solid rgba(255,255,255,.5);border-right:1px solid rgba(255,255,255,.5)}
+/* 건너뛰기 상태 */
+.tv.skipped .stage>.fr,.tv.skipped .lines{animation:none;opacity:0}
+.film.skipped .blackout{animation:none;opacity:1}
+.film.skipped .ending{animation:endin .4s ease-out both}
+
 /* ── 오프닝 ──
    Y2K 데스크톱. 도는 CD, 올라오는 방울, 흩어진 가짜 오류창.
    오류창이 이 이야기를 대신 말한다 — "당신을 찾을 수 없습니다".
@@ -1051,26 +1179,6 @@ function useBg(src,fallback){
   return ok?src:fallback;   // 확인 중에도 fallback을 보여준다 — 빈 화면이 깜빡이지 않게
 }
 
-/* 데스크 CD — 메신저 자체의 BGM.
-   오디오를 App이 들고 있는 이유: 방에 들어가면 RoomList가 통째로 사라져서
-   거기 있던 <audio>도 같이 죽는다. 그러면 방에 들어갈 때마다 음악이 끊긴다.
-   파일이 없으면 조용히 아무 일도 안 일어나는 대신 "no disc"를 띄운다 —
-   안 그러면 눌러도 반응이 없어서 고장인지 원래 그런 건지 알 수가 없다. */
-function useMainBgm(){
-  const ref=useRef(null);
-  const [on,setOn]=useState(false);
-  useEffect(()=>()=>{if(ref.current)ref.current.pause()},[]);
-  const stop=()=>{if(ref.current)ref.current.pause();setOn(false)};
-  const toggle=onFail=>{
-    const t=trackOf(MAIN_TRACK);
-    if(!t){onFail&&onFail();return}
-    if(!ref.current){const a=new Audio(t.src);a.loop=true;a.volume=.5;ref.current=a}
-    if(on){ref.current.pause();setOn(false);return}
-    ref.current.play().then(()=>setOn(true)).catch(()=>{setOn(false);onFail&&onFail()});
-  };
-  return {on,toggle,stop};
-}
-
 function MusicBar({track,color,onPlay}){
   const ref=useRef(null);
   const [playing,setPlaying]=useState(false);
@@ -1095,7 +1203,7 @@ function MusicBar({track,color,onPlay}){
   </React.Fragment>;
 }
 
-function Profile({char,count,onBack,onBgm,gifts}){
+function Profile({char,count,onBack,gifts}){
   const ch=CHARS[char], p=PROFILES[char], room=roomOf(char);
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   const st=p?(p.stages[stageIdx(count)]||p.stages[0]):null;
@@ -1135,7 +1243,7 @@ function Profile({char,count,onBack,onBgm,gifts}){
           </div>
           {status&&<div className="pfbubble"><div className="b">{status}</div><div className="tail"/></div>}
         </div>
-        <MusicBar track={trackOf(st.track)} color={ch.dk} onPlay={onBgm}/>
+        <MusicBar track={trackOf(st.track)} color={ch.dk}/>
         <div className="pfstats">
           <div className="s"><span className="l">TODAY</span><span className="v" style={{color:"#ff7fae"}}>1</span></div>
           <div className="s"><span className="l">TALK</span><span className="v" style={{color:ch.dk}}>{count}</span></div>
@@ -1149,6 +1257,57 @@ function Profile({char,count,onBack,onBgm,gifts}){
     {full&&<div className="bgfull" style={{backgroundImage:`url("${bg}")`}} onClick={()=>setFull(false)}>
       <span className="bgclose">tap to close</span>
     </div>}
+  </div>;
+}
+
+/* ── 소개 영상 ── 데스크 CD를 누르면 11초 돌고 끝난다.
+   연출은 전부 CSS이고 여기서는 타임코드·건너뛰기·소리만 맡는다. */
+const FILM_SHOTS=["jaeeon-museum.webp","minhyun-record.webp","jaeeon-night.webp","minhyun-roof.webp"];
+const FILM_LINES=["겨울이 끝나간다","당신은 한 달 뒤에 떠난다","두 사람은 그걸 알고 있다","당신이 모르는 건 따로 있다"];
+function IntroFilm({onClose}){
+  const [sec,setSec]=useState(0);
+  const [done,setDone]=useState(false);   // 결말로 건너뛰었나
+  const [out,setOut]=useState(false);
+  const audio=useRef(null);
+  useEffect(()=>{
+    const a=new Audio(LOGO_TRACK); a.volume=.6; audio.current=a; a.play().catch(()=>{});
+    const t=setInterval(()=>setSec(v=>Math.min(11,v+1)),1000);
+    return()=>{clearInterval(t);
+      const f=setInterval(()=>{if(a.volume>.06)a.volume-=.06;else{a.pause();clearInterval(f)}},60);
+      setTimeout(()=>{clearInterval(f);a.pause()},900)};
+  },[]);
+  const leave=()=>{if(out)return;setOut(true);setTimeout(onClose,450)};
+  // 처음 누르면 결말로 건너뛰고, 거기서 또 누르면 닫힌다
+  const tap=()=>{ if(!done){setDone(true);setSec(11);return} leave() };
+  const mm=String(Math.floor(sec/60)).padStart(2,"0"), ss=String(sec%60).padStart(2,"0");
+  return <div className={"film"+(done?" skipped":"")+(out?" out":"")} onClick={tap}>
+    <div className="stage">
+      {FILM_SHOTS.map((f,i)=><div key={f} className={"fr f"+(i+1)} style={{backgroundImage:`url("${f}")`}}/>)}
+      <div className="glitter"/>
+      <span className="tw" style={{left:"11%",top:"16%"}}>✦</span>
+      <span className="tw" style={{left:"82%",top:"12%",animationDelay:".7s"}}>✦</span>
+      <span className="tw" style={{left:"74%",top:"74%",animationDelay:"1.4s"}}>✦</span>
+      <span className="tw" style={{left:"16%",top:"80%",animationDelay:"2s"}}>✦</span>
+      <div className="lines">{FILM_LINES.map((t,i)=><div key={i} className={"ln ln"+(i+1)}>{t}</div>)}</div>
+      <div className="blackout"/>
+      <div className="ending">
+        <span className="heart" style={{left:"22%",top:"32%"}}>♡</span>
+        <span className="heart" style={{right:"20%",top:"38%",animationDelay:"1s"}}>✦</span>
+        <div className="logo">NULL</div>
+        <div className="rainbow"/>
+        <div className="sub">the blank u fill in</div>
+        <span className="heart" style={{left:"30%",bottom:"30%",animationDelay:"1.6s"}}>✦</span>
+      </div>
+    </div>
+    <div className="track t1"/><div className="track t2"/><div className="rgb"/><div className="scan"/>
+    <div className="hud top"><span className="rec"><i className="dot"/>REC</span>
+      <span className="tc">00:{mm}:{ss}</span></div>
+    <div className="hud bot"><span className="play">▶ PLAY</span>
+      <span className="skip">{done?"tap to close":"tap to skip"}</span></div>
+    <span className="sticker" style={{left:"8%",top:"33%",transform:"rotate(-12deg)",color:"#ffe3f6"}}>☆彡</span>
+    <span className="sticker" style={{right:"7%",bottom:"16%",transform:"rotate(9deg)",color:"#ffd0e6"}}>♡ 2026</span>
+    <span className="tape" style={{left:-10,top:"23%",transform:"rotate(-16deg)"}}/>
+    <span className="tape" style={{right:-12,bottom:"31%",transform:"rotate(13deg)"}}/>
   </div>;
 }
 
@@ -1432,7 +1591,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,bgm,gifts,onGift,hearts}){
+function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,onFilm,gifts,onGift,hearts}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'|'hidden'
@@ -1559,10 +1718,8 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
     </div>
     {tab==="rooms"&&<div className="deskfoot">
       <span className="drift"><Sticker.butterfly size={20}/></span>
-      {/* 가운데 CD는 눌린다 — 메신저 BGM 스위치. 돌고 있으면 켜진 것 */}
-      <button className={"cdbtn"+(bgm&&bgm.on?" on":"")} aria-label="bgm"
-        title={bgm&&bgm.on?"stop the disc":"play the disc"}
-        onClick={()=>bgm&&bgm.toggle(()=>onToast("no disc"))}>
+      {/* 가운데 CD를 누르면 소개 영상이 돈다. 이 앱이 뭔지 11초로 알려주는 자리 */}
+      <button className="cdbtn on" aria-label="intro" title="play the intro" onClick={onFilm}>
         <span className="disc"><Sticker.cd size={38}/></span></button>
       <Sticker.star size={13} color="#ffd68a"/>
       <span className="drift" style={{animationDelay:"1.4s"}}><Sticker.heart size={13}/></span>
@@ -1882,7 +2039,7 @@ function App(){
     const s=storeRef.current.msgs||{};
     return (s[id]||[]).length+(s.group||[]).filter(m=>m.sender===id||m.sender==="user").length;
   };
-  const bgm=useMainBgm();   // 데스크 CD가 트는 메신저 BGM
+  const [film,setFilm]=useState(false);   // 데스크 CD가 트는 소개 영상
   /* 이름을 넣으면 등록 화면이 한 번 지나간다. 처음 들어온 사람에게만이다 —
      이미 이름이 있으면 오프닝도 등록도 건너뛰고 바로 메신저다. */
   const [enrolling,setEnrolling]=useState(false);
@@ -1894,10 +2051,11 @@ function App(){
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        onOpen={openRoom} onProfile={setProf} onAuto={doAuto} autoLoading={autoLoading}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
-       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} bgm={bgm} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}/>
+       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} onFilm={()=>setFilm(true)} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={setProf}/>}
-    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} onBgm={bgm.stop} gifts={gifts}/>}
+    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts}/>}
+    {film&&<IntroFilm onClose={()=>setFilm(false)}/>}
     {toast&&<div className="toast"><span>✧ {toast}</span></div>}
   </div>;
 }
