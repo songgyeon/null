@@ -332,8 +332,17 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 /* ── 스티커 배치 ──
    흩뿌리지 않는다. 자리는 셋뿐 — 목록 아래 빈 공간, 메뉴 항목 앞, 탭 옆. */
 .deskfoot{flex:none;display:flex;align-items:flex-end;justify-content:center;gap:16px;
- padding:14px 0 10px;opacity:.55;pointer-events:none}
-.deskfoot .spin{animation:spin 9s linear infinite}
+ padding:14px 0 10px;pointer-events:none}
+/* 투명도를 자식마다 준다. 부모에 걸면 자식이 그보다 진해질 수 없어서
+   재생 중인 CD만 또렷하게 만들 수가 없다. */
+.deskfoot>*{opacity:.55}
+/* 가운데 CD만 눌린다 — 메신저 BGM 스위치. 돌고 있으면 켜진 것 */
+.deskfoot .cdbtn{pointer-events:auto;cursor:pointer;border:none;background:none;padding:0;line-height:0;
+ transition:opacity .2s steps(3)}
+.deskfoot .cdbtn .disc{display:block}
+.deskfoot .cdbtn:active{transform:translateY(1px)}
+.deskfoot .cdbtn.on{opacity:1;filter:drop-shadow(0 0 5px rgba(255,158,198,.7))}
+.deskfoot .cdbtn.on .disc{animation:spin 4.5s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .deskfoot .drift{animation:drift 5s ease-in-out infinite}
 @keyframes drift{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-6px) rotate(6deg)}}
@@ -547,7 +556,11 @@ const MEDIA="https://pub-6e08882e001c49cbb013168e4b9e8d38.r2.dev/";
 const TRACKS={
   "jaeeon-1": {file:"jaeeon-1.mp3", artist:"Noah Vane", title:"Two Bowls"},
   "minhyun-1":{file:"minhyun-1.mp3",artist:"Luca Riot", title:"Ask Again Tomorrow"},
+  // 메신저 자체의 BGM — 데스크 가운데 CD를 누르면 나온다.
+  // R2에 null-1.mp3를 올리면 살아난다. 없으면 CD가 "no disc"만 띄운다.
+  "null-1":   {file:"null-1.mp3",   artist:"",          title:""},
 };
+const MAIN_TRACK="null-1";
 const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:null};
 
 /* 단계별 프로필 — 상태메시지(빈 문자열이면 안 띄운다) / 배경 / BGM.
@@ -571,7 +584,27 @@ const PROFILES={
 
 /* 프로필 뮤직 — 눌러야 나온다. 곡 정보가 비어 있으면 "BGM 없음"으로 둔다.
    (없는 곡 제목을 지어내지 않기 위해 TRACKS의 artist/title은 비워둔 상태다) */
-function MusicBar({track,color}){
+/* 데스크 CD — 메신저 자체의 BGM.
+   오디오를 App이 들고 있는 이유: 방에 들어가면 RoomList가 통째로 사라져서
+   거기 있던 <audio>도 같이 죽는다. 그러면 방에 들어갈 때마다 음악이 끊긴다.
+   파일이 없으면 조용히 아무 일도 안 일어나는 대신 "no disc"를 띄운다 —
+   안 그러면 눌러도 반응이 없어서 고장인지 원래 그런 건지 알 수가 없다. */
+function useMainBgm(){
+  const ref=useRef(null);
+  const [on,setOn]=useState(false);
+  useEffect(()=>()=>{if(ref.current)ref.current.pause()},[]);
+  const stop=()=>{if(ref.current)ref.current.pause();setOn(false)};
+  const toggle=onFail=>{
+    const t=trackOf(MAIN_TRACK);
+    if(!t){onFail&&onFail();return}
+    if(!ref.current){const a=new Audio(t.src);a.loop=true;a.volume=.5;ref.current=a}
+    if(on){ref.current.pause();setOn(false);return}
+    ref.current.play().then(()=>setOn(true)).catch(()=>{setOn(false);onFail&&onFail()});
+  };
+  return {on,toggle,stop};
+}
+
+function MusicBar({track,color,onPlay}){
   const ref=useRef(null);
   const [playing,setPlaying]=useState(false);
   const [dead,setDead]=useState(false);   // 파일이 없으면 재생 불가로 처리
@@ -581,7 +614,8 @@ function MusicBar({track,color}){
   const toggle=()=>{
     const a=ref.current;if(!a)return;
     if(playing){a.pause();setPlaying(false)}
-    else a.play().then(()=>setPlaying(true)).catch(()=>setDead(true));
+    // 인물 BGM이 시작되면 데스크 CD는 멈춘다 — 두 곡이 겹쳐 나오면 안 된다
+    else a.play().then(()=>{onPlay&&onPlay();setPlaying(true)}).catch(()=>setDead(true));
   };
   return <React.Fragment>
     <audio ref={ref} src={track.src} loop preload="none" onError={()=>setDead(true)} onEnded={()=>setPlaying(false)}/>
@@ -594,7 +628,7 @@ function MusicBar({track,color}){
   </React.Fragment>;
 }
 
-function Profile({char,count,onBack}){
+function Profile({char,count,onBack,onBgm}){
   const ch=CHARS[char], p=PROFILES[char], room=roomOf(char);
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   if(!ch||!p)return null;
@@ -622,7 +656,7 @@ function Profile({char,count,onBack}){
           </div>
           {status&&<div className="pfbubble"><div className="b">{status}</div><div className="tail"/></div>}
         </div>
-        <MusicBar track={trackOf(st.track)} color={ch.dk}/>
+        <MusicBar track={trackOf(st.track)} color={ch.dk} onPlay={onBgm}/>
         <div className="pfstats">
           <div className="s"><span className="l">TODAY</span><span className="v" style={{color:"#ff7fae"}}>1</span></div>
           <div className="s"><span className="l">TALK</span><span className="v" style={{color:ch.dk}}>{count}</span></div>
@@ -761,7 +795,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField}){
+function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,bgm}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'|'hidden'
@@ -886,7 +920,11 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
     </div>
     {tab==="rooms"&&<div className="deskfoot">
       <span className="drift"><Sticker.butterfly size={20}/></span>
-      <span className="spin"><Sticker.cd size={38}/></span>
+      {/* 가운데 CD는 눌린다 — 메신저 BGM 스위치. 돌고 있으면 켜진 것 */}
+      <button className={"cdbtn"+(bgm&&bgm.on?" on":"")} aria-label="bgm"
+        title={bgm&&bgm.on?"stop the disc":"play the disc"}
+        onClick={()=>bgm&&bgm.toggle(()=>onToast("no disc"))}>
+        <span className="disc"><Sticker.cd size={38}/></span></button>
       <Sticker.star size={13} color="#ffd68a"/>
       <span className="drift" style={{animationDelay:"1.4s"}}><Sticker.heart size={13}/></span>
     </div>}
@@ -1167,6 +1205,7 @@ function App(){
     const s=storeRef.current.msgs||{};
     return (s[id]||[]).length+(s.group||[]).filter(m=>m.sender===id||m.sender==="user").length;
   };
+  const bgm=useMainBgm();   // 데스크 CD가 트는 메신저 BGM
   const enter=n=>{localStorage.setItem("null_name",n);setName(n)};
 
   return <div className="phone">
@@ -1174,10 +1213,10 @@ function App(){
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        onOpen={openRoom} onProfile={setProf} onAuto={doAuto} autoLoading={autoLoading}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
-       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>
+       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} bgm={bgm}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={setProf}/>}
-    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)}/>}
+    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} onBgm={bgm.stop}/>}
     {toast&&<div className="toast"><span>✧ {toast}</span></div>}
   </div>;
 }
