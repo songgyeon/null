@@ -15,7 +15,6 @@ const MODELS = [
 ];
 let workingModel = null; // 한 번 성공하면 그 모델을 계속 쓴다
 const MAX_HISTORY = 30;
-const ALLOW_ORIGIN = "*";
 
 // ─────────────────────────────────────────────
 // 공통 세계관
@@ -891,8 +890,10 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
 }
 
 // ─────────────────────────────────────────────
-// 사진 검증 + 키워드 폴백
+// 사진 검증
 // ─────────────────────────────────────────────
+// 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이던 폴백은
+// "음악 추천해줘 → 이어폰 낀 사진" 같은 헛발질의 원인이라 걷어냈다.
 // 모델이 없는 키를 지어내면 깨진 이미지가 되므로 화이트리스트로 거른다.
 function sanitizePhotos(list, chars, fallbackSender, recent) {
   let used = false;
@@ -908,10 +909,6 @@ function sanitizePhotos(list, chars, fallbackSender, recent) {
   }
   return out;
 }
-
-// 모델이 사진을 안 골랐을 때 — 유저의 마지막 말에서 키워드를 찾아 붙인다.
-
-// 해당 캐릭터의 마지막 말풍선에 사진을 얹는다. 없으면 사진만 있는 말풍선을 추가한다.
 
 // ─────────────────────────────────────────────
 // Anthropic 호출 + JSON 파싱 (폴백 포함)
@@ -1130,11 +1127,52 @@ function parseMessages(text, fallbackSender, allowed) {
 // ─────────────────────────────────────────────
 // HTTP 핸들러
 // ─────────────────────────────────────────────
-const CORS = {
-  "Access-Control-Allow-Origin": ALLOW_ORIGIN,
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+/* 이 워커를 부를 수 있는 출처.
+   앱(React Native)은 Origin 헤더를 안 보낸다 — 그건 통과시켜야 앱이 산다.
+   그래서 CORS만으로는 curl을 막지 못한다. CORS는 "남의 웹사이트가 내 백엔드를
+   자기 페이지에서 쓰는 것"을 막을 뿐이고, 직접 호출은 아래 레이트리밋이 맡는다.
+   둘 다 인증이 아니다 — 정적 사이트에 심는 키는 어차피 공개된다. */
+const ALLOWED_ORIGINS = [
+  "https://songgyeon.github.io",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
+];
+function corsFor(request) {
+  const origin = request.headers.get("Origin");
+  const h = {
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin",
+  };
+  // Origin이 없으면 앱이나 직접 호출이다. 브라우저가 아니므로 CORS 헤더가 의미 없다
+  if (!origin) return h;
+  if (ALLOWED_ORIGINS.includes(origin)) h["Access-Control-Allow-Origin"] = origin;
+  return h;
+}
+const allowedOrigin = request => {
+  const o = request.headers.get("Origin");
+  return !o || ALLOWED_ORIGINS.includes(o);
 };
+
+/* 레이트리밋 — 아이솔레이트 메모리에만 산다.
+   Cloudflare는 요청을 여러 아이솔레이트에 흩뿌리고 수시로 재활용하므로
+   이건 정확한 상한이 아니라 "한 곳에서 몰아치는 것"을 늦추는 장치다.
+   정확히 세려면 KV나 Durable Object가 필요하고, 그건 바인딩 추가가 따른다.
+   지금 목적(공개 주소가 긁히는 것 방지)에는 이걸로 충분하다. */
+const RATE = { max: 20, windowMs: 60_000, sweepAt: 2000 };
+const hits = new Map();
+function rateLimited(ip) {
+  const now = Date.now();
+  if (hits.size > RATE.sweepAt) {            // 낡은 기록 청소 — 메모리가 무한히 늘지 않게
+    for (const [k, v] of hits) if (now - v.t > RATE.windowMs) hits.delete(k);
+  }
+  const rec = hits.get(ip);
+  if (!rec || now - rec.t > RATE.windowMs) { hits.set(ip, { t: now, n: 1 }); return false; }
+  rec.n += 1;
+  return rec.n > RATE.max;
+}
+const clientIp = request =>
+  request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || "unknown";
 
 // 대시보드에서 이름을 잘못 넣는 일이 잦다(앞뒤 공백, 소문자, ANTHROPIC-API-KEY 등).
 // 정확한 이름을 먼저 찾고, 없으면 같은 이름으로 볼 수 있는 것을 찾는다.
@@ -1164,9 +1202,38 @@ function bindingNames(env) {
 
 export default {
   async fetch(request, env) {
+    const CORS = corsFor(request);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-    // GET으로 열면 자가 진단 결과를 사람이 읽을 수 있게 보여준다.
-    // (브라우저에서 워커 주소를 그냥 열면 된다)
+
+    /* GET으로 열면 자가 진단을 보여준다. 다만 전체 진단은 실제로 모델을 호출하므로
+       주소만 알면 누구나(크롤러 포함) 토큰을 태울 수 있었다. 그래서 나눈다:
+         DIAG_TOKEN이 없거나 안 맞으면 → 모델을 부르지 않는 점검만
+         맞으면                       → 예전처럼 실제 호출까지 포함한 전체 진단
+       기본값이 안전한 쪽이다. 토큰은 대시보드에서 시크릿으로 넣는다. */
+    if (request.method !== "POST") {
+      const want = (env && env.DIAG_TOKEN || "").toString();
+      const got = new URL(request.url).searchParams.get("diag") || "";
+      const full = !!want && got === want;
+      if (!full) {
+        const found = resolveKey(env);
+        const colo = (request.cf && request.cf.colo) || "?";
+        const sizes = ["jaeeon", "minhyun", "group"].map(r => {
+          const sys = buildSystem("chat", r, "교생", null, [], null, null, null);
+          const n = sys.reduce((a, b) => a + (b.text || "").length, 0);
+          return `${r} ${Math.round(n / 1000)}k자`;
+        }).join(" / ");
+        return new Response(
+          ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
+           `실행 위치      ${colo}`,
+           `API 키         ${found ? "있음" : "없음"}`,
+           `프롬프트 크기   ${sizes}`,
+           "",
+           "모델 호출까지 확인하려면 ?diag=<DIAG_TOKEN> 을 붙이세요.",
+           "(토큰 없이 전체 진단을 열어두면 주소만 아는 누구나 토큰을 태울 수 있습니다)"
+          ].join("\n"),
+          { headers: { ...CORS, "content-type": "text/plain; charset=utf-8" } });
+      }
+    }
     if (request.method !== "POST") {
       const lines = ["NULL 백엔드 자가 진단", "=".repeat(34), ""];
       // 워커가 실제로 실행되는 데이터센터. ICN(인천)이어야 한다.
@@ -1281,6 +1348,21 @@ export default {
       lines.push(anyOk ? "→ 전부 ✓ 면 정상이다. ✗ 가 있으면 처음 뜬 항목이 원인이다."
                        : "→ 전부 실패했습니다. 위 [1]의 결과가 원인을 가려줍니다.");
       return new Response(lines.join("\n"), { headers: { ...CORS, "content-type": "text/plain; charset=utf-8" } });
+    }
+
+    /* 여기서부터가 실제로 모델을 부르는 길이다. 두 겹으로 막는다.
+       1) 출처 — 남의 웹사이트가 자기 페이지에서 이 백엔드를 쓰는 것을 막는다.
+          앱은 Origin을 안 보내므로 통과한다(그래서 이것만으로는 부족하다).
+       2) 분당 횟수 — 주소를 아는 쪽이 몰아치는 것을 늦춘다.
+       키 검사보다 앞에 둔다 — 뒤에 두면 키가 없을 때 500이 먼저 나가서
+       차단이 일어나지 않은 것처럼 보인다. */
+    if (!allowedOrigin(request)) {
+      return new Response(JSON.stringify({ error: "이 출처에서는 부를 수 없습니다" }),
+        { status: 403, headers: { ...CORS, "content-type": "application/json" } });
+    }
+    if (rateLimited(clientIp(request))) {
+      return new Response(JSON.stringify({ error: "잠시 뒤에 다시 시도해 주세요", detail: "too many requests" }),
+        { status: 429, headers: { ...CORS, "content-type": "application/json", "Retry-After": "60" } });
     }
 
     if (!resolveKey(env))
