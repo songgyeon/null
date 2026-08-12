@@ -235,11 +235,13 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .sptb{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:9.5px;color:#fff;letter-spacing:.06em;
  border-bottom:1px solid #5d5490;text-shadow:1px 1px 0 rgba(93,84,144,.5)}
 .spcard .sptb{background:linear-gradient(90deg,#ff8fbe,#c3b2f0)}
-.spbody{padding:26px 18px 22px;text-align:center}
+.spbody{padding:34px 18px 22px;text-align:center}
 .splogo{font-family:"Galmuri9","Galmuri11",sans-serif;font-size:40px;letter-spacing:.3em;text-indent:.3em;
  background:linear-gradient(120deg,#fff 0 12%,#ffd0f0 30%,#b9e3ff 50%,#fff 68%,#c3b2f0 92%);background-size:200% 100%;
  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1.2px #b06f9e;
  filter:drop-shadow(2px 2px 0 rgba(176,111,158,.32));animation:shimmer 4.5s linear infinite}
+.splogo .cur{-webkit-text-fill-color:#ff9ec6;color:#ff9ec6;-webkit-text-stroke:0;
+ animation:blinkc 1s steps(1) infinite}
 .spsub{margin-top:16px;font-size:10.5px;letter-spacing:.24em;color:#b48ac2}
 .spinput{width:100%;margin-top:20px;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;text-align:center;
  outline:none;border-radius:0;background:#fff;border:1px solid #8a7fc0;
@@ -253,8 +255,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .spbar{display:block;height:11px;background:#fff;border:1px solid #8a7fc0;overflow:hidden;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.3)}
 .spbar i{display:block;height:100%;background:repeating-linear-gradient(90deg,#ff9ec6 0 7px,#ffd0e6 7px 14px);
- animation:fill 3.6s ease-in-out infinite}
-.spbar.flowing i{width:100%;animation:flow 1s linear infinite}
+ animation:fill 3.6s ease-in-out infinite, flow 1s linear infinite}
 .spnote{font-size:8.5px;letter-spacing:.16em;color:#c3aacd}
 .spwin{position:relative;z-index:14;border:1px solid #5d5490;border-radius:5px;overflow:hidden;
  box-shadow:3px 4px 0 rgba(60,45,100,.3);animation:pop .35s steps(3) both}
@@ -1208,7 +1209,7 @@ function Splash({onEnter}){
       <div className="spcard">
         <div className="sptb">null.exe<WinDots/></div>
         <div className="spbody">
-          <div className="splogo">NULL</div>
+          <div className="splogo">NULL<i className="cur">_</i></div>
           <input className="spinput" value={v} maxLength={12} placeholder="안녕, 널 입력해줘."
             onChange={e=>setV(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
           <button className="spgo" disabled={!v.trim()} onClick={go}>Click!</button>
@@ -1230,7 +1231,7 @@ function Splash({onEnter}){
       <div className="spwin w3" style={{animationDelay:".5s"}}>
         <div className="sptb" style={{background:"linear-gradient(90deg,#8fd8e8,#c3b2f0)"}}>loading...<WinDots/></div>
         <div className="spbd" style={{background:"#fff8fc"}}>
-          <span className="spbar flowing"><i/></span>
+          <span className="spbar"><i/></span>
         </div>
       </div>
     </div>

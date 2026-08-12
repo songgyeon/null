@@ -411,6 +411,19 @@ function SpWin({title,colors,style,children}:any) {
   </View>;
 }
 
+/* 로고 옆에서 깜빡이는 커서. 다 그려놓고 켜졌다 꺼지기만 한다 */
+function Blink() {
+  const v=useRef(new Animated.Value(1)).current;
+  useEffect(()=>{
+    const run=Animated.loop(Animated.sequence([
+      Animated.delay(490), Animated.timing(v,{toValue:0,duration:10,useNativeDriver:true}),
+      Animated.delay(490), Animated.timing(v,{toValue:1,duration:10,useNativeDriver:true}),
+    ]));
+    run.start(); return ()=>run.stop();
+  },[]);
+  return <Animated.Text style={[sp.cur,{opacity:v}]}>_</Animated.Text>;
+}
+
 function Splash({onEnter}:{onEnter:(n:string)=>void}) {
   const [v,setV]=useState('');
   const [armed,setArmed]=useState(false);
@@ -442,7 +455,7 @@ function Splash({onEnter}:{onEnter:(n:string)=>void}) {
       <View style={[sp.card,sp.noShrink]}>
         <TB colors={['#ff8fbe','#c3b2f0']}><Text style={tbT}>null.exe</Text><Dots/></TB>
         <View style={sp.body}>
-          <Text style={sp.logo}>NULL</Text>
+          <Text style={sp.logo}>NULL<Blink/></Text>
           <TextInput style={sp.input} value={v} onChangeText={setV} placeholder="안녕, 널 입력해줘."
             placeholderTextColor="#dbb0c8" maxLength={12} onSubmitEditing={go}/>
           <Bevel style={{marginTop:9,width:'100%'}} inner={{paddingVertical:10,backgroundColor:'#ffc2dd'}}
@@ -473,19 +486,24 @@ function Splash({onEnter}:{onEnter:(n:string)=>void}) {
   </LinearGradient>;
 }
 
-/* 흘러가는 줄무늬 — 진행률이 아니라 "돌고 있다"는 표시다 */
+/* 차오르는 막대. 줄무늬만 흐르면 "돌고 있다"는 느낌은 나도 로딩으로는 안 읽힌다.
+   14%에서 92%까지 차올랐다 되돌아가기를 반복한다. */
 function LoadStripe() {
   const v=useRef(new Animated.Value(0)).current;
   useEffect(()=>{
-    const run=Animated.loop(Animated.timing(v,{toValue:1,duration:1000,easing:Easing.linear,useNativeDriver:true}));
+    const run=Animated.loop(Animated.sequence([
+      Animated.timing(v,{toValue:1,duration:1800,easing:Easing.inOut(Easing.ease),useNativeDriver:false}),
+      Animated.timing(v,{toValue:0,duration:1800,easing:Easing.inOut(Easing.ease),useNativeDriver:false}),
+    ]));
     run.start(); return ()=>run.stop();
   },[]);
-  return <Animated.View style={{flexDirection:'row',width:'200%',
-    transform:[{translateX:v.interpolate({inputRange:[0,1],outputRange:[0,28]})}]}}>
+  return <Animated.View style={{height:'100%',flexDirection:'row',overflow:'hidden',
+    width:v.interpolate({inputRange:[0,1],outputRange:['14%','92%']})}}>
     {Array.from({length:40}).map((_,i)=>
       <View key={i} style={{width:7,height:'100%',backgroundColor:i%2?'#ffd0e6':'#ff9ec6'}}/>)}
   </Animated.View>;
 }
+
 const sp=StyleSheet.create({
   stack:{...StyleSheet.absoluteFillObject,justifyContent:'center',paddingHorizontal:26,paddingBottom:34,gap:12},
   /* 세로가 모자라면 flex가 창들을 눌러버리고, overflow:hidden이라 안쪽 버튼이
@@ -494,7 +512,8 @@ const sp=StyleSheet.create({
   cdSlot:{alignSelf:'flex-end',marginRight:-4,flexShrink:0},
   card:{width:'100%',backgroundColor:'#fff8fc',borderWidth:1,borderColor:P.border,
         borderRadius:9,overflow:'hidden'},
-  body:{paddingHorizontal:18,paddingTop:26,paddingBottom:22,alignItems:'center'},
+  body:{paddingHorizontal:18,paddingTop:34,paddingBottom:22,alignItems:'center'},
+  cur:{...F,fontSize:40,color:'#ff9ec6'},
   logo:{...F,fontSize:40,letterSpacing:12,color:'#fff',marginBottom:16,
         textShadowColor:'#b06f9e',textShadowOffset:{width:2,height:2},textShadowRadius:1},
   input:{...F,width:'100%',marginTop:4,paddingVertical:10,paddingHorizontal:12,fontSize:16,color:P.ink,
