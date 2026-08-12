@@ -1282,7 +1282,12 @@ function Profile({char,count,onBack,gifts}){
 
 /* ── 소개 영상 ── 데스크 CD를 누르면 11초 돌고 끝난다.
    연출은 전부 CSS이고 여기서는 타임코드·건너뛰기·소리만 맡는다. */
-const FILM_SHOTS=["jaeeon-museum.webp","minhyun-record.webp","jaeeon-night.webp","minhyun-roof.webp"];
+/* 재언 두 장이 다 빈 장소여서 얼굴이 한 번도 안 나왔다. 사람 있는 걸로 바꾼다.
+   재언 → 민현 → 재언 → 민현 순서로 번갈아 놓는다. 마지막 민현 그림자는
+   "당신이 모르는 건 따로 있다"와 맞아서 그대로 뒀다. */
+const FILM_SHOTS=["jaeeon-rooftop.webp","minhyun-record.webp","jaeeon-evening.webp","minhyun-roof.webp"];
+/* 소개 영상 브금. 부팅 로고곡과 다른 곡이다 */
+const FILM_TRACK="null-film.mp3";
 const FILM_LINES=["겨울이 끝나간다","당신은 한 달 뒤에 떠난다","두 사람은 그걸 알고 있다","당신이 모르는 건 따로 있다"];
 function IntroFilm({onClose}){
   const [sec,setSec]=useState(0);
@@ -1290,7 +1295,7 @@ function IntroFilm({onClose}){
   const [out,setOut]=useState(false);
   const audio=useRef(null);
   useEffect(()=>{
-    const a=new Audio(LOGO_TRACK); a.volume=.6; audio.current=a; a.play().catch(()=>{});
+    const a=new Audio(FILM_TRACK); a.volume=.6; audio.current=a; a.play().catch(()=>{});
     const t=setInterval(()=>setSec(v=>Math.min(11,v+1)),1000);
     return()=>{clearInterval(t);
       const f=setInterval(()=>{if(a.volume>.06)a.volume-=.06;else{a.pause();clearInterval(f)}},60);
