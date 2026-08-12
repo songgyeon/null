@@ -1291,8 +1291,11 @@ function Profile({char,count,onBack,gifts}){
    아니라 처음부터 그렇게 찍힌 사진만 쓴다.
    민현 → 재언 → 민현 → 재언으로 번갈아 놓는다. 마지막 재언 뒷모습에는
    유저가 준 머그가 식은 채로 같이 찍혀 있어서 "당신이 모르는 건 따로 있다"
-   자리에 뒀다. */
-const FILM_SHOTS=["minhyun-roof.webp","jaeeon-shelf.webp","minhyun-record.webp","jaeeon-back.webp"];
+   자리에 뒀다.
+   주의: 민현 쪽에서 얼굴이 안 나온 사진은 전부 PROFILES의 단계 배경이기도
+   하다. 영상에 쓰면 나중에 해금될 배경이 먼저 보인다. 지금은 그걸 감수하고
+   얼굴이 제일 잘 가려진 것을 골랐다. */
+const FILM_SHOTS=["minhyun-roof.webp","jaeeon-shelf.webp","minhyun-street.webp","jaeeon-back.webp"];
 /* 소개 영상 브금. 부팅 로고곡과 다른 곡이다 */
 const FILM_TRACK="null-film.mp3";
 const FILM_LINES=["겨울이 끝나간다","당신은 한 달 뒤에 떠난다","두 사람은 그걸 알고 있다","당신이 모르는 건 따로 있다"];

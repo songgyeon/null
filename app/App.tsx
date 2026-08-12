@@ -355,7 +355,7 @@ const en=StyleSheet.create({
      resizeMode="repeat"로 깔아서 반복시킨다.
    - RGB 어긋남: mix-blend-mode가 없다. 양옆에 얇은 그라데이션을 얹는 것으로 대신한다.
    - filter가 없어서 사진을 누르는 것도 반투명 한 겹으로 한다. */
-const FILM_SHOTS = ['minhyun-roof.webp','jaeeon-shelf.webp','minhyun-record.webp','jaeeon-back.webp'];
+const FILM_SHOTS = ['minhyun-roof.webp','jaeeon-shelf.webp','minhyun-street.webp','jaeeon-back.webp'];
 const FILM_LINES = ['겨울이 끝나간다','당신은 한 달 뒤에 떠난다','두 사람은 그걸 알고 있다','당신이 모르는 건 따로 있다'];
 const FILM_TRACK = 'null-film.mp3';
 
