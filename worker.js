@@ -839,7 +839,23 @@ function buildProfile(p) {
 // 고정부에 cache_control을 걸면 두 번째 요청부터 그 부분의 입력 요금이
 // 1/10로 떨어진다. 캐시는 바이트가 1자라도 다르면 안 맞으므로,
 // 매 턴 바뀌는 것은 반드시 가변부(뒤쪽)에 둬야 한다.
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts) {
+/* 방금 받은 선물. 프론트가 장바구니에서 보낸 것이다.
+   매 턴 바뀌므로 반드시 가변부에 넣는다 — 고정부에 넣으면 캐시가 깨진다. */
+function buildGift(gift, userName) {
+  const name = ((gift && gift.name) || "").toString().slice(0, 40).trim();
+  if (!name) return "";
+  return `
+## 방금 일어난 일
+${userName || "교생"}이 너에게 "${name}"을(를) 주었다. 지금 막 받았다.
+- 물건이 아니라 사건이다. "감사합니다" 한 마디로 넘기지 않는다.
+- 네 성격대로 받는다. 좋아도 좋다고 곧이곧대로 말하지 않아도 된다.
+  왜 주냐고 되묻거나, 안 줘도 된다고 하거나, 딴소리를 해도 된다.
+- 다만 받은 사실을 부정하지는 않는다. 이미 손에 있다.
+- 이 물건을 앞으로 쓰게 된다. 그 얘기를 지금 다 하지는 않는다.
+`;
+}
+
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "교생");
   let sys;
   if (mode === "auto") {
@@ -864,7 +880,8 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
 
   const stable = sub(sys);
   const volatile = buildStage(mode, room, counts) + buildProfile(userProfile)
-                 + buildSignals(signals, mode === "auto" ? null : room) + exclude;
+                 + buildSignals(signals, mode === "auto" ? null : room) + exclude
+                 + buildGift(gift, userName);
 
   const blocks = [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }];
   if (volatile.trim()) blocks.push({ type: "text", text: volatile });
@@ -1276,6 +1293,8 @@ export default {
     const signals = body.signals || null;
     const userProfile = body.user_profile || null;   // 당신.txt에서 채운 칸
     const counts = body.counts || null;              // 방별 누적 대화 수 → 관계 단계·해금
+    // 장바구니에서 방금 보낸 선물 (1:1 방에서만 의미가 있다)
+    const gift = (mode !== "auto" && body.gift && body.gift.name) ? body.gift : null;
     // 최근에 보낸 사진 — 같은 사진이 연달아 나오지 않게 프론트가 알려준다
     const recentPhotos = (Array.isArray(body.recent_photos) ? body.recent_photos : [])
       .filter(k => typeof k === "string" && PHOTOS[k]).slice(0, 8);
@@ -1312,7 +1331,7 @@ export default {
       return new Response(JSON.stringify({ error: "history의 마지막은 user 메시지여야 함" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
     }
 
-    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts);
+    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift);
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
