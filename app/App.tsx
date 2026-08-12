@@ -490,9 +490,10 @@ const sp=StyleSheet.create({
   win:{position:'absolute',borderWidth:1,borderColor:P.border,borderRadius:5,overflow:'hidden'},
   wtb:{flexDirection:'row',alignItems:'center',paddingVertical:4,paddingHorizontal:7},
   wtbT:{...F,fontSize:9,color:'#fff',flex:1},
-  wbd:{padding:9,backgroundColor:'#fff'},
+  wbd:{paddingHorizontal:11,paddingTop:11,paddingBottom:9,backgroundColor:'#fff'},
   wtx:{...F,fontSize:9.5,lineHeight:17,color:'#6b5fa8'},
-  wbtn:{alignSelf:'flex-start',marginTop:8,paddingVertical:4,paddingHorizontal:13,
+  /* 버튼은 제 줄에서 오른쪽 아래. 문장 옆에 붙이면 대화상자가 아니라 문장이 된다 */
+  wbtn:{alignSelf:'flex-end',marginTop:11,paddingVertical:4,paddingHorizontal:14,
         backgroundColor:'#ece8fa',borderWidth:1,borderColor:P.border},
   wbtnT:{...F,fontSize:9,color:P.ink},
   bar:{height:11,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,overflow:'hidden'},

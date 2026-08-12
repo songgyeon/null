@@ -246,9 +246,11 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .spwin{position:absolute;z-index:14;border:1px solid #5d5490;border-radius:5px;overflow:hidden;
  box-shadow:3px 4px 0 rgba(60,45,100,.3);animation:pop .35s steps(3) both}
 .spwin .sptb{font-size:9px;padding:4px 7px}
-.spwin .spbd{padding:9px;font-size:9.5px;line-height:1.7;background:#fff;color:#6b5fa8}
-.spbtn{display:inline-block;margin-top:8px;padding:4px 13px;font-size:9px;color:#4a4276;background:#ece8fa;
- border:1px solid #5d5490;box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec}
+.spwin .spbd{padding:11px 11px 9px;font-size:9.5px;line-height:1.75;background:#fff;color:#6b5fa8}
+/* 버튼은 제 줄에서 오른쪽 아래. inline-block으로 두면 문장 뒤에 그대로 붙어
+   "당신을 찾을 수 없습니다. [Cancel]" 처럼 한 줄이 된다 — 대화상자가 아니라 문장이 된다. */
+.spbtn{display:block;width:fit-content;margin:11px 0 0 auto;padding:4px 14px;font-size:9px;color:#4a4276;
+ background:#ece8fa;border:1px solid #5d5490;box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec}
 /* 커서 — CSS 보더로 만든 삼각형은 한쪽만 채워져서 작대기로 보였다. SVG로 그린다 */
 .spcursor{position:absolute;z-index:30;width:15px;height:21px;
  filter:drop-shadow(1px 2px 0 rgba(74,66,118,.45));transform:rotate(-8deg)}
