@@ -224,7 +224,7 @@ for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\
 /* 이름 칸이 키보드 밑에 깔리면 뭘 치는지 안 보인다. 오프닝은 카드를 위로 올리고
    아래쪽 오류창들은 접는다 — 어차피 키보드가 다 가린다. */
 eq('오프닝이 키보드를 피한다',
-  /const kb=useKeyboardHeight\(\)/.test(appSrc) && /top:kb\?/.test(appSrc), true);
+  /const kb=useKeyboardHeight\(\)/.test(appSrc) && /kb\?\{justifyContent:'flex-start'/.test(appSrc), true);
 
 /* 오프닝 — 곡이 도는 동안 이름을 기다린다. 시간으로 끊지 않는다. */
 eq('오프닝이 웹·앱 둘 다 있다', /function Splash\(/.test(appSrc) && /function Splash\(/.test(web), true);

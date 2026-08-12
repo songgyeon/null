@@ -434,37 +434,45 @@ function Splash({onEnter}:{onEnter:(n:string)=>void}) {
   return <LinearGradient colors={['#dcd3f7','#c3b2f0','#f0c2de']} style={{flex:1}}>
     <Bubbles/>
     <Sparkles/>
-    <View style={{position:'absolute',right:20,top:'9.2%'}}><SpinCD/></View>
-
-    <View style={[sp.card,{top:kb?'6%':'17.8%'}]}>
-      <TB colors={['#ff8fbe','#c3b2f0']}><Text style={tbT}>null.exe</Text><Dots/></TB>
-      <View style={sp.body}>
-        <Text style={sp.logo}>NULL</Text>
-        <TextInput style={sp.input} value={v} onChangeText={setV} placeholder="안녕, 널 입력해줘."
-          placeholderTextColor="#dbb0c8" maxLength={12} onSubmitEditing={go}/>
-        <Bevel style={{marginTop:9,width:'100%'}} inner={{paddingVertical:10,backgroundColor:'#ffc2dd'}}
-          disabled={!v.trim()} onPress={go}><Text style={sp.goT}>Click!</Text></Bevel>
+    {/* 창을 좌표로 흩어놓으면 화면 높이가 바뀔 때마다 겹치거나 잘린다.
+        세로 흐름에 얹고, 흩어진 데스크톱처럼 보이는 건 좌우 정렬과
+        살짝 겹치는 음수 여백으로 낸다. */}
+    <View style={[sp.stack,kb?{justifyContent:'flex-start',paddingTop:12}:null]}>
+      <View style={sp.cdSlot}><SpinCD/></View>
+      <View style={sp.card}>
+        <TB colors={['#ff8fbe','#c3b2f0']}><Text style={tbT}>null.exe</Text><Dots/></TB>
+        <View style={sp.body}>
+          <Text style={sp.logo}>NULL</Text>
+          <TextInput style={sp.input} value={v} onChangeText={setV} placeholder="안녕, 널 입력해줘."
+            placeholderTextColor="#dbb0c8" maxLength={12} onSubmitEditing={go}/>
+          <Bevel style={{marginTop:9,width:'100%'}} inner={{paddingVertical:10,backgroundColor:'#ffc2dd'}}
+            disabled={!v.trim()} onPress={go}><Text style={sp.goT}>Click!</Text></Bevel>
+        </View>
       </View>
-    </View>
 
-    {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
-    {!kb&&<>
-      <SpWin title="Error" colors={['#b9a8ea','#8a7fc0']} style={{left:28,top:'51%',width:182}}>
-        <Text style={sp.wtx}>이름을 입력해야 존재할 수 있어요.</Text>
-        <View style={sp.wbtn}><Text style={sp.wbtnT}>ok</Text></View>
-      </SpWin>
-      <SpWin title="System error" colors={['#ff7fae','#ff5fa8']} style={{right:24,top:'60%',width:194}}>
-        <Text style={sp.wtx}>당신을 찾을 수 없습니다.</Text>
-        <View style={sp.wbtn}><Text style={sp.wbtnT}>Cancel</Text></View>
-      </SpWin>
-      <SpCursor/>
-      <SpWin title="loading..." colors={['#8fd8e8','#c3b2f0']} style={{left:28,right:28,top:'74%'}}>
-        <View style={sp.bar}><LoadStripe/></View>
-      </SpWin>
-      <Text style={sp.tap}>{armed?'♪ NULL!':'TAP FOR MUSIC ♪'}</Text>
-    </>}
+      {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
+      {!kb&&<>
+        <SpWin title="Error" colors={['#b9a8ea','#8a7fc0']} style={sp.w1}>
+          <Text style={sp.wtx}>이름을 입력해야 존재할 수 있어요.</Text>
+          <View style={sp.wbtn}><Text style={sp.wbtnT}>ok</Text></View>
+        </SpWin>
+        {/* 커서는 창에 매달아 둔다 — 좌표로 놓으면 글자를 깔고 앉는다 */}
+        <View style={sp.w2}>
+          <SpWin title="System error" colors={['#ff7fae','#ff5fa8']}>
+            <Text style={sp.wtx}>당신을 찾을 수 없습니다.</Text>
+            <View style={sp.wbtn}><Text style={sp.wbtnT}>Cancel</Text></View>
+          </SpWin>
+          <SpCursor/>
+        </View>
+        <SpWin title="loading..." colors={['#8fd8e8','#c3b2f0']} style={sp.w3}>
+          <View style={sp.bar}><LoadStripe/></View>
+        </SpWin>
+      </>}
+    </View>
+    {!kb&&<Text style={sp.tap}>{armed?'♪ NULL!':'TAP FOR MUSIC ♪'}</Text>}
   </LinearGradient>;
 }
+
 /* 흘러가는 줄무늬 — 진행률이 아니라 "돌고 있다"는 표시다 */
 function LoadStripe() {
   const v=useRef(new Animated.Value(0)).current;
@@ -479,7 +487,9 @@ function LoadStripe() {
   </Animated.View>;
 }
 const sp=StyleSheet.create({
-  card:{position:'absolute',left:26,right:26,backgroundColor:'#fff8fc',borderWidth:1,borderColor:P.border,
+  stack:{...StyleSheet.absoluteFillObject,justifyContent:'center',paddingHorizontal:26,paddingBottom:54,gap:16},
+  cdSlot:{alignSelf:'flex-end',marginRight:-4},
+  card:{width:'100%',backgroundColor:'#fff8fc',borderWidth:1,borderColor:P.border,
         borderRadius:9,overflow:'hidden'},
   body:{paddingHorizontal:18,paddingTop:26,paddingBottom:22,alignItems:'center'},
   logo:{...F,fontSize:40,letterSpacing:12,color:'#fff',marginBottom:16,
@@ -487,24 +497,26 @@ const sp=StyleSheet.create({
   input:{...F,width:'100%',marginTop:4,paddingVertical:10,paddingHorizontal:12,fontSize:16,color:P.ink,
          textAlign:'center',backgroundColor:'#fff',borderWidth:1,borderColor:P.mid},
   goT:{...F,fontSize:12.5,letterSpacing:4,color:P.ink},
-  win:{position:'absolute',borderWidth:1,borderColor:P.border,borderRadius:5,overflow:'hidden'},
+  w1:{alignSelf:'flex-start',width:182,marginTop:14},
+  w2:{alignSelf:'flex-end',width:194,marginTop:-6},
+  w3:{alignSelf:'stretch',marginTop:8},
+  win:{borderWidth:1,borderColor:P.border,borderRadius:5,overflow:'hidden'},
   wtb:{flexDirection:'row',alignItems:'center',paddingVertical:4,paddingHorizontal:7},
   wtbT:{...F,fontSize:9,color:'#fff',flex:1},
   wbd:{paddingHorizontal:11,paddingTop:11,paddingBottom:9,backgroundColor:'#fff'},
   wtx:{...F,fontSize:9.5,lineHeight:17,color:'#6b5fa8'},
-  /* 버튼은 제 줄에서 오른쪽 아래. 문장 옆에 붙이면 대화상자가 아니라 문장이 된다 */
+  // 버튼은 제 줄에서 오른쪽 아래. 문장 옆에 붙이면 대화상자가 아니라 문장이 된다
   wbtn:{alignSelf:'flex-end',marginTop:11,paddingVertical:4,paddingHorizontal:14,
         backgroundColor:'#ece8fa',borderWidth:1,borderColor:P.border},
   wbtnT:{...F,fontSize:9,color:P.ink},
   bar:{height:11,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,overflow:'hidden'},
-  cursor:{position:'absolute',left:'55%',top:'67%',transform:[{rotate:'-8deg'}]},
-  /* 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보인다. 몸통과 꼬리를 따로 그린다.
-     RN에는 SVG가 없어서 웹처럼 path 한 줄로 끝나지 않는다. */
+  cursor:{position:'absolute',left:-6,bottom:-15,transform:[{rotate:'-8deg'}]},
+  // 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보인다. 몸통과 꼬리를 따로 그린다
   curBody:{width:0,height:0,borderTopWidth:19,borderTopColor:'#fff',
            borderRightWidth:13,borderRightColor:'transparent'},
   curTail:{position:'absolute',left:5,top:12,width:4,height:9,backgroundColor:'#fff',
            transform:[{rotate:'18deg'}]},
-  tap:{...F,position:'absolute',left:0,right:0,bottom:'4%',textAlign:'center',
+  tap:{...F,position:'absolute',left:0,right:0,bottom:18,textAlign:'center',
        fontSize:10.5,letterSpacing:3.4,color:P.ink},
 });
 
