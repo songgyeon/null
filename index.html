@@ -210,14 +210,14 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 @keyframes flow{0%{background-position:0 0}100%{background-position:28px 0}}
 @keyframes pop{0%{opacity:0;transform:scale(.94)}100%{opacity:1;transform:scale(1)}}
 .splash{display:block;cursor:pointer;background:linear-gradient(180deg,#dcd3f7 0%,#c3b2f0 50%,#f0c2de 100%)}
-.spcd{position:absolute;right:20px;top:78px;width:88px;height:88px;border-radius:50%;z-index:5;
+.spcd{position:absolute;right:20px;top:9.2%;width:88px;height:88px;border-radius:50%;z-index:5;
  animation:spin 7s linear infinite;
  background:conic-gradient(from 0deg,#ffd0e6,#c3b2f0,#a8e6e0,#ffe9a8,#ffc2dd,#b9e3ff,#ffd0e6);
  box-shadow:0 0 0 1px rgba(255,255,255,.9),0 6px 20px rgba(60,40,100,.32)}
 .spcd::before{content:"";position:absolute;inset:9%;border-radius:50%;border:1px dashed rgba(255,255,255,.55)}
 .spcd::after{content:"";position:absolute;inset:38%;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,.9);
  box-shadow:inset 0 0 0 3px rgba(195,178,240,.5)}
-.spcard{position:absolute;left:26px;right:26px;top:150px;z-index:16;background:#fff8fc;border:1px solid #5d5490;
+.spcard{position:absolute;left:26px;right:26px;top:17.8%;z-index:16;background:#fff8fc;border:1px solid #5d5490;
  border-radius:9px;overflow:hidden;box-shadow:5px 6px 0 rgba(60,45,100,.28);animation:pop .4s steps(3) both}
 .sptb{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:9.5px;color:#fff;letter-spacing:.06em;
  border-bottom:1px solid #5d5490;text-shadow:1px 1px 0 rgba(93,84,144,.5)}
@@ -249,9 +249,10 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .spwin .spbd{padding:9px;font-size:9.5px;line-height:1.7;background:#fff;color:#6b5fa8}
 .spbtn{display:inline-block;margin-top:8px;padding:4px 13px;font-size:9px;color:#4a4276;background:#ece8fa;
  border:1px solid #5d5490;box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec}
-.spcursor{position:absolute;z-index:30;width:0;height:0;border-left:9px solid #fff;border-bottom:13px solid transparent;
- filter:drop-shadow(1px 1px 0 #4a4276);transform:rotate(-14deg)}
-.sptap{position:absolute;left:0;right:0;bottom:56px;text-align:center;font-size:10.5px;letter-spacing:.34em;color:#4a4276;
+/* 커서 — CSS 보더로 만든 삼각형은 한쪽만 채워져서 작대기로 보였다. SVG로 그린다 */
+.spcursor{position:absolute;z-index:30;width:15px;height:21px;
+ filter:drop-shadow(1px 2px 0 rgba(74,66,118,.45));transform:rotate(-8deg)}
+.sptap{position:absolute;left:0;right:0;bottom:4%;text-align:center;font-size:10.5px;letter-spacing:.34em;color:#4a4276;
  z-index:19;animation:blinkc 1.6s steps(2) infinite}
 /* ── 등록 화면 ──
    이름을 넣고 나서 메신저로 들어가기 전에 잠깐 지나간다.
@@ -1143,6 +1144,11 @@ const Bubbles=()=><div className="bubbles">{BUBS.map((b,i)=>
   <span key={i} className="bub" style={{left:b[0]+"%",width:b[1],height:b[1],
     animationDuration:`${b[2]}s,${(b[2]*0.28).toFixed(1)}s`,animationDelay:b[3]+"s"}}/>)}</div>;
 
+/* 데스크톱에 놓인 마우스 포인터. 아무 데도 안 붙어 있는 게 이 화면의 농담이다 */
+const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21" style={{left:"55%",top:"67%"}}>
+  <path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L13 12 Z" fill="#fff" stroke="#4a4276" strokeWidth="1.2" strokeLinejoin="round"/>
+</svg>;
+
 function Splash({onEnter}){
   const [v,setV]=useState("");
   const [armed,setArmed]=useState(false);   // 자동재생이 됐는가
@@ -1181,16 +1187,16 @@ function Splash({onEnter}){
       </div>
     </div>
     {/* 가짜 오류창 셋. 이 화면에서 이야기를 말하는 건 이것들뿐이다 */}
-    <div className="spwin" style={{left:28,top:452,width:182,animationDelay:".2s"}}>
+    <div className="spwin" style={{left:28,top:"51%",width:182,animationDelay:".2s"}}>
       <div className="sptb" style={{background:"linear-gradient(90deg,#b9a8ea,#8a7fc0)"}}>Error<WinDots/></div>
       <div className="spbd">이름을 입력해야 존재할 수 있어요.<div className="spbtn">ok</div></div>
     </div>
-    <div className="spwin" style={{right:24,top:534,width:194,animationDelay:".35s"}}>
+    <div className="spwin" style={{right:24,top:"60%",width:194,animationDelay:".35s"}}>
       <div className="sptb" style={{background:"linear-gradient(90deg,#ff7fae,#ff5fa8)"}}>System error<WinDots/></div>
       <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn">Cancel</div></div>
     </div>
-    <div className="spcursor" style={{left:214,top:596}}/>
-    <div className="spwin" style={{left:28,right:28,top:648,animationDelay:".5s"}}>
+    <SpCursor/>
+    <div className="spwin" style={{left:28,right:28,top:"74%",animationDelay:".5s"}}>
       <div className="sptb" style={{background:"linear-gradient(90deg,#8fd8e8,#c3b2f0)"}}>loading...<WinDots/></div>
       <div className="spbd" style={{background:"#fff8fc"}}>
         <span className="spbar flowing"><i/></span>

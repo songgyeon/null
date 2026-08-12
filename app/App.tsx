@@ -396,6 +396,11 @@ function SpinCD({size=88}:{size?:number}) {
       borderRadius:size/2,backgroundColor:'#fff',borderWidth:2,borderColor:'rgba(255,255,255,.9)'}}/>
   </Animated.View>;
 }
+/* 데스크톱에 놓인 마우스 포인터. 아무 데도 안 붙어 있는 게 이 화면의 농담이다 */
+const SpCursor=()=><View style={sp.cursor} pointerEvents="none">
+  <View style={sp.curBody}/><View style={sp.curTail}/>
+</View>;
+
 /* 가짜 오류창 한 개 */
 function SpWin({title,colors,style,children}:any) {
   return <View style={[sp.win,style]}>
@@ -444,16 +449,16 @@ function Splash({onEnter}:{onEnter:(n:string)=>void}) {
 
     {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
     {!kb&&<>
-      <SpWin title="Error" colors={['#b9a8ea','#8a7fc0']} style={{left:28,top:'53.6%',width:182}}>
+      <SpWin title="Error" colors={['#b9a8ea','#8a7fc0']} style={{left:28,top:'51%',width:182}}>
         <Text style={sp.wtx}>이름을 입력해야 존재할 수 있어요.</Text>
         <View style={sp.wbtn}><Text style={sp.wbtnT}>ok</Text></View>
       </SpWin>
-      <SpWin title="System error" colors={['#ff7fae','#ff5fa8']} style={{right:24,top:'63.3%',width:194}}>
+      <SpWin title="System error" colors={['#ff7fae','#ff5fa8']} style={{right:24,top:'60%',width:194}}>
         <Text style={sp.wtx}>당신을 찾을 수 없습니다.</Text>
         <View style={sp.wbtn}><Text style={sp.wbtnT}>Cancel</Text></View>
       </SpWin>
-      <View style={sp.cursor}/>
-      <SpWin title="loading..." colors={['#8fd8e8','#c3b2f0']} style={{left:28,right:28,top:'76.8%'}}>
+      <SpCursor/>
+      <SpWin title="loading..." colors={['#8fd8e8','#c3b2f0']} style={{left:28,right:28,top:'74%'}}>
         <View style={sp.bar}><LoadStripe/></View>
       </SpWin>
       <Text style={sp.tap}>{armed?'♪ NULL!':'TAP FOR MUSIC ♪'}</Text>
@@ -491,10 +496,14 @@ const sp=StyleSheet.create({
         backgroundColor:'#ece8fa',borderWidth:1,borderColor:P.border},
   wbtnT:{...F,fontSize:9,color:P.ink},
   bar:{height:11,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,overflow:'hidden'},
-  cursor:{position:'absolute',left:214,top:'70.6%',width:0,height:0,
-          borderLeftWidth:9,borderLeftColor:'#fff',borderBottomWidth:13,borderBottomColor:'transparent',
-          transform:[{rotate:'-14deg'}]},
-  tap:{...F,position:'absolute',left:0,right:0,bottom:56,textAlign:'center',
+  cursor:{position:'absolute',left:'55%',top:'67%',transform:[{rotate:'-8deg'}]},
+  /* 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보인다. 몸통과 꼬리를 따로 그린다.
+     RN에는 SVG가 없어서 웹처럼 path 한 줄로 끝나지 않는다. */
+  curBody:{width:0,height:0,borderTopWidth:19,borderTopColor:'#fff',
+           borderRightWidth:13,borderRightColor:'transparent'},
+  curTail:{position:'absolute',left:5,top:12,width:4,height:9,backgroundColor:'#fff',
+           transform:[{rotate:'18deg'}]},
+  tap:{...F,position:'absolute',left:0,right:0,bottom:'4%',textAlign:'center',
        fontSize:10.5,letterSpacing:3.4,color:P.ink},
 });
 
