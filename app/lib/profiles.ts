@@ -6,6 +6,9 @@ export const R2 = 'https://pub-6e08882e001c49cbb013168e4b9e8d38.r2.dev/';
 export const TRACKS: Record<string, string> = {
   'jaeeon-1':  R2 + 'jaeeon-1.mp3',   // Noah Vane — Two Bowls
   'minhyun-1': R2 + 'minhyun-1.mp3',  // Luca Riot — Ask Again Tomorrow
+  // 메신저 자체의 BGM — 방 목록의 💿를 누르면 나온다.
+  // R2에 null-1.mp3를 올리면 살아난다. 없으면 눌러도 "no disc"만 뜬다.
+  'null-1':    R2 + 'null-1.mp3',
   // 3단계용 — 파일 올리면 주석 해제하고 아래 stages의 track도 바꾼다
   // 'jaeeon-2':  R2 + 'jaeeon-2.mp3',
   // 'minhyun-2': R2 + 'minhyun-2.mp3',
@@ -16,6 +19,10 @@ export const TRACK_INFO: Record<string, { title: string; artist: string }> = {
   'jaeeon-1':  { title: 'Two Bowls',           artist: 'Noah Vane' },
   'minhyun-1': { title: 'Ask Again Tomorrow',  artist: 'Luca Riot' },
 };
+
+/* 방 목록의 💿가 트는 곡. 인물 BGM과는 별개다 — 둘이 겹쳐 나오면 안 되므로
+   인물 BGM이 시작되면 이쪽을 멈춘다. */
+export const MAIN_TRACK = 'null-1';
 
 export type Stage = { at: number; status: string; bg: string; track: string | null };
 

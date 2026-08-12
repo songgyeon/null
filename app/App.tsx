@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, IMG } from './lib/api';
-import { currentStage, PROFILES, TRACKS, TRACK_INFO, saveStatus,
+import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK, saveStatus,
          GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
 import { useAudioPlayer } from 'expo-audio';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,6 +62,73 @@ const HIDDEN=[
   {key:'jaeeon-diary',         label:'재언의 일기', room:'jaeeon', at:120},
   {key:'minhyun-diary',        label:'민현의 일기', room:'minhyun', at:120},
 ];
+
+/* ── 데모 모드 ── index.html의 것과 같은 각본이다. 한쪽만 고치면 웹과 앱이
+   다른 말을 하게 되므로 대사를 바꿀 때는 양쪽을 같이 고친다.
+   서버가 죽었거나 키가 없을 때 빈 화면 대신 각본이라도 움직인다.
+   조용히 가짜로 바뀌면 진짜 장애를 못 알아채므로, 실패 원인은 콘솔에 남기고
+   하단 바에 demo 표시를 띄운다. */
+const DEMO = { auto:false };
+const demoOn = () => DEMO.auto;
+
+// 유저 말에서 대충의 결만 고른다. 정확할 필요 없다 — 각본을 고르는 데만 쓴다
+const demoBucket = (t?:string) => {
+  const x=(t||'').trim();
+  if(/아프|아파|다쳤|다쳐|열나|배가|머리가/.test(x))return 'hurt';
+  if(/안녕|하이|왔|뭐해|자니|일어/.test(x))return 'greet';
+  if(/잘생|예쁘|멋있|좋아|고마|최고|귀엽/.test(x))return 'praise';
+  if(/갈게|잘자|끊을|바이|간다|가야/.test(x))return 'bye';
+  if(/[?？]|왜|뭐|어때|어떻|얼마|언제/.test(x))return 'ask';
+  return 'any';
+};
+const DEMO_LINES:Record<string,Record<string,string[][]>> = {
+  jaeeon:{
+    greet:[['네.'],['무슨 일 있으세요.'],['오셨어요.','앉으세요.']],
+    ask:[['그건 왜 물으세요.'],['글쎄요.','맞다고 해드리면 만족하세요?'],['그런 건 안 궁금해하셔도 됩니다.']],
+    hurt:[['어디가요.'],['가만있지 마시고 오세요.','앉아서 봅시다.'],['열은요.','재보고 말씀하세요.']],
+    praise:[['…'],['그런 말 안 하셔도 됩니다.'],['…','할 일 있으시면 하세요.']],
+    bye:[['네.'],['차 조심하세요.'],['늦었습니다.','가세요.']],
+    any:[['그러시든가요.'],['별일 없습니다.'],['…','그건 아까 말씀드렸는데요.']],
+  },
+  minhyun:{
+    greet:[['왔어요?'],['안 올 줄 알았는데'],['뭐예요 갑자기ㅋ','심심했어요?']],
+    ask:[['그건 왜요.'],['먼저 말해봐요','그럼 대답할게요'],['제가 왜 대답해야 되는데요ㅋ','…농담이에요.']],
+    hurt:[['어디가 아픈데요'],['보건실 가요.','삼촌 있어요'],['혼자 가지 말고요','같이 가요']],
+    praise:[['…뭐예요.'],['그런 말 함부로 하지 마요'],['진짜예요?','…아니 됐어요.']],
+    bye:[['가요?'],['벌써요'],['…네.','잘 자요.']],
+    any:[['ㅡㅡ'],['그래서요'],['말 돌리지 마요','저 알아요 다']],
+  },
+};
+// 단톡방·관전방은 결이 아니라 통째로 고른다
+const DEMO_GROUP = [
+  [{sender:'minhyun',text:'오늘 급식 뭐였는지 아세요'},{sender:'jaeeon',text:'모른다.'},
+   {sender:'minhyun',text:'삼촌한테 안 물어봤는데요'}],
+  [{sender:'jaeeon',text:'무슨 일 있으세요'},{sender:'minhyun',text:'저도 궁금한데'},
+   {sender:'minhyun',text:'말해봐요 저도 웃게'}],
+  [{sender:'minhyun',text:'선생님 내일 오세요?'},{sender:'jaeeon',text:'그건 왜 묻냐.'},
+   {sender:'minhyun',text:'ㅡㅡ 제가 물었는데요 삼촌한테 안 물었고'}],
+];
+const DEMO_AUTO = [
+  [{sender:'minhyun',text:'삼촌 오늘 왜 이렇게 일찍 왔어요'},{sender:'jaeeon',text:'일이 빨리 끝났어.'},
+   {sender:'minhyun',text:'그런 건 삼촌한테 처음 있는 일인데'},{sender:'jaeeon',text:'씻고 나와.'},
+   {sender:'minhyun',text:'교생 선생님이랑 뭐 있었어요?'},{sender:'jaeeon',text:'없어.'},
+   {sender:'minhyun',text:'그게 대답이에요 지금'},{sender:'jaeeon',text:'밥 다 될 때까지 나오지 마.'}],
+  [{sender:'jaeeon',text:'약 먹었냐.'},{sender:'minhyun',text:'네'},
+   {sender:'minhyun',text:'…아직요'},{sender:'jaeeon',text:'먹어.'},
+   {sender:'minhyun',text:'삼촌은 오늘 보건실에서 뭐 했어요'},{sender:'jaeeon',text:'일했지.'},
+   {sender:'minhyun',text:'혼자요?'},{sender:'jaeeon',text:'…'},
+   {sender:'minhyun',text:'아 혼자 아니었구나'}],
+];
+// 같은 각본이 연달아 나오지 않게 방·결마다 자리를 기억한다
+const demoAt:Record<string,number> = {};
+const demoPick = (key:string, arr:any[]) => {const i=(demoAt[key]||0)%arr.length; demoAt[key]=i+1; return arr[i]};
+function demoReply(room:string, lastText?:string) {
+  if(room==='health') return demoPick('health',DEMO_AUTO);
+  if(room==='group')  return demoPick('group',DEMO_GROUP);
+  const set=DEMO_LINES[room]; if(!set) return [{sender:room,text:'…'}];
+  const b=demoBucket(lastText);
+  return demoPick(room+':'+b, set[b]||set.any).map((t:string)=>({sender:room,text:t}));
+}
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
@@ -385,7 +452,7 @@ const ct=StyleSheet.create({
 });
 
 // ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 민현=락페) ═══
-function Profile({char,onBack,refresh}:{char:string;onBack:()=>void;refresh?:number}) {
+function Profile({char,onBack,refresh,onBgm}:{char:string;onBack:()=>void;refresh?:number;onBgm?:()=>void}) {
   const [stage,setStage]=useState<any>(null);
   const [count,setCount]=useState(0);
   const [gifts,setGifts]=useState<Record<string,string[]>>({});
@@ -396,10 +463,12 @@ function Profile({char,onBack,refresh}:{char:string;onBack:()=>void;refresh?:num
     setGifts(await loadGifts());
   })()},[char,refresh]);
   const ch=CHARS[char];
+  // 훅은 조건문 위에 있어야 한다 — 아래 return보다 뒤로 내리면 렌더마다 훅 수가 달라진다
+  const bg=useBgUri(bgFor(char,count,gifts,stage?.bg), PROFILES[char]?.fallback||char+'-bg.png');
   if(!stage) return <View style={{flex:1,backgroundColor:P.dark}}/>;
   const status=(stage.status||'').trim();
   const room=ROOMS.find(r=>r.id===char)!;
-  return <ImageBackground source={{uri:IMG+bgFor(char,count,gifts,stage.bg)}} style={{flex:1}} resizeMode="cover">
+  return <ImageBackground {...bg} style={{flex:1}} resizeMode="cover">
     <View style={pf.dim}>
       <Sparkles/>
       <ScrollView contentContainerStyle={{flexGrow:1}} showsVerticalScrollIndicator={false}>
@@ -434,7 +503,7 @@ function Profile({char,onBack,refresh}:{char:string;onBack:()=>void;refresh?:num
             </View>
             {/* BGM */}
             {stage.track&&TRACKS[stage.track]
-              ? <MusicPlayer track={stage.track} color={ch.dk}/>
+              ? <MusicPlayer track={stage.track} color={ch.dk} onPlay={onBgm}/>
               : <View style={pf.bgmOff}><Text style={pf.bgmOffT}>♪  no bgm</Text></View>}
             {/* 카운터 */}
             <View style={pf.stats}>
@@ -455,21 +524,32 @@ function Profile({char,onBack,refresh}:{char:string;onBack:()=>void;refresh?:num
     </View>
     <Modal visible={full} transparent animationType="fade" onRequestClose={()=>setFull(false)}>
       <TouchableOpacity activeOpacity={1} style={{flex:1}} onPress={()=>setFull(false)}>
-        <ImageBackground source={{uri:IMG+bgFor(char,count,gifts,stage.bg)}} style={{flex:1}} resizeMode="cover">
+        <ImageBackground {...bg} style={{flex:1}} resizeMode="cover">
           <Text style={pf.bgclose}>tap to close</Text>
         </ImageBackground>
       </TouchableOpacity>
     </Modal>
   </ImageBackground>;
 }
-/* 프로필 뮤직 — 싸이월드 BGM. 자동재생 안 함, 눌러야 나온다 */
-function MusicPlayer({track,color}:{track:string;color:string}) {
+/* 배경 사진이 아직 없을 수 있다(사진은 나중에 올라온다). RN의 ImageBackground는
+   파일이 없으면 그냥 빈 화면이 되므로, onError를 받아 그 인물의 기존 배경으로
+   돌아간다. 파일을 올리는 순간 코드를 안 고쳐도 새 배경이 뜬다. — 웹의 useBg와 같은 일 */
+function useBgUri(name:string, fallback:string) {
+  const [dead,setDead]=useState(false);
+  useEffect(()=>{setDead(false)},[name]);      // 배경이 바뀌면 다시 시도해본다
+  const src=dead?fallback:name;
+  return { source:{uri:IMG+src}, onError:()=>{ if(src!==fallback) setDead(true); } };
+}
+
+/* 프로필 뮤직 — 싸이월드 BGM. 자동재생 안 함, 눌러야 나온다.
+   onPlay: 인물 BGM이 시작되면 방 목록의 💿를 멈춘다 — 두 곡이 겹치면 안 된다 */
+function MusicPlayer({track,color,onPlay}:{track:string;color:string;onPlay?:()=>void}) {
   const player = useAudioPlayer(TRACKS[track]);
   const [playing,setPlaying] = useState(false);
   const info = TRACK_INFO[track] || {title:'PROFILE BGM',artist:''};
   const toggle = () => {
     try {
-      if (playing) player.pause(); else player.play();
+      if (playing) player.pause(); else { player.play(); onPlay&&onPlay(); }
       setPlaying(!playing);
     } catch(e) {}
   };
@@ -549,7 +629,7 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart}:any) {
+function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,bgmOn,onBgm}:any) {
   const [tab,setTab]=useState<'rooms'|'cam'|'hidden'>('rooms');
   const [zoom,setZoom]=useState<string|null>(null);
   const [now,setNow]=useState(Date.now());
@@ -564,8 +644,13 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
         {['you','file','chat','etc.'].map(m=>
           <TouchableOpacity key={m} onPress={()=>onMenu(m)} hitSlop={{top:10,bottom:10,left:6,right:6}}
             style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
-        <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
+        {/* 💿 — 메신저 BGM 스위치. 돌고 있으면 켜진 것 */}
+        <TouchableOpacity onPress={onBgm} hitSlop={{top:10,bottom:10,left:6,right:6}}
           style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
+          <Text style={{fontSize:12,opacity:bgmOn?1:.5}}>💿</Text>
+          <Text style={[rl.mi,bgmOn&&{color:'#ff7fae'}]}>{bgmOn?'♪':'bgm'}</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
+          style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🛒</Text><Text style={rl.mi}>cart</Text></TouchableOpacity>
         <Bevel style={{minWidth:86,height:30,marginLeft:6}} inner={{flexDirection:'row',gap:5,paddingHorizontal:8}}
           onPress={()=>{ if(autoLoading)return;
@@ -669,7 +754,7 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
         </TouchableOpacity>
       </Modal>
       <View style={rl.st}>
-        <Text style={rl.stT}>the blank u fill in ♡ NULL v1.0</Text>
+        <Text style={rl.stT}>the blank u fill in ♡ NULL v1.1{demo?' · demo':''}</Text>
         <Text style={rl.stC}>{fmtTime(Date.now())}</Text>
       </View>
     </View>
@@ -936,7 +1021,22 @@ function Root() {
   const [unlocked,setUnlocked]=useState<string[]>([]);             // .hidden 해금 key
   const [stamp,setStamp]=useState(0);                              // 프로필 갱신 트리거
   const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
+  const [demo,setDemo]=useState(false);                            // 각본으로 넘어갔나
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
+  /* 메신저 BGM. 방 목록이 아니라 App이 들고 있는 이유: 방에 들어가면 RoomList가
+     통째로 사라져서 거기 있던 플레이어도 같이 죽는다. 그러면 방을 드나들 때마다
+     음악이 끊긴다. 파일이 아직 없으면 눌러도 조용하므로 "no disc"를 띄운다 —
+     안 그러면 고장인지 원래 그런 건지 알 수가 없다. */
+  const bgmPlayer=useAudioPlayer(TRACKS[MAIN_TRACK]);
+  const [bgmOn,setBgmOn]=useState(false);
+  const stopBgm=useCallback(()=>{ try{bgmPlayer.pause()}catch(e){} setBgmOn(false); },[bgmPlayer]);
+  const toggleBgm=useCallback(()=>{
+    try{
+      if(bgmOn){ bgmPlayer.pause(); setBgmOn(false); return; }
+      bgmPlayer.loop=true; bgmPlayer.volume=.5; bgmPlayer.play(); setBgmOn(true);
+    }catch(e){ setBgmOn(false); setToast('no disc'); }
+  },[bgmOn,bgmPlayer]);
+  useEffect(()=>()=>{ try{bgmPlayer.pause()}catch(e){} },[]);
   const viewRef=useRef(view); viewRef.current=view;
 
   const reload=useCallback(async(room?:string)=>{
@@ -1035,13 +1135,23 @@ function Root() {
     await reload(char);
     setToast(`${CHARS[char].name} — ${gift.name}`);
     setFailed(null); setTyping(true);
+    if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line)); return; }
     try{
       const hist=await getMsgs(char);
       const data=await sendChat(char,name,hist,{key:gift.key,name:gift.name,note});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(char,data.messages);
-    }catch(e:any){ setTyping(false); setFailed({detail:String(e?.message||e).slice(0,100)}); }
+    }catch(e:any){ setTyping(false); await fallToDemo(e,char,line); }
+  };
+
+  /* 서버가 안 되면 각본으로 넘어간다. 한 번 넘어가면 그 뒤로는 계속 데모다 —
+     한 대화 안에서 진짜와 각본이 섞이면 어느 쪽이 고장인지 알 수가 없다.
+     실패한 진짜 이유는 콘솔에 그대로 남긴다. */
+  const fallToDemo = async(e:any, room:string, lastText?:string)=>{
+    console.error('[NULL] 서버 호출 실패 → 데모로 전환', e);
+    DEMO.auto=true; setDemo(true); setFailed(null);
+    await enqueue(room, demoReply(room,lastText));
   };
 
   /* 보낸 말은 이미 저장돼 있다. 모델 호출만 다시 한다 —
@@ -1049,13 +1159,15 @@ function Root() {
   const runTurn = async(room:string)=>{
     if(!name) return;
     setFailed(null); setTyping(true);
+    const said=lastSent.current?.room===room?lastSent.current.text:undefined;
+    if(demoOn()){ setTyping(false); await enqueue(room,demoReply(room,said)); return; }
     try{
       const hist=await getMsgs(room);
       const data=await sendChat(room,name,hist);
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);
-    }catch(e:any){ setTyping(false); setFailed({detail:String(e?.message||e).slice(0,100)}); }
+    }catch(e:any){ setTyping(false); await fallToDemo(e,room,said); }
   };
 
   const handleRetry = ()=>{
@@ -1068,11 +1180,12 @@ function Root() {
     if(!name||autoLoading) return;
     const t=Date.now(); setAutoAt(t); setMeta('null_auto_at',String(t));
     setAutoLoading(true);
+    if(demoOn()){ await enqueue('health',demoReply('health')); setAutoLoading(false); return; }
     try{
       const data=await genAuto(name);
       await applyExtras(data);
       if(data.messages?.length) await enqueue('health',data.messages);
-    }catch(e:any){ setToast('no reply... try again?'); }
+    }catch(e:any){ await fallToDemo(e,'health'); }
     setAutoLoading(false);
   };
 
@@ -1116,7 +1229,8 @@ function Root() {
       <Onboarding onEnter={handleEnter}/></View></>;
 
   let screen;
-  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} onBack={()=>setView({type:'list'})}/>;
+  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} onBgm={stopBgm}
+    onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='cart') screen=<CartScreen gifts={gifts} hearts={heartsOf(counts,gifts)}
     onSend={giveGift} onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='chat'){
@@ -1129,7 +1243,7 @@ function Root() {
       autoAt={autoAt} onOpen={openRoom}
       onProfile={(c:string)=>setView({type:'profile',id:c})}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
-      onCart={()=>setView({type:'cart'})}/>;
+      onCart={()=>setView({type:'cart'})} demo={demo} bgmOn={bgmOn} onBgm={toggleBgm}/>;
   }
 
   return <>

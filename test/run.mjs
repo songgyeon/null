@@ -164,10 +164,10 @@ eq('토큰이 틀리면 막힌다', wrong.includes('간이 점검'), true);
 // ─────────────────────────────────────────────
 section('웹·앱 대조 — 클라이언트 둘이 같은 세계를 봐야 한다');
 // ─────────────────────────────────────────────
-/* 웹(index.html)과 앱(app/profiles.ts)은 같은 백엔드를 쓰지만 카탈로그를 각자 들고 있다.
+/* 웹(index.html)과 앱(app/lib/profiles.ts)은 같은 백엔드를 쓰지만 카탈로그를 각자 들고 있다.
    한쪽만 고쳐놓고 어긋나는 것이 이 프로젝트에서 가장 자주 난 사고다. */
 const web = readFileSync(join(ROOT, 'index.html'), 'utf8');
-const app = readFileSync(join(ROOT, 'app/profiles.ts'), 'utf8');
+const app = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
 const pick = (src, re) => [...src.matchAll(re)].map(m => m[1]);
 
 const webKeys = pick(web.slice(web.indexOf('const GIFTS=['), web.indexOf('const GIFT_CATS=')), /key:"(\w+)"/g);
@@ -231,6 +231,34 @@ eq('관전 대화에 유저 이야기가 나온다',
 
 const rep = [0, 1, 2].map(() => demo.demoReply('jaeeon', '왜요?').map(m => m.text).join('/'));
 eq('같은 말을 반복해도 답이 돌아간다', new Set(rep).size, 3);
+
+/* 앱에도 같은 각본이 들어 있다. 앱 쪽은 타입이 붙어 있어 그대로 실행할 수 없으므로
+   대사만 뽑아 웹과 맞춰본다 — 한쪽만 고치면 웹과 앱이 다른 말을 하게 된다. */
+const cut = (src, a, b) => src.slice(src.indexOf(a), src.indexOf(b));
+const strs = s => [...s.matchAll(/['"]([^'"\n]+)['"]/g)].map(m => m[1]);
+eq('앱 데모 각본이 웹과 한 글자도 다르지 않다',
+  strs(cut(appSrc, 'const DEMO_LINES', 'const demoAt')),
+  strs(cut(web, 'const DEMO_LINES', 'const demoAt')));
+
+/* 실패했을 때 조용히 각본으로 갈아타면 진짜 장애를 못 알아챈다.
+   원인은 콘솔에, 표시는 하단 바에 — 웹이 하는 것과 같아야 한다. */
+eq('앱도 서버가 죽으면 각본으로 넘어간다', /catch[\s\S]{0,80}fallToDemo/.test(appSrc), true);
+eq('넘어간 이유를 콘솔에 남긴다', /console\.error\([^)]*NULL/.test(appSrc), true);
+eq('데모로 돌고 있으면 하단 바에 뜬다', /NULL v[\d.]+\{demo\?' · demo'/.test(appSrc), true);
+
+/* 배경 사진은 나중에 올라온다. 없는 파일을 걸면 RN은 아무 말 없이 빈 화면이 되므로
+   onError로 기존 배경에 돌아가야 한다(웹의 useBg가 하는 일). */
+eq('앱도 배경 사진이 없으면 원래 배경으로 돌아간다', /onError:\s*\(\)\s*=>/.test(appSrc), true);
+/* 훅을 조건부 return 뒤에 두면 렌더마다 훅 수가 달라져 터진다. 웹에서 한 번 낸 사고다. */
+eq('배경 훅이 조건부 return보다 위에 있다',
+  appSrc.indexOf('const bg=useBgUri(') < appSrc.indexOf('if(!stage) return'), true);
+
+// 메신저 BGM — 웹의 데스크 CD와 같은 곡을 쓴다
+eq('앱도 메신저 BGM을 같은 파일로 튼다',
+  /const MAIN_TRACK\s*=\s*'null-1'/.test(readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8'))
+  && /const MAIN_TRACK="null-1"/.test(web), true);
+/* 인물 BGM과 메신저 BGM이 겹쳐 나오면 안 된다 */
+eq('인물 BGM이 시작되면 메신저 BGM을 멈춘다', /onBgm=\{stopBgm\}/.test(appSrc), true);
 
 // ─────────────────────────────────────────────
 console.log(`\n${fail ? '실패' : '통과'} — ${pass}개 통과, ${fail}개 실패`);
