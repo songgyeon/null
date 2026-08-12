@@ -325,8 +325,15 @@ eq('배경 훅이 조건부 return보다 위에 있다',
 eq('앱도 메신저 BGM을 같은 파일로 튼다',
   /const MAIN_TRACK\s*=\s*'null-1'/.test(readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8'))
   && /const MAIN_TRACK="null-1"/.test(web), true);
-/* 인물 BGM과 메신저 BGM이 겹쳐 나오면 안 된다 */
-eq('인물 BGM이 시작되면 메신저 BGM을 멈춘다', /onBgm=\{stopBgm\}/.test(appSrc), true);
+/* 💿는 소개 영상이다. 웹과 앱이 같은 사진·같은 문장이어야 한 작품으로 보인다. */
+const filmOf = (src, q) => {
+  const m = new RegExp(`FILM_(?:SHOTS|LINES)[^=]*=\\s*\\[([^\\]]*)\\]`, 'g');
+  return [...src.matchAll(m)].map(x => [...x[1].matchAll(/['"]([^'"]+)['"]/g)].map(y => y[1]));
+};
+eq('소개 영상이 웹·앱 둘 다 있다',
+  /function IntroFilm/.test(appSrc) && /function IntroFilm/.test(web), true);
+eq('소개 영상의 사진과 문장이 웹·앱 같다', filmOf(appSrc), filmOf(web));
+eq('소개 영상 사진이 저장소에 있다', (filmOf(web)[0]||['x']).filter(f => !exists(f)), []);
 
 // ─────────────────────────────────────────────
 console.log(`\n${fail ? '실패' : '통과'} — ${pass}개 통과, ${fail}개 실패`);

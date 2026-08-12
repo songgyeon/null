@@ -9,7 +9,7 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs     # 80개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/run.mjs     # 83개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
 ```
 
 ```
@@ -18,8 +18,9 @@ index.html            # 웹 (React 18, 단일 파일)
 app/App.tsx           # Android (React Native / Expo)
 app/lib/              # api.ts(호출) · profiles.ts(단계·선물·BGM) · db.ts(expo-sqlite)
 test/run.mjs          # 회귀 테스트
-*.webp                # 배경·사진·프로필 53장
-null-logo.mp3         # 부팅 로고곡
+*.webp                # 배경·사진·프로필 53장 + VHS 타일 2장
+null-logo.mp3         # 오프닝 로고곡
+null-film.mp3         # 소개 영상 브금
 ```
 
 웹은 `index.html`을 그대로 열면 돕니다. 앱은 `npx expo start`.
@@ -255,7 +256,7 @@ API가 실패하면 자동으로 각본 대화로 넘어갑니다. `?demo=1`로 
 node test/run.mjs
 ```
 
-의존성·네트워크·API 키 없이 돕니다. 모델을 부르지 않고 검증 가능한 것만 다룹니다. (80개)
+의존성·네트워크·API 키 없이 돕니다. 모델을 부르지 않고 검증 가능한 것만 다룹니다. (83개)
 
 | 묶음 | 내용 |
 |---|---|
