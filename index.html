@@ -93,6 +93,30 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .dlgbtns{display:flex;gap:7px;margin-top:10px}
 .dlgbtns .bevel{flex:1;padding:9px 6px;font-size:11px;border-radius:0}
 .dlgbtns .pink{background:linear-gradient(180deg,#fff0f7,#ffc2dd)}
+/* etc. 팝업 — 미니홈피 게스트북 톤 */
+.etc{position:relative;align-items:center;gap:0;padding:0 0 16px;overflow:hidden;
+ background:linear-gradient(180deg,#fff6fb 0%,#ffeaf5 62%,#f4e9ff 100%)}
+.etc .rain{height:3px;align-self:stretch;
+ background:linear-gradient(90deg,#ff9ec6,#ffd68a,#a8e6c9,#8fd8e8,#c3b2f0,#ff9ec6)}
+.etcglit{position:absolute;inset:0;pointer-events:none;opacity:.5;
+ background:radial-gradient(2px 2px at 14% 22%,#fff,transparent),radial-gradient(2px 2px at 78% 16%,#ffd0e6,transparent),
+  radial-gradient(2px 2px at 30% 78%,#d5c8ff,transparent),radial-gradient(2px 2px at 88% 66%,#fff,transparent),
+  radial-gradient(2px 2px at 55% 40%,#ffe9a8,transparent)}
+.etccd{position:relative;width:62px;height:62px;margin:18px 0 12px;border-radius:50%;flex:none;
+ background:conic-gradient(#ffd6ec,#d9c6ff,#bfe6f5,#d8f5e3,#ffeec2,#ffd6ec);
+ border:1px solid #c9bce9;box-shadow:0 0 14px rgba(255,158,198,.5);animation:spin 5.5s linear infinite}
+.etccd::after{content:"";position:absolute;left:50%;top:50%;width:17px;height:17px;margin:-8.5px 0 0 -8.5px;
+ border-radius:50%;background:#fdf3f8;border:1px solid #d9cdf0}
+.etchi{position:relative;font-size:14px;color:#8a4f74;letter-spacing:.06em;text-align:center;
+ text-shadow:0 0 8px rgba(255,158,198,.7)}
+.etcsub{position:relative;margin-top:8px;font-size:10px;letter-spacing:.22em;color:#c0a8d0;text-align:center}
+.etcdiv{position:relative;margin:14px 0 12px;font-size:9px;letter-spacing:.5em;color:#f0a8c8}
+.etcrow{position:relative;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:0 16px}
+.etctag{padding:4px 9px;font-size:9px;letter-spacing:.06em;color:#8a7fc0;background:#fff;white-space:nowrap;
+ border:1px solid #e6d9f5;border-radius:11px}
+.etcnote{position:relative;margin-top:14px;padding:0 16px;font-size:9.5px;line-height:2;letter-spacing:.02em;
+ color:#b0a6d8;text-align:center}
+.etcstk{position:relative;display:flex;gap:11px;margin-top:14px;font-size:12px}
 /* ── 장바구니 ── 작은 다이얼로그가 아니라 창 하나를 통째로 쓴다 */
 .cartbtn{display:flex;align-items:center;gap:5px;padding:5px 9px 6px;font-size:11px;color:#6b5fa8}
 .cartscreen{position:absolute;inset:0;z-index:39;display:flex;flex-direction:column;
@@ -457,17 +481,35 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .tab{padding:6px 13px 7px;font-size:11px;color:#8a7fc0;background:rgba(226,220,246,.85);border:1px solid #8a7fc0;border-bottom:none;
  border-radius:7px 7px 0 0;cursor:pointer}
 .tab.on{background:#fff;color:#4a4276;position:relative;top:1px}
-.roomswrap{flex:1;display:flex;flex-direction:column;margin:0 12px;background:rgba(255,255,255,.9);border:1px solid #8a7fc0;
+.roomswrap{position:relative;flex:1;display:flex;flex-direction:column;margin:0 12px;border:1px solid #8a7fc0;
+ background:
+  linear-gradient(rgba(255,255,255,.93),rgba(255,255,255,.93)),
+  repeating-linear-gradient(0deg,#efe8fb 0 1px,transparent 1px 22px),
+  repeating-linear-gradient(90deg,#efe8fb 0 1px,transparent 1px 22px),#fff;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.2);overflow:hidden}
-.rooms{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px}
+/* 창 위쪽 무지개 1px — 목록이 좀 더 놓았다 */
+.roomswrap::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;z-index:2;
+ background:linear-gradient(90deg,#ff9ec6,#ffd68a,#a8e6cf,#a8c8ff,#c3b2f0)}
+.rooms{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:10px}
 .sect{margin:12px 4px 6px;font-size:9.5px;letter-spacing:.32em;color:#b0a6d8}
 .roomcard{position:relative;display:flex;align-items:center;gap:11px;padding:11px 9px;cursor:pointer;
- border-bottom:1px dotted #d8d1f0;animation:fadeUp .3s steps(4) both}
-.roomcard:hover{background:#f3eefd}
-.roomcard:active{background:#e9e2fa}
-.roomcard.watch{background:linear-gradient(180deg,#ffffff,#e2e7f6);border:1px solid #9aa3d8;border-radius:6px;margin-top:2px;
- box-shadow:inset 0 1px 0 #fff,1px 2px 0 rgba(93,84,144,.22)}
-.roomcard.watch:hover{background:linear-gradient(180deg,#ffffff,#eaeefb)}
+ border-bottom:none;border-radius:7px;animation:fadeUp .3s steps(4) both;transition:transform .08s steps(2)}
+/* 카드 사이 구분선 — 점선 대신 하트 점이 떨어진다 */
+.roomcard::after{content:"♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡";
+ position:absolute;left:6px;right:6px;bottom:-2px;overflow:hidden;white-space:nowrap;
+ font-size:7px;letter-spacing:.32em;color:#e7dcf5;pointer-events:none}
+.roomcard:last-of-type::after{display:none}
+.roomcard:hover{background:#f8f2ff}
+.roomcard:active{background:#efe6fc;transform:translate(1px,1px)}
+.roomcard.watch{margin-top:6px;border-radius:8px;background:linear-gradient(180deg,#ffffff,#eef1fc);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px #cfd6f0,0 0 14px rgba(168,178,232,.5),1px 2px 0 rgba(93,84,144,.2)}
+.roomcard.watch::after{display:none}
+/* 관전방만 무지개 테두리 — 다른 종류의 방이라는 표시 */
+.roomcard.watch::before{content:"";position:absolute;inset:-2px;border-radius:10px;z-index:-1;
+ background:linear-gradient(120deg,#ffb0d4,#c3b2f0,#a8c8ff,#a8e6cf,#ffd68a);
+ opacity:.55;animation:hue 9s linear infinite}
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+.roomcard.watch:hover{background:linear-gradient(180deg,#ffffff,#f4f6ff)}
 .avatar{position:relative;width:42px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;
  border:1px solid #8a7fc0;border-radius:50%;
  box-shadow:inset 0 2px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(93,84,144,.14),1px 2px 0 rgba(93,84,144,.28)}
@@ -483,9 +525,22 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .rprev{margin-top:5px;font-size:11px;color:#9a8fc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .watch .rprev{color:#8a90b8}
 .watch .rtime{color:#6d74a3}
-.rbadge{flex:none;min-width:20px;height:20px;padding:0 6px;font-size:10px;color:#fff;border-radius:10px;
- display:flex;align-items:center;justify-content:center;background:#ff7fae;border:1px solid #5d5490;
- box-shadow:inset 1px 1px 0 rgba(255,255,255,.5),1px 1px 0 rgba(93,84,144,.3)}
+.rbadge{position:relative;flex:none;min-width:20px;height:20px;padding:0 6px;font-size:10px;color:#fff;border-radius:10px;
+ display:flex;align-items:center;justify-content:center;border:1px solid #5d5490;
+ background:linear-gradient(180deg,#ffc0dc 0%,#ff7fae 55%,#f2679b 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.9),1px 1px 0 rgba(93,84,144,.3),0 0 8px rgba(255,127,174,.55)}
+/* 배지 위에 올라오는 글로시 하이라이트 */
+.rbadge::before{content:"";position:absolute;left:3px;right:3px;top:2px;height:6px;border-radius:6px;
+ background:rgba(255,255,255,.6)}
+/* 미니홈피 방문자 카운터 — 목록 끝의 빈 자리를 메운다 */
+.hompy{margin:16px 3px 2px;display:flex;align-items:center;gap:6px;padding:9px 10px;
+ font-size:9px;letter-spacing:.18em;color:#c3a6cf;border:1px dashed #e8cfe6;border-radius:9px;
+ background:linear-gradient(180deg,#ffffff,#fdf7ff)}
+.hompy .hv{margin-left:0;padding:3px 8px;font-size:9.5px;letter-spacing:.12em;color:#9a8fc8;
+ background:#fff;border:1px solid #eee0f4;border-radius:10px}
+.hompy .hv b{font-weight:400;color:#6b5fa8}
+.hompy .hv.pk b{color:#e0699a}
+.hompy .sp{margin-left:auto;display:flex;align-items:center;gap:5px;opacity:.9}
 .statusbar{flex:none;display:flex;gap:4px;padding:7px 8px calc(8px + env(safe-area-inset-bottom))}
 .statusbar span{padding:5px 9px;font-size:10px;color:#6b5fa8;background:#ece8fa;border:1px solid #b0a6d8;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
@@ -1291,11 +1346,8 @@ function Profile({char,count,onBack,gifts}){
    아니라 처음부터 그렇게 찍힌 사진만 쓴다.
    민현 → 재언 → 민현 → 재언으로 번갈아 놓는다. 마지막 재언 뒷모습에는
    유저가 준 머그가 식은 채로 같이 찍혀 있어서 "당신이 모르는 건 따로 있다"
-   자리에 뒀다.
-   주의: 민현 쪽에서 얼굴이 안 나온 사진은 전부 PROFILES의 단계 배경이기도
-   하다. 영상에 쓰면 나중에 해금될 배경이 먼저 보인다. 지금은 그걸 감수하고
-   얼굴이 제일 잘 가려진 것을 골랐다. */
-const FILM_SHOTS=["minhyun-roof.webp","jaeeon-shelf.webp","minhyun-street.webp","jaeeon-back.webp"];
+   자리에 뒀다. */
+const FILM_SHOTS=["minhyun-roof.webp","jaeeon-shelf.webp","minhyun-record.webp","jaeeon-back.webp"];
 /* 소개 영상 브금. 부팅 로고곡과 다른 곡이다 */
 const FILM_TRACK="null-film.mp3";
 const FILM_LINES=["겨울이 끝나간다","당신은 한 달 뒤에 떠난다","두 사람은 그걸 알고 있다","당신이 모르는 건 따로 있다"];
@@ -1476,11 +1528,11 @@ function Enroll({name,profile,onSaveField,onDone}){
 }
 
 /* 레트로 다이얼로그 셸 */
-function Dialog({title,onClose,children}){
+function Dialog({title,onClose,children,cls}){
   return <div className="dlgov" onClick={onClose}>
     <div className="dlg" onClick={e=>e.stopPropagation()}>
       <div className="tb">{title}<div className="dots" onClick={onClose} style={{cursor:"pointer"}}><span className="d3">✕</span></div></div>
-      <div className="dlgbody">{children}</div>
+      <div className={"dlgbody"+(cls?" "+cls:"")}>{cls==="etc"&&<div className="rain"/>}{children}</div>
     </div>
   </div>;
 }
@@ -1653,6 +1705,11 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,onFilm,gifts,onGift,hearts}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
+  /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
+  const allMsgs=ROOMS.flatMap(r=>(store.msgs&&store.msgs[r.id])||[]);
+  const t0=new Date(); t0.setHours(0,0,0,0);
+  const todayN=allMsgs.filter(m=>m.ts>=t0.getTime()).length;
+  const totalN=allMsgs.length;
   const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
   const [now,setNow]=useState(Date.now()); // 접속 상태·쿨타임 갱신용
@@ -1735,6 +1792,13 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
             </div>
           </React.Fragment>;
         })}
+        <div className="hompy">
+          visits
+          <span className="hv">today <b>{todayN}</b></span>
+          <span className="hv">total <b>{totalN}</b></span>
+          <span className="hv pk">♡ <b>{hearts}</b></span>
+          <span className="sp"><Sticker.star size={11} color="#ffd68a"/><Sticker.heart size={11}/></span>
+        </div>
       </div>
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
@@ -1793,8 +1857,19 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
     {dlg==="find"&&<Dialog title="search" onClose={()=>setDlg(null)}>
       <FindPanel store={store} name={name} onOpen={id=>{setDlg(null);onOpen(id)}}/>
     </Dialog>}
-    {dlg==="help"&&<Dialog title="etc." onClose={()=>setDlg(null)}>
-      <div className="dlgline" style={{textAlign:"center",padding:"14px 0",fontSize:13,color:"#8a4f74"}}>안녕, NULL 기다렸어. ✧</div>
+    {dlg==="help"&&<Dialog title="etc." cls="etc" onClose={()=>setDlg(null)}>
+      <div className="etcglit"/>
+      <div className="etccd"/>
+      <div className="etchi">안녕, NULL 기다렸어. ✧</div>
+      <div className="etcsub">the blank u fill in</div>
+      <div className="etcdiv">♡ ・ ♡ ・ ♡</div>
+      <div className="etcrow">
+        {["교생 D-30","이재언 29","이민현 20","둘은 계속 말해요"].map(t=><span key={t} className="etctag">{t}</span>)}
+      </div>
+      <div className="etcnote">당신이 없어도 대화는 이어져요.<br/>항상 당신 이야기로.</div>
+      <div className="etcstk">
+        {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#ff9ec6","#ffd68a","#c3b2f0","#8fd8e8","#ffb0d4"][i]}}>{x}</span>)}
+      </div>
     </Dialog>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
