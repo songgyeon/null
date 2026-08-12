@@ -1,0 +1,1203 @@
+// App.tsx — NULL RN(Expo). 로직 동일, UI 레이어만 웹 버전 톤으로 재구성.
+// 설치: npx expo install expo-linear-gradient expo-font expo-audio react-native-safe-area-context
+// 폰트: https://github.com/quiple/galmuri 릴리즈에서 Galmuri11.ttf → assets/fonts/Galmuri11.ttf
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, Image, Modal,
+  ImageBackground, Animated, Easing, StyleSheet, Dimensions, StatusBar,
+  Platform, Share, BackHandler, Keyboard, useWindowDimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFonts } from 'expo-font';
+import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
+import { sendChat, genAuto, IMG } from './lib/api';
+import { currentStage, PROFILES, TRACKS, TRACK_INFO, saveStatus,
+         GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
+import { useAudioPlayer } from 'expo-audio';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const W = Dimensions.get('window').width;
+const H = Dimensions.get('window').height;
+
+const P = {
+  ink:'#4a4276', border:'#5d5490', mid:'#8a7fc0', chrome:'#dcd6f2', bg:'#ece8fa',
+  pink:'#ff9ec6', sub:'#9a8fc8', dim:'#b0a6d8', badge:'#ff7fae', err:'#c23b50', dark:'#2a2450',
+  lav:'#c3b2f0', shade:'#cdc3ec',
+};
+const F = { fontFamily:'Galmuri11' } as const; // 픽셀 폰트 — 모든 Text에 적용
+
+const CHARS:Record<string,{name:string;color:string;dk:string;pale:string}> = {
+  jaeeon:{ name:'이재언', color:'#7FD8D8', dk:'#2fa8a0', pale:'#cef0ee' },
+  minhyun:{ name:'이민현', color:'#FF9E80', dk:'#f0764a', pale:'#ffe0d2' },
+};
+
+const ROOMS = [
+  { id:'jaeeon',  name:'이재언', color:'#7FD8D8', type:'dm',    sub:'보건교사, 29세' },
+  { id:'minhyun', name:'이민현', color:'#FF9E80', type:'dm',    sub:'고등학생, 20세' },
+  { id:'group',   name:'단톡방', color:'#B8A5E3', type:'group', sub:'loading...' },
+  { id:'health',  name:'두 사람', color:'#9aa3d8', type:'watch', sub:'access denied' },
+] as const;
+
+/* 갤러리(Cam 탭) — 웹 버전과 동일. PHOTOS 키도 여기서 파생 */
+const GALLERY:Record<string,string[]> = {
+  jaeeon:['jaeeon-treat','jaeeon-care','jaeeon-cook','jaeeon-work','jaeeon-evening','jaeeon-market','jaeeon-laundry','jaeeon-car','jaeeon-classroom','jaeeon-rooftop'],
+  minhyun:['minhyun-candy','minhyun-corridor','minhyun-rain','minhyun-gate','minhyun-morning','minhyun-alley','minhyun-store','minhyun-gym','minhyun-busstop','minhyun-winter','minhyun-snow'],
+};
+const PHOTOS:Record<string,string> = {};
+Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.png'}));
+/* .hidden 탭 — 해금된 key는 meta 'null_unlocked'(JSON 배열)에서 읽는다 */
+/* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
+   어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
+const HIDDEN=[
+  {key:'jaeeon-bag',           label:'재언의 가방', room:'jaeeon', at:12},
+  {key:'minhyun-bag',          label:'민현의 가방', room:'minhyun', at:12},
+  {key:'jaeeon-room',          label:'재언의 방', room:'jaeeon', at:26},
+  {key:'minhyun-room',         label:'민현의 방', room:'minhyun', at:26},
+  {key:'jaeeon-playlist',      label:'재언의 플레이리스트', room:'jaeeon', at:44},
+  {key:'minhyun-playlist',     label:'민현의 플레이리스트', room:'minhyun', at:44},
+  {key:'jaeeon-ticket',        label:'재언의 티켓', room:'jaeeon', at:64},
+  {key:'minhyun-ticket',       label:'민현의 티켓', room:'minhyun', at:64},
+  {key:'jaeeon-yearbook',      label:'재언의 졸업사진', room:'jaeeon', at:90},
+  {key:'minhyun-yearbook',     label:'민현의 졸업사진', room:'minhyun', at:90},
+  {key:'jaeeon-diary',         label:'재언의 일기', room:'jaeeon', at:120},
+  {key:'minhyun-diary',        label:'민현의 일기', room:'minhyun', at:120},
+];
+
+/* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
+   사진을 갈아끼울 때마다 이 숫자를 올린다. */
+const AV_V = '?v=2';
+const face = (id:string) => IMG + id + '-profile.png' + AV_V;
+
+const fmtTime = (ts:number) => {
+  const d=new Date(ts), h=d.getHours();
+  return `${h<12?'오전':'오후'} ${h%12||12}:${String(d.getMinutes()).padStart(2,'0')}`;
+};
+
+/* 괄호만으로 된 말풍선은 대사가 아니라 행동 지문이다 — 말풍선 대신 채팅창에 쳐진 줄로 그린다.
+   서버가 줄 단위로 갈라서 보내주므로 여기서는 통째로 괄호인지만 보면 된다. */
+/* 지문처럼 그릴 줄: 괄호로만 된 대사, 그리고 sender가 'sys'인 "일어난 일" 줄(선물 등).
+   sys를 별도 칸이 아니라 sender에 넣는 이유: db 스키마를 건드리지 않고 저장된다. */
+const isNarr = (m:any) => !!m && !m.photo &&
+  (m.sender === 'sys' || /^[（(][^()（）]*[)）]$/.test((m.text||'').trim()));
+
+/* ── 접속 상태 ── 시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다 */
+function presence(id:string){
+  const h=new Date().getHours();
+  if(id==='jaeeon'){
+    if(h>=8&&h<17)  return {s:'on',  t:'보건실'};
+    if(h>=17&&h<23) return {s:'away',t:'퇴근'};
+    if(h>=23||h<1)  return {s:'away',t:'집'};
+    return {s:'off', t:'자는 중'};
+  }
+  if(id==='minhyun'){
+    if(h>=8&&h<16)  return {s:'away',t:'수업 중'};
+    if(h>=16&&h<22) return {s:'on',  t:'야자'};
+    if(h>=22||h<2)  return {s:'on',  t:'안 자는 중'};
+    return {s:'off', t:'꺼짐'};
+  }
+  return null;
+}
+const DOT:Record<string,string>={on:'#4fc98a',away:'#f0b34a',off:'#c3bcd8'};
+
+/* ── 관계 온도 ── 단계 이름은 화면에 쓰지 않는다. 색으로만 말한다 */
+// lib/profiles.ts의 stages, index.html의 STAGE_AT과 같아야 한다 (0/16/40/80/120)
+const STAGE_AT=[0,16,40,80,120];
+const stageIdx=(n:number)=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a)i=k});return i};
+// stageIdx로 색인한다 — STAGE_AT과 길이가 같아야 한다. 짧으면 마지막 단계에서 터진다
+const HEAT=[{w:1,o:'44'},{w:1.5,o:'80'},{w:2,o:'b8'},{w:2.5,o:'e0'},{w:3,o:'ff'}];
+
+/* ── peek 쿨타임 ── 관찰이 흔하면 값이 떨어진다. 연타로 새는 비용도 여기서 막는다 */
+const AUTO_COOL=5*60*1000;
+const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
+  return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
+
+/* ── 프사 크롭 ──
+   정사각 사진을 정사각 액자에 넣으면 원본이 통째로 들어가 위가 빈다.
+   웹(index.html)의 background-size:150% + position과 같은 결과를 만든다.
+   offset = -(pos) * (zoom-1) * size */
+const ZOOM=1.5;
+const CROP:Record<string,{x:number;y:number}>={jaeeon:{x:.50,y:.22},minhyun:{x:.50,y:.22}};
+function Face({char,size,radius,border}:{char:string;size:number;radius?:number;border?:string}){
+  const c=CROP[char]||{x:.5,y:.5};
+  return <View style={{width:size,height:size,borderRadius:radius??size/2,overflow:'hidden',
+    backgroundColor:'#efeaf9',...(border?{borderWidth:1.4,borderColor:border}:{})}}>
+    <Image source={{uri:face(char)}} resizeMode="cover"
+      style={{width:size*ZOOM,height:size*ZOOM,marginLeft:-c.x*(ZOOM-1)*size,marginTop:-c.y*(ZOOM-1)*size}}/>
+  </View>;
+}
+
+// 타이핑 딜레이 — 캐릭터별 속도 차등
+const typeDelay = (sender:string, text:string) => {
+  const base = sender==='jaeeon' ? 60 : 35;
+  return Math.min(2200, 400 + text.length * base);
+};
+
+// ═══ 공용 UI 부품 ═══
+
+// 그라데이션 타이틀바 (핑크→라벤더)
+function TB({colors,children,style}:{colors:[string,string];children:React.ReactNode;style?:any}) {
+  return <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:0}}
+    style={[{flexDirection:'row',alignItems:'center',paddingHorizontal:11,paddingVertical:8,
+      borderBottomWidth:1,borderBottomColor:P.border},style]}>{children}</LinearGradient>;
+}
+const tbT={...F,color:'#fff',fontSize:12,letterSpacing:1.2,
+  textShadowColor:'rgba(93,84,144,.55)',textShadowOffset:{width:1,height:1},textShadowRadius:0} as const;
+
+// 신호등 ─ □ ✕ — onClose를 주면 ✕가 실제로 닫는 버튼이 된다
+function Dots({onClose}:{onClose?:()=>void}) {
+  const d:[string,string,string][]=[['#ffd0e6','─','#c46a97'],['#ff9ec6','□','#fff'],['#ff7fae','✕','#fff']];
+  return <View style={{marginLeft:'auto',flexDirection:'row',gap:5}}>
+    {d.map(([bg,glyph,ink],i)=>{
+      const dot=<View style={{width:15,height:15,borderRadius:8,borderWidth:1,borderColor:P.border,
+        backgroundColor:bg,alignItems:'center',justifyContent:'center'}}>
+        <Text style={{...F,fontSize:7,lineHeight:9,color:ink}}>{glyph}</Text>
+      </View>;
+      return (i===2&&onClose)
+        ? <TouchableOpacity key={i} onPress={onClose} hitSlop={{top:14,bottom:14,left:14,right:14}}>{dot}</TouchableOpacity>
+        : <View key={i}>{dot}</View>;
+    })}
+  </View>;
+}
+
+// 하드 섀도우 (blur 없는 오프셋) — Android elevation은 무조건 블러라 뷰로 처리
+function HardShadow({children,dx=2,dy=2,color='rgba(138,127,192,.28)',radius=8,style}:any) {
+  return <View style={style}>
+    <View pointerEvents="none" style={{position:'absolute',left:dx,top:dy,right:-dx,bottom:-dy,
+      backgroundColor:color,borderRadius:radius}}/>
+    {children}
+  </View>;
+}
+
+// 베벨 버튼: 위/왼쪽 밝음 + 아래/오른쪽 음영, 누르면 반전 + 1px 밀림
+function Bevel({onPress,disabled,style,inner,children}:any) {
+  return <Pressable onPress={onPress} disabled={disabled} hitSlop={{top:8,bottom:8,left:8,right:8}}
+    style={[bv.outer,disabled&&{opacity:.45},style]}>
+    {({pressed})=><>
+      <View pointerEvents="none" style={bv.shadow}/>
+      <View style={[bv.face,inner,pressed&&bv.faceP]}>{children}</View>
+    </>}
+  </Pressable>;
+}
+const bv=StyleSheet.create({
+  outer:{borderWidth:1,borderColor:P.border,backgroundColor:P.bg},
+  shadow:{position:'absolute',left:2,top:2,right:-2,bottom:-2,backgroundColor:'rgba(93,84,144,.22)'},
+  face:{flexGrow:1,alignSelf:'stretch',alignItems:'center',justifyContent:'center',
+    borderWidth:2,borderTopColor:'#fff',borderLeftColor:'#fff',
+    borderBottomColor:P.shade,borderRightColor:P.shade},
+  faceP:{borderTopColor:P.shade,borderLeftColor:P.shade,borderBottomColor:'#fff',borderRightColor:'#fff',
+    backgroundColor:'#e4ddf6',transform:[{translateX:1},{translateY:1}]},
+});
+
+// 반짝이 파티클 — 천천히 깜빡+회전하는 ✦
+function Spark({x,y,size,color,delay}:{x:any;y:any;size:number;color:string;delay:number}) {
+  const a=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{
+    const loop=Animated.loop(Animated.sequence([
+      Animated.delay(delay),
+      Animated.timing(a,{toValue:1,duration:1300,easing:Easing.inOut(Easing.ease),useNativeDriver:true}),
+      Animated.timing(a,{toValue:0,duration:1300,easing:Easing.inOut(Easing.ease),useNativeDriver:true}),
+    ]));
+    loop.start(); return ()=>loop.stop();
+  },[]);
+  return <Animated.Text pointerEvents="none" style={{position:'absolute',left:x,top:y,fontSize:size,color,
+    opacity:a.interpolate({inputRange:[0,1],outputRange:[.15,.95]}),
+    transform:[{scale:a.interpolate({inputRange:[0,1],outputRange:[.4,1]})},
+      {rotate:a.interpolate({inputRange:[0,1],outputRange:['0deg','90deg']})}]}}>✦</Animated.Text>;
+}
+const SPARKS:[string,string,number,string][]= [
+  ['6%','8%',13,'#fff'],['86%','6%',11,'#ffd0e6'],['70%','22%',15,'#fff'],
+  ['12%','40%',12,'#ffe9a8'],['90%','48%',13,'#d5c8ff'],['38%','66%',11,'#fff'],
+  ['76%','82%',14,'#ffd0e6'],['8%','88%',11,'#d5c8ff'],
+];
+const Sparkles=()=><View pointerEvents="none" style={StyleSheet.absoluteFill}>
+  {SPARKS.map(([x,y,s,c],i)=><Spark key={i} x={x} y={y} size={s} color={c} delay={i*400}/>)}
+</View>;
+
+// ═══ 온보딩 ═══
+function Onboarding({onEnter}:{onEnter:(n:string)=>void}) {
+  const [v,setV]=useState('');
+  return <View style={o.root}>
+    <Sparkles/>
+    <HardShadow dx={5} dy={5} radius={8} color="rgba(0,0,0,.35)" style={{width:'100%',maxWidth:320}}>
+      <View style={o.card}>
+        <TB colors={['#ff8fbe','#ffb0d4']}><Text style={tbT}>now loading...</Text><Dots/></TB>
+        <View style={o.body}>
+          <Text style={o.logo}>NULL</Text>
+          <Text style={o.sub}>hi ♡ enter ur null.</Text>
+          <TextInput style={o.input} value={v} onChangeText={setV} placeholder="ur name"
+            placeholderTextColor="#c9a6c2" maxLength={12} autoFocus
+            onSubmitEditing={()=>v.trim()&&onEnter(v.trim())}/>
+          <Bevel style={{marginTop:12,width:'100%'}} inner={{paddingVertical:11,backgroundColor:'#ffe3f0'}}
+            disabled={!v.trim()} onPress={()=>onEnter(v.trim())}>
+            <Text style={o.btnT}>Click!</Text></Bevel>
+        </View>
+      </View>
+    </HardShadow>
+  </View>;
+}
+const o=StyleSheet.create({
+  root:{flex:1,backgroundColor:P.dark,justifyContent:'center',alignItems:'center',padding:26},
+  card:{width:'100%',backgroundColor:'#ffd0e4',borderRadius:8,borderWidth:1,borderColor:P.border,overflow:'hidden'},
+  body:{padding:30,alignItems:'center'},
+  logo:{...F,fontSize:24,letterSpacing:12,color:'#fff',marginBottom:26,
+    textShadowColor:'#ff8fbe',textShadowOffset:{width:0,height:0},textShadowRadius:8},
+  sub:{...F,fontSize:14,color:'#8a4f74',marginBottom:24},
+  input:{...F,width:'100%',paddingVertical:11,fontSize:16,color:P.ink,textAlign:'center',
+    backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,borderTopColor:P.border,borderLeftColor:P.border},
+  btnT:{...F,fontSize:13,color:P.ink,letterSpacing:4},
+});
+
+// ═══ 장바구니 — 검색 → 아이템 → 받는 사람 + 쪽지 ═══
+// 웹(index.html)의 Cart와 같은 흐름. 아이콘만 SVG가 아니라 이모지다.
+function CartScreen({gifts,hearts,onSend,onBack}:any) {
+  const [q,setQ]=useState('');
+  const [cat,setCat]=useState('전체');
+  const [pick,setPick]=useState<any>(null);
+  const [to,setTo]=useState<string|null>(null);
+  const [memo,setMemo]=useState('');
+  const key=q.trim().toLowerCase();
+  /* 검색어가 비면 그 분류를 전부 보여준다. 정확한 낱말을 맞춰야만 나오면
+     뭐가 있는지 모르는 채로 헤매게 된다. */
+  const hits=GIFTS.filter(g=>(cat==='전체'||g.cat===cat)
+    &&(!key||(g.name+' '+g.tags).toLowerCase().includes(key)));
+  const back=()=>{ if(pick){setPick(null);setTo(null);setMemo('')} else onBack(); };
+  const poor=pick&&hearts<pick.cost;
+
+  return <View style={{flex:1,backgroundColor:'#fdf6fb'}}>
+    <TB colors={[P.pink,P.lav]}>
+      <Text style={tbT}>✿ cart{pick?' / wrap':''}</Text><Dots onClose={onBack}/></TB>
+
+    {!pick&&<>
+      <View style={ct.bar}>
+        <TextInput style={ct.search} value={q} onChangeText={setQ}
+          placeholder="무엇을 찾고 있어?" placeholderTextColor="#b9addc"/>
+        <View style={ct.coin}><Text style={ct.coinT}>♡ {hearts}</Text></View>
+      </View>
+      <View style={ct.chips}>{GIFT_CATS.map((c:string)=>
+        <TouchableOpacity key={c} onPress={()=>setCat(c)} style={[ct.chip,cat===c&&ct.chipOn]}>
+          <Text style={[ct.chipT,cat===c&&ct.chipTOn]}>{c}</Text></TouchableOpacity>)}</View>
+      <ScrollView contentContainerStyle={ct.grid}>
+        {hits.length?hits.map(g=>
+          <TouchableOpacity key={g.key} style={ct.cell} activeOpacity={0.8} onPress={()=>setPick(g)}>
+            {!!g.badge&&<View style={[ct.badge,g.badge==='HOT'&&{backgroundColor:'#5ec9c1'}]}>
+              <Text style={ct.badgeT}>{g.badge}</Text></View>}
+            <View style={ct.thumb}><Text style={{fontSize:28}}>{g.icon}</Text></View>
+            <Text style={ct.cname}>{g.name}</Text>
+            <View style={ct.price}><Text style={ct.priceT}>♡ {g.cost}</Text></View>
+          </TouchableOpacity>)
+         :<Text style={ct.none}>no result</Text>}
+      </ScrollView>
+      <Text style={ct.foot}>TAP TO WRAP ♡</Text>
+    </>}
+
+    {!!pick&&<ScrollView contentContainerStyle={ct.wrap}>
+      <View style={ct.gcard}>
+        <View style={ct.ribbon}/>
+        <View style={ct.gthumb}><Text style={{fontSize:32}}>{pick.icon}</Text></View>
+        <View style={{flex:1}}>
+          <Text style={ct.gname}>{pick.name}</Text>
+          <Text style={ct.gdesc}>{pick.desc}</Text>
+          <View style={ct.gprice}><Text style={ct.priceT}>♡ {pick.cost}</Text></View>
+        </View>
+      </View>
+      <View style={ct.sect}><View style={ct.sline}/>
+        <Text style={ct.sectT}>WHO GETS THIS</Text><View style={ct.sline}/></View>
+      {['jaeeon','minhyun'].map(c=>{
+        const done=(gifts[c]||[]).includes(pick.key), sel=to===c;
+        return <View key={c}>
+          <TouchableOpacity activeOpacity={done?1:0.8} style={[ct.to,sel&&ct.toSel]}
+            onPress={()=>{ if(done)return;
+              if(!sel){setTo(c);return}
+              if(poor)return;
+              onSend(c,pick,memo); onBack(); }}>
+            <View style={[ct.radio,sel&&ct.radioOn]}/>
+            <Face char={c} size={38} border={P.mid}/>
+            <Text style={ct.toName}>{CHARS[c].name}</Text>
+            <View style={done?ct.sent:ct.send}>
+              <Text style={done?ct.sentT:ct.sendT}>
+                {done?'SENT ♡':(sel?(poor?`NEED ♡${pick.cost-hearts}`:'SEND ♡'):'WRAP ♡')}</Text></View>
+          </TouchableOpacity>
+          {sel&&!done&&<Text style={ct.hint}>{GIFT_HINT[c]}</Text>}
+        </View>;
+      })}
+      <View style={ct.sect}><View style={ct.sline}/>
+        <Text style={ct.sectT}>A NOTE (선택)</Text><View style={ct.sline}/></View>
+      <TextInput style={ct.memo} value={memo} onChangeText={setMemo} maxLength={60}
+        multiline placeholder="P.S. ♡" placeholderTextColor="#cbbba8"/>
+      <Bevel style={{marginTop:14,height:40}} onPress={back}>
+        <Text style={ct.backT}>◁  back</Text></Bevel>
+    </ScrollView>}
+  </View>;
+}
+const ct=StyleSheet.create({
+  bar:{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:13,paddingTop:12},
+  search:{...F,flex:1,paddingVertical:8,paddingHorizontal:11,fontSize:12,color:P.ink,
+    backgroundColor:'#fff',borderWidth:1,borderColor:'#8a7fc0'},
+  coin:{paddingVertical:8,paddingHorizontal:11,backgroundColor:'#ffe6a8',borderWidth:1,borderColor:'#d8b45c'},
+  coinT:{...F,fontSize:11,color:'#8a4f74'},
+  chips:{flexDirection:'row',gap:6,paddingHorizontal:13,paddingTop:11,paddingBottom:4},
+  chip:{paddingVertical:5,paddingHorizontal:11,backgroundColor:'#f1ebfd',borderWidth:1,borderColor:'#cabbee',borderRadius:14},
+  chipOn:{backgroundColor:'#ff7fae',borderColor:'#e0699a'},
+  chipT:{...F,fontSize:10,color:'#a294cf'}, chipTOn:{color:'#fff'},
+  grid:{flexDirection:'row',flexWrap:'wrap',gap:10,padding:13,paddingBottom:24},
+  cell:{width:'47%',minHeight:150,alignItems:'center',paddingTop:14,paddingBottom:32,
+    backgroundColor:'#fff',borderWidth:1,borderColor:'#e6d7f2',borderRadius:9,overflow:'hidden'},
+  thumb:{width:62,height:62,borderRadius:31,alignItems:'center',justifyContent:'center',
+    backgroundColor:'#f5f1fc',borderWidth:1,borderColor:'#e3dcf3'},
+  cname:{...F,marginTop:7,fontSize:11,color:'#6b5fa8'},
+  price:{position:'absolute',left:0,right:0,bottom:0,paddingVertical:5,alignItems:'center',
+    backgroundColor:'#fff2f8',borderTopWidth:1,borderTopColor:'#f4c3d8'},
+  priceT:{...F,fontSize:10,color:'#c05f8c'},
+  badge:{position:'absolute',top:6,right:6,paddingVertical:2,paddingHorizontal:7,
+    backgroundColor:'#ff7fae',borderWidth:1,borderColor:P.border,borderRadius:9,zIndex:2},
+  badgeT:{...F,fontSize:8,color:'#fff'},
+  none:{...F,width:'100%',paddingVertical:40,textAlign:'center',fontSize:11,color:'#c46a97'},
+  foot:{...F,paddingBottom:13,textAlign:'center',fontSize:9,letterSpacing:2,color:'#bdb0e0'},
+  wrap:{padding:15,paddingBottom:28,gap:12},
+  gcard:{flexDirection:'row',alignItems:'center',gap:13,padding:14,backgroundColor:'#fff',
+    borderWidth:1,borderColor:'#f0c3da',borderRadius:10,overflow:'hidden'},
+  ribbon:{position:'absolute',left:0,top:16,bottom:16,width:5,backgroundColor:'#ff9ec6',borderRadius:3},
+  gthumb:{width:70,height:70,alignItems:'center',justifyContent:'center',borderRadius:9,
+    backgroundColor:'#f4f6fd',borderWidth:1,borderColor:'#d9d3f0'},
+  gname:{...F,fontSize:14,color:P.ink},
+  gdesc:{...F,marginTop:7,fontSize:10,lineHeight:17,color:'#a99bd0'},
+  gprice:{alignSelf:'flex-start',marginTop:8,paddingVertical:3,paddingHorizontal:9,
+    backgroundColor:'#fff2f8',borderWidth:1,borderColor:'#f4c3d8',borderRadius:10},
+  sect:{flexDirection:'row',alignItems:'center',gap:8,marginTop:2},
+  sline:{flex:1,height:1,backgroundColor:'#f0dcea'},
+  sectT:{...F,fontSize:9.5,letterSpacing:3,color:'#d3a0c0'},
+  to:{flexDirection:'row',alignItems:'center',gap:11,padding:11,backgroundColor:'#fff',
+    borderWidth:1,borderColor:'#e8d9f4',borderRadius:10},
+  toSel:{borderColor:'#ff9ec6',backgroundColor:'#fff7fb'},
+  radio:{width:14,height:14,borderRadius:7,borderWidth:1.5,borderColor:'#e0c8dc',backgroundColor:'#fff'},
+  radioOn:{borderColor:'#ff7fae',borderWidth:5},
+  toName:{...F,flex:1,fontSize:12.5,color:P.ink},
+  send:{paddingVertical:8,paddingHorizontal:15,borderRadius:16,backgroundColor:'#ff7fae',
+    borderWidth:1,borderColor:P.border},
+  sendT:{...F,fontSize:10.5,letterSpacing:1,color:'#fff'},
+  sent:{paddingVertical:8,paddingHorizontal:15,borderRadius:16,backgroundColor:'#f2eefb',
+    borderWidth:1,borderColor:'#d5cbee'},
+  sentT:{...F,fontSize:10.5,letterSpacing:1,color:'#a99bd0'},
+  hint:{...F,marginTop:5,marginLeft:64,fontSize:9,color:'#b4a7d6'},
+  memo:{...F,minHeight:76,padding:13,fontSize:11,lineHeight:22,color:'#8a4f74',
+    textAlignVertical:'top',backgroundColor:'#fffdf6',borderWidth:1,borderColor:'#ecd9c8',borderRadius:8},
+  backT:{...F,fontSize:11,letterSpacing:3,color:P.ink},
+});
+
+// ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 민현=락페) ═══
+function Profile({char,onBack,refresh}:{char:string;onBack:()=>void;refresh?:number}) {
+  const [stage,setStage]=useState<any>(null);
+  const [count,setCount]=useState(0);
+  const [gifts,setGifts]=useState<Record<string,string[]>>({});
+  const [full,setFull]=useState(false);   // 배경만 크게 보기
+  useEffect(()=>{(async()=>{
+    setStage(await currentStage(char));
+    setCount(await countMsgs(char));
+    setGifts(await loadGifts());
+  })()},[char,refresh]);
+  const ch=CHARS[char];
+  if(!stage) return <View style={{flex:1,backgroundColor:P.dark}}/>;
+  const status=(stage.status||'').trim();
+  const room=ROOMS.find(r=>r.id===char)!;
+  return <ImageBackground source={{uri:IMG+bgFor(char,count,gifts,stage.bg)}} style={{flex:1}} resizeMode="cover">
+    <View style={pf.dim}>
+      <Sparkles/>
+      <ScrollView contentContainerStyle={{flexGrow:1}} showsVerticalScrollIndicator={false}>
+        {/* 카드 바깥을 누르면 배경만 크게. 카드 위 터치는 안쪽 Pressable이 삼킨다 —
+            뒤에 터치 영역을 깔면 ScrollView가 가려서 아예 안 눌린다 */}
+        <Pressable style={pf.scroll} onPress={()=>setFull(true)}>
+        <Pressable onPress={()=>{}} style={{width:'100%',maxWidth:320}}>
+        <HardShadow dx={5} dy={5} radius={10} color="rgba(20,14,44,.45)" style={{width:'100%'}}>
+          <View style={pf.card}>
+            <TB colors={[ch.color,'#ffb0d4']}>
+              <Text style={tbT}>{char}.hompy</Text><Dots onClose={onBack}/>
+            </TB>
+            {/* 폴라로이드 프사 + 마스킹테이프 */}
+            <View style={pf.top}>
+              <View style={pf.polaWrap}>
+                <View style={[pf.tape,{left:-14,top:-8,transform:[{rotate:'-18deg'}],backgroundColor:'rgba(255,158,198,.75)'}]}/>
+                <View style={[pf.tape,{right:-14,bottom:14,transform:[{rotate:'12deg'}],backgroundColor:'rgba(195,178,240,.75)'}]}/>
+                <View style={pf.pola}>
+                  <Face char={char} size={126} radius={3}/>
+                  <Text style={pf.polaCap}>{room.sub}</Text>
+                </View>
+              </View>
+              <View style={pf.nameRow}>
+                <Text style={[pf.deco,{color:ch.dk}]}>✦</Text>
+                <Text style={pf.name}>{ch.name}</Text>
+                <Text style={[pf.deco,{color:'#ff7fae'}]}>♡</Text>
+              </View>
+              {!!status&&<View style={pf.bubbleWrap}>
+                <View style={pf.bubble}><Text style={pf.bubbleT}>{status}</Text></View>
+                <View style={pf.bubbleTail}/>
+              </View>}
+            </View>
+            {/* BGM */}
+            {stage.track&&TRACKS[stage.track]
+              ? <MusicPlayer track={stage.track} color={ch.dk}/>
+              : <View style={pf.bgmOff}><Text style={pf.bgmOffT}>♪  no bgm</Text></View>}
+            {/* 카운터 */}
+            <View style={pf.stats}>
+              <View style={pf.stat}><Text style={pf.statL}>TODAY</Text><Text style={[pf.statV,{color:'#ff7fae'}]}>1</Text></View>
+              <View style={pf.stat}><Text style={pf.statL}>TALK</Text><Text style={[pf.statV,{color:ch.dk}]}>{count}</Text></View>
+            </View>
+            <View style={pf.stickers}>
+              {['✿','★','♡','✧','☾'].map((s,i)=>
+                <Text key={i} style={[pf.sticker,{color:['#ff9ec6','#ffd68a','#c3b2f0','#8fd8e8','#ffb0d4'][i]}]}>{s}</Text>)}
+            </View>
+            <Bevel style={pf.close} inner={{paddingVertical:10,backgroundColor:'#ffe3f0'}} onPress={onBack}>
+              <Text style={pf.closeT}>◁  back</Text></Bevel>
+          </View>
+        </HardShadow>
+        </Pressable>
+        </Pressable>
+      </ScrollView>
+    </View>
+    <Modal visible={full} transparent animationType="fade" onRequestClose={()=>setFull(false)}>
+      <TouchableOpacity activeOpacity={1} style={{flex:1}} onPress={()=>setFull(false)}>
+        <ImageBackground source={{uri:IMG+bgFor(char,count,gifts,stage.bg)}} style={{flex:1}} resizeMode="cover">
+          <Text style={pf.bgclose}>tap to close</Text>
+        </ImageBackground>
+      </TouchableOpacity>
+    </Modal>
+  </ImageBackground>;
+}
+/* 프로필 뮤직 — 싸이월드 BGM. 자동재생 안 함, 눌러야 나온다 */
+function MusicPlayer({track,color}:{track:string;color:string}) {
+  const player = useAudioPlayer(TRACKS[track]);
+  const [playing,setPlaying] = useState(false);
+  const info = TRACK_INFO[track] || {title:'PROFILE BGM',artist:''};
+  const toggle = () => {
+    try {
+      if (playing) player.pause(); else player.play();
+      setPlaying(!playing);
+    } catch(e) {}
+  };
+  useEffect(()=>()=>{ try{ player.pause(); }catch(e){} },[]);
+  return <TouchableOpacity style={pf.bgm} onPress={toggle} activeOpacity={0.85}>
+    <View style={[pf.bgmBtn,{borderColor:color}]}><Text style={{fontSize:9,color}}>{playing?'❚❚':'▶'}</Text></View>
+    <View style={{flex:1}}>
+      <Text style={pf.bgmT} numberOfLines={1}>{info.title}{playing?'  ♪':''}</Text>
+      {!!info.artist&&<Text style={pf.bgmA} numberOfLines={1}>{info.artist}</Text>}
+    </View>
+    <View style={pf.eq}>{[0,1,2].map(i=><View key={i} style={[pf.eqBar,{height:playing?[8,13,6][i]:3,backgroundColor:color}]}/>)}</View>
+  </TouchableOpacity>;
+}
+const pf=StyleSheet.create({
+  bgclose:{...F,position:'absolute',left:0,right:0,bottom:34,textAlign:'center',fontSize:9,
+    letterSpacing:2,color:'rgba(255,255,255,.85)',
+    textShadowColor:'rgba(0,0,0,.6)',textShadowOffset:{width:0,height:1},textShadowRadius:3},
+  dim:{flex:1,backgroundColor:'rgba(20,14,44,.5)'},
+  scroll:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:22},
+  card:{width:'100%',backgroundColor:'#fff6fb',borderWidth:1,borderColor:P.border,borderRadius:10,overflow:'hidden'},
+  top:{alignItems:'center',paddingTop:22,paddingHorizontal:18},
+  polaWrap:{position:'relative'},
+  tape:{position:'absolute',width:44,height:15,borderRadius:1},
+  pola:{backgroundColor:'#fff',padding:7,paddingBottom:5,borderWidth:1,borderColor:'#e7dcf4',
+    shadowColor:'#000',shadowOpacity:0.12,shadowRadius:3,shadowOffset:{width:2,height:2}},
+  polaImg:{width:126,height:126,borderRadius:3,backgroundColor:'#efeaf9'},
+  polaCap:{...F,fontSize:8.5,color:'#b3a6cf',textAlign:'center',marginTop:6,letterSpacing:1},
+  nameRow:{flexDirection:'row',alignItems:'center',gap:7,marginTop:14},
+  name:{...F,fontSize:17,color:P.ink,letterSpacing:1},
+  deco:{fontSize:11},
+  bubbleWrap:{alignItems:'center',marginTop:12},
+  bubble:{backgroundColor:'#fff',borderWidth:1,borderColor:'#f0b6d2',borderRadius:12,
+    paddingVertical:9,paddingHorizontal:14,maxWidth:250},
+  bubbleT:{...F,fontSize:11.5,lineHeight:19,color:'#8a4f74',textAlign:'center'},
+  bubbleTail:{width:8,height:8,backgroundColor:'#fff',borderRightWidth:1,borderBottomWidth:1,
+    borderColor:'#f0b6d2',transform:[{rotate:'45deg'}],marginTop:-4.5},
+  bgm:{flexDirection:'row',alignItems:'center',gap:9,marginTop:18,marginHorizontal:18,
+    paddingVertical:8,paddingHorizontal:12,backgroundColor:'#f3edff',borderWidth:1,borderColor:'#cabbee',borderRadius:20},
+  bgmBtn:{width:20,height:20,borderRadius:10,borderWidth:1,backgroundColor:'#fff',alignItems:'center',justifyContent:'center'},
+  bgmT:{...F,fontSize:9.5,color:'#7a6cae',letterSpacing:1},
+  bgmA:{...F,fontSize:8,color:'#a99bd0',letterSpacing:.5,marginTop:3},
+  eq:{flexDirection:'row',alignItems:'flex-end',gap:2,height:14},
+  eqBar:{width:3,borderRadius:1},
+  bgmOff:{marginTop:18,marginHorizontal:18,paddingVertical:9,alignItems:'center',
+    backgroundColor:'#f6f3fd',borderWidth:1,borderColor:'#e0d8f4',borderRadius:20},
+  bgmOffT:{...F,fontSize:9.5,color:'#c0b5dd',letterSpacing:1},
+  stats:{flexDirection:'row',gap:8,marginTop:14,marginHorizontal:18},
+  stat:{flex:1,alignItems:'center',paddingVertical:9,backgroundColor:'#fff',borderWidth:1,borderColor:'#ecdff2'},
+  statL:{...F,fontSize:8,letterSpacing:2,color:'#c3aacd'},
+  statV:{...F,fontSize:14,marginTop:4},
+  stickers:{flexDirection:'row',justifyContent:'center',gap:12,marginTop:16},
+  sticker:{fontSize:12},
+  close:{margin:18,marginTop:14},
+  closeT:{...F,fontSize:11,color:P.ink,letterSpacing:2},
+});
+
+/* 흐르는 띠 — 같은 글을 두 벌 이어 붙이고 한 벌 길이만큼 밀어 반복한다.
+   한 벌만 쓰면 글이 다 지나간 뒤 빈 화면이 생긴다. */
+function Marquee({text}:{text:string}) {
+  const x=useRef(new Animated.Value(0)).current;
+  const [w,setW]=useState(0);
+  useEffect(()=>{
+    if(!w) return;
+    x.setValue(0);
+    const loop=Animated.loop(Animated.timing(x,{toValue:-w,duration:w*38,
+      easing:Easing.linear,useNativeDriver:true}));
+    loop.start();
+    return ()=>loop.stop();
+  },[w]);
+  return <View style={rl.marquee}>
+    <Animated.View style={{flexDirection:'row',transform:[{translateX:x}]}}>
+      <Text style={rl.marqueeT} numberOfLines={1}
+        onLayout={e=>setW(Math.round(e.nativeEvent.layout.width))}>{text}</Text>
+      <Text style={rl.marqueeT} numberOfLines={1}>{text}</Text>
+    </Animated.View>
+  </View>;
+}
+
+// ═══ 방 목록 ═══
+function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart}:any) {
+  const [tab,setTab]=useState<'rooms'|'cam'|'hidden'>('rooms');
+  const [zoom,setZoom]=useState<string|null>(null);
+  const [now,setNow]=useState(Date.now());
+  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
+  const left=Math.max(0,(autoAt||0)+AUTO_COOL-now);
+  const un0=Object.values(unread||{}).reduce((a:any,b:any)=>a+(b||0),0) as number;
+  return <ImageBackground source={{uri:IMG+'bg-wallpaper.png'}} style={{flex:1}} resizeMode="cover">
+    <View style={{flex:1,backgroundColor:'rgba(255,255,255,.35)'}}>
+      <Sparkles/>
+      <TB colors={[P.pink,P.lav]}><Text style={tbT}>✦ NULL messenger</Text><Dots/></TB>
+      <View style={rl.menu}>
+        {['you','file','chat','etc.'].map(m=>
+          <TouchableOpacity key={m} onPress={()=>onMenu(m)} hitSlop={{top:10,bottom:10,left:6,right:6}}
+            style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
+        <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
+          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
+          <Text style={{fontSize:12}}>🛒</Text><Text style={rl.mi}>cart</Text></TouchableOpacity>
+        <Bevel style={{minWidth:86,height:30,marginLeft:6}} inner={{flexDirection:'row',gap:5,paddingHorizontal:8}}
+          onPress={()=>{ if(autoLoading)return;
+            if(left>0){onToast('too soon · '+mmss(left));return}
+            onAuto(); }}>
+          <Text style={{fontSize:11}}>🌙</Text>
+          <Text style={rl.peek}>{autoLoading?'...':left>0?mmss(left):'peek'}</Text></Bevel>
+      </View>
+      <View style={rl.checker}/>
+      <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
+      <View style={rl.tabs}>
+        <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms (4)</Text></TouchableOpacity>
+        <TouchableOpacity style={tab==='cam'?rl.tabOn:rl.tab} onPress={()=>setTab('cam')}><Text style={tab==='cam'?rl.tabOnT:rl.tabT}>cam</Text></TouchableOpacity>
+        <TouchableOpacity style={tab==='hidden'?rl.tabOn:rl.tab} onPress={()=>setTab('hidden')}><Text style={[tab==='hidden'?rl.tabOnT:rl.tabT,tab!=='hidden'&&{color:'#8f86c9'}]}>.hidden</Text></TouchableOpacity>
+      </View>
+      <View style={rl.wrap}><ScrollView style={{padding:10}}>
+        {tab==='cam'
+        ? <>
+            {Object.entries(CHARS).map(([id,c]:[string,any])=>{
+              const got=GALLERY[id].filter(k=>album.has(k));
+              if(!got.length) return null;
+              return <React.Fragment key={id}>
+                <Text style={[rl.sect,{color:c.dk}]}>✧ {c.name} · {got.length} pics</Text>
+                <View style={rl.galgrid}>
+                  {got.map(k=><TouchableOpacity key={k} style={rl.galcell} onPress={()=>setZoom(IMG+k+'.png')}>
+                    <Image source={{uri:IMG+k+'.png'}} style={rl.galimg} resizeMode="cover"/>
+                  </TouchableOpacity>)}
+                </View>
+              </React.Fragment>;
+            })}
+            {!album.size&&<View style={{paddingVertical:70,alignItems:'center'}}>
+              <Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>
+              <Text style={ch.empty}>nothing here yet{'\n'}whatever they send lands here</Text>
+            </View>}
+          </>
+        : tab==='hidden'
+        ? <>
+            <View style={rl.prog}>
+              <Text style={rl.progT}>ENCRYPTED</Text>
+              <View style={rl.progBar}><View style={[rl.progFill,{width:((unlocked||[]).length/HIDDEN.length*100)+'%'}]}/></View>
+              <Text style={rl.progN}>{(unlocked||[]).length} / {HIDDEN.length}</Text>
+            </View>
+            <View style={rl.galgrid}>
+              {HIDDEN.map(h=>{
+                const un=(unlocked||[]).includes(h.key);
+                const need=Math.max(0,h.at-(counts[h.room]||0));
+                return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
+                  onPress={()=>un?setZoom(IMG+h.key+'.png')
+                    :onToast(need?'still locked · '+need+' more':'almost there')}>
+                  <Image source={{uri:IMG+h.key+'.png'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
+                  {!un&&<View style={rl.hlock}>
+                    <Text style={{fontSize:18}}>🔒</Text>
+                    {need>0&&<Text style={rl.hneed}>{need} more</Text>}</View>}
+                  <View style={rl.hlabel}><Text style={rl.hlabelT}>{un?h.label:'???'}</Text></View>
+                </TouchableOpacity>;
+              })}
+            </View>
+            <Text style={rl.hnote}>LOCK! UNLOCK?{'\n'}keep talking · they open one by one</Text>
+          </>
+        : ROOMS.map(room=>{
+          const ms=msgs[room.id]||[]; const last=ms[ms.length-1]; const un=unread[room.id]||0;
+          const watch=room.type==='watch';
+          const pr=presence(room.id);
+          const card=<TouchableOpacity style={[rl.card,watch&&rl.cardW]} onPress={()=>onOpen(room.id)}>
+            {room.type==='dm'
+              ? <TouchableOpacity onPress={()=>onProfile(room.id)}>
+                  <Face char={room.id} size={42}
+                    border={CHARS[room.id].dk+HEAT[stageIdx(counts[room.id]||0)].o}/>
+                </TouchableOpacity>
+              : <View style={[rl.av,{borderColor:room.color}]}>
+                  <Text style={{fontSize:watch?16:14}}>{watch?'🌙':'✧'}</Text>
+                </View>}
+            <View style={{flex:1}}>
+              <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                <Text style={rl.nm}>{room.name}</Text>
+                {pr&&<View style={rl.pres}>
+                  <View style={[rl.presDot,{backgroundColor:DOT[pr.s]}]}/>
+                  <Text style={rl.presT}>{pr.t}</Text></View>}
+                {last&&<Text style={rl.tm}>{fmtTime(last.created_at)}</Text>}
+              </View>
+              <Text style={rl.pv} numberOfLines={1}>
+                {last?`${last.sender==='user'?'나: ':''}${last.photo?'[사진] ':''}${last.text}`:room.sub}
+              </Text>
+            </View>
+            {un>0&&<View style={rl.bd}><Text style={rl.bdT}>{un}</Text></View>}
+          </TouchableOpacity>;
+          return <React.Fragment key={room.id}>
+            {watch&&<Text style={rl.sect}>✧ LIVE</Text>}
+            {watch?<HardShadow dx={1} dy={2} radius={6} color="rgba(93,84,144,.22)" style={{marginTop:2}}>{card}</HardShadow>:card}
+          </React.Fragment>;
+        })}
+      </ScrollView></View>
+      <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
+        <TouchableOpacity style={rl.lb} activeOpacity={1} onPress={()=>setZoom(null)}>
+          {zoom&&<Image source={{uri:zoom}} style={{width:'100%',height:'80%'}} resizeMode="contain"/>}
+        </TouchableOpacity>
+      </Modal>
+      <View style={rl.st}>
+        <Text style={rl.stT}>the blank u fill in ♡ NULL v1.0</Text>
+        <Text style={rl.stC}>{fmtTime(Date.now())}</Text>
+      </View>
+    </View>
+  </ImageBackground>;
+}
+const rl=StyleSheet.create({
+  peek:{...F,fontSize:10,color:P.ink,letterSpacing:.5},
+  pres:{flexDirection:'row',alignItems:'center',gap:4},
+  presDot:{width:6,height:6,borderRadius:3},
+  presT:{...F,fontSize:8.5,color:'#a79cd0'},
+  checker:{height:6,backgroundColor:'#efeaf9',borderBottomWidth:1,borderBottomColor:'#cfc6ee'},
+  marquee:{paddingVertical:4,backgroundColor:'#f3ecff',overflow:'hidden',
+    borderBottomWidth:1,borderBottomColor:'#cfc6ee'},
+  marqueeT:{...F,fontSize:8.5,letterSpacing:1.6,color:'#a06cc9'},
+  prog:{flexDirection:'row',alignItems:'center',gap:8,marginTop:12,marginBottom:8,marginLeft:4},
+  progT:{...F,fontSize:8.5,letterSpacing:3,color:'#b0a6d8'},
+  progBar:{flex:1,height:5,backgroundColor:'#e6e0f6',borderWidth:1,borderColor:'#cfc6ee'},
+  progFill:{height:'100%',backgroundColor:'#c3b2f0'},
+  progN:{...F,fontSize:8.5,color:'#8a7fc0'},
+  hneed:{...F,marginTop:6,fontSize:9,color:'rgba(255,255,255,.9)'},
+  menu:{flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:11,paddingVertical:3,backgroundColor:'rgba(240,236,252,.78)',borderBottomWidth:1,borderBottomColor:'#c5bce8'},
+  mi:{...F,fontSize:11,color:'#6b5fa8'},
+  tabs:{flexDirection:'row',gap:4,paddingHorizontal:12,paddingTop:9},
+  tabOn:{paddingHorizontal:13,paddingVertical:6,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,borderBottomWidth:0,borderTopLeftRadius:7,borderTopRightRadius:7},
+  tab:{paddingHorizontal:13,paddingVertical:6,backgroundColor:'rgba(226,220,246,.85)',borderWidth:1,borderColor:P.mid,borderBottomWidth:0,borderTopLeftRadius:7,borderTopRightRadius:7},
+  tabOnT:{...F,fontSize:11,color:P.ink}, tabT:{...F,fontSize:11,color:P.mid},
+  galgrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',marginBottom:6},
+  galcell:{width:'48.6%',aspectRatio:2/3,marginBottom:8,borderRadius:5,borderWidth:1,borderColor:'#cfc6ee',overflow:'hidden',backgroundColor:'#efeaf9'},
+  galimg:{width:'100%',height:'100%'},
+  lb:{flex:1,backgroundColor:'rgba(43,36,78,.85)',justifyContent:'center',alignItems:'center',padding:22},
+  hlock:{...StyleSheet.absoluteFillObject,justifyContent:'center',alignItems:'center'},
+  hlabel:{position:'absolute',left:0,right:0,bottom:0,paddingVertical:4,paddingHorizontal:7,backgroundColor:'rgba(43,36,78,.55)'},
+  hlabelT:{...F,fontSize:9.5,color:'#fff',letterSpacing:1},
+  hnote:{...F,textAlign:'center',marginTop:10,marginBottom:6,fontSize:10,color:P.dim,letterSpacing:1},
+  wrap:{flex:1,marginHorizontal:12,backgroundColor:'rgba(255,255,255,.9)',borderWidth:1,borderColor:P.mid},
+  sect:{...F,marginTop:12,marginBottom:6,marginLeft:4,fontSize:9.5,letterSpacing:4,color:P.dim},
+  card:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:9,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#d8d1f0'},
+  cardW:{backgroundColor:'#f0f2fa',borderWidth:1,borderColor:'#9aa3d8',borderRadius:6,borderBottomWidth:1},
+  av:{width:42,height:42,borderRadius:21,borderWidth:1,overflow:'hidden',justifyContent:'center',alignItems:'center',backgroundColor:'#fff'},
+  nm:{...F,fontSize:13.5,color:P.ink}, tm:{...F,marginLeft:'auto',fontSize:9.5,color:P.dim},
+  pv:{...F,marginTop:5,fontSize:11,color:P.sub},
+  bd:{minWidth:20,height:20,paddingHorizontal:6,borderRadius:10,backgroundColor:P.badge,borderWidth:1,borderColor:P.border,justifyContent:'center',alignItems:'center'},
+  bdT:{...F,fontSize:10,color:'#fff'},
+  st:{flexDirection:'row',gap:4,padding:8},
+  stT:{...F,flex:1,paddingVertical:5,paddingHorizontal:9,fontSize:10,color:'#6b5fa8',backgroundColor:P.bg,borderWidth:1,borderColor:P.dim},
+  stC:{...F,paddingVertical:5,paddingHorizontal:9,fontSize:10,color:'#6b5fa8',backgroundColor:P.bg,borderWidth:1,borderColor:P.dim},
+});
+
+/* 키보드가 입력창을 덮는 문제.
+   요즘 안드로이드(edge-to-edge)는 키보드가 뜰 때 창을 줄이지 않고 위에 얹는다.
+   그래서 adjustResize에 기대는 KeyboardAvoidingView만으로는 안 밀린다.
+   키보드 높이를 직접 받아 입력바를 그만큼 올린다. 루트에서 이미
+   insets.bottom을 주고 있으므로 그 몫은 빼야 두 번 밀리지 않는다. */
+function useKeyboardHeight() {
+  const [kbd,setKbd]=useState({h:0,top:0});
+  const win=useWindowDimensions();
+  const full=useRef(win.height);
+  /* 키보드가 닫혀 있을 때의 창 높이를 기준으로 잡아둔다.
+     창을 줄이는 모드(adjustResize)에서는 이미 그만큼 밀려 있으므로
+     키보드가 가린 만큼에서 줄어든 몫을 빼야 두 번 밀리지 않는다. */
+  if (kbd.h === 0 && win.height > full.current) full.current = win.height;
+  useEffect(()=>{
+    const ios=Platform.OS==='ios';
+    const show=Keyboard.addListener(ios?'keyboardWillShow':'keyboardDidShow',
+      e=>setKbd({h:e.endCoordinates?.height||0, top:e.endCoordinates?.screenY||0}));
+    const hide=Keyboard.addListener(ios?'keyboardWillHide':'keyboardDidHide',()=>setKbd({h:0,top:0}));
+    return ()=>{show.remove();hide.remove()};
+  },[]);
+
+  /* height는 기기마다 기준이 다르다. 삼성 IME처럼 위에 툴바가 붙는 키보드는
+     height가 툴바를 빼고 오는 경우가 있어서 그만큼 입력창이 모자라게 올라온다.
+     screenY(키보드 윗변의 화면 좌표)로 재면 툴바까지 포함한 실제 가림 높이가 나온다.
+     화면 아래끝 − 키보드 윗변 = 진짜 가려진 높이. screenY를 안 주는 기기만 height로 돌아간다. */
+  const scrH = Dimensions.get('screen').height;
+  const byTop = kbd.top > 0 ? Math.max(0, scrH - kbd.top) : 0;
+  const covered = kbd.h === 0 ? 0 : Math.max(kbd.h, byTop);
+  const shrank = Math.max(0, full.current - win.height);
+  return covered === 0 ? 0 : Math.max(0, covered - shrank);
+}
+
+// ═══ 채팅방 ═══
+function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile}:any) {
+  const [text,setText]=useState('');
+  const [zoom,setZoom]=useState<string|null>(null);
+  const ref=useRef<ScrollView>(null);
+  const watch=room.type==='watch';
+  const kb=useKeyboardHeight();   // 루트가 키보드 열릴 때 하단 여백을 접으므로 여기선 그대로 올린다
+  useEffect(()=>{setTimeout(()=>ref.current?.scrollToEnd({animated:true}),80)},[msgs.length,typing,kb]);
+  const send=()=>{const t=text.trim(); if(!t||typing) return; setText(''); onSend(t);};
+  const meta=(s:string)=>CHARS[s]||{name:s,color:'#9aa3d8',dk:'#6b5fa8',pale:'#e2e6f5'};
+
+  return <View style={{flex:1,backgroundColor:'#fdfcff'}}>
+    <TB colors={watch?['#aab3d6','#c9c0ee']:[room.color,P.lav]}>
+      <Text style={tbT}>{room.name}{watch?'.cam':'.chat'}</Text><Dots onClose={onBack}/>
+    </TB>
+    <View style={ch.hdr}>
+      <Bevel style={{width:32,height:29}} onPress={onBack}>
+        <Text style={{color:'#6b5fa8',fontSize:15}}>◁</Text></Bevel>
+      {room.type==='dm'&&<TouchableOpacity onPress={()=>onProfile(room.id)}>
+        <Face char={room.id} size={32} border={P.mid}/></TouchableOpacity>}
+      <View><Text style={ch.hdrN}>{room.name}</Text>
+        <Text style={ch.hdrS}>{watch?'🔴 watching':room.sub}</Text></View>
+    </View>
+    <ScrollView ref={ref} style={{flex:1}} contentContainerStyle={{padding:16}}>
+      {msgs.length===0&&!typing&&<View style={{paddingVertical:80,alignItems:'center'}}>
+        {!watch&&<Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>}
+        <Text style={ch.empty}>{watch?'':room.sub}</Text></View>}
+      {msgs.map((m:Msg,i:number)=>{
+        const prev=msgs[i-1]; const gap=!prev||m.created_at-prev.created_at>600000;
+        const me=m.sender==='user'; const mt=meta(m.sender);
+        // 지문 줄이 끼면 흐름이 끊기므로 다음 말은 프로필부터 다시 보여준다
+        const head=gap||!prev||prev.sender!==m.sender||isNarr(prev);
+        const showName=head&&!me&&(room.type==='group'||watch);
+        const pu=m.photo&&PHOTOS[m.photo]?IMG+PHOTOS[m.photo]:null;
+        if (isNarr(m)) return <React.Fragment key={m.id||i}>
+          {gap&&<Text style={ch.div}>✦ {fmtTime(m.created_at)} ✦</Text>}
+          <Text style={ch.narr}>{m.text}</Text>
+        </React.Fragment>;
+        return <React.Fragment key={m.id||i}>
+          {gap&&<Text style={ch.div}>✦ {fmtTime(m.created_at)} ✦</Text>}
+          <View style={[ch.row,me&&{justifyContent:'flex-end'},{marginTop:head?8:2}]}>
+            {!me&&head&&(CHARS[m.sender]
+              ? <TouchableOpacity activeOpacity={0.8} onPress={()=>onProfile(m.sender)}>
+                  <Face char={m.sender} size={28} border={P.mid}/></TouchableOpacity>
+              : <View style={[ch.av,{backgroundColor:mt.pale}]}/>)}
+            {!me&&!head&&<View style={{width:28}}/>}
+            <View style={{maxWidth:'76%',alignItems:me?'flex-end':'flex-start'}}>
+              {showName&&<Text style={[ch.nm,{color:mt.dk}]}>{mt.name}</Text>}
+              {pu?<HardShadow radius={8}>
+                    <TouchableOpacity style={ch.pBub} onPress={()=>setZoom(pu)}>
+                      <Image source={{uri:pu}} style={ch.pImg} resizeMode="cover"/>
+                      {!!m.text&&<Text style={ch.pCap}>{m.text}</Text>}
+                    </TouchableOpacity>
+                  </HardShadow>
+                : <HardShadow radius={8} dx={me?-2:2} color={me?'rgba(255,143,190,.4)':'rgba(138,127,192,.28)'}>
+                    <View style={[ch.bub,me?{backgroundColor:room.color+'80',borderBottomRightRadius:2}:{borderBottomLeftRadius:2}]}>
+                      <Text style={ch.bubT}>{m.text}</Text></View>
+                  </HardShadow>}
+            </View>
+          </View>
+        </React.Fragment>;
+      })}
+      {typing&&<View style={[ch.row,{marginTop:8}]}>
+        <View style={ch.av}/>
+        <HardShadow radius={8}><View style={ch.bub}>
+          <Text style={{...F,color:P.mid,fontSize:14,letterSpacing:2}}>···</Text></View></HardShadow>
+      </View>}
+      {failed&&!typing&&<TouchableOpacity style={ch.retry} onPress={onRetry}>
+        <Text style={ch.retryT}>no reply... try again?</Text></TouchableOpacity>}
+    </ScrollView>
+    {watch
+      ? <View style={ch.wBar}><Text style={{fontSize:8}}>🔴</Text><Text style={ch.wT}>u can't join this one</Text></View>
+      : <View style={[ch.iBar,{marginBottom:kb}]}>
+          <TextInput style={ch.input} value={text} onChangeText={setText} onSubmitEditing={send} returnKeyType="send"/>
+          <Bevel style={{width:40,height:37}} inner={{backgroundColor:room.color}}
+            onPress={send} disabled={!text.trim()||typing}>
+            <Text style={{color:'#fff',fontSize:16}}>↑</Text></Bevel>
+        </View>}
+    <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
+      <TouchableOpacity style={ch.lb} onPress={()=>setZoom(null)} activeOpacity={1}>
+        {zoom&&<Image source={{uri:zoom}} style={{width:'100%',height:'80%'}} resizeMode="contain"/>}
+      </TouchableOpacity>
+    </Modal>
+  </View>;
+}
+const ch=StyleSheet.create({
+  hdr:{flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:11,paddingVertical:8,backgroundColor:P.bg,borderBottomWidth:1,borderBottomColor:'#c5bce8'},
+  hdrAv:{width:32,height:32,borderRadius:16,borderWidth:1,borderColor:P.mid},
+  hdrN:{...F,fontSize:13.5,color:P.ink}, hdrS:{...F,fontSize:9.5,color:P.sub},
+  empty:{...F,textAlign:'center',color:P.dim,fontSize:11.5},
+  div:{...F,alignSelf:'center',marginVertical:12,fontSize:9.5,color:'#c39ede'},
+  // 괄호 지문 — 말풍선이 아니라 채팅창에 쳐진 한 줄
+  narr:{...F,alignSelf:'center',maxWidth:'82%',marginVertical:7,paddingHorizontal:6,
+        textAlign:'center',fontSize:10,lineHeight:17,color:'#9a8fc8'},
+  row:{flexDirection:'row',alignItems:'flex-end',gap:8},
+  av:{width:28,height:28,borderRadius:14,borderWidth:1,borderColor:P.mid,overflow:'hidden',justifyContent:'center',alignItems:'center',backgroundColor:P.bg},
+  nm:{...F,fontSize:9.5,marginTop:6,marginBottom:3,marginLeft:2},
+  bub:{paddingHorizontal:11,paddingVertical:8,borderRadius:8,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid},
+  bubT:{...F,fontSize:12.5,lineHeight:20,color:P.ink},
+  pBub:{borderRadius:8,borderWidth:1,borderColor:P.mid,backgroundColor:'#fff',overflow:'hidden',padding:4},
+  pImg:{width:W*.44,height:W*.55,borderRadius:5},
+  pCap:{...F,paddingHorizontal:7,paddingVertical:5,fontSize:12.5,color:P.ink},
+  retry:{alignSelf:'flex-start',marginTop:8,marginLeft:34,paddingHorizontal:13,paddingVertical:8,backgroundColor:'#fff0f3',borderWidth:1,borderColor:'#d4586b'},
+  retryT:{...F,fontSize:11,color:P.err},
+  iBar:{flexDirection:'row',alignItems:'center',gap:8,padding:10,backgroundColor:P.chrome,borderTopWidth:1,borderTopColor:P.mid},
+  input:{...F,flex:1,paddingHorizontal:12,paddingVertical:10,fontSize:16,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,borderTopColor:P.border,borderLeftColor:P.border,color:P.ink},
+  wBar:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,paddingVertical:12,backgroundColor:P.chrome,borderTopWidth:1,borderTopColor:P.mid},
+  wT:{...F,fontSize:11,color:'#2f9e5a',letterSpacing:1},
+  lb:{flex:1,backgroundColor:'rgba(43,36,78,.85)',justifyContent:'center',alignItems:'center',padding:22},
+});
+
+/* 팝업 안의 메뉴 한 줄 */
+function MenuRow({label,onPress}:{label:string;onPress:()=>void}) {
+  return <TouchableOpacity onPress={onPress} style={mo.mrow}>
+    <Text style={mo.mrowT}>{label}</Text></TouchableOpacity>;
+}
+
+/* [file → my stats] 지금까지 채운 빈칸을 숫자로. 대사로 못 하는 말을 통계가 대신한다 */
+function StatsPanel({msgs,counts,unlocked,album}:any) {
+  const allPhotos=Object.values(GALLERY).reduce((n:number,l:any)=>n+l.length,0);
+  const first=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0) as number;
+  const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const day=(ts:number)=>{const d=new Date(ts);return MON[d.getMonth()]+' '+d.getDate()};
+  const rows:[string,string][]=[
+    ['w/ 재언', String(counts.jaeeon||0)],
+    ['w/ 민현', String(counts.minhyun||0)],
+    ['group',   String(counts.group||0)],
+    ['pics',    album.size+' / '+allPhotos],
+    ['.hidden', (unlocked||[]).length+' / '+HIDDEN.length],
+  ];
+  return <View style={{width:'100%'}}>
+    {rows.map(([k,v])=><View key={k} style={mo.srow}>
+      <Text style={mo.sk}>{k}</Text><Text style={mo.sv}>{v}</Text></View>)}
+    <Text style={mo.sfoot}>{first?'first met u · '+day(first):'nothing yet'}</Text>
+  </View>;
+}
+
+/* [chat → search] 방을 넘나들며 찾는다. 어디서 그 말을 했는지 기억나지 않을 때 */
+function SearchPanel({msgs,name,onOpen}:any) {
+  const [q,setQ]=useState('');
+  const key=q.trim();
+  const hits=!key?[]:ROOMS.flatMap((r:any)=>(msgs[r.id]||[])
+    .filter((m:any)=>(m.text||'').includes(key)).map((m:any)=>({r,m}))).slice(-40).reverse();
+  return <View style={{width:'100%'}}>
+    <TextInput style={mo.find} value={q} onChangeText={setQ} placeholder="search..."
+      placeholderTextColor="#c9a6c2" autoFocus/>
+    <ScrollView style={{maxHeight:220,marginTop:10}}>
+      {key&&!hits.length&&<Text style={mo.txt}>nothing found</Text>}
+      {hits.map(({r,m}:any,i:number)=><TouchableOpacity key={i} style={mo.hit} onPress={()=>onOpen(r.id)}>
+        <Text style={mo.hitWho}>{m.sender==='user'?name:(CHARS[m.sender]?.name||r.name)} · {r.name}</Text>
+        <Text style={mo.hitT} numberOfLines={1}>{m.text}</Text>
+      </TouchableOpacity>)}
+    </ScrollView>
+  </View>;
+}
+
+// ═══ 메인 ═══
+/* SafeAreaView(react-native)는 iOS에서만 동작한다. 안드로이드에서는 화면이
+   상태바 밑으로 파고들고 하단 내비게이션바에 가려진다.
+   safe-area-context의 insets로 양쪽 플랫폼을 같이 처리한다. */
+export default function App() {
+  return <SafeAreaProvider><Root/></SafeAreaProvider>;
+}
+
+function Root() {
+  const insets=useSafeAreaInsets();
+  const kbRoot=useKeyboardHeight();
+  /* 키보드가 뜨면 하단 내비게이션 여백은 의미가 없어진다. 접어두지 않으면
+     입력바를 올릴 때 그만큼 모자라거나 두 번 밀린다. */
+  const padBottom=kbRoot>0?0:insets.bottom;
+  const [fontsOk]=useFonts({ Galmuri11: require('./assets/fonts/Galmuri11.ttf') });
+  const [ready,setReady]=useState(false);
+  const [name,setName]=useState<string|null>(null);
+  const [msgs,setMsgs]=useState<Record<string,Msg[]>>({});
+  const [unread,setUnread]=useState<Record<string,number>>({});
+  const [view,setView]=useState<{type:'list'|'chat'|'profile'|'cart';id?:string}>({type:'list'});
+  const [gifts,setGifts]=useState<Record<string,string[]>>({});   // 누구에게 뭘 줬나
+  const [typing,setTyping]=useState(false);
+  const [failed,setFailed]=useState<any>(null);
+  const [autoLoading,setAutoLoading]=useState(false);
+  const [popup,setPopup]=useState<string|null>(null);
+  const [toast,setToast]=useState<string|null>(null);              // 짧은 확인 토스트
+  const [profile,setProfile]=useState<Record<string,string>>({});  // 당신.txt 빈칸
+  const [unlocked,setUnlocked]=useState<string[]>([]);             // .hidden 해금 key
+  const [stamp,setStamp]=useState(0);                              // 프로필 갱신 트리거
+  const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
+  const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
+  const viewRef=useRef(view); viewRef.current=view;
+
+  const reload=useCallback(async(room?:string)=>{
+    const rooms = room?[room]:['jaeeon','minhyun','group','health'];
+    const next:Record<string,Msg[]>={};
+    for(const r of rooms) next[r]=await getMsgs(r);
+    setMsgs(prev=>({...prev,...next}));
+  },[]);
+
+  useEffect(()=>{(async()=>{
+    await initDB();
+    const n=await getMeta('user_name');
+    const p=await getMeta('null_profile');
+    if(p){try{setProfile(JSON.parse(p))}catch{}}
+    const u=await getMeta('null_unlocked');
+    if(u){try{setUnlocked(JSON.parse(u))}catch{}}
+    setGifts(await loadGifts());
+    const a=await getMeta('null_auto_at');
+    if(a) setAutoAt(Number(a)||0);
+    if(n){ setName(n); await reload(); } else setName('');
+    setReady(true);
+  })()},[]);
+
+  /* 토스트 자동 사라짐 */
+  useEffect(()=>{ if(!toast) return; const t=setTimeout(()=>setToast(null),1400); return ()=>clearTimeout(t); },[toast]);
+  /* 안드로이드 물리 뒤로: 팝업 → 닫기, 방/프로필 → 목록 */
+  useEffect(()=>{
+    const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
+      if(popup){ setPopup(null); return true; }
+      if(viewRef.current.type!=='list'){ setView({type:'list'}); return true; }
+      return false;
+    });
+    return ()=>sub.remove();
+  },[popup]);
+
+  /* 응답에 딸려오는 해금 목록과 상태메시지를 저장한다.
+     이걸 안 하면 .hidden이 영영 안 열리고 프로필 상태메시지도 늘 비어 있다. */
+  const applyExtras = async(data:any)=>{
+    if(Array.isArray(data?.unlocked)){
+      setUnlocked(prev=>{
+        const merged=Array.from(new Set([...prev,...data.unlocked]));
+        if(merged.length!==prev.length){
+          setMeta('null_unlocked',JSON.stringify(merged));
+          const add=data.unlocked.find((k:string)=>!prev.includes(k));
+          const label=HIDDEN.find(h=>h.key===add)?.label;
+          if(label) setToast('✧ .hidden — '+label);
+        }
+        return merged;
+      });
+    }
+    if(data?.status&&typeof data.status==='object'){
+      for(const [c,t] of Object.entries(data.status)) await saveStatus(c,String(t||''));
+    }
+    setStamp(x=>x+1);
+  };
+
+  // 순차 등장 — 타이핑 연출
+  const enqueue = async (room:string, list:any[]) => {
+    for(const m of list){
+      setTyping(true);
+      await new Promise(r=>setTimeout(r, typeDelay(m.sender||room, m.text||'')));
+      await insertMsg({ room, sender:m.sender||room, text:m.text||'', photo:m.photo||null, created_at:Date.now() });
+      await reload(room);
+      if(viewRef.current.id!==room) setUnread(u=>({...u,[room]:(u[room]||0)+1}));
+    }
+    setTyping(false);
+  };
+
+  /* 입장 — 기본 문장 없음, 빈 방에서 시작 */
+  const handleEnter = async(n:string)=>{
+    await setMeta('user_name',n); setName(n);
+    await reload();
+  };
+
+  const handleSend = async(text:string)=>{
+    const room=view.id!; if(!name) return;
+    await insertMsg({room,sender:'user',text,created_at:Date.now()});
+    await reload(room);
+    lastSent.current={room,text};
+    await runTurn(room);
+  };
+
+  /* 선물 보내기.
+     사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
+     sender를 'sys'로 두는 이유: db 스키마를 건드리지 않고도 "일어난 일"이라는 표시가
+     그대로 저장된다. isNarr가 이걸 보고 말풍선 대신 지문 줄로 그린다. */
+  const giveGift = async(char:string, gift:any, memo?:string)=>{
+    if(!name||!char||!gift) return;
+    const have=gifts[char]||[];
+    if(have.includes(gift.key)) return;            // 같은 걸 두 번 주지 않는다
+    const next={...gifts,[char]:[...have,gift.key]};
+    setGifts(next); await saveGifts(next);
+    const note=(memo||'').trim().slice(0,60);
+    const line=`${CHARS[char].name}이 ${gift.name}을(를) 받았다`+(note?` — \u201c${note}\u201d`:'');
+    await insertMsg({room:char,sender:'sys',text:line,created_at:Date.now()});
+    await reload(char);
+    setToast(`${CHARS[char].name} — ${gift.name}`);
+    setFailed(null); setTyping(true);
+    try{
+      const hist=await getMsgs(char);
+      const data=await sendChat(char,name,hist,{key:gift.key,name:gift.name,note});
+      setTyping(false);
+      await applyExtras(data);
+      if(data.messages?.length) await enqueue(char,data.messages);
+    }catch(e:any){ setTyping(false); setFailed({detail:String(e?.message||e).slice(0,100)}); }
+  };
+
+  /* 보낸 말은 이미 저장돼 있다. 모델 호출만 다시 한다 —
+     재시도해도 같은 말이 두 번 쌓이지 않는다. */
+  const runTurn = async(room:string)=>{
+    if(!name) return;
+    setFailed(null); setTyping(true);
+    try{
+      const hist=await getMsgs(room);
+      const data=await sendChat(room,name,hist);
+      setTyping(false);
+      await applyExtras(data);
+      if(data.messages?.length) await enqueue(room,data.messages);
+    }catch(e:any){ setTyping(false); setFailed({detail:String(e?.message||e).slice(0,100)}); }
+  };
+
+  const handleRetry = ()=>{
+    const last=lastSent.current;
+    const room=(viewRef.current.type==='chat'&&viewRef.current.id)||last?.room;
+    if(room) runTurn(room);
+  };
+
+  const handleAuto = async()=>{
+    if(!name||autoLoading) return;
+    const t=Date.now(); setAutoAt(t); setMeta('null_auto_at',String(t));
+    setAutoLoading(true);
+    try{
+      const data=await genAuto(name);
+      await applyExtras(data);
+      if(data.messages?.length) await enqueue('health',data.messages);
+    }catch(e:any){ setToast('no reply... try again?'); }
+    setAutoLoading(false);
+  };
+
+  /* 당신.txt: 빈칸 저장 / 이름 변경 */
+  const saveProfile=(k:string,v:string)=>setProfile(p=>{const n={...p,[k]:v}; setMeta('null_profile',JSON.stringify(n)); return n;});
+  const doRename=(t:string)=>{const v=t.trim(); if(v){setMeta('user_name',v); setName(v);}};
+  /* [편집] 대화 저장: 전체 방 → 공유 시트로 내보내기 */
+  const exportTxt=async()=>{
+    const lines:string[]=['NULL — 대화 기록',''];
+    for(const r of ROOMS){
+      const ms:Msg[]=msgs[r.id]||[]; if(!ms.length) continue;
+      lines.push('──── '+r.name+' ────');
+      ms.forEach(m=>lines.push(`${m.sender==='user'?name:(CHARS[m.sender]?.name||m.sender)}: ${m.photo?'(사진) ':''}${m.text||''}`));
+      lines.push('');
+    }
+    try{ await Share.share({message:lines.join('\n'),title:'NULL 대화기록'}); }catch{}
+  };
+  const handleMenu = async(m:string)=>{
+    if(m==='you') setPopup('profile');
+    else if(m==='etc.') setPopup('help');
+    else if(m==='file') setPopup('file');
+    else if(m==='chat') setPopup('chat');
+  };
+
+  const doReset = async()=>{
+    await clearAll(); setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({});
+    lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
+  };
+
+  /* 방별 누적 수와 받은 사진은 이미 들고 있는 msgs에서 뽑는다 — 따로 저장하지 않는다 */
+  const counts:Record<string,number>={};
+  ['jaeeon','minhyun','group','health'].forEach(r=>{counts[r]=(msgs[r]||[]).length});
+  const album=new Set<string>();
+  Object.values(msgs).forEach(list=>(list||[]).forEach(m=>{if(m.photo)album.add(m.photo)}));
+
+  const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); };
+
+  if(!ready||!fontsOk) return <View style={{flex:1,backgroundColor:P.bg}}/>;
+  if(!name) return <><StatusBar barStyle="light-content"/>
+    <View style={{flex:1,paddingTop:insets.top,paddingBottom:insets.bottom,backgroundColor:P.dark}}>
+      <Onboarding onEnter={handleEnter}/></View></>;
+
+  let screen;
+  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} onBack={()=>setView({type:'list'})}/>;
+  else if(view.type==='cart') screen=<CartScreen gifts={gifts} hearts={heartsOf(counts,gifts)}
+    onSend={giveGift} onBack={()=>setView({type:'list'})}/>;
+  else if(view.type==='chat'){
+    const room=ROOMS.find(r=>r.id===view.id)!;
+    screen=<ChatRoom room={room} msgs={msgs[view.id!]||[]} typing={typing&&view.id!=='health'} failed={failed}
+      onBack={()=>setView({type:'list'})} onSend={handleSend} onRetry={handleRetry}
+      onProfile={(c:string)=>setView({type:'profile',id:c})}/>;
+  } else {
+    screen=<RoomList msgs={msgs} unread={unread} unlocked={unlocked} counts={counts} album={album}
+      autoAt={autoAt} onOpen={openRoom}
+      onProfile={(c:string)=>setView({type:'profile',id:c})}
+      onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
+      onCart={()=>setView({type:'cart'})}/>;
+  }
+
+  return <>
+    <StatusBar barStyle="light-content"/>
+    <View style={{flex:1,backgroundColor:P.pink,paddingTop:insets.top,paddingBottom:padBottom}}>
+      {screen}</View>
+    {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
+    <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>
+      <TouchableOpacity style={mo.bg} activeOpacity={1} onPress={()=>setPopup(null)}>
+        <TouchableOpacity activeOpacity={1} style={mo.winWrap} onPress={()=>{}}>
+          <View style={mo.win}>
+            <TB colors={['#ff8fbe','#ffb0d4']}><Text style={tbT}>NULL</Text><Dots onClose={()=>setPopup(null)}/></TB>
+            <ScrollView style={{maxHeight:Math.min(380,H*0.55)}} contentContainerStyle={mo.body}>
+              {popup==='help'&&<Text style={mo.txt}>안녕, NULL 기다렸어. ✧</Text>}
+              {popup==='file'&&<>
+                <MenuRow label="💾  save all (.txt)" onPress={()=>{setPopup(null);exportTxt()}}/>
+                <MenuRow label="♡  my stats" onPress={()=>setPopup('stats')}/>
+              </>}
+              {popup==='chat'&&<>
+                <MenuRow label="✔  mark all read" onPress={()=>{setPopup(null);setUnread({});setToast('all read')}}/>
+                <MenuRow label="➤  search" onPress={()=>setPopup('search')}/>
+              </>}
+              {popup==='stats'&&<StatsPanel msgs={msgs} counts={counts} unlocked={unlocked} album={album}/>}
+              {popup==='search'&&<SearchPanel msgs={msgs} name={name}
+                onOpen={(id:string)=>{setPopup(null);openRoom(id)}}/>}
+              {popup==='profile'&&<>
+                <TextInput style={mo.nameIn} defaultValue={name} maxLength={12}
+                  onEndEditing={e=>doRename(e.nativeEvent.text)}/>
+                {([['subject','과목 교생'],['age','세'],['likes','를 좋아하고'],['dislikes','를 싫어한다']] as [string,string][]).map(([k,sfx])=>
+                  <View key={k} style={mo.row}>
+                    <TextInput style={mo.blank} placeholder="□□" placeholderTextColor="#e0a8c8" defaultValue={profile[k]||''} maxLength={20}
+                      onEndEditing={e=>saveProfile(k,e.nativeEvent.text.trim())}/>
+                    <Text style={mo.txt}>{sfx}</Text>
+                  </View>)}
+                <Bevel style={{marginTop:16,height:38,minWidth:130}} inner={{paddingHorizontal:20,backgroundColor:'#ffe3f0'}}
+                  onPress={()=>setPopup('reset')}><Text style={mo.btnT}>restart</Text></Bevel>
+              </>}
+              {popup==='reset'&&<>
+                <Text style={mo.txt}>this cannot be undone. rly?</Text>
+                <Bevel style={{marginTop:16,height:38,minWidth:130}} inner={{paddingHorizontal:20,backgroundColor:'#ffe3f0'}}
+                  onPress={doReset}><Text style={mo.btnT}>erase all</Text></Bevel>
+              </>}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  </>;
+}
+const mo=StyleSheet.create({
+  mrow:{width:'100%',paddingVertical:11,paddingHorizontal:12,marginBottom:6,
+    backgroundColor:'#fff',borderWidth:1,borderColor:'#f0c4dc'},
+  mrowT:{...F,fontSize:12,color:'#8a4f74',letterSpacing:.5},
+  srow:{flexDirection:'row',justifyContent:'space-between',paddingVertical:7},
+  sk:{...F,fontSize:12,color:'#8a4f74'}, sv:{...F,fontSize:12,color:P.ink},
+  sfoot:{...F,marginTop:10,textAlign:'center',fontSize:10,color:'#c3aacd'},
+  find:{...F,width:'100%',paddingVertical:9,paddingHorizontal:11,fontSize:15,color:P.ink,
+    backgroundColor:'#fff',borderWidth:1,borderColor:'#e79cc0'},
+  hit:{padding:8,marginBottom:5,backgroundColor:'#fff',borderWidth:1,borderColor:'#e7dcf4'},
+  hitWho:{...F,fontSize:9,color:'#8a7fc0',marginBottom:3},
+  hitT:{...F,fontSize:11,color:P.ink},
+  bg:{flex:1,backgroundColor:'rgba(43,36,78,.6)',justifyContent:'center',alignItems:'center',padding:30},
+  winWrap:{width:'100%',maxWidth:300},
+  win:{width:'100%',backgroundColor:'#ffd0e4',borderWidth:1,borderColor:P.border,borderRadius:8,overflow:'hidden'},
+  body:{padding:26,alignItems:'center'},
+  nameIn:{...F,fontSize:16,color:P.ink,marginBottom:12,paddingVertical:4,paddingHorizontal:10,textAlign:'center',
+    borderBottomWidth:1,borderBottomColor:'#e79cc0',minWidth:120},
+  row:{flexDirection:'row',alignItems:'center',gap:8,marginVertical:3},
+  blank:{...F,fontSize:12,color:P.ink,minWidth:64,paddingVertical:4,paddingHorizontal:8,textAlign:'center',
+    backgroundColor:'#fff',borderWidth:1,borderColor:'#e79cc0',borderStyle:'dashed',borderRadius:3},
+  txt:{...F,fontSize:12.5,color:'#8a4f74',marginVertical:4,textAlign:'center'},
+  btnT:{...F,fontSize:12,color:P.ink,letterSpacing:2},
+  toast:{position:'absolute',left:0,right:0,bottom:70,alignItems:'center'},
+  toastT:{...F,fontSize:11,color:'#fff',letterSpacing:1,paddingVertical:9,paddingHorizontal:18,
+    backgroundColor:'rgba(43,36,78,.88)',borderRadius:18,overflow:'hidden'},
+});

@@ -1208,7 +1208,7 @@ function Cart({gifts,hearts,onSend,onClose}){
             <span className="cradio"/>
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
-            <span className={done?"csent":"csend"}>{done?"SENT ♡":(sel?(poor?"♡ 모자라":"SEND ♡"):"WRAP ♡")}</span>
+            <span className={done?"csent":"csend"}>{done?"SENT ♡":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
           </button>
           {sel&&!done&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
