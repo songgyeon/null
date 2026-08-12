@@ -226,14 +226,15 @@ for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\
 eq('온보딩이 키보드 높이만큼 올라간다',
   /const kb=useKeyboardHeight\(\)[\s\S]{0,200}paddingBottom:\s*\d+\s*\+\s*kb/.test(appSrc), true);
 
-/* 부팅 화면 — 웹과 앱이 같은 길이여야 한다. 한쪽만 길면 같은 프로덕트로 안 보인다. */
-const bootApp = /const BOOT_MS\s*=\s*(\d+)/.exec(appSrc);
-const bootWeb = /setTimeout\(onDone,\s*(\d+)\)/.exec(web);
-eq('부팅 화면이 웹·앱 둘 다 있다', !!bootApp && !!bootWeb, true);
-eq('부팅 길이가 같다', bootApp && bootWeb && bootApp[1] === bootWeb[1], true);
+/* 부팅 화면 — 곡이 도는 동안 기다리는 화면이라 시간으로 끊지 않는다.
+   타이머를 다시 넣으면 곡이 중간에 잘린다. */
+eq('부팅 화면이 웹·앱 둘 다 있다', /function Boot\(/.test(appSrc) && /function Boot\(/.test(web), true);
 eq('로고곡 파일이 저장소에 있다', exists('null-logo.mp3'), true);
-eq('부팅 화면은 눌러서 건너뛸 수 있다',
-  /tap to skip/.test(appSrc) && /tap to skip/.test(web), true);
+eq('부팅 화면은 눌러야 넘어간다 — 저절로 안 사라진다',
+  [/setTimeout\(\s*finish/.test(appSrc), /animation:bootOut[^;}]*\ds\s+both/.test(web)], [false, false]);
+eq('로고곡은 기다리는 동안 돈다', /player\.loop\s*=\s*true/.test(appSrc) && /a\.loop\s*=\s*true/.test(web), true);
+eq('둘 다 눌러서 들어가라고 알려준다',
+  /tap to enter/.test(appSrc) && /tap to enter/.test(web), true);
 
 /* HEAT는 stageIdx로 색인한다. 배열이 짧으면 마지막 단계에서 undefined를 읽고 터진다. */
 const appHeat = (appSrc.match(/\{w:[\d.]+,\s*o:'[0-9a-f]{2}'\}/g) || []).length;

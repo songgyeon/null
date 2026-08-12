@@ -286,16 +286,17 @@ const Sparkles=()=><View pointerEvents="none" style={StyleSheet.absoluteFill}>
 
 // ═══ 부팅 화면 ═══
 /* 글자가 하나씩 켜지고, 막대가 차고, 부제가 뜬다. 로고곡이 같이 돈다.
-   앱은 브라우저와 달리 자동재생 제한이 없어서 그냥 나온다.
-   2.9초 뒤 저절로 사라지고, 그 전에 아무 데나 누르면 건너뛴다.
-   웹(index.html)의 .boot와 같은 순서·같은 길이다 — 두 클라이언트가
-   다른 인상을 주면 같은 프로덕트로 안 보인다. */
-const BOOT_MS = 2900;
+   저절로 넘어가지 않는다 — 누를 때까지 곡이 돈다. 로딩 가리개가 아니라
+   곡을 듣는 화면이라 시간으로 끊지 않는다.
+   앱은 브라우저와 달리 자동재생 제한이 없어서 켜자마자 소리가 난다.
+   웹(index.html)의 .boot와 같은 순서다 — 두 클라이언트가 다른 인상을
+   주면 같은 프로덕트로 안 보인다. */
 function Boot({onDone}:{onDone:()=>void}) {
   const letters = useRef([0,1,2,3].map(()=>new Animated.Value(0))).current;
   const bar  = useRef(new Animated.Value(0)).current;
   const sub  = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(1)).current;
+  const blink= useRef(new Animated.Value(1)).current;
   const player = useAudioPlayer(IMG + 'null-logo.mp3');
   const done = useRef(false);
 
@@ -306,14 +307,21 @@ function Boot({onDone}:{onDone:()=>void}) {
   };
 
   useEffect(()=>{
-    try { player.volume=.55; player.play(); } catch(e) {}
+    try { player.loop=true; player.volume=.55; player.play(); } catch(e) {}
     Animated.stagger(220, letters.map(v =>
       Animated.timing(v,{toValue:1,duration:260,useNativeDriver:true}))).start();
     // width는 네이티브 드라이버로 못 돌린다. 막대 하나뿐이라 부담은 없다.
     Animated.timing(bar,{toValue:1,duration:1900,delay:200,useNativeDriver:false}).start();
     Animated.timing(sub,{toValue:1,duration:600,delay:1250,useNativeDriver:true}).start();
-    const t=setTimeout(finish, BOOT_MS);
-    return ()=>{ clearTimeout(t); try{player.pause()}catch(e){} };
+    // 깜빡이는 "tap to enter" — 기다리는 화면이라는 걸 알려준다
+    Animated.loop(Animated.sequence([
+      Animated.delay(2200),
+      Animated.timing(blink,{toValue:.35,duration:10,useNativeDriver:true}),
+      Animated.delay(600),
+      Animated.timing(blink,{toValue:1,duration:10,useNativeDriver:true}),
+      Animated.delay(1000),
+    ])).start();
+    return ()=>{ try{player.pause()}catch(e){} };
   },[]);
 
   return <Animated.View style={[bt.root,{opacity:fade}]}>
@@ -327,7 +335,7 @@ function Boot({onDone}:{onDone:()=>void}) {
         <Animated.View style={[bt.fill,{width:bar.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]}/>
       </View>
       <Animated.Text style={[bt.sub,{opacity:sub}]}>the blank u fill in</Animated.Text>
-      <Animated.Text style={[bt.skip,{opacity:sub}]}>tap to skip</Animated.Text>
+      <Animated.Text style={[bt.skip,{opacity:Animated.multiply(sub,blink)}]}>tap to enter</Animated.Text>
     </Pressable>
   </Animated.View>;
 }
