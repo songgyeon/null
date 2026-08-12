@@ -333,6 +333,23 @@ const filmOf = (src, q) => {
 eq('소개 영상이 웹·앱 둘 다 있다',
   /function IntroFilm/.test(appSrc) && /function IntroFilm/.test(web), true);
 eq('소개 영상의 사진과 문장이 웹·앱 같다', filmOf(appSrc), filmOf(web));
+
+/* 등록 화면에서 채우는 빈칸. 웹에서만 고치고 앱을 안 고치는 일이 실제로 있었다.
+   키와 꼬리말이 어긋나면 같은 값을 서버에 다르게 적어 보내게 된다. */
+const enrOf = src => [...src.matchAll(/\{k:\s*['"](\w+)['"][^}]*?tail:\s*['"]([^'"]*)['"]/g)]
+  .map(m => [m[1], m[2]]);
+eq('등록 화면 빈칸이 웹·앱 같다', enrOf(appSrc), enrOf(web));
+eq('등록 화면 빈칸이 네 칸이다', enrOf(web).length, 4);
+
+/* etc. 팝업 문구 — 여기가 이 앱이 자기를 소개하는 유일한 자리다 */
+const etcLines = ['안녕, NULL 기다렸어. ✧', 'the blank u fill in', '당신이 없어도 대화는 이어져요.'];
+eq('etc. 팝업 문구가 웹·앱 같다',
+  etcLines.filter(t => !(appSrc.includes(t) && web.includes(t))), []);
+
+// 미니홈피 방문자 카운터 — 웹에만 있다가 앱에 옮겼다
+eq('방문자 카운터가 웹·앱 둘 다 있다',
+  /today.*total/s.test(appSrc.slice(appSrc.indexOf('visits'), appSrc.indexOf('visits') + 400))
+  && /today.*total/s.test(web.slice(web.indexOf('visits'), web.indexOf('visits') + 400)), true);
 eq('소개 영상 사진이 저장소에 있다', (filmOf(web)[0]||['x']).filter(f => !exists(f)), []);
 
 // ─────────────────────────────────────────────

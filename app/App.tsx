@@ -287,44 +287,61 @@ const Sparkles=()=><View pointerEvents="none" style={StyleSheet.absoluteFill}>
 const BOOT_VOL = .55;   // index.html의 BOOT_VOL과 같아야 한다
 
 // ═══ 등록 화면 ═══
-/* 이름을 넣고 나서 메신저로 들어가기 전에 한 번 지나간다. 4.6초.
-   이야기를 설명하지 않는다 — 방금 적은 이름이 값으로 채워지는 것만 보여준다.
-   이 프로덕트의 이름이 NULL이고 유저는 비어 있는 값이라, 그 칸이 채워지는
-   순간이 곧 오프닝이다. DAYS LEFT는 끝까지 null로 둔다.
-   index.html의 .enr과 같은 순서·같은 초다. */
-const ENROLL_MS = 4600;
-function Enroll({name,onDone}:{name:string;onDone:()=>void}) {
-  const rows = useRef([0,1,2].map(()=>new Animated.Value(0))).current;
-  const bar  = useRef(new Animated.Value(0)).current;
-  const msg  = useRef(new Animated.Value(0)).current;
+/* 이름을 넣고 나서 메신저로 들어가기 전에 한 번 지나간다.
+   이야기를 설명하지 않는다 — 방금 적은 이름 아래 빈칸이 놓이고, 그걸 유저가
+   직접 채운다. 이 프로덕트의 이름이 NULL이고 유저는 비어 있는 값이라,
+   그 칸을 채우는 것이 곧 오프닝이다. DAYS LEFT는 끝까지 null로 둔다.
+   시간이 지나면 넘어가지 않는다 — Click!을 눌러야 나간다. 다 안 채우고
+   나가도 된다. 비워두는 것도 이 이야기에서는 답이다.
+   index.html의 .enr / ENR_FIELDS와 같은 항목·같은 순서다. */
+const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
+  {k:'subject',  lab:'SUBJECT', tail:'과목 교생'},
+  {k:'age',      lab:'AGE',     tail:'세', w:52},
+  {k:'likes',    lab:'LIKES',   tail:'를 좋아하고'},
+  {k:'dislikes', lab:'HATES',   tail:'를 싫어한다'},
+];
+function Enroll({name,profile,onSaveField,onDone}:{
+  name:string; profile:Record<string,string>;
+  onSaveField:(k:string,v:string)=>void; onDone:()=>void;
+}) {
+  // 빈칸 넷 + DAYS LEFT 한 줄
+  const rows = useRef(Array.from({length:ENR_FIELDS.length+1},()=>new Animated.Value(0))).current;
   const fade = useRef(new Animated.Value(0)).current;
+  const kb   = useKeyboardHeight();
   useEffect(()=>{
     Animated.timing(fade,{toValue:1,duration:400,useNativeDriver:true}).start();
-    rows.forEach((v,i)=>Animated.timing(v,{toValue:1,duration:350,delay:350+650*i,useNativeDriver:true}).start());
-    Animated.timing(bar,{toValue:1,duration:3400,delay:300,useNativeDriver:false}).start();
-    Animated.timing(msg,{toValue:1,duration:400,delay:2300,useNativeDriver:true}).start();
-    const out=setTimeout(()=>Animated.timing(fade,{toValue:0,duration:500,useNativeDriver:true}).start(),4100);
-    const t=setTimeout(onDone,ENROLL_MS);
-    return ()=>{clearTimeout(t);clearTimeout(out)};
+    rows.forEach((v,i)=>Animated.timing(v,{toValue:1,duration:350,delay:300+250*i,useNativeDriver:true}).start());
   },[]);
-  const row=(v:Animated.Value,label:string,value:string,dim?:boolean)=>
-    <Animated.View style={[en.row,{opacity:v,
-      transform:[{translateX:v.interpolate({inputRange:[0,1],outputRange:[-4,0]})}]}]}>
-      <Text style={en.rowL}>{label}</Text>
-      <Text style={[en.rowV,dim&&{color:'#6b5fa8'}]}>{value}</Text>
-    </Animated.View>;
-  return <Animated.View style={[en.root,{opacity:fade}]}>
+  const filled = ENR_FIELDS.filter(f=>(profile[f.k]||'').trim()).length;
+  const done   = filled===ENR_FIELDS.length;
+  const leave  = ()=>{ Animated.timing(fade,{toValue:0,duration:420,useNativeDriver:true}).start(); setTimeout(onDone,440) };
+  const anim   = (v:Animated.Value)=>({opacity:v,
+    transform:[{translateX:v.interpolate({inputRange:[0,1],outputRange:[-4,0]})}]});
+  /* 키보드가 올라오면 카드를 그만큼 띄운다. 안 그러면 아래 두 칸이 가린다 */
+  return <Animated.View style={[en.root,{opacity:fade,paddingBottom:26+kb}]}>
     <View style={en.card}>
       <View style={en.tb}><Text style={en.tbT}>registering...</Text></View>
       <View style={en.body}>
-        {row(rows[0],'NAME',name)}
-        {row(rows[1],'ROLE','교생')}
+        <Text style={en.name}>{name}</Text>
+        {ENR_FIELDS.map((f,i)=>
+          <Animated.View key={f.k} style={[en.row,anim(rows[i])]}>
+            <Text style={en.rowL}>{f.lab}</Text>
+            <TextInput style={[en.blank,!!(profile[f.k]||'').trim()&&en.blankOn,f.w?{minWidth:f.w}:null]}
+              placeholder="□□" placeholderTextColor="#7a6bb8" maxLength={20}
+              defaultValue={profile[f.k]||''}
+              onEndEditing={e=>onSaveField(f.k,e.nativeEvent.text.trim())}/>
+            <Text style={en.rowT}>{f.tail}</Text>
+          </Animated.View>)}
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
-        {row(rows[2],'DAYS LEFT','null',true)}
-        <View style={en.bar}>
-          <Animated.View style={[en.fill,{width:bar.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]}/>
-        </View>
-        <Animated.Text style={[en.msg,{opacity:msg}]}>CONNECTING …</Animated.Text>
+        <Animated.View style={[en.row,anim(rows[4])]}>
+          <Text style={en.rowL}>DAYS LEFT</Text><Text style={en.nullv}>null</Text>
+        </Animated.View>
+        <View style={en.bar}><View style={[en.fill,{width:pct(filled/ENR_FIELDS.length*100)}]}/></View>
+        <Text style={[en.msg,done&&en.msgOn]}>
+          {done?'READY ✓':`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</Text>
+        {/* 다 안 채워도 들어갈 수 있다 */}
+        <TouchableOpacity style={en.go} activeOpacity={.8} onPress={leave}>
+          <Text style={en.goT}>Click!</Text></TouchableOpacity>
       </View>
     </View>
   </Animated.View>;
@@ -332,17 +349,29 @@ function Enroll({name,onDone}:{name:string;onDone:()=>void}) {
 const en=StyleSheet.create({
   root:{...StyleSheet.absoluteFillObject,zIndex:55,backgroundColor:'#17123a',
         alignItems:'center',justifyContent:'center',padding:26},
-  card:{width:'100%',maxWidth:268,borderWidth:1,borderColor:P.border,backgroundColor:'#1e1848'},
+  card:{width:'100%',maxWidth:286,borderWidth:1,borderColor:P.border,backgroundColor:'#1e1848'},
   tb:{backgroundColor:'#6b4aa8',paddingVertical:5,paddingHorizontal:9},
   tbT:{...F,fontSize:9.5,letterSpacing:1.8,color:'#fff'},
-  body:{paddingHorizontal:16,paddingTop:18,paddingBottom:16},
-  row:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-end',gap:10,
-       paddingVertical:7,borderBottomWidth:1,borderBottomColor:'#443a7d'},
-  rowL:{...F,fontSize:8.5,letterSpacing:2,color:'#8a7ac4'},
-  rowV:{...F,fontSize:13,color:'#fff'},
-  bar:{marginTop:16,height:6,backgroundColor:'#2a2159',borderWidth:1,borderColor:P.border,overflow:'hidden'},
+  body:{paddingHorizontal:16,paddingTop:16,paddingBottom:15},
+  name:{...F,fontSize:15,letterSpacing:.9,color:'#fff',paddingBottom:11,
+        borderBottomWidth:1,borderBottomColor:'#443a7d'},
+  row:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:5,
+       paddingVertical:9,borderBottomWidth:1,borderBottomColor:'#443a7d'},
+  rowL:{...F,fontSize:8.5,letterSpacing:2,color:'#8a7ac4',minWidth:66},
+  rowT:{...F,fontSize:12,color:'#c9b6f5'},
+  /* 어두운 창이라 빈칸도 어둡게 — 밝은 you.txt의 것을 그대로 쓰면 안 보인다 */
+  blank:{...F,fontSize:12,minWidth:44,paddingVertical:2,paddingHorizontal:6,textAlign:'center',
+         color:'#ffb0d4',backgroundColor:'#2a2159',borderWidth:1,borderColor:'#6b5fa8',
+         borderStyle:'dashed',borderRadius:3},
+  blankOn:{color:'#fff',borderStyle:'solid'},
+  nullv:{...F,fontSize:12,letterSpacing:.7,color:'#6b5fa8'},
+  bar:{marginTop:15,height:6,backgroundColor:'#2a2159',borderWidth:1,borderColor:P.border,overflow:'hidden'},
   fill:{height:'100%',backgroundColor:'#ff8fbe'},
-  msg:{...F,marginTop:9,fontSize:8.5,letterSpacing:1.8,color:'#8a7ac4'},
+  msg:{...F,marginTop:8,fontSize:8.5,letterSpacing:1.8,color:'#8a7ac4'},
+  msgOn:{color:'#8fe0b0'},
+  go:{marginTop:13,paddingVertical:9,alignItems:'center',backgroundColor:'#ffd5e8',
+      borderWidth:1,borderColor:P.border},
+  goT:{...F,fontSize:12,letterSpacing:3.6,color:P.ink},
 });
 
 // ═══ 소개 영상 ═══
@@ -1005,7 +1034,12 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm}:any) {
+function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
+  /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
+  const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
+  const t0=new Date(); t0.setHours(0,0,0,0);
+  const todayN=allMsgs.filter((m:any)=>(m.created_at||0)>=t0.getTime()).length;
+  const totalN=allMsgs.length;
   const [tab,setTab]=useState<'rooms'|'cam'|'hidden'>('rooms');
   const [zoom,setZoom]=useState<string|null>(null);
   const [now,setNow]=useState(Date.now());
@@ -1123,6 +1157,13 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
             {watch?<HardShadow dx={1} dy={2} radius={6} color="rgba(93,84,144,.22)" style={{marginTop:2}}>{card}</HardShadow>:card}
           </React.Fragment>;
         })}
+        {/* 미니홈피 방문자 카운터 — 목록 끝의 빈 자리를 메운다. 웹의 .hompy와 같다 */}
+        {tab==='rooms'&&<View style={rl.hompy}>
+          <Text style={rl.hompyL}>visits</Text>
+          <View style={rl.hv}><Text style={rl.hvT}>today <Text style={rl.hvB}>{todayN}</Text></Text></View>
+          <View style={rl.hv}><Text style={rl.hvT}>total <Text style={rl.hvB}>{totalN}</Text></Text></View>
+          <View style={rl.hv}><Text style={rl.hvT}>♡ <Text style={[rl.hvB,{color:'#e0699a'}]}>{hearts}</Text></Text></View>
+        </View>}
       </ScrollView></View>
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
         <TouchableOpacity style={rl.lb} activeOpacity={1} onPress={()=>setZoom(null)}>
@@ -1137,6 +1178,14 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
   </ImageBackground>;
 }
 const rl=StyleSheet.create({
+  hompy:{flexDirection:'row',alignItems:'center',gap:6,marginTop:16,marginHorizontal:3,marginBottom:2,
+    paddingVertical:9,paddingHorizontal:10,borderWidth:1,borderColor:'#e8cfe6',borderStyle:'dashed',
+    borderRadius:9,backgroundColor:'#fffdff'},
+  hompyL:{...F,fontSize:9,letterSpacing:1.8,color:'#c3a6cf'},
+  hv:{paddingVertical:3,paddingHorizontal:8,backgroundColor:'#fff',
+    borderWidth:1,borderColor:'#eee0f4',borderRadius:10},
+  hvT:{...F,fontSize:9.5,letterSpacing:1.2,color:'#9a8fc8'},
+  hvB:{color:'#6b5fa8'},
   peek:{...F,fontSize:10,color:P.ink,letterSpacing:.5},
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
@@ -1612,14 +1661,16 @@ function Root() {
       autoAt={autoAt} onOpen={openRoom}
       onProfile={(c:string)=>setView({type:'profile',id:c})}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
-      onCart={()=>setView({type:'cart'})} demo={demo} onFilm={()=>setFilm(true)}/>;
+      onCart={()=>setView({type:'cart'})} demo={demo} onFilm={()=>setFilm(true)}
+      hearts={heartsOf(counts,gifts)}/>;
   }
 
   return <>
     <StatusBar barStyle="light-content"/>
     <View style={{flex:1,backgroundColor:P.pink,paddingTop:insets.top,paddingBottom:padBottom}}>
       {screen}</View>
-    {enrolling&&<Enroll name={name} onDone={()=>setEnrolling(false)}/>}
+    {enrolling&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
+      onDone={()=>setEnrolling(false)}/>}
     {film&&<IntroFilm onClose={()=>setFilm(false)}/>}
     {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
     <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>
@@ -1628,7 +1679,24 @@ function Root() {
           <View style={mo.win}>
             <TB colors={['#ff8fbe','#ffb0d4']}><Text style={tbT}>NULL</Text><Dots onClose={()=>setPopup(null)}/></TB>
             <ScrollView style={{maxHeight:Math.min(380,H*0.55)}} contentContainerStyle={mo.body}>
-              {popup==='help'&&<Text style={mo.txt}>안녕, NULL 기다렸어. ✧</Text>}
+              {/* etc. — 미니홈피 게스트북 톤. index.html의 .etc와 같은 문구·같은 순서다.
+                  웹은 conic-gradient로 CD를 그리는데 RN에는 없어서, 오프닝에 쓰는
+                  SpinCD를 작게 줄여 그대로 쓴다. */}
+              {popup==='help'&&<View style={mo.etc}>
+                <View style={mo.etcCd}><SpinCD size={62}/></View>
+                <Text style={mo.etcHi}>안녕, NULL 기다렸어. ✧</Text>
+                <Text style={mo.etcSub}>the blank u fill in</Text>
+                <Text style={mo.etcDiv}>♡ ・ ♡ ・ ♡</Text>
+                <View style={mo.etcRow}>
+                  {['교생 D-30','이재언 29','이민현 20','둘은 계속 말해요'].map(t=>
+                    <Text key={t} style={mo.etcTag}>{t}</Text>)}
+                </View>
+                <Text style={mo.etcNote}>당신이 없어도 대화는 이어져요.{'\n'}항상 당신 이야기로.</Text>
+                <View style={mo.etcStk}>
+                  {['✿','★','♡','✧','☾'].map((x,i)=>
+                    <Text key={i} style={[mo.etcStkT,{color:['#ff9ec6','#ffd68a','#c3b2f0','#8fd8e8','#ffb0d4'][i]}]}>{x}</Text>)}
+                </View>
+              </View>}
               {popup==='file'&&<>
                 <MenuRow label="💾  save all (.txt)" onPress={()=>{setPopup(null);exportTxt()}}/>
                 <MenuRow label="♡  my stats" onPress={()=>setPopup('stats')}/>
@@ -1665,6 +1733,19 @@ function Root() {
   </>;
 }
 const mo=StyleSheet.create({
+  /* etc. 팝업 — 웹의 .etc 계열. 분홍 그라데이션은 배경색 한 겹으로 대신한다 */
+  etc:{alignItems:'center',paddingTop:4,paddingBottom:8},
+  etcCd:{marginTop:14,marginBottom:12},
+  etcHi:{...F,fontSize:14,letterSpacing:.8,color:'#8a4f74',textAlign:'center'},
+  etcSub:{...F,marginTop:8,fontSize:10,letterSpacing:2.2,color:'#c0a8d0',textAlign:'center'},
+  etcDiv:{...F,marginTop:14,marginBottom:12,fontSize:9,letterSpacing:5,color:'#f0a8c8'},
+  etcRow:{flexDirection:'row',flexWrap:'wrap',gap:6,justifyContent:'center',paddingHorizontal:16},
+  etcTag:{...F,paddingVertical:4,paddingHorizontal:9,fontSize:9,letterSpacing:.6,color:'#8a7fc0',
+    backgroundColor:'#fff',borderWidth:1,borderColor:'#e6d9f5',borderRadius:11},
+  etcNote:{...F,marginTop:14,paddingHorizontal:16,fontSize:9.5,lineHeight:19,
+    color:'#b0a6d8',textAlign:'center'},
+  etcStk:{flexDirection:'row',gap:11,marginTop:14},
+  etcStkT:{fontSize:12},
   mrow:{width:'100%',paddingVertical:11,paddingHorizontal:12,marginBottom:6,
     backgroundColor:'#fff',borderWidth:1,borderColor:'#f0c4dc'},
   mrowT:{...F,fontSize:12,color:'#8a4f74',letterSpacing:.5},
