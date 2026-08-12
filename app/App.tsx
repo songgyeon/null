@@ -538,6 +538,7 @@ function Bubbles() {
     {BUBS.map((b,i)=><Bubble key={i} x={b[0]} d={b[1]} sec={b[2]} delay={b[3]} H={H}/>)}
   </View>;
 }
+const BUBBLE_PNG=require('./assets/bubble.png');
 function Bubble({x,d,sec,delay,H}:any) {
   const v=useRef(new Animated.Value(0)).current;
   useEffect(()=>{
@@ -546,14 +547,15 @@ function Bubble({x,d,sec,delay,H}:any) {
     const t=setTimeout(()=>run.start(),delay*1000);
     return ()=>{clearTimeout(t);run.stop()};
   },[]);
+  /* 웹은 radial-gradient 두 겹으로 비누막을 그리는데 RN에는 radial이 없다.
+     단색 원에 흰 테두리를 두르면 비눗방울이 아니라 반투명 스티커로 보여서,
+     막을 그려 넣은 그림 한 장을 크기만 바꿔 쓴다(assets/bubble.png). */
   return <Animated.View pointerEvents="none" style={{position:'absolute',left:`${x}%`,bottom:-70,
-    width:d,height:d,borderRadius:d/2,borderWidth:1.5,borderColor:'rgba(255,255,255,.9)',
-    backgroundColor:'rgba(255,200,230,.28)',
+    width:d,height:d,
     opacity:v.interpolate({inputRange:[0,.06,.84,1],outputRange:[0,1,.95,0]}),
     transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[0,-(H+120)]})},
                {translateX:v.interpolate({inputRange:[0,.5,1],outputRange:[-15,15,-15]})}]}}>
-    <View style={{position:'absolute',left:'22%',top:'18%',width:d*.2,height:d*.2,
-      borderRadius:d,backgroundColor:'rgba(255,255,255,.85)'}}/>
+    <Image source={BUBBLE_PNG} style={{width:d,height:d}} resizeMode="contain"/>
   </Animated.View>;
 }
 /* 도는 CD. RN에는 conic-gradient가 없어서 파스텔 띠를 겹쳐 돌린다 */
