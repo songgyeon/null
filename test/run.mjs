@@ -221,25 +221,26 @@ for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\
   eq(`lib/${mod}이 App.tsx가 쓰는 것을 전부 내보낸다`, missing, []);
 }
 
-/* 온보딩은 autoFocus라 들어오자마자 키보드가 올라온다. 키보드 높이를 안 쓰면
-   이름 칸이 키보드 밑에 깔려 뭘 치는지 안 보인다. */
-eq('온보딩이 키보드 높이만큼 올라간다',
-  /const kb=useKeyboardHeight\(\)[\s\S]{0,200}paddingBottom:\s*\d+\s*\+\s*kb/.test(appSrc), true);
+/* 이름 칸이 키보드 밑에 깔리면 뭘 치는지 안 보인다. 오프닝은 카드를 위로 올리고
+   아래쪽 오류창들은 접는다 — 어차피 키보드가 다 가린다. */
+eq('오프닝이 키보드를 피한다',
+  /const kb=useKeyboardHeight\(\)/.test(appSrc) && /top:kb\?/.test(appSrc), true);
 
-/* 부팅 화면 — 곡이 도는 동안 기다리는 화면이라 시간으로 끊지 않는다.
-   타이머를 다시 넣으면 곡이 중간에 잘린다. */
-eq('부팅 화면이 웹·앱 둘 다 있다', /function Boot\(/.test(appSrc) && /function Boot\(/.test(web), true);
+/* 오프닝 — 곡이 도는 동안 이름을 기다린다. 시간으로 끊지 않는다. */
+eq('오프닝이 웹·앱 둘 다 있다', /function Splash\(/.test(appSrc) && /function Splash\(/.test(web), true);
 eq('로고곡 파일이 저장소에 있다', exists('null-logo.mp3'), true);
-eq('부팅 화면은 눌러야 넘어간다 — 저절로 안 사라진다',
-  [/setTimeout\(\s*finish/.test(appSrc), /animation:bootOut[^;}]*\ds\s+both/.test(web)], [false, false]);
 eq('로고곡은 기다리는 동안 돈다', /player\.loop\s*=\s*true/.test(appSrc) && /a\.loop\s*=\s*true/.test(web), true);
 /* 그냥 loop만 켜면 끝에서 앞으로 뚝 끊긴다. 양쪽 다 같은 볼륨·같은 페이드여야 한다. */
 const vol = s => /BOOT_VOL\s*=\s*(\.?\d+\.?\d*)/.exec(s);
-eq('부팅 볼륨이 웹·앱 같다', vol(appSrc)?.[1], vol(web)?.[1]);
+eq('오프닝 볼륨이 웹·앱 같다', vol(appSrc)?.[1], vol(web)?.[1]);
 eq('한 바퀴 돌 때 페이드가 걸린다',
   [/Math\.max\(0,\s*d-t\)\/2\.2/.test(appSrc), /Math\.max\(0,d-t\)\/2\.2/.test(web)], [true, true]);
-eq('둘 다 눌러서 들어가라고 알려준다',
-  /tap to enter/.test(appSrc) && /tap to enter/.test(web), true);
+/* 이 화면에서 이야기를 말하는 건 가짜 오류창뿐이다 — 문구가 어긋나면 다른 말을 한다 */
+eq('오류창 문구가 웹·앱 같다',
+  ['이름을 입력해야 존재할 수 있어요.','당신을 찾을 수 없습니다.']
+    .filter(t => !(appSrc.includes(t) && web.includes(t))), []);
+eq('음악이 막혔을 때 켜라고 알려준다',
+  /TAP FOR MUSIC/.test(appSrc) && /TAP FOR MUSIC/.test(web), true);
 
 /* 등록 화면 — 이름을 처음 넣은 사람에게만, 한 번만 지나간다.
    앱을 열 때마다 나오면 그냥 방해다. */

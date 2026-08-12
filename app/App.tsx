@@ -284,83 +284,7 @@ const Sparkles=()=><View pointerEvents="none" style={StyleSheet.absoluteFill}>
   {SPARKS.map(([x,y,s,c],i)=><Spark key={i} x={x} y={y} size={s} color={c} delay={i*400}/>)}
 </View>;
 
-// ═══ 부팅 화면 ═══
-/* 글자가 하나씩 켜지고, 막대가 차고, 부제가 뜬다. 로고곡이 같이 돈다.
-   저절로 넘어가지 않는다 — 누를 때까지 곡이 돈다. 로딩 가리개가 아니라
-   곡을 듣는 화면이라 시간으로 끊지 않는다.
-   앱은 브라우저와 달리 자동재생 제한이 없어서 켜자마자 소리가 난다.
-   index.html의 .boot와 같은 순서다. */
 const BOOT_VOL = .55;   // index.html의 BOOT_VOL과 같아야 한다
-function Boot({onDone}:{onDone:()=>void}) {
-  const letters = useRef([0,1,2,3].map(()=>new Animated.Value(0))).current;
-  const bar  = useRef(new Animated.Value(0)).current;
-  const sub  = useRef(new Animated.Value(0)).current;
-  const fade = useRef(new Animated.Value(1)).current;
-  const blink= useRef(new Animated.Value(1)).current;
-  const player = useAudioPlayer(IMG + 'null-logo.mp3');
-  const done = useRef(false);
-
-  const finish = () => {
-    if (done.current) return;
-    done.current = true;
-    Animated.timing(fade,{toValue:0,duration:420,useNativeDriver:true}).start(onDone);
-  };
-
-  useEffect(()=>{
-    try { player.loop=true; player.volume=0; player.play(); } catch(e) {}
-    /* 그냥 loop만 켜두면 끝에서 앞으로 뚝 끊긴다. 끝 2.2초를 줄이고 처음
-       1.2초를 올려서 한 바퀴 돌 때 숨을 한 번 쉬는 것처럼 들리게 한다.
-       길이를 못 읽는 기기가 있을 수 있으므로, 그럴 때는 그냥 제 볼륨으로 둔다. */
-    const ramp=setInterval(()=>{
-      try{
-        const d=player.duration, t=player.currentTime;
-        if(!d||!isFinite(d)){ player.volume=BOOT_VOL; return; }
-        const up=Math.min(1,t/1.2), down=Math.min(1,Math.max(0,d-t)/2.2);
-        player.volume=BOOT_VOL*Math.min(up,down);
-      }catch(e){}
-    },50);
-    Animated.stagger(220, letters.map(v =>
-      Animated.timing(v,{toValue:1,duration:260,useNativeDriver:true}))).start();
-    // width는 네이티브 드라이버로 못 돌린다. 막대 하나뿐이라 부담은 없다.
-    Animated.timing(bar,{toValue:1,duration:1900,delay:200,useNativeDriver:false}).start();
-    Animated.timing(sub,{toValue:1,duration:600,delay:1250,useNativeDriver:true}).start();
-    // 깜빡이는 "tap to enter" — 기다리는 화면이라는 걸 알려준다
-    Animated.loop(Animated.sequence([
-      Animated.delay(2200),
-      Animated.timing(blink,{toValue:.35,duration:10,useNativeDriver:true}),
-      Animated.delay(600),
-      Animated.timing(blink,{toValue:1,duration:10,useNativeDriver:true}),
-      Animated.delay(1000),
-    ])).start();
-    return ()=>{ clearInterval(ramp); try{player.pause()}catch(e){} };
-  },[]);
-
-  return <Animated.View style={[bt.root,{opacity:fade}]}>
-    <Pressable style={bt.hit} onPress={finish}>
-      <View style={bt.row}>
-        {'NULL'.split('').map((c,i)=>
-          <Animated.Text key={i} style={[bt.ch,{opacity:letters[i],
-            transform:[{translateY:letters[i].interpolate({inputRange:[0,1],outputRange:[5,0]})}]}]}>{c}</Animated.Text>)}
-      </View>
-      <View style={bt.bar}>
-        <Animated.View style={[bt.fill,{width:bar.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]}/>
-      </View>
-      <Animated.Text style={[bt.sub,{opacity:sub}]}>the blank u fill in</Animated.Text>
-      <Animated.Text style={[bt.skip,{opacity:Animated.multiply(sub,blink)}]}>tap to enter</Animated.Text>
-    </Pressable>
-  </Animated.View>;
-}
-const bt=StyleSheet.create({
-  root:{...StyleSheet.absoluteFillObject,zIndex:60,backgroundColor:'#17123a'},
-  hit:{flex:1,alignItems:'center',justifyContent:'center'},
-  row:{flexDirection:'row',gap:9,marginBottom:18},
-  ch:{...F,fontSize:34,letterSpacing:2,color:'#fff',textShadowColor:'#ff8fbe',
-      textShadowOffset:{width:0,height:0},textShadowRadius:12},
-  bar:{width:132,height:6,backgroundColor:'#2a2159',borderWidth:1,borderColor:P.border,overflow:'hidden'},
-  fill:{height:'100%',backgroundColor:'#ff8fbe'},
-  sub:{...F,marginTop:18,fontSize:10.5,letterSpacing:3.4,color:'#c9b6f5'},
-  skip:{...F,position:'absolute',bottom:26,fontSize:8.5,letterSpacing:2,color:'#6b5fa8'},
-});
 
 // ═══ 등록 화면 ═══
 /* 이름을 넣고 나서 메신저로 들어가기 전에 한 번 지나간다. 4.6초.
@@ -421,42 +345,157 @@ const en=StyleSheet.create({
   msg:{...F,marginTop:9,fontSize:8.5,letterSpacing:1.8,color:'#8a7ac4'},
 });
 
-// ═══ 온보딩 ═══
-function Onboarding({onEnter}:{onEnter:(n:string)=>void}) {
-  const [v,setV]=useState('');
-  /* autoFocus라 들어오자마자 키보드가 올라온다. 카드는 가운데 정렬이므로
-     키보드가 가린 만큼을 아래 여백으로 주면 남은 공간의 가운데로 올라간다.
-     이걸 안 하면 이름 칸이 키보드 밑에 깔려서 뭘 치는지 안 보인다. */
-  const kb=useKeyboardHeight();
-  return <View style={[o.root,{paddingBottom:26+kb}]}>
-    <Sparkles/>
-    <HardShadow dx={5} dy={5} radius={8} color="rgba(0,0,0,.35)" style={{width:'100%',maxWidth:320}}>
-      <View style={o.card}>
-        <TB colors={['#ff8fbe','#ffb0d4']}><Text style={tbT}>now loading...</Text><Dots/></TB>
-        <View style={o.body}>
-          <Text style={o.logo}>NULL</Text>
-          <Text style={o.sub}>hi ♡ enter ur null.</Text>
-          <TextInput style={o.input} value={v} onChangeText={setV} placeholder="ur name"
-            placeholderTextColor="#c9a6c2" maxLength={12} autoFocus
-            onSubmitEditing={()=>v.trim()&&onEnter(v.trim())}/>
-          <Bevel style={{marginTop:12,width:'100%'}} inner={{paddingVertical:11,backgroundColor:'#ffe3f0'}}
-            disabled={!v.trim()} onPress={()=>onEnter(v.trim())}>
-            <Text style={o.btnT}>Click!</Text></Bevel>
-        </View>
-      </View>
-    </HardShadow>
+// ═══ 오프닝 ═══
+/* Y2K 데스크톱 한 장. 도는 CD, 올라오는 방울, 흩어진 가짜 오류창.
+   설명하는 문장이 없다 — 오류창이 대신 말한다. "당신을 찾을 수 없습니다".
+   그래서 이름 칸이 이 화면에 같이 있다. 이름을 넣는 것이 그 오류를 지우는 일이다.
+   로고곡은 여기서 돌고 들어갈 때 페이드아웃된다. index.html의 .splash와 같은 화면.
+
+   위치는 전부 비율이다. 웹은 390x844에 픽셀로 박혀 있지만 앱은 기기마다
+   화면이 달라서, 그대로 옮기면 작은 폰에서 아래 창이 잘려나간다. */
+const BUBS = [[8,26,15,0],[22,14,11,1.4],[37,34,18,.6],[52,18,13,2.2],[68,44,21,.2],[80,20,12.5,3],[91,30,16,1.8]];
+function Bubbles() {
+  const {height:H}=useWindowDimensions();
+  return <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    {BUBS.map((b,i)=><Bubble key={i} x={b[0]} d={b[1]} sec={b[2]} delay={b[3]} H={H}/>)}
   </View>;
 }
-const o=StyleSheet.create({
-  root:{flex:1,backgroundColor:P.dark,justifyContent:'center',alignItems:'center',padding:26},
-  card:{width:'100%',backgroundColor:'#ffd0e4',borderRadius:8,borderWidth:1,borderColor:P.border,overflow:'hidden'},
-  body:{padding:30,alignItems:'center'},
-  logo:{...F,fontSize:24,letterSpacing:12,color:'#fff',marginBottom:26,
-    textShadowColor:'#ff8fbe',textShadowOffset:{width:0,height:0},textShadowRadius:8},
-  sub:{...F,fontSize:14,color:'#8a4f74',marginBottom:24},
-  input:{...F,width:'100%',paddingVertical:11,fontSize:16,color:P.ink,textAlign:'center',
-    backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,borderTopColor:P.border,borderLeftColor:P.border},
-  btnT:{...F,fontSize:13,color:P.ink,letterSpacing:4},
+function Bubble({x,d,sec,delay,H}:any) {
+  const v=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{
+    const run=Animated.loop(Animated.timing(v,{toValue:1,duration:sec*1000,
+      easing:Easing.linear,useNativeDriver:true}));
+    const t=setTimeout(()=>run.start(),delay*1000);
+    return ()=>{clearTimeout(t);run.stop()};
+  },[]);
+  return <Animated.View pointerEvents="none" style={{position:'absolute',left:`${x}%`,bottom:-70,
+    width:d,height:d,borderRadius:d/2,borderWidth:1.5,borderColor:'rgba(255,255,255,.9)',
+    backgroundColor:'rgba(255,200,230,.28)',
+    opacity:v.interpolate({inputRange:[0,.06,.84,1],outputRange:[0,1,.95,0]}),
+    transform:[{translateY:v.interpolate({inputRange:[0,1],outputRange:[0,-(H+120)]})},
+               {translateX:v.interpolate({inputRange:[0,.5,1],outputRange:[-15,15,-15]})}]}}>
+    <View style={{position:'absolute',left:'22%',top:'18%',width:d*.2,height:d*.2,
+      borderRadius:d,backgroundColor:'rgba(255,255,255,.85)'}}/>
+  </Animated.View>;
+}
+/* 도는 CD. RN에는 conic-gradient가 없어서 파스텔 띠를 겹쳐 돌린다 */
+function SpinCD({size=88}:{size?:number}) {
+  const v=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{
+    const run=Animated.loop(Animated.timing(v,{toValue:1,duration:7000,easing:Easing.linear,useNativeDriver:true}));
+    run.start(); return ()=>run.stop();
+  },[]);
+  const spin=v.interpolate({inputRange:[0,1],outputRange:['0deg','360deg']});
+  return <Animated.View style={{width:size,height:size,borderRadius:size/2,overflow:'hidden',
+    transform:[{rotate:spin}]}}>
+    <LinearGradient colors={['#ffd0e6','#c3b2f0','#a8e6e0','#ffe9a8','#ffc2dd']}
+      start={{x:0,y:0}} end={{x:1,y:1}} style={{flex:1}}/>
+    <View style={{position:'absolute',left:'9%',top:'9%',right:'9%',bottom:'9%',
+      borderRadius:size/2,borderWidth:1,borderColor:'rgba(255,255,255,.55)'}}/>
+    <View style={{position:'absolute',left:'38%',top:'38%',right:'38%',bottom:'38%',
+      borderRadius:size/2,backgroundColor:'#fff',borderWidth:2,borderColor:'rgba(255,255,255,.9)'}}/>
+  </Animated.View>;
+}
+/* 가짜 오류창 한 개 */
+function SpWin({title,colors,style,children}:any) {
+  return <View style={[sp.win,style]}>
+    <LinearGradient colors={colors} start={{x:0,y:0}} end={{x:1,y:0}} style={sp.wtb}>
+      <Text style={sp.wtbT}>{title}</Text><Dots/>
+    </LinearGradient>
+    <View style={sp.wbd}>{children}</View>
+  </View>;
+}
+
+function Splash({onEnter}:{onEnter:(n:string)=>void}) {
+  const [v,setV]=useState('');
+  const [armed,setArmed]=useState(false);
+  const kb=useKeyboardHeight();
+  const player=useAudioPlayer(IMG+'null-logo.mp3');
+  useEffect(()=>{
+    try{ player.loop=true; player.volume=0; player.play(); setArmed(true); }catch(e){ setArmed(false); }
+    /* loop만 켜두면 끝에서 앞으로 뚝 끊긴다. 끝 2.2초를 줄이고 처음 1.2초를 올린다. */
+    const ramp=setInterval(()=>{
+      try{
+        const d=player.duration, t=player.currentTime;
+        if(!d||!isFinite(d)){ player.volume=BOOT_VOL; return; }
+        const up=Math.min(1,t/1.2), down=Math.min(1,Math.max(0,d-t)/2.2);
+        player.volume=BOOT_VOL*Math.min(up,down);
+      }catch(e){}
+    },50);
+    return ()=>{ clearInterval(ramp); try{player.pause()}catch(e){} };
+  },[]);
+  const go=()=>{const t=v.trim(); if(t) onEnter(t)};
+  /* 키보드가 올라오면 아래쪽 창들은 어차피 가려진다. 카드만 위로 띄운다. */
+  return <LinearGradient colors={['#dcd3f7','#c3b2f0','#f0c2de']} style={{flex:1}}>
+    <Bubbles/>
+    <Sparkles/>
+    <View style={{position:'absolute',right:20,top:'9.2%'}}><SpinCD/></View>
+
+    <View style={[sp.card,{top:kb?'6%':'17.8%'}]}>
+      <TB colors={['#ff8fbe','#c3b2f0']}><Text style={tbT}>null.exe</Text><Dots/></TB>
+      <View style={sp.body}>
+        <Text style={sp.logo}>NULL</Text>
+        <TextInput style={sp.input} value={v} onChangeText={setV} placeholder="안녕, 널 입력해줘."
+          placeholderTextColor="#dbb0c8" maxLength={12} onSubmitEditing={go}/>
+        <Bevel style={{marginTop:9,width:'100%'}} inner={{paddingVertical:10,backgroundColor:'#ffc2dd'}}
+          disabled={!v.trim()} onPress={go}><Text style={sp.goT}>Click!</Text></Bevel>
+      </View>
+    </View>
+
+    {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
+    {!kb&&<>
+      <SpWin title="Error" colors={['#b9a8ea','#8a7fc0']} style={{left:28,top:'53.6%',width:182}}>
+        <Text style={sp.wtx}>이름을 입력해야 존재할 수 있어요.</Text>
+        <View style={sp.wbtn}><Text style={sp.wbtnT}>ok</Text></View>
+      </SpWin>
+      <SpWin title="System error" colors={['#ff7fae','#ff5fa8']} style={{right:24,top:'63.3%',width:194}}>
+        <Text style={sp.wtx}>당신을 찾을 수 없습니다.</Text>
+        <View style={sp.wbtn}><Text style={sp.wbtnT}>Cancel</Text></View>
+      </SpWin>
+      <View style={sp.cursor}/>
+      <SpWin title="loading..." colors={['#8fd8e8','#c3b2f0']} style={{left:28,right:28,top:'76.8%'}}>
+        <View style={sp.bar}><LoadStripe/></View>
+      </SpWin>
+      <Text style={sp.tap}>{armed?'♪ NULL!':'TAP FOR MUSIC ♪'}</Text>
+    </>}
+  </LinearGradient>;
+}
+/* 흘러가는 줄무늬 — 진행률이 아니라 "돌고 있다"는 표시다 */
+function LoadStripe() {
+  const v=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{
+    const run=Animated.loop(Animated.timing(v,{toValue:1,duration:1000,easing:Easing.linear,useNativeDriver:true}));
+    run.start(); return ()=>run.stop();
+  },[]);
+  return <Animated.View style={{flexDirection:'row',width:'200%',
+    transform:[{translateX:v.interpolate({inputRange:[0,1],outputRange:[0,28]})}]}}>
+    {Array.from({length:40}).map((_,i)=>
+      <View key={i} style={{width:7,height:'100%',backgroundColor:i%2?'#ffd0e6':'#ff9ec6'}}/>)}
+  </Animated.View>;
+}
+const sp=StyleSheet.create({
+  card:{position:'absolute',left:26,right:26,backgroundColor:'#fff8fc',borderWidth:1,borderColor:P.border,
+        borderRadius:9,overflow:'hidden'},
+  body:{paddingHorizontal:18,paddingTop:26,paddingBottom:22,alignItems:'center'},
+  logo:{...F,fontSize:40,letterSpacing:12,color:'#fff',marginBottom:16,
+        textShadowColor:'#b06f9e',textShadowOffset:{width:2,height:2},textShadowRadius:1},
+  input:{...F,width:'100%',marginTop:4,paddingVertical:10,paddingHorizontal:12,fontSize:16,color:P.ink,
+         textAlign:'center',backgroundColor:'#fff',borderWidth:1,borderColor:P.mid},
+  goT:{...F,fontSize:12.5,letterSpacing:4,color:P.ink},
+  win:{position:'absolute',borderWidth:1,borderColor:P.border,borderRadius:5,overflow:'hidden'},
+  wtb:{flexDirection:'row',alignItems:'center',paddingVertical:4,paddingHorizontal:7},
+  wtbT:{...F,fontSize:9,color:'#fff',flex:1},
+  wbd:{padding:9,backgroundColor:'#fff'},
+  wtx:{...F,fontSize:9.5,lineHeight:17,color:'#6b5fa8'},
+  wbtn:{alignSelf:'flex-start',marginTop:8,paddingVertical:4,paddingHorizontal:13,
+        backgroundColor:'#ece8fa',borderWidth:1,borderColor:P.border},
+  wbtnT:{...F,fontSize:9,color:P.ink},
+  bar:{height:11,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,overflow:'hidden'},
+  cursor:{position:'absolute',left:214,top:'70.6%',width:0,height:0,
+          borderLeftWidth:9,borderLeftColor:'#fff',borderBottomWidth:13,borderBottomColor:'transparent',
+          transform:[{rotate:'-14deg'}]},
+  tap:{...F,position:'absolute',left:0,right:0,bottom:56,textAlign:'center',
+       fontSize:10.5,letterSpacing:3.4,color:P.ink},
 });
 
 // ═══ 장바구니 — 검색 → 아이템 → 받는 사람 + 쪽지 ═══
@@ -1180,7 +1219,6 @@ function Root() {
   const [stamp,setStamp]=useState(0);                              // 프로필 갱신 트리거
   const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
   const [demo,setDemo]=useState(false);                            // 각본으로 넘어갔나
-  const [booting,setBooting]=useState(true);                       // 부팅 화면
   /* 등록 화면은 이름을 처음 넣은 사람에게만 지나간다 — 이미 이름이 있으면
      앱을 열 때마다 볼 이유가 없다. */
   const [enrolling,setEnrolling]=useState(false);
@@ -1380,12 +1418,11 @@ function Root() {
 
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); };
 
-  // 부팅 화면은 폰트가 올라온 뒤에 그린다 — 픽셀 폰트가 없으면 로고가 딴 글씨가 된다
-  if(!ready||!fontsOk) return <View style={{flex:1,backgroundColor:'#17123a'}}/>;
-  if(!name) return <><StatusBar barStyle="light-content"/>
-    <View style={{flex:1,paddingTop:insets.top,paddingBottom:insets.bottom,backgroundColor:P.dark}}>
-      <Onboarding onEnter={handleEnter}/></View>
-    {booting&&<Boot onDone={()=>setBooting(false)}/>}</>;
+  // 오프닝은 폰트가 올라온 뒤에 그린다 — 픽셀 폰트가 없으면 로고가 딴 글씨가 된다
+  if(!ready||!fontsOk) return <View style={{flex:1,backgroundColor:'#c3b2f0'}}/>;
+  if(!name) return <><StatusBar barStyle="dark-content"/>
+    <View style={{flex:1,paddingTop:insets.top,paddingBottom:insets.bottom}}>
+      <Splash onEnter={handleEnter}/></View></>;
 
   let screen;
   if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} onBgm={stopBgm}
@@ -1412,7 +1449,6 @@ function Root() {
     <View style={{flex:1,backgroundColor:P.pink,paddingTop:insets.top,paddingBottom:padBottom}}>
       {screen}</View>
     {enrolling&&<Enroll name={name} onDone={()=>setEnrolling(false)}/>}
-    {booting&&<Boot onDone={()=>setBooting(false)}/>}
     {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
     <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>
       <TouchableOpacity style={mo.bg} activeOpacity={1} onPress={()=>setPopup(null)}>
