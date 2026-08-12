@@ -132,7 +132,7 @@ function demoReply(room:string, lastText?:string) {
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = '?v=3';
+const AV_V = '?v=4';
 const face = (id:string) => IMG + id + '-profile.webp' + AV_V;
 
 /* 계산해서 만든 퍼센트 문자열. 그냥 (n*100)+'%'로 쓰면 타입이 string으로 넓어져
