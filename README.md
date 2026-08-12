@@ -249,4 +249,4 @@ NULL의 핵심 기능은 전부 "안 주는 것"으로 만들어졌습니다. �
 
 ---
 
-캐릭터 일러스트 AI 생성(ChatGPT) · 프로필 BGM AI 생성(Suno, 가사 직접 작성) · 개발 도구 Claude
+캐릭터 일러스트 AI 생성(ChatGPT) · 프로필 BGM AI 생성(Suno, 가사 직접 작성) · 개발 도구 Claude Code
