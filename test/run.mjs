@@ -263,8 +263,12 @@ eq('등록 화면은 이름을 넣은 순간에만 뜬다',
 /* 남은 날이 null인 것이 이 프로덕트의 이름이자 이야기다. 숫자로 바꾸면 안 된다. */
 eq('DAYS LEFT는 null로 둔다',
   /DAYS LEFT[\s\S]{0,80}null/.test(appSrc) && /DAYS LEFT[\s\S]{0,80}null/.test(web), true);
-eq('등록 화면 길이가 웹·앱 같다',
-  /ENROLL_MS\s*=\s*4600/.test(appSrc) && /setTimeout\(onDone,4600\)/.test(web), true);
+/* 등록 화면은 읽는 화면이 아니라 채우는 화면이다. 여기서 채운 값이 그대로
+   서버로 가서 인물이 알게 된다 — 빈칸이 없으면 그 통로가 끊긴다. */
+eq('등록 화면에서 유저 프로필을 채운다',
+  /const ENR_FIELDS=\[/.test(web) && /onSaveField=\{\(k,v\)/.test(web), true);
+eq('채우는 칸이 you.txt와 같은 것들이다',
+  ['subject','age','likes','dislikes'].filter(k => !new RegExp(`k:"${k}"`).test(web)), []);
 
 /* HEAT는 stageIdx로 색인한다. 배열이 짧으면 마지막 단계에서 undefined를 읽고 터진다. */
 const appHeat = (appSrc.match(/\{w:[\d.]+,\s*o:'[0-9a-f]{2}'\}/g) || []).length;
