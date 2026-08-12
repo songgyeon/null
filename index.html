@@ -77,8 +77,85 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .dlgbtns{display:flex;gap:7px;margin-top:10px}
 .dlgbtns .bevel{flex:1;padding:9px 6px;font-size:11px;border-radius:0}
 .dlgbtns .pink{background:linear-gradient(180deg,#fff0f7,#ffc2dd)}
-/* 장바구니 */
+/* ── 장바구니 ── 작은 다이얼로그가 아니라 창 하나를 통째로 쓴다 */
 .cartbtn{display:flex;align-items:center;gap:5px;padding:5px 9px 6px;font-size:11px;color:#6b5fa8}
+.cartscreen{position:absolute;inset:0;z-index:39;display:flex;flex-direction:column;
+ background:linear-gradient(180deg,#cabdf2,#b9abe9);animation:fadeUp .22s steps(4) both}
+.cartwin{position:absolute;left:14px;right:14px;top:22px;bottom:22px;display:flex;flex-direction:column;
+ background:#fdf6fb;border:1px solid #5d5490;border-radius:10px;overflow:hidden;
+ box-shadow:inset 1px 1px 0 rgba(255,255,255,.9),5px 5px 0 rgba(93,84,144,.32)}
+.cbar{flex:none;display:flex;align-items:center;gap:8px;padding:12px 13px 0}
+input.csearch{flex:1;min-width:0;padding:8px 11px;font-family:inherit;font-size:12px;color:#4a4276;
+ background:#fff;border:1px solid #8a7fc0;border-radius:0;outline:none;
+ box-shadow:inset 1px 1px 0 rgba(93,84,144,.25)}
+input.csearch::placeholder{color:#b9addc}
+.ccoin{flex:none;display:flex;align-items:center;gap:5px;padding:8px 11px;font-size:11px;color:#8a4f74;
+ background:linear-gradient(180deg,#fff6db,#ffe6a8);border:1px solid #d8b45c;
+ box-shadow:inset 1px 1px 0 #fff,1px 1px 0 rgba(93,84,144,.25)}
+.cchips{flex:none;display:flex;gap:6px;padding:11px 13px 4px}
+.cchip{padding:5px 11px;font-family:inherit;font-size:10px;color:#a294cf;cursor:pointer;
+ background:#f1ebfd;border:1px solid #cabbee;border-radius:14px}
+.cchip.on{color:#fff;background:linear-gradient(180deg,#ffa8cd,#ff7fae);border-color:#e0699a;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.cgrid{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+ display:grid;grid-template-columns:1fr 1fr;align-content:start;gap:10px;padding:11px 13px 13px}
+.cgrid::after{content:"";display:block;height:8px}
+.citem{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:7px;
+ padding:14px 8px 32px;min-height:150px;font-family:inherit;cursor:pointer;
+ background:#fff;border:1px solid #e6d7f2;border-radius:9px;
+ box-shadow:inset 0 -14px 18px rgba(246,235,252,.9),2px 3px 0 rgba(138,127,192,.2)}
+.citem:active{transform:translateY(1px)}
+.citem:disabled{opacity:.55;cursor:default}
+.cthumb{width:62px;height:62px;display:flex;align-items:center;justify-content:center;border-radius:50%;
+ border:1px solid rgba(93,84,144,.18);box-shadow:inset 0 3px 0 rgba(255,255,255,.9);
+ background:linear-gradient(180deg,#fff,#f1ecfb)}
+.ciname{font-size:11px;color:#6b5fa8}
+.cprice{position:absolute;left:0;right:0;bottom:0;padding:5px 0;text-align:center;font-size:10px;color:#c05f8c;
+ background:#fff2f8;border-top:1px dashed #f4c3d8}
+.cbadge{position:absolute;top:-7px;right:-6px;padding:2px 7px;font-size:8px;color:#fff;letter-spacing:.08em;
+ background:#ff7fae;border:1px solid #5d5490;border-radius:9px;transform:rotate(6deg)}
+.cbadge.mint{background:#5ec9c1}
+.cfoot{flex:none;padding:0 13px 13px;text-align:center;font-size:9px;letter-spacing:.16em;color:#bdb0e0}
+.cnone{grid-column:1/-1;padding:36px 0;text-align:center;font-size:11px;letter-spacing:.1em;color:#c46a97}
+/* 선물 보내기 */
+.cwrap{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+ display:flex;flex-direction:column;gap:12px;padding:14px 15px 15px}
+.cwrap::after{content:"";display:block;flex:none;height:8px}
+.cgcard{position:relative;display:flex;align-items:center;gap:13px;padding:14px;background:#fff;
+ border:1px solid #f0c3da;border-radius:10px;box-shadow:2px 3px 0 rgba(240,182,210,.35)}
+.cribbon{position:absolute;left:-1px;top:16px;bottom:16px;width:5px;border-radius:3px;
+ background:repeating-linear-gradient(180deg,#ff9ec6 0 6px,#ffd0e6 6px 12px)}
+.cgthumb{width:70px;height:70px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:9px;
+ background:linear-gradient(180deg,#fff,#eef1fb);border:1px solid #d9d3f0}
+.cgname{font-size:14px;color:#4a4276}
+.cgdesc{margin-top:7px;font-size:10px;line-height:1.7;color:#a99bd0;white-space:pre-line}
+.cgprice{margin-top:8px;display:inline-block;padding:3px 9px;font-size:10px;color:#c05f8c;
+ background:#fff2f8;border:1px dashed #f4c3d8;border-radius:10px}
+.csect{display:flex;align-items:center;gap:8px;font-size:9.5px;letter-spacing:.3em;color:#d3a0c0}
+.csect::before,.csect::after{content:"";flex:1;height:1px;background:#f0dcea}
+.cto{display:flex;align-items:center;gap:11px;width:100%;padding:11px 12px;font-family:inherit;cursor:pointer;
+ text-align:left;background:#fff;border:1px solid #e8d9f4;border-radius:10px;
+ box-shadow:2px 2px 0 rgba(138,127,192,.14)}
+.cto.sel{border-color:#ff9ec6;background:#fff7fb;box-shadow:2px 2px 0 rgba(255,158,198,.35)}
+.cto:disabled{cursor:default}
+.cradio{width:14px;height:14px;flex:none;border-radius:50%;border:1.5px solid #e0c8dc;background:#fff}
+.cto.sel .cradio{border-color:#ff7fae;box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 8px #ff7fae}
+.cface{width:38px;height:38px;flex:none;border-radius:50%;border:1px solid #8a7fc0}
+.ctoname{flex:1;font-size:12.5px;color:#4a4276}
+.csend{flex:none;padding:8px 15px;font-size:10.5px;letter-spacing:.12em;color:#fff;border-radius:16px;
+ background:linear-gradient(180deg,#ffa8cd,#ff6ea6);border:1px solid #5d5490;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.6),1px 2px 0 rgba(93,84,144,.3)}
+.csent{flex:none;padding:8px 15px;font-size:10.5px;letter-spacing:.12em;color:#a99bd0;border-radius:16px;
+ background:#f2eefb;border:1px solid #d5cbee}
+.chint{margin:5px 0 0 64px;font-size:9px;color:#b4a7d6}
+textarea.cmemo{padding:13px 14px;min-height:74px;font-family:inherit;font-size:11px;line-height:26px;color:#8a4f74;
+ resize:none;outline:none;border:1px solid #ecd9c8;border-radius:8px;
+ background:repeating-linear-gradient(180deg,#fffdf6 0 25px,#fdf4ea 25px 26px);
+ box-shadow:2px 3px 0 rgba(198,170,150,.2)}
+textarea.cmemo::placeholder{color:#cbbba8}
+.cback{flex:none;margin-top:auto;padding:11px;font-family:inherit;font-size:11px;letter-spacing:.24em;color:#4a4276;
+ cursor:pointer;background:linear-gradient(180deg,#ffffff,#e9e2fa);border:1px solid #5d5490;
+ box-shadow:inset 2px 2px 0 #fff,inset -2px -2px 0 #cdc3ec,2px 2px 0 rgba(93,84,144,.22)}
 /* input.을 붙이는 이유: .blankin이 이 뒤에 정의돼 있어서 그냥 .cartq로는
    width:74px에 눌린다. 검색창이 74px로 쭈그러든다. */
 input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
@@ -434,15 +511,31 @@ const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
    tags는 검색어다. 한글과 영어를 같이 넣어둔다 — 뭐라고 칠지 모르니까.
    bg 파일이 아직 없어도 괜찮다. useBg가 기존 배경으로 돌려준다. */
 const GIFTS=[
-  {key:"mug",       name:"회색 머그컵",  bg:"gift-mug.png",
-   tags:"머그 머그컵 컵 커피 회색 무광 아침 mug cup coffee grey"},
-  {key:"photobook", name:"사진집",       bg:"gift-photobook.png",
-   tags:"사진집 사진 책 겨울 풍경 전시 미술관 photo book winter"},
-  {key:"beanie",    name:"남색 비니",    bg:"gift-beanie.png",
-   tags:"비니 모자 니트 남색 겨울 beanie hat knit navy"},
-  {key:"earphone",  name:"유선 이어폰",  bg:"gift-earphone.png",
-   tags:"이어폰 유선 음악 노래 earphone earphones wired music"},
+  {key:"mug",       name:"회색 머그컵",  bg:"gift-mug.png",  cat:"소품", cost:2, badge:"NEW",
+   desc:"매일 아침 쓰게 될.\n집에 컵이 있어도.",
+   tags:"머그 머그컵 컵 커피 회색 무광 아침 소품 mug cup coffee grey"},
+  {key:"photobook", name:"사진집",       bg:"gift-photobook.png", cat:"기록", cost:5,
+   desc:"겨울 풍경만 모아둔.\n잘 안 읽는다고 해도.",
+   tags:"사진집 사진 책 겨울 풍경 전시 미술관 기록 photo book winter"},
+  {key:"beanie",    name:"남색 비니",    bg:"gift-beanie.png", cat:"옷", cost:3,
+   desc:"겨울에 하나쯤은.\n머리가 눌려도 상관없다면.",
+   tags:"비니 모자 니트 남색 겨울 옷 beanie hat knit navy"},
+  {key:"earphone",  name:"유선 이어폰",  bg:"gift-earphone.png", cat:"소품", cost:4, badge:"HOT",
+   desc:"한쪽만 껴도 되는.\n이번엔 진짜 음악을 틀도록.",
+   tags:"이어폰 유선 음악 노래 소품 earphone earphones wired music"},
 ];
+const GIFT_CATS=["전체","소품","옷","기록"];
+/* 받는 사람이 어떻게 받을지 미리 한 줄. 고를 때만 보인다 — 스포일러가 아니라 결의 예고다. */
+const GIFT_HINT={jaeeon:"“…뭐 이런 걸.”", minhyun:"“이걸 왜 줘요.”"};
+/* ♡ — 주고받은 말에서 나온다. 열 마디에 하나. 쓴 만큼 깎인다.
+   따로 버는 화면을 만들지 않는 이유: 대화가 곧 재화여야 이 앱의 이야기와 맞는다. */
+const HEART_PER=10;
+const heartsOf=(store,gifts)=>{
+  const said=["jaeeon","minhyun","group"].reduce((n,r)=>n+((store.msgs&&store.msgs[r])||[]).length,0);
+  const spent=Object.values(gifts||{}).flat()
+    .reduce((n,k)=>n+((GIFTS.find(g=>g.key===k)||{}).cost||0),0);
+  return Math.max(0,Math.floor(said/HEART_PER)-spent);
+};
 const GIFT_NAME={};GIFTS.forEach(g=>{GIFT_NAME[g.key]=g.name});
 /* 받은 선물이 배경으로 걸리기 시작하는 단계. 그 전에는 받아두기만 한다 —
    주자마자 걸리면 사는 것이지 관계가 아니다. 숫자 하나만 고치면 조절된다. */
@@ -880,42 +973,80 @@ function FindPanel({store,name,onOpen}){
 }
 
 /* [당신] 프로필 카드 */
-/* 장바구니 — 검색해서 고르고, 누구에게 보낼지 그 자리에서 정한다.
-   빈 검색어일 때 전부 보여주는 이유: 아이템이 몇 개 없어서 정확한 낱말을
-   맞춰야만 나오면, 뭐가 있는지 모르는 채로 헤매게 된다. */
-function CartDialog({gifts,onSend,onClose}){
+/* 장바구니 — 목록에서 고르고, 누구에게 보낼지와 쪽지를 그 자리에서 정한다.
+   작은 다이얼로그가 아니라 창 하나를 통째로 쓴다. 목록 + 쪽지까지 들어가면
+   290px 상자로는 스크롤만 생긴다. */
+function Cart({gifts,hearts,onSend,onClose}){
   const [q,setQ]=useState("");
+  const [cat,setCat]=useState("전체");
   const [pick,setPick]=useState(null);
+  const [to,setTo]=useState(null);
+  const [memo,setMemo]=useState("");
   const key=q.trim().toLowerCase();
-  const hits=key?GIFTS.filter(g=>(g.name+" "+g.tags).toLowerCase().includes(key)):GIFTS;
-  return <Dialog title="cart" onClose={onClose}>
-    <input className="blankin sunken cartq" value={q} autoFocus placeholder="search..."
-      onChange={e=>{setQ(e.target.value);setPick(null)}}/>
+  /* 검색어가 비면 그 분류를 전부 보여준다. 아이템이 몇 개 없어서 정확한 낱말을
+     맞춰야만 나오면 뭐가 있는지 모르는 채로 헤매게 된다. */
+  const hits=GIFTS.filter(g=>(cat==="전체"||g.cat===cat)
+    &&(!key||(g.name+" "+g.tags).toLowerCase().includes(key)));
+  const back=()=>{setPick(null);setTo(null);setMemo("")};
+  const given=c=>(gifts[c]||[]).includes(pick&&pick.key);
+  const poor=pick&&hearts<pick.cost;
+
+  return <div className="cartscreen"><div className="cartwin">
+    <div className="tb">✿ cart{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
+
     {!pick&&<React.Fragment>
-      {hits.length
-        ?<div className="cartgrid">
-          {hits.map(g=><button key={g.key} className="cartcell" onClick={()=>setPick(g)}>
-            {React.createElement(GiftIcon[g.key])}<span>{g.name}</span></button>)}
-        </div>
-        :<div className="cartnone">no result</div>}
+      <div className="cbar">
+        <input className="csearch" value={q} placeholder="무엇을 찾고 있어?"
+          onChange={e=>setQ(e.target.value)}/>
+        <span className="ccoin">♡ {hearts}</span>
+      </div>
+      <div className="cchips">{GIFT_CATS.map(c=>
+        <button key={c} className={"cchip"+(cat===c?" on":"")} onClick={()=>setCat(c)}>{c}</button>)}</div>
+      <div className="cgrid">
+        {hits.length?hits.map(g=>
+          <button key={g.key} className="citem" onClick={()=>setPick(g)}>
+            {g.badge&&<span className={"cbadge"+(g.badge==="HOT"?" mint":"")}>{g.badge}</span>}
+            <span className="cthumb">{React.createElement(GiftIcon[g.key],{size:31})}</span>
+            <span className="ciname">{g.name}</span>
+            <span className="cprice">♡ {g.cost}</span>
+          </button>)
+         :<div className="cnone">no result</div>}
+      </div>
+      <div className="cfoot">TAP TO WRAP ♡</div>
     </React.Fragment>}
-    {pick&&<div className="cartsend">
-      <div className="head">{React.createElement(GiftIcon[pick.key],{size:34})}<span>{pick.name}</span></div>
-      <div className="who">✧ WHO GETS THIS ✧</div>
+
+    {pick&&<div className="cwrap">
+      <div className="cgcard"><span className="cribbon"/>
+        <span className="cgthumb">{React.createElement(GiftIcon[pick.key],{size:34})}</span>
+        <div>
+          <div className="cgname">{pick.name}</div>
+          <div className="cgdesc">{pick.desc}</div>
+          <div className="cgprice">♡ {pick.cost}</div>
+        </div>
+      </div>
+      <div className="csect">WHO GETS THIS</div>
       {["jaeeon","minhyun"].map(c=>{
-        const done=(gifts[c]||[]).includes(pick.key);
-        return <button key={c} className="tag" disabled={done}
-          onClick={()=>{onSend(c,pick);onClose()}}>
-          <span className="dash"/>
-          <span className="to">To.</span>
-          <span className="avatar face" style={{width:22,height:22,...faceBg(CHARS[c])}}/>
-          <span className="nm">{CHARS[c].name}</span>
-          <span className="go">{done?"SENT ♡":"SEND ♡"}</span>
-        </button>;
+        const done=given(c), sel=to===c;
+        return <div key={c}>
+          <button className={"cto"+(sel?" sel":"")} disabled={done}
+            onClick={()=>{ if(done)return;
+              if(!sel){setTo(c);return}
+              if(poor)return;
+              onSend(c,pick,memo); onClose(); }}>
+            <span className="cradio"/>
+            <span className="cface" style={faceBg(CHARS[c])}/>
+            <span className="ctoname">{CHARS[c].name}</span>
+            <span className={done?"csent":"csend"}>{done?"SENT ♡":(sel?(poor?"♡ 모자라":"SEND ♡"):"WRAP ♡")}</span>
+          </button>
+          {sel&&!done&&<div className="chint">{GIFT_HINT[c]}</div>}
+        </div>;
       })}
-      <button className="bevel cartback" onClick={()=>setPick(null)}>◁  back</button>
+      <div className="csect">A NOTE (선택)</div>
+      <textarea className="cmemo" value={memo} maxLength={60} placeholder="같이 남길 말..."
+        onChange={e=>setMemo(e.target.value)}/>
+      <button className="cback" onClick={back}>◁ back</button>
     </div>}
-  </Dialog>;
+  </div></div>;
 }
 
 function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
@@ -948,7 +1079,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,bgm,gifts,onGift}){
+function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,bgm,gifts,onGift,hearts}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'|'hidden'
@@ -1084,7 +1215,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       <span className="drift" style={{animationDelay:"1.4s"}}><Sticker.heart size={13}/></span>
     </div>}
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1</span><span>{fmtClock(Date.now())}</span></div>
-    {dlg==="cart"&&<CartDialog gifts={gifts||{}} onSend={onGift} onClose={()=>setDlg(null)}/>}
+    {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
     {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>
@@ -1321,20 +1452,21 @@ function App(){
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
      그 줄은 유저의 말이 아니라 일어난 일이므로 sys로 표시해 지문처럼 그린다.
      history에도 이 줄이 그대로 들어가서 모델이 "무엇을 받았는지" 알게 된다. */
-  const giveGift=(char,gift)=>{
+  const giveGift=(char,gift,memo)=>{
     if(!char||!gift)return;
     const have=giftsRef.current[char]||[];
     if(have.includes(gift.key))return;              // 같은 걸 두 번 주지 않는다
     const next={...giftsRef.current,[char]:[...have,gift.key]};
     setGifts(next); saveGifts(next);
-    const line=`${CHARS[char].name}이 ${gift.name}을(를) 받았다`;
+    const note=(memo||"").trim().slice(0,60);
+    const line=`${CHARS[char].name}이 ${gift.name}을(를) 받았다`+(note?` — “${note}”`:"");
     const sysMsg={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
     appendMsg(char,sysMsg);
     setToast(`${CHARS[char].name} — ${gift.name}`);
     const nextMsgs=[...(storeRef.current.msgs[char]||[]),sysMsg];
     request(char,{mode:"chat",room:char,user_name:name,history:buildHistory(nextMsgs),
       signals:buildSignals(char),recent_photos:recentPhotos(char),
-      counts:roomCounts({[char]:nextMsgs.length}),gift:{name:gift.name,key:gift.key}});
+      counts:roomCounts({[char]:nextMsgs.length}),gift:{name:gift.name,key:gift.key,note}});
   };
 
   /* 재시도: 저장해둔 payload를 최신 history로 갱신해 다시 전송 */
@@ -1391,7 +1523,7 @@ function App(){
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        onOpen={openRoom} onProfile={setProf} onAuto={doAuto} autoLoading={autoLoading}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
-       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} bgm={bgm} gifts={gifts} onGift={giveGift}/>
+       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} bgm={bgm} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={setProf}/>}
     {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} onBgm={bgm.stop} gifts={gifts}/>}

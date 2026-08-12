@@ -844,9 +844,11 @@ function buildProfile(p) {
 function buildGift(gift, userName) {
   const name = ((gift && gift.name) || "").toString().slice(0, 40).trim();
   if (!name) return "";
+  const note = ((gift && gift.note) || "").toString().slice(0, 60).trim();
   return `
 ## 방금 일어난 일
-${userName || "교생"}이 너에게 "${name}"을(를) 주었다. 지금 막 받았다.
+${userName || "교생"}이 너에게 "${name}"을(를) 주었다. 지금 막 받았다.${
+  note ? `\n같이 이렇게 적어 보냈다: "${note}"\n- 이 쪽지를 그대로 소리 내어 읽지 않는다. 읽었다는 티는 다른 데서 난다.` : ""}
 - 물건이 아니라 사건이다. "감사합니다" 한 마디로 넘기지 않는다.
 - 네 성격대로 받는다. 좋아도 좋다고 곧이곧대로 말하지 않아도 된다.
   왜 주냐고 되묻거나, 안 줘도 된다고 하거나, 딴소리를 해도 된다.
