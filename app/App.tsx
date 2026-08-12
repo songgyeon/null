@@ -38,6 +38,9 @@ const ROOMS = [
   { id:'health',  name:'두 사람', color:'#9aa3d8', type:'watch', sub:'access denied' },
 ] as const;
 
+/* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다. 웹의 ENROLL_DAYS와 같다 */
+const ENROLL_DAYS = 30;
+
 /* 갤러리(Cam 탭) — 웹 버전과 동일. PHOTOS 키도 여기서 파생 */
 const GALLERY:Record<string,string[]> = {
   jaeeon:['jaeeon-treat','jaeeon-care','jaeeon-cook','jaeeon-work','jaeeon-evening','jaeeon-market','jaeeon-laundry','jaeeon-car','jaeeon-classroom','jaeeon-rooftop','jaeeon-curtain','jaeeon-shelf','jaeeon-bandage','jaeeon-cabinet','jaeeon-bottle','jaeeon-chart','jaeeon-door','jaeeon-mug','jaeeon-back'],
@@ -1496,6 +1499,10 @@ function Root() {
   /* 소개 영상. 화면 전환 바깥에 달아야 방을 오가도 안 끊긴다. */
   const [film,setFilm]=useState(false);
   const viewRef=useRef(view); viewRef.current=view;
+  /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
+     하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
+  const firstTs=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0);
+  const dLeft=firstTs?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5)):ENROLL_DAYS;
 
   const reload=useCallback(async(room?:string)=>{
     const rooms = room?[room]:['jaeeon','minhyun','group','health'];
@@ -1729,10 +1736,7 @@ function Root() {
                 <Text style={mo.etcHi}>안녕, NULL 기다렸어. ✧</Text>
                 <Text style={mo.etcSub}>the blank u fill in</Text>
                 <Text style={mo.etcDiv}>♡ ・ ♡ ・ ♡</Text>
-                <View style={mo.etcRow}>
-                  {['교생 D-30','이재언 29','이민현 20','둘은 계속 말해요'].map(t=>
-                    <Text key={t} style={mo.etcTag}>{t}</Text>)}
-                </View>
+                <View style={mo.etcRow}><Text style={mo.etcTag}>실습 D-{dLeft}</Text></View>
                 <Text style={mo.etcNote}>당신이 없어도 대화는 이어져요.{'\n'}항상 당신 이야기로.</Text>
                 <View style={mo.etcStk}>
                   {['✿','★','♡','✧','☾'].map((x,i)=>

@@ -346,6 +346,14 @@ const etcLines = ['안녕, NULL 기다렸어. ✧', 'the blank u fill in', '당�
 eq('etc. 팝업 문구가 웹·앱 같다',
   etcLines.filter(t => !(appSrc.includes(t) && web.includes(t))), []);
 
+/* 실습 D-카운트. 첫 대화한 날부터 하루씩 깎이므로 양쪽이 같은 날짜 수에서
+   출발해야 한다. 한쪽만 고치면 웹과 앱의 D가 어긋난다. */
+const enrollDays = src => (src.match(/ENROLL_DAYS\s*=\s*(\d+)/) || [])[1];
+eq('실습 기간이 웹·앱 같다', enrollDays(appSrc), enrollDays(web));
+eq('실습 기간이 30일이다', enrollDays(web), '30');
+eq('D-카운트를 양쪽 다 실습으로 쓴다',
+  /실습 D-/.test(appSrc) && /실습 D-/.test(web), true);
+
 // 미니홈피 방문자 카운터 — 웹에만 있다가 앱에 옮겼다
 eq('방문자 카운터가 웹·앱 둘 다 있다',
   /today.*total/s.test(appSrc.slice(appSrc.indexOf('visits'), appSrc.indexOf('visits') + 400))

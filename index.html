@@ -770,6 +770,8 @@ const CHARS = {
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-store.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp"]},
 };
+/* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
+const ENROLL_DAYS = 30;
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
   {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},
@@ -1713,6 +1715,10 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
   const t0=new Date(); t0.setHours(0,0,0,0);
   const todayN=allMsgs.filter(m=>m.ts>=t0.getTime()).length;
   const totalN=allMsgs.length;
+  /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
+     하루씩 깎는다. 0이 되면 거기서 멈춘다. 앱도 같은 식으로 센다. */
+  const firstTs=allMsgs.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
+  const dLeft=firstTs?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5)):ENROLL_DAYS;
   const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
   const [now,setNow]=useState(Date.now()); // 접속 상태·쿨타임 갱신용
@@ -1866,9 +1872,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       <div className="etchi">안녕, NULL 기다렸어. ✧</div>
       <div className="etcsub">the blank u fill in</div>
       <div className="etcdiv">♡ ・ ♡ ・ ♡</div>
-      <div className="etcrow">
-        {["교생 D-30","이재언 29","이민현 20","둘은 계속 말해요"].map(t=><span key={t} className="etctag">{t}</span>)}
-      </div>
+      <div className="etcrow"><span className="etctag">실습 D-{dLeft}</span></div>
       <div className="etcnote">당신이 없어도 대화는 이어져요.<br/>항상 당신 이야기로.</div>
       <div className="etcstk">
         {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#ff9ec6","#ffd68a","#c3b2f0","#8fd8e8","#ffb0d4"][i]}}>{x}</span>)}
