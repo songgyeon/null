@@ -568,6 +568,42 @@ const PHOTOS = {
     char: "minhyun",
     when: "교실에서 엎드려 자다가 찍힌 사진. 짝이 찍어서 보내준 것이다. 수업·야자·졸리다는 얘기에.",
   },
+  "minhyun-stair": {
+    char: "minhyun",
+    when: "계단참 창가에 앉아 있는 참. 교실에 안 들어가고 있는 거다. 어디냐고 물었을 때.",
+  },
+  "minhyun-vending": {
+    char: "minhyun",
+    when: "옥상 자판기 옆. 헤드폰은 목에 걸려 있다. 야자 째고 뭐 하냐는 물음에.",
+  },
+  "minhyun-laundry": {
+    char: "minhyun",
+    when: "밤에 셀프 빨래방. 세탁기 위에 앉아 캔을 들고 있다. 집에 안 갔냐는 얘기에.",
+  },
+  "minhyun-conv": {
+    char: "minhyun",
+    when: "편의점 냉장고 앞. 젤리를 골라 들었다. 뭐 먹냐, 단 거 얘기에.",
+  },
+  "minhyun-nap": {
+    char: "minhyun",
+    when: "해질 무렵 빈 교실에서 엎드려 자다 깬 참. 야자·학교 얘기에. desk와 달리 자기가 찍었다.",
+  },
+  "minhyun-neon": {
+    char: "minhyun",
+    when: "비 오는 밤. 버스 기다리는 중이고 이어폰을 꽂고 있다. 비 얘기나 늦은 시간 대화에.",
+  },
+  "minhyun-ramen": {
+    char: "minhyun",
+    when: "편의점 창가에서 컵라면. 밥 먹었냐고 물었을 때. 이게 저녁이다.",
+  },
+  "minhyun-window": {
+    char: "minhyun",
+    when: "교실 창가에 턱 괴고 앉아 있는 참. 한쪽 이어폰. 수업 중이거나 남아 있을 때.",
+  },
+  "minhyun-mirror": {
+    char: "minhyun",
+    when: "레코드샵 원형 거울 앞 셀카. 음악·앨범 얘기가 나왔을 때. 얼굴은 폰으로 반쯤 가린다.",
+  },
   "minhyun-morning": {
     char: "minhyun",
     when: "막 일어났을 때. 늦잠·피곤·일어났냐는 물음에.",
