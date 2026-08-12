@@ -711,7 +711,7 @@ const AV_V = "?v=3";
 /* 캐릭터 / 방 정의 */
 const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["jaeeon-treat.webp","jaeeon-care.webp","jaeeon-cook.webp","jaeeon-work.webp","jaeeon-evening.webp","jaeeon-market.webp","jaeeon-laundry.webp","jaeeon-car.webp","jaeeon-classroom.webp","jaeeon-rooftop.webp","jaeeon-curtain.webp","jaeeon-shelf.webp"]},
+    gallery:["jaeeon-treat.webp","jaeeon-care.webp","jaeeon-cook.webp","jaeeon-work.webp","jaeeon-evening.webp","jaeeon-market.webp","jaeeon-laundry.webp","jaeeon-car.webp","jaeeon-classroom.webp","jaeeon-rooftop.webp","jaeeon-curtain.webp","jaeeon-shelf.webp","jaeeon-bandage.webp","jaeeon-cabinet.webp","jaeeon-bottle.webp","jaeeon-chart.webp","jaeeon-door.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-store.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp"]},
 };
@@ -1286,12 +1286,12 @@ function Profile({char,count,onBack,gifts}){
 
 /* ── 소개 영상 ── 데스크 CD를 누르면 11초 돌고 끝난다.
    연출은 전부 CSS이고 여기서는 타임코드·건너뛰기·소리만 맡는다. */
-/* 재언 → 민현 → 재언 → 민현 순서로 번갈아 놓는다. 마지막 민현 그림자는
-   "당신이 모르는 건 따로 있다"와 맞아서 그대로 뒀다.
-   첫 컷은 원래 옥상(rooftop)이었는데 전신이라 얼굴이 너무 작게 나왔다. 커튼 앞
-   옆모습으로 바꿨다. 정사각 사진이라 세로 화면에서 좌우가 잘리는데, 얼굴이
-   가로 52~68% 자리라 center 크롭(22~78%) 안에 들어온다. */
-const FILM_SHOTS=["jaeeon-curtain.webp","minhyun-record.webp","jaeeon-evening.webp","minhyun-roof.webp"];
+/* 얼굴이 안 나온 사진만 고른다. 사람은 있되 얼굴은 안 보이는 것 —
+   뒷모습, 폰으로 가린 셀카, 그림자. 얼굴이 나오는 사진을 잘라서 가리는 게
+   아니라 처음부터 그렇게 찍힌 사진만 쓴다.
+   후보가 재언 쪽에 shelf 한 장뿐이라 지금은 재언 1 : 민현 3이다.
+   재언 뒷모습·손 사진이 더 생기면 2:2로 되돌린다. */
+const FILM_SHOTS=["minhyun-roof.webp","jaeeon-shelf.webp","minhyun-record.webp","minhyun-poster.webp"];
 /* 소개 영상 브금. 부팅 로고곡과 다른 곡이다 */
 const FILM_TRACK="null-film.mp3";
 const FILM_LINES=["겨울이 끝나간다","당신은 한 달 뒤에 떠난다","두 사람은 그걸 알고 있다","당신이 모르는 건 따로 있다"];

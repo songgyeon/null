@@ -528,6 +528,26 @@ const PHOTOS = {
     char: "jaeeon",
     when: "도서관 서가에서 책을 꺼내는 중. 『이방인』이다. 뭐 읽냐고 묻거나 책 얘기가 나왔을 때. 뒷모습이라 얼굴은 안 나온다.",
   },
+  "jaeeon-bandage": {
+    char: "jaeeon",
+    when: "학생 팔에 붕대를 감는 중. 다쳤다는 말에 — 소독(treat)으로 안 끝나는 쪽이다.",
+  },
+  "jaeeon-cabinet": {
+    char: "jaeeon",
+    when: "약장을 채워 넣는 중. 재고·정리·보건실에서 뭐 하냐는 물음에.",
+  },
+  "jaeeon-bottle": {
+    char: "jaeeon",
+    when: "해질 무렵 보건실. 약병 라벨을 확인하는 참. 퇴근 안 하냐고 물었을 때.",
+  },
+  "jaeeon-chart": {
+    char: "jaeeon",
+    when: "밤에 스탠드만 켜 놓고 보건일지를 쓰는 중. 늦은 시간에 뭐 하냐고 물었을 때.",
+  },
+  "jaeeon-door": {
+    char: "jaeeon",
+    when: "보건실 문 앞 복도. 서류를 넘겨 보는 참. 학교 얘기, 출근 얘기에.",
+  },
   "jaeeon-curtain": {
     char: "jaeeon",
     when: "집. 커튼 앞에 서 있는 옆모습. 뭐 하냐고 물었는데 딱히 하는 게 없을 때. 대답 대신 이걸 보낸다.",
