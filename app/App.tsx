@@ -44,7 +44,7 @@ const GALLERY:Record<string,string[]> = {
   minhyun:['minhyun-candy','minhyun-corridor','minhyun-rain','minhyun-gate','minhyun-morning','minhyun-alley','minhyun-store','minhyun-gym','minhyun-busstop','minhyun-winter','minhyun-snow'],
 };
 const PHOTOS:Record<string,string> = {};
-Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.png'}));
+Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.webp'}));
 /* .hidden 탭 — 해금된 key는 meta 'null_unlocked'(JSON 배열)에서 읽는다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
@@ -133,7 +133,7 @@ function demoReply(room:string, lastText?:string) {
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
 const AV_V = '?v=2';
-const face = (id:string) => IMG + id + '-profile.png' + AV_V;
+const face = (id:string) => IMG + id + '-profile.webp' + AV_V;
 
 /* 계산해서 만든 퍼센트 문자열. 그냥 (n*100)+'%'로 쓰면 타입이 string으로 넓어져
    RN의 DimensionValue에 안 들어간다(TS 2769). 자리 하나라 여기서 좁혀둔다. */
@@ -468,7 +468,7 @@ function Profile({char,onBack,refresh,onBgm}:{char:string;onBack:()=>void;refres
   })()},[char,refresh]);
   const ch=CHARS[char];
   // 훅은 조건문 위에 있어야 한다 — 아래 return보다 뒤로 내리면 렌더마다 훅 수가 달라진다
-  const bg=useBgUri(bgFor(char,count,gifts,stage?.bg), PROFILES[char]?.fallback||char+'-bg.png');
+  const bg=useBgUri(bgFor(char,count,gifts,stage?.bg), PROFILES[char]?.fallback||char+'-bg.webp');
   if(!stage) return <View style={{flex:1,backgroundColor:P.dark}}/>;
   const status=(stage.status||'').trim();
   const room=ROOMS.find(r=>r.id===char)!;
@@ -653,7 +653,7 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
   const left=Math.max(0,(autoAt||0)+AUTO_COOL-now);
   const un0=Object.values(unread||{}).reduce((a:any,b:any)=>a+(b||0),0) as number;
-  return <ImageBackground source={{uri:IMG+'bg-wallpaper.png'}} style={{flex:1}} resizeMode="cover">
+  return <ImageBackground source={{uri:IMG+'bg-wallpaper.webp'}} style={{flex:1}} resizeMode="cover">
     <View style={{flex:1,backgroundColor:'rgba(255,255,255,.35)'}}>
       <Sparkles/>
       <TB colors={[P.pink,P.lav]}><Text style={tbT}>✦ NULL messenger</Text><Dots/></TB>
@@ -697,8 +697,8 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
               return <React.Fragment key={id}>
                 <Text style={[rl.sect,{color:c.dk}]}>✧ {c.name} · {got.length} pics</Text>
                 <View style={rl.galgrid}>
-                  {got.map(k=><TouchableOpacity key={k} style={rl.galcell} onPress={()=>setZoom(IMG+k+'.png')}>
-                    <Image source={{uri:IMG+k+'.png'}} style={rl.galimg} resizeMode="cover"/>
+                  {got.map(k=><TouchableOpacity key={k} style={rl.galcell} onPress={()=>setZoom(IMG+k+'.webp')}>
+                    <Image source={{uri:IMG+k+'.webp'}} style={rl.galimg} resizeMode="cover"/>
                   </TouchableOpacity>)}
                 </View>
               </React.Fragment>;
@@ -720,9 +720,9 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
                 const un=(unlocked||[]).includes(h.key);
                 const need=Math.max(0,h.at-(counts[h.room]||0));
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
-                  onPress={()=>un?setZoom(IMG+h.key+'.png')
+                  onPress={()=>un?setZoom(IMG+h.key+'.webp')
                     :onToast(need?'still locked · '+need+' more':'almost there')}>
-                  <Image source={{uri:IMG+h.key+'.png'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
+                  <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
                   {!un&&<View style={rl.hlock}>
                     <Text style={{fontSize:18}}>🔒</Text>
                     {need>0&&<Text style={rl.hneed}>{need} more</Text>}</View>}

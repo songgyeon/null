@@ -33,16 +33,16 @@ export type Stage = { at: number; status: string; bg: string; track: string | nu
 export type Gift = { key:string; name:string; cat:string; cost:number; icon:string;
                      desc:string; tags:string; bg?:string; badge?:string };
 export const GIFTS: Gift[] = [
-  {key:'mug',       name:'회색 머그컵',  cat:'소품', cost:2, icon:'☕', badge:'NEW', bg:'gift-mug.png',
+  {key:'mug',       name:'회색 머그컵',  cat:'소품', cost:2, icon:'☕', badge:'NEW', bg:'gift-mug.webp',
    desc:'매일 아침 쓰게 될.\n집에 컵이 있어도.',
    tags:'머그 머그컵 컵 커피 회색 무광 아침 소품 mug cup coffee grey'},
-  {key:'photobook', name:'사진집',       cat:'기록', cost:5, icon:'📖', bg:'gift-photobook.png',
+  {key:'photobook', name:'사진집',       cat:'기록', cost:5, icon:'📖', bg:'gift-photobook.webp',
    desc:'겨울 풍경만 모아둔.\n잘 안 읽는다고 해도.',
    tags:'사진집 사진 책 겨울 풍경 전시 미술관 기록 photo book winter'},
-  {key:'beanie',    name:'남색 비니',    cat:'옷',   cost:3, icon:'🧢', bg:'gift-beanie.png',
+  {key:'beanie',    name:'남색 비니',    cat:'옷',   cost:3, icon:'🧢', bg:'gift-beanie.webp',
    desc:'겨울에 하나쯤은.\n머리가 눌려도 상관없다면.',
    tags:'비니 모자 니트 남색 겨울 옷 beanie hat knit navy'},
-  {key:'earphone',  name:'유선 이어폰',  cat:'소품', cost:4, icon:'🎧', badge:'HOT', bg:'gift-earphone.png',
+  {key:'earphone',  name:'유선 이어폰',  cat:'소품', cost:4, icon:'🎧', badge:'HOT', bg:'gift-earphone.webp',
    desc:'한쪽만 껴도 되는.\n이번엔 진짜 음악을 틀도록.',
    tags:'이어폰 유선 음악 노래 소품 earphone earphones wired music'},
   {key:'hotpack',   name:'핫팩',        cat:'소품', cost:1, icon:'♨️',
@@ -108,23 +108,23 @@ export async function saveGifts(g: Record<string,string[]>) {
 // 마지막 120은 .hidden의 일기가 열리는 지점과 같다.
 export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   jaeeon: {
-    fallback: 'jaeeon-bg.png',
+    fallback: 'jaeeon-bg.webp',
     stages: [
-      { at: 0,   status: '',              bg: 'jaeeon-museum.png',  track: 'jaeeon-1' },
-      { at: 16,  status: '별일 없음.',      bg: 'jaeeon-library.png', track: 'jaeeon-1' },
-      { at: 40,  status: '약 채워 놓을 것.', bg: 'jaeeon-night.png',   track: 'jaeeon-1' },
-      { at: 80,  status: '정리할 것들.',    bg: 'jaeeon-hall.png',    track: 'jaeeon-1' },
-      { at: 120, status: '괜찮습니다.',     bg: 'jaeeon-stairs.png',  track: 'jaeeon-1' },
+      { at: 0,   status: '',              bg: 'jaeeon-museum.webp',  track: 'jaeeon-1' },
+      { at: 16,  status: '별일 없음.',      bg: 'jaeeon-library.webp', track: 'jaeeon-1' },
+      { at: 40,  status: '약 채워 놓을 것.', bg: 'jaeeon-night.webp',   track: 'jaeeon-1' },
+      { at: 80,  status: '정리할 것들.',    bg: 'jaeeon-hall.webp',    track: 'jaeeon-1' },
+      { at: 120, status: '괜찮습니다.',     bg: 'jaeeon-stairs.webp',  track: 'jaeeon-1' },
     ],
   },
   minhyun: {
-    fallback: 'minhyun-bg.png',
+    fallback: 'minhyun-bg.webp',
     stages: [
-      { at: 0,   status: '',                      bg: 'minhyun-record.png',   track: 'minhyun-1' },
-      { at: 16,  status: '보건실 침대가 제일 낫다', bg: 'minhyun-poster.png',   track: 'minhyun-1' },
-      { at: 40,  status: '안 물어보면 말 안 함',    bg: 'minhyun-elevator.png', track: 'minhyun-1' },
-      { at: 80,  status: '남은 날 세는 중',         bg: 'minhyun-street.png',   track: 'minhyun-1' },
-      { at: 120, status: '이제 안 셈',             bg: 'minhyun-roof.png',     track: 'minhyun-1' },
+      { at: 0,   status: '',                      bg: 'minhyun-record.webp',   track: 'minhyun-1' },
+      { at: 16,  status: '보건실 침대가 제일 낫다', bg: 'minhyun-poster.webp',   track: 'minhyun-1' },
+      { at: 40,  status: '안 물어보면 말 안 함',    bg: 'minhyun-elevator.webp', track: 'minhyun-1' },
+      { at: 80,  status: '남은 날 세는 중',         bg: 'minhyun-street.webp',   track: 'minhyun-1' },
+      { at: 120, status: '이제 안 셈',             bg: 'minhyun-roof.webp',     track: 'minhyun-1' },
     ],
   },
 };
@@ -149,7 +149,7 @@ export function bgFor(char: string, count: number, gifts: Record<string,string[]
       if (g && g.bg) return g.bg;
     }
   }
-  return stageBg || PROFILES[char]?.fallback || char + '-bg.png';
+  return stageBg || PROFILES[char]?.fallback || char + '-bg.webp';
 }
 
 /* ♡ 잔액 = 주고받은 말 ÷ 10 − 쓴 값. 따로 버는 화면을 만들지 않는 이유:
@@ -175,7 +175,7 @@ export async function currentStageIdx(char: string): Promise<number> {
 export async function currentStage(char: string): Promise<Stage> {
   const idx = await currentStageIdx(char);
   const base = PROFILES[char]?.stages[idx];
-  if (!base) return { at: 0, status: '', bg: char + '-bg.png', track: null };
+  if (!base) return { at: 0, status: '', bg: char + '-bg.webp', track: null };
   let saved = '';
   try { saved = (await getMeta('status_' + char)) || ''; } catch (e) {}
   return { ...base, status: (saved.trim() || base.status || '').trim() };

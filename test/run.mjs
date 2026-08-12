@@ -174,8 +174,8 @@ const webKeys = pick(web.slice(web.indexOf('const GIFTS=['), web.indexOf('const 
 const appKeys = pick(app, /\{key:\s*'(\w+)'/g);
 eq('선물 키가 순서까지 같다', webKeys, appKeys);
 
-const webBg = pick(web, /bg:\s*"(gift-[\w-]+\.png)"/g);
-const appBg = pick(app, /bg:\s*'(gift-[\w-]+\.png)'/g);
+const webBg = pick(web, /bg:\s*"(gift-[\w-]+\.webp)"/g);
+const appBg = pick(app, /bg:\s*'(gift-[\w-]+\.webp)'/g);
 eq('배경이 붙는 선물이 같다', webBg, appBg);
 
 const webAt = /const STAGE_AT=\[([\d,]+)\]/.exec(web)[1].split(',').map(Number);
@@ -185,10 +185,18 @@ eq('관계 단계 경계가 같다', webAt, appAt);
 const heat = (web.match(/\{w:[\d.]+,\s*a:[\d.]+\s*\}/g) || []).length;
 eq('아바타 테두리 단계 수가 STAGE_AT과 같다', heat, webAt.length);
 
-// 코드가 찾는 배경 파일이 저장소에 실제로 있는가
-const wanted = new Set([...pick(web, /bg:\s*"([\w-]+\.png)"/g), ...pick(web, /fallback:"([\w-]+\.png)"/g)]);
-const missing = [...wanted].filter(f => { try { readFileSync(join(ROOT, f)); return false; } catch { return true; } });
-eq('배경 파일이 전부 저장소에 있다', missing, []);
+/* 코드가 찾는 사진이 저장소에 실제로 있는가. 웹은 파일명을 그대로 적고,
+   앱은 키에 확장자를 붙여 만든다(k+'.webp'). 둘 다 확인한다.
+   PNG를 WebP로 갈아끼울 때 한 군데만 놓쳐도 그 사진만 조용히 안 뜬다. */
+const exists = f => { try { readFileSync(join(ROOT, f)); return true; } catch { return false; } };
+// 앞이 \w인 것만 — 웹에도 char+"-bg.webp"처럼 조립하는 자리가 있다
+const wanted = new Set(pick(web, /"(\w[\w-]*\.webp)"/g));
+// 앱: GALLERY·HIDDEN의 키 + 프로필·기본 배경
+pick(readFileSync(join(ROOT, 'app/App.tsx'), 'utf8'), /'([a-z]+-[a-z]+)'/g)
+  .forEach(k => { if (exists(k + '.webp')) wanted.add(k + '.webp'); });
+['jaeeon', 'minhyun'].forEach(c => { wanted.add(c + '-profile.webp'); wanted.add(c + '-bg.webp'); });
+eq('사진 파일이 전부 저장소에 있다', [...wanted].filter(f => !exists(f)), []);
+eq('찾는 사진이 50장은 된다', wanted.size >= 50, true);   // 정규식이 헛돌면 0개도 통과한다
 
 // ─────────────────────────────────────────────
 section('앱 레이아웃 — 헤드리스로 못 돌리는 것은 소스로 막는다');

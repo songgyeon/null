@@ -191,7 +191,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .blankin{width:74px;padding:2px 5px;font-family:inherit;font-size:12px;color:#4a4276;text-align:center;outline:none;border-radius:0}
 /* ── 온보딩: 폰 속 파스텔 데스크톱 + now loading 창 ── */
 .onb{justify-content:center;align-items:center;padding:26px;
- background:linear-gradient(rgba(203,186,240,.5),rgba(203,186,240,.5)),#c6b4ee url("bg-extra.png") center/cover}
+ background:linear-gradient(rgba(203,186,240,.5),rgba(203,186,240,.5)),#c6b4ee url("bg-extra.webp") center/cover}
 .loadwin{position:relative;z-index:2;width:100%;max-width:290px;background:#ffd0e4;border:1px solid #5d5490;border-radius:8px;
  overflow:hidden;box-shadow:inset 1px 1px 0 rgba(255,255,255,.8),5px 5px 0 rgba(93,84,144,.28);animation:fadeUp .5s steps(5) both}
 .loadwin .tb{background:linear-gradient(90deg,#ff8fbe,#ffb0d4);letter-spacing:.14em}
@@ -209,7 +209,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .taskbar .start{display:flex;align-items:center;gap:5px;padding:5px 11px;font-size:11px}
 .taskbar .clock{margin-left:auto;padding:5px 10px;font-size:10.5px;color:#6b5fa8}
 /* 방 목록: 크롬 스타 월페이퍼 위 메신저 창 */
-.desk{background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#c6b9f0 url("bg-wallpaper.png") center/cover}
+.desk{background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#c6b9f0 url("bg-wallpaper.webp") center/cover}
 .iconbtn{width:34px;height:28px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
 .iconbtn.loading{animation:blink 1s steps(2) infinite}
 .tabs{flex:none;display:flex;gap:4px;padding:9px 12px 0}
@@ -469,10 +469,10 @@ const AV_V = "?v=2";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
-  jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.png",zoom:"150%",pos:"50% 22%",
-    gallery:["jaeeon-treat.png","jaeeon-care.png","jaeeon-cook.png","jaeeon-work.png","jaeeon-evening.png","jaeeon-market.png","jaeeon-laundry.png","jaeeon-car.png","jaeeon-classroom.png","jaeeon-rooftop.png"]},
-  minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.png",zoom:"150%",pos:"50% 22%",
-    gallery:["minhyun-candy.png","minhyun-corridor.png","minhyun-rain.png","minhyun-gate.png","minhyun-morning.png","minhyun-alley.png","minhyun-store.png","minhyun-gym.png","minhyun-busstop.png","minhyun-winter.png","minhyun-snow.png"]},
+  jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"150%",pos:"50% 22%",
+    gallery:["jaeeon-treat.webp","jaeeon-care.webp","jaeeon-cook.webp","jaeeon-work.webp","jaeeon-evening.webp","jaeeon-market.webp","jaeeon-laundry.webp","jaeeon-car.webp","jaeeon-classroom.webp","jaeeon-rooftop.webp"]},
+  minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
+    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-store.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp"]},
 };
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
@@ -482,27 +482,27 @@ const ROOMS = [
 ];
 const roomOf = id => ROOMS.find(r=>r.id===id);
 
-/* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.png). 목록에 없는 key는 무시한다. */
+/* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
 const PHOTO_FILES={};
-Object.values(CHARS).forEach(c=>c.gallery.forEach(f=>{PHOTO_FILES[f.replace(/\.png$/,"")]=f}));
+Object.values(CHARS).forEach(c=>c.gallery.forEach(f=>{PHOTO_FILES[f.replace(/\.webp$/,"")]=f}));
 const photoSrc = k => (k&&PHOTO_FILES[k])||null;
 
 /* .hidden: 대화가 쌓이면 백엔드가 해금해준다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS와 같아야 한다.
    어긋나면 화면에 표시되는 "N번 남음"이 실제 해금 시점과 달라진다. */
 const HIDDEN=[
-  {key:"jaeeon-bag",             file:"jaeeon-bag.png",             label:"재언의 가방", room:"jaeeon", at:12},
-  {key:"minhyun-bag",            file:"minhyun-bag.png",            label:"민현의 가방", room:"minhyun", at:12},
-  {key:"jaeeon-room",            file:"jaeeon-room.png",            label:"재언의 방", room:"jaeeon", at:26},
-  {key:"minhyun-room",           file:"minhyun-room.png",           label:"민현의 방", room:"minhyun", at:26},
-  {key:"jaeeon-playlist",        file:"jaeeon-playlist.png",        label:"재언의 플레이리스트", room:"jaeeon", at:44},
-  {key:"minhyun-playlist",       file:"minhyun-playlist.png",       label:"민현의 플레이리스트", room:"minhyun", at:44},
-  {key:"jaeeon-ticket",          file:"jaeeon-ticket.png",          label:"재언의 티켓", room:"jaeeon", at:64},
-  {key:"minhyun-ticket",         file:"minhyun-ticket.png",         label:"민현의 티켓", room:"minhyun", at:64},
-  {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.png",        label:"재언의 졸업사진", room:"jaeeon", at:90},
-  {key:"minhyun-yearbook",       file:"minhyun-yearbook.png",       label:"민현의 졸업사진", room:"minhyun", at:90},
-  {key:"jaeeon-diary",           file:"jaeeon-diary.png",           label:"재언의 일기", room:"jaeeon", at:120},
-  {key:"minhyun-diary",          file:"minhyun-diary.png",          label:"민현의 일기", room:"minhyun", at:120},
+  {key:"jaeeon-bag",             file:"jaeeon-bag.webp",             label:"재언의 가방", room:"jaeeon", at:12},
+  {key:"minhyun-bag",            file:"minhyun-bag.webp",            label:"민현의 가방", room:"minhyun", at:12},
+  {key:"jaeeon-room",            file:"jaeeon-room.webp",            label:"재언의 방", room:"jaeeon", at:26},
+  {key:"minhyun-room",           file:"minhyun-room.webp",           label:"민현의 방", room:"minhyun", at:26},
+  {key:"jaeeon-playlist",        file:"jaeeon-playlist.webp",        label:"재언의 플레이리스트", room:"jaeeon", at:44},
+  {key:"minhyun-playlist",       file:"minhyun-playlist.webp",       label:"민현의 플레이리스트", room:"minhyun", at:44},
+  {key:"jaeeon-ticket",          file:"jaeeon-ticket.webp",          label:"재언의 티켓", room:"jaeeon", at:64},
+  {key:"minhyun-ticket",         file:"minhyun-ticket.webp",         label:"민현의 티켓", room:"minhyun", at:64},
+  {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.webp",        label:"재언의 졸업사진", room:"jaeeon", at:90},
+  {key:"minhyun-yearbook",       file:"minhyun-yearbook.webp",       label:"민현의 졸업사진", room:"minhyun", at:90},
+  {key:"jaeeon-diary",           file:"jaeeon-diary.webp",           label:"재언의 일기", room:"jaeeon", at:120},
+  {key:"minhyun-diary",          file:"minhyun-diary.webp",          label:"민현의 일기", room:"minhyun", at:120},
 ];
 const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
 
@@ -511,16 +511,16 @@ const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
    tags는 검색어다. 한글과 영어를 같이 넣어둔다 — 뭐라고 칠지 모르니까.
    bg 파일이 아직 없어도 괜찮다. useBg가 기존 배경으로 돌려준다. */
 const GIFTS=[
-  {key:"mug",       name:"회색 머그컵",  bg:"gift-mug.png",  cat:"소품", cost:2, badge:"NEW",
+  {key:"mug",       name:"회색 머그컵",  bg:"gift-mug.webp",  cat:"소품", cost:2, badge:"NEW",
    desc:"매일 아침 쓰게 될.\n집에 컵이 있어도.",
    tags:"머그 머그컵 컵 커피 회색 무광 아침 소품 mug cup coffee grey"},
-  {key:"photobook", name:"사진집",       bg:"gift-photobook.png", cat:"기록", cost:5,
+  {key:"photobook", name:"사진집",       bg:"gift-photobook.webp", cat:"기록", cost:5,
    desc:"겨울 풍경만 모아둔.\n잘 안 읽는다고 해도.",
    tags:"사진집 사진 책 겨울 풍경 전시 미술관 기록 photo book winter"},
-  {key:"beanie",    name:"남색 비니",    bg:"gift-beanie.png", cat:"옷", cost:3,
+  {key:"beanie",    name:"남색 비니",    bg:"gift-beanie.webp", cat:"옷", cost:3,
    desc:"겨울에 하나쯤은.\n머리가 눌려도 상관없다면.",
    tags:"비니 모자 니트 남색 겨울 옷 beanie hat knit navy"},
-  {key:"earphone",  name:"유선 이어폰",  bg:"gift-earphone.png", cat:"소품", cost:4, badge:"HOT",
+  {key:"earphone",  name:"유선 이어폰",  bg:"gift-earphone.webp", cat:"소품", cost:4, badge:"HOT",
    desc:"한쪽만 껴도 되는.\n이번엔 진짜 음악을 틀도록.",
    tags:"이어폰 유선 음악 노래 소품 earphone earphones wired music"},
 ];
@@ -744,7 +744,7 @@ const CharIcon=({id,size=15})=>id==="jaeeon"?<CrossIcon size={size} color={CHARS
    전부 인라인 SVG다. 파일을 안 받으므로 로딩이 없고 색도 코드로 맞춘다.
    많이 뿌리면 촌스러워지니 자리를 정해두고 거기에만 쓴다. */
 /* 선물 아이콘. 사진이 아니라 그림이라 파일이 없어도 지금 바로 보인다.
-   장바구니에 뜨는 건 이것이고, 배경으로 걸리는 건 gift-*.png 쪽이다. */
+   장바구니에 뜨는 건 이것이고, 배경으로 걸리는 건 gift-*.webp 쪽이다. */
 const GiftIcon={
   cart:({size=17})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -916,20 +916,20 @@ const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:
    단계 경계(0/16/40/80)는 stageIdx가 정하고, worker.js의 STAGES와 맞춰져 있다. */
 const PROFILES={
   // 재언 — 밝은 데서 어두운 데로 들어갔다가 마지막에 바다로 트인다
-  jaeeon:{fallback:"jaeeon-bg.png",stages:[
-    {status:"",              bg:"jaeeon-museum.png",  track:"jaeeon-1"},
-    {status:"별일 없음.",       bg:"jaeeon-library.png", track:"jaeeon-1"},
-    {status:"약 채워 놓을 것.",  bg:"jaeeon-night.png",   track:"jaeeon-1"},
-    {status:"정리할 것들.",     bg:"jaeeon-hall.png",    track:"jaeeon-1"},
-    {status:"괜찮습니다.",      bg:"jaeeon-stairs.png",  track:"jaeeon-1"},
+  jaeeon:{fallback:"jaeeon-bg.webp",stages:[
+    {status:"",              bg:"jaeeon-museum.webp",  track:"jaeeon-1"},
+    {status:"별일 없음.",       bg:"jaeeon-library.webp", track:"jaeeon-1"},
+    {status:"약 채워 놓을 것.",  bg:"jaeeon-night.webp",   track:"jaeeon-1"},
+    {status:"정리할 것들.",     bg:"jaeeon-hall.webp",    track:"jaeeon-1"},
+    {status:"괜찮습니다.",      bg:"jaeeon-stairs.webp",  track:"jaeeon-1"},
   ]},
   // 민현 — 안에서 밖으로 나가다가 마지막엔 옥상에 혼자다
-  minhyun:{fallback:"minhyun-bg.png",stages:[
-    {status:"",                      bg:"minhyun-record.png",   track:"minhyun-1"},
-    {status:"보건실 침대가 제일 낫다",  bg:"minhyun-poster.png",   track:"minhyun-1"},
-    {status:"안 물어보면 말 안 함",    bg:"minhyun-elevator.png", track:"minhyun-1"},
-    {status:"남은 날 세는 중",         bg:"minhyun-street.png",   track:"minhyun-1"},
-    {status:"이제 안 셈",             bg:"minhyun-roof.png",     track:"minhyun-1"},
+  minhyun:{fallback:"minhyun-bg.webp",stages:[
+    {status:"",                      bg:"minhyun-record.webp",   track:"minhyun-1"},
+    {status:"보건실 침대가 제일 낫다",  bg:"minhyun-poster.webp",   track:"minhyun-1"},
+    {status:"안 물어보면 말 안 함",    bg:"minhyun-elevator.webp", track:"minhyun-1"},
+    {status:"남은 날 세는 중",         bg:"minhyun-street.webp",   track:"minhyun-1"},
+    {status:"이제 안 셈",             bg:"minhyun-roof.webp",     track:"minhyun-1"},
   ]},
 };
 
@@ -1013,7 +1013,7 @@ function Profile({char,count,onBack,onBgm,gifts}){
   const hung=stageIdx(count)>=GIFT_AT
     ? given.slice().reverse().find(k=>(GIFTS.find(g=>g.key===k)||{}).bg) : null;
   const wanted=hung?(GIFTS.find(g=>g.key===hung)||{}).bg:(st&&st.bg);
-  const bg=useBg(wanted,(p&&p.fallback)||char+"-bg.png");
+  const bg=useBg(wanted,(p&&p.fallback)||char+"-bg.webp");
   if(!ch||!p)return null;
   const status=(st.status||"").trim();
   return <div className="pfscreen" style={{backgroundImage:`url("${bg}")`}}>
@@ -1340,7 +1340,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
         {Object.entries(CHARS).map(([id,ch])=>{
-          const got=ch.gallery.filter(f=>album.has(f.replace(/\.png$/,"")));
+          const got=ch.gallery.filter(f=>album.has(f.replace(/\.webp$/,"")));
           if(!got.length)return null;
           return <React.Fragment key={id}>
             <div className="sect" style={{color:ch.dk}}>✧ {ch.name} · {got.length} pics</div>
