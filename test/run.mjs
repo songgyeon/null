@@ -233,6 +233,11 @@ eq('로고곡 파일이 저장소에 있다', exists('null-logo.mp3'), true);
 eq('부팅 화면은 눌러야 넘어간다 — 저절로 안 사라진다',
   [/setTimeout\(\s*finish/.test(appSrc), /animation:bootOut[^;}]*\ds\s+both/.test(web)], [false, false]);
 eq('로고곡은 기다리는 동안 돈다', /player\.loop\s*=\s*true/.test(appSrc) && /a\.loop\s*=\s*true/.test(web), true);
+/* 그냥 loop만 켜면 끝에서 앞으로 뚝 끊긴다. 양쪽 다 같은 볼륨·같은 페이드여야 한다. */
+const vol = s => /BOOT_VOL\s*=\s*(\.?\d+\.?\d*)/.exec(s);
+eq('부팅 볼륨이 웹·앱 같다', vol(appSrc)?.[1], vol(web)?.[1]);
+eq('한 바퀴 돌 때 페이드가 걸린다',
+  [/Math\.max\(0,\s*d-t\)\/2\.2/.test(appSrc), /Math\.max\(0,d-t\)\/2\.2/.test(web)], [true, true]);
 eq('둘 다 눌러서 들어가라고 알려준다',
   /tap to enter/.test(appSrc) && /tap to enter/.test(web), true);
 

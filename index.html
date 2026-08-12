@@ -1098,15 +1098,26 @@ function Profile({char,count,onBack,onBgm,gifts}){
    어느 쪽인지는 아래 글자가 알려준다. 앱은 이 제한이 없어 켜자마자 나온다. */
 // 저장소에 같이 있는 파일이라 상대 경로로 잡는다 (R2를 안 거친다)
 const LOGO_TRACK="null-logo.mp3";
+const BOOT_VOL=.55;   // 앱(App.tsx)의 BOOT_VOL과 같아야 한다
 function Boot({onDone}){
   const audio=useRef(null);
   const [playing,setPlaying]=useState(false);
   const [leaving,setLeaving]=useState(false);
   useEffect(()=>{
-    const a=new Audio(LOGO_TRACK); a.volume=.55; a.loop=true; audio.current=a;
+    const a=new Audio(LOGO_TRACK); a.volume=0; a.loop=true; audio.current=a;
     a.play().then(()=>setPlaying(true)).catch(()=>setPlaying(false));
+    /* 그냥 loop만 켜두면 끝에서 앞으로 뚝 끊긴다. 곡의 끝 2.2초를 줄이고
+       처음 1.2초를 올려서, 한 바퀴 돌 때 숨을 한 번 쉬는 것처럼 들리게 한다.
+       timeupdate는 초당 네 번쯤이라 그 간격으로 볼륨을 만지면 지직거린다.
+       50ms 간격으로 직접 재는 이유가 그것이다. */
+    const ramp=setInterval(()=>{
+      const d=a.duration, t=a.currentTime;
+      if(!d||!isFinite(d)){a.volume=BOOT_VOL;return}
+      const up=Math.min(1,t/1.2), down=Math.min(1,Math.max(0,d-t)/2.2);
+      a.volume=BOOT_VOL*Math.min(up,down);
+    },50);
     return()=>{
-      // 나갈 때 뚝 끊지 않고 짧게 줄인다
+      clearInterval(ramp);   // 나가는 페이드와 싸우지 않게 먼저 끈다
       const f=setInterval(()=>{if(a.volume>.06)a.volume-=.06;else{a.pause();clearInterval(f)}},60);
       setTimeout(()=>{clearInterval(f);a.pause()},900);
     };

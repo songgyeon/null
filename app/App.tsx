@@ -291,6 +291,7 @@ const Sparkles=()=><View pointerEvents="none" style={StyleSheet.absoluteFill}>
    앱은 브라우저와 달리 자동재생 제한이 없어서 켜자마자 소리가 난다.
    웹(index.html)의 .boot와 같은 순서다 — 두 클라이언트가 다른 인상을
    주면 같은 프로덕트로 안 보인다. */
+const BOOT_VOL = .55;   // index.html의 BOOT_VOL과 같아야 한다
 function Boot({onDone}:{onDone:()=>void}) {
   const letters = useRef([0,1,2,3].map(()=>new Animated.Value(0))).current;
   const bar  = useRef(new Animated.Value(0)).current;
@@ -307,7 +308,18 @@ function Boot({onDone}:{onDone:()=>void}) {
   };
 
   useEffect(()=>{
-    try { player.loop=true; player.volume=.55; player.play(); } catch(e) {}
+    try { player.loop=true; player.volume=0; player.play(); } catch(e) {}
+    /* 그냥 loop만 켜두면 끝에서 앞으로 뚝 끊긴다. 끝 2.2초를 줄이고 처음
+       1.2초를 올려서 한 바퀴 돌 때 숨을 한 번 쉬는 것처럼 들리게 한다.
+       길이를 못 읽는 기기가 있을 수 있으므로, 그럴 때는 그냥 제 볼륨으로 둔다. */
+    const ramp=setInterval(()=>{
+      try{
+        const d=player.duration, t=player.currentTime;
+        if(!d||!isFinite(d)){ player.volume=BOOT_VOL; return; }
+        const up=Math.min(1,t/1.2), down=Math.min(1,Math.max(0,d-t)/2.2);
+        player.volume=BOOT_VOL*Math.min(up,down);
+      }catch(e){}
+    },50);
     Animated.stagger(220, letters.map(v =>
       Animated.timing(v,{toValue:1,duration:260,useNativeDriver:true}))).start();
     // width는 네이티브 드라이버로 못 돌린다. 막대 하나뿐이라 부담은 없다.
@@ -321,7 +333,7 @@ function Boot({onDone}:{onDone:()=>void}) {
       Animated.timing(blink,{toValue:1,duration:10,useNativeDriver:true}),
       Animated.delay(1000),
     ])).start();
-    return ()=>{ try{player.pause()}catch(e){} };
+    return ()=>{ clearInterval(ramp); try{player.pause()}catch(e){} };
   },[]);
 
   return <Animated.View style={[bt.root,{opacity:fade}]}>
