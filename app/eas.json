@@ -1,0 +1,37 @@
+{
+  // EAS Build 설정. 빌드는 Expo 클라우드에서 돌기 때문에 이 컴퓨터에
+  // Android Studio를 깔지 않아도 된다. 무료 계정으로 된다(대기열이 있다).
+  //
+  //   npx eas-cli build -p android --profile preview
+  //
+  // preview  — APK. 파일을 그대로 폰에 넣어서 설치할 수 있다. 배포용으로 쓴다.
+  // store    — AAB. Play 스토어에 올릴 때만 쓴다. 폰에 직접 설치는 안 된다.
+  //
+  // 릴리스로 나온 APK는 Expo 대시보드에서 내려받아 GitHub Releases에 올린다.
+  // 그러면 이력서에서 바로 링크할 수 있다.
+  "cli": {
+    "version": ">= 12.0.0",
+    // 버전은 app.json이 들고 있는다. remote로 두면 EAS가 따로 세는데,
+    // 저장소가 정본인 이 프로젝트에서는 헷갈릴 자리만 늘어난다.
+    "appVersionSource": "local"
+  },
+  "build": {
+    // 개발용 — Expo Go가 못 쓰는 네이티브 모듈을 넣을 때만 필요하다.
+    // 지금은 다 Expo Go에서 도니까 안 써도 된다.
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    // 이게 APK가 나오는 프로필이다
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_ENV": "preview" }
+    },
+    "store": {
+      "android": { "buildType": "app-bundle" }
+    }
+  },
+  "submit": { "production": {} }
+}
