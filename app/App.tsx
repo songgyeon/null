@@ -584,9 +584,11 @@ function SpinCD({size=88}:{size?:number}) {
   </Animated.View>;
 }
 /* 데스크톱에 놓인 마우스 포인터. 아무 데도 안 붙어 있는 게 이 화면의 농담이다 */
-const SpCursor=()=><View style={sp.cursor} pointerEvents="none">
-  <View style={sp.curBody}/><View style={sp.curTail}/>
-</View>;
+/* 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보이고, 꼬리를 따로 붙이면
+   꺾인 조각처럼 보인다. 웹과 같은 path를 그림 한 장으로 구워서 쓴다. */
+const CURSOR_PNG=require('./assets/cursor.png');
+const SpCursor=()=><Image source={CURSOR_PNG} style={sp.cursor}
+  resizeMode="contain" pointerEvents="none"/>;
 
 /* 가짜 오류창 한 개 */
 function SpWin({title,colors,style,children}:any) {
@@ -719,12 +721,7 @@ const sp=StyleSheet.create({
         backgroundColor:'#ece8fa',borderWidth:1,borderColor:P.border},
   wbtnT:{...F,fontSize:9,color:P.ink},
   bar:{height:11,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,overflow:'hidden'},
-  cursor:{position:'absolute',left:-6,bottom:-15,transform:[{rotate:'-8deg'}]},
-  // 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보인다. 몸통과 꼬리를 따로 그린다
-  curBody:{width:0,height:0,borderTopWidth:19,borderTopColor:'#fff',
-           borderRightWidth:13,borderRightColor:'transparent'},
-  curTail:{position:'absolute',left:5,top:12,width:4,height:9,backgroundColor:'#fff',
-           transform:[{rotate:'18deg'}]},
+  cursor:{position:'absolute',left:-6,bottom:-19,width:17,height:24,transform:[{rotate:'-8deg'}]},
   tap:{...F,position:'absolute',left:0,right:0,bottom:8,textAlign:'center',
        fontSize:10.5,letterSpacing:3.4,color:P.ink},
 });
