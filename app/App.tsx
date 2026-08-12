@@ -135,6 +135,10 @@ function demoReply(room:string, lastText?:string) {
 const AV_V = '?v=2';
 const face = (id:string) => IMG + id + '-profile.png' + AV_V;
 
+/* 계산해서 만든 퍼센트 문자열. 그냥 (n*100)+'%'로 쓰면 타입이 string으로 넓어져
+   RN의 DimensionValue에 안 들어간다(TS 2769). 자리 하나라 여기서 좁혀둔다. */
+const pct = (n:number) => `${Math.max(0, Math.min(100, Math.round(n)))}%` as `${number}%`;
+
 const fmtTime = (ts:number) => {
   const d=new Date(ts), h=d.getHours();
   return `${h<12?'오전':'오후'} ${h%12||12}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -695,7 +699,7 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
         ? <>
             <View style={rl.prog}>
               <Text style={rl.progT}>ENCRYPTED</Text>
-              <View style={rl.progBar}><View style={[rl.progFill,{width:((unlocked||[]).length/HIDDEN.length*100)+'%'}]}/></View>
+              <View style={rl.progBar}><View style={[rl.progFill,{width:pct((unlocked||[]).length/HIDDEN.length*100)}]}/></View>
               <Text style={rl.progN}>{(unlocked||[]).length} / {HIDDEN.length}</Text>
             </View>
             <View style={rl.galgrid}>
@@ -1159,7 +1163,8 @@ function Root() {
   const runTurn = async(room:string)=>{
     if(!name) return;
     setFailed(null); setTyping(true);
-    const said=lastSent.current?.room===room?lastSent.current.text:undefined;
+    const ls=lastSent.current;
+    const said=ls&&ls.room===room?ls.text:undefined;   // 각본을 고를 때만 쓴다
     if(demoOn()){ setTyping(false); await enqueue(room,demoReply(room,said)); return; }
     try{
       const hist=await getMsgs(room);
