@@ -1088,7 +1088,12 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
       {/* padding을 ScrollView 자체 style에 주면 스크롤 프레임이 패딩되어 내용 끝이
           잘린다(.hidden 안내문이 끝까지 내려도 반쯤 잘리던 원인). 여백은 반드시
           contentContainerStyle 쪽에 준다. 아래 여백을 넉넉히 두는 것도 같은 이유다. */}
-      <View style={rl.wrap}><ScrollView style={{flex:1}}
+      <View style={rl.wrap}>
+        {/* 창 위쪽 무지개 — 목록이 좀 더 놓였다 */}
+        <LinearGradient colors={['#ff9ec6','#ffd68a','#a8e6cf','#a8c8ff','#c3b2f0']}
+          start={{x:0,y:0}} end={{x:1,y:0}} pointerEvents="none"
+          style={{position:'absolute',left:0,right:0,top:0,height:2,zIndex:2}}/>
+        <ScrollView style={{flex:1}}
         contentContainerStyle={{padding:10,paddingBottom:34}}
         showsVerticalScrollIndicator={false}>
         {tab==='cam'
@@ -1144,8 +1149,17 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
                   <Face char={room.id} size={42}
                     border={CHARS[room.id].dk+HEAT[stageIdx(counts[room.id]||0)].o}/>
                 </TouchableOpacity>
-              : <View style={[rl.av,{borderColor:room.color}]}>
-                  <Text style={{fontSize:watch?16:14}}>{watch?'🌙':'✧'}</Text>
+              /* 단톡방·관전방은 얼굴이 없다. 웹은 여기에 SVG로 물방울과 달을 그리는데
+                 RN에는 SVG가 없어서 ✧ 글자로 때워놨었다. 그런데 이 Text에만
+                 fontFamily를 안 줘서 시스템 글꼴로 그려졌고, ✧가 없는 글꼴을 쓰는
+                 폰에서는 빈 동그라미가 됐다(갤럭시가 그렇다). 같은 ✧라도 'LIVE'
+                 쪽은 Galmuri11로 그려져서 멀쩡했던 것이다.
+                 물방울은 오프닝에 쓰는 그림을 그대로 쓰고, 달은 원 두 개를 겹쳐
+                 초승달을 판다. 글꼴에 기대지 않으면 이런 일이 없다. */
+              : <View style={[rl.av,{borderColor:room.color},watch?rl.avW:rl.avG]}>
+                  {watch
+                    ? <View style={rl.moon}><View style={rl.moonCut}/></View>
+                    : <Image source={BUBBLE_PNG} style={{width:26,height:26}} resizeMode="contain"/>}
                 </View>}
             <View style={{flex:1}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
@@ -1159,11 +1173,24 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
                 {last?`${last.sender==='user'?'나: ':''}${last.photo?'[사진] ':''}${last.text}`:room.sub}
               </Text>
             </View>
-            {un>0&&<View style={rl.bd}><Text style={rl.bdT}>{un}</Text></View>}
+            {un>0&&<View style={rl.bd}>
+              <View style={rl.bdGloss} pointerEvents="none"/>
+              <Text style={rl.bdT}>{un}</Text></View>}
           </TouchableOpacity>;
           return <React.Fragment key={room.id}>
             {watch&&<Text style={rl.sect}>✧ LIVE</Text>}
-            {watch?<HardShadow dx={1} dy={2} radius={6} color="rgba(93,84,144,.22)" style={{marginTop:2}}>{card}</HardShadow>:card}
+            {watch
+              ? <HardShadow dx={1} dy={2} radius={8} color="rgba(93,84,144,.2)" style={{marginTop:6}}>
+                  {/* 관전방만 무지개 테두리 — 다른 종류의 방이라는 표시.
+                      웹은 hue-rotate를 돌리는데 RN에 filter가 없어서 고정색으로 둔다 */}
+                  <LinearGradient colors={['#ffb0d4','#c3b2f0','#a8c8ff','#a8e6cf','#ffd68a']}
+                    start={{x:0,y:0}} end={{x:1,y:1}}
+                    style={{position:'absolute',left:-2,right:-2,top:-2,bottom:-2,borderRadius:10,opacity:.55}}/>
+                  {card}
+                </HardShadow>
+              : card}
+            {/* 카드 사이 구분선 — 점선 대신 하트 점이 떨어진다 */}
+            {!watch&&<Text style={rl.hdiv} numberOfLines={1}>{'♡ · '.repeat(24)}</Text>}
           </React.Fragment>;
         })}
         {/* 미니홈피 방문자 카운터 — 목록 끝의 빈 자리를 메운다. 웹의 .hompy와 같다 */}
@@ -1225,12 +1252,21 @@ const rl=StyleSheet.create({
   hnote:{...F,textAlign:'center',marginTop:10,marginBottom:6,fontSize:10,color:P.dim,letterSpacing:1},
   wrap:{flex:1,marginHorizontal:12,backgroundColor:'rgba(255,255,255,.9)',borderWidth:1,borderColor:P.mid},
   sect:{...F,marginTop:12,marginBottom:6,marginLeft:4,fontSize:9.5,letterSpacing:4,color:P.dim},
-  card:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:9,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#d8d1f0'},
-  cardW:{backgroundColor:'#f0f2fa',borderWidth:1,borderColor:'#9aa3d8',borderRadius:6,borderBottomWidth:1},
+  card:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:9,borderRadius:7},
+  cardW:{backgroundColor:'#eef1fc',borderRadius:8},
+  /* 카드 사이. 웹의 .roomcard::after와 같은 자리다 */
+  hdiv:{...F,marginHorizontal:6,marginTop:-2,marginBottom:2,fontSize:7,letterSpacing:2.2,
+        color:'#e7dcf5',height:10,overflow:'hidden'},
   av:{width:42,height:42,borderRadius:21,borderWidth:1,overflow:'hidden',justifyContent:'center',alignItems:'center',backgroundColor:'#fff'},
+  avG:{backgroundColor:'#eaf1fb'},
+  avW:{backgroundColor:'#e6eaf7'},
+  /* 초승달 — 채운 원 위에 배경색 원을 살짝 밀어 얹어서 판다 */
+  moon:{width:20,height:20,borderRadius:10,backgroundColor:'#8a7fc0',overflow:'hidden'},
+  moonCut:{position:'absolute',left:5,top:-3,width:20,height:20,borderRadius:10,backgroundColor:'#e6eaf7'},
   nm:{...F,fontSize:13.5,color:P.ink}, tm:{...F,marginLeft:'auto',fontSize:9.5,color:P.dim},
   pv:{...F,marginTop:5,fontSize:11,color:P.sub},
   bd:{minWidth:20,height:20,paddingHorizontal:6,borderRadius:10,backgroundColor:P.badge,borderWidth:1,borderColor:P.border,justifyContent:'center',alignItems:'center'},
+  bdGloss:{position:'absolute',left:3,right:3,top:2,height:6,borderRadius:6,backgroundColor:'rgba(255,255,255,.6)'},
   bdT:{...F,fontSize:10,color:'#fff'},
   st:{flexDirection:'row',gap:4,padding:8},
   stT:{...F,flex:1,paddingVertical:5,paddingHorizontal:9,fontSize:10,color:'#6b5fa8',backgroundColor:P.bg,borderWidth:1,borderColor:P.dim},
