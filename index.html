@@ -2,7 +2,11 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- interactive-widget=resizes-content: 안드로이드 크롬은 키보드가 올라와도 레이아웃
+     높이를 안 줄이는 게 기본(resizes-visual)이다. 그러면 100dvh가 전체 화면 높이로
+     남아서, 브라우저가 입력칸만 보이게 스크롤하고 그 아래로 폰 껍데기가 남는다.
+     이 값을 주면 키보드만큼 높이가 줄어 입력칸이 키보드 바로 위에 붙는다. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>NULL</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
