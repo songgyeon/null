@@ -27,6 +27,7 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
+      "expo-asset",
       "expo-sqlite",
       "expo-font",
       "expo-audio"
