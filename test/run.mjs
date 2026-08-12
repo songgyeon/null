@@ -221,6 +221,20 @@ for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\
   eq(`lib/${mod}이 App.tsx가 쓰는 것을 전부 내보낸다`, missing, []);
 }
 
+/* 온보딩은 autoFocus라 들어오자마자 키보드가 올라온다. 키보드 높이를 안 쓰면
+   이름 칸이 키보드 밑에 깔려 뭘 치는지 안 보인다. */
+eq('온보딩이 키보드 높이만큼 올라간다',
+  /const kb=useKeyboardHeight\(\)[\s\S]{0,200}paddingBottom:\s*\d+\s*\+\s*kb/.test(appSrc), true);
+
+/* 부팅 화면 — 웹과 앱이 같은 길이여야 한다. 한쪽만 길면 같은 프로덕트로 안 보인다. */
+const bootApp = /const BOOT_MS\s*=\s*(\d+)/.exec(appSrc);
+const bootWeb = /setTimeout\(onDone,\s*(\d+)\)/.exec(web);
+eq('부팅 화면이 웹·앱 둘 다 있다', !!bootApp && !!bootWeb, true);
+eq('부팅 길이가 같다', bootApp && bootWeb && bootApp[1] === bootWeb[1], true);
+eq('로고곡 파일이 저장소에 있다', exists('null-logo.mp3'), true);
+eq('부팅 화면은 눌러서 건너뛸 수 있다',
+  /tap to skip/.test(appSrc) && /tap to skip/.test(web), true);
+
 /* HEAT는 stageIdx로 색인한다. 배열이 짧으면 마지막 단계에서 undefined를 읽고 터진다. */
 const appHeat = (appSrc.match(/\{w:[\d.]+,\s*o:'[0-9a-f]{2}'\}/g) || []).length;
 eq('앱 HEAT 길이가 단계 수와 같다', appHeat, webAt.length);

@@ -189,6 +189,38 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .blank:hover{background:#fff0f7}
 .blank.filled{color:#8a4f74;border-style:solid}
 .blankin{width:74px;padding:2px 5px;font-family:inherit;font-size:12px;color:#4a4276;text-align:center;outline:none;border-radius:0}
+/* ── 부팅 화면 ──
+   글자가 하나씩 켜지고, CRT 주사선이 한 번 지나간 뒤 부제가 뜬다.
+   steps()를 쓰는 이유는 픽셀 폰트와 결을 맞추려는 것이다 — 부드럽게 번지면
+   Y2K가 아니라 요즘 앱이 된다. 아무 데나 누르면 건너뛴다. */
+.boot{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;gap:18px;background:#17123a;cursor:pointer;
+ animation:bootOut .45s ease-in 2.45s both}
+.boot .bl{display:flex;gap:.42em;font-family:"Galmuri9","Galmuri11",sans-serif;
+ font-size:34px;letter-spacing:.1em;color:#fff;text-shadow:0 0 14px #ff8fbe,3px 3px 0 #6b4aa8}
+.boot .bl i{font-style:normal;opacity:0;animation:bootLetter .5s steps(3) both}
+.boot .bl i:nth-child(1){animation-delay:.10s}
+.boot .bl i:nth-child(2){animation-delay:.32s}
+.boot .bl i:nth-child(3){animation-delay:.54s}
+.boot .bl i:nth-child(4){animation-delay:.76s}
+.boot .bsub{font-size:10.5px;letter-spacing:.34em;color:#c9b6f5;opacity:0;
+ animation:bootLetter .6s steps(4) 1.25s both}
+.boot .bbar{width:132px;height:6px;background:#2a2159;border:1px solid #5d5490;overflow:hidden}
+.boot .bbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff8fbe,#c3b2f0);
+ animation:bootBar 1.9s steps(12) .2s both}
+/* 주사선 — 위에서 아래로 한 번 훑고 사라진다 */
+.boot .scan{position:absolute;left:0;right:0;height:34%;pointer-events:none;
+ background:linear-gradient(rgba(255,255,255,0),rgba(255,158,198,.16),rgba(255,255,255,0));
+ animation:bootScan 1.5s linear .25s 2 both}
+.boot .skip{position:absolute;bottom:26px;font-size:8.5px;letter-spacing:.2em;color:#6b5fa8;
+ opacity:0;animation:bootLetter .5s steps(3) 1.7s both}
+@keyframes bootLetter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes bootBar{from{width:0}to{width:100%}}
+@keyframes bootScan{from{top:-34%}to{top:100%}}
+@keyframes bootOut{to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){
+  .boot,.boot *{animation-duration:.01s!important;animation-delay:0s!important}
+}
 /* ── 온보딩: 폰 속 파스텔 데스크톱 + now loading 창 ── */
 .onb{justify-content:center;align-items:center;padding:26px;
  background:linear-gradient(rgba(203,186,240,.5),rgba(203,186,240,.5)),#c6b4ee url("bg-extra.webp") center/cover}
@@ -1053,6 +1085,38 @@ function Profile({char,count,onBack,onBgm,gifts}){
   </div>;
 }
 
+/* ── 부팅 화면 ──
+   로고곡이 여기서 한 번 돈다. 브라우저는 사용자가 뭔가 누르기 전에는 소리를
+   막으므로(자동재생 정책) 실패할 수 있다. 그래서 실패하면 조용히 넘어가고,
+   첫 클릭·첫 키 입력 때 다시 시도한다. 소리가 안 나도 애니메이션은 돈다.
+   2.9초 뒤 저절로 사라지고, 그 전에 아무 데나 누르면 바로 건너뛴다. */
+// 저장소에 같이 있는 파일이라 상대 경로로 잡는다 (R2를 안 거친다)
+const LOGO_TRACK="null-logo.mp3";
+function Boot({onDone}){
+  const audio=useRef(null);
+  useEffect(()=>{
+    const a=new Audio(LOGO_TRACK); a.volume=.55; audio.current=a;
+    const tryPlay=()=>a.play().catch(()=>{});
+    tryPlay();
+    // 자동재생이 막혔을 때를 위한 한 번짜리 보험
+    const once=()=>{tryPlay();off()};
+    const off=()=>{window.removeEventListener("pointerdown",once);window.removeEventListener("keydown",once)};
+    window.addEventListener("pointerdown",once);window.addEventListener("keydown",once);
+    const t=setTimeout(onDone,2900);
+    return()=>{clearTimeout(t);off();
+      // 넘어갈 때 뚝 끊지 않고 짧게 줄인다
+      const f=setInterval(()=>{if(a.volume>.06)a.volume-=.06;else{a.pause();clearInterval(f)}},60);
+      setTimeout(()=>{clearInterval(f);a.pause()},900);};
+  },[]);
+  return <div className="boot" onClick={onDone}>
+    <div className="scan"/>
+    <div className="bl">{["N","U","L","L"].map((c,i)=><i key={i}>{c}</i>)}</div>
+    <div className="bbar"><i/></div>
+    <div className="bsub">the blank u fill in</div>
+    <div className="skip">tap to skip</div>
+  </div>;
+}
+
 /* ── 온보딩: now loading 창 ── */
 function Onboarding({onEnter}){
   const [v,setV]=useState("");
@@ -1703,8 +1767,13 @@ function App(){
   };
   const bgm=useMainBgm();   // 데스크 CD가 트는 메신저 BGM
   const enter=n=>{localStorage.setItem("null_name",n);setName(n)};
+  /* 부팅 화면은 새로고침할 때마다 나온다. 한 번 본 사람에게 건너뛰게 하지 않는
+     이유는, 이게 로딩 가리개가 아니라 이 앱을 여는 의식이기 때문이다.
+     대신 2.9초로 짧고 아무 데나 누르면 끝난다. */
+  const [booting,setBooting]=useState(true);
 
   return <div className="phone">
+    {booting&&<Boot onDone={()=>setBooting(false)}/>}
     {!name?<Onboarding onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        onOpen={openRoom} onProfile={setProf} onAuto={doAuto} autoLoading={autoLoading}

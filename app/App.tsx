@@ -284,10 +284,73 @@ const Sparkles=()=><View pointerEvents="none" style={StyleSheet.absoluteFill}>
   {SPARKS.map(([x,y,s,c],i)=><Spark key={i} x={x} y={y} size={s} color={c} delay={i*400}/>)}
 </View>;
 
+// ═══ 부팅 화면 ═══
+/* 글자가 하나씩 켜지고, 막대가 차고, 부제가 뜬다. 로고곡이 같이 돈다.
+   앱은 브라우저와 달리 자동재생 제한이 없어서 그냥 나온다.
+   2.9초 뒤 저절로 사라지고, 그 전에 아무 데나 누르면 건너뛴다.
+   웹(index.html)의 .boot와 같은 순서·같은 길이다 — 두 클라이언트가
+   다른 인상을 주면 같은 프로덕트로 안 보인다. */
+const BOOT_MS = 2900;
+function Boot({onDone}:{onDone:()=>void}) {
+  const letters = useRef([0,1,2,3].map(()=>new Animated.Value(0))).current;
+  const bar  = useRef(new Animated.Value(0)).current;
+  const sub  = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(1)).current;
+  const player = useAudioPlayer(IMG + 'null-logo.mp3');
+  const done = useRef(false);
+
+  const finish = () => {
+    if (done.current) return;
+    done.current = true;
+    Animated.timing(fade,{toValue:0,duration:420,useNativeDriver:true}).start(onDone);
+  };
+
+  useEffect(()=>{
+    try { player.volume=.55; player.play(); } catch(e) {}
+    Animated.stagger(220, letters.map(v =>
+      Animated.timing(v,{toValue:1,duration:260,useNativeDriver:true}))).start();
+    // width는 네이티브 드라이버로 못 돌린다. 막대 하나뿐이라 부담은 없다.
+    Animated.timing(bar,{toValue:1,duration:1900,delay:200,useNativeDriver:false}).start();
+    Animated.timing(sub,{toValue:1,duration:600,delay:1250,useNativeDriver:true}).start();
+    const t=setTimeout(finish, BOOT_MS);
+    return ()=>{ clearTimeout(t); try{player.pause()}catch(e){} };
+  },[]);
+
+  return <Animated.View style={[bt.root,{opacity:fade}]}>
+    <Pressable style={bt.hit} onPress={finish}>
+      <View style={bt.row}>
+        {'NULL'.split('').map((c,i)=>
+          <Animated.Text key={i} style={[bt.ch,{opacity:letters[i],
+            transform:[{translateY:letters[i].interpolate({inputRange:[0,1],outputRange:[5,0]})}]}]}>{c}</Animated.Text>)}
+      </View>
+      <View style={bt.bar}>
+        <Animated.View style={[bt.fill,{width:bar.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]}/>
+      </View>
+      <Animated.Text style={[bt.sub,{opacity:sub}]}>the blank u fill in</Animated.Text>
+      <Animated.Text style={[bt.skip,{opacity:sub}]}>tap to skip</Animated.Text>
+    </Pressable>
+  </Animated.View>;
+}
+const bt=StyleSheet.create({
+  root:{...StyleSheet.absoluteFillObject,zIndex:60,backgroundColor:'#17123a'},
+  hit:{flex:1,alignItems:'center',justifyContent:'center'},
+  row:{flexDirection:'row',gap:9,marginBottom:18},
+  ch:{...F,fontSize:34,letterSpacing:2,color:'#fff',textShadowColor:'#ff8fbe',
+      textShadowOffset:{width:0,height:0},textShadowRadius:12},
+  bar:{width:132,height:6,backgroundColor:'#2a2159',borderWidth:1,borderColor:P.border,overflow:'hidden'},
+  fill:{height:'100%',backgroundColor:'#ff8fbe'},
+  sub:{...F,marginTop:18,fontSize:10.5,letterSpacing:3.4,color:'#c9b6f5'},
+  skip:{...F,position:'absolute',bottom:26,fontSize:8.5,letterSpacing:2,color:'#6b5fa8'},
+});
+
 // ═══ 온보딩 ═══
 function Onboarding({onEnter}:{onEnter:(n:string)=>void}) {
   const [v,setV]=useState('');
-  return <View style={o.root}>
+  /* autoFocus라 들어오자마자 키보드가 올라온다. 카드는 가운데 정렬이므로
+     키보드가 가린 만큼을 아래 여백으로 주면 남은 공간의 가운데로 올라간다.
+     이걸 안 하면 이름 칸이 키보드 밑에 깔려서 뭘 치는지 안 보인다. */
+  const kb=useKeyboardHeight();
+  return <View style={[o.root,{paddingBottom:26+kb}]}>
     <Sparkles/>
     <HardShadow dx={5} dy={5} radius={8} color="rgba(0,0,0,.35)" style={{width:'100%',maxWidth:320}}>
       <View style={o.card}>
@@ -1039,6 +1102,7 @@ function Root() {
   const [stamp,setStamp]=useState(0);                              // 프로필 갱신 트리거
   const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
   const [demo,setDemo]=useState(false);                            // 각본으로 넘어갔나
+  const [booting,setBooting]=useState(true);                       // 부팅 화면
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
   /* 메신저 BGM. 켜기 전에는 플레이어를 아예 만들지 않는다 —
      앱을 켜자마자 원격 mp3를 물고 있으면(그 파일이 아직 없으면 더더욱)
@@ -1235,10 +1299,12 @@ function Root() {
 
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); };
 
-  if(!ready||!fontsOk) return <View style={{flex:1,backgroundColor:P.bg}}/>;
+  // 부팅 화면은 폰트가 올라온 뒤에 그린다 — 픽셀 폰트가 없으면 로고가 딴 글씨가 된다
+  if(!ready||!fontsOk) return <View style={{flex:1,backgroundColor:'#17123a'}}/>;
   if(!name) return <><StatusBar barStyle="light-content"/>
     <View style={{flex:1,paddingTop:insets.top,paddingBottom:insets.bottom,backgroundColor:P.dark}}>
-      <Onboarding onEnter={handleEnter}/></View></>;
+      <Onboarding onEnter={handleEnter}/></View>
+    {booting&&<Boot onDone={()=>setBooting(false)}/>}</>;
 
   let screen;
   if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} onBgm={stopBgm}
@@ -1264,6 +1330,7 @@ function Root() {
     {bgmOn&&<DeskBgm onFail={()=>{setBgmOn(false); setToast('no disc');}}/>}
     <View style={{flex:1,backgroundColor:P.pink,paddingTop:insets.top,paddingBottom:padBottom}}>
       {screen}</View>
+    {booting&&<Boot onDone={()=>setBooting(false)}/>}
     {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
     <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>
       <TouchableOpacity style={mo.bg} activeOpacity={1} onPress={()=>setPopup(null)}>
