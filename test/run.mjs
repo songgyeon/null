@@ -202,6 +202,17 @@ eq('ScrollView 자체 style에 padding을 주지 않는다',
   [...appSrc.matchAll(/<ScrollView[^>]*?\sstyle=\{\{([^}]*)\}\}/g)]
     .map(m => m[1]).filter(v => /padding/.test(v)), []);
 
+/* App.tsx가 lib에서 가져다 쓰는 이름이 실제로 거기 있는가.
+   lib 하나만 옛날 파일로 남아 있으면 "GIFTS를 export하지 않는다"가 무더기로 뜬다.
+   실제로 한 번 났고, 타입 검사기 없이도 잡을 수 있는 종류라 여기서 막는다. */
+for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\/lib\/(\w+)'/g)) {
+  const src = readFileSync(join(ROOT, `app/lib/${mod}.ts`), 'utf8');
+  const want = names.split(',').map(s => s.trim().split(/\s+as\s+/)[0]).filter(Boolean);
+  const missing = want.filter(n =>
+    !new RegExp(`export\\s+(async\\s+)?(function|const|type|class|let)\\s+${n}\\b`).test(src));
+  eq(`lib/${mod}이 App.tsx가 쓰는 것을 전부 내보낸다`, missing, []);
+}
+
 /* HEAT는 stageIdx로 색인한다. 배열이 짧으면 마지막 단계에서 undefined를 읽고 터진다. */
 const appHeat = (appSrc.match(/\{w:[\d.]+,\s*o:'[0-9a-f]{2}'\}/g) || []).length;
 eq('앱 HEAT 길이가 단계 수와 같다', appHeat, webAt.length);
