@@ -505,7 +505,7 @@ function LoadStripe() {
 }
 
 const sp=StyleSheet.create({
-  stack:{...StyleSheet.absoluteFillObject,justifyContent:'center',paddingHorizontal:26,paddingBottom:34,gap:12},
+  stack:{...StyleSheet.absoluteFillObject,justifyContent:'center',paddingHorizontal:26,paddingBottom:52,gap:12},
   /* 세로가 모자라면 flex가 창들을 눌러버리고, overflow:hidden이라 안쪽 버튼이
      잘려나간다. 창은 절대 줄이지 않는다 — 모자라면 차라리 위아래가 잘리는 게 낫다. */
   noShrink:{flexShrink:0},
@@ -538,7 +538,7 @@ const sp=StyleSheet.create({
            borderRightWidth:13,borderRightColor:'transparent'},
   curTail:{position:'absolute',left:5,top:12,width:4,height:9,backgroundColor:'#fff',
            transform:[{rotate:'18deg'}]},
-  tap:{...F,position:'absolute',left:0,right:0,bottom:18,textAlign:'center',
+  tap:{...F,position:'absolute',left:0,right:0,bottom:8,textAlign:'center',
        fontSize:10.5,letterSpacing:3.4,color:P.ink},
 });
 
