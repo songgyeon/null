@@ -174,5 +174,31 @@ const missing = [...wanted].filter(f => { try { readFileSync(join(ROOT, f)); ret
 eq('배경 파일이 전부 저장소에 있다', missing, []);
 
 // ─────────────────────────────────────────────
+section('데모 모드 — 키 없이 들어온 사람도 빈 화면을 보지 않는다');
+// ─────────────────────────────────────────────
+const demoSrc = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('const fmtClock=ts=>'));
+const demo = await import('data:text/javascript,' + encodeURIComponent(
+  'const location={search:""};\n' + demoSrc + '\nexport { demoReply, demoBucket, DEMO_LINES, DEMO_AUTO };'));
+
+eq('아픔을 알아챈다', demo.demoBucket('나 다리 아파'), 'hurt');
+eq('질문을 알아챈다', demo.demoBucket('그거 왜 그런 거예요?'), 'ask');
+// "뭐해요?"는 물음표가 있어도 한국어 채팅에서는 인사에 가깝다
+eq('"뭐해요?"는 인사로 받는다', demo.demoBucket('뭐해요?'), 'greet');
+
+eq('재언은 반말을 쓰지 않는다',
+  Object.values(demo.DEMO_LINES.jaeeon).flat(2)
+    .filter(x => /[가-힣](어|야|지|냐)$/.test(x.replace(/[.!?…]$/, ''))), []);
+
+const auto1 = demo.demoReply('health'), auto2 = demo.demoReply('health');
+eq('관전 대화는 6발화 이상', auto1.length >= 6, true);
+eq('관전에 두 사람이 다 나온다', new Set(auto1.map(m => m.sender)).size, 2);
+eq('연달아 부르면 다른 각본', JSON.stringify(auto1) !== JSON.stringify(auto2), true);
+eq('관전 대화에 유저 이야기가 나온다',
+  demo.DEMO_AUTO.some(c => c.some(m => /교생|선생님|혼자 아니/.test(m.text))), true);
+
+const rep = [0, 1, 2].map(() => demo.demoReply('jaeeon', '왜요?').map(m => m.text).join('/'));
+eq('같은 말을 반복해도 답이 돌아간다', new Set(rep).size, 3);
+
+// ─────────────────────────────────────────────
 console.log(`\n${fail ? '실패' : '통과'} — ${pass}개 통과, ${fail}개 실패`);
 process.exit(fail ? 1 : 0);

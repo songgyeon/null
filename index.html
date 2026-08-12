@@ -595,6 +595,74 @@ const saveStore=s=>{try{localStorage.setItem("null_store_v1",JSON.stringify(s))}
 const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"))||{}}catch(e){return{}}};
 
 /* 시간 포맷 */
+/* ── 데모 모드 ──
+   API 키 없이도 돌아간다. 저장소 링크만 보고 들어온 사람이 빈 화면을 보는 것보다
+   각본이라도 움직이는 편이 낫다는 판단이다.
+   ?demo=1 로 켜지고, 그게 아니어도 API가 실패하면 자동으로 넘어간다(그 뒤로는 계속 데모).
+   실패 원인은 콘솔에 그대로 남기고 하단 바에 demo 표시가 뜬다 — 조용히 가짜로
+   바뀌면 진짜 장애를 못 알아채기 때문이다. */
+const DEMO={on:new URLSearchParams(location.search).has("demo"),auto:false};
+const demoOn=()=>DEMO.on||DEMO.auto;
+
+// 유저 말에서 대충의 결만 고른다. 정확할 필요 없다 — 각본을 고르는 데만 쓴다
+const demoBucket=t=>{
+  const x=(t||"").trim();
+  if(/아프|아파|다쳤|다쳐|열나|배가|머리가/.test(x))return "hurt";
+  if(/안녕|하이|왔|뭐해|자니|일어/.test(x))return "greet";
+  if(/잘생|예쁘|멋있|좋아|고마|최고|귀엽/.test(x))return "praise";
+  if(/갈게|잘자|끊을|바이|간다|가야/.test(x))return "bye";
+  if(/[?？]|왜|뭐|어때|어떻|얼마|언제/.test(x))return "ask";
+  return "any";
+};
+const DEMO_LINES={
+  jaeeon:{
+    greet:[["네."],["무슨 일 있으세요."],["오셨어요.","앉으세요."]],
+    ask:[["그건 왜 물으세요."],["글쎄요.","맞다고 해드리면 만족하세요?"],["그런 건 안 궁금해하셔도 됩니다."]],
+    hurt:[["어디가요."],["가만있지 마시고 오세요.","앉아서 봅시다."],["열은요.","재보고 말씀하세요."]],
+    praise:[["…"],["그런 말 안 하셔도 됩니다."],["…","할 일 있으시면 하세요."]],
+    bye:[["네."],["차 조심하세요."],["늦었습니다.","가세요."]],
+    any:[["그러시든가요."],["별일 없습니다."],["…","그건 아까 말씀드렸는데요."]],
+  },
+  minhyun:{
+    greet:[["왔어요?"],["안 올 줄 알았는데"],["뭐예요 갑자기ㅋ","심심했어요?"]],
+    ask:[["그건 왜요."],["먼저 말해봐요","그럼 대답할게요"],["제가 왜 대답해야 되는데요ㅋ","…농담이에요."]],
+    hurt:[["어디가 아픈데요"],["보건실 가요.","삼촌 있어요"],["혼자 가지 말고요","같이 가요"]],
+    praise:[["…뭐예요."],["그런 말 함부로 하지 마요"],["진짜예요?","…아니 됐어요."]],
+    bye:[["가요?"],["벌써요"],["…네.","잘 자요."]],
+    any:[["ㅡㅡ"],["그래서요"],["말 돌리지 마요","저 알아요 다"]],
+  },
+};
+// 단톡방·관전방은 결이 아니라 통째로 고른다
+const DEMO_GROUP=[
+  [{sender:"minhyun",text:"오늘 급식 뭐였는지 아세요"},{sender:"jaeeon",text:"모른다."},
+   {sender:"minhyun",text:"삼촌한테 안 물어봤는데요"}],
+  [{sender:"jaeeon",text:"무슨 일 있으세요"},{sender:"minhyun",text:"저도 궁금한데"},
+   {sender:"minhyun",text:"말해봐요 저도 웃게"}],
+  [{sender:"minhyun",text:"선생님 내일 오세요?"},{sender:"jaeeon",text:"그건 왜 묻냐."},
+   {sender:"minhyun",text:"ㅡㅡ 제가 물었는데요 삼촌한테 안 물었고"}],
+];
+const DEMO_AUTO=[
+  [{sender:"minhyun",text:"삼촌 오늘 왜 이렇게 일찍 왔어요"},{sender:"jaeeon",text:"일이 빨리 끝났어."},
+   {sender:"minhyun",text:"그런 건 삼촌한테 처음 있는 일인데"},{sender:"jaeeon",text:"씻고 나와."},
+   {sender:"minhyun",text:"교생 선생님이랑 뭐 있었어요?"},{sender:"jaeeon",text:"없어."},
+   {sender:"minhyun",text:"그게 대답이에요 지금"},{sender:"jaeeon",text:"밥 다 될 때까지 나오지 마."}],
+  [{sender:"jaeeon",text:"약 먹었냐."},{sender:"minhyun",text:"네"},
+   {sender:"minhyun",text:"…아직요"},{sender:"jaeeon",text:"먹어."},
+   {sender:"minhyun",text:"삼촌은 오늘 보건실에서 뭐 했어요"},{sender:"jaeeon",text:"일했지."},
+   {sender:"minhyun",text:"혼자요?"},{sender:"jaeeon",text:"…"},
+   {sender:"minhyun",text:"아 혼자 아니었구나"}],
+];
+// 같은 각본이 연달아 나오지 않게 방·결마다 자리를 기억한다
+const demoAt={};
+const demoPick=(key,arr)=>{const i=(demoAt[key]||0)%arr.length;demoAt[key]=i+1;return arr[i]};
+function demoReply(bucket,lastText){
+  if(bucket==="health")return demoPick("health",DEMO_AUTO);
+  if(bucket==="group") return demoPick("group",DEMO_GROUP);
+  const set=DEMO_LINES[bucket]; if(!set)return [{sender:bucket,text:"…"}];
+  const b=demoBucket(lastText);
+  return demoPick(bucket+":"+b,set[b]||set.any).map(t=>({sender:bucket,text:t}));
+}
+
 const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
 const isToday=ts=>{const d=new Date(ts),n=new Date();return d.toDateString()===n.toDateString()};
 const fmtDivider=ts=>isToday(ts)?fmtClock(ts):`${new Date(ts).getMonth()+1}월 ${new Date(ts).getDate()}일 ${fmtClock(ts)}`;
@@ -1318,7 +1386,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       <Sticker.star size={13} color="#ffd68a"/>
       <span className="drift" style={{animationDelay:"1.4s"}}><Sticker.heart size={13}/></span>
     </div>}
-    <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1</span><span>{fmtClock(Date.now())}</span></div>
+    <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
@@ -1519,6 +1587,13 @@ function App(){
     inflightRef.current[bucket]=true;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
+    // 데모로 굳었으면 네트워크를 아예 타지 않는다
+    if(demoOn()){
+      inflightRef.current[bucket]=false;
+      const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
+      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content)),450);
+      return;
+    }
     try{
       const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await res.json().catch(()=>null);
@@ -1539,7 +1614,14 @@ function App(){
       const detail=String(e.detail||e.message||e).slice(0,500);
       // 화면(재시도 버튼 아래)과 콘솔 양쪽에 남긴다 — 어느 쪽을 보든 원인이 보이게
       console.error("%c[NULL] 실패 원인 ▶ "+detail,"color:#c23b50;font-size:13px;font-weight:bold");
-      setFailed(f=>({...f,[bucket]:{payload,detail}}));
+      /* 처음 실패하면 데모로 넘어간다. 저장소 링크만 보고 들어온 사람이
+         재시도 버튼만 마주하는 것보다 각본이라도 움직이는 편이 낫다.
+         원인은 위 콘솔에 그대로 남고 하단 바에 demo가 뜬다 — 조용히 가짜로
+         바뀌면 진짜 장애를 못 알아채기 때문이다. */
+      DEMO.auto=true;
+      setBusy(b=>({...b,[bucket]:true}));
+      const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
+      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content)),450);
     }
   };
 
