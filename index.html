@@ -87,12 +87,24 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  background:#fff;border:1px solid #e79cc0;border-radius:4px;font-family:inherit;font-size:10.5px;color:#8a4f74}
 .cartcell:active{background:#fff0f7;transform:translateY(1px)}
 .cartnone{padding:22px 0;text-align:center;font-size:11px;letter-spacing:.1em;color:#c46a97}
-.cartsend{display:flex;flex-direction:column;gap:7px}
-.cartsend .head{display:flex;align-items:center;gap:9px;padding:6px 2px 2px;font-size:13px;color:#8a4f74}
-.cartsend .who{margin:2px 0 1px;font-size:10px;letter-spacing:.14em;color:#c46a97}
-.cartto{display:flex;align-items:center;gap:8px;padding:9px 10px;font-size:11.5px;border-radius:0;
- background:linear-gradient(180deg,#fff0f7,#ffc2dd)}
-.cartto:disabled{opacity:.45;cursor:default}
+.cartsend{display:flex;flex-direction:column;gap:8px}
+.cartsend .head{display:flex;align-items:center;gap:9px;padding:6px 2px 0;font-size:13px;color:#8a4f74}
+.cartsend .who{margin:4px 0 0;font-size:9.5px;letter-spacing:.16em;color:#c46a97}
+/* 선물 태그 — 실물 선물에 매다는 종이 태그처럼. 구멍 뚫고 점선 두르고 To. */
+.tag{position:relative;display:flex;align-items:center;gap:8px;width:100%;padding:11px 10px 11px 25px;
+ font-family:inherit;font-size:12px;color:#8a4f74;text-align:left;cursor:pointer;
+ background:linear-gradient(180deg,#fffdfe,#ffe9f3);border:1px solid #e79cc0;border-radius:4px;
+ box-shadow:2px 2px 0 rgba(93,84,144,.16)}
+.tag:active{transform:translateY(1px);box-shadow:1px 1px 0 rgba(93,84,144,.16)}
+.tag::before{content:"";position:absolute;left:9px;top:50%;width:7px;height:7px;margin-top:-4px;
+ border:1px solid #e79cc0;border-radius:50%;background:#fdf3f8}   /* 끈 꿰는 구멍 */
+.tag .dash{position:absolute;inset:3px;border:1px dashed rgba(231,156,192,.6);border-radius:2px;pointer-events:none}
+.tag .to{font-size:11px;letter-spacing:.08em;color:#c46a97}
+.tag .nm{flex:1}
+.tag .go{flex:none;padding:3px 8px 4px;font-size:9px;letter-spacing:.12em;color:#fff;border-radius:10px;
+ background:linear-gradient(180deg,#ffa3c8,#ff7fae);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.tag:disabled{opacity:.5;cursor:default}
+.tag:disabled .go{background:#c1b8e0}
 .cartback{padding:8px 6px;font-size:11px;border-radius:0}
 /* 프로필 빈칸 */
 .blank{display:inline-block;min-width:34px;padding:2px 6px;text-align:center;color:#c46a97;cursor:pointer;
@@ -889,13 +901,17 @@ function CartDialog({gifts,onSend,onClose}){
     </React.Fragment>}
     {pick&&<div className="cartsend">
       <div className="head">{React.createElement(GiftIcon[pick.key],{size:34})}<span>{pick.name}</span></div>
-      <div className="who">누구에게 보낼까</div>
+      <div className="who">✧ WHO GETS THIS ✧</div>
       {["jaeeon","minhyun"].map(c=>{
         const done=(gifts[c]||[]).includes(pick.key);
-        return <button key={c} className="bevel cartto" disabled={done}
+        return <button key={c} className="tag" disabled={done}
           onClick={()=>{onSend(c,pick);onClose()}}>
+          <span className="dash"/>
+          <span className="to">To.</span>
           <span className="avatar face" style={{width:22,height:22,...faceBg(CHARS[c])}}/>
-          {CHARS[c].name}에게 전송{done?" · 보냄":""}</button>;
+          <span className="nm">{CHARS[c].name}</span>
+          <span className="go">{done?"SENT ♡":"SEND ♡"}</span>
+        </button>;
       })}
       <button className="bevel cartback" onClick={()=>setPick(null)}>◁  back</button>
     </div>}
