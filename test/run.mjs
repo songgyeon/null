@@ -241,6 +241,18 @@ eq('한 바퀴 돌 때 페이드가 걸린다',
 eq('둘 다 눌러서 들어가라고 알려준다',
   /tap to enter/.test(appSrc) && /tap to enter/.test(web), true);
 
+/* 오프닝 — 문장과 사진이 어긋나면 웹과 앱이 다른 작품이 된다.
+   순서까지 같아야 한다. 사진은 밝은 데서 어두운 데로 가는 배열이다. */
+const openOf = (src, name) => {
+  const m = new RegExp(`${name}\\s*(?::[^=]+)?=\\s*\\[([\\s\\S]*?)\\]`).exec(src);
+  return m ? [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]) : null;
+};
+eq('오프닝 문장이 웹·앱 같다', openOf(appSrc,'OPEN_LINES'), openOf(web,'OPEN_LINES'));
+eq('오프닝 사진이 순서까지 같다', openOf(appSrc,'OPEN_PHOTOS'), openOf(web,'OPEN_PHOTOS'));
+eq('오프닝 사진이 저장소에 있다',
+  (openOf(web,'OPEN_PHOTOS')||['x']).filter(f => !exists(f)), []);
+eq('오프닝은 네 문장이다', (openOf(web,'OPEN_LINES')||[]).length, 4);
+
 /* HEAT는 stageIdx로 색인한다. 배열이 짧으면 마지막 단계에서 undefined를 읽고 터진다. */
 const appHeat = (appSrc.match(/\{w:[\d.]+,\s*o:'[0-9a-f]{2}'\}/g) || []).length;
 eq('앱 HEAT 길이가 단계 수와 같다', appHeat, webAt.length);

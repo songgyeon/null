@@ -284,15 +284,28 @@ const Sparkles=()=><View pointerEvents="none" style={StyleSheet.absoluteFill}>
   {SPARKS.map(([x,y,s,c],i)=><Spark key={i} x={x} y={y} size={s} color={c} delay={i*400}/>)}
 </View>;
 
-// ═══ 부팅 화면 ═══
-/* 글자가 하나씩 켜지고, 막대가 차고, 부제가 뜬다. 로고곡이 같이 돈다.
-   저절로 넘어가지 않는다 — 누를 때까지 곡이 돈다. 로딩 가리개가 아니라
-   곡을 듣는 화면이라 시간으로 끊지 않는다.
-   앱은 브라우저와 달리 자동재생 제한이 없어서 켜자마자 소리가 난다.
-   웹(index.html)의 .boot와 같은 순서다 — 두 클라이언트가 다른 인상을
-   주면 같은 프로덕트로 안 보인다. */
+// ═══ 오프닝 ═══
+/* 사진 넉 장이 겹쳐 넘어가면서 그 위로 문장이 하나씩 떴다 사라지고,
+   전부 어두워진 뒤 NULL이 켜진다. 11초쯤에 로고에서 멈추고 그다음부터는
+   눌릴 때까지 기다린다 — 로딩 가리개가 아니라 곡을 듣는 화면이라
+   시간으로 끊지 않는다. 앱은 자동재생 제한이 없어 켜자마자 소리가 난다.
+   index.html의 .boot와 같은 순서·같은 초다 — 오프닝이 다르면 다른 작품이 된다. */
 const BOOT_VOL = .55;   // index.html의 BOOT_VOL과 같아야 한다
+/* 밝은 데서 어두운 데로 간다. 재언의 낮 → 민현의 방 → 재언의 밤 → 민현의 옥상. */
+const OPEN_PHOTOS = ['jaeeon-museum.webp','minhyun-record.webp','jaeeon-night.webp','minhyun-roof.webp'];
+/* 이 이야기의 전제를 순서대로 놓는다. 마지막 줄이 이 프로덕트의 한 문장이다. */
+const OPEN_LINES = [
+  '겨울이 끝나간다',
+  '당신은 한 달 뒤에 떠난다',
+  '두 사람은 그걸 알고 있다',
+  '당신이 모르는 건 따로 있다',
+];
 function Boot({onDone}:{onDone:()=>void}) {
+  const ph = useRef(OPEN_PHOTOS.map(()=>new Animated.Value(0))).current;  // 사진 밝기
+  const zm = useRef(OPEN_PHOTOS.map(()=>new Animated.Value(0))).current;  // 사진 줌
+  const ln = useRef(OPEN_LINES.map(()=>new Animated.Value(0))).current;
+  const dim  = useRef(new Animated.Value(0)).current;   // 로고 직전 암전
+  const chrome=useRef(new Animated.Value(0)).current;   // 막대 껍데기
   const letters = useRef([0,1,2,3].map(()=>new Animated.Value(0))).current;
   const bar  = useRef(new Animated.Value(0)).current;
   const sub  = useRef(new Animated.Value(0)).current;
@@ -320,14 +333,28 @@ function Boot({onDone}:{onDone:()=>void}) {
         player.volume=BOOT_VOL*Math.min(up,down);
       }catch(e){}
     },50);
+    /* 떴다 → 머물다 → 진다. 사진과 문장이 같은 모양이라 하나로 묶는다. */
+    const pulse=(v:Animated.Value,delay:number,inMs:number,hold:number,outMs:number)=>
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(v,{toValue:1,duration:inMs,useNativeDriver:true}),
+        Animated.delay(hold),
+        Animated.timing(v,{toValue:0,duration:outMs,useNativeDriver:true}),
+      ]);
+    ph.forEach((v,i)=>pulse(v, 200+2000*i, 750, 1500, 1150).start());
+    ln.forEach((v,i)=>pulse(v, 700+2000*i, 360, 1040,  600).start());
+    // 줌은 밝기와 따로 돈다 — 한 값으로 둘 다 하면 사라질 때 다시 커진다
+    zm.forEach((v,i)=>Animated.timing(v,{toValue:1,duration:3400,delay:200+2000*i,useNativeDriver:true}).start());
+    Animated.timing(dim,{toValue:1,duration:1100,delay:8400,useNativeDriver:true}).start();
+    Animated.timing(chrome,{toValue:1,duration:200,delay:9300,useNativeDriver:true}).start();
     Animated.stagger(220, letters.map(v =>
-      Animated.timing(v,{toValue:1,duration:260,useNativeDriver:true}))).start();
+      Animated.timing(v,{toValue:1,duration:260,delay:9300,useNativeDriver:true}))).start();
     // width는 네이티브 드라이버로 못 돌린다. 막대 하나뿐이라 부담은 없다.
-    Animated.timing(bar,{toValue:1,duration:1900,delay:200,useNativeDriver:false}).start();
-    Animated.timing(sub,{toValue:1,duration:600,delay:1250,useNativeDriver:true}).start();
+    Animated.timing(bar,{toValue:1,duration:1600,delay:9400,useNativeDriver:false}).start();
+    Animated.timing(sub,{toValue:1,duration:600,delay:10600,useNativeDriver:true}).start();
     // 깜빡이는 "tap to enter" — 기다리는 화면이라는 걸 알려준다
     Animated.loop(Animated.sequence([
-      Animated.delay(2200),
+      Animated.delay(11600),
       Animated.timing(blink,{toValue:.35,duration:10,useNativeDriver:true}),
       Animated.delay(600),
       Animated.timing(blink,{toValue:1,duration:10,useNativeDriver:true}),
@@ -337,15 +364,29 @@ function Boot({onDone}:{onDone:()=>void}) {
   },[]);
 
   return <Animated.View style={[bt.root,{opacity:fade}]}>
+    {/* 사진 — 겹쳐 두고 차례로 떴다 진다 */}
+    {OPEN_PHOTOS.map((f,i)=>
+      <Animated.Image key={f} source={{uri:IMG+f}} resizeMode="cover"
+        style={[StyleSheet.absoluteFillObject,{opacity:ph[i],
+          transform:[{scale:zm[i].interpolate({inputRange:[0,1],outputRange:[1.06,1]})}]}]}/>)}
+    {/* RN에는 filter가 없다. 사진을 눌러 글자를 이기게 하는 건 이 한 겹이다 */}
+    <View style={bt.shade} pointerEvents="none"/>
     <Pressable style={bt.hit} onPress={finish}>
+      {/* 문장은 로고와 자리를 다투면 안 되므로 흐름에서 빼고 가운데에 겹친다 */}
+      <View style={bt.lines} pointerEvents="none">
+        {OPEN_LINES.map((t,i)=>
+          <Animated.Text key={i} style={[bt.line,{opacity:ln[i],
+            transform:[{translateY:ln[i].interpolate({inputRange:[0,1],outputRange:[6,0]})}]}]}>{t}</Animated.Text>)}
+      </View>
+      <Animated.View style={[bt.dim,{opacity:dim}]} pointerEvents="none"/>
       <View style={bt.row}>
         {'NULL'.split('').map((c,i)=>
           <Animated.Text key={i} style={[bt.ch,{opacity:letters[i],
             transform:[{translateY:letters[i].interpolate({inputRange:[0,1],outputRange:[5,0]})}]}]}>{c}</Animated.Text>)}
       </View>
-      <View style={bt.bar}>
+      <Animated.View style={[bt.bar,{opacity:chrome}]}>
         <Animated.View style={[bt.fill,{width:bar.interpolate({inputRange:[0,1],outputRange:['0%','100%']})}]}/>
-      </View>
+      </Animated.View>
       <Animated.Text style={[bt.sub,{opacity:sub}]}>the blank u fill in</Animated.Text>
       <Animated.Text style={[bt.skip,{opacity:Animated.multiply(sub,blink)}]}>tap to enter</Animated.Text>
     </Pressable>
@@ -353,7 +394,13 @@ function Boot({onDone}:{onDone:()=>void}) {
 }
 const bt=StyleSheet.create({
   root:{...StyleSheet.absoluteFillObject,zIndex:60,backgroundColor:'#17123a'},
+  shade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(10,6,30,.58)'},
   hit:{flex:1,alignItems:'center',justifyContent:'center'},
+  lines:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center'},
+  line:{...F,position:'absolute',paddingHorizontal:24,textAlign:'center',fontSize:13,lineHeight:25,
+        letterSpacing:.6,color:'#fff',textShadowColor:'rgba(10,6,30,.9)',
+        textShadowOffset:{width:0,height:2},textShadowRadius:9},
+  dim:{...StyleSheet.absoluteFillObject,backgroundColor:'#17123a'},
   row:{flexDirection:'row',gap:9,marginBottom:18},
   ch:{...F,fontSize:34,letterSpacing:2,color:'#fff',textShadowColor:'#ff8fbe',
       textShadowOffset:{width:0,height:0},textShadowRadius:12},
