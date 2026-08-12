@@ -178,6 +178,17 @@ const webBg = pick(web, /bg:\s*"(gift-[\w-]+\.webp)"/g);
 const appBg = pick(app, /bg:\s*'(gift-[\w-]+\.webp)'/g);
 eq('배경이 붙는 선물이 같다', webBg, appBg);
 
+/* 곡은 배경과 같이 해금된다. 단계마다 어느 곡이 걸리는지가 웹·앱에서 같아야
+   하고, 거기 적힌 키가 TRACKS에 실제로 있어야 한다 — 없으면 조용히 무음이 된다. */
+const trackAt = (src, q) => pick(src, new RegExp(`track:\\s*${q}([\\w-]+)${q}`, 'g'));
+const webTr = trackAt(web, '"'), appTr = trackAt(app, "'");
+eq('단계마다 걸리는 곡이 웹·앱 같다', appTr, webTr);
+eq('가까워질수록 곡이 바뀐다', new Set(webTr).size, 8);
+const webKeys2 = new Set(pick(web, /"((?:jaeeon|minhyun|null)-\d)":\s*\{file:/g));
+eq('단계에 적힌 곡이 전부 TRACKS에 있다', webTr.filter(t => !webKeys2.has(t)), []);
+eq('앱도 같은 곡 목록을 들고 있다',
+  [...webKeys2].filter(k => !new RegExp(`'${k}':\\s*R2`).test(app)), []);
+
 const webAt = /const STAGE_AT=\[([\d,]+)\]/.exec(web)[1].split(',').map(Number);
 const appAt = pick(app, /\{ at: (\d+)/g).map(Number).slice(0, webAt.length);
 eq('관계 단계 경계가 같다', webAt, appAt);

@@ -988,9 +988,19 @@ const stageIdx=n=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a)i=k});return i};
    파일이 없으면 재생 버튼은 조용히 숨는다. */
 /* 앱(lib/profiles.ts)과 같은 R2 버킷·같은 파일명을 쓴다 */
 const MEDIA="https://pub-6e08882e001c49cbb013168e4b9e8d38.r2.dev/";
+/* 인물마다 넉 장. 관계가 깊어지면 배경과 같이 다음 곡이 걸린다.
+   단계는 다섯인데 곡은 넷이라, 처음 두 단계(0~16)가 첫 곡을 같이 쓴다 —
+   아직 아무 일도 안 일어난 구간이라 곡이 바뀔 이유가 없다.
+   앱(lib/profiles.ts)의 TRACKS·TRACK_INFO와 같아야 한다. */
 const TRACKS={
-  "jaeeon-1": {file:"jaeeon-1.mp3", artist:"Noah Vane", title:"Two Bowls"},
-  "minhyun-1":{file:"minhyun-1.mp3",artist:"Luca Riot", title:"Ask Again Tomorrow"},
+  "jaeeon-1": {file:"jaeeon-1.mp3", artist:"Noah Vane",        title:"Two Bowls"},
+  "jaeeon-2": {file:"jaeeon-2.mp3", artist:"The Pale Cinema",  title:"Strangers, Again"},
+  "jaeeon-3": {file:"jaeeon-3.mp3", artist:"Mara Grey",        title:"Sugar Without Taste"},
+  "jaeeon-4": {file:"jaeeon-4.mp3", artist:"Sunday Archive",   title:"No Forwarding Address"},
+  "minhyun-1":{file:"minhyun-1.mp3",artist:"Luca Riot",        title:"Ask Again Tomorrow"},
+  "minhyun-2":{file:"minhyun-2.mp3",artist:"Cherry Crash",     title:"Online at 2AM"},
+  "minhyun-3":{file:"minhyun-3.mp3",artist:"Plastic Halo",     title:"Don't Look at Me Like That"},
+  "minhyun-4":{file:"minhyun-4.mp3",artist:"Last Exit Kids",   title:"Stay Until the Song Ends"},
   // 메신저 자체의 BGM — 데스크 가운데 CD를 누르면 나온다.
   // R2에 null-1.mp3를 올리면 살아난다. 없으면 CD가 "no disc"만 띄운다.
   "null-1":   {file:"null-1.mp3",   artist:"",          title:""},
@@ -1006,18 +1016,18 @@ const PROFILES={
   // 재언 — 밝은 데서 어두운 데로 들어갔다가 마지막에 바다로 트인다
   jaeeon:{fallback:"jaeeon-bg.webp",stages:[
     {status:"",              bg:"jaeeon-museum.webp",  track:"jaeeon-1"},
-    {status:"별일 없음.",       bg:"jaeeon-library.webp", track:"jaeeon-1"},
-    {status:"약 채워 놓을 것.",  bg:"jaeeon-night.webp",   track:"jaeeon-1"},
-    {status:"정리할 것들.",     bg:"jaeeon-hall.webp",    track:"jaeeon-1"},
-    {status:"괜찮습니다.",      bg:"jaeeon-stairs.webp",  track:"jaeeon-1"},
+    {status:"오늘 아무도 안 다쳤음",       bg:"jaeeon-library.webp", track:"jaeeon-1"},
+    {status:"자꾸 뭘 두고 온다",  bg:"jaeeon-night.webp",   track:"jaeeon-2"},
+    {status:"버릴 것, 둘 것",     bg:"jaeeon-hall.webp",    track:"jaeeon-3"},
+    {status:"문을 안 잠갔다",      bg:"jaeeon-stairs.webp",  track:"jaeeon-4"},
   ]},
   // 민현 — 안에서 밖으로 나가다가 마지막엔 옥상에 혼자다
   minhyun:{fallback:"minhyun-bg.webp",stages:[
     {status:"",                      bg:"minhyun-record.webp",   track:"minhyun-1"},
-    {status:"보건실 침대가 제일 낫다",  bg:"minhyun-poster.webp",   track:"minhyun-1"},
-    {status:"안 물어보면 말 안 함",    bg:"minhyun-elevator.webp", track:"minhyun-1"},
-    {status:"남은 날 세는 중",         bg:"minhyun-street.webp",   track:"minhyun-1"},
-    {status:"이제 안 셈",             bg:"minhyun-roof.webp",     track:"minhyun-1"},
+    {status:"보건실 침대는 내 자리",  bg:"minhyun-poster.webp",   track:"minhyun-1"},
+    {status:"읽씹 아님 못 읽은 거임",    bg:"minhyun-elevator.webp", track:"minhyun-2"},
+    {status:"D-",         bg:"minhyun-street.webp",   track:"minhyun-3"},
+    {status:"다 셌다",             bg:"minhyun-roof.webp",     track:"minhyun-4"},
   ]},
 };
 

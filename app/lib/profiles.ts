@@ -3,21 +3,33 @@ import { countMsgs, getMeta } from './db';
 // Cloudflare R2 — 프로필 BGM 호스팅
 export const R2 = 'https://pub-6e08882e001c49cbb013168e4b9e8d38.r2.dev/';
 
+/* 인물마다 넉 장. 관계가 깊어지면 배경과 같이 다음 곡이 걸린다.
+   단계는 다섯인데 곡은 넷이라, 처음 두 단계(0~16)가 첫 곡을 같이 쓴다 —
+   아직 아무 일도 안 일어난 구간이라 곡이 바뀔 이유가 없다.
+   index.html의 TRACKS와 같아야 한다. 어긋나면 웹과 앱에서 다른 곡이 나온다. */
 export const TRACKS: Record<string, string> = {
-  'jaeeon-1':  R2 + 'jaeeon-1.mp3',   // Noah Vane — Two Bowls
-  'minhyun-1': R2 + 'minhyun-1.mp3',  // Luca Riot — Ask Again Tomorrow
+  'jaeeon-1':  R2 + 'jaeeon-1.mp3',
+  'jaeeon-2':  R2 + 'jaeeon-2.mp3',
+  'jaeeon-3':  R2 + 'jaeeon-3.mp3',
+  'jaeeon-4':  R2 + 'jaeeon-4.mp3',
+  'minhyun-1': R2 + 'minhyun-1.mp3',
+  'minhyun-2': R2 + 'minhyun-2.mp3',
+  'minhyun-3': R2 + 'minhyun-3.mp3',
+  'minhyun-4': R2 + 'minhyun-4.mp3',
   // 메신저 자체의 BGM — 방 목록의 💿를 누르면 나온다.
-  // R2에 null-1.mp3를 올리면 살아난다. 없으면 눌러도 "no disc"만 뜬다.
   'null-1':    R2 + 'null-1.mp3',
-  // 3단계용 — 파일 올리면 주석 해제하고 아래 stages의 track도 바꾼다
-  // 'jaeeon-2':  R2 + 'jaeeon-2.mp3',
-  // 'minhyun-2': R2 + 'minhyun-2.mp3',
 };
 
 // 플레이어에 표시할 곡 정보
 export const TRACK_INFO: Record<string, { title: string; artist: string }> = {
-  'jaeeon-1':  { title: 'Two Bowls',           artist: 'Noah Vane' },
-  'minhyun-1': { title: 'Ask Again Tomorrow',  artist: 'Luca Riot' },
+  'jaeeon-1':  { title: 'Two Bowls',                  artist: 'Noah Vane' },
+  'jaeeon-2':  { title: 'Strangers, Again',           artist: 'The Pale Cinema' },
+  'jaeeon-3':  { title: 'Sugar Without Taste',        artist: 'Mara Grey' },
+  'jaeeon-4':  { title: 'No Forwarding Address',      artist: 'Sunday Archive' },
+  'minhyun-1': { title: 'Ask Again Tomorrow',         artist: 'Luca Riot' },
+  'minhyun-2': { title: 'Online at 2AM',              artist: 'Cherry Crash' },
+  'minhyun-3': { title: "Don't Look at Me Like That", artist: 'Plastic Halo' },
+  'minhyun-4': { title: 'Stay Until the Song Ends',   artist: 'Last Exit Kids' },
 };
 
 /* 방 목록의 💿가 트는 곡. 인물 BGM과는 별개다 — 둘이 겹쳐 나오면 안 되므로
@@ -111,20 +123,20 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
     fallback: 'jaeeon-bg.webp',
     stages: [
       { at: 0,   status: '',              bg: 'jaeeon-museum.webp',  track: 'jaeeon-1' },
-      { at: 16,  status: '별일 없음.',      bg: 'jaeeon-library.webp', track: 'jaeeon-1' },
-      { at: 40,  status: '약 채워 놓을 것.', bg: 'jaeeon-night.webp',   track: 'jaeeon-1' },
-      { at: 80,  status: '정리할 것들.',    bg: 'jaeeon-hall.webp',    track: 'jaeeon-1' },
-      { at: 120, status: '괜찮습니다.',     bg: 'jaeeon-stairs.webp',  track: 'jaeeon-1' },
+      { at: 16,  status: '오늘 아무도 안 다쳤음',      bg: 'jaeeon-library.webp', track: 'jaeeon-1' },
+      { at: 40,  status: '자꾸 뭘 두고 온다', bg: 'jaeeon-night.webp',   track: 'jaeeon-2' },
+      { at: 80,  status: '버릴 것, 둘 것',    bg: 'jaeeon-hall.webp',    track: 'jaeeon-3' },
+      { at: 120, status: '문을 안 잠갔다',     bg: 'jaeeon-stairs.webp',  track: 'jaeeon-4' },
     ],
   },
   minhyun: {
     fallback: 'minhyun-bg.webp',
     stages: [
       { at: 0,   status: '',                      bg: 'minhyun-record.webp',   track: 'minhyun-1' },
-      { at: 16,  status: '보건실 침대가 제일 낫다', bg: 'minhyun-poster.webp',   track: 'minhyun-1' },
-      { at: 40,  status: '안 물어보면 말 안 함',    bg: 'minhyun-elevator.webp', track: 'minhyun-1' },
-      { at: 80,  status: '남은 날 세는 중',         bg: 'minhyun-street.webp',   track: 'minhyun-1' },
-      { at: 120, status: '이제 안 셈',             bg: 'minhyun-roof.webp',     track: 'minhyun-1' },
+      { at: 16,  status: '보건실 침대는 내 자리', bg: 'minhyun-poster.webp',   track: 'minhyun-1' },
+      { at: 40,  status: '읽씹 아님 못 읽은 거임',    bg: 'minhyun-elevator.webp', track: 'minhyun-2' },
+      { at: 80,  status: 'D-',         bg: 'minhyun-street.webp',   track: 'minhyun-3' },
+      { at: 120, status: '다 셌다',             bg: 'minhyun-roof.webp',     track: 'minhyun-4' },
     ],
   },
 };
