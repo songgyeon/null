@@ -457,11 +457,15 @@ function IntroFilm({onClose}:{onClose:()=>void}) {
           <Animated.Image key={f} source={{uri:IMG+f}} resizeMode="cover"
             style={[StyleSheet.absoluteFillObject,{opacity:ph[i],
               transform:[{scale:zm[i].interpolate({inputRange:[0,1],outputRange:[1.06,1]})}]}]}/>)}
-        {/* 문장 — 밝은 사진 위에서 안 읽혀서 뒤에 어두운 막을 깐다 */}
+        {/* 문장 — 밝은 사진 위에서 안 읽혀서 뒤에 어두운 막을 깐다.
+            단색 사각형에 borderRadius를 주면 알약 모양이 그대로 보인다.
+            웹은 radial-gradient로 가장자리를 없애는데 RN에 radial이 없어서,
+            가운데에서 밖으로 사라지는 그림 한 장을 늘려서 깐다. */}
         <View style={fl.lines} pointerEvents="none">
           {FILM_LINES.map((t,i)=>
             <Animated.View key={i} style={[fl.lineWrap,{opacity:ln[i],
               transform:[{translateY:ln[i].interpolate({inputRange:[0,1],outputRange:[8,0]})}]}]}>
+              <Image source={LINE_FADE} style={fl.lineFade} resizeMode="stretch"/>
               <Text style={fl.line}>{t}</Text>
             </Animated.View>)}
         </View>
@@ -503,8 +507,10 @@ function IntroFilm({onClose}:{onClose:()=>void}) {
 const fl=StyleSheet.create({
   root:{...StyleSheet.absoluteFillObject,zIndex:70,backgroundColor:'#0e0a24'},
   lines:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center'},
-  lineWrap:{position:'absolute',paddingHorizontal:26,paddingVertical:22,
-            backgroundColor:'rgba(16,10,36,.42)',borderRadius:60},
+  lineWrap:{position:'absolute',left:0,right:0,paddingHorizontal:26,paddingVertical:22,
+            alignItems:'center',justifyContent:'center'},
+  /* 글자 상자보다 넉넉히 넘겨야 가장자리가 다 사라진 뒤에 화면과 만난다 */
+  lineFade:{position:'absolute',left:-30,right:-30,top:-46,bottom:-46},
   line:{...F,fontSize:19,lineHeight:33,textAlign:'center',color:'#fff',
         textShadowColor:'rgba(120,70,120,.9)',textShadowOffset:{width:2,height:2},textShadowRadius:8},
   ending:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:16},
@@ -539,6 +545,7 @@ function Bubbles() {
   </View>;
 }
 const BUBBLE_PNG=require('./assets/bubble.png');
+const LINE_FADE=require('./assets/linefade.png');
 function Bubble({x,d,sec,delay,H}:any) {
   const v=useRef(new Animated.Value(0)).current;
   useEffect(()=>{
