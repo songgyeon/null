@@ -102,16 +102,33 @@ eq('최근에 보낸 사진은 다시 안 보낸다',
 // ─────────────────────────────────────────────
 section('프롬프트 캐싱 — 고정부가 매 턴 같아야 캐시가 산다');
 // ─────────────────────────────────────────────
-const stable = (...a) => buildSystem(...a)[0].text;
+const fixed = (...a) => buildSystem(...a).filter(b => b.cache_control);
+const stable = (...a) => fixed(...a).map(b => b.text).join('');
+const vary = (...a) => buildSystem(...a).filter(b => !b.cache_control);
 const A = ['chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null];
 const B = ['chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 1 } }, [], { likes: '커피' }, { jaeeon: 90 },
            { name: '회색 머그컵', key: 'mug' }];
 
-eq('고정부에 cache_control이 붙어 있다', !!buildSystem(...A)[0].cache_control, true);
+eq('고정부에 cache_control이 붙어 있다', fixed(...A).length > 0, true);
 eq('신호·프로필·단계·선물이 달라져도 고정부는 그대로', stable(...A) === stable(...B), true);
-eq('가변부에만 선물이 실린다', buildSystem(...B)[1].text.includes('회색 머그컵'), true);
-eq('가변부에는 cache_control이 없다', !buildSystem(...B)[1].cache_control, true);
+eq('가변부에만 선물이 실린다', vary(...B).map(b => b.text).join('').includes('회색 머그컵'), true);
+eq('가변부는 하나뿐이고 캐시가 안 걸린다', vary(...B).length, 1);
 eq('선물이 없으면 그 대목도 없다', buildSystem(...A).some(b => b.text.includes('방금 일어난 일')), false);
+eq('가변부는 맨 뒤다 — 앞에 끼면 뒤가 전부 캐시에서 빠진다',
+  buildSystem(...B).findIndex(b => !b.cache_control), buildSystem(...B).length - 1);
+
+// 캐시 수명. 기본 5분은 메신저처럼 띄엄띄엄 열리는 앱과 안 맞는다.
+eq('고정부 캐시는 1시간짜리다', fixed(...A).every(b => b.cache_control.ttl === '1h'), true);
+// 끊는 자리 — 방을 옮겨도 앞 덩어리가 그대로여야 다시 안 보낸다.
+const chunks = (mode, room) => buildSystem(mode, room, 'R', null, [], null, null, null)
+  .filter(b => b.cache_control).map(b => b.text);
+const [wJ, pJ] = chunks('chat', 'jaeeon');
+const [wG, pG] = chunks('chat', 'group');
+const [wA, pA] = chunks('auto', 'jaeeon');
+eq('네 방이 세계 설정을 같이 쓴다', wJ === wG && wG === wA && wJ === chunks('chat', 'minhyun')[0], true);
+eq('재언방과 단톡방은 재언 설정까지 같이 쓴다', pG.startsWith(pJ), true);
+eq('단톡방과 두 사람 방은 인물 설정을 통째로 같이 쓴다', pG === pA, true);
+eq('덩어리를 이으면 예전 고정부 그대로다', chunks('chat', 'jaeeon').length, 3);
 
 // ─────────────────────────────────────────────
 section('백엔드 잠금 — 공개 주소로 토큰이 새지 않는다');

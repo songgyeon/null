@@ -832,12 +832,21 @@ function buildProfile(p) {
   return `\n## [유저에 대해 아는 것]\n지내면서 자연스럽게 알게 된 것들이다. 목록을 읊지 말고, 말이 나올 자리에만 스치듯 쓴다.\n${lines.join("\n")}\n`;
 }
 
-// 시스템 프롬프트를 두 덩어리로 나눈다.
-//   고정부 — 세계관·인물·형식·말버릇·사진 목록. 같은 방이면 매 턴 완전히 같다.
-//   가변부 — 관계 단계, 유저 프로필, 신호, 최근 사진 제외.
-// 고정부에 cache_control을 걸면 두 번째 요청부터 그 부분의 입력 요금이
-// 1/10로 떨어진다. 캐시는 바이트가 1자라도 다르면 안 맞으므로,
-// 매 턴 바뀌는 것은 반드시 가변부(뒤쪽)에 둬야 한다.
+// 시스템 프롬프트를 네 덩어리로 나눈다. 앞의 셋은 고정부, 마지막이 가변부다.
+//   ① 세계 — 네 방(재언/민현/단톡/두 사람)이 전부 똑같이 쓴다.
+//   ② 인물 — 그 방에 나오는 사람의 설정. 단톡·두 사람 방은 재언+민현이라
+//      1:1 재언방과 여기까지가 같다.
+//   ③ 형식·말버릇·사실·사진 목록 — 방마다 다르다.
+//   ④ 가변부 — 관계 단계, 유저 프로필, 신호, 최근 사진 제외, 방금 받은 선물.
+//
+// 캐시는 "앞에서부터 몇 글자가 같은가"로 맞는다. 그래서 끊는 자리를 셋으로
+// 나눠두면 방을 옮겨도 앞부분은 그대로 캐시에서 읽어온다.
+//   재언방 → 단톡방:  ①②(10,825자)를 다시 안 보낸다
+//   단톡방 → 두 사람:  ①②(19,088자)를 다시 안 보낸다
+// ttl "1h" — 5분짜리 기본값은 메신저와 안 맞는다. 5분 넘게 손을 놓았다가
+// 다시 열면 매번 캐시를 새로 쓰게 된다(정가의 1.25배). 1시간짜리는 쓸 때
+// 2배지만 그 뒤 한 시간은 1/10로 읽는다. 두어 마디만 더 오가도 이득이다.
+// 매 턴 바뀌는 것은 반드시 가변부(맨 뒤)에 둬야 한다 — 앞에 섞이면 뒤가 전부 깨진다.
 /* 방금 받은 선물. 프론트가 장바구니에서 보낸 것이다.
    매 턴 바뀌므로 반드시 가변부에 넣는다 — 고정부에 넣으면 캐시가 깨진다. */
 function buildGift(gift, userName) {
@@ -856,35 +865,39 @@ ${userName || "교생"}이 너에게 "${name}"을(를) 주었다. 지금 막 받
 `;
 }
 
+const CACHE = { type: "ephemeral", ttl: "1h" };
+
 function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "교생");
-  let sys;
+  // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
+  // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
+  let people, format;
   if (mode === "auto") {
-    sys = WORLD + JAEEON + MINHYUN + FORMAT_AUTO;
+    people = JAEEON + MINHYUN; format = FORMAT_AUTO;
   } else if (room === "group") {
-    sys = WORLD + JAEEON + MINHYUN + FORMAT_GROUP;
+    people = JAEEON + MINHYUN; format = FORMAT_GROUP;
   } else if (room === "jaeeon") {
-    sys = WORLD + JAEEON + FORMAT_CHAT;
+    people = JAEEON; format = FORMAT_CHAT;
   } else {
-    sys = WORLD + MINHYUN + FORMAT_CHAT;
+    people = MINHYUN; format = FORMAT_CHAT;
   }
-  sys += TICS;
-  sys += FACTS;
+  let rules = format + TICS + FACTS;
   // 「두 사람」방(auto)은 유저가 없는 자리를 훔쳐보는 것이다. 사진을 보낼 상대가
   // 없으므로 사진 목록 자체를 주지 않는다. (프롬프트도 줄어 비용도 준다)
-  if (mode !== "auto") sys += buildPhotoGuide(allowedChars(mode, room));
+  if (mode !== "auto") rules += buildPhotoGuide(allowedChars(mode, room));
 
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
     ? `\n## 지금 쓰지 않는 사진\n최근에 이미 보냈다. 다시 보내지 않는다: ${recent.map(k => `"${k}"`).join(", ")}\n`
     : "";
 
-  const stable = sub(sys);
   const volatile = buildStage(mode, room, counts) + buildProfile(userProfile)
                  + buildSignals(signals, mode === "auto" ? null : room) + exclude
                  + buildGift(gift, userName);
 
-  const blocks = [{ type: "text", text: stable, cache_control: { type: "ephemeral" } }];
+  const blocks = [WORLD, people, rules].map(t => (
+    { type: "text", text: sub(t), cache_control: CACHE }
+  ));
   if (volatile.trim()) blocks.push({ type: "text", text: volatile });
   return blocks;
 }
@@ -964,6 +977,17 @@ async function callModel(env, m, system, messages, maxTokens) {
   const data = await r.json();
   return { ok: true, text: (data.content || []).map(b => b.text || "").join("").trim(),
            usage: data.usage || null };
+}
+
+/* 캐시가 실제로 맞았는지는 응답의 usage에만 나온다. 안 맞아도 오류가 안 나고
+   조용히 정가를 물기 때문에, 진단에서는 이 숫자를 눈으로 봐야 한다.
+   쓰기(creation)가 계속 잡히고 읽기(read)가 0이면 고정부가 매 턴 달라지고 있는 것이다. */
+function cacheNote(u) {
+  if (!u) return "";
+  const w = u.cache_creation_input_tokens || 0;
+  const r = u.cache_read_input_tokens || 0;
+  if (!w && !r) return "  캐시 없음";
+  return `  캐시 씀 ${w} / 읽음 ${r}`;
 }
 
 async function askClaude(env, system, messages, maxTokens) {
@@ -1336,11 +1360,22 @@ export default {
         lines.push(`[3] 시스템 프롬프트 조각별 (${m.id})`);
         for (const [label, sys, mt] of probes) {
           const res = await callModel(env, m, sys, [{ role: "user", content: "안녕하세요" }], mt);
-          // buildSystem은 캐시 블록 배열을 돌려준다. 길이를 그냥 재면 2가 나와 0k로 찍힌다.
+          // buildSystem은 캐시 블록 배열을 돌려준다. 길이를 그냥 재면 3~4가 나와 0k로 찍힌다.
           const chars = Array.isArray(sys) ? sys.reduce((n, b) => n + (b.text || "").length, 0) : String(sys || "").length;
           const size = `${Math.round(chars / 1000)}k자`;
-          lines.push(res.ok ? `  ✓ ${label} (${size})`
+          lines.push(res.ok ? `  ✓ ${label} (${size})${cacheNote(res.usage)}`
                             : `  ✗ ${label} (${size}) — ${res.status}: ${res.body.slice(0, 160)}`);
+        }
+        lines.push("");
+        lines.push("[4] 캐시 — 같은 방을 두 번 부르면 두 번째는 읽기여야 한다");
+        // 재언방 → 단톡방 순서. 단톡방은 앞의 세계·재언 설정을 재언방에서 이미
+        // 써놨으므로, 처음 부르는데도 읽기가 잡혀야 정상이다.
+        for (const [label, room] of [["재언방 (처음)", "jaeeon"], ["재언방 (두 번째)", "jaeeon"],
+                                     ["단톡방 (앞부분은 재언방 것을 읽어야 한다)", "group"]]) {
+          const sys = buildSystem("chat", room, "교생", null, [], null, null, null);
+          const res = await callModel(env, m, sys, [{ role: "user", content: "안녕하세요" }], 900);
+          lines.push(res.ok ? `  ✓ ${label}${cacheNote(res.usage)}`
+                            : `  ✗ ${label} — ${res.status}`);
         }
       }
 
