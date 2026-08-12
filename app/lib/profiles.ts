@@ -8,16 +8,16 @@ export const R2 = 'https://pub-6e08882e001c49cbb013168e4b9e8d38.r2.dev/';
    아직 아무 일도 안 일어난 구간이라 곡이 바뀔 이유가 없다.
    index.html의 TRACKS와 같아야 한다. 어긋나면 웹과 앱에서 다른 곡이 나온다. */
 export const TRACKS: Record<string, string> = {
-  'jaeeon-1':  R2 + 'jaeeon-1.mp3',
-  'jaeeon-2':  R2 + 'jaeeon-2.mp3',
-  'jaeeon-3':  R2 + 'jaeeon-3.mp3',
-  'jaeeon-4':  R2 + 'jaeeon-4.mp3',
-  'minhyun-1': R2 + 'minhyun-1.mp3',
-  'minhyun-2': R2 + 'minhyun-2.mp3',
-  'minhyun-3': R2 + 'minhyun-3.mp3',
-  'minhyun-4': R2 + 'minhyun-4.mp3',
+  'jaeeon-1':  R2 + 'jaeeon1.mp3',
+  'jaeeon-2':  R2 + 'jaeeon2.mp3',
+  'jaeeon-3':  R2 + 'jaeeon3.mp3',
+  'jaeeon-4':  R2 + 'jaeeon4.mp3',
+  'minhyun-1': R2 + 'minhyun1.mp3',
+  'minhyun-2': R2 + 'minhyun2.mp3',
+  'minhyun-3': R2 + 'minhyun3.mp3',
+  'minhyun-4': R2 + 'minhyun4.mp3',
   // 메신저 자체의 BGM — 방 목록의 💿를 누르면 나온다.
-  'null-1':    R2 + 'null-1.mp3',
+  'null-1':    R2 + 'null1.mp3',
 };
 
 // 플레이어에 표시할 곡 정보
