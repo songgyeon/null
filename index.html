@@ -1294,14 +1294,22 @@ function IntroFilm({onClose}){
   const [done,setDone]=useState(false);   // 결말로 건너뛰었나
   const [out,setOut]=useState(false);
   const audio=useRef(null);
+  /* 곡을 끝까지 못 듣고 나가는 게 보통이라 반복시킨다. 안 그러면 기다리는
+     동안 곡이 먼저 끝나 조용해진다. */
+  const fade=(a)=>{
+    if(!a||a.faded)return; a.faded=true;
+    const f=setInterval(()=>{if(a.volume>.04)a.volume=Math.max(0,a.volume-.03);
+      else{a.pause();clearInterval(f)}},45);
+    setTimeout(()=>{clearInterval(f);a.pause()},1400);
+  };
   useEffect(()=>{
-    const a=new Audio(FILM_TRACK); a.volume=.6; audio.current=a; a.play().catch(()=>{});
+    const a=new Audio(FILM_TRACK); a.volume=.6; a.loop=true; audio.current=a; a.play().catch(()=>{});
     const t=setInterval(()=>setSec(v=>Math.min(11,v+1)),1000);
-    return()=>{clearInterval(t);
-      const f=setInterval(()=>{if(a.volume>.06)a.volume-=.06;else{a.pause();clearInterval(f)}},60);
-      setTimeout(()=>{clearInterval(f);a.pause()},900)};
+    return()=>{clearInterval(t);fade(a)};
   },[]);
-  const leave=()=>{if(out)return;setOut(true);setTimeout(onClose,450)};
+  /* 나가기 시작할 때 소리도 같이 줄인다. 언마운트에서만 줄이면 화면이 다 사라진
+     뒤에야 페이드가 시작돼서, 닫히는 순간에는 그대로 뚝 끊긴 것처럼 들린다. */
+  const leave=()=>{if(out)return;setOut(true);fade(audio.current);setTimeout(onClose,450)};
   // 처음 누르면 결말로 건너뛰고, 거기서 또 누르면 닫힌다
   const tap=()=>{ if(!done){setDone(true);setSec(11);return} leave() };
   const mm=String(Math.floor(sec/60)).padStart(2,"0"), ss=String(sec%60).padStart(2,"0");
