@@ -524,6 +524,22 @@ const PHOTOS = {
     char: "jaeeon",
     when: "옥상. 혼자 바람 쐬는 시간. 담배 얘기가 나왔을 때(금연 5년째다).",
   },
+  "jaeeon-shelf": {
+    char: "jaeeon",
+    when: "도서관 서가에서 책을 꺼내는 중. 『이방인』이다. 뭐 읽냐고 묻거나 책 얘기가 나왔을 때. 뒷모습이라 얼굴은 안 나온다.",
+  },
+  "jaeeon-curtain": {
+    char: "jaeeon",
+    when: "집. 커튼 앞에 서 있는 옆모습. 뭐 하냐고 물었는데 딱히 하는 게 없을 때. 대답 대신 이걸 보낸다.",
+  },
+  "jaeeon-bench": {
+    char: "jaeeon",
+    when: "밤에 길가에 앉아 있는 참. 턱을 괴고 있다. 늦은 시간에 안 자고 뭐 하냐는 물음에.",
+  },
+  "jaeeon-desk": {
+    char: "jaeeon",
+    when: "자기 고3 때 사진. 교실 책상에 엎드려 자고 있다. 민현이 얘기나 옛날 얘기가 나왔을 때만. 자주 보내지 않는다.",
+  },
   "minhyun-morning": {
     char: "minhyun",
     when: "막 일어났을 때. 늦잠·피곤·일어났냐는 물음에.",
