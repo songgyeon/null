@@ -524,7 +524,48 @@ const GIFTS=[
    desc:"한쪽만 껴도 되는.\n이번엔 진짜 음악을 틀도록.",
    tags:"이어폰 유선 음악 노래 소품 earphone earphones wired music"},
 ];
-const GIFT_CATS=["전체","소품","옷","기록"];
+/* bg가 있는 것만 프로필 배경이 된다. 없는 것은 주고 반응만 받는다 —
+   사진이 필요 없으므로 얼마든지 늘릴 수 있고, 덕분에 배경까지 바뀌는
+   네 개가 오히려 특별해진다. */
+GIFTS.push(
+  {key:"hotpack", name:"핫팩",        cat:"소품", cost:1,
+   desc:"흔들면 따뜻해지는.\n얇게 입고 다니는 사람한테.",
+   tags:"핫팩 손난로 겨울 따뜻 소품 hotpack warm"},
+  {key:"umbrella", name:"접이식 우산", cat:"소품", cost:3,
+   desc:"가방에 들어가는 크기.\n비 온다고 안 챙기는 사람한테.",
+   tags:"우산 비 장마 접이식 소품 umbrella rain"},
+  {key:"hanky",   name:"손수건",      cat:"소품", cost:2,
+   desc:"손을 자주 씻는 사람한테.\n종이는 금방 떨어지니까.",
+   tags:"손수건 수건 천 소품 handkerchief cloth"},
+  {key:"camera",  name:"필름 카메라",  cat:"소품", cost:6,
+   desc:"스물네 장뿐인.\n찍고 나면 한참 기다려야 하는.",
+   tags:"카메라 필름 사진 소품 camera film"},
+  {key:"scarf",   name:"목도리",      cat:"옷",   cost:4,
+   desc:"두 번 감기는 길이.\n목만 따뜻해도 다르다고 하니까.",
+   tags:"목도리 머플러 겨울 옷 scarf muffler"},
+  {key:"gloves",  name:"장갑",        cat:"옷",   cost:3,
+   desc:"손끝이 트기 전에.\n주머니만으로는 모자라서.",
+   tags:"장갑 손 겨울 옷 gloves"},
+  {key:"bandana", name:"파란 반다나",  cat:"옷",   cost:2,
+   desc:"손목에 묶는.\n왜 묶고 다니는지는 안 물어봤다.",
+   tags:"반다나 손목 파랑 파란 옷 bandana wrist blue"},
+  {key:"candy",   name:"목캔디",      cat:"간식", cost:1,
+   desc:"한 통에 스무 알.\n말을 많이 하는 사람한테.",
+   tags:"목캔디 사탕 캔디 간식 candy throat"},
+  {key:"ramen",   name:"컵라면",      cat:"간식", cost:1,
+   desc:"야자 끝나고 먹을.\n밥은 아니지만.",
+   tags:"컵라면 라면 야식 간식 ramen noodle"},
+  {key:"coffee",  name:"드립백 커피",  cat:"간식", cost:2,
+   desc:"한 봉에 한 잔.\n아침이 급한 사람한테.",
+   tags:"커피 드립백 원두 아침 간식 coffee drip"},
+  {key:"letter",  name:"편지지",      cat:"기록", cost:2,
+   desc:"줄이 그어진.\n쓸 말이 없어도 한 장은.",
+   tags:"편지지 편지 종이 기록 letter paper"},
+  {key:"mixcd",   name:"믹스 CD",     cat:"기록", cost:3,
+   desc:"열두 곡 구운.\n목록은 안 적어뒀다.",
+   tags:"CD 시디 믹스 음악 노래 기록 mix music"},
+);
+const GIFT_CATS=["전체","소품","옷","간식","기록"];
 /* 받는 사람이 어떻게 받을지 미리 한 줄. 고를 때만 보인다 — 스포일러가 아니라 결의 예고다. */
 const GIFT_HINT={jaeeon:"“…뭐 이런 걸.”", minhyun:"“이걸 왜 줘요.”"};
 /* ♡ — 주고받은 말에서 나온다. 열 마디에 하나. 쓴 만큼 깎인다.
@@ -660,6 +701,65 @@ const GiftIcon={
     <rect x="3.6" y="5.4" width="5" height="4" rx="1.6" fill="#3a3552" stroke="#5d5490"/>
     <rect x="15.4" y="5.4" width="5" height="4" rx="1.6" fill="#3a3552" stroke="#5d5490"/>
     <circle cx="12" cy="19.4" r="1.7" fill="#3a3552" stroke="#5d5490"/></svg>,
+  hotpack:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <rect x="5" y="4.5" width="14" height="15" rx="2.6" fill="#ffd9c2" stroke="#5d5490"/>
+    <path d="M9 9c1.4 1 1.4 2 0 3s-1.4 2 0 3M14.6 9c1.4 1 1.4 2 0 3s-1.4 2 0 3"
+      fill="none" stroke="#e08a5c" strokeLinecap="round"/></svg>,
+  umbrella:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <path d="M2.4 12a9.6 9.6 0 0 1 19.2 0z" fill="#9fd6e8" stroke="#5d5490"/>
+    <path d="M8.6 12c0-4.2 1.5-8 3.4-8s3.4 3.8 3.4 8" fill="#d8f0f8" stroke="#5d5490" strokeWidth=".7"/>
+    <path d="M12 12v6.6a2.2 2.2 0 0 1-4.4 0" fill="none" stroke="#5d5490"/></svg>,
+  /* 체크무늬로 천이라는 걸 말한다. 접힌 모서리를 쓰면 편지지랑 헷갈린다 */
+  hanky:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="2.2" fill="#fdfbff" stroke="#5d5490"/>
+    <path d="M3.6 9.2h16.8M3.6 14.8h16.8M9.2 3.6v16.8M14.8 3.6v16.8" stroke="#dbe9f5" fill="none"/>
+    <rect x="6.4" y="6.4" width="11.2" height="11.2" fill="none" stroke="#b8d6ea" strokeWidth=".8"/></svg>,
+  camera:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <path d="M3 8h4l1.6-2.4h6.8L17 8h4v11H3z" fill="#4e4867" stroke="#5d5490"/>
+    <circle cx="12" cy="13.4" r="4" fill="#a9c6e0" stroke="#2b2740"/>
+    <circle cx="12" cy="13.4" r="1.7" fill="#2b2740"/>
+    <rect x="17.6" y="9.4" width="2.4" height="1.6" fill="#ffe9a8"/></svg>,
+  /* 늘어진 두 갈래 + 매듭 띠 + 술. 가로대만 있으면 토리이로 읽힌다 */
+  scarf:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <rect x="6.2" y="3.4" width="5" height="15.4" rx="1.2" fill="#d76a8a" stroke="#5d5490"/>
+    <rect x="12.8" y="3.4" width="5" height="11.4" rx="1.2" fill="#e88ba5" stroke="#5d5490"/>
+    <rect x="5.2" y="7.6" width="13.6" height="3.4" rx="1.4" fill="#c95a7c" stroke="#5d5490"/>
+    <path d="M7.2 18.8v2.2M8.8 18.8v2.2M10.4 18.8v2.2M13.8 14.8v2.2M15.4 14.8v2.2M17 14.8v2.2"
+      stroke="#5d5490" strokeWidth=".8" fill="none" strokeLinecap="round"/></svg>,
+  /* 엄지가 붙은 벙어리장갑 + 손목단. 엄지가 없으면 부츠로 읽힌다 */
+  gloves:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <path d="M8 9a4.6 4.6 0 0 1 9.2 0v7.6H8z" fill="#bcd3ee" stroke="#5d5490"/>
+    <path d="M8 11.4c-1.8 0-3.1 1.1-3.1 2.5s1.3 2.5 3.1 2.5z" fill="#a5c2e4" stroke="#5d5490"/>
+    <rect x="7.2" y="16.4" width="10.6" height="3.8" rx="1.2" fill="#8fb0da" stroke="#5d5490"/></svg>,
+  /* 손목에 감아 묶은 띠. 삼각형으로 두면 보석으로 읽힌다 */
+  bandana:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <rect x="2.6" y="8.6" width="15" height="5.6" rx="1.4" fill="#5b7fc7" stroke="#3d4670"/>
+    <circle cx="6.6" cy="11.4" r=".9" fill="#dbe6f8"/><circle cx="10.6" cy="11.4" r=".9" fill="#dbe6f8"/>
+    <path d="M18.4 12.9l3.4 3.6M18.8 10.4l3.2-1.9" stroke="#3d4670" strokeWidth="1.8"
+      fill="none" strokeLinecap="round"/>
+    <circle cx="17.4" cy="11.4" r="2.8" fill="#7b9bd8" stroke="#3d4670"/></svg>,
+  candy:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <rect x="6" y="6" width="12" height="14" rx="1.6" fill="#a8dcc8" stroke="#5d5490"/>
+    <rect x="5.2" y="3.6" width="13.6" height="3.2" rx="1" fill="#7fc9ae" stroke="#5d5490"/>
+    <circle cx="12" cy="13.6" r="3.2" fill="#fdfbff" stroke="#5d5490" strokeWidth=".7"/>
+    <path d="M10.4 13.6h3.2" stroke="#7fc9ae" fill="none"/></svg>,
+  ramen:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <path d="M5 8h14l-1.6 12H6.6z" fill="#f2e6d6" stroke="#5d5490"/>
+    <rect x="3.8" y="5.2" width="16.4" height="3.2" rx="1" fill="#e05f6a" stroke="#5d5490"/>
+    <path d="M7.6 12h8.8M8 15.4h8" stroke="#d8b48c" fill="none"/></svg>,
+  coffee:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <path d="M6 6h12l-1 14H7z" fill="#c8a888" stroke="#5d5490"/>
+    <rect x="5.2" y="3.4" width="13.6" height="2.8" rx=".8" fill="#8a6a4c" stroke="#5d5490"/>
+    <circle cx="12" cy="12.6" r="2.6" fill="#5d4530" stroke="#5d5490" strokeWidth=".7"/></svg>,
+  letter:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <rect x="3" y="5.4" width="18" height="13.2" rx="1.4" fill="#fffdf6" stroke="#5d5490"/>
+    <path d="M3.6 6.4 12 13l8.4-6.6" fill="none" stroke="#5d5490"/>
+    <path d="M6.4 16.4h5" stroke="#ecd9c8" fill="none"/></svg>,
+  mixcd:({size=30})=><svg width={size} height={size} viewBox="0 0 24 24">
+    <rect x="2.6" y="2.6" width="18.8" height="18.8" rx="1.4" fill="#efe9fb" stroke="#5d5490"/>
+    <circle cx="12" cy="12" r="6.6" fill="#d9cdf2" stroke="#5d5490"/>
+    <circle cx="12" cy="12" r="1.9" fill="#fdfbff" stroke="#5d5490" strokeWidth=".7"/>
+    <path d="M5 19.4h6" stroke="#b0a6d8" fill="none"/></svg>,
 };
 
 const Sticker={
@@ -839,7 +939,11 @@ function Profile({char,count,onBack,onBgm,gifts}){
      유저가 건 것이 앞선다 — 그게 이 기능의 요지다.
      다만 GIFT_AT 단계는 지나야 한다. 주자마자 걸리면 사는 것이지 관계가 아니다. */
   const given=(gifts&&gifts[char])||[];
-  const hung=stageIdx(count)>=GIFT_AT?given[given.length-1]:null;
+  /* 배경이 되는 건 사진이 있는 선물뿐이다. 그냥 마지막 선물을 집으면
+     사진 없는 걸 방금 준 순간 단계 배경까지 같이 날아간다.
+     그래서 뒤에서부터 사진 있는 것을 찾는다. */
+  const hung=stageIdx(count)>=GIFT_AT
+    ? given.slice().reverse().find(k=>(GIFTS.find(g=>g.key===k)||{}).bg) : null;
   const wanted=hung?(GIFTS.find(g=>g.key===hung)||{}).bg:(st&&st.bg);
   const bg=useBg(wanted,(p&&p.fallback)||char+"-bg.png");
   if(!ch||!p)return null;
