@@ -1434,3 +1434,8 @@ export default {
     }
   },
 };
+
+/* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
+   이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
+   테스트가 네트워크나 키에 기대지 않게. */
+export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem };
