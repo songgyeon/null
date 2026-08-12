@@ -535,6 +535,19 @@ function Profile({char,onBack,refresh,onBgm}:{char:string;onBack:()=>void;refres
     </Modal>
   </ImageBackground>;
 }
+/* 메신저 BGM 실체. 💿를 처음 누른 뒤에야 붙는다 — 그래야 시작할 때 원격 mp3를
+   받으러 가지 않는다. 파일이 아직 없으면 조용히 실패하므로 "no disc"를 띄운다.
+   안 그러면 눌러도 반응이 없어서 고장인지 원래 그런 건지 알 수가 없다. */
+function DeskBgm({onFail}:{onFail:()=>void}) {
+  const player=useAudioPlayer(TRACKS[MAIN_TRACK]);
+  useEffect(()=>{
+    try{ player.loop=true; player.volume=.5; player.play(); }
+    catch(e){ onFail(); }
+    return ()=>{ try{player.pause()}catch(e){} };
+  },[]);
+  return null;
+}
+
 /* 배경 사진이 아직 없을 수 있다(사진은 나중에 올라온다). RN의 ImageBackground는
    파일이 없으면 그냥 빈 화면이 되므로, onError를 받아 그 인물의 기존 배경으로
    돌아간다. 파일을 올리는 순간 코드를 안 고쳐도 새 배경이 뜬다. — 웹의 useBg와 같은 일 */
@@ -1027,20 +1040,14 @@ function Root() {
   const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
   const [demo,setDemo]=useState(false);                            // 각본으로 넘어갔나
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
-  /* 메신저 BGM. 방 목록이 아니라 App이 들고 있는 이유: 방에 들어가면 RoomList가
-     통째로 사라져서 거기 있던 플레이어도 같이 죽는다. 그러면 방을 드나들 때마다
-     음악이 끊긴다. 파일이 아직 없으면 눌러도 조용하므로 "no disc"를 띄운다 —
-     안 그러면 고장인지 원래 그런 건지 알 수가 없다. */
-  const bgmPlayer=useAudioPlayer(TRACKS[MAIN_TRACK]);
+  /* 메신저 BGM. 켜기 전에는 플레이어를 아예 만들지 않는다 —
+     앱을 켜자마자 원격 mp3를 물고 있으면(그 파일이 아직 없으면 더더욱)
+     시작이 그만큼 늦어진다. 눌렀을 때만 <DeskBgm/>이 붙는다.
+     RoomList가 아니라 App이 달고 있는 이유: 방에 들어가면 RoomList는 통째로
+     사라져서 거기 있던 플레이어도 같이 죽는다 — 방을 드나들 때마다 음악이 끊긴다. */
   const [bgmOn,setBgmOn]=useState(false);
-  const stopBgm=useCallback(()=>{ try{bgmPlayer.pause()}catch(e){} setBgmOn(false); },[bgmPlayer]);
-  const toggleBgm=useCallback(()=>{
-    try{
-      if(bgmOn){ bgmPlayer.pause(); setBgmOn(false); return; }
-      bgmPlayer.loop=true; bgmPlayer.volume=.5; bgmPlayer.play(); setBgmOn(true);
-    }catch(e){ setBgmOn(false); setToast('no disc'); }
-  },[bgmOn,bgmPlayer]);
-  useEffect(()=>()=>{ try{bgmPlayer.pause()}catch(e){} },[]);
+  const stopBgm=useCallback(()=>setBgmOn(false),[]);
+  const toggleBgm=useCallback(()=>setBgmOn(v=>!v),[]);
   const viewRef=useRef(view); viewRef.current=view;
 
   const reload=useCallback(async(room?:string)=>{
@@ -1253,6 +1260,8 @@ function Root() {
 
   return <>
     <StatusBar barStyle="light-content"/>
+    {/* 화면 전환 바깥에 둔다 — screen 안에 두면 방에 들어갈 때마다 음악이 끊긴다 */}
+    {bgmOn&&<DeskBgm onFail={()=>{setBgmOn(false); setToast('no disc');}}/>}
     <View style={{flex:1,backgroundColor:P.pink,paddingTop:insets.top,paddingBottom:padBottom}}>
       {screen}</View>
     {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
