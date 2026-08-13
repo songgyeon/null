@@ -907,6 +907,13 @@ const demoBucket=t=>{
   if(/수업|졸|자더|잤|잠들/.test(x))return "nap";
   if(/친구|애들이랑|어울리|같이 놀/.test(x))return "friend";
   if(/스트레스|힘들|짜증|지쳐|지친|지쳤|지치|피곤|빡세/.test(x))return "stress";
+  return demoBroad(x);
+};
+/* 넓은 결. 좁은 결에 걸렸는데 그 사람한테 그 결이 없으면 여기로 다시 떨어진다.
+   "친구 없어?"는 재언한테 질문이다 — 좁은 결에 걸렸다는 이유로 질문이라는
+   것까지 잃으면 아무 대답이나 나간다. */
+const demoBroad=t=> {
+  const x=(t||"").trim();
   if(/아프|아파|다쳤|다쳐|열나|배가|머리가/.test(x))return "hurt";
   if(/안녕|하이|왔|뭐해|자니|일어/.test(x))return "greet";
   if(/잘생|예쁘|멋있|좋아|고마|최고|귀엽/.test(x))return "praise";
@@ -930,7 +937,7 @@ const DEMO_LINES={
     leave:[["남았어요. 아직."],["고마웠어요."],["잘 지내요. 항상."]],
     sorry:[["괜찮다고 해줄게요."],["그런 말이 필요한 건 아니었는데."],["사과 안 해도 돼요."]],
     rest:[["쉬고 있어요.","일하는 줄 알았구나."]],
-    coffee:[["그래요.","선생님도요."]],
+    coffee:[["그래요.","{name} 선생님도요."]],
     med:[["다 나았네요. 착하다."],["잘 발랐네요.","오늘도 바르고 주무세요."]],
     meal:[["그래요?","{it} 좋아하는구나."],["드셨으면 됐어요."]],
     met:[["글쎄요. 난 모르겠는데."],["사람 잘못 보셨겠죠."]],
@@ -1049,16 +1056,18 @@ const demoIt=t=>{
   const w=m?m[1].replace(/^(점심|저녁|아침|오늘|어제|내일|같이)/,"").trim():"";
   return w.length>=2?w:"";
 };
-function demoReply(bucket,lastText){
+function demoReply(bucket,lastText,userName){
   if(bucket==="health")return demoPick("health",DEMO_AUTO);
   if(bucket==="group") return demoPick("group",DEMO_GROUP);
   const set=DEMO_LINES[bucket]; if(!set)return [{sender:bucket,text:"…"}];
-  const b=demoBucket(lastText);
+  let b=demoBucket(lastText);
+  if(!set[b])b=demoBroad(lastText);
   const it=demoIt(lastText);
   let arr=set[b]||set.any;
   if(!it)arr=arr.filter(s=>!s.some(t=>t.indexOf("{it}")>=0));
   if(!arr.length)arr=set.any;
-  return demoPick(bucket+":"+b,arr).map(t=>({sender:bucket,text:t.split("{it}").join(it)}));
+  return demoPick(bucket+":"+b,arr).map(t=>({sender:bucket,
+    text:t.split("{it}").join(it).split("{name}").join(userName||"")}));
 }
 
 const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
@@ -2223,7 +2232,7 @@ function App(){
     if(demoOn()){
       inflightRef.current[bucket]=false;
       const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
-      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content)),450);
+      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content,name)),450);
       return;
     }
     try{
@@ -2254,7 +2263,7 @@ function App(){
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
       const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
-      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content)),450);
+      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content,name)),450);
     }
   };
 

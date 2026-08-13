@@ -97,6 +97,13 @@ const demoBucket = (t?:string) => {
   if(/수업|졸|자더|잤|잠들/.test(x))return 'nap';
   if(/친구|애들이랑|어울리|같이 놀/.test(x))return 'friend';
   if(/스트레스|힘들|짜증|지쳐|지친|지쳤|지치|피곤|빡세/.test(x))return 'stress';
+  return demoBroad(x);
+};
+/* 넓은 결. 좁은 결에 걸렸는데 그 사람한테 그 결이 없으면 여기로 다시 떨어진다.
+   '친구 없어?'는 재언한테 질문이다 — 좁은 결에 걸렸다는 이유로 질문이라는
+   것까지 잃으면 아무 대답이나 나간다. */
+const demoBroad = (t?:string) => {
+  const x=(t||'').trim();
   if(/아프|아파|다쳤|다쳐|열나|배가|머리가/.test(x))return 'hurt';
   if(/안녕|하이|왔|뭐해|자니|일어/.test(x))return 'greet';
   if(/잘생|예쁘|멋있|좋아|고마|최고|귀엽/.test(x))return 'praise';
@@ -120,7 +127,7 @@ const DEMO_LINES:Record<string,Record<string,string[][]>> = {
     leave:[['남았어요. 아직.'],['고마웠어요.'],['잘 지내요. 항상.']],
     sorry:[['괜찮다고 해줄게요.'],['그런 말이 필요한 건 아니었는데.'],['사과 안 해도 돼요.']],
     rest:[['쉬고 있어요.','일하는 줄 알았구나.']],
-    coffee:[['그래요.','선생님도요.']],
+    coffee:[['그래요.','{name} 선생님도요.']],
     med:[['다 나았네요. 착하다.'],['잘 발랐네요.','오늘도 바르고 주무세요.']],
     meal:[['그래요?','{it} 좋아하는구나.'],['드셨으면 됐어요.']],
     met:[['글쎄요. 난 모르겠는데.'],['사람 잘못 보셨겠죠.']],
@@ -239,16 +246,18 @@ const demoIt = (t?:string) => {
   const w=m?m[1].replace(/^(점심|저녁|아침|오늘|어제|내일|같이)/,'').trim():'';
   return w.length>=2?w:'';
 };
-function demoReply(room:string, lastText?:string) {
+function demoReply(room:string, lastText?:string, userName?:string) {
   if(room==='health') return demoPick('health',DEMO_AUTO);
   if(room==='group')  return demoPick('group',DEMO_GROUP);
   const set=DEMO_LINES[room]; if(!set) return [{sender:room,text:'…'}];
-  const b=demoBucket(lastText);
+  let b=demoBucket(lastText);
+  if(!set[b])b=demoBroad(lastText);
   const it=demoIt(lastText);
   let arr=set[b]||set.any;
   if(!it)arr=arr.filter((s:string[])=>!s.some(t=>t.indexOf('{it}')>=0));
   if(!arr.length)arr=set.any;
-  return demoPick(room+':'+b, arr).map((t:string)=>({sender:room,text:t.split('{it}').join(it)}));
+  return demoPick(room+':'+b, arr).map((t:string)=>({sender:room,
+    text:t.split('{it}').join(it).split('{name}').join(userName||'')}));
 }
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
@@ -1768,7 +1777,7 @@ function Root() {
     setToast(`${CHARS[char].name} — ${gift.name}`);
     await markEvent({kind:'gift', to:char, name:gift.name});
     setFailed(null); setTyping(true);
-    if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line)); return; }
+    if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line,name)); return; }
     try{
       const hist=await getMsgs(char);
       const data=await sendChat(char,name,hist,{key:gift.key,name:gift.name,note});
@@ -1784,7 +1793,7 @@ function Root() {
   const fallToDemo = async(e:any, room:string, lastText?:string)=>{
     console.error('[NULL] 서버 호출 실패 → 데모로 전환', e);
     DEMO.auto=true; setDemo(true); setFailed(null);
-    await enqueue(room, demoReply(room,lastText));
+    await enqueue(room, demoReply(room,lastText,name));
   };
 
   /* 보낸 말은 이미 저장돼 있다. 모델 호출만 다시 한다 —
@@ -1794,7 +1803,7 @@ function Root() {
     setFailed(null); setTyping(true);
     const ls=lastSent.current;
     const said=ls&&ls.room===room?ls.text:undefined;   // 각본을 고를 때만 쓴다
-    if(demoOn()){ setTyping(false); await enqueue(room,demoReply(room,said)); return; }
+    if(demoOn()){ setTyping(false); await enqueue(room,demoReply(room,said,name)); return; }
     try{
       const hist=await getMsgs(room);
       const data=await sendChat(room,name,hist);
