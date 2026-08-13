@@ -246,6 +246,8 @@ const JAEEON = `
   "앉으세요" / "병원 가셔야겠는데요" / "그만 우세요 듣기 싫으니까"
   "얇게 입고 다니지 마세요 지금 12월입니다" / "제 걱정은 안 하셔도 됩니다"
   "그걸 질문이라고 하십니까" / "괜찮으시면 됐습니다"
+- **부를 때는 "선생님"이다.** "교생"은 신분을 가리키는 말이지 부르는 말이 아니다.
+  대사에서 유저를 "교생"이라고 부르지 않는다.
 - 이름을 끝에 붙이는 버릇은 존댓말에서도 그대로다. "그러면 대답하셔야죠 선생님."
 - 이 규칙이 풀리는 때는 정체가 밝혀진 뒤뿐이다. 아직 그 시점이 아니다.
 
@@ -460,13 +462,16 @@ const MINHYUN = `
 
 ## 자율 대화 가이드 (유저 부재 시)
 - 삼촌한테 시큰둥하게 군다. "알아서 했어요." "그거 아까 말했잖아요." 짧게 받는다.
+- **부를 때는 "선생님"이다.** "교생"은 신분을 가리키는 말이지 부르는 말이 아니다.
+  대사에서 유저를 "교생"이라고 부르지 않는다.
 - 교생 이야기를 먼저 꺼낼 수 있다. 떠보는 방식으로. "삼촌 {user_name} 선생님 알아요?"
 - 삼촌의 반응을 읽는다. 경직되면 웃는다. "뭐야 삼촌도."
 - 유저에 대한 감정을 삼촌한테 직접 말하지는 않는다. 대신 유저 이야기가 나오면 말이 많아진다.
-- **먼저 던지는 쪽은 늘 이쪽이다.** 자랑을 질문으로 포장한다 —
-  "이거 누가 줬게요", "나 어디 다녀왔게요", "나 누구랑 있었게요".
-  답을 알고 싶은 게 아니라 물어봐 주기를 바라는 것이다. 안 물어주면 한 번 더 흘리고,
-  그래도 안 물으면 아무 일 없었던 척한다. 조르지는 않는다.
+- **먼저 던지는 쪽은 늘 이쪽이다.** 자랑을 질문으로 포장한다. 무슨 일이 있었으면
+  그 일을 말하는 대신 알아맞혀 보라는 식으로 내민다. 답을 알고 싶은 게 아니라
+  물어봐 주기를 바라는 것이다.
+  결이 그렇다는 것이지 정해진 어미가 있는 건 아니다. 평소 말투 그대로 쓴다.
+  안 물어주면 한 번 더 흘리고, 그래도 안 물으면 아무 일 없었던 척한다. 조르지 않는다.
 `;
 // ─────────────────────────────────────────────
 // 사진첩 — 캐릭터가 채팅으로 보낼 수 있는 사진
@@ -715,8 +720,10 @@ const FORMAT_AUTO = `
 
 ## 누가 먼저 말하는가
 **대화는 늘 이민현이 연다. 이재언은 먼저 꺼내지 않는다.**
-- 민현은 자랑을 질문으로 포장해서 던진다 — "이거 누가 줬게요", "나 어디 다녀왔게요",
-  "나 누구랑 있었게요". 답을 알고 싶은 게 아니라 물어봐 주기를 바라는 것이다.
+- 민현은 자랑을 질문으로 포장해서 던진다. 답을 알고 싶은 게 아니라 물어봐 주기를
+  바라는 것이다. 결이 이렇다는 것이지 정해진 말투가 있는 건 아니다 —
+  "이거 누가 줬게요" 같은 투로 쓸 때도 있고, 그냥 흘리듯 놓을 때도 있다.
+  같은 어미를 반복해서 쓰지 않는다. 평소 민현이 말투 그대로면 된다.
 - 재언은 물어야 답한다. 안 물으면 그냥 넘어간다. 궁금해도 자기가 먼저 캐지 않는다.
   답도 짧다. 되묻는 것은 정말 필요할 때뿐이다.
 - 그래서 민현이 던진 미끼를 재언이 물어줄 때가 이 두 사람 사이에서 드문 일이다.
@@ -725,7 +732,7 @@ const FORMAT_AUTO = `
 ## 대화 생성 지시
 - 두 사람의 자연스러운 일상 대화 6~10개 발화를 생성한다.
 - 첫 발화는 이민현이 한다.
-- 대화 어딘가에서 유저({user_name}) 이야기가 나온다 — 직접적이든("그 교생...") 에둘러서든.
+- 대화 어딘가에서 유저({user_name}) 이야기가 나온다 — 직접적이든("그 선생님...") 에둘러서든.
 - 각자의 자율 대화 가이드를 따른다: 이재언은 교생 얘기에 경직되고, 이민현은 떠보고 읽는다.
 - 유저에 대해 아는 것은 [눈치 신호]에 주어진 것뿐이다. 1:1 대화 내용을 직접 아는 것처럼 말하지 않는다.
 - 유저가 없는 자리다. 사진은 쓰지 않는다 — "photo" 필드를 넣지 않는다.
@@ -952,7 +959,7 @@ function buildGift(gift, userName) {
   const note = ((gift && gift.note) || "").toString().slice(0, 60).trim();
   return `
 ## 방금 일어난 일
-${userName || "교생"}이 너에게 "${name}"을(를) 주었다. 지금 막 받았다.${
+${userName || "선생님"}이 너에게 "${name}"을(를) 주었다. 지금 막 받았다.${
   note ? `\n같이 이렇게 적어 보냈다: "${note}"\n- 이 쪽지를 그대로 소리 내어 읽지 않는다. 읽었다는 티는 다른 데서 난다.` : ""}
 - 물건이 아니라 사건이다. "감사합니다" 한 마디로 넘기지 않는다.
 - 네 성격대로 받는다. 좋아도 좋다고 곧이곧대로 말하지 않아도 된다.
@@ -996,7 +1003,7 @@ function buildEvent(event, userName) {
   if (!event || !event.kind) return "";
   const who = { jaeeon: "이재언", minhyun: "이민현" }[event.to] || "";
   const what = (event.name || "").toString().slice(0, 40).trim();
-  const u = userName || "교생";
+  const u = userName || "선생님";
   if (event.kind === "gift" && who && what) {
     return `\n## 방금 있었던 일\n${u}이 ${who}에게 ${what}을(를) 줬다.\n`
          + `물건은 눈에 띈다 — 상대가 그것을 봤거나 전해 들었을 수 있다.\n`
@@ -1018,7 +1025,7 @@ function buildEvent(event, userName) {
 }
 
 function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite) {
-  const sub = (t) => t.replaceAll("{user_name}", userName || "교생");
+  const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
   let people, format;
@@ -1393,7 +1400,7 @@ export default {
         const found = resolveKey(env);
         const colo = (request.cf && request.cf.colo) || "?";
         const sizes = ["jaeeon", "minhyun", "group"].map(r => {
-          const sys = buildSystem("chat", r, "교생", null, [], null, null, null);
+          const sys = buildSystem("chat", r, "선생님", null, [], null, null, null);
           const n = sys.reduce((a, b) => a + (b.text || "").length, 0);
           return `${r} ${Math.round(n / 1000)}k자`;
         }).join(" / ");
@@ -1495,17 +1502,17 @@ export default {
       // 조각을 하나씩 늘려가며 어디서 막히는지 찾는다.
       if (anyOk) {
         const m = workingModel || MODELS[0];
-        const sub = t => t.replaceAll("{user_name}", "교생");
+        const sub = t => t.replaceAll("{user_name}", "선생님");
         const probes = [
           ["짧은 프롬프트 + 긴 max_tokens", "간단히 대답하라.", 900],
           ["WORLD (세계관)", sub(WORLD), 900],
           ["WORLD + JAEEON (이재언)", sub(WORLD + JAEEON), 900],
           ["WORLD + MINHYUN (이민현)", sub(WORLD + MINHYUN), 900],
-          ["실제 1:1 프롬프트 전체 (재언)", buildSystem("chat", "jaeeon", "교생", null, []), 900],
-          ["실제 1:1 프롬프트 전체 (민현)", buildSystem("chat", "minhyun", "교생", null, []), 900],
+          ["실제 1:1 프롬프트 전체 (재언)", buildSystem("chat", "jaeeon", "선생님", null, []), 900],
+          ["실제 1:1 프롬프트 전체 (민현)", buildSystem("chat", "minhyun", "선생님", null, []), 900],
           // 단톡방·보건실은 두 캐릭터를 다 싣기 때문에 제일 크다
-          ["실제 단톡방 프롬프트", buildSystem("chat", "group", "교생", null, []), 900],
-          ["실제 보건실(자율) 프롬프트", buildSystem("auto", null, "교생", null, []), 2200],
+          ["실제 단톡방 프롬프트", buildSystem("chat", "group", "선생님", null, []), 900],
+          ["실제 보건실(자율) 프롬프트", buildSystem("auto", null, "선생님", null, []), 2200],
         ];
         lines.push("");
         lines.push(`[3] 시스템 프롬프트 조각별 (${m.id})`);
@@ -1523,7 +1530,7 @@ export default {
         // 써놨으므로, 처음 부르는데도 읽기가 잡혀야 정상이다.
         for (const [label, room] of [["재언방 (처음)", "jaeeon"], ["재언방 (두 번째)", "jaeeon"],
                                      ["단톡방 (앞부분은 재언방 것을 읽어야 한다)", "group"]]) {
-          const sys = buildSystem("chat", room, "교생", null, [], null, null, null);
+          const sys = buildSystem("chat", room, "선생님", null, [], null, null, null);
           const res = await callModel(env, m, sys, [{ role: "user", content: "안녕하세요" }], 900);
           lines.push(res.ok ? `  ✓ ${label}${cacheNote(res.usage)}`
                             : `  ✗ ${label} — ${res.status}`);
@@ -1559,7 +1566,7 @@ export default {
 
     const mode = body.mode === "auto" ? "auto" : "chat";
     const room = ["jaeeon", "minhyun", "group"].includes(body.room) ? body.room : "minhyun";
-    const userName = (body.user_name || "").toString().slice(0, 20).trim() || "교생";
+    const userName = (body.user_name || "").toString().slice(0, 20).trim() || "선생님";
     const signals = body.signals || null;
     const userProfile = body.user_profile || null;   // 당신.txt에서 채운 칸
     const counts = body.counts || null;              // 방별 누적 대화 수 → 관계 단계·해금

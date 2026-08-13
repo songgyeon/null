@@ -114,7 +114,7 @@ const DEMO_GROUP = [
 const DEMO_AUTO = [
   [{sender:'minhyun',text:'삼촌 오늘 왜 이렇게 일찍 왔어요'},{sender:'jaeeon',text:'일이 빨리 끝났어.'},
    {sender:'minhyun',text:'그런 건 삼촌한테 처음 있는 일인데'},{sender:'jaeeon',text:'씻고 나와.'},
-   {sender:'minhyun',text:'교생 선생님이랑 뭐 있었어요?'},{sender:'jaeeon',text:'없어.'},
+   {sender:'minhyun',text:'그 선생님이랑 뭐 있었어요?'},{sender:'jaeeon',text:'없어.'},
    {sender:'minhyun',text:'그게 대답이에요 지금'},{sender:'jaeeon',text:'밥 다 될 때까지 나오지 마.'}],
   [{sender:'jaeeon',text:'약 먹었냐.'},{sender:'minhyun',text:'네'},
    {sender:'minhyun',text:'…아직요'},{sender:'jaeeon',text:'먹어.'},
