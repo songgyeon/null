@@ -190,6 +190,16 @@ const AUTO_COOL=5*60*1000;
    서버 크론은 안 쓴다. 안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금
    백엔드는 유저별 저장소도 없다. 돌아왔을 때 만들고 시각을 과거로 찍으면
    화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다. */
+/* 사진에 붙은 장소. 두 사람 사진이 같은 자리에서 나오면 "각자 지나갔다"가
+   되고, 그것이 관전방을 여는 사건이 된다.
+   보건실은 뺐다 — 한쪽은 거기서 일하고 한쪽은 죽치고 있어서 매일 마주친다.
+   드러날 것이 없는 자리는 사건이 안 된다. */
+const PLACES:Record<string,string[]>={
+  "옥상":["jaeeon-rooftop","minhyun-roof","minhyun-vending"],
+  "빨래방":["jaeeon-laundry","minhyun-laundry"],
+  "교실":["jaeeon-classroom","minhyun-desk","minhyun-nap","minhyun-window"],
+};
+const placeOf=(key:string)=>{ for(const p in PLACES) if(PLACES[p].includes(key)) return p; return null; };
 const AUTO_AWAY=60*60*1000;    // 이만큼 자리를 비운 뒤에 있었던 일로 찍는다
 const AUTO_MAX_DAY=2;          // 하루 상한. 관전 프롬프트가 22,000자로 제일 비싸다
 const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
@@ -1594,6 +1604,7 @@ function Root() {
       setTyping(true);
       await new Promise(r=>setTimeout(r, typeDelay(m.sender||room, m.text||'')));
       await insertMsg({ room, sender:m.sender||room, text:m.text||'', photo:m.photo||null, created_at:Date.now() });
+      if(m.photo) await notePlace(m.sender||room, m.photo);
       await reload(room);
       if(viewRef.current.id!==room) setUnread(u=>({...u,[room]:(u[room]||0)+1}));
     }
@@ -1702,6 +1713,18 @@ function Root() {
      유저가 자리를 비운 지 한 시간이 지나 다시 들어왔을 때 만든다.
      원문은 여전히 서버로 안 간다. 무슨 물건을 줬는지만 알려주고, 무슨 말이
      오갔는지는 프롬프트에서 못박아 막는다. */
+  /* 사진이 올 때마다 그 자리에 누가 있었는지 적는다. 양쪽이 다 찍히면
+     "각자 지나갔다"가 되고, 그게 관전방을 여는 사건이 된다. 한 자리는 한 번만. */
+  const notePlace = async(sender:string, photo:string)=>{
+    const place=placeOf(photo); if(!place||(sender!=='jaeeon'&&sender!=='minhyun')) return;
+    let seen:any={}; try{ seen=JSON.parse((await getMeta('null_places'))||'{}') }catch{}
+    const cur=seen[place]||{};
+    if(cur[sender]||cur.done) return;
+    cur[sender]=1;
+    if(cur.jaeeon&&cur.minhyun){ cur.done=1; await markEvent({kind:'place', name:place}); }
+    seen[place]=cur; await setMeta('null_places', JSON.stringify(seen));
+  };
+
   const markEvent = async(ev:any)=>{
     try{ await setMeta('null_auto_event', JSON.stringify({...ev, at:Date.now()})); }catch{}
   };

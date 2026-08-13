@@ -375,6 +375,21 @@ eq('사건은 auto에서만 받는다',
 eq('사건을 줘도 오간 말은 모른다고 못박는다',
   /무슨 말이 오갔는지는 모른다/.test(workerSrc), true);
 
+/* 장소 방아쇠 — 두 사람 사진이 같은 자리에서 나오면 "각자 지나갔다"가 된다.
+   표가 어긋나면 한쪽에서만 열려서, 웹과 앱의 관전방 내용이 갈라진다. */
+const placesOf = src => {
+  const m = src.match(/const PLACES(?::[^=]*)?=\{([\s\S]*?)\n\};/);
+  return m ? [...m[1].matchAll(/"([^"]+)":\s*\[([^\]]*)\]/g)]
+    .map(x => [x[1], [...x[2].matchAll(/"([^"]+)"/g)].map(y => y[1]).sort()]) : null;
+};
+eq('사진 장소 표가 웹·앱 같다', placesOf(appSrc), placesOf(web));
+eq('장소마다 두 사람 사진이 다 있다',
+  (placesOf(web) || []).filter(([, ks]) =>
+    !ks.some(k => k.startsWith('jaeeon')) || !ks.some(k => k.startsWith('minhyun'))), []);
+eq('장소 표의 사진이 전부 저장소에 있다',
+  (placesOf(web) || []).flatMap(([, ks]) => ks).filter(k => !exists(k + '.webp')), []);
+eq('장소도 관전방 사건으로 받는다', /event\.kind === "place"/.test(workerSrc), true);
+
 /* 소개 영상은 설정 메뉴 옆에 평평하게 놓여 있어서 그 자체로는 눌릴 이유가
    없다. 대신 흐르는 띠가 말해준다. 메뉴바를 건드려 튀게 만들면 줄 전체가
    정신없어지므로, 초대는 띠 쪽에만 둔다. */
