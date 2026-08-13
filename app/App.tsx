@@ -1205,6 +1205,12 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           <View style={rl.hv}><Text style={rl.hvT}>today <Text style={rl.hvB}>{todayN}</Text></Text></View>
           <View style={rl.hv}><Text style={rl.hvT}>total <Text style={rl.hvB}>{totalN}</Text></Text></View>
           <View style={rl.hv}><Text style={rl.hvT}>♡ <Text style={[rl.hvB,{color:'#e0699a'}]}>{hearts}</Text></Text></View>
+          {/* 웹의 .hompy .sp — 오른쪽 끝에 별과 하트. 웹은 픽셀 SVG를 쓰는데
+              앱에는 그 그림이 없어서 같은 색의 글자로 놓는다 */}
+          <View style={rl.hompySp} pointerEvents="none">
+            <Text style={[rl.hompyIco,{color:'#ffd68a'}]}>✦</Text>
+            <Text style={[rl.hompyIco,{color:'#ff7fae'}]}>♥</Text>
+          </View>
         </View>}
       </ScrollView>
       </View>
@@ -1229,6 +1235,8 @@ const rl=StyleSheet.create({
     borderWidth:1,borderColor:'#eee0f4',borderRadius:10},
   hvT:{...F,fontSize:9.5,letterSpacing:1.2,color:'#9a8fc8'},
   hvB:{color:'#6b5fa8'},
+  hompySp:{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:5,opacity:.9},
+  hompyIco:{...F,fontSize:11},
   peek:{...F,fontSize:10,color:P.ink,letterSpacing:.5},
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
