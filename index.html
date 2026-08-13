@@ -965,7 +965,11 @@ const fmtDay=ts=>{const d=new Date(ts),y=d.getFullYear();
 /* 아이콘: 픽셀풍 (crispEdges) */
 const px={shapeRendering:"crispEdges"};
 const MoonIcon=({size=14,color})=><svg width={size} height={size} viewBox="0 0 16 16">
-  <path d="M13.83 10.63A6.4 6.4 0 1 1 5.37 2.17a6.4 6.4 0 1 0 8.46 8.46z" fill={color||"currentColor"}/>
+  {/* 초승달 = 원에서 어긋난 원을 뺀 것. 호 하나로 그리려면 플래그가 까다로워서
+     mask로 잘라낸다. 모양이 어디서나 같으니 id는 하나로 쓴다. */}
+  <mask id="moonc"><circle cx="8" cy="8" r="6.4" fill="#fff"/>
+    <circle cx="11.2" cy="4.8" r="6.4" fill="#000"/></mask>
+  <circle cx="8" cy="8" r="6.4" fill={color||"currentColor"} mask="url(#moonc)"/>
   <path d="M12.4 2l.45 1.15L14 3.6l-1.15.45L12.4 5.2l-.45-1.15L10.8 3.6l1.15-.45z"
     fill={color||"currentColor"} opacity=".7"/></svg>;
 const BackIcon=()=><svg width="13" height="13" viewBox="0 0 14 14" style={px}><path d="M8 2h2v2H8v2H6v2h2v2h2v2H8v-2H6V8H4V6h2V4h2V2z" fill="currentColor"/></svg>;
