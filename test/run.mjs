@@ -362,6 +362,18 @@ eq('민현은 밴드 쪽 1번을 댄다',
  ['아 일하느라 스트레스 받아', '옥상 갈래요?']].forEach(([q, a]) =>
   eq(`민현이 화제를 끌어온다 — ${q}`, demo.demoReply('minhyun', q)[0].text, a));
 
+/* 한 번만 이어 받는다. 혼자 먹었냐고 물어놓고 다음 대답을 그냥 넘기면
+   되묻던 게 거기서 끊긴다. 새 화제가 오면 그쪽이 먼저다. */
+demo.demoReply('minhyun', '나 오늘 떡볶이 먹음');
+eq('앞의 물음을 한 번 이어 받는다',
+  demo.demoReply('minhyun', '둘이면 어쩌려고')[0].text, '누군지 알아보려고?');
+demo.demoReply('minhyun', '나 오늘 떡볶이 먹음');
+// 앞선 검사들이 자리를 돌려놨으므로 몇 번째가 나오는지가 아니라 어느 결인지를 본다
+const after = demo.demoReply('minhyun', '나 좀 지쳤나 봐')[0].text;
+eq('새 화제가 오면 이어 받지 않는다',
+  demo.DEMO_LINES.minhyun.stress.some(x => x[0] === after), true);
+
+
 /* ㅋ·ㅡㅡ·ㅇㅇ 같은 자모 축약은 안 쓴다. 채팅 말투처럼 보이지만 화면에서는
    그냥 지저분하다. 프롬프트에서도 뺐으므로 각본만 남아 있으면 어긋난다. */
 const jamo = /(^|[^ㄱ-ㅎ])(ㅋ+|ㅡㅡ|ㅇㅇ|ㅎㅎ)/;

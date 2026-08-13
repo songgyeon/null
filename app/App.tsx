@@ -235,6 +235,11 @@ const DEMO_AUTO = [
    {sender:'minhyun',text:'진짜요?'},{sender:'minhyun',text:'아무 말도 안 할 거잖아요'},
    {sender:'jaeeon',text:'자라, 민현아. 늦었어.'}],
 ];
+/* 한 번만 이어 받는다. 혼자 먹었냐고 물어놓고 다음 대답을 그냥 넘기면
+   되묻던 게 거기서 끊긴다. 앞의 결이 뭐였는지 기억했다가 한 번 더 문다.
+   지금은 이 한 자리뿐이다 — 늘리면 대화가 아니라 대본이 된다. */
+const DEMO_FOLLOW:Record<string,Record<string,string[]>>={minhyun:{meal:['누군지 알아보려고?']}};
+const demoPrev:Record<string,string>={};
 // 같은 각본이 연달아 나오지 않게 방·결마다 자리를 기억한다
 const demoAt:Record<string,number> = {};
 const demoPick = (key:string, arr:any[]) => {const i=(demoAt[key]||0)%arr.length; demoAt[key]=i+1; return arr[i]};
@@ -250,8 +255,13 @@ function demoReply(room:string, lastText?:string, userName?:string) {
   if(room==='health') return demoPick('health',DEMO_AUTO);
   if(room==='group')  return demoPick('group',DEMO_GROUP);
   const set=DEMO_LINES[room]; if(!set) return [{sender:room,text:'…'}];
+  const prev=demoPrev[room]; delete demoPrev[room];
   let b=demoBucket(lastText);
+  const fol=prev&&DEMO_FOLLOW[room]&&DEMO_FOLLOW[room][prev];
+  // 좁은 결에 안 걸린 대답일 때만 이어 받는다. 새 화제가 나왔으면 그쪽이 먼저다
+  if(fol&&b===demoBroad(lastText))return fol.map(t=>({sender:room,text:t}));
   if(!set[b])b=demoBroad(lastText);
+  demoPrev[room]=b;
   const it=demoIt(lastText);
   let arr=set[b]||set.any;
   if(!it)arr=arr.filter((s:string[])=>!s.some(t=>t.indexOf('{it}')>=0));
