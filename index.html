@@ -1005,6 +1005,16 @@ const heatRing=(ch,idx)=>({borderWidth:HEAT[idx].w+"px",borderStyle:"solid",
 /* ── 🌙 관찰 쿨타임 ──
    관찰은 흔하면 값이 떨어진다. 연타로 새는 API 비용도 여기서 막힌다. */
 const AUTO_COOL=5*60*1000;
+/* 관전방 자동 채움 — 앱을 닫아둔 사이에 두 사람이 나눈 대화가 쌓여 있게 한다.
+   서버 크론이 아니라 "돌아왔을 때 만들고 시각을 과거로 찍는" 방식이다. 크론은
+   안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금 백엔드는 유저별 저장소도
+   없다. 화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다.
+   관전 프롬프트가 22,000자로 제일 비싸서 하루 상한을 둔다. */
+const AUTO_GAP=3*60*60*1000;   // 이만큼 비어 있어야 하나 쌓인다
+const AUTO_MAX_DAY=2;          // 하루 상한
+const AUTO_MIN_MSGS=10;        // 이만큼은 오간 뒤부터 — 그 전엔 두 사람이 할 말이 없다
+const loadAutoDay=()=>{try{return localStorage.getItem("null_auto_day")||""}catch(e){return""}};
+const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
 const loadAutoAt=()=>{const v=+localStorage.getItem("null_auto_at");return v||0};
 const saveAutoAt=t=>{try{localStorage.setItem("null_auto_at",String(t))}catch(e){}};
 const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));
@@ -2137,6 +2147,55 @@ function App(){
     request(room,p);
   };
   /* 시간 경과(달 버튼): 자율 대화 생성 → 관전방에 축적 */
+  /* 비어 있던 사이를 메운다. 화면을 열 때 한 번만 본다.
+     시각은 마지막으로 오간 말과 지금 사이에 찍어, 내가 없는 동안 있었던 일로
+     읽히게 한다. 대화 중에는 절대 안 만든다 — 나랑 말하면서 저쪽과도 말하는
+     꼴이 되면 1:1이 싸구려가 된다. */
+  const autoFilled=useRef(false);
+  useEffect(()=>{
+    if(!name||autoFilled.current)return;
+    autoFilled.current=true;
+    (async()=>{
+      const now=Date.now();
+      const all=Object.values(storeRef.current.msgs||{}).flat();
+      if(all.length<AUTO_MIN_MSGS)return;
+      const lastAny=all.reduce((a,m)=>m.ts>a?m.ts:a,0);
+      const since=Math.max(autoAt||0,lastAny);
+      if(now-since<AUTO_GAP)return;
+      const day=new Date().toISOString().slice(0,10);
+      const [d,n]=loadAutoDay().split("|");
+      const used=d===day?Number(n)||0:0;
+      if(used>=AUTO_MAX_DAY)return;
+      saveAutoDay(`${day}|${used+1}`);
+      saveAutoAt(now); setAutoAt(now);
+      // 마지막으로 오간 말과 지금 사이 어딘가. 너무 방금은 아니게 20분은 띄운다
+      const span=now-since;
+      const at=Math.min(since+Math.floor(span*(.35+Math.random()*.3)),now-20*60*1000);
+      let msgs=null;
+      if(demoOn()){ msgs=demoReply("health"); }
+      else{
+        try{
+          const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({mode:"auto",user_name:name,counts:roomCounts(),
+              history:buildHistory(storeRef.current.msgs.health||[]),
+              signals:buildSignals(null),recent_photos:recentPhotos("health")})});
+          const data=await res.json().catch(()=>null);
+          if(res.ok&&data) msgs=data.messages;
+        }catch(e){ /* 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
+      }
+      if(!msgs||!msgs.length)return;
+      let t=at;
+      msgs.forEach(m=>{
+        if(!m)return;
+        const photo=photoSrc(m.photo)?m.photo:null;
+        const text=(m.text||"").trim();
+        if(!text&&!photo)return;
+        appendMsg("health",{id:t+Math.random(),sender:m.sender||"health",text,photo,ts:t});
+        t+=40000+Math.floor(Math.random()*80000);   // 40~120초 간격
+      });
+    })();
+  },[name]);
+
   const doAuto=async()=>{
     if(autoLoading)return;
     setAutoLoading(true);

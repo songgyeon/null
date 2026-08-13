@@ -182,6 +182,14 @@ const HEAT=[{w:1,o:'44'},{w:1.5,o:'80'},{w:2,o:'b8'},{w:2.5,o:'e0'},{w:3,o:'ff'}
 
 /* ── peek 쿨타임 ── 관찰이 흔하면 값이 떨어진다. 연타로 새는 비용도 여기서 막는다 */
 const AUTO_COOL=5*60*1000;
+/* 관전방 자동 채움 — 앱을 닫아둔 사이에 두 사람이 나눈 대화가 쌓여 있게 한다.
+   서버 크론이 아니라 "돌아왔을 때 만들고 시각을 과거로 찍는" 방식이다. 크론은
+   안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금 백엔드는 유저별 저장소도
+   없다. 화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다.
+   관전 프롬프트가 22,000자로 제일 비싸서 하루 상한을 둔다. */
+const AUTO_GAP=3*60*60*1000;   // 이만큼 비어 있어야 하나 쌓인다
+const AUTO_MAX_DAY=2;          // 하루 상한
+const AUTO_MIN_MSGS=10;        // 이만큼은 오간 뒤부터 — 그 전엔 두 사람이 할 말이 없다
 const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
   return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
 
@@ -1590,6 +1598,18 @@ function Root() {
     setTyping(false);
   };
 
+  /* 지나간 일로 넣는다. 타이핑 연출도 없다 — 지금 오는 말이 아니라
+     이미 오갔던 말이라서 한 번에 얹혀 있어야 한다. */
+  const enqueuePast = async (room:string, list:any[], baseTs:number) => {
+    let t=baseTs;
+    for(const m of list){
+      await insertMsg({ room, sender:m.sender||room, text:m.text||'', photo:m.photo||null, created_at:t });
+      t += 40000+Math.floor(Math.random()*80000);   // 40~120초 간격
+    }
+    await reload(room);
+    if(viewRef.current.id!==room) setUnread(u=>({...u,[room]:(u[room]||0)+list.length}));
+  };
+
   /* 입장 — 기본 문장 없음, 빈 방에서 시작 */
   const handleEnter = async(n:string)=>{
     await setMeta('user_name',n); setName(n); setEnrolling(true);
@@ -1674,6 +1694,40 @@ function Root() {
     }catch(e:any){ await fallToDemo(e,'health'); }
     setAutoLoading(false);
   };
+
+  /* 비어 있던 사이를 메운다. 앱을 열 때 한 번만 본다.
+     시각은 마지막으로 오간 말과 지금 사이에 찍어, 내가 없는 동안 있었던 일로
+     읽히게 한다. 대화 중에는 절대 안 만든다 — 나랑 말하면서 저쪽과도 말하는
+     꼴이 되면 1:1이 싸구려가 된다. */
+  const autoFilled=useRef(false);
+  useEffect(()=>{
+    if(!ready||!name||enrolling||autoFilled.current) return;
+    autoFilled.current=true;
+    (async()=>{
+      const now=Date.now();
+      const all=Object.values(msgs).flat() as any[];
+      if(all.length<AUTO_MIN_MSGS) return;
+      const lastAny=all.reduce((a,m)=>m.created_at>a?m.created_at:a,0);
+      const since=Math.max(autoAt||0,lastAny);
+      if(now-since<AUTO_GAP) return;
+      // 하루 상한
+      const day=new Date().toISOString().slice(0,10);
+      const raw=(await getMeta('null_auto_day'))||'';
+      const [d,n]=raw.split('|');
+      const used=d===day?Number(n)||0:0;
+      if(used>=AUTO_MAX_DAY) return;
+      await setMeta('null_auto_day',`${day}|${used+1}`);
+      await setMeta('null_auto_at',String(now)); setAutoAt(now);
+      // 마지막으로 오간 말과 지금 사이 어딘가. 너무 방금은 아니게 20분은 띄운다
+      const span=now-since;
+      const at=Math.min(since+Math.floor(span*(.35+Math.random()*.3)), now-20*60*1000);
+      try{
+        const data=demoOn()?{messages:demoReply('health')}:await genAuto(name);
+        if(!demoOn()) await applyExtras(data);
+        if(data.messages?.length) await enqueuePast('health',data.messages,at);
+      }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
+    })();
+  },[ready,name,enrolling,msgs]);
 
   /* 당신.txt: 빈칸 저장 / 이름 변경 */
   const saveProfile=(k:string,v:string)=>setProfile(p=>{const n={...p,[k]:v}; setMeta('null_profile',JSON.stringify(n)); return n;});

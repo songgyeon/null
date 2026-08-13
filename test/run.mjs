@@ -354,6 +354,13 @@ eq('실습 기간이 30일이다', enrollDays(web), '30');
 eq('D-카운트를 양쪽 다 실습으로 쓴다',
   /실습 D-/.test(appSrc) && /실습 D-/.test(web), true);
 
+/* 관전방 자동 채움. 값이 어긋나면 웹과 앱이 다른 속도로 쌓인다.
+   상한은 특히 중요하다 — 관전 프롬프트가 제일 비싸다. */
+const autoNum = (src, k) => (src.match(new RegExp(k + '\\s*=\\s*([\\d*]+)')) || [])[1];
+['AUTO_GAP', 'AUTO_MAX_DAY', 'AUTO_MIN_MSGS'].forEach(k =>
+  eq(`관전 자동 채움 ${k}가 웹·앱 같다`, autoNum(appSrc, k), autoNum(web, k)));
+eq('관전 자동 채움에 하루 상한이 있다', autoNum(web, 'AUTO_MAX_DAY'), '2');
+
 /* 소개 영상은 설정 메뉴 옆에 평평하게 놓여 있어서 그 자체로는 눌릴 이유가
    없다. 대신 흐르는 띠가 말해준다. 메뉴바를 건드려 튀게 만들면 줄 전체가
    정신없어지므로, 초대는 띠 쪽에만 둔다. */
