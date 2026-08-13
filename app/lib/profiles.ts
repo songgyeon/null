@@ -115,28 +115,29 @@ export async function saveGifts(g: Record<string,string[]>) {
 //
 // status는 기본 문구다. 서버가 status를 내려주면(meta: status_<char>)
 // 그쪽이 우선한다. 둘 다 비면 프로필에 상태메시지 줄 자체가 안 나온다.
-// 재언은 밝은 데서 어두운 데로 들어갔다가 마지막에 바다로 트이고,
-// 민현은 안에서 밖으로 나가다가 마지막엔 옥상에 혼자다.
+// 재언은 밝은 데서 어두운 데로 — 미술관, 계단참, 복도, 밤 차 안, 그리고 부엌.
+// 마지막 부엌에 씻어서 엎어놓은 그릇이 두 개다.
+// 민현은 안에서 밖으로 — 레코드샵, 버스, 골목, 그리고 옥상.
 // 마지막 120은 .hidden의 일기가 열리는 지점과 같다.
 export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   jaeeon: {
-    fallback: 'jaeeon-bg.webp',
+    fallback: 'jaeeon-gallery.webp',
     stages: [
-      { at: 0,   status: '',              bg: 'jaeeon-museum.webp',  track: 'jaeeon-1' },
-      { at: 16,  status: '오늘 아무도 안 다쳤음',      bg: 'jaeeon-library.webp', track: 'jaeeon-1' },
-      { at: 40,  status: '자꾸 뭘 두고 온다', bg: 'jaeeon-night.webp',   track: 'jaeeon-2' },
-      { at: 80,  status: '버릴 것, 둘 것',    bg: 'jaeeon-hall.webp',    track: 'jaeeon-3' },
-      { at: 120, status: '문을 안 잠갔다',     bg: 'jaeeon-stairs.webp',  track: 'jaeeon-4' },
+      { at: 0,   status: '',              bg: 'jaeeon-gallery.webp', track: 'jaeeon-1' },
+      { at: 16,  status: '오늘 아무도 안 다쳤음',      bg: 'jaeeon-landing.webp', track: 'jaeeon-1' },
+      { at: 40,  status: '자꾸 뭘 두고 온다', bg: 'jaeeon-lobby.webp',   track: 'jaeeon-2' },
+      { at: 80,  status: '버릴 것, 둘 것',    bg: 'jaeeon-drive.webp',   track: 'jaeeon-3' },
+      { at: 120, status: '문을 안 잠갔다',     bg: 'jaeeon-kitchen.webp', track: 'jaeeon-4' },
     ],
   },
   minhyun: {
-    fallback: 'minhyun-bg.webp',
+    fallback: 'minhyun-sunset.webp',
     stages: [
-      { at: 0,   status: '',                      bg: 'minhyun-bg.webp',       track: 'minhyun-1' },
-      { at: 16,  status: '보건실 침대는 내 자리', bg: 'minhyun-poster.webp',   track: 'minhyun-1' },
-      { at: 40,  status: '읽씹 아님 못 읽은 거임',    bg: 'minhyun-tv.webp', track: 'minhyun-2' },
-      { at: 80,  status: 'D-',         bg: 'minhyun-street.webp',   track: 'minhyun-3' },
-      { at: 120, status: '다 셌다',             bg: 'minhyun-roof.webp',     track: 'minhyun-4' },
+      { at: 0,   status: '',                      bg: 'minhyun-shop.webp',     track: 'minhyun-1' },
+      { at: 16,  status: '보건실 침대는 내 자리', bg: 'minhyun-lp.webp',       track: 'minhyun-1' },
+      { at: 40,  status: '읽씹 아님 못 읽은 거임',    bg: 'minhyun-bus.webp', track: 'minhyun-2' },
+      { at: 80,  status: 'D-',         bg: 'minhyun-cat.webp',      track: 'minhyun-3' },
+      { at: 120, status: '다 셌다',             bg: 'minhyun-sunset.webp',   track: 'minhyun-4' },
     ],
   },
 };

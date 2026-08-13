@@ -1382,21 +1382,24 @@ const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:
    어긋나면 같은 사람 프로필이 웹과 앱에서 다른 배경으로 나온다.
    단계 경계(0/16/40/80)는 stageIdx가 정하고, worker.js의 STAGES와 맞춰져 있다. */
 const PROFILES={
-  // 재언 — 밝은 데서 어두운 데로 들어갔다가 마지막에 바다로 트인다
-  jaeeon:{fallback:"jaeeon-bg.webp",stages:[
-    {status:"",              bg:"jaeeon-museum.webp",  track:"jaeeon-1"},
-    {status:"오늘 아무도 안 다쳤음",       bg:"jaeeon-library.webp", track:"jaeeon-1"},
-    {status:"자꾸 뭘 두고 온다",  bg:"jaeeon-night.webp",   track:"jaeeon-2"},
-    {status:"버릴 것, 둘 것",     bg:"jaeeon-hall.webp",    track:"jaeeon-3"},
-    {status:"문을 안 잠갔다",      bg:"jaeeon-stairs.webp",  track:"jaeeon-4"},
+  /* 재언 — 밝은 데서 어두운 데로. 미술관에서 시작해 계단참, 복도, 밤 차 안을
+     지나 마지막이 부엌이다. 씻어서 엎어놓은 그릇이 두 개인 부엌.
+     1인분을 계량하던 사람한테 2인분이 손에 붙었다는 게 그 사진이다. */
+  jaeeon:{fallback:"jaeeon-gallery.webp",stages:[
+    {status:"",              bg:"jaeeon-gallery.webp", track:"jaeeon-1"},
+    {status:"오늘 아무도 안 다쳤음",       bg:"jaeeon-landing.webp", track:"jaeeon-1"},
+    {status:"자꾸 뭘 두고 온다",  bg:"jaeeon-lobby.webp",   track:"jaeeon-2"},
+    {status:"버릴 것, 둘 것",     bg:"jaeeon-drive.webp",   track:"jaeeon-3"},
+    {status:"문을 안 잠갔다",      bg:"jaeeon-kitchen.webp", track:"jaeeon-4"},
   ]},
-  // 민현 — 안에서 밖으로 나가다가 마지막엔 옥상에 혼자다
-  minhyun:{fallback:"minhyun-bg.webp",stages:[
-    {status:"",                      bg:"minhyun-bg.webp",       track:"minhyun-1"},
-    {status:"보건실 침대는 내 자리",  bg:"minhyun-poster.webp",   track:"minhyun-1"},
-    {status:"읽씹 아님 못 읽은 거임",    bg:"minhyun-tv.webp",       track:"minhyun-2"},
-    {status:"D-",         bg:"minhyun-street.webp",   track:"minhyun-3"},
-    {status:"다 셌다",             bg:"minhyun-roof.webp",     track:"minhyun-4"},
+  /* 민현 — 안에서 밖으로. 레코드샵에서 시작해 버스, 골목을 지나 옥상에서 끝난다.
+     같은 비 오는 밤인데 재언은 운전석에 앉아 있고 이 애는 버스에 서 있다. */
+  minhyun:{fallback:"minhyun-sunset.webp",stages:[
+    {status:"",                      bg:"minhyun-shop.webp",     track:"minhyun-1"},
+    {status:"보건실 침대는 내 자리",  bg:"minhyun-lp.webp",       track:"minhyun-1"},
+    {status:"읽씹 아님 못 읽은 거임",    bg:"minhyun-bus.webp",      track:"minhyun-2"},
+    {status:"D-",         bg:"minhyun-cat.webp",      track:"minhyun-3"},
+    {status:"다 셌다",             bg:"minhyun-sunset.webp",   track:"minhyun-4"},
   ]},
 };
 
