@@ -590,7 +590,6 @@ function SpinCD({size=88}:{size?:number}) {
 /* 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보이고, 꼬리를 따로 붙이면
    꺾인 조각처럼 보인다. 웹과 같은 path를 그림 한 장으로 구워서 쓴다. */
 const CURSOR_PNG=require('./assets/cursor.png');
-const CHECKER_PNG=require('./assets/checker.png');
 const SpCursor=()=><Image source={CURSOR_PNG} style={sp.cursor}
   resizeMode="contain" pointerEvents="none"/>;
 
@@ -1077,9 +1076,6 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           <Text style={{fontSize:11}}>🌙</Text>
           <Text style={rl.peek}>{autoLoading?'...':left>0?mmss(left):'peek'}</Text></Bevel>
       </View>
-      {/* 웹의 .checker는 linear-gradient 두 겹으로 격자를 만든다. RN에는 없으니
-          8px 타일 한 장을 repeat으로 깐다. */}
-      <Image source={CHECKER_PNG} style={rl.checker} resizeMode="repeat"/>
       <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
       <View style={rl.tabs}>
         <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms (4)</Text></TouchableOpacity>
@@ -1160,7 +1156,11 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
               : <View style={[rl.av,{borderColor:room.color},watch?rl.avW:rl.avG]}>
                   {watch
                     ? <View style={rl.moon}><View style={rl.moonCut}/></View>
-                    : <Image source={BUBBLE_PNG} style={{width:26,height:26}} resizeMode="contain"/>}
+                    : <View style={rl.bub}>
+                        <View style={[rl.bubO,{width:19,height:19,borderRadius:10,left:1,top:4}]}/>
+                        <View style={[rl.bubO,{width:6,height:6,borderRadius:3,left:16,top:0}]}/>
+                        <View style={[rl.bubO,{width:4,height:4,borderRadius:2,left:17,top:16,borderWidth:.9}]}/>
+                      </View>}
                 </View>}
             <View style={{flex:1}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
@@ -1237,7 +1237,6 @@ const rl=StyleSheet.create({
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
   presT:{...F,fontSize:8.5,color:'#a79cd0'},
-  checker:{height:6,width:'100%',borderBottomWidth:1,borderBottomColor:'#cfc6ee'},
   foot:{flexDirection:'row',alignItems:'flex-end',justifyContent:'center',gap:16,
         paddingTop:14,paddingBottom:10},
   footDeco:{fontSize:13,color:'#c3b2f0',opacity:.6,marginBottom:8},
@@ -1273,6 +1272,10 @@ const rl=StyleSheet.create({
         color:'#e7dcf5',height:10,overflow:'hidden'},
   av:{width:42,height:42,borderRadius:21,borderWidth:1,overflow:'hidden',justifyContent:'center',alignItems:'center',backgroundColor:'#fff'},
   avG:{backgroundColor:'#eaf1fb'},
+  /* 단톡방 — 웹의 BubbleIcon과 같은 배치다. 큰 것 하나에 작은 것 둘.
+     사진 같은 비눗방울 한 장을 채워 넣으니 뿌옇게 번져서 그림으로 바꿨다 */
+  bub:{width:24,height:23},
+  bubO:{position:'absolute',borderWidth:1.3,borderColor:'#9db7e8',backgroundColor:'rgba(207,224,248,.45)'},
   avW:{backgroundColor:'#e6eaf7'},
   /* 초승달 — 채운 원 위에 배경색 원을 살짝 밀어 얹어서 판다 */
   moon:{width:20,height:20,borderRadius:10,backgroundColor:'#8a7fc0',overflow:'hidden'},

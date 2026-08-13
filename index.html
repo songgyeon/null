@@ -718,11 +718,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  font-size:15px;color:#b7addb}
 /* ── Y2K 디테일 ── */
 /* 체크무늬 띠 — 구분선 대신 한 곳에만 쓴다 */
-.checker{height:6px;flex:none;
- background-image:linear-gradient(45deg,#e4dcf7 25%,transparent 25%,transparent 75%,#e4dcf7 75%),
-   linear-gradient(45deg,#e4dcf7 25%,transparent 25%,transparent 75%,#e4dcf7 75%);
- background-size:8px 8px;background-position:0 0,4px 4px;background-color:#fdfbff;
- border-bottom:1px solid #cfc6ee}
 /* 흐르는 띠 — 한 줄, 느리게. 이게 두 줄이 되는 순간 정신없어진다 */
 .marquee{flex:none;overflow:hidden;white-space:nowrap;padding:4px 0;
  background:linear-gradient(90deg,#ffe6f2,#efe6ff,#e2f4ff);border-bottom:1px solid #cfc6ee}
@@ -1776,7 +1771,6 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
         <span>{autoLoading?"time passing...":left>0?mmss(left):"peek"}</span>
       </button>
     </div>
-    <div className="checker"/>
     <div className="marquee"><span>
       ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; 
       {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧
