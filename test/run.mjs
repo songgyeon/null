@@ -340,10 +340,11 @@ eq('걱정하는 말이 먹었다는 말로 안 샌다', demo.demoBucket('밥은
    "친구 없어?"는 재언한테 질문이다 — 좁은 결에 걸렸다는 이유로 질문이라는
    것까지 잃으면 아무 대답이나 나간다. 빈 칸을 이상하게 채우는 것보다
    평소 대답이 나가는 게 낫다. */
-// 앞선 검사들이 이미 자리를 돌려놨으므로 몇 번째가 나오는지는 고정할 수 없다
+// 앞선 검사들이 이미 자리를 돌려놨으므로 몇 번째가 나오는지는 고정할 수 없다.
+// demoReply는 부를 때마다 자리가 넘어가므로 한 번만 부른다
+const askBack = demo.demoReply('jaeeon', '친구 없어?')[0].text;
 eq('없는 결은 넓은 결로 다시 잡는다',
-  demo.DEMO_LINES.jaeeon.ask.some(s => s[0] === demo.demoReply('jaeeon', '친구 없어?')[0].text),
-  true);
+  demo.DEMO_LINES.jaeeon.ask.some(s => s[0] === askBack), true);
 /* 이름은 등록 화면에서 받아둔 걸 그대로 쓴다 */
 eq('데모도 유저 이름을 부른다',
   demo.demoReply('jaeeon', '커피만 드시지 말고요', '윤하').map(m => m.text).join('/'),
