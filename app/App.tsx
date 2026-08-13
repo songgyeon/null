@@ -192,6 +192,11 @@ const AUTO_COOL=5*60*1000;
    화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다. */
 const AUTO_AWAY=60*60*1000;    // 이만큼 자리를 비운 뒤에 있었던 일로 찍는다
 const AUTO_MAX_DAY=2;          // 하루 상한. 관전 프롬프트가 22,000자로 제일 비싸다
+/* 눌러서 만드는 사건(선물·해금·약속) 말고, 그냥 쌓여서 되는 사건이 둘 있다.
+   한 번씩만 찍는다 — 같은 일이 매일 나오면 그건 사건이 아니라 배경이다.
+   index.html의 PHOTO_EVENT_AT / DDAY_MARKS와 같은 값이다. */
+const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 민현이 눈치챈다
+const DDAY_MARKS=[7,3,1];    // 남은 날이 이 값이 되는 날
 const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
   return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
 
@@ -1721,6 +1726,35 @@ function Root() {
   const markEvent = async(ev:any)=>{
     try{ await setMeta('null_auto_event', JSON.stringify({...ev, at:Date.now()})); }catch{}
   };
+  /* 유저가 아무것도 안 눌러도 생기는 사건 둘.
+     ① 재언에게 사진이 다섯 장 넘게 오면 — 민현이는 그 사진을 못 본다.
+        찍는 것만 봤다. 그래서 묻는 쪽이 된다.
+     ② 떠날 날이 7·3·1일 남는 날 — 둘 다 알지만 이름을 먼저 안 붙인다.
+     찍어만 두고 만들지는 않는다. 한 시간 뒤 아래 효과가 가져간다. */
+  const evBusy=useRef(false);
+  useEffect(()=>{
+    if(!ready||!name||enrolling||evBusy.current) return;
+    (async()=>{
+      evBusy.current=true;
+      try{
+        let done:string[]=[];
+        try{ done=JSON.parse((await getMeta('null_ev_done'))||'[]') }catch{}
+        const mark=async(key:string, ev:any)=>{
+          if(done.includes(key)) return false;
+          await setMeta('null_ev_done', JSON.stringify([...done,key]));
+          await markEvent(ev); return true;
+        };
+        const shots=((msgs as any).jaeeon||[]).filter((m:any)=>m.photo&&m.sender!=='user').length;
+        if(shots>=PHOTO_EVENT_AT&&await mark('photos',{kind:'photos',to:'jaeeon'})) return;
+        const all=Object.values(msgs).flat() as any[];
+        const firstTs=all.reduce((a,m)=>!a||m.created_at<a?m.created_at:a,0);
+        if(!firstTs) return;
+        const d=Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5));
+        if(DDAY_MARKS.includes(d)) await mark('dday:'+d,{kind:'dday',name:String(d)});
+      }finally{ evBusy.current=false }
+    })();
+  },[ready,name,enrolling,view,msgs]);
+
   const autoBusy=useRef(false);
   useEffect(()=>{
     if(!ready||!name||enrolling||autoBusy.current) return;

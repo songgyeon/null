@@ -362,11 +362,32 @@ const autoNum = (src, k) => (src.match(new RegExp(k + '\\s*=\\s*([\\d*]+)')) || 
 ['AUTO_AWAY', 'AUTO_MAX_DAY'].forEach(k =>
   eq(`관전 자동 채움 ${k}가 웹·앱 같다`, autoNum(appSrc, k), autoNum(web, k)));
 eq('관전 자동 채움에 하루 상한이 있다', autoNum(web, 'AUTO_MAX_DAY'), '2');
-// 선물과 해금 둘 다 적어둬야 한다. 하나만 걸면 다른 쪽은 영영 안 열린다
-['gift', 'unlock'].forEach(k =>
+// 방아쇠 네 개를 다 적어둬야 한다. 하나만 걸면 다른 쪽은 영영 안 열린다
+['gift', 'unlock', 'met', 'photos', 'dday'].forEach(k =>
   eq(`관전 방아쇠에 ${k}가 웹·앱 둘 다 걸려 있다`,
     new RegExp(`kind:\\s*['"]${k}['"]`).test(web)
     && new RegExp(`kind:\\s*['"]${k}['"]`).test(appSrc), true));
+
+/* 안 눌러도 쌓이는 방아쇠 둘. 값이 어긋나면 웹에서만 열리고 앱에서는 안 열린다.
+   그리고 둘 다 한 번씩만 찍혀야 한다 — 사진이 여섯 장, 일곱 장 될 때마다
+   같은 대화가 다시 나오면 그건 사건이 아니라 배경이 된다. */
+['PHOTO_EVENT_AT'].forEach(k =>
+  eq(`쌓이는 방아쇠 ${k}가 웹·앱 같다`, autoNum(appSrc, k), autoNum(web, k)));
+const ddayMarks = src => (src.match(/DDAY_MARKS\s*=\s*\[([^\]]*)\]/) || [])[1];
+eq('남은 날 방아쇠가 웹·앱 같다', ddayMarks(appSrc), ddayMarks(web));
+eq('남은 날 방아쇠가 7·3·1이다', ddayMarks(web).replace(/\s/g, ''), '7,3,1');
+eq('한 번 찍은 사건은 웹·앱 둘 다 다시 안 찍는다',
+  /null_ev_done/.test(web) && /null_ev_done/.test(appSrc), true);
+/* 사진 방아쇠는 재언 쪽만 센다. 민현이 셀카는 "저 지금 여기 왔어요"라서
+   장소도 사건도 아니고, 관전방은 민현이 여는 방이라 물을 사람이 없다. */
+eq('사진 방아쇠는 재언에게만 걸린다',
+  /kind:\s*["']photos["'],\s*to:\s*["']jaeeon["']/.test(web)
+  && /kind:\s*["']photos["'],\s*to:\s*["']jaeeon["']/.test(appSrc), true);
+// 유저가 보낸 사진은 안 센다. 재언이 찍은 것만 사건이 된다
+eq('유저가 보낸 사진은 안 센다',
+  /photo&&x\.sender!=="user"/.test(web)
+  && /m\.photo&&m\.sender!=='user'/.test(appSrc), true);
+
 /* 사건을 넘기더라도 무슨 말이 오갔는지는 안 준다. 이 선이 무너지면 정보
    비대칭이 통째로 풀린다 — 프롬프트로 부탁하지 말고 문장으로 못박아야 한다. */
 const workerSrc = readFileSync(join(ROOT, 'worker.js'), 'utf8');
@@ -382,6 +403,14 @@ eq('이미 갔거나 거절한 곳은 다시 안 꺼낸다',
   /skip\.has\(v\.place\)/.test(workerSrc), true);
 eq('제안은 1:1에서만 나온다', /mode !== "chat"/.test(workerSrc), true);
 eq('같이 간 것도 관전방 사건이 된다', /event\.kind === "met"/.test(workerSrc), true);
+
+/* 사진과 남은 날, 두 사건이 무엇을 못박는지. 민현이는 선생님 갤러리를 볼 수
+   없다 — 찍는 것만 봤다. 그 선이 풀리면 물어볼 이유가 사라진다.
+   남은 날은 주어를 비운 채로 오간다 — 세고 있었다고 말하는 쪽이 지는 대화다. */
+eq('사진 사건은 찍는 것만 봤다고 못박는다',
+  /받은 사람의 갤러리를 볼 방법은 없다/.test(workerSrc), true);
+eq('남은 날 사건은 이름을 먼저 안 붙인다',
+  /누구도 그 이름을 먼저 말하지 않는다/.test(workerSrc), true);
 
 /* 누가 먼저 말하는가. 이 둘의 관계가 여기서 드러난다 — 민현은 미끼를 던지고
    재언은 물어야 답한다. 규칙이 빠지면 둘이 똑같이 말하기 시작한다. */
