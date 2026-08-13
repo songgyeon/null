@@ -134,7 +134,7 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
     stages: [
       { at: 0,   status: '',                      bg: 'minhyun-record.webp',   track: 'minhyun-1' },
       { at: 16,  status: '보건실 침대는 내 자리', bg: 'minhyun-poster.webp',   track: 'minhyun-1' },
-      { at: 40,  status: '읽씹 아님 못 읽은 거임',    bg: 'minhyun-elevator.webp', track: 'minhyun-2' },
+      { at: 40,  status: '읽씹 아님 못 읽은 거임',    bg: 'minhyun-tv.webp', track: 'minhyun-2' },
       { at: 80,  status: 'D-',         bg: 'minhyun-street.webp',   track: 'minhyun-3' },
       { at: 120, status: '다 셌다',             bg: 'minhyun-roof.webp',     track: 'minhyun-4' },
     ],
