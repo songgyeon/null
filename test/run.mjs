@@ -375,20 +375,17 @@ eq('사건은 auto에서만 받는다',
 eq('사건을 줘도 오간 말은 모른다고 못박는다',
   /무슨 말이 오갔는지는 모른다/.test(workerSrc), true);
 
-/* 장소 방아쇠 — 두 사람 사진이 같은 자리에서 나오면 "각자 지나갔다"가 된다.
-   표가 어긋나면 한쪽에서만 열려서, 웹과 앱의 관전방 내용이 갈라진다. */
-const placesOf = src => {
-  const m = src.match(/const PLACES(?::[^=]*)?=\{([\s\S]*?)\n\};/);
-  return m ? [...m[1].matchAll(/"([^"]+)":\s*\[([^\]]*)\]/g)]
-    .map(x => [x[1], [...x[2].matchAll(/"([^"]+)"/g)].map(y => y[1]).sort()]) : null;
-};
-eq('사진 장소 표가 웹·앱 같다', placesOf(appSrc), placesOf(web));
-eq('장소마다 두 사람 사진이 다 있다',
-  (placesOf(web) || []).filter(([, ks]) =>
-    !ks.some(k => k.startsWith('jaeeon')) || !ks.some(k => k.startsWith('minhyun'))), []);
-eq('장소 표의 사진이 전부 저장소에 있다',
-  (placesOf(web) || []).flatMap(([, ks]) => ks).filter(k => !exists(k + '.webp')), []);
-eq('장소도 관전방 사건으로 받는다', /event\.kind === "place"/.test(workerSrc), true);
+/* 같이 가자는 제안. 서버가 고른다 — 모델이 알아서 꺼내게 두면 아무 때나
+   조르거나 영영 안 꺼낸다. 거절한 곳을 다시 꺼내면 성격이 무너진다. */
+eq('제안 자리를 서버가 고른다', /function inviteFor/.test(workerSrc), true);
+eq('이미 갔거나 거절한 곳은 다시 안 꺼낸다',
+  /skip\.has\(v\.place\)/.test(workerSrc), true);
+eq('제안은 1:1에서만 나온다', /mode !== "chat"/.test(workerSrc), true);
+eq('같이 간 것도 관전방 사건이 된다', /event\.kind === "met"/.test(workerSrc), true);
+eq('다녀온 자리를 웹·앱 둘 다 들고 있다',
+  /null_met/.test(web) && /null_met/.test(appSrc), true);
+eq('거절한 자리를 웹·앱 둘 다 들고 있다',
+  /null_refused/.test(web) && /null_refused/.test(appSrc), true);
 
 /* 소개 영상은 설정 메뉴 옆에 평평하게 놓여 있어서 그 자체로는 눌릴 이유가
    없다. 대신 흐르는 띠가 말해준다. 메뉴바를 건드려 튀게 만들면 줄 전체가

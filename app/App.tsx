@@ -190,16 +190,6 @@ const AUTO_COOL=5*60*1000;
    서버 크론은 안 쓴다. 안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금
    백엔드는 유저별 저장소도 없다. 돌아왔을 때 만들고 시각을 과거로 찍으면
    화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다. */
-/* 사진에 붙은 장소. 두 사람 사진이 같은 자리에서 나오면 "각자 지나갔다"가
-   되고, 그것이 관전방을 여는 사건이 된다.
-   보건실은 뺐다 — 한쪽은 거기서 일하고 한쪽은 죽치고 있어서 매일 마주친다.
-   드러날 것이 없는 자리는 사건이 안 된다. */
-const PLACES:Record<string,string[]>={
-  "옥상":["jaeeon-rooftop","minhyun-roof","minhyun-vending"],
-  "빨래방":["jaeeon-laundry","minhyun-laundry"],
-  "교실":["jaeeon-classroom","minhyun-desk","minhyun-nap","minhyun-window"],
-};
-const placeOf=(key:string)=>{ for(const p in PLACES) if(PLACES[p].includes(key)) return p; return null; };
 const AUTO_AWAY=60*60*1000;    // 이만큼 자리를 비운 뒤에 있었던 일로 찍는다
 const AUTO_MAX_DAY=2;          // 하루 상한. 관전 프롬프트가 22,000자로 제일 비싸다
 const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
@@ -1538,6 +1528,7 @@ function Root() {
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
   /* 소개 영상. 화면 전환 바깥에 달아야 방을 오가도 안 끊긴다. */
   const [film,setFilm]=useState(false);
+  const [invite,setInvite]=useState<any>(null);   // 같이 가자는 제안
   const viewRef=useRef(view); viewRef.current=view;
   /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
@@ -1580,6 +1571,7 @@ function Root() {
   /* 응답에 딸려오는 해금 목록과 상태메시지를 저장한다.
      이걸 안 하면 .hidden이 영영 안 열리고 프로필 상태메시지도 늘 비어 있다. */
   const applyExtras = async(data:any)=>{
+    if(data?.invite?.place) setInvite(data.invite);
     if(Array.isArray(data?.unlocked)){
       setUnlocked(prev=>{
         const merged=Array.from(new Set([...prev,...data.unlocked]));
@@ -1604,7 +1596,6 @@ function Root() {
       setTyping(true);
       await new Promise(r=>setTimeout(r, typeDelay(m.sender||room, m.text||'')));
       await insertMsg({ room, sender:m.sender||room, text:m.text||'', photo:m.photo||null, created_at:Date.now() });
-      if(m.photo) await notePlace(m.sender||room, m.photo);
       await reload(room);
       if(viewRef.current.id!==room) setUnread(u=>({...u,[room]:(u[room]||0)+1}));
     }
@@ -1713,16 +1704,18 @@ function Root() {
      유저가 자리를 비운 지 한 시간이 지나 다시 들어왔을 때 만든다.
      원문은 여전히 서버로 안 간다. 무슨 물건을 줬는지만 알려주고, 무슨 말이
      오갔는지는 프롬프트에서 못박아 막는다. */
-  /* 사진이 올 때마다 그 자리에 누가 있었는지 적는다. 양쪽이 다 찍히면
-     "각자 지나갔다"가 되고, 그게 관전방을 여는 사건이 된다. 한 자리는 한 번만. */
-  const notePlace = async(sender:string, photo:string)=>{
-    const place=placeOf(photo); if(!place||(sender!=='jaeeon'&&sender!=='minhyun')) return;
-    let seen:any={}; try{ seen=JSON.parse((await getMeta('null_places'))||'{}') }catch{}
-    const cur=seen[place]||{};
-    if(cur[sender]||cur.done) return;
-    cur[sender]=1;
-    if(cur.jaeeon&&cur.minhyun){ cur.done=1; await markEvent({kind:'place', name:place}); }
-    seen[place]=cur; await setMeta('null_places', JSON.stringify(seen));
+  /* 같이 가자는 제안이 오면 답을 받는다. 수락하면 그 자리에 다녀온 것이 되고,
+     한 시간 뒤 관전방에서 다른 한 사람이 그 얘기를 꺼낸다. 거절하면 안 간다 —
+     그리고 그 자리는 다시 안 나온다. 두 번 조르지 않는 것이 이 두 사람의 성격이다. */
+  const answerInvite = async(ok:boolean)=>{
+    const iv=invite; setInvite(null); if(!iv) return;
+    const key=ok?'null_met':'null_refused';
+    let arr:string[]=[]; try{ arr=JSON.parse((await getMeta(key))||'[]') }catch{}
+    await setMeta(key, JSON.stringify([...arr, iv.place]));
+    const line=ok?`${CHARS[iv.char].name}과 ${iv.place}에 가기로 했다`:`${iv.place}은 다음에 가기로 했다`;
+    await insertMsg({room:iv.char,sender:'sys',text:line,created_at:Date.now()});
+    await reload(iv.char);
+    if(ok) await markEvent({kind:'met', to:iv.char, name:iv.place});
   };
 
   const markEvent = async(ev:any)=>{
@@ -1824,6 +1817,25 @@ function Root() {
     <StatusBar barStyle="light-content"/>
     <View style={{flex:1,backgroundColor:P.pink,paddingTop:insets.top,paddingBottom:padBottom}}>
       {screen}</View>
+    {/* 같이 가자는 제안. 답하기 전에는 안 닫힌다 — 그냥 지나가면 안 간 것도
+        거절한 것도 아니게 돼서 다음 제안이 영영 안 나온다 */}
+    <Modal visible={!!invite} transparent animationType="fade" onRequestClose={()=>answerInvite(false)}>
+      <View style={mo.bg}>
+        <View style={mo.win}>
+          <TB colors={['#ff8fbe','#ffb0d4']}>
+            <Text style={tbT}>{invite?CHARS[invite.char].name:''}</Text></TB>
+          <View style={{padding:18,alignItems:'center'}}>
+            <Text style={mo.txt}>{invite?invite.place:''}, 같이 갈래요?</Text>
+            <View style={{flexDirection:'row',gap:8,marginTop:18}}>
+              <Bevel style={{height:38,minWidth:96}} inner={{paddingHorizontal:16,backgroundColor:'#ffe3f0'}}
+                onPress={()=>answerInvite(true)}><Text style={mo.btnT}>갈게요</Text></Bevel>
+              <Bevel style={{height:38,minWidth:96}} inner={{paddingHorizontal:16}}
+                onPress={()=>answerInvite(false)}><Text style={mo.btnT}>다음에요</Text></Bevel>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
     {enrolling&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
       onDone={()=>setEnrolling(false)}/>}
     {film&&<IntroFilm onClose={()=>setFilm(false)}/>}

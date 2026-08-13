@@ -99,7 +99,13 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     user_profile: await buildUserProfile(),
     // 방금 장바구니에서 보낸 선물. 없으면 아예 안 보낸다
     ...(gift ? { gift } : {}),
+    // 다녀온 자리·거절한 자리 — 서버가 다음 제안을 고르는 근거
+    met: await loadList('null_met'),
+    refused: await loadList('null_refused'),
   });
+}
+async function loadList(key: string): Promise<string[]> {
+  try { return JSON.parse((await getMeta(key)) || '[]'); } catch { return []; }
 }
 
 export async function genAuto(userName: string, event?: any) {

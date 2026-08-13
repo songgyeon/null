@@ -602,7 +602,7 @@ const PHOTOS = {
   },
   "minhyun-mirror": {
     char: "minhyun",
-    when: "레코드샵 원형 거울 앞 셀카. 음악·앨범 얘기가 나왔을 때. 얼굴은 폰으로 반쯤 가린다.",
+    when: "셀카다. 어디 왔다고 알릴 때, 그리고 떠볼 때 보낸다 — \"저 지금 여기 왔어요, 선생님은 어디예요?\" \"밥 먹었어요?\" \"영화 좋아해요?\" \"이런 음악 좋아해요?\" 장소를 보고하는 게 아니라 대답을 받아내려고 보내는 것이다. 얼굴은 폰으로 반쯤 가린다.",
   },
   "minhyun-morning": {
     char: "minhyun",
@@ -947,6 +947,30 @@ ${userName || "교생"}이 너에게 "${name}"을(를) 주었다. 지금 막 받
 
 const CACHE = { type: "ephemeral", ttl: "1h" };
 
+/* 캐릭터가 먼저 가자고 하는 자리. 관계가 쌓여야 나온다.
+   서버가 고른다 — 모델이 알아서 꺼내게 두면 아무 때나 조르거나 영영 안 꺼낸다.
+   한 사람에게 세 곳뿐이고, 이미 갔거나 거절당한 곳은 다시 안 꺼낸다.
+   거절은 기록으로 남는다. 두 번 조르지 않는 것이 이 두 사람의 성격이다. */
+const INVITES = {
+  jaeeon:  [{ at: 40, place: "옥상" }, { at: 80, place: "도서관" }, { at: 120, place: "빨래방" }],
+  minhyun: [{ at: 40, place: "편의점" }, { at: 80, place: "레코드샵" }, { at: 120, place: "옥상" }],
+};
+/* 이번 답에 같이 가자고 할 자리. 없으면 null.
+   done(다녀온 곳)·refused(거절당한 곳)는 프론트가 들고 있다가 보내준다. */
+function inviteFor(mode, room, counts, done, refused) {
+  if (mode !== "chat" || !INVITES[room]) return null;
+  const n = (counts && counts[room]) || 0;
+  const skip = new Set([...(done || []), ...(refused || [])]);
+  const hit = INVITES[room].filter(v => n >= v.at && !skip.has(v.place));
+  return hit.length ? hit[hit.length - 1].place : null;
+}
+function buildInvite(place, room) {
+  if (!place) return "";
+  return `\n## 이번 답에 할 것\n${place}에 같이 가자고 말한다. 한 번만, 가볍게.\n`
+       + `약속을 잡는 말투가 아니라 지나가듯 꺼낸다. 이유를 길게 대지 않는다.\n`
+       + `대답을 재촉하지 않는다. 거절당하면 두 번 조르지 않는다 — 그건 이 사람이 안 하는 일이다.\n`;
+}
+
 /* 「두 사람」방을 열게 만든 사건. 유저가 선물을 줬거나 무언가 해금됐을 때,
    그 일을 두고 두 사람이 이야기한다.
    원문은 여전히 안 준다. 물건은 눈에 보이지만 무슨 말이 오갔는지는 모른다 —
@@ -962,11 +986,11 @@ function buildEvent(event, userName) {
          + `그러나 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
          + `이 일을 정면으로 캐묻기보다, 알아챈 티만 낸다.\n`;
   }
-  if (event.kind === "place" && what) {
-    return `\n## 방금 있었던 일\n두 사람이 같은 곳을 각자 지나갔다 — ${what}.\n`
-         + `마주친 적은 없다. ${u}이 양쪽에서 그 자리 사진을 받아 알게 됐을 뿐이다.\n`
-         + `두 사람은 ${u}이 알아챘다는 것까지는 모른다. 그 자리 얘기가 나올 만하지만,\n`
-         + `서로 봤다고 단정하지 않는다.\n`;
+  if (event.kind === "met" && who && what) {
+    return `\n## 방금 있었던 일\n${u}이 ${who}과 ${what}에 갔다.\n`
+         + `간 것은 사실이다. 다녀온 티는 난다 — 늦었다거나, 뭘 들고 왔다거나.\n`
+         + `그러나 거기서 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
+         + `다른 한 사람은 이걸 캐물어도 되고, 안 물어도 된다. 물어도 다 듣지는 못한다.\n`;
   }
   if (event.kind === "unlock" && what) {
     return `\n## 방금 있었던 일\n${u}이 ${what}을(를) 알게 됐다.\n`
@@ -976,7 +1000,7 @@ function buildEvent(event, userName) {
   return "";
 }
 
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event) {
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "교생");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
@@ -1002,7 +1026,8 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
 
   const volatile = buildStage(mode, room, counts) + buildProfile(userProfile)
                  + buildSignals(signals, mode === "auto" ? null : room) + exclude
-                 + buildGift(gift, userName) + buildEvent(event, userName);
+                 + buildGift(gift, userName) + buildEvent(event, userName)
+                 + buildInvite(invite, room);
 
   const blocks = [WORLD, people, rules].map(t => (
     { type: "text", text: sub(t), cache_control: CACHE }
@@ -1561,7 +1586,10 @@ export default {
       return new Response(JSON.stringify({ error: "history의 마지막은 user 메시지여야 함" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
     }
 
-    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event);
+    // 같이 가자고 할 자리. 프론트가 다녀온 곳·거절한 곳을 들고 있다가 보내준다
+    const invite = inviteFor(mode, room, counts,
+      Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
+    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite);
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
@@ -1573,7 +1601,8 @@ export default {
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
       const messages = trimTics(sanitizePhotos(splitLines(parseMessages(raw, fallbackSender, chars)), photoChars, fallbackSender, recentPhotos));
-      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts), status: statusOf(counts) }),
+      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts), status: statusOf(counts),
+        ...(invite ? { invite: { place: invite, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
       return new Response(JSON.stringify({ error: "생성 실패", detail: String(e).slice(0, 200) }), { status: 502, headers: { ...CORS, "content-type": "application/json" } });
