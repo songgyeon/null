@@ -187,7 +187,10 @@ const AUTO_COOL=5*60*1000;
    안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금 백엔드는 유저별 저장소도
    없다. 화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다.
    관전 프롬프트가 22,000자로 제일 비싸서 하루 상한을 둔다. */
-const AUTO_EVERY=12;           // 1:1·단톡에서 이만큼 오가면 두 사람이 그 얘기를 한다
+/* 마디 수로 세면 "ㅇㅇ" "ㄴㄴ" 열두 번에 걸린다. 그건 두 사람이 옮길 만한
+   얘기가 아닌데 제일 비싼 호출을 태운다. 그래서 유저가 실제로 친 글자로 센다.
+   캐릭터 답장은 안 센다 — 짧게만 쳐도 저쪽이 길게 답하면 금방 차버린다. */
+const AUTO_CHARS=180;          // 유저가 이만큼 치면 두 사람이 그 얘기를 한다
 const AUTO_MAX_DAY=2;          // 하루 상한
 const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
   return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
@@ -1695,7 +1698,7 @@ function Root() {
   };
 
   /* 오간 말이 쌓이면 두 사람이 그 얘기를 한다. 시계가 아니라 대화가 방아쇠다.
-     1:1·단톡에서 AUTO_EVERY만큼 새로 오간 뒤, 방에서 나와 목록으로 돌아왔을
+     1:1·단톡에서 유저가 AUTO_CHARS만큼 친 뒤, 방에서 나와 목록으로 돌아왔을
      때 하나 만든다. 방 안에 있는 동안에는 안 만든다 — 나랑 말하면서 저쪽과도
      말하는 꼴이 되면 1:1이 싸구려가 된다.
      원문은 서버로 안 간다. 백엔드는 signals(몇 마디, 얼마 전, 분위기)만 받으므로
@@ -1705,15 +1708,16 @@ function Root() {
     if(!ready||!name||enrolling||autoBusy.current) return;
     if(view.type!=='list') return;
     (async()=>{
-      const talk=['jaeeon','minhyun','group'].reduce((a,r)=>a+((msgs[r]||[]).length),0);
-      const seen=Number(await getMeta('null_auto_seen'))||0;
-      if(talk-seen<AUTO_EVERY) return;
+      const talk=['jaeeon','minhyun','group'].reduce((a,r)=>
+        a+((msgs[r]||[]) as any[]).reduce((n,m)=>n+(m.sender==='user'?(m.text||'').trim().length:0),0),0);
+      const seen=Number(await getMeta('null_auto_chars'))||0;
+      if(talk-seen<AUTO_CHARS) return;
       const day=new Date().toISOString().slice(0,10);
       const [d,n]=((await getMeta('null_auto_day'))||'').split('|');
       const used=d===day?Number(n)||0:0;
-      if(used>=AUTO_MAX_DAY){ await setMeta('null_auto_seen',String(talk)); return; }
+      if(used>=AUTO_MAX_DAY){ await setMeta('null_auto_chars',String(talk)); return; }
       autoBusy.current=true;
-      await setMeta('null_auto_seen',String(talk));
+      await setMeta('null_auto_chars',String(talk));
       await setMeta('null_auto_day',`${day}|${used+1}`);
       const now=Date.now();
       await setMeta('null_auto_at',String(now)); setAutoAt(now);
