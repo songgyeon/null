@@ -21,6 +21,7 @@
       "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-bg.png",
         "backgroundColor": "#c3b2f0"
       },
       "edgeToEdgeEnabled": true,
