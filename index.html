@@ -885,8 +885,13 @@ const DEMO={on:new URLSearchParams(location.search).has("demo"),auto:false};
 const demoOn=()=>DEMO.on||DEMO.auto;
 
 // 유저 말에서 대충의 결만 고른다. 정확할 필요 없다 — 각본을 고르는 데만 쓴다
+/* 결을 좁게 잡을수록 알아들은 것처럼 보인다. 좁은 것부터 먼저 본다 —
+   아래 넓은 결(질문·인사)이 먼저 걸리면 좁은 게 영영 안 나온다. */
 const demoBucket=t=>{
   const x=(t||"").trim();
+  if(/약|연고|밴드|소독/.test(x))return "med";
+  if(/먹었|먹고|드셨|점심|저녁|아침|밥/.test(x))return "meal";
+  if(/본 적|만난 적|어디서 봤|어디서 본|낯익|낯설지/.test(x))return "met";
   if(/아프|아파|다쳤|다쳐|열나|배가|머리가/.test(x))return "hurt";
   if(/안녕|하이|왔|뭐해|자니|일어/.test(x))return "greet";
   if(/잘생|예쁘|멋있|좋아|고마|최고|귀엽/.test(x))return "praise";
@@ -902,6 +907,9 @@ const demoBucket=t=>{
    보다 "아니에요. 대답 안 해도 돼요"가 아프다 — 먼저 문을 닫아주는 쪽이. */
 const DEMO_LINES={
   jaeeon:{
+    med:[["다 나았네요. 착하다."],["잘 발랐네요.","오늘도 바르고 주무세요."]],
+    meal:[["그래요?","{it} 좋아하는구나."],["드셨으면 됐어요."]],
+    met:[["글쎄요. 난 모르겠는데."],["사람 잘못 보셨겠죠."]],
     greet:[["네."],["무슨 일 있으세요."],["오셨어요.","앉으세요."],
       ["오늘은 일찍이시네요."],["문 닫고 들어오세요, 바람 들어와요."]],
     ask:[["제가 알면 말씀드리죠."],["글쎄요.","제가 답할 건 아닌 것 같은데요."],
@@ -916,6 +924,9 @@ const DEMO_LINES={
       ["말씀하세요, 듣고 있어요."],["천천히 하세요."]],
   },
   minhyun:{
+    med:[["발랐어요?","안 발랐죠."],["보여줘요."]],
+    meal:[["{it} 저도 좋아하는데요.","같이 먹으면 되잖아요."],["저는 아직인데."]],
+    met:[["어디서요."],["기억나요?","저는 나는데."]],
     greet:[["왔어요?"],["안 올 줄 알았는데"],["뭐예요 갑자기.","심심했어요?"],
       ["몇 시에 온다고 안 했잖아요","기다렸는데"],["안 잤어요 저","선생님 올까 봐서"]],
     ask:[["그건 왜요."],["먼저 말해봐요","그럼 대답할게요"],["제가 왜 대답해야 되는데요.","농담이에요."],
@@ -992,12 +1003,24 @@ const DEMO_AUTO=[
 // 같은 각본이 연달아 나오지 않게 방·결마다 자리를 기억한다
 const demoAt={};
 const demoPick=(key,arr)=>{const i=(demoAt[key]||0)%arr.length;demoAt[key]=i+1;return arr[i]};
+/* "점심 김밥 먹었어요"에서 김밥만 꺼낸다. 되받아 말해주는 것과 아닌 것의
+   차이가 크다 — 알아들었다는 증거는 그 단어 하나뿐이다.
+   못 꺼내면 {it}이 든 각본은 아예 안 고른다. 빈칸이 남으면 더 이상하다. */
+const demoIt=t=>{
+  const m=(t||"").match(/([가-힣A-Za-z]{2,12})\s*(?:을|를|은|는)?\s*(?:먹|드셨|드시)/);
+  const w=m?m[1].replace(/^(점심|저녁|아침|오늘|어제|내일|같이)/,"").trim():"";
+  return w.length>=2?w:"";
+};
 function demoReply(bucket,lastText){
   if(bucket==="health")return demoPick("health",DEMO_AUTO);
   if(bucket==="group") return demoPick("group",DEMO_GROUP);
   const set=DEMO_LINES[bucket]; if(!set)return [{sender:bucket,text:"…"}];
   const b=demoBucket(lastText);
-  return demoPick(bucket+":"+b,set[b]||set.any).map(t=>({sender:bucket,text:t}));
+  const it=demoIt(lastText);
+  let arr=set[b]||set.any;
+  if(!it)arr=arr.filter(s=>!s.some(t=>t.indexOf("{it}")>=0));
+  if(!arr.length)arr=set.any;
+  return demoPick(bucket+":"+b,arr).map(t=>({sender:bucket,text:t.split("{it}").join(it)}));
 }
 
 const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
