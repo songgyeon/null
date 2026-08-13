@@ -69,6 +69,7 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .menubar{flex:none;display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:11px;color:#6b5fa8;
  background:rgba(240,236,252,.78);border-bottom:1px solid #c5bce8;position:relative;z-index:20}
 .mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
+.mbtn.ico{display:flex;align-items:center;gap:5px}
 .mbtn:hover{background:#e6def8}
 .mbtn.open{background:#fff;border-color:#8a7fc0;color:#4a4276;box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
 .bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;
@@ -118,8 +119,6 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  color:#b0a6d8;text-align:center}
 .etcstk{position:relative;display:flex;gap:11px;margin-top:14px;font-size:12px}
 /* ── 장바구니 ── 작은 다이얼로그가 아니라 창 하나를 통째로 쓴다 */
-.cartbtn{display:flex;align-items:center;gap:6px;padding:0 9px;height:30px;
- font-family:inherit;font-size:10px;letter-spacing:.06em;color:#4a4276;white-space:nowrap}
 .cartscreen{position:absolute;inset:0;z-index:39;display:flex;flex-direction:column;
  background:linear-gradient(180deg,#cabdf2,#b9abe9);animation:fadeUp .22s steps(4) both}
 .cartwin{position:absolute;left:14px;right:14px;top:22px;bottom:22px;display:flex;flex-direction:column;
@@ -729,21 +728,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  color:#fff;background:#ff8fbe}
 /* ── 스티커 배치 ──
    흩뿌리지 않는다. 자리는 셋뿐 — 목록 아래 빈 공간, 메뉴 항목 앞, 탭 옆. */
-.deskfoot{flex:none;display:flex;align-items:flex-end;justify-content:center;gap:16px;
- padding:14px 0 10px;pointer-events:none}
-/* 투명도를 자식마다 준다. 부모에 걸면 자식이 그보다 진해질 수 없어서
-   재생 중인 CD만 또렷하게 만들 수가 없다. */
-.deskfoot>*{opacity:.55}
-/* 가운데 CD만 눌린다 — 메신저 BGM 스위치. 돌고 있으면 켜진 것 */
-.deskfoot .cdbtn{pointer-events:auto;cursor:pointer;border:none;background:none;padding:0;line-height:0;
- transition:opacity .2s steps(3)}
-.deskfoot .cdbtn .disc{display:block}
-.deskfoot .cdbtn:active{transform:translateY(1px)}
-.deskfoot .cdbtn.on{opacity:1;filter:drop-shadow(0 0 5px rgba(255,158,198,.7))}
-.deskfoot .cdbtn.on .disc{animation:spin 4.5s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.deskfoot .drift{animation:drift 5s ease-in-out infinite}
-@keyframes drift{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-6px) rotate(6deg)}}
 .dditem svg{flex:none}
 .tabdeco{margin-left:auto;display:flex;align-items:center;gap:6px;padding-right:4px;opacity:.85}
 .sect .deco{margin-left:6px;vertical-align:-3px;opacity:.9}
@@ -1759,8 +1743,12 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
         </div>}
       </span>
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
-      <button className="cartbtn bevel" style={{marginLeft:"auto"}} title="give something"
-        onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart/>gift</button>
+      {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
+          그게 특별한 동작으로 보인다 */}
+      <span className="mbtn ico" style={{marginLeft:"auto"}} title="play the intro"
+        onClick={()=>{setMenu(null);onFilm()}}><Sticker.cd size={13}/>intro</span>
+      <span className="mbtn ico" title="give something"
+        onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart size={14}/>gift</span>
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
         title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;
@@ -1851,14 +1839,6 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
         <div className="hnote">LOCK! UNLOCK?<br/>keep talking · they open one by one</div>
       </div>}
     </div>
-    {tab==="rooms"&&<div className="deskfoot">
-      <span className="drift"><Sticker.butterfly size={20}/></span>
-      {/* 가운데 CD를 누르면 소개 영상이 돈다. 이 앱이 뭔지 11초로 알려주는 자리 */}
-      <button className="cdbtn on" aria-label="intro" title="play the intro" onClick={onFilm}>
-        <span className="disc"><Sticker.cd size={38}/></span></button>
-      <Sticker.star size={13} color="#ffd68a"/>
-      <span className="drift" style={{animationDelay:"1.4s"}}><Sticker.heart size={13}/></span>
-    </div>}
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}

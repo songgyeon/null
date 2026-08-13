@@ -1065,9 +1065,14 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
         {['you','file','chat','etc.'].map(m=>
           <TouchableOpacity key={m} onPress={()=>onMenu(m)} hitSlop={{top:10,bottom:10,left:6,right:6}}
             style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
-        {/* 소개 영상은 목록 아래 CD로 옮겼다. 웹과 같은 자리다 */}
-        <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
+        {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
+            그게 특별한 동작으로 보인다 */}
+        <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
           style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
+          <Text style={{fontSize:12}}>💿</Text>
+          <Text style={rl.mi}>intro</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
+          style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
         <Bevel style={{minWidth:86,height:30,marginLeft:6}} inner={{flexDirection:'row',gap:5,paddingHorizontal:8}}
           onPress={()=>{ if(autoLoading)return;
@@ -1202,15 +1207,6 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           <View style={rl.hv}><Text style={rl.hvT}>♡ <Text style={[rl.hvB,{color:'#e0699a'}]}>{hearts}</Text></Text></View>
         </View>}
       </ScrollView>
-      {/* 목록 아래 빈 자리. 웹의 .deskfoot과 같다 — 가운데 CD가 소개 영상 스위치고
-          양옆은 장식이다. 스티커를 흩뿌리지 않고 여기 한 줄로 모은다. */}
-      {tab==='rooms'&&<View style={rl.foot} pointerEvents="box-none">
-        <Text style={rl.footDeco}>✿</Text>
-        <TouchableOpacity onPress={onFilm} activeOpacity={.7} accessibilityLabel="intro">
-          <SpinCD size={38}/></TouchableOpacity>
-        <Text style={[rl.footDeco,{color:'#ffd68a'}]}>★</Text>
-        <Text style={[rl.footDeco,{color:'#ffb0d4'}]}>♡</Text>
-      </View>}
       </View>
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
         <TouchableOpacity style={rl.lb} activeOpacity={1} onPress={()=>setZoom(null)}>
@@ -1237,9 +1233,6 @@ const rl=StyleSheet.create({
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
   presT:{...F,fontSize:8.5,color:'#a79cd0'},
-  foot:{flexDirection:'row',alignItems:'flex-end',justifyContent:'center',gap:16,
-        paddingTop:14,paddingBottom:10},
-  footDeco:{fontSize:13,color:'#c3b2f0',opacity:.6,marginBottom:8},
   marquee:{paddingVertical:4,overflow:'hidden',
     borderBottomWidth:1,borderBottomColor:'#cfc6ee'},
   marqueeT:{...F,fontSize:8.5,letterSpacing:1.6,color:'#a06cc9'},
