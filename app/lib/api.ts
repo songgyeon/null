@@ -102,7 +102,7 @@ export async function sendChat(room: string, userName: string, history: Msg[],
   });
 }
 
-export async function genAuto(userName: string) {
+export async function genAuto(userName: string, event?: any) {
   const healthMsgs = await getMsgs('health', 30);
   return callApi({
     mode: 'auto',
@@ -112,5 +112,7 @@ export async function genAuto(userName: string) {
     // 「두 사람」방은 사진을 쓰지 않는다 — recent_photos를 보낼 이유가 없다
     counts: await buildCounts(),
     user_profile: await buildUserProfile(),
+    // 이 대화를 열게 만든 사건(선물·해금). 없으면 안 보낸다
+    ...(event ? { event } : {}),
   });
 }

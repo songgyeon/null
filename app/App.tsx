@@ -182,16 +182,16 @@ const HEAT=[{w:1,o:'44'},{w:1.5,o:'80'},{w:2,o:'b8'},{w:2.5,o:'e0'},{w:3,o:'ff'}
 
 /* ── peek 쿨타임 ── 관찰이 흔하면 값이 떨어진다. 연타로 새는 비용도 여기서 막는다 */
 const AUTO_COOL=5*60*1000;
-/* 관전방 자동 채움 — 앱을 닫아둔 사이에 두 사람이 나눈 대화가 쌓여 있게 한다.
-   서버 크론이 아니라 "돌아왔을 때 만들고 시각을 과거로 찍는" 방식이다. 크론은
-   안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금 백엔드는 유저별 저장소도
-   없다. 화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다.
-   관전 프롬프트가 22,000자로 제일 비싸서 하루 상한을 둔다. */
-/* 마디 수로 세면 "ㅇㅇ" "ㄴㄴ" 열두 번에 걸린다. 그건 두 사람이 옮길 만한
-   얘기가 아닌데 제일 비싼 호출을 태운다. 그래서 유저가 실제로 친 글자로 센다.
-   캐릭터 답장은 안 센다 — 짧게만 쳐도 저쪽이 길게 답하면 금방 차버린다. */
-const AUTO_CHARS=180;          // 유저가 이만큼 치면 두 사람이 그 얘기를 한다
-const AUTO_MAX_DAY=2;          // 하루 상한
+/* 관전방 자동 채움 — 유저가 선물을 주거나 무언가 해금되면, 두 사람이 그 일을
+   두고 이야기한다. 시계가 아니라 사건이 방아쇠다.
+   다만 바로 만들지 않는다. 유저가 앱을 떠난 지 한 시간쯤 지난 뒤의 일로 찍는다.
+   같이 있는데 내 얘기를 하는 건 딴짓처럼 보이지만, 내가 나가고 한 시간 뒤면
+   그건 내가 없는 자리에서 벌어진 일이다.
+   서버 크론은 안 쓴다. 안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금
+   백엔드는 유저별 저장소도 없다. 돌아왔을 때 만들고 시각을 과거로 찍으면
+   화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다. */
+const AUTO_AWAY=60*60*1000;    // 이만큼 자리를 비운 뒤에 있었던 일로 찍는다
+const AUTO_MAX_DAY=2;          // 하루 상한. 관전 프롬프트가 22,000자로 제일 비싸다
 const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
   return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
 
@@ -1577,7 +1577,7 @@ function Root() {
           setMeta('null_unlocked',JSON.stringify(merged));
           const add=data.unlocked.find((k:string)=>!prev.includes(k));
           const label=HIDDEN.find(h=>h.key===add)?.label;
-          if(label) setToast('✧ .hidden — '+label);
+          if(label){ setToast('✧ .hidden — '+label); markEvent({kind:'unlock', name:label}); }
         }
         return merged;
       });
@@ -1641,6 +1641,7 @@ function Root() {
     await insertMsg({room:char,sender:'sys',text:line,created_at:Date.now()});
     await reload(char);
     setToast(`${CHARS[char].name} — ${gift.name}`);
+    await markEvent({kind:'gift', to:char, name:gift.name});
     setFailed(null); setTyping(true);
     if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line)); return; }
     try{
@@ -1697,35 +1698,40 @@ function Root() {
     setAutoLoading(false);
   };
 
-  /* 오간 말이 쌓이면 두 사람이 그 얘기를 한다. 시계가 아니라 대화가 방아쇠다.
-     1:1·단톡에서 유저가 AUTO_CHARS만큼 친 뒤, 방에서 나와 목록으로 돌아왔을
-     때 하나 만든다. 방 안에 있는 동안에는 안 만든다 — 나랑 말하면서 저쪽과도
-     말하는 꼴이 되면 1:1이 싸구려가 된다.
-     원문은 서버로 안 간다. 백엔드는 signals(몇 마디, 얼마 전, 분위기)만 받으므로
-     두 사람은 "저 방이 시끄러웠다"만 알고 무슨 말이었는지는 끝내 모른다. */
+  /* 선물이나 해금이 있으면 그 일을 적어둔다. 바로 만들지는 않는다 —
+     유저가 자리를 비운 지 한 시간이 지나 다시 들어왔을 때 만든다.
+     원문은 여전히 서버로 안 간다. 무슨 물건을 줬는지만 알려주고, 무슨 말이
+     오갔는지는 프롬프트에서 못박아 막는다. */
+  const markEvent = async(ev:any)=>{
+    try{ await setMeta('null_auto_event', JSON.stringify({...ev, at:Date.now()})); }catch{}
+  };
   const autoBusy=useRef(false);
   useEffect(()=>{
     if(!ready||!name||enrolling||autoBusy.current) return;
     if(view.type!=='list') return;
     (async()=>{
-      const talk=['jaeeon','minhyun','group'].reduce((a,r)=>
-        a+((msgs[r]||[]) as any[]).reduce((n,m)=>n+(m.sender==='user'?(m.text||'').trim().length:0),0),0);
-      const seen=Number(await getMeta('null_auto_chars'))||0;
-      if(talk-seen<AUTO_CHARS) return;
+      const raw=await getMeta('null_auto_event'); if(!raw) return;
+      let ev:any=null; try{ ev=JSON.parse(raw) }catch{ await setMeta('null_auto_event',''); return }
+      if(!ev||!ev.kind) { await setMeta('null_auto_event',''); return }
+      // 마지막으로 뭐라도 한 시각. 그때로부터 한 시간은 지나야 "없는 자리"가 된다
+      const all=Object.values(msgs).flat() as any[];
+      const lastAny=all.reduce((a,m)=>m.created_at>a?m.created_at:a,ev.at||0);
+      const now=Date.now();
+      if(now-lastAny<AUTO_AWAY) return;
       const day=new Date().toISOString().slice(0,10);
       const [d,n]=((await getMeta('null_auto_day'))||'').split('|');
       const used=d===day?Number(n)||0:0;
-      if(used>=AUTO_MAX_DAY){ await setMeta('null_auto_chars',String(talk)); return; }
+      if(used>=AUTO_MAX_DAY){ await setMeta('null_auto_event',''); return; }
       autoBusy.current=true;
-      await setMeta('null_auto_chars',String(talk));
+      await setMeta('null_auto_event','');
       await setMeta('null_auto_day',`${day}|${used+1}`);
-      const now=Date.now();
       await setMeta('null_auto_at',String(now)); setAutoAt(now);
+      // 유저가 나가고 한 시간쯤 뒤의 일로 찍는다
+      const at=Math.min(lastAny+AUTO_AWAY+Math.floor(Math.random()*30*60*1000), now-5*60*1000);
       try{
-        const data=demoOn()?{messages:demoReply('health')}:await genAuto(name);
+        const data=demoOn()?{messages:demoReply('health')}:await genAuto(name,{kind:ev.kind,to:ev.to,name:ev.name});
         if(!demoOn()) await applyExtras(data);
-        // 방에서 나온 뒤에 저쪽이 시작된 것으로 찍는다
-        if(data.messages?.length) await enqueuePast('health',data.messages,now+60000);
+        if(data.messages?.length) await enqueuePast('health',data.messages,at);
       }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
       autoBusy.current=false;
     })();

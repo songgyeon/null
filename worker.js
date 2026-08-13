@@ -947,7 +947,30 @@ ${userName || "교생"}이 너에게 "${name}"을(를) 주었다. 지금 막 받
 
 const CACHE = { type: "ephemeral", ttl: "1h" };
 
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift) {
+/* 「두 사람」방을 열게 만든 사건. 유저가 선물을 줬거나 무언가 해금됐을 때,
+   그 일을 두고 두 사람이 이야기한다.
+   원문은 여전히 안 준다. 물건은 눈에 보이지만 무슨 말이 오갔는지는 모른다 —
+   그 선을 프롬프트로 부탁하지 않고 여기서 문장으로 못박는다. */
+function buildEvent(event, userName) {
+  if (!event || !event.kind) return "";
+  const who = { jaeeon: "이재언", minhyun: "이민현" }[event.to] || "";
+  const what = (event.name || "").toString().slice(0, 40).trim();
+  const u = userName || "교생";
+  if (event.kind === "gift" && who && what) {
+    return `\n## 방금 있었던 일\n${u}이 ${who}에게 ${what}을(를) 줬다.\n`
+         + `물건은 눈에 띈다 — 상대가 그것을 봤거나 전해 들었을 수 있다.\n`
+         + `그러나 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
+         + `이 일을 정면으로 캐묻기보다, 알아챈 티만 낸다.\n`;
+  }
+  if (event.kind === "unlock" && what) {
+    return `\n## 방금 있었던 일\n${u}이 ${what}을(를) 알게 됐다.\n`
+         + `두 사람은 그것을 유저가 봤다는 사실까지는 모른다. 그 얘기가 나올 만한\n`
+         + `자리이지만, 유저가 봤다고 단정하지 않는다.\n`;
+  }
+  return "";
+}
+
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "교생");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
@@ -973,7 +996,7 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
 
   const volatile = buildStage(mode, room, counts) + buildProfile(userProfile)
                  + buildSignals(signals, mode === "auto" ? null : room) + exclude
-                 + buildGift(gift, userName);
+                 + buildGift(gift, userName) + buildEvent(event, userName);
 
   const blocks = [WORLD, people, rules].map(t => (
     { type: "text", text: sub(t), cache_control: CACHE }
@@ -1494,6 +1517,8 @@ export default {
     const counts = body.counts || null;              // 방별 누적 대화 수 → 관계 단계·해금
     // 장바구니에서 방금 보낸 선물 (1:1 방에서만 의미가 있다)
     const gift = (mode !== "auto" && body.gift && body.gift.name) ? body.gift : null;
+    // 「두 사람」방을 열게 만든 사건 — 선물이나 해금. auto에서만 의미가 있다
+    const event = (mode === "auto" && body.event && body.event.kind) ? body.event : null;
     // 최근에 보낸 사진 — 같은 사진이 연달아 나오지 않게 프론트가 알려준다
     const recentPhotos = (Array.isArray(body.recent_photos) ? body.recent_photos : [])
       .filter(k => typeof k === "string" && PHOTOS[k]).slice(0, 8);
@@ -1530,7 +1555,7 @@ export default {
       return new Response(JSON.stringify({ error: "history의 마지막은 user 메시지여야 함" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
     }
 
-    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift);
+    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event);
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.

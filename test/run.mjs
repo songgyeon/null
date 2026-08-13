@@ -354,14 +354,26 @@ eq('실습 기간이 30일이다', enrollDays(web), '30');
 eq('D-카운트를 양쪽 다 실습으로 쓴다',
   /실습 D-/.test(appSrc) && /실습 D-/.test(web), true);
 
-/* 관전방 자동 채움. 시계도 마디 수도 아니고 유저가 친 글자가 방아쇠다.
-   마디 수로 세면 "ㅇㅇ" 열두 번에 걸린다. 값이 어긋나면
+/* 관전방 자동 채움. 선물·해금이 방아쇠고, 유저가 자리를 비운 뒤의 일로 찍는다.
+   값이 어긋나면
    웹과 앱이 다른 속도로 쌓인다. 상한은 특히 중요하다 — 관전 프롬프트가
    제일 비싸다. */
 const autoNum = (src, k) => (src.match(new RegExp(k + '\\s*=\\s*([\\d*]+)')) || [])[1];
-['AUTO_CHARS', 'AUTO_MAX_DAY'].forEach(k =>
+['AUTO_AWAY', 'AUTO_MAX_DAY'].forEach(k =>
   eq(`관전 자동 채움 ${k}가 웹·앱 같다`, autoNum(appSrc, k), autoNum(web, k)));
 eq('관전 자동 채움에 하루 상한이 있다', autoNum(web, 'AUTO_MAX_DAY'), '2');
+// 선물과 해금 둘 다 적어둬야 한다. 하나만 걸면 다른 쪽은 영영 안 열린다
+['gift', 'unlock'].forEach(k =>
+  eq(`관전 방아쇠에 ${k}가 웹·앱 둘 다 걸려 있다`,
+    new RegExp(`kind:\\s*['"]${k}['"]`).test(web)
+    && new RegExp(`kind:\\s*['"]${k}['"]`).test(appSrc), true));
+/* 사건을 넘기더라도 무슨 말이 오갔는지는 안 준다. 이 선이 무너지면 정보
+   비대칭이 통째로 풀린다 — 프롬프트로 부탁하지 말고 문장으로 못박아야 한다. */
+const workerSrc = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+eq('사건은 auto에서만 받는다',
+  /mode === "auto" && body\.event/.test(workerSrc), true);
+eq('사건을 줘도 오간 말은 모른다고 못박는다',
+  /무슨 말이 오갔는지는 모른다/.test(workerSrc), true);
 
 /* 소개 영상은 설정 메뉴 옆에 평평하게 놓여 있어서 그 자체로는 눌릴 이유가
    없다. 대신 흐르는 띠가 말해준다. 메뉴바를 건드려 튀게 만들면 줄 전체가
