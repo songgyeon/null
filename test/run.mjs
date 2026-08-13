@@ -354,15 +354,12 @@ eq('실습 기간이 30일이다', enrollDays(web), '30');
 eq('D-카운트를 양쪽 다 실습으로 쓴다',
   /실습 D-/.test(appSrc) && /실습 D-/.test(web), true);
 
-/* 소개 영상은 메뉴 한 줄에 섞여 있어서 가만히 두면 눌릴 이유가 없다.
-   도는 것과 안 본 사람에게만 붙는 점, 둘 다 있어야 한다. 한쪽만 지우면
-   조용히 안 눌리는 메뉴가 된다. */
-eq('소개 영상 메뉴가 웹·앱 둘 다 돌고 점이 붙는다',
-  /spinslow/.test(web) && /newdot/.test(web)
-  && /<SpinCD size=\{13\}\/>/.test(appSrc) && /rl\.newdot/.test(appSrc), true);
-// 본 뒤에는 조용해져야 한다 — 양쪽 다 같은 키에 남긴다
-eq('영상을 본 표시를 웹·앱이 같은 키로 남긴다',
-  /null_saw_film/.test(web) && /null_saw_film/.test(appSrc), true);
+/* 소개 영상은 you·file·chat 같은 설정 메뉴 옆에 있어서, 평평한 글자로 두면
+   그것들과 한 종류로 읽힌다. 분홍 알약과 숨쉬는 연출로 갈라놓는다.
+   둘 중 하나만 지우면 조용히 안 눌리는 메뉴가 된다. */
+eq('소개 영상 메뉴가 웹·앱 둘 다 알약이고 숨쉰다',
+  /\.mbtn\.intro\{/.test(web) && /@keyframes breathe/.test(web)
+  && /rl\.intro\b/.test(appSrc) && /introGlow/.test(appSrc), true);
 
 // 미니홈피 방문자 카운터 — 웹에만 있다가 앱에 옮겼다
 eq('방문자 카운터가 웹·앱 둘 다 있다',

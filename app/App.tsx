@@ -1048,7 +1048,16 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts,sawFilm}:any) {
+function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
+  /* intro 알약이 천천히 숨쉰다. RN에는 box-shadow 애니메이션이 없어서
+     투명도를 대신 흔든다 — 작게 보면 결과가 비슷하다. */
+  const introGlow=useRef(new Animated.Value(1)).current;
+  useEffect(()=>{
+    const run=Animated.loop(Animated.sequence([
+      Animated.timing(introGlow,{toValue:.62,duration:1300,useNativeDriver:true}),
+      Animated.timing(introGlow,{toValue:1,duration:1300,useNativeDriver:true})]));
+    run.start(); return ()=>run.stop();
+  },[]);
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -1070,12 +1079,16 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
             style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
         {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
             그게 특별한 동작으로 보인다 */}
-        <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
-          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
-          {/* 이 줄에서 유일하게 움직이는 것. 가만히 있으면 눌릴 이유가 없다 */}
-          <SpinCD size={13}/>
-          <Text style={rl.mi}>intro</Text>
-          {!sawFilm&&<View style={rl.newdot}/>}</TouchableOpacity>
+        {/* 이 줄에서 유일하게 눌러서 뭔가 나오는 항목이다. 옆의 you·file·chat은
+            전부 설정이라, 같은 평평한 글자로 두면 그것들과 한 종류로 읽힌다.
+            분홍 알약을 깔아 갈라놓고 천천히 숨쉬게 한다 — 13px짜리가 도는 건
+            안 보이지만 밝기가 오르내리는 건 곁눈으로도 보인다. */}
+        <Animated.View style={{marginLeft:'auto',opacity:introGlow}}>
+          <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
+            style={rl.intro}>
+            <SpinCD size={15}/>
+            <Text style={rl.introT}>intro</Text></TouchableOpacity>
+        </Animated.View>
         <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
           style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
@@ -1242,8 +1255,10 @@ const rl=StyleSheet.create({
   hvB:{color:'#6b5fa8'},
   hompySp:{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:5,opacity:.9},
   hompyIco:{...F,fontSize:11},
-  /* 아직 안 본 사람에게만. 안 읽은 메시지 배지와 같은 문법이다 */
-  newdot:{position:'absolute',right:1,top:3,width:5,height:5,borderRadius:3,backgroundColor:'#ff7fae'},
+  intro:{flexDirection:'row',alignItems:'center',gap:5,paddingVertical:4,
+         paddingLeft:6,paddingRight:10,borderRadius:13,
+         backgroundColor:'#ffeaf4',borderWidth:1,borderColor:'#f6cfe2'},
+  introT:{...F,fontSize:11,color:'#8a4f74'},
   peek:{...F,fontSize:10,color:P.ink,letterSpacing:.5},
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
@@ -1520,9 +1535,6 @@ function Root() {
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
   /* 소개 영상. 화면 전환 바깥에 달아야 방을 오가도 안 끊긴다. */
   const [film,setFilm]=useState(false);
-  /* 소개 영상을 본 적이 있는가. 처음 온 사람에게만 점을 붙이려는 것이라
-     한 번 보면 다시 조용해진다. */
-  const [sawFilm,setSawFilm]=useState(false);
   const viewRef=useRef(view); viewRef.current=view;
   /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
@@ -1544,7 +1556,6 @@ function Root() {
     const u=await getMeta('null_unlocked');
     if(u){try{setUnlocked(JSON.parse(u))}catch{}}
     setGifts(await loadGifts());
-    if(await getMeta('null_saw_film')==='1') setSawFilm(true);
     const a=await getMeta('null_auto_at');
     if(a) setAutoAt(Number(a)||0);
     if(n){ setName(n); await reload(); } else setName('');
@@ -1737,8 +1748,8 @@ function Root() {
       onProfile={(c:string)=>setView({type:'profile',id:c})}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
       onCart={()=>setView({type:'cart'})} demo={demo}
-      onFilm={()=>{setFilm(true); if(!sawFilm){setSawFilm(true); setMeta('null_saw_film','1')}}}
-      hearts={heartsOf(counts,gifts)} sawFilm={sawFilm}/>;
+      onFilm={()=>setFilm(true)}
+      hearts={heartsOf(counts,gifts)}/>;
   }
 
   return <>

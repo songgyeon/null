@@ -71,9 +71,12 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
 .mbtn.ico{position:relative;display:flex;align-items:center;gap:5px}
 .spinslow{display:block;line-height:0;animation:spin 6s linear infinite}
-/* 아직 안 본 사람에게만. 안 읽은 메시지 배지와 같은 문법이다 */
-.newdot{position:absolute;right:2px;top:3px;width:5px;height:5px;border-radius:50%;
- background:#ff7fae;box-shadow:0 0 5px rgba(255,127,174,.9)}
+.mbtn.intro{color:#8a4f74;background:#ffeaf4;border-color:#f6cfe2;border-radius:13px;
+ padding:4px 10px 4px 6px;animation:breathe 2.6s ease-in-out infinite}
+.mbtn.intro:hover{background:#ffdcec}
+@keyframes breathe{
+ 0%,100%{box-shadow:0 0 0 rgba(255,127,174,0)}
+ 50%{box-shadow:0 0 9px rgba(255,127,174,.55)}}
 .mbtn:hover{background:#e6def8}
 .mbtn.open{background:#fff;border-color:#8a7fc0;color:#4a4276;box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
 .bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;
@@ -865,10 +868,6 @@ const GIFT_NAME={};GIFTS.forEach(g=>{GIFT_NAME[g.key]=g.name});
 const GIFT_AT=2;
 const loadGifts=()=>{try{return JSON.parse(localStorage.getItem("null_gifts"))||{}}catch(e){return{}}};
 const saveGifts=g=>{try{localStorage.setItem("null_gifts",JSON.stringify(g))}catch(e){}};
-/* 소개 영상을 본 적이 있는가. 처음 온 사람에게만 점을 붙이기 위한 것이라
-   한 번 보면 다시 조용해진다. */
-const loadSawFilm=()=>{try{return localStorage.getItem("null_saw_film")==="1"}catch(e){return false}};
-const saveSawFilm=()=>{try{localStorage.setItem("null_saw_film","1")}catch(e){}};
 const loadUnlocked=()=>{try{return JSON.parse(localStorage.getItem("null_unlocked"))||[]}catch(e){return[]}};
 const saveUnlocked=a=>{try{localStorage.setItem("null_unlocked",JSON.stringify(a))}catch(e){}};
 
@@ -1712,7 +1711,6 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 /* ── 방 목록: 메신저 창 ── */
 function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,onFilm,gifts,onGift,hearts}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
-  const [sawFilm,setSawFilm]=useState(loadSawFilm);
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap(r=>(store.msgs&&store.msgs[r.id])||[]);
@@ -1761,11 +1759,13 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
       {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
           그게 특별한 동작으로 보인다 */}
-      <span className="mbtn ico" style={{marginLeft:"auto"}} title="play the intro"
-        onClick={()=>{setMenu(null);setSawFilm(true);saveSawFilm();onFilm()}}>
-        {/* 이 줄에서 유일하게 움직이는 것. 가만히 있으면 눌릴 이유가 없다 */}
-        <span className="spinslow"><Sticker.cd size={13}/></span>intro
-        {!sawFilm&&<i className="newdot"/>}</span>
+      {/* 이 줄에서 유일하게 눌러서 뭔가 나오는 항목이다. 옆의 you·file·chat은
+          전부 설정이라, 같은 평평한 글자로 두면 그것들과 한 종류로 읽힌다.
+          분홍 알약을 깔아 갈라놓고 천천히 숨쉬게 한다 — 13px짜리가 도는 건
+          안 보이지만 밝기가 오르내리는 건 곁눈으로도 보인다. */}
+      <span className="mbtn ico intro" style={{marginLeft:"auto"}} title="play the intro"
+        onClick={()=>{setMenu(null);onFilm()}}>
+        <span className="spinslow"><Sticker.cd size={15}/></span>intro</span>
       <span className="mbtn ico" title="give something"
         onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart size={14}/>gift</span>
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
