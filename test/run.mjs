@@ -382,6 +382,12 @@ eq('이미 갔거나 거절한 곳은 다시 안 꺼낸다',
   /skip\.has\(v\.place\)/.test(workerSrc), true);
 eq('제안은 1:1에서만 나온다', /mode !== "chat"/.test(workerSrc), true);
 eq('같이 간 것도 관전방 사건이 된다', /event\.kind === "met"/.test(workerSrc), true);
+
+/* 누가 먼저 말하는가. 이 둘의 관계가 여기서 드러난다 — 민현은 미끼를 던지고
+   재언은 물어야 답한다. 규칙이 빠지면 둘이 똑같이 말하기 시작한다. */
+eq('관전방은 민현이 연다', /대화는 늘 이민현이 연다/.test(workerSrc), true);
+eq('재언은 먼저 꺼내지 않는다', /먼저 꺼내는 법이 없다/.test(workerSrc), true);
+eq('민현은 자랑을 질문으로 포장한다', /누가 줬게요/.test(workerSrc), true);
 eq('다녀온 자리를 웹·앱 둘 다 들고 있다',
   /null_met/.test(web) && /null_met/.test(appSrc), true);
 eq('거절한 자리를 웹·앱 둘 다 들고 있다',
