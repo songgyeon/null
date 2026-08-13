@@ -590,6 +590,9 @@ function SpinCD({size=88}:{size?:number}) {
 /* 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보이고, 꼬리를 따로 붙이면
    꺾인 조각처럼 보인다. 웹과 같은 path를 그림 한 장으로 구워서 쓴다. */
 const CURSOR_PNG=require('./assets/cursor.png');
+/* 초승달. 흰 그림 한 장을 tintColor로 물들여 쓴다 — 원 두 개를 겹쳐 파면
+   뒤에 깔린 색을 알아야 해서 버튼 위와 아바타 위에서 같이 못 쓴다. */
+const MOON_PNG=require('./assets/moon.png');
 const SpCursor=()=><Image source={CURSOR_PNG} style={sp.cursor}
   resizeMode="contain" pointerEvents="none"/>;
 
@@ -1080,7 +1083,7 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           onPress={()=>{ if(autoLoading)return;
             if(left>0){onToast('too soon · '+mmss(left));return}
             onAuto(); }}>
-          <Text style={{fontSize:11}}>🌙</Text>
+          <Image source={MOON_PNG} style={{width:13,height:13,tintColor:left>0?'#b0a6d8':'#6b5fa8'}}/>
           <Text style={rl.peek}>{autoLoading?'...':left>0?mmss(left):'peek'}</Text></Bevel>
       </View>
       <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
@@ -1162,7 +1165,7 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
                  초승달을 판다. 글꼴에 기대지 않으면 이런 일이 없다. */
               : <View style={[rl.av,{borderColor:room.color},watch?rl.avW:rl.avG]}>
                   {watch
-                    ? <View style={rl.moon}><View style={rl.moonCut}/></View>
+                    ? <Image source={MOON_PNG} style={{width:21,height:21,tintColor:'#8a7fc0'}}/>
                     : <View style={rl.bub}>
                         <View style={[rl.bubO,{width:19,height:19,borderRadius:10,left:1,top:4}]}/>
                         <View style={[rl.bubO,{width:6,height:6,borderRadius:3,left:16,top:0}]}/>
@@ -1282,9 +1285,6 @@ const rl=StyleSheet.create({
   bub:{width:24,height:23},
   bubO:{position:'absolute',borderWidth:1.3,borderColor:'#9db7e8',backgroundColor:'rgba(207,224,248,.45)'},
   avW:{backgroundColor:'#e6eaf7'},
-  /* 초승달 — 채운 원 위에 배경색 원을 살짝 밀어 얹어서 판다 */
-  moon:{width:20,height:20,borderRadius:10,backgroundColor:'#8a7fc0',overflow:'hidden'},
-  moonCut:{position:'absolute',left:5,top:-3,width:20,height:20,borderRadius:10,backgroundColor:'#e6eaf7'},
   nm:{...F,fontSize:13.5,color:P.ink}, tm:{...F,marginLeft:'auto',fontSize:9.5,color:P.dim},
   pv:{...F,marginTop:5,fontSize:11,color:P.sub},
   bd:{minWidth:20,height:20,paddingHorizontal:6,borderRadius:10,backgroundColor:P.badge,borderWidth:1,borderColor:P.border,justifyContent:'center',alignItems:'center'},

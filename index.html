@@ -964,7 +964,10 @@ const fmtDay=ts=>{const d=new Date(ts),y=d.getFullYear();
 
 /* 아이콘: 픽셀풍 (crispEdges) */
 const px={shapeRendering:"crispEdges"};
-const MoonIcon=({size=14,color})=><svg width={size} height={size} viewBox="0 0 14 14" style={px}><path d="M9 1h2v1h1v1h-1v-1h-2v1H7v1H6v2H5v3h1v1h1v1h2v1h2v1h1v1h-1v1H8v-1H6v-1H4v-1H3v-1H2v-2H1V6h1V4h1V3h1V2h2V1h3z" fill={color||"currentColor"} opacity=".9"/><rect x="8" y="2" width="3" height="1" fill={color||"currentColor"}/><rect x="7" y="3" width="1" height="1" fill={color||"currentColor"}/></svg>;
+const MoonIcon=({size=14,color})=><svg width={size} height={size} viewBox="0 0 16 16">
+  <path d="M13.83 10.63A6.4 6.4 0 1 1 5.37 2.17a6.4 6.4 0 1 0 8.46 8.46z" fill={color||"currentColor"}/>
+  <path d="M12.4 2l.45 1.15L14 3.6l-1.15.45L12.4 5.2l-.45-1.15L10.8 3.6l1.15-.45z"
+    fill={color||"currentColor"} opacity=".7"/></svg>;
 const BackIcon=()=><svg width="13" height="13" viewBox="0 0 14 14" style={px}><path d="M8 2h2v2H8v2H6v2h2v2h2v2H8v-2H6V8H4V6h2V4h2V2z" fill="currentColor"/></svg>;
 const SendIcon=()=><svg width="14" height="14" viewBox="0 0 14 14" style={px}><path d="M6 1h2v2h2v2h2v2h-2V5H8v8H6V5H4v2H2V5h2V3h2V1z" fill="currentColor"/></svg>;
 const StarGlyph=({color="#fff"})=><span style={{fontSize:11,color,textShadow:"1px 1px 0 rgba(93,84,144,.4)"}}>✦</span>;
