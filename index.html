@@ -1010,11 +1010,12 @@ const AUTO_COOL=5*60*1000;
    안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금 백엔드는 유저별 저장소도
    없다. 화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다.
    관전 프롬프트가 22,000자로 제일 비싸서 하루 상한을 둔다. */
-const AUTO_GAP=3*60*60*1000;   // 이만큼 비어 있어야 하나 쌓인다
+const AUTO_EVERY=12;           // 1:1·단톡에서 이만큼 오가면 두 사람이 그 얘기를 한다
 const AUTO_MAX_DAY=2;          // 하루 상한
-const AUTO_MIN_MSGS=10;        // 이만큼은 오간 뒤부터 — 그 전엔 두 사람이 할 말이 없다
 const loadAutoDay=()=>{try{return localStorage.getItem("null_auto_day")||""}catch(e){return""}};
 const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
+const loadAutoSeen=()=>{try{return Number(localStorage.getItem("null_auto_seen"))||0}catch(e){return 0}};
+const saveAutoSeen=n=>{try{localStorage.setItem("null_auto_seen",String(n))}catch(e){}};
 const loadAutoAt=()=>{const v=+localStorage.getItem("null_auto_at");return v||0};
 const saveAutoAt=t=>{try{localStorage.setItem("null_auto_at",String(t))}catch(e){}};
 const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));
@@ -2147,32 +2148,29 @@ function App(){
     request(room,p);
   };
   /* 시간 경과(달 버튼): 자율 대화 생성 → 관전방에 축적 */
-  /* 비어 있던 사이를 메운다. 화면을 열 때 한 번만 본다.
-     시각은 마지막으로 오간 말과 지금 사이에 찍어, 내가 없는 동안 있었던 일로
-     읽히게 한다. 대화 중에는 절대 안 만든다 — 나랑 말하면서 저쪽과도 말하는
-     꼴이 되면 1:1이 싸구려가 된다. */
-  const autoFilled=useRef(false);
+  /* 오간 말이 쌓이면 두 사람이 그 얘기를 한다. 시계가 아니라 대화가 방아쇠다.
+     1:1·단톡에서 AUTO_EVERY만큼 새로 오간 뒤, 방에서 나와 목록으로 돌아왔을
+     때 하나 만든다. 방 안에 있는 동안에는 안 만든다 — 나랑 말하면서 저쪽과도
+     말하는 꼴이 되면 1:1이 싸구려가 된다.
+     원문은 서버로 안 간다. 백엔드는 signals(몇 마디, 얼마 전, 분위기)만 받으므로
+     두 사람은 "저 방이 시끄러웠다"만 알고 무슨 말이었는지는 끝내 모른다. */
+  const autoBusy=useRef(false);
   useEffect(()=>{
-    if(!name||autoFilled.current)return;
-    autoFilled.current=true;
+    if(!name||view!=="list"||autoBusy.current)return;
     (async()=>{
-      const now=Date.now();
-      const all=Object.values(storeRef.current.msgs||{}).flat();
-      if(all.length<AUTO_MIN_MSGS)return;
-      const lastAny=all.reduce((a,m)=>m.ts>a?m.ts:a,0);
-      const since=Math.max(autoAt||0,lastAny);
-      if(now-since<AUTO_GAP)return;
+      const m=storeRef.current.msgs||{};
+      const talk=["jaeeon","minhyun","group"].reduce((a,r)=>a+((m[r]||[]).length),0);
+      const seen=loadAutoSeen();
+      if(talk-seen<AUTO_EVERY)return;
       const day=new Date().toISOString().slice(0,10);
       const [d,n]=loadAutoDay().split("|");
       const used=d===day?Number(n)||0:0;
-      if(used>=AUTO_MAX_DAY)return;
-      saveAutoDay(`${day}|${used+1}`);
-      saveAutoAt(now); setAutoAt(now);
-      // 마지막으로 오간 말과 지금 사이 어딘가. 너무 방금은 아니게 20분은 띄운다
-      const span=now-since;
-      const at=Math.min(since+Math.floor(span*(.35+Math.random()*.3)),now-20*60*1000);
-      let msgs=null;
-      if(demoOn()){ msgs=demoReply("health"); }
+      if(used>=AUTO_MAX_DAY){ saveAutoSeen(talk); return; }
+      autoBusy.current=true;
+      saveAutoSeen(talk); saveAutoDay(`${day}|${used+1}`);
+      const now=Date.now(); saveAutoAt(now); setAutoAt(now);
+      let list=null;
+      if(demoOn()){ list=demoReply("health"); }
       else{
         try{
           const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
@@ -2180,21 +2178,23 @@ function App(){
               history:buildHistory(storeRef.current.msgs.health||[]),
               signals:buildSignals(null),recent_photos:recentPhotos("health")})});
           const data=await res.json().catch(()=>null);
-          if(res.ok&&data) msgs=data.messages;
+          if(res.ok&&data) list=data.messages;
         }catch(e){ /* 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
       }
-      if(!msgs||!msgs.length)return;
-      let t=at;
-      msgs.forEach(m=>{
-        if(!m)return;
-        const photo=photoSrc(m.photo)?m.photo:null;
-        const text=(m.text||"").trim();
+      autoBusy.current=false;
+      if(!list||!list.length)return;
+      // 방에서 나온 뒤에 저쪽이 시작된 것으로 찍는다
+      let t=now+60000;
+      list.forEach(x=>{
+        if(!x)return;
+        const photo=photoSrc(x.photo)?x.photo:null;
+        const text=(x.text||"").trim();
         if(!text&&!photo)return;
-        appendMsg("health",{id:t+Math.random(),sender:m.sender||"health",text,photo,ts:t});
-        t+=40000+Math.floor(Math.random()*80000);   // 40~120초 간격
+        appendMsg("health",{id:t+Math.random(),sender:x.sender||"health",text,photo,ts:t});
+        t+=40000+Math.floor(Math.random()*80000);
       });
     })();
-  },[name]);
+  },[name,view]);
 
   const doAuto=async()=>{
     if(autoLoading)return;

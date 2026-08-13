@@ -187,9 +187,8 @@ const AUTO_COOL=5*60*1000;
    안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금 백엔드는 유저별 저장소도
    없다. 화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다.
    관전 프롬프트가 22,000자로 제일 비싸서 하루 상한을 둔다. */
-const AUTO_GAP=3*60*60*1000;   // 이만큼 비어 있어야 하나 쌓인다
+const AUTO_EVERY=12;           // 1:1·단톡에서 이만큼 오가면 두 사람이 그 얘기를 한다
 const AUTO_MAX_DAY=2;          // 하루 상한
-const AUTO_MIN_MSGS=10;        // 이만큼은 오간 뒤부터 — 그 전엔 두 사람이 할 말이 없다
 const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
   return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
 
@@ -1695,39 +1694,38 @@ function Root() {
     setAutoLoading(false);
   };
 
-  /* 비어 있던 사이를 메운다. 앱을 열 때 한 번만 본다.
-     시각은 마지막으로 오간 말과 지금 사이에 찍어, 내가 없는 동안 있었던 일로
-     읽히게 한다. 대화 중에는 절대 안 만든다 — 나랑 말하면서 저쪽과도 말하는
-     꼴이 되면 1:1이 싸구려가 된다. */
-  const autoFilled=useRef(false);
+  /* 오간 말이 쌓이면 두 사람이 그 얘기를 한다. 시계가 아니라 대화가 방아쇠다.
+     1:1·단톡에서 AUTO_EVERY만큼 새로 오간 뒤, 방에서 나와 목록으로 돌아왔을
+     때 하나 만든다. 방 안에 있는 동안에는 안 만든다 — 나랑 말하면서 저쪽과도
+     말하는 꼴이 되면 1:1이 싸구려가 된다.
+     원문은 서버로 안 간다. 백엔드는 signals(몇 마디, 얼마 전, 분위기)만 받으므로
+     두 사람은 "저 방이 시끄러웠다"만 알고 무슨 말이었는지는 끝내 모른다. */
+  const autoBusy=useRef(false);
   useEffect(()=>{
-    if(!ready||!name||enrolling||autoFilled.current) return;
-    autoFilled.current=true;
+    if(!ready||!name||enrolling||autoBusy.current) return;
+    if(view.type!=='list') return;
     (async()=>{
-      const now=Date.now();
-      const all=Object.values(msgs).flat() as any[];
-      if(all.length<AUTO_MIN_MSGS) return;
-      const lastAny=all.reduce((a,m)=>m.created_at>a?m.created_at:a,0);
-      const since=Math.max(autoAt||0,lastAny);
-      if(now-since<AUTO_GAP) return;
-      // 하루 상한
+      const talk=['jaeeon','minhyun','group'].reduce((a,r)=>a+((msgs[r]||[]).length),0);
+      const seen=Number(await getMeta('null_auto_seen'))||0;
+      if(talk-seen<AUTO_EVERY) return;
       const day=new Date().toISOString().slice(0,10);
-      const raw=(await getMeta('null_auto_day'))||'';
-      const [d,n]=raw.split('|');
+      const [d,n]=((await getMeta('null_auto_day'))||'').split('|');
       const used=d===day?Number(n)||0:0;
-      if(used>=AUTO_MAX_DAY) return;
+      if(used>=AUTO_MAX_DAY){ await setMeta('null_auto_seen',String(talk)); return; }
+      autoBusy.current=true;
+      await setMeta('null_auto_seen',String(talk));
       await setMeta('null_auto_day',`${day}|${used+1}`);
+      const now=Date.now();
       await setMeta('null_auto_at',String(now)); setAutoAt(now);
-      // 마지막으로 오간 말과 지금 사이 어딘가. 너무 방금은 아니게 20분은 띄운다
-      const span=now-since;
-      const at=Math.min(since+Math.floor(span*(.35+Math.random()*.3)), now-20*60*1000);
       try{
         const data=demoOn()?{messages:demoReply('health')}:await genAuto(name);
         if(!demoOn()) await applyExtras(data);
-        if(data.messages?.length) await enqueuePast('health',data.messages,at);
+        // 방에서 나온 뒤에 저쪽이 시작된 것으로 찍는다
+        if(data.messages?.length) await enqueuePast('health',data.messages,now+60000);
       }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
+      autoBusy.current=false;
     })();
-  },[ready,name,enrolling,msgs]);
+  },[ready,name,enrolling,view,msgs]);
 
   /* 당신.txt: 빈칸 저장 / 이름 변경 */
   const saveProfile=(k:string,v:string)=>setProfile(p=>{const n={...p,[k]:v}; setMeta('null_profile',JSON.stringify(n)); return n;});
