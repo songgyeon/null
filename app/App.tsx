@@ -590,6 +590,7 @@ function SpinCD({size=88}:{size?:number}) {
 /* 보더로 만든 삼각형은 한쪽만 채워져 작대기로 보이고, 꼬리를 따로 붙이면
    꺾인 조각처럼 보인다. 웹과 같은 path를 그림 한 장으로 구워서 쓴다. */
 const CURSOR_PNG=require('./assets/cursor.png');
+const CHECKER_PNG=require('./assets/checker.png');
 const SpCursor=()=><Image source={CURSOR_PNG} style={sp.cursor}
   resizeMode="contain" pointerEvents="none"/>;
 
@@ -1034,6 +1035,8 @@ function Marquee({text}:{text:string}) {
     return ()=>loop.stop();
   },[w]);
   return <View style={rl.marquee}>
+    <LinearGradient colors={['#ffe6f2','#efe6ff','#e2f4ff']} start={{x:0,y:0}} end={{x:1,y:0}}
+      style={StyleSheet.absoluteFill} pointerEvents="none"/>
     <Animated.View style={{flexDirection:'row',transform:[{translateX:x}]}}>
       <Text style={rl.marqueeT} numberOfLines={1}
         onLayout={e=>setW(Math.round(e.nativeEvent.layout.width))}>{text}</Text>
@@ -1063,13 +1066,9 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
         {['you','file','chat','etc.'].map(m=>
           <TouchableOpacity key={m} onPress={()=>onMenu(m)} hitSlop={{top:10,bottom:10,left:6,right:6}}
             style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
-        {/* 💿 — 소개 영상. 이 앱이 뭔지 11초로 알려주는 자리 */}
-        <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
-          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
-          <Text style={{fontSize:12}}>💿</Text>
-          <Text style={rl.mi}>intro</Text></TouchableOpacity>
+        {/* 소개 영상은 목록 아래 CD로 옮겼다. 웹과 같은 자리다 */}
         <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
-          style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
+          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
         <Bevel style={{minWidth:86,height:30,marginLeft:6}} inner={{flexDirection:'row',gap:5,paddingHorizontal:8}}
           onPress={()=>{ if(autoLoading)return;
@@ -1078,7 +1077,9 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           <Text style={{fontSize:11}}>🌙</Text>
           <Text style={rl.peek}>{autoLoading?'...':left>0?mmss(left):'peek'}</Text></Bevel>
       </View>
-      <View style={rl.checker}/>
+      {/* 웹의 .checker는 linear-gradient 두 겹으로 격자를 만든다. RN에는 없으니
+          8px 타일 한 장을 repeat으로 깐다. */}
+      <Image source={CHECKER_PNG} style={rl.checker} resizeMode="repeat"/>
       <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
       <View style={rl.tabs}>
         <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms (4)</Text></TouchableOpacity>
@@ -1200,7 +1201,17 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           <View style={rl.hv}><Text style={rl.hvT}>total <Text style={rl.hvB}>{totalN}</Text></Text></View>
           <View style={rl.hv}><Text style={rl.hvT}>♡ <Text style={[rl.hvB,{color:'#e0699a'}]}>{hearts}</Text></Text></View>
         </View>}
-      </ScrollView></View>
+      </ScrollView>
+      {/* 목록 아래 빈 자리. 웹의 .deskfoot과 같다 — 가운데 CD가 소개 영상 스위치고
+          양옆은 장식이다. 스티커를 흩뿌리지 않고 여기 한 줄로 모은다. */}
+      {tab==='rooms'&&<View style={rl.foot} pointerEvents="box-none">
+        <Text style={rl.footDeco}>✿</Text>
+        <TouchableOpacity onPress={onFilm} activeOpacity={.7} accessibilityLabel="intro">
+          <SpinCD size={38}/></TouchableOpacity>
+        <Text style={[rl.footDeco,{color:'#ffd68a'}]}>★</Text>
+        <Text style={[rl.footDeco,{color:'#ffb0d4'}]}>♡</Text>
+      </View>}
+      </View>
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
         <TouchableOpacity style={rl.lb} activeOpacity={1} onPress={()=>setZoom(null)}>
           {zoom&&<Image source={{uri:zoom}} style={{width:'100%',height:'80%'}} resizeMode="contain"/>}
@@ -1226,8 +1237,11 @@ const rl=StyleSheet.create({
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
   presT:{...F,fontSize:8.5,color:'#a79cd0'},
-  checker:{height:6,backgroundColor:'#efeaf9',borderBottomWidth:1,borderBottomColor:'#cfc6ee'},
-  marquee:{paddingVertical:4,backgroundColor:'#f3ecff',overflow:'hidden',
+  checker:{height:6,width:'100%',borderBottomWidth:1,borderBottomColor:'#cfc6ee'},
+  foot:{flexDirection:'row',alignItems:'flex-end',justifyContent:'center',gap:16,
+        paddingTop:14,paddingBottom:10},
+  footDeco:{fontSize:13,color:'#c3b2f0',opacity:.6,marginBottom:8},
+  marquee:{paddingVertical:4,overflow:'hidden',
     borderBottomWidth:1,borderBottomColor:'#cfc6ee'},
   marqueeT:{...F,fontSize:8.5,letterSpacing:1.6,color:'#a06cc9'},
   prog:{flexDirection:'row',alignItems:'center',gap:8,marginTop:12,marginBottom:8,marginLeft:4},
