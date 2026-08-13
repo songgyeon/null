@@ -747,7 +747,7 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
 
   return <View style={{flex:1,backgroundColor:'#fdf6fb'}}>
     <TB colors={[P.pink,P.lav]}>
-      <Text style={tbT}>✿ cart{pick?' / wrap':''}</Text><Dots onClose={onBack}/></TB>
+      <Text style={tbT}>✿ gift{pick?' / wrap':''}</Text><Dots onClose={onBack}/></TB>
 
     {!pick&&<>
       <View style={ct.bar}>
@@ -1070,7 +1070,7 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           <Text style={rl.mi}>intro</Text></TouchableOpacity>
         <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
           style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
-          <Text style={{fontSize:12}}>🛒</Text><Text style={rl.mi}>cart</Text></TouchableOpacity>
+          <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
         <Bevel style={{minWidth:86,height:30,marginLeft:6}} inner={{flexDirection:'row',gap:5,paddingHorizontal:8}}
           onPress={()=>{ if(autoLoading)return;
             if(left>0){onToast('too soon · '+mmss(left));return}
