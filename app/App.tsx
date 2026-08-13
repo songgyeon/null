@@ -1045,7 +1045,7 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
+function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts,sawFilm}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -1069,8 +1069,10 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
             그게 특별한 동작으로 보인다 */}
         <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
           style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
-          <Text style={{fontSize:12}}>💿</Text>
-          <Text style={rl.mi}>intro</Text></TouchableOpacity>
+          {/* 이 줄에서 유일하게 움직이는 것. 가만히 있으면 눌릴 이유가 없다 */}
+          <SpinCD size={13}/>
+          <Text style={rl.mi}>intro</Text>
+          {!sawFilm&&<View style={rl.newdot}/>}</TouchableOpacity>
         <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
           style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
@@ -1237,6 +1239,8 @@ const rl=StyleSheet.create({
   hvB:{color:'#6b5fa8'},
   hompySp:{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:5,opacity:.9},
   hompyIco:{...F,fontSize:11},
+  /* 아직 안 본 사람에게만. 안 읽은 메시지 배지와 같은 문법이다 */
+  newdot:{position:'absolute',right:1,top:3,width:5,height:5,borderRadius:3,backgroundColor:'#ff7fae'},
   peek:{...F,fontSize:10,color:P.ink,letterSpacing:.5},
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
@@ -1516,6 +1520,9 @@ function Root() {
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
   /* 소개 영상. 화면 전환 바깥에 달아야 방을 오가도 안 끊긴다. */
   const [film,setFilm]=useState(false);
+  /* 소개 영상을 본 적이 있는가. 처음 온 사람에게만 점을 붙이려는 것이라
+     한 번 보면 다시 조용해진다. */
+  const [sawFilm,setSawFilm]=useState(false);
   const viewRef=useRef(view); viewRef.current=view;
   /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
@@ -1537,6 +1544,7 @@ function Root() {
     const u=await getMeta('null_unlocked');
     if(u){try{setUnlocked(JSON.parse(u))}catch{}}
     setGifts(await loadGifts());
+    if(await getMeta('null_saw_film')==='1') setSawFilm(true);
     const a=await getMeta('null_auto_at');
     if(a) setAutoAt(Number(a)||0);
     if(n){ setName(n); await reload(); } else setName('');
@@ -1728,8 +1736,9 @@ function Root() {
       autoAt={autoAt} onOpen={openRoom}
       onProfile={(c:string)=>setView({type:'profile',id:c})}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
-      onCart={()=>setView({type:'cart'})} demo={demo} onFilm={()=>setFilm(true)}
-      hearts={heartsOf(counts,gifts)}/>;
+      onCart={()=>setView({type:'cart'})} demo={demo}
+      onFilm={()=>{setFilm(true); if(!sawFilm){setSawFilm(true); setMeta('null_saw_film','1')}}}
+      hearts={heartsOf(counts,gifts)} sawFilm={sawFilm}/>;
   }
 
   return <>

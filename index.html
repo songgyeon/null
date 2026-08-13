@@ -69,7 +69,11 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .menubar{flex:none;display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:11px;color:#6b5fa8;
  background:rgba(240,236,252,.78);border-bottom:1px solid #c5bce8;position:relative;z-index:20}
 .mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
-.mbtn.ico{display:flex;align-items:center;gap:5px}
+.mbtn.ico{position:relative;display:flex;align-items:center;gap:5px}
+.spinslow{display:block;line-height:0;animation:spin 6s linear infinite}
+/* 아직 안 본 사람에게만. 안 읽은 메시지 배지와 같은 문법이다 */
+.newdot{position:absolute;right:2px;top:3px;width:5px;height:5px;border-radius:50%;
+ background:#ff7fae;box-shadow:0 0 5px rgba(255,127,174,.9)}
 .mbtn:hover{background:#e6def8}
 .mbtn.open{background:#fff;border-color:#8a7fc0;color:#4a4276;box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
 .bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;
@@ -861,6 +865,10 @@ const GIFT_NAME={};GIFTS.forEach(g=>{GIFT_NAME[g.key]=g.name});
 const GIFT_AT=2;
 const loadGifts=()=>{try{return JSON.parse(localStorage.getItem("null_gifts"))||{}}catch(e){return{}}};
 const saveGifts=g=>{try{localStorage.setItem("null_gifts",JSON.stringify(g))}catch(e){}};
+/* 소개 영상을 본 적이 있는가. 처음 온 사람에게만 점을 붙이기 위한 것이라
+   한 번 보면 다시 조용해진다. */
+const loadSawFilm=()=>{try{return localStorage.getItem("null_saw_film")==="1"}catch(e){return false}};
+const saveSawFilm=()=>{try{localStorage.setItem("null_saw_film","1")}catch(e){}};
 const loadUnlocked=()=>{try{return JSON.parse(localStorage.getItem("null_unlocked"))||[]}catch(e){return[]}};
 const saveUnlocked=a=>{try{localStorage.setItem("null_unlocked",JSON.stringify(a))}catch(e){}};
 
@@ -1697,6 +1705,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 /* ── 방 목록: 메신저 창 ── */
 function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,onFilm,gifts,onGift,hearts}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
+  const [sawFilm,setSawFilm]=useState(loadSawFilm);
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap(r=>(store.msgs&&store.msgs[r.id])||[]);
@@ -1746,7 +1755,10 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
           그게 특별한 동작으로 보인다 */}
       <span className="mbtn ico" style={{marginLeft:"auto"}} title="play the intro"
-        onClick={()=>{setMenu(null);onFilm()}}><Sticker.cd size={13}/>intro</span>
+        onClick={()=>{setMenu(null);setSawFilm(true);saveSawFilm();onFilm()}}>
+        {/* 이 줄에서 유일하게 움직이는 것. 가만히 있으면 눌릴 이유가 없다 */}
+        <span className="spinslow"><Sticker.cd size={13}/></span>intro
+        {!sawFilm&&<i className="newdot"/>}</span>
       <span className="mbtn ico" title="give something"
         onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart size={14}/>gift</span>
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
