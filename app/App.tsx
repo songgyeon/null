@@ -84,22 +84,40 @@ const demoBucket = (t?:string) => {
   if(/[?？]|왜|뭐|어때|어떻|얼마|언제/.test(x))return 'ask';
   return 'any';
 };
+/* 재언은 말줄임표를 안 쓴다. 점만 찍힌 말풍선은 침묵이 아니라 삐친 사람으로
+   읽히고, 메신저에서는 전송 실패처럼 보이기까지 한다. 이 사람의 침묵은 짧은
+   대답이거나, 아예 대답이 없는 자리다 — 관전방에서 민현이 연달아 두 번
+   말하는 데가 그 자리다.
+   민현도 마찬가지다. 슬픔은 문장에서 나오지 점에서 안 나온다. '…아니 됐어요'
+   보다 '아니에요. 대답 안 해도 돼요'가 아프다 — 먼저 문을 닫아주는 쪽이. */
 const DEMO_LINES:Record<string,Record<string,string[][]>> = {
   jaeeon:{
-    greet:[['네.'],['무슨 일 있으세요.'],['오셨어요.','앉으세요.']],
-    ask:[['그건 왜 물으세요.'],['글쎄요.','맞다고 해드리면 만족하세요?'],['그런 건 안 궁금해하셔도 됩니다.']],
-    hurt:[['어디가요.'],['가만있지 마시고 오세요.','앉아서 봅시다.'],['열은요.','재보고 말씀하세요.']],
-    praise:[['…'],['그런 말 안 하셔도 됩니다.'],['…','할 일 있으시면 하세요.']],
-    bye:[['네.'],['차 조심하세요.'],['늦었습니다.','가세요.']],
-    any:[['그러시든가요.'],['별일 없습니다.'],['…','그건 아까 말씀드렸는데요.']],
+    greet:[['네.'],['무슨 일 있으세요.'],['오셨어요.','앉으세요.'],
+      ['오늘은 일찍이시네요.'],['문 닫고 들어오세요, 바람 들어옵니다.']],
+    ask:[['그건 왜 물으세요.'],['글쎄요.','제가 답할 건 아닌 것 같습니다.'],
+      ['그런 건 안 궁금해하셔도 됩니다.'],['말해도 재미없는 얘긴데요.'],['그건 저도 모릅니다.']],
+    hurt:[['어디가요.'],['가만있지 마시고 오세요.','앉아서 봅시다.'],['열은요.','재보고 말씀하세요.'],
+      ['앉으세요.','언제부터요.'],['약 드릴게요.','오늘은 일찍 들어가세요.']],
+    praise:[['커피 식습니다.'],['그런 말 안 하셔도 됩니다.'],['할 일 있으시면 하세요.'],
+      ['그러려고 한 건 아닙니다.'],['됐습니다.','우산 가져가세요, 비 옵니다.']],
+    bye:[['네.'],['차 조심하세요.'],['늦었습니다.','가세요.'],
+      ['내일도 오시죠, 선생님.'],['늦으셨는데, 데려다 드릴까요.']],
+    any:[['그러시든가요.'],['별일 없습니다.'],['그건 아까 말씀드렸는데요.'],
+      ['말씀하세요, 듣고 있습니다.'],['급한 거 아니면 앉아서 말씀하세요.']],
   },
   minhyun:{
-    greet:[['왔어요?'],['안 올 줄 알았는데'],['뭐예요 갑자기ㅋ','심심했어요?']],
-    ask:[['그건 왜요.'],['먼저 말해봐요','그럼 대답할게요'],['제가 왜 대답해야 되는데요ㅋ','…농담이에요.']],
-    hurt:[['어디가 아픈데요'],['보건실 가요.','삼촌 있어요'],['혼자 가지 말고요','같이 가요']],
-    praise:[['…뭐예요.'],['그런 말 함부로 하지 마요'],['진짜예요?','…아니 됐어요.']],
-    bye:[['가요?'],['벌써요'],['…네.','잘 자요.']],
-    any:[['ㅡㅡ'],['그래서요'],['말 돌리지 마요','저 알아요 다']],
+    greet:[['왔어요?'],['안 올 줄 알았는데'],['뭐예요 갑자기.','심심했어요?'],
+      ['몇 시에 온다고 안 했잖아요','기다렸는데'],['안 잤어요 저','선생님 올까 봐서']],
+    ask:[['그건 왜요.'],['먼저 말해봐요','그럼 대답할게요'],['제가 왜 대답해야 되는데요.','농담이에요.'],
+      ['왜요, 저 궁금해요?','궁금해해줘요 좀'],['대답 안 하면 계속 물을 건데요']],
+    hurt:[['어디가 아픈데요'],['보건실 가요.','삼촌 있어요'],['혼자 가지 말고요','같이 가요'],
+      ['어디요','보여줘요'],['삼촌한테 가지 말고요','아니다, 가요. 가면 낫겠죠. 뭐라도.']],
+    praise:[['뭐예요.'],['그런 말 함부로 하지 마요'],['진짜예요?','아니에요. 대답 안 해도 돼요.'],
+      ['그런 말 딴 사람한테도 해요?'],['한 번만 더 해봐요','녹음할 건데']],
+    bye:[['가요?'],['벌써요'],['네.','잘 자요.'],
+      ['아직 가지 마요','5분만요'],['내일도 있죠?','확인한 거예요 그냥']],
+    any:[['저 지금 진지한데요.'],['그래서요'],['말 돌리지 마요','저 알아요 다'],
+      ['저 아까부터 있었는데요','안 보였어요?'],['아니에요.','말 안 할래요.']],
   },
 };
 // 단톡방·관전방은 결이 아니라 통째로 고른다
@@ -109,18 +127,57 @@ const DEMO_GROUP = [
   [{sender:'jaeeon',text:'무슨 일 있으세요'},{sender:'minhyun',text:'저도 궁금한데'},
    {sender:'minhyun',text:'말해봐요 저도 웃게'}],
   [{sender:'minhyun',text:'선생님 내일 오세요?'},{sender:'jaeeon',text:'그건 왜 묻냐.'},
-   {sender:'minhyun',text:'ㅡㅡ 제가 물었는데요 삼촌한테 안 물었고'}],
+   {sender:'minhyun',text:'제가 물었는데요. 삼촌한테 안 물었고.'}],
+  [{sender:'minhyun',text:'누가 그래요'},{sender:'jaeeon',text:'늦게 잤냐.'},
+   {sender:'minhyun',text:'선생님이 왜 말해요.'},{sender:'jaeeon',text:'일찍 자.'}],
+  [{sender:'minhyun',text:'저요?'},{sender:'jaeeon',text:'왜 찍으세요.'},
+   {sender:'minhyun',text:'삼촌은 빠져요'}],
+  [{sender:'minhyun',text:'저는 선생님 기다렸는데요'},{sender:'minhyun',text:'삼촌은 왜 조용해요'},
+   {sender:'jaeeon',text:'할 일 해.'}],
 ];
+/* 관전방. 앞의 둘은 아무 일 없는 날이고, 뒤의 여섯은 선물·약속·사진·남은 날에
+   각각 붙는 각본이다. 지금은 순서대로 도니까 눌러보는 사람이 여섯 개를 다 본다.
+   재언이 대답을 안 하는 자리에는 말풍선을 안 띄운다 — 민현이 두 번 연달아
+   말하는 것으로 그 침묵이 화면에 그대로 보인다. */
 const DEMO_AUTO = [
   [{sender:'minhyun',text:'삼촌 오늘 왜 이렇게 일찍 왔어요'},{sender:'jaeeon',text:'일이 빨리 끝났어.'},
    {sender:'minhyun',text:'그런 건 삼촌한테 처음 있는 일인데'},{sender:'jaeeon',text:'씻고 나와.'},
    {sender:'minhyun',text:'그 선생님이랑 뭐 있었어요?'},{sender:'jaeeon',text:'없어.'},
    {sender:'minhyun',text:'그게 대답이에요 지금'},{sender:'jaeeon',text:'밥 다 될 때까지 나오지 마.'}],
   [{sender:'jaeeon',text:'약 먹었냐.'},{sender:'minhyun',text:'네'},
-   {sender:'minhyun',text:'…아직요'},{sender:'jaeeon',text:'먹어.'},
+   {sender:'minhyun',text:'아직요'},{sender:'jaeeon',text:'먹어.'},
    {sender:'minhyun',text:'삼촌은 오늘 보건실에서 뭐 했어요'},{sender:'jaeeon',text:'일했지.'},
-   {sender:'minhyun',text:'혼자요?'},{sender:'jaeeon',text:'…'},
-   {sender:'minhyun',text:'아 혼자 아니었구나'}],
+   {sender:'minhyun',text:'혼자요?'},{sender:'minhyun',text:'아 혼자 아니었구나'}],
+  // 선물 — 재언이 받았다. 물건은 눈에 띄지만 무슨 말이 오갔는지는 모른다
+  [{sender:'minhyun',text:'삼촌 그 컵 뭐예요'},{sender:'jaeeon',text:'컵이야.'},
+   {sender:'minhyun',text:'원래 없던 건데'},{sender:'jaeeon',text:'생겼어.'},
+   {sender:'minhyun',text:'누가 줬어요?'},{sender:'jaeeon',text:'마셔, 식는다.'},
+   {sender:'minhyun',text:'물어봤는데'},{sender:'jaeeon',text:'들었어.'}],
+  // 선물 — 민현이 받았다. 자랑을 질문으로 포장하는 쪽
+  [{sender:'minhyun',text:'삼촌 이거 봐요'},{sender:'jaeeon',text:'뭔데.'},
+   {sender:'minhyun',text:'원래 제 거 아니었는데요'},{sender:'jaeeon',text:'좋네.'},
+   {sender:'minhyun',text:'그게 다예요?'},{sender:'jaeeon',text:'어디서 났어.'},
+   {sender:'minhyun',text:'이제 궁금해요?'},{sender:'jaeeon',text:'밥 먹어, 식어.'}],
+  // 약속 — 옥상에 다녀왔다. 간 것은 사실이고, 거기서 오간 말은 아무도 모른다
+  [{sender:'minhyun',text:'삼촌 아까 어디 있었어요'},{sender:'jaeeon',text:'학교에 있었지.'},
+   {sender:'minhyun',text:'보건실에 없던데요'},{sender:'jaeeon',text:'잠깐 나갔다 왔어.'},
+   {sender:'minhyun',text:'어디로요'},{sender:'jaeeon',text:'옥상에, 바람 쐬러.'},
+   {sender:'minhyun',text:'혼자요?'},{sender:'jaeeon',text:'씻어, 늦었어.'}],
+  // 사진 — 민현은 찍는 것만 봤다. 무엇을 찍었는지 볼 방법이 없다
+  [{sender:'minhyun',text:'삼촌 요즘 무슨 사진을 그렇게 찍어요'},{sender:'jaeeon',text:'안 찍어.'},
+   {sender:'minhyun',text:'아까 찍었잖아요'},{sender:'jaeeon',text:'그냥 찍은 거야.'},
+   {sender:'minhyun',text:'누구한테 보내려고'},{sender:'jaeeon',text:'보낼 데 없어.'},
+   {sender:'minhyun',text:'안 보낸다고는 안 하네요'},{sender:'jaeeon',text:'자, 내일 늦어.'}],
+  // 남은 날 D-7 — 주어를 비운 채로 오간다. 세고 있었다고 말하는 쪽이 진다
+  [{sender:'minhyun',text:'이제 일주일 남았네요'},{sender:'jaeeon',text:'뭐가.'},
+   {sender:'minhyun',text:'알잖아요'},{sender:'minhyun',text:'세고 있었죠'},
+   {sender:'jaeeon',text:'안 셌어.'},{sender:'minhyun',text:'근데 왜 아무 말도 안 해요'},
+   {sender:'jaeeon',text:'불 꺼, 안 자고 뭐 해.'}],
+  // 남은 날 D-1 — 여기서만 한 번 흘린다. 그리고 끝내 말을 못 한다
+  [{sender:'minhyun',text:'내일이에요'},{sender:'jaeeon',text:'알아.'},
+   {sender:'minhyun',text:'삼촌은 인사 안 해요?'},{sender:'jaeeon',text:'할 거야.'},
+   {sender:'minhyun',text:'진짜요?'},{sender:'minhyun',text:'아무 말도 안 할 거잖아요'},
+   {sender:'jaeeon',text:'자라, 민현아. 늦었어.'}],
 ];
 // 같은 각본이 연달아 나오지 않게 방·결마다 자리를 기억한다
 const demoAt:Record<string,number> = {};

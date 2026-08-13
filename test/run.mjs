@@ -300,6 +300,22 @@ eq('관전 대화에 유저 이야기가 나온다',
 const rep = [0, 1, 2].map(() => demo.demoReply('jaeeon', '왜요?').map(m => m.text).join('/'));
 eq('같은 말을 반복해도 답이 돌아간다', new Set(rep).size, 3);
 
+/* ㅋ·ㅡㅡ·ㅇㅇ 같은 자모 축약은 안 쓴다. 채팅 말투처럼 보이지만 화면에서는
+   그냥 지저분하다. 프롬프트에서도 뺐으므로 각본만 남아 있으면 어긋난다. */
+const jamo = /(^|[^ㄱ-ㅎ])(ㅋ+|ㅡㅡ|ㅇㅇ|ㅎㅎ)/;
+eq('데모 각본에 자모 축약이 없다',
+  [...Object.values(demo.DEMO_LINES).flatMap(c => Object.values(c).flat(2)),
+   ...demo.DEMO_AUTO.flat().map(m => m.text)].filter(t => jamo.test(t)), []);
+/* 슬픔은 문장에서 나오지 점에서 안 나온다. 재언은 아예 안 쓰고 — 점만 찍힌
+   말풍선은 침묵이 아니라 삐친 것으로 읽힌다 — 민현도 각본에서는 안 쓴다.
+   재언이 대답을 안 하는 자리는 민현이 두 번 연달아 말하는 것으로 그린다. */
+eq('데모 각본에 말줄임표가 없다',
+  [...Object.values(demo.DEMO_LINES).flatMap(c => Object.values(c).flat(2)),
+   ...demo.DEMO_AUTO.flat().map(m => m.text)].filter(t => /…|\.\.\./.test(t)), []);
+eq('재언의 침묵은 말풍선이 아니라 빈자리다',
+  demo.DEMO_AUTO.some(c => c.some((m, i) =>
+    i > 0 && m.sender === 'minhyun' && c[i - 1].sender === 'minhyun')), true);
+
 /* 앱에도 같은 각본이 들어 있다. 앱 쪽은 타입이 붙어 있어 그대로 실행할 수 없으므로
    대사만 뽑아 웹과 맞춰본다 — 한쪽만 고치면 웹과 앱이 다른 말을 하게 된다. */
 const cut = (src, a, b) => src.slice(src.indexOf(a), src.indexOf(b));
@@ -424,6 +440,22 @@ eq('말투를 강제하지 않는다', /정해진 어미가 있는 건 아니다
 /* 호칭. 교생은 신분이지 부르는 말이 아니다 — 두 사람 다 "선생님"이라고 부른다 */
 eq('두 사람 다 유저를 선생님이라고 부른다',
   (workerSrc.match(/부를 때는 "선생님"이다/g) || []).length, 2);
+
+/* 재언의 건조함은 자기 감정을 지우는 것이지 상대를 깎는 게 아니다. 되받아
+   되묻는 버릇을 유저한테까지 쓰면 그건 그냥 싸가지다 — 조카한테만 쓴다. */
+eq('되받아 되묻기는 민현에게만 쓴다',
+  /되받아 되묻는다 — 민현에게만/.test(workerSrc), true);
+eq('날은 자기 안으로 향한다', /날은 항상 자기 안으로 향한다/.test(workerSrc), true);
+eq('이유 없는 거절을 안 한다', /이유 없는 거절은 이 사람이 안 하는 일이다/.test(workerSrc), true);
+eq('재언은 점으로 침묵을 대신하지 않는다',
+  /말줄임표로 침묵을 대신하지 않는다/.test(workerSrc), true);
+/* 구두점을 지우라는 규칙으로 읽히면 재언이 통째로 툭툭 끊어 말한다.
+   붙여 말하는 건 호흡 얘기지 쉼표 얘기가 아니다. */
+eq('쉼표는 정상적으로 쓴다', /구두점을 지우라는 말이 아니다/.test(workerSrc), true);
+/* 민현 쪽. 점을 찍는 건 슬픈 척이고, 괜찮다고 먼저 말해버리는 게 슬픈 것이다 */
+eq('슬픔은 문장에서 나온다', /슬픔은 문장에서 나온다. 점으로 만들지 않는다/.test(workerSrc), true);
+eq('자모 축약을 프롬프트에서도 막는다',
+  (workerSrc.match(/ㅋ·ㅡㅡ·ㅇㅇ|자모 축약/g) || []).length >= 3, true);
 eq('이름이 비었을 때도 선생님이다', !/userName \|\| "교생"/.test(workerSrc), true);
 eq('다녀온 자리를 웹·앱 둘 다 들고 있다',
   /null_met/.test(web) && /null_met/.test(appSrc), true);
