@@ -354,12 +354,11 @@ eq('실습 기간이 30일이다', enrollDays(web), '30');
 eq('D-카운트를 양쪽 다 실습으로 쓴다',
   /실습 D-/.test(appSrc) && /실습 D-/.test(web), true);
 
-/* 소개 영상은 you·file·chat 같은 설정 메뉴 옆에 있어서, 평평한 글자로 두면
-   그것들과 한 종류로 읽힌다. 분홍 알약과 숨쉬는 연출로 갈라놓는다.
-   둘 중 하나만 지우면 조용히 안 눌리는 메뉴가 된다. */
-eq('소개 영상 메뉴가 웹·앱 둘 다 알약이고 숨쉰다',
-  /\.mbtn\.intro\{/.test(web) && /@keyframes breathe/.test(web)
-  && /rl\.intro\b/.test(appSrc) && /introGlow/.test(appSrc), true);
+/* 소개 영상은 설정 메뉴 옆에 평평하게 놓여 있어서 그 자체로는 눌릴 이유가
+   없다. 대신 흐르는 띠가 말해준다. 메뉴바를 건드려 튀게 만들면 줄 전체가
+   정신없어지므로, 초대는 띠 쪽에만 둔다. */
+eq('흐르는 띠가 웹·앱 둘 다 소개 영상을 안내한다',
+  /press intro · 11 seconds/.test(web) && /press intro · 11 seconds/.test(appSrc), true);
 
 // 미니홈피 방문자 카운터 — 웹에만 있다가 앱에 옮겼다
 eq('방문자 카운터가 웹·앱 둘 다 있다',

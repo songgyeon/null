@@ -71,12 +71,7 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
 .mbtn.ico{position:relative;display:flex;align-items:center;gap:5px}
 .spinslow{display:block;line-height:0;animation:spin 6s linear infinite}
-.mbtn.intro{color:#8a4f74;background:#ffeaf4;border-color:#f6cfe2;border-radius:13px;
- padding:4px 10px 4px 6px;animation:breathe 2.6s ease-in-out infinite}
-.mbtn.intro:hover{background:#ffdcec}
-@keyframes breathe{
- 0%,100%{box-shadow:0 0 0 rgba(255,127,174,0)}
- 50%{box-shadow:0 0 9px rgba(255,127,174,.55)}}
+
 .mbtn:hover{background:#e6def8}
 .mbtn.open{background:#fff;border-color:#8a7fc0;color:#4a4276;box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
 .bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;
@@ -1759,13 +1754,11 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
       {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
           그게 특별한 동작으로 보인다 */}
-      {/* 이 줄에서 유일하게 눌러서 뭔가 나오는 항목이다. 옆의 you·file·chat은
-          전부 설정이라, 같은 평평한 글자로 두면 그것들과 한 종류로 읽힌다.
-          분홍 알약을 깔아 갈라놓고 천천히 숨쉬게 한다 — 13px짜리가 도는 건
-          안 보이지만 밝기가 오르내리는 건 곁눈으로도 보인다. */}
-      <span className="mbtn ico intro" style={{marginLeft:"auto"}} title="play the intro"
+      {/* 눌릴 이유는 이 줄이 아니라 아래 흐르는 띠가 만든다. 메뉴바는 조용해야
+          한다 — 여기서 하나만 튀게 하면 줄 전체가 정신없어진다. */}
+      <span className="mbtn ico" style={{marginLeft:"auto"}} title="play the intro"
         onClick={()=>{setMenu(null);onFilm()}}>
-        <span className="spinslow"><Sticker.cd size={15}/></span>intro</span>
+        <span className="spinslow"><Sticker.cd size={13}/></span>intro</span>
       <span className="mbtn ico" title="give something"
         onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart size={14}/>gift</span>
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
@@ -1779,7 +1772,7 @@ function RoomList({store,name,unlocked,counts,onOpen,onProfile,onAuto,autoLoadin
       </button>
     </div>
     <div className="marquee"><span>
-      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; 
+      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; ♪ press intro · 11 seconds &nbsp; ✦ &nbsp; 
       {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧
     </span></div>
     <div className="tabs">

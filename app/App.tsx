@@ -1049,15 +1049,6 @@ function Marquee({text}:{text:string}) {
 
 // ═══ 방 목록 ═══
 function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
-  /* intro 알약이 천천히 숨쉰다. RN에는 box-shadow 애니메이션이 없어서
-     투명도를 대신 흔든다 — 작게 보면 결과가 비슷하다. */
-  const introGlow=useRef(new Animated.Value(1)).current;
-  useEffect(()=>{
-    const run=Animated.loop(Animated.sequence([
-      Animated.timing(introGlow,{toValue:.62,duration:1300,useNativeDriver:true}),
-      Animated.timing(introGlow,{toValue:1,duration:1300,useNativeDriver:true})]));
-    run.start(); return ()=>run.stop();
-  },[]);
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -1079,16 +1070,12 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
             style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
         {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
             그게 특별한 동작으로 보인다 */}
-        {/* 이 줄에서 유일하게 눌러서 뭔가 나오는 항목이다. 옆의 you·file·chat은
-            전부 설정이라, 같은 평평한 글자로 두면 그것들과 한 종류로 읽힌다.
-            분홍 알약을 깔아 갈라놓고 천천히 숨쉬게 한다 — 13px짜리가 도는 건
-            안 보이지만 밝기가 오르내리는 건 곁눈으로도 보인다. */}
-        <Animated.View style={{marginLeft:'auto',opacity:introGlow}}>
-          <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
-            style={rl.intro}>
-            <SpinCD size={15}/>
-            <Text style={rl.introT}>intro</Text></TouchableOpacity>
-        </Animated.View>
+        {/* 눌릴 이유는 이 줄이 아니라 아래 흐르는 띠가 만든다. 메뉴바는 조용해야
+            한다 — 여기서 하나만 튀게 하면 줄 전체가 정신없어진다. */}
+        <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
+          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
+          <SpinCD size={13}/>
+          <Text style={rl.mi}>intro</Text></TouchableOpacity>
         <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
           style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
@@ -1099,7 +1086,7 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           <Image source={MOON_PNG} style={{width:13,height:13,tintColor:left>0?'#b0a6d8':'#6b5fa8'}}/>
           <Text style={rl.peek}>{autoLoading?'...':left>0?mmss(left):'peek'}</Text></Bevel>
       </View>
-      <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
+      <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ♪ press intro · 11 seconds    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
       <View style={rl.tabs}>
         <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms (4)</Text></TouchableOpacity>
         <TouchableOpacity style={tab==='cam'?rl.tabOn:rl.tab} onPress={()=>setTab('cam')}><Text style={tab==='cam'?rl.tabOnT:rl.tabT}>cam</Text></TouchableOpacity>
@@ -1255,10 +1242,6 @@ const rl=StyleSheet.create({
   hvB:{color:'#6b5fa8'},
   hompySp:{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:5,opacity:.9},
   hompyIco:{...F,fontSize:11},
-  intro:{flexDirection:'row',alignItems:'center',gap:5,paddingVertical:4,
-         paddingLeft:6,paddingRight:10,borderRadius:13,
-         backgroundColor:'#ffeaf4',borderWidth:1,borderColor:'#f6cfe2'},
-  introT:{...F,fontSize:11,color:'#8a4f74'},
   peek:{...F,fontSize:10,color:P.ink,letterSpacing:.5},
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
