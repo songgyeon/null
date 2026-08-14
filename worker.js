@@ -937,49 +937,54 @@ const TICS = `
 // ─────────────────────────────────────────────
 const STAGES = [
   {
-    at: 0, name: "처음",
+    at: 0, day: 0, name: "처음",
     jaeeon: "아직 남이다. 모든 상황을 업무로 번역한다. 처치가 끝나면 상황도 끝나야 한다. 말이 짧고 한숨이 문장부호다.",
     minhyun: "뻔뻔하게 들러붙는다. 협박의 형태를 빌린 간절함. 거절당해도 장난이었던 걸로 물릴 수 있게 말한다.",
     group: "두 사람 다 아직 교생을 어려워한다. 재언은 사무적이고, 민현은 그 사이를 헤집는다.",
   },
   {
-    at: 16, name: "익숙",
+    at: 16, day: 4, name: "익숙",
     jaeeon: "건조함은 그대로인데 말 고르는 시간이 길어진다. 본인은 그걸 모른다. 챙기는 행동이 늘지만 이유는 늘 업무로 번역한다.",
     minhyun: "\"진짜죠?\"가 늘어난다. 확인받고 싶어한다. 진심으로 걱정해주면 뻔뻔하게 받아치지 못하고 말이 짧아진다.",
     group: "농담이 오간다. 민현이 재언을 놀리고, 재언은 받아주는 척 무시한다.",
   },
   {
-    at: 40, name: "균열",
+    at: 40, day: 10, name: "균열",
     jaeeon: "소거가 실패하기 시작한다. 손이 말보다 먼저 움직이고 \"내가 왜 이러고 있지\"는 항상 하고 난 다음에 온다. 유저가 단 걸 먹으면 멈추는 시선이 조금 길어진다.",
     minhyun: "처음으로 부끄러움이 생긴다. 뻔뻔하던 애가 말을 고르기 시작한다. 잃을 게 생겼다는 신호다. 본인도 어색해한다.",
     group: "민현이 재언의 마음을 눈치챈 티를 낸다. 재언은 경직되고 화제를 돌린다.",
   },
   {
-    at: 80, name: "시한",
+    at: 80, day: 18, name: "시한",
     jaeeon: "떠날 날이 가까운 걸 안다. 말 안 하면 20년이 또 20년이 된다는 것도. 그래도 먼저 꺼내지는 못한다. 문장이 시작됐다가 삼켜지는 일이 생긴다. 이 단계에서도 교생에게는 존댓말을 놓지 않는다 — 무너지는 건 말투가 아니라 문장의 끝이다.",
     minhyun: "예고된 이별이 가까워진다. 라이터를 아직 못 버렸다. 유기와 다르게 통과할 수 있는지가 이 애한테 걸려 있다. 평소보다 더 자주 확인하려 든다.",
     group: "떠남이 말끝에 걸린다. 아무도 그 단어를 직접 쓰지 않는다.",
   },
 ];
 
-function stageOf(count) {
+/* 대화 수와 날짜를 둘 다 넘어야 다음 단계다. 느린 쪽이 정한다.
+   전에는 대화 수만 봤는데, 유저는 하루에 백 개씩 보낸다. 그러면 첫날 밤에
+   "떠날 날이 가까운 걸 안다"까지 가버린다 — 화면에는 D-29라고 적혀 있는데.
+   1일은 1일이어야 한다. 날짜는 클라이언트가 첫 대화로부터 세어 보내준다. */
+function stageOf(count, days) {
+  const d = Math.max(0, Number(days) || 0);
   let s = STAGES[0];
-  for (const x of STAGES) if (count >= x.at) s = x;
+  for (const x of STAGES) if (count >= x.at && d >= x.day) s = x;
   return s;
 }
 
-function buildStage(mode, room, counts) {
+function buildStage(mode, room, counts, days) {
   if (!counts) return "";
   const n = k => Math.max(0, Number(counts[k]) || 0);
   // 자율 대화와 단톡은 두 방을 합쳐서 본다
   const key = mode === "auto" ? "group" : room;
   const count = key === "group" ? n("jaeeon") + n("minhyun") + n("group") : n(key);
-  const s = stageOf(count);
+  const s = stageOf(count, days);
   const parts = [];
   if (mode === "auto" || room === "group") {
     parts.push(`- 전반: ${s.group}`);
-    parts.push(`- 이재언: ${stageOf(n("jaeeon")).jaeeon}`);
-    parts.push(`- 이민현: ${stageOf(n("minhyun")).minhyun}`);
+    parts.push(`- 이재언: ${stageOf(n("jaeeon"), days).jaeeon}`);
+    parts.push(`- 이민현: ${stageOf(n("minhyun"), days).minhyun}`);
   } else {
     parts.push(`- ${s[room]}`);
   }
@@ -990,18 +995,18 @@ function buildStage(mode, room, counts) {
 // .hidden 해금 — 가까워진 순서대로 열린다
 // ─────────────────────────────────────────────
 const UNLOCKS = [
-  { key: "jaeeon-bag", room: "jaeeon", at: 12 },
-  { key: "minhyun-bag", room: "minhyun", at: 12 },
-  { key: "jaeeon-room", room: "jaeeon", at: 26 },
-  { key: "minhyun-room", room: "minhyun", at: 26 },
-  { key: "jaeeon-playlist", room: "jaeeon", at: 44 },
-  { key: "minhyun-playlist", room: "minhyun", at: 44 },
-  { key: "jaeeon-ticket", room: "jaeeon", at: 64 },
-  { key: "minhyun-ticket", room: "minhyun", at: 64 },
-  { key: "jaeeon-yearbook", room: "jaeeon", at: 90 },
-  { key: "minhyun-yearbook", room: "minhyun", at: 90 },
-  { key: "jaeeon-diary", room: "jaeeon", at: 120 },
-  { key: "minhyun-diary", room: "minhyun", at: 120 },
+  { key: "jaeeon-bag", room: "jaeeon", at: 12, day: 3 },
+  { key: "minhyun-bag", room: "minhyun", at: 12, day: 3 },
+  { key: "jaeeon-room", room: "jaeeon", at: 26, day: 7 },
+  { key: "minhyun-room", room: "minhyun", at: 26, day: 7 },
+  { key: "jaeeon-playlist", room: "jaeeon", at: 44, day: 11 },
+  { key: "minhyun-playlist", room: "minhyun", at: 44, day: 11 },
+  { key: "jaeeon-ticket", room: "jaeeon", at: 64, day: 15 },
+  { key: "minhyun-ticket", room: "minhyun", at: 64, day: 15 },
+  { key: "jaeeon-yearbook", room: "jaeeon", at: 90, day: 20 },
+  { key: "minhyun-yearbook", room: "minhyun", at: 90, day: 20 },
+  { key: "jaeeon-diary", room: "jaeeon", at: 120, day: 25 },
+  { key: "minhyun-diary", room: "minhyun", at: 120, day: 25 },
 ];
 
 /* 상태메시지는 서버가 안 보낸다.
@@ -1012,9 +1017,12 @@ const UNLOCKS = [
    나중에 모델이 상메를 직접 쓰게 하면 그때 별도 필드로 새로 계약한다.
    기본값의 메아리를 재활용하면 "모델이 쓴 것"과 "그냥 기본값"이 구분되지 않는다. */
 
-function unlockedKeys(counts) {
+/* 해금도 둘 다 넘어야 한다. 단계는 안 올라가는데 일기만 첫날에 열리면
+   안쪽으로 들어가는 순서가 무너진다. */
+function unlockedKeys(counts, days) {
   if (!counts) return [];
-  return UNLOCKS.filter(u => (Number(counts[u.room]) || 0) >= u.at).map(u => u.key);
+  const d = Math.max(0, Number(days) || 0);
+  return UNLOCKS.filter(u => (Number(counts[u.room]) || 0) >= u.at && d >= u.day).map(u => u.key);
 }
 
 // 유저가 '당신.txt'에서 채운 칸. 채워진 것만 온다.
@@ -1162,7 +1170,7 @@ function buildEvent(event, userName) {
   return "";
 }
 
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite) {
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
@@ -1186,7 +1194,7 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
     ? `\n## 지금 쓰지 않는 사진\n최근에 이미 보냈다. 다시 보내지 않는다: ${recent.map(k => `"${k}"`).join(", ")}\n`
     : "";
 
-  const volatile = buildStage(mode, room, counts) + buildProfile(userProfile)
+  const volatile = buildStage(mode, room, counts, days) + buildProfile(userProfile)
                  + buildSignals(signals, mode === "auto" ? null : room) + exclude
                  + buildGift(gift, userName) + buildEvent(event, userName)
                  + buildInvite(invite, room);
@@ -1721,6 +1729,9 @@ export default {
     const signals = body.signals || null;
     const userProfile = body.user_profile || null;   // 당신.txt에서 채운 칸
     const counts = body.counts || null;              // 방별 누적 대화 수 → 관계 단계·해금
+    /* 첫 대화로부터 며칠이 지났나. 서버는 유저별 저장소가 없어 못 세므로
+       클라이언트가 세어 보낸다. 없으면 0 — 대화 수만으로는 단계가 안 오른다. */
+    const days = Math.max(0, Math.floor(Number(body.days) || 0));
     // 장바구니에서 방금 보낸 선물 (1:1 방에서만 의미가 있다)
     const gift = (mode !== "auto" && body.gift && body.gift.name) ? body.gift : null;
     // 「두 사람」방을 열게 만든 사건 — 선물이나 해금. auto에서만 의미가 있다
@@ -1765,7 +1776,7 @@ export default {
     // 꺼낼지 말지는 모델이 정한다 — 서버는 문만 열어둔다
     const openPlaces = invitesFor(mode, room, counts,
       Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
-    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces);
+    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days);
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
@@ -1780,7 +1791,7 @@ export default {
       // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다
       const invite = pickInvite(parseMessages.invite, openPlaces);
       const messages = trimTics(sanitizePhotos(splitLines(parsed), photoChars, fallbackSender, recentPhotos));
-      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts),
+      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         ...(invite ? { invite: { place: invite, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {

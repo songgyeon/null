@@ -70,6 +70,19 @@ export async function buildCounts() {
 
 /* 당신.txt에 채운 빈칸. 값이 있는 것만 보낸다 — 빈 항목까지 보내면
    프롬프트에 "좋아하는 것: " 같은 빈 줄이 생겨 모델이 헷갈린다. */
+/* 첫 대화로부터 며칠이 지났나. 단계는 대화 수와 날짜를 둘 다 넘어야 오른다 —
+   유저는 하루에 백 개씩 보내므로 대화 수만 보면 첫날 밤에 마지막 단계다.
+   서버는 유저별 저장소가 없어서 첫 대화가 언제였는지 모른다. 여기서 세어 보낸다. */
+export async function buildDays() {
+  let first = 0;
+  for (const room of ['jaeeon', 'minhyun', 'group', 'health']) {
+    const m = await getMsgs(room, 1);
+    const t = m[0]?.created_at || 0;
+    if (t && (!first || t < first)) first = t;
+  }
+  return first ? Math.floor((Date.now() - first) / 864e5) : 0;
+}
+
 export async function buildUserProfile() {
   let raw = '';
   try { raw = (await getMeta('null_profile')) || ''; } catch (e) {}
@@ -105,6 +118,7 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     signals: await buildSignals(room),
     recent_photos: await recentPhotos(room),
     counts: await buildCounts(),
+    days: await buildDays(),
     user_profile: await buildUserProfile(),
     // 방금 장바구니에서 보낸 선물. 없으면 아예 안 보낸다
     ...(gift ? { gift } : {}),
@@ -126,6 +140,7 @@ export async function genAuto(userName: string, event?: any) {
     signals: await buildSignals(null),
     // 「두 사람」방은 사진을 쓰지 않는다 — recent_photos를 보낼 이유가 없다
     counts: await buildCounts(),
+    days: await buildDays(),
     user_profile: await buildUserProfile(),
     // 이 대화를 열게 만든 사건(선물·해금). 없으면 안 보낸다
     ...(event ? { event } : {}),

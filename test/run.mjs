@@ -796,6 +796,37 @@ eq('경계에 닿으면 다음 단계다',
    아무 일도 안 하면서, 한 번 저장되면 앱을 새로 빌드해도 옛 문구가 새 기본값을
    이기는 길만 냈다. 되살아나면 여기서 잡는다. */
 eq('워커가 상메를 안 보낸다', /statusOf|const STATUS = \[/.test(workerSrc), false);
+
+/* ── 1일은 1일이다 ──
+   단계가 대화 수만 봤다. 유저는 하루에 백 개씩 보낸다. 그러면 첫날 밤에
+   "떠날 날이 가까운 걸 안다"까지 간다 — 화면에는 D-29라고 적혀 있는데.
+   이제 대화 수와 날짜를 둘 다 넘어야 다음 단계다. 느린 쪽이 정한다. */
+const stageOf = new Function(workerSrc.slice(workerSrc.indexOf('const STAGES = ['),
+  workerSrc.indexOf('function buildStage')) + ';return stageOf')();
+eq('하루에 이백 개를 보내도 첫날은 처음이다', stageOf(200, 0).name, '처음');
+eq('나흘이 지나야 익숙이다', [stageOf(16, 3).name, stageOf(16, 4).name], ['처음', '익숙']);
+eq('날짜만 가도 대화가 모자라면 안 오른다', stageOf(10, 30).name, '처음');
+eq('둘 다 넘으면 오른다', [stageOf(200, 10).name, stageOf(200, 18).name], ['균열', '시한']);
+
+const unlockedKeys = new Function(workerSrc.slice(workerSrc.indexOf('const UNLOCKS = ['),
+  workerSrc.indexOf('// 유저가 \'당신.txt\'')) + ';return unlockedKeys')();
+const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
+/* 단계는 안 올라가는데 일기만 첫날에 열리면 안쪽으로 들어가는 순서가 무너진다 */
+eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 25)], [0, 2, 8, 12]);
+eq('말을 안 하면 날짜가 가도 안 열린다', uk(10, 30), 0);
+
+/* 세 군데가 같은 날짜를 써야 한다. 어긋나면 서버가 연기하는 단계와
+   화면이 보여주는 단계가 따로 논다 */
+const DAYS = [0, 4, 10, 18, 25];
+eq('웹이 같은 날짜를 쓴다',
+  JSON.parse((web.match(/const STAGE_DAY=(\[[^\]]*\])/) || [])[1]), DAYS);
+eq('앱이 같은 날짜를 쓴다',
+  JSON.parse((appSrc.match(/const STAGE_DAY=(\[[^\]]*\])/) || [])[1]), DAYS);
+eq('워커가 같은 날짜를 쓴다',
+  [0, 4, 10, 18].map(d => workerSrc.includes(`day: ${d},`)), [true, true, true, true]);
+/* 클라이언트가 날짜를 안 보내면 서버는 셀 방법이 없다 */
+eq('웹·앱 둘 다 날짜를 보낸다',
+  /payload\.days=daysSince/.test(web) && /days: await buildDays\(\),/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8')), true);
 eq('앱이 서버 상메를 저장하지 않는다', /saveStatus/.test(appSrc + profSrc), false);
 eq('워커에 상메 문구가 남아 있지 않다',
   /별일 없어요\.|문은 열어둘게요\./.test(workerSrc), false);

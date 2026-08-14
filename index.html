@@ -826,18 +826,18 @@ const photoSrc = k => (k&&PHOTO_FILES[k])||null;
 /* .hidden — room/at은 worker.js의 UNLOCKS와 같아야 한다.
    어긋나면 화면에 표시되는 "N번 남음"이 실제 해금 시점과 달라진다. */
 const HIDDEN=[
-  {key:"jaeeon-bag",             file:"jaeeon-bag.webp",             label:"재언의 가방", room:"jaeeon", at:12},
-  {key:"minhyun-bag",            file:"minhyun-bag.webp",            label:"민현의 가방", room:"minhyun", at:12},
-  {key:"jaeeon-room",            file:"jaeeon-room.webp",            label:"재언의 방", room:"jaeeon", at:26},
-  {key:"minhyun-room",           file:"minhyun-room.webp",           label:"민현의 방", room:"minhyun", at:26},
-  {key:"jaeeon-playlist",        file:"jaeeon-playlist.webp",        label:"재언의 플레이리스트", room:"jaeeon", at:44},
-  {key:"minhyun-playlist",       file:"minhyun-playlist.webp",       label:"민현의 플레이리스트", room:"minhyun", at:44},
-  {key:"jaeeon-ticket",          file:"jaeeon-ticket.webp",          label:"재언의 티켓", room:"jaeeon", at:64},
-  {key:"minhyun-ticket",         file:"minhyun-ticket.webp",         label:"민현의 티켓", room:"minhyun", at:64},
-  {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.webp",        label:"재언의 졸업사진", room:"jaeeon", at:90},
-  {key:"minhyun-yearbook",       file:"minhyun-yearbook.webp",       label:"민현의 졸업사진", room:"minhyun", at:90},
-  {key:"jaeeon-diary",           file:"jaeeon-diary.webp",           label:"재언의 일기", room:"jaeeon", at:120},
-  {key:"minhyun-diary",          file:"minhyun-diary.webp",          label:"민현의 일기", room:"minhyun", at:120},
+  {key:"jaeeon-bag",             file:"jaeeon-bag.webp",             label:"재언의 가방", room:"jaeeon", at:12, day:3},
+  {key:"minhyun-bag",            file:"minhyun-bag.webp",            label:"민현의 가방", room:"minhyun", at:12, day:3},
+  {key:"jaeeon-room",            file:"jaeeon-room.webp",            label:"재언의 방", room:"jaeeon", at:26, day:7},
+  {key:"minhyun-room",           file:"minhyun-room.webp",           label:"민현의 방", room:"minhyun", at:26, day:7},
+  {key:"jaeeon-playlist",        file:"jaeeon-playlist.webp",        label:"재언의 플레이리스트", room:"jaeeon", at:44, day:11},
+  {key:"minhyun-playlist",       file:"minhyun-playlist.webp",       label:"민현의 플레이리스트", room:"minhyun", at:44, day:11},
+  {key:"jaeeon-ticket",          file:"jaeeon-ticket.webp",          label:"재언의 티켓", room:"jaeeon", at:64, day:15},
+  {key:"minhyun-ticket",         file:"minhyun-ticket.webp",         label:"민현의 티켓", room:"minhyun", at:64, day:15},
+  {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.webp",        label:"재언의 졸업사진", room:"jaeeon", at:90, day:20},
+  {key:"minhyun-yearbook",       file:"minhyun-yearbook.webp",       label:"민현의 졸업사진", room:"minhyun", at:90, day:20},
+  {key:"jaeeon-diary",           file:"jaeeon-diary.webp",           label:"재언의 일기", room:"jaeeon", at:120, day:25},
+  {key:"minhyun-diary",          file:"minhyun-diary.webp",          label:"민현의 일기", room:"minhyun", at:120, day:25},
 ];
 const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
 
@@ -980,7 +980,7 @@ const NAME_PER=3;      // 이만큼 불려야 한 칸
 const NAME_CELLS=5;    // 칸 수. 다 채우려면 NAME_PER * NAME_CELLS 번
 const nameCells=n=>Math.min(NAME_CELLS,Math.floor((n||0)/NAME_PER));
 
-const demoUnlocked=msgs=>HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at).map(h=>h.key);
+const demoUnlocked=msgs=>{const d=daysSince(msgs);return HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at&&d>=h.day).map(h=>h.key)};
 /* 문구집에 물어볼 말. 유저가 방금 친 말이다. 시스템 줄("…을(를) 받았다")은
    유저가 한 말이 아니라서 그대로 넘기면 아무것도 안 걸린다. */
 const demoAsk=payload=>{
@@ -1263,8 +1263,19 @@ function Avatar({room,size=42,onProfile,heat,nu}){
    worker.js의 STAGES는 0/16/40/80 네 단계로 모델의 연기 톤을 정한다.
    그쪽은 "관계가 어디까지 왔나"고 이쪽은 "화면이 어떻게 보이나"라 길이가 달라도 된다.
    다만 HEAT는 이 배열과 길이가 같아야 한다. */
+/* 대화 수와 날짜를 둘 다 넘어야 다음 단계다. 느린 쪽이 정한다.
+   전에는 대화 수만 봤는데 유저는 하루에 백 개씩 보낸다. 그러면 첫날 밤에
+   마지막 단계까지 가버린다 — 화면에는 D-29라고 적혀 있는데.
+   1일은 1일이어야 한다. worker.js의 STAGES와 같아야 한다. */
 const STAGE_AT=[0,16,40,80,120];
-const stageIdx=n=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a)i=k});return i};
+const STAGE_DAY=[0,4,10,18,25];
+const stageIdx=(n,days)=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a&&(days||0)>=STAGE_DAY[k])i=k});return i};
+/* 첫 대화로부터 며칠 지났나. 실습 D-day와 같은 시계를 쓴다 */
+const daysSince=msgs=>{
+  const all=Object.values(msgs||{}).flat();
+  const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
+  return first?Math.floor((Date.now()-first)/864e5):0;
+};
 
 /* 음원 위치. 저장소에 파일을 올리면 그대로 잡히고,
    R2 같은 외부 호스팅을 쓰면 MEDIA만 그 주소로 바꾸면 된다.
@@ -1381,10 +1392,10 @@ function MusicBar({track,color,onPlay}){
   </React.Fragment>;
 }
 
-function Profile({char,count,onBack,gifts,dLeft,back}){
+function Profile({char,count,onBack,gifts,dLeft,back,days}){
   const ch=CHARS[char], p=PROFILES[char], room=roomOf(char);
   const [full,setFull]=useState(false);   // 배경만 크게 보기
-  const st=p?(p.stages[stageIdx(count)]||p.stages[0]):null;
+  const st=p?(p.stages[stageIdx(count,days)]||p.stages[0]):null;
   /* 배경은 단계를 따라간다. 파일이 아직 없으면 그 인물의 기존 배경으로 돌아간다.
      훅은 아래 조건부 return보다 위에 있어야 한다 — 밑으로 내려가면 렌더마다
      훅 호출 수가 달라져서 React가 터진다. */
@@ -1395,7 +1406,7 @@ function Profile({char,count,onBack,gifts,dLeft,back}){
   /* 배경이 되는 건 사진이 있는 선물뿐이다. 그냥 마지막 선물을 집으면
      사진 없는 걸 방금 준 순간 단계 배경까지 같이 날아간다.
      그래서 뒤에서부터 사진 있는 것을 찾는다. */
-  const hung=stageIdx(count)>=GIFT_AT
+  const hung=stageIdx(count,days)>=GIFT_AT
     ? given.slice().reverse().find(k=>(GIFTS.find(g=>g.key===k)||{}).bg) : null;
   const wanted=hung?(GIFTS.find(g=>g.key===hung)||{}).bg:(st&&st.bg);
   const bg=useBg(wanted,(p&&p.fallback)||char+"-bg.webp");
@@ -1820,6 +1831,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const left=Math.max(0,autoAt+AUTO_COOL-now);
   const album=seenPhotos(store.msgs);
   const calls=NAME_CALLS(store.msgs,name);
+  const dayN=daysSince(store.msgs);
   const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
@@ -1886,11 +1898,11 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           const watch=r.type==="watch";
           const pr=presence(r.id,new Date(now));
           /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 아바타 둘레가 돈다 */
-          const nu=CHARS[r.id]?stageDiff(r.id,(seenStage||{})[r.id]||0,stageIdx(counts[r.id]||0)):[];
+          const nu=CHARS[r.id]?stageDiff(r.id,(seenStage||{})[r.id]||0,stageIdx(counts[r.id]||0,dayN)):[];
           return <React.Fragment key={r.id}>
             {watch&&<div className="sect">✧ LIVE<span className="deco"><Sticker.butterfly size={13} color="#9aa3d8"/></span></div>}
             <div className={"roomcard"+(watch?" watch":"")} style={{animationDelay:`${i*0.05}s`}} onClick={()=>onOpen(r.id)}>
-              <Avatar room={r} onProfile={onProfile} heat={CHARS[r.id]?stageIdx(counts[r.id]||0):null} nu={nu.length>0}/>
+              <Avatar room={r} onProfile={onProfile} heat={CHARS[r.id]?stageIdx(counts[r.id]||0,dayN):null} nu={nu.length>0}/>
               <div className="rinfo">
                 <div className="rtop">
                   <span className="rname">{r.name}</span>
@@ -2227,6 +2239,7 @@ function App(){
     if(payload.mode==="chat"){ payload.met=loadMet(); payload.refused=loadRefused(); }
     if(up)payload.user_profile=up; else delete payload.user_profile;
     if(!payload.counts)payload.counts=roomCounts();
+    if(payload.days==null)payload.days=daysSince(storeRef.current.msgs);
     inflightRef.current[bucket]=true;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
@@ -2428,6 +2441,7 @@ function App(){
     const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
     return first?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-first)/864e5)):ENROLL_DAYS;
   })();
+  const dayN=daysSince(store.msgs);
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
      그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다. */
   const cameBack=(()=>{
@@ -2446,7 +2460,7 @@ function App(){
   const openProfile=id=>{
     setProf(id);
     if(!CHARS[id])return;
-    const at=stageIdx((roomCounts()[id])||0);
+    const at=stageIdx((roomCounts()[id])||0,daysSince(storeRef.current.msgs));
     setSeenStage(s=>{const n={...s,[id]:at};saveSeenStage(n);return n});
   };
   const profCount=id=>{
@@ -2512,7 +2526,7 @@ function App(){
         </div>
       </div>
     </div>}
-    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack}/>}
+    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN}/>}
     {film&&<IntroFilm onClose={()=>setFilm(false)}/>}
     {toast&&<div className="toast"><span>✧ {toast}</span></div>}
   </div>;

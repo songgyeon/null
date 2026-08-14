@@ -54,18 +54,18 @@ Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.webp'}));
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
 const HIDDEN=[
-  {key:'jaeeon-bag',           label:'재언의 가방', room:'jaeeon', at:12},
-  {key:'minhyun-bag',          label:'민현의 가방', room:'minhyun', at:12},
-  {key:'jaeeon-room',          label:'재언의 방', room:'jaeeon', at:26},
-  {key:'minhyun-room',         label:'민현의 방', room:'minhyun', at:26},
-  {key:'jaeeon-playlist',      label:'재언의 플레이리스트', room:'jaeeon', at:44},
-  {key:'minhyun-playlist',     label:'민현의 플레이리스트', room:'minhyun', at:44},
-  {key:'jaeeon-ticket',        label:'재언의 티켓', room:'jaeeon', at:64},
-  {key:'minhyun-ticket',       label:'민현의 티켓', room:'minhyun', at:64},
-  {key:'jaeeon-yearbook',      label:'재언의 졸업사진', room:'jaeeon', at:90},
-  {key:'minhyun-yearbook',     label:'민현의 졸업사진', room:'minhyun', at:90},
-  {key:'jaeeon-diary',         label:'재언의 일기', room:'jaeeon', at:120},
-  {key:'minhyun-diary',        label:'민현의 일기', room:'minhyun', at:120},
+  {key:'jaeeon-bag',           label:'재언의 가방', room:'jaeeon', at:12, day:3},
+  {key:'minhyun-bag',          label:'민현의 가방', room:'minhyun', at:12, day:3},
+  {key:'jaeeon-room',          label:'재언의 방', room:'jaeeon', at:26, day:7},
+  {key:'minhyun-room',         label:'민현의 방', room:'minhyun', at:26, day:7},
+  {key:'jaeeon-playlist',      label:'재언의 플레이리스트', room:'jaeeon', at:44, day:11},
+  {key:'minhyun-playlist',     label:'민현의 플레이리스트', room:'minhyun', at:44, day:11},
+  {key:'jaeeon-ticket',        label:'재언의 티켓', room:'jaeeon', at:64, day:15},
+  {key:'minhyun-ticket',       label:'민현의 티켓', room:'minhyun', at:64, day:15},
+  {key:'jaeeon-yearbook',      label:'재언의 졸업사진', room:'jaeeon', at:90, day:20},
+  {key:'minhyun-yearbook',     label:'민현의 졸업사진', room:'minhyun', at:90, day:20},
+  {key:'jaeeon-diary',         label:'재언의 일기', room:'jaeeon', at:120, day:25},
+  {key:'minhyun-diary',        label:'민현의 일기', room:'minhyun', at:120, day:25},
 ];
 
 /* ── 데모 모드 ──
@@ -130,7 +130,9 @@ const DOT:Record<string,string>={on:'#4fc98a',away:'#f0b34a',off:'#c3bcd8'};
 /* ── 관계 온도 ── 단계 이름은 화면에 쓰지 않는다. 색으로만 말한다 */
 // lib/profiles.ts의 stages, index.html의 STAGE_AT과 같아야 한다 (0/16/40/80/120)
 const STAGE_AT=[0,16,40,80,120];
-const stageIdx=(n:number)=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a)i=k});return i};
+const STAGE_DAY=[0,4,10,18,25];
+/* 대화 수와 날짜를 둘 다 넘어야 다음 단계다. index.html·worker.js와 같아야 한다 */
+const stageIdx=(n:number,days=0)=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a&&days>=STAGE_DAY[k])i=k});return i};
 // stageIdx로 색인한다 — STAGE_AT과 길이가 같아야 한다. 짧으면 마지막 단계에서 터진다
 const HEAT=[{w:1,o:'44'},{w:1.5,o:'80'},{w:2,o:'b8'},{w:2.5,o:'e0'},{w:3,o:'ff'}];
 
@@ -868,19 +870,19 @@ const ct=StyleSheet.create({
 });
 
 // ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 민현=락페) ═══
-function Profile({char,onBack,refresh,dLeft,back}:{char:string;onBack:()=>void;refresh?:number;dLeft?:number;back?:boolean}) {
+function Profile({char,onBack,refresh,dLeft,back,days}:{char:string;onBack:()=>void;refresh?:number;dLeft?:number;back?:boolean;days?:number}) {
   const [stage,setStage]=useState<any>(null);
   const [count,setCount]=useState(0);
   const [gifts,setGifts]=useState<Record<string,string[]>>({});
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   useEffect(()=>{(async()=>{
-    setStage(await currentStage(char,dLeft,back));
+    setStage(await currentStage(char,dLeft,back,days));
     setCount(await countMsgs(char));
     setGifts(await loadGifts());
-  })()},[char,refresh,dLeft,back]);
+  })()},[char,refresh,dLeft,back,days]);
   const ch=CHARS[char];
   // 훅은 조건문 위에 있어야 한다 — 아래 return보다 뒤로 내리면 렌더마다 훅 수가 달라진다
-  const bg=useBgUri(bgFor(char,count,gifts,stage?.bg), PROFILES[char]?.fallback||char+'-bg.webp');
+  const bg=useBgUri(bgFor(char,count,gifts,stage?.bg,days), PROFILES[char]?.fallback||char+'-bg.webp');
   if(!stage) return <View style={{flex:1,backgroundColor:P.dark}}/>;
   const status=(stage.status||'').trim();
   const room=ROOMS.find(r=>r.id===char)!;
@@ -1046,7 +1048,7 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -1149,12 +1151,12 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,album,autoAt,onOpen,onP
           const watch=room.type==='watch';
           const pr=presence(room.id);
           /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 얼굴 둘레가 뛴다 */
-          const nuList=CHARS[room.id]?stageDiff(room.id,(seenStage||{})[room.id]||0,stageIdx(counts[room.id]||0)):[];
+          const nuList=CHARS[room.id]?stageDiff(room.id,(seenStage||{})[room.id]||0,stageIdx(counts[room.id]||0,dayN)):[];
           const card=<TouchableOpacity style={[rl.card,watch&&rl.cardW]} onPress={()=>onOpen(room.id)}>
             {room.type==='dm'
               ? <TouchableOpacity onPress={()=>onProfile(room.id)}>
                   <Face char={room.id} size={42}
-                    border={CHARS[room.id].dk+HEAT[stageIdx(counts[room.id]||0)].o}/>
+                    border={CHARS[room.id].dk+HEAT[stageIdx(counts[room.id]||0,dayN)].o}/>
                   {nuList.length>0&&<NuRing/>}
                 </TouchableOpacity>
               /* 단톡방·관전방은 얼굴이 없다. 웹은 여기에 SVG로 물방울과 달을 그리는데
@@ -1527,6 +1529,7 @@ function Root() {
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
   const firstTs=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0);
   const dLeft=firstTs?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5)):ENROLL_DAYS;
+  const dayN=firstTs?Math.floor((Date.now()-firstTs)/864e5):0;
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
      그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다.
      웹의 cameBack과 같은 식이다. */
@@ -1851,7 +1854,7 @@ function Root() {
   /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
      여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
   useEffect(()=>{ if(!demoOn())return;
-    const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at).map(h=>h.key);
+    const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });
   },[msgs,demo]);
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); demoGreet(id); };
@@ -1860,7 +1863,7 @@ function Root() {
   const openProfile=(c:string)=>{
     setView({type:'profile',id:c});
     if(!CHARS[c])return;
-    const at=stageIdx(counts[c]||0);
+    const at=stageIdx(counts[c]||0,dayN);
     setSeenStage(s=>{const n={...s,[c]:at}; saveSeenStage(n); return n});
   };
 
@@ -1871,7 +1874,7 @@ function Root() {
       <Splash onEnter={handleEnter}/></View></>;
 
   let screen;
-  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} dLeft={dLeft} back={cameBack}
+  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} dLeft={dLeft} back={cameBack} days={dayN}
     onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='cart') screen=<CartScreen gifts={gifts} hearts={heartsOf(counts,gifts)}
     onSend={giveGift} onBack={()=>setView({type:'list'})}/>;
@@ -1882,7 +1885,7 @@ function Root() {
       onProfile={openProfile}/>;
   } else {
     screen=<RoomList msgs={msgs} unread={unread} unlocked={unlocked} counts={counts} album={album}
-      seenStage={seenStage} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
+      seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
       onCart={()=>setView({type:'cart'})} demo={demo}
       onFilm={()=>setFilm(true)}

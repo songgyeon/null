@@ -36,7 +36,7 @@ export const TRACK_INFO: Record<string, { title: string; artist: string }> = {
    인물 BGM이 시작되면 이쪽을 멈춘다. */
 export const MAIN_TRACK = 'null-1';
 
-export type Stage = { at: number; status: string; bg: string; track: string | null };
+export type Stage = { at: number; day: number; status: string; bg: string; track: string | null };
 
 /* 선물 — index.html의 GIFTS와 같아야 한다. 어긋나면 웹에서 준 선물이
    앱에서는 없는 물건이 된다.
@@ -126,21 +126,21 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   jaeeon: {
     fallback: 'jaeeon-gallery.webp',
     stages: [
-      { at: 0,   status: '별일 없어요.',       bg: 'jaeeon-gallery.webp', track: 'jaeeon-1' },
-      { at: 16,  status: '문은 열어둘게요.',    bg: 'jaeeon-landing.webp', track: 'jaeeon-1' },
-      { at: 40,  status: '어디 안 가요.',       bg: 'jaeeon-lobby.webp',   track: 'jaeeon-2' },
-      { at: 80,  status: '아직 남았어요.',      bg: 'jaeeon-drive.webp',   track: 'jaeeon-3' },
-      { at: 120, status: '남은 동안은 여기 있어요.', bg: 'jaeeon-kitchen.webp', track: 'jaeeon-4' },
+      { at: 0, day: 0,   status: '별일 없어요.',       bg: 'jaeeon-gallery.webp', track: 'jaeeon-1' },
+      { at: 16, day: 4,  status: '문은 열어둘게요.',    bg: 'jaeeon-landing.webp', track: 'jaeeon-1' },
+      { at: 40, day: 10, status: '어디 안 가요.',       bg: 'jaeeon-lobby.webp',   track: 'jaeeon-2' },
+      { at: 80, day: 18, status: '아직 남았어요.',      bg: 'jaeeon-drive.webp',   track: 'jaeeon-3' },
+      { at: 120, day: 25, status: '남은 동안은 여기 있어요.', bg: 'jaeeon-kitchen.webp', track: 'jaeeon-4' },
     ],
   },
   minhyun: {
     fallback: 'minhyun-sunset.webp',
     stages: [
-      { at: 0,   status: '수업 중. 아마도.',          bg: 'minhyun-shop.webp',     track: 'minhyun-1' },
-      { at: 16,  status: '기다리는 거 아니에요.',     bg: 'minhyun-lp.webp',       track: 'minhyun-1' },
-      { at: 40,  status: '그 말 취소하면 안 돼요.',   bg: 'minhyun-bus.webp', track: 'minhyun-2' },
-      { at: 80,  status: '곧이잖아요. 지금이 아니라.', bg: 'minhyun-cat.webp',      track: 'minhyun-3' },
-      { at: 120, status: '안 알려줘도 알아요.',        bg: 'minhyun-sunset.webp',   track: 'minhyun-4' },
+      { at: 0, day: 0,   status: '수업 중. 아마도.',          bg: 'minhyun-shop.webp',     track: 'minhyun-1' },
+      { at: 16, day: 4,  status: '기다리는 거 아니에요.',     bg: 'minhyun-lp.webp',       track: 'minhyun-1' },
+      { at: 40, day: 10, status: '그 말 취소하면 안 돼요.',   bg: 'minhyun-bus.webp', track: 'minhyun-2' },
+      { at: 80, day: 18, status: '곧이잖아요. 지금이 아니라.', bg: 'minhyun-cat.webp',      track: 'minhyun-3' },
+      { at: 120, day: 25, status: '안 알려줘도 알아요.',        bg: 'minhyun-sunset.webp',   track: 'minhyun-4' },
     ],
   },
 };
@@ -187,10 +187,12 @@ export async function saveSeenStage(o: Record<string, number>) {
 }
 
 // 대화 수 → 단계 (동기). 서버를 부르지 않는 계산에는 이쪽을 쓴다
-export function stageIdxOf(char: string, n: number): number {
+/* 대화 수와 날짜를 둘 다 넘어야 다음 단계다. 느린 쪽이 정한다.
+   유저는 하루에 백 개씩 보낸다. 대화 수만 보면 첫날 밤에 마지막 단계다. */
+export function stageIdxOf(char: string, n: number, days = 0): number {
   const stages = PROFILES[char]?.stages || [];
   let idx = 0;
-  stages.forEach((s, i) => { if (n >= s.at) idx = i; });
+  stages.forEach((s, i) => { if (n >= s.at && days >= s.day) idx = i; });
   return idx;
 }
 
@@ -198,8 +200,8 @@ export function stageIdxOf(char: string, n: number): number {
    유저가 건 게 앞선다. 다만 GIFT_AT은 지나야 한다.
    배경이 되는 건 사진이 있는 선물뿐이라 뒤에서부터 사진 있는 것을 찾는다.
    그냥 마지막 선물을 집으면 사진 없는 걸 방금 준 순간 단계 배경까지 날아간다. */
-export function bgFor(char: string, count: number, gifts: Record<string,string[]>, stageBg?: string): string {
-  if (stageIdxOf(char, count) >= GIFT_AT) {
+export function bgFor(char: string, count: number, gifts: Record<string,string[]>, stageBg?: string, days = 0): string {
+  if (stageIdxOf(char, count, days) >= GIFT_AT) {
     const given = gifts?.[char] || [];
     for (let i = given.length - 1; i >= 0; i--) {
       const g = GIFTS.find(x => x.key === given[i]);
@@ -220,22 +222,18 @@ export function heartsOf(counts: Record<string,number>, gifts: Record<string,str
 }
 
 // 현재 단계 인덱스
-export async function currentStageIdx(char: string): Promise<number> {
-  const n = await countMsgs(char);
-  const stages = PROFILES[char]?.stages || [];
-  let idx = 0;
-  stages.forEach((s, i) => { if (n >= s.at) idx = i; });
-  return idx;
+export async function currentStageIdx(char: string, days = 0): Promise<number> {
+  return stageIdxOf(char, await countMsgs(char), days);
 }
 
 /* 현재 단계. 상메는 이 표가 정한다 — 서버는 상메를 안 보낸다.
    전에는 서버 값을 저장해 기본값보다 우선했는데, 서버가 내려주던 게
    같은 표의 메아리라 아무 일도 안 하면서 옛 문구가 눌러앉는 길만 냈다.
    dLeft가 0이면 단계를 무시하고 작별 인사다 — 시계가 단계를 이긴다. */
-export async function currentStage(char: string, dLeft?: number, back?: boolean): Promise<Stage> {
-  const idx = await currentStageIdx(char);
+export async function currentStage(char: string, dLeft?: number, back?: boolean, days = 0): Promise<Stage> {
+  const idx = await currentStageIdx(char, days);
   const base = PROFILES[char]?.stages[idx];
-  if (!base) return { at: 0, status: '', bg: char + '-bg.webp', track: null };
+  if (!base) return { at: 0, day: 0, status: '', bg: char + '-bg.webp', track: null };
   if (dLeft === 0) {
     const t = (back ? STATUS_BACK : STATUS_GONE)[char];
     return { ...base, status: t || base.status || '' };
