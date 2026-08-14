@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, Image, Modal,
   ImageBackground, Animated, Easing, StyleSheet, Dimensions, StatusBar,
-  Platform, Share, BackHandler, Keyboard, useWindowDimensions,
+  Platform, Share, BackHandler, Keyboard, useWindowDimensions, ImageStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
@@ -190,6 +190,13 @@ const nu=StyleSheet.create({
   ring:{position:'absolute',left:-4,top:-4,width:50,height:50,borderRadius:25,
         borderWidth:1.6,borderColor:'#ff8fbe'},
 });
+
+/* 장식용 그림은 터치를 안 받아야 한다. RN 0.71부터 pointerEvents는 prop이
+   아니라 style로 주는 게 정식이고 런타임은 어느 컴포넌트에서도 받는데,
+   타입 쪽 ImageStyle에만 그 자리가 없다. 타입 구멍이라 여기 한 곳에서만
+   메우고 쓰는 데서는 그냥 스타일처럼 얹는다. View는 아직 prop을 받으므로
+   그쪽은 안 건드린다. */
+const NO_TOUCH = { pointerEvents: 'none' } as unknown as ImageStyle;
 
 // 타이핑 딜레이 — 캐릭터별 속도 차등
 const typeDelay = (sender:string, text:string) => {
@@ -473,15 +480,15 @@ function IntroFilm({onClose}:{onClose:()=>void}) {
       </Animated.View>
 
       {/* ── VHS 껍데기 ── */}
-      <Animated.Image source={{uri:IMG+'vhs-track.webp'}} resizeMode="repeat" pointerEvents="none"
-        style={[fl.band,{top:0,transform:[{translateY:tr1.interpolate({inputRange:[0,1],outputRange:[-26,H]})}]}]}/>
-      <Animated.Image source={{uri:IMG+'vhs-track.webp'}} resizeMode="repeat" pointerEvents="none"
-        style={[fl.band,{top:0,opacity:.4,transform:[{translateY:tr2.interpolate({inputRange:[0,1],outputRange:[H,-26]})}]}]}/>
+      <Animated.Image source={{uri:IMG+'vhs-track.webp'}} resizeMode="repeat"
+        style={[fl.band,{top:0,transform:[{translateY:tr1.interpolate({inputRange:[0,1],outputRange:[-26,H]})}]},NO_TOUCH]}/>
+      <Animated.Image source={{uri:IMG+'vhs-track.webp'}} resizeMode="repeat"
+        style={[fl.band,{top:0,opacity:.4,transform:[{translateY:tr2.interpolate({inputRange:[0,1],outputRange:[H,-26]})}]},NO_TOUCH]}/>
       <LinearGradient colors={['rgba(255,0,90,.32)','rgba(255,0,90,0)','rgba(0,190,255,0)','rgba(0,190,255,.32)']}
         locations={[0,.12,.88,1]} start={{x:0,y:0}} end={{x:1,y:0}}
         style={StyleSheet.absoluteFillObject} pointerEvents="none"/>
-      <Image source={{uri:IMG+'vhs-scan.webp'}} resizeMode="repeat" pointerEvents="none"
-        style={StyleSheet.absoluteFillObject}/>
+      <Image source={{uri:IMG+'vhs-scan.webp'}} resizeMode="repeat"
+        style={[StyleSheet.absoluteFillObject,NO_TOUCH]}/>
 
       <View style={[fl.hud,{top:0}]} pointerEvents="none">
         <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
@@ -584,8 +591,8 @@ const CURSOR_PNG=require('./assets/cursor.png');
 /* 초승달. 흰 그림 한 장을 tintColor로 물들여 쓴다 — 원 두 개를 겹쳐 파면
    뒤에 깔린 색을 알아야 해서 버튼 위와 아바타 위에서 같이 못 쓴다. */
 const MOON_PNG=require('./assets/moon.png');
-const SpCursor=()=><Image source={CURSOR_PNG} style={sp.cursor}
-  resizeMode="contain" pointerEvents="none"/>;
+const SpCursor=()=><Image source={CURSOR_PNG} style={[sp.cursor,NO_TOUCH]}
+  resizeMode="contain"/>;
 
 /* 가짜 오류창 한 개 */
 function SpWin({title,colors,style,children}:any) {
