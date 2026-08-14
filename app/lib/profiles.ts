@@ -131,7 +131,7 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
       { at: 16,  status: '문은 열어둘게요.',    bg: 'jaeeon-landing.webp', track: 'jaeeon-1' },
       { at: 40,  status: '어디 안 가요.',       bg: 'jaeeon-lobby.webp',   track: 'jaeeon-2' },
       { at: 80,  status: '아직 남았어요.',      bg: 'jaeeon-drive.webp',   track: 'jaeeon-3' },
-      { at: 120, status: '잘 지내요. 항상.',    bg: 'jaeeon-kitchen.webp', track: 'jaeeon-4' },
+      { at: 120, status: '남은 동안은 여기 있어요.', bg: 'jaeeon-kitchen.webp', track: 'jaeeon-4' },
     ],
   },
   minhyun: {
@@ -141,10 +141,18 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
       { at: 16,  status: '기다리는 거 아니에요.',     bg: 'minhyun-lp.webp',       track: 'minhyun-1' },
       { at: 40,  status: '그 말 취소하면 안 돼요.',   bg: 'minhyun-bus.webp', track: 'minhyun-2' },
       { at: 80,  status: '곧이잖아요. 지금이 아니라.', bg: 'minhyun-cat.webp',      track: 'minhyun-3' },
-      { at: 120, status: '모르는 걸로 할게요.',       bg: 'minhyun-sunset.webp',   track: 'minhyun-4' },
+      { at: 120, status: '안 알려줘도 알아요.',        bg: 'minhyun-sunset.webp',   track: 'minhyun-4' },
     ],
   },
 };
+
+/* 떠난 뒤의 상메. 이건 대화 수가 아니라 시계가 정한다 — 실습이 끝나는 건
+   몇 마디 했느냐와 상관없는 일이라서다. 대화 수에 걸어놨더니 하루에
+   백스무 마디 하면 D-29에 작별 인사가 떴다.
+   D-0이면 단계가 어디든, 서버가 뭘 내려줬든 이걸로 덮는다 —
+   서버는 첫 대화가 언제였는지 모른다. index.html의 STATUS_GONE과 같다. */
+export const STATUS_GONE: Record<string, string> =
+  { jaeeon: '잘 지내요. 항상.', minhyun: '모르는 걸로 할게요.' };
 
 /* 마지막으로 프로필을 본 단계와 지금 단계 사이에 실제로 달라진 것.
    index.html의 stageDiff와 같아야 한다 — 어긋나면 웹과 앱이 다른 걸 알린다.
@@ -209,10 +217,12 @@ export async function currentStageIdx(char: string): Promise<number> {
 }
 
 // 현재 단계 + 서버가 써준 상태메시지 합성 (없으면 단계 기본 문구)
-export async function currentStage(char: string): Promise<Stage> {
+// dLeft가 0이면 둘 다 무시하고 작별 인사다 — 시계가 단계도 서버도 이긴다
+export async function currentStage(char: string, dLeft?: number): Promise<Stage> {
   const idx = await currentStageIdx(char);
   const base = PROFILES[char]?.stages[idx];
   if (!base) return { at: 0, status: '', bg: char + '-bg.webp', track: null };
+  if (dLeft === 0) return { ...base, status: STATUS_GONE[char] || base.status || '' };
   let saved = '';
   try { saved = (await getMeta('status_' + char)) || ''; } catch (e) {}
   return { ...base, status: (saved.trim() || base.status || '').trim() };

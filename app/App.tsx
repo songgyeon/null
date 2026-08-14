@@ -861,16 +861,16 @@ const ct=StyleSheet.create({
 });
 
 // ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 민현=락페) ═══
-function Profile({char,onBack,refresh}:{char:string;onBack:()=>void;refresh?:number}) {
+function Profile({char,onBack,refresh,dLeft}:{char:string;onBack:()=>void;refresh?:number;dLeft?:number}) {
   const [stage,setStage]=useState<any>(null);
   const [count,setCount]=useState(0);
   const [gifts,setGifts]=useState<Record<string,string[]>>({});
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   useEffect(()=>{(async()=>{
-    setStage(await currentStage(char));
+    setStage(await currentStage(char,dLeft));
     setCount(await countMsgs(char));
     setGifts(await loadGifts());
-  })()},[char,refresh]);
+  })()},[char,refresh,dLeft]);
   const ch=CHARS[char];
   // 훅은 조건문 위에 있어야 한다 — 아래 return보다 뒤로 내리면 렌더마다 훅 수가 달라진다
   const bg=useBgUri(bgFor(char,count,gifts,stage?.bg), PROFILES[char]?.fallback||char+'-bg.webp');
@@ -1835,7 +1835,7 @@ function Root() {
       <Splash onEnter={handleEnter}/></View></>;
 
   let screen;
-  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp}
+  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} dLeft={dLeft}
     onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='cart') screen=<CartScreen gifts={gifts} hearts={heartsOf(counts,gifts)}
     onSend={giveGift} onBack={()=>setView({type:'list'})}/>;

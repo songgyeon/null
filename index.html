@@ -1247,7 +1247,7 @@ const PROFILES={
     {status:"문은 열어둘게요.", bg:"jaeeon-landing.webp", track:"jaeeon-1"},
     {status:"어디 안 가요.", bg:"jaeeon-lobby.webp", track:"jaeeon-2"},
     {status:"아직 남았어요.", bg:"jaeeon-drive.webp", track:"jaeeon-3"},
-    {status:"잘 지내요. 항상.", bg:"jaeeon-kitchen.webp", track:"jaeeon-4"},
+    {status:"남은 동안은 여기 있어요.", bg:"jaeeon-kitchen.webp", track:"jaeeon-4"},
   ]},
   /* 민현 — 안에서 밖으로. 레코드샵에서 시작해 버스, 골목을 지나 옥상에서 끝난다.
      같은 비 오는 밤인데 재언은 운전석에 앉아 있고 이 애는 버스에 서 있다. */
@@ -1256,9 +1256,15 @@ const PROFILES={
     {status:"기다리는 거 아니에요.", bg:"minhyun-lp.webp", track:"minhyun-1"},
     {status:"그 말 취소하면 안 돼요.", bg:"minhyun-bus.webp", track:"minhyun-2"},
     {status:"곧이잖아요. 지금이 아니라.", bg:"minhyun-cat.webp", track:"minhyun-3"},
-    {status:"모르는 걸로 할게요.", bg:"minhyun-sunset.webp", track:"minhyun-4"},
+    {status:"안 알려줘도 알아요.", bg:"minhyun-sunset.webp", track:"minhyun-4"},
   ]},
 };
+
+/* 떠난 뒤의 상메. 이건 대화 수가 아니라 시계가 정한다 —
+   실습이 끝나는 건 몇 마디 했느냐와 상관없는 일이라서다.
+   대화 수에 걸어놨더니 하루에 백스무 마디 하면 D-29에 작별 인사가 떴다.
+   D-0이 되면 단계가 어디든 이걸로 덮는다. */
+const STATUS_GONE={jaeeon:"잘 지내요. 항상.", minhyun:"모르는 걸로 할게요."};
 
 /* 본 단계와 지금 단계 사이에 실제로 달라진 것. 목록은 이게 비었는지만 본다.
    단계가 올랐어도 배경·곡·상메가 다 그대로면 알릴 일이 없다.
@@ -1312,7 +1318,7 @@ function MusicBar({track,color,onPlay}){
   </React.Fragment>;
 }
 
-function Profile({char,count,onBack,gifts}){
+function Profile({char,count,onBack,gifts,dLeft}){
   const ch=CHARS[char], p=PROFILES[char], room=roomOf(char);
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   const st=p?(p.stages[stageIdx(count)]||p.stages[0]):null;
@@ -1331,7 +1337,8 @@ function Profile({char,count,onBack,gifts}){
   const wanted=hung?(GIFTS.find(g=>g.key===hung)||{}).bg:(st&&st.bg);
   const bg=useBg(wanted,(p&&p.fallback)||char+"-bg.webp");
   if(!ch||!p)return null;
-  const status=(st.status||"").trim();
+  /* 떠났으면 단계와 상관없이 작별 인사다. 시계가 단계를 이긴다 */
+  const status=((dLeft===0?STATUS_GONE[char]:null)||st.status||"").trim();
   return <div className="pfscreen" style={{backgroundImage:`url("${bg}")`}}>
     <div className="pfdim" onClick={e=>{if(e.target===e.currentTarget)setFull(true)}}>
       <Sparkles/>
@@ -2382,7 +2389,7 @@ function App(){
         </div>
       </div>
     </div>}
-    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts}/>}
+    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft}/>}
     {film&&<IntroFilm onClose={()=>setFilm(false)}/>}
     {toast&&<div className="toast"><span>✧ {toast}</span></div>}
   </div>;

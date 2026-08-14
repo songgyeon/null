@@ -744,7 +744,7 @@ const STATUS_WANT = [
   ['문은 열어둘게요.', '기다리는 거 아니에요.'],
   ['어디 안 가요.',    '그 말 취소하면 안 돼요.'],
   ['아직 남았어요.',   '곧이잖아요. 지금이 아니라.'],
-  ['잘 지내요. 항상.', '모르는 걸로 할게요.'],
+  ['남은 동안은 여기 있어요.', '안 알려줘도 알아요.'],
 ];
 const AT = [0, 16, 40, 80, 120];
 eq('웹 상메가 표와 같다',
@@ -768,6 +768,22 @@ eq('경계 직전은 아직 앞 단계다',
    모델 지시가 딸려 나온다 — 그래서 STAGES에서 status를 뺐다 */
 eq('연기 지시와 상메는 표가 따로다', /status: \{ jaeeon/.test(workerSrc), false);
 eq('안 쓴 문구도 남겨둔다', exists('docs/status-messages.md'), true);
+
+/* 떠난 뒤의 한 쌍은 대화 수가 아니라 시계가 정한다. 대화 수에 걸어놨더니
+   하루에 백스무 마디 하면 D-29에 작별 인사가 떴다. */
+eq('120은 아직 떠나기 전 문구다',
+  [webProfiles.jaeeon.stages[4].status, webProfiles.minhyun.stages[4].status],
+  ['남은 동안은 여기 있어요.', '안 알려줘도 알아요.']);
+eq('작별 인사는 D-0이 정한다',
+  /STATUS_GONE=\{jaeeon:"잘 지내요\. 항상\.", minhyun:"모르는 걸로 할게요\."\}/.test(web)
+  && /STATUS_GONE/.test(profSrc), true);
+eq('웹은 떠났으면 단계를 무시한다', /dLeft===0\?STATUS_GONE\[char\]/.test(web), true);
+/* 앱은 서버가 써준 상메를 쓰는데, 서버는 첫 대화가 언제였는지 모른다.
+   그래서 D-0은 서버 값보다도 앞선다 */
+eq('앱은 떠났으면 서버 값도 무시한다', /if \(dLeft === 0\) return/.test(profSrc), true);
+eq('워커 표에는 작별 인사가 없다',
+  /잘 지내요\. 항상\./.test(workerSrc.slice(workerSrc.indexOf('const STATUS = ['),
+    workerSrc.indexOf('function statusOf'))), false);
 
 /* flex 안에서 svg는 자리가 모자라면 폭 0까지 쭈그러든다. 글자는 최소 폭이
    있어서 버티는데 그림은 안 버틴다. peek 옆의 달이 그렇게 사라졌다. */
