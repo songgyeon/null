@@ -72,6 +72,12 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  background:rgba(240,236,252,.78);border-bottom:1px solid #c5bce8;position:relative;z-index:20}
 .mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
 .mbtn.ico{position:relative;display:flex;align-items:center;gap:5px}
+/* flex 안에서 svg는 자리가 모자라면 폭 0까지 쭈그러든다. 글자는 최소 폭이
+   있어서 버티는데 그림은 안 버틴다. 그래서 메뉴바가 빡빡해진 어느 날
+   peek의 달만 소리 없이 사라졌다 — 아이콘은 안 줄어야 한다. */
+.menubar svg{flex:none}
+/* 관찰 버튼은 이 줄에서 제일 눌릴 것이다. 얘부터 줄이면 안 된다 */
+.moonbtn{flex:none}
 .spinslow{display:block;line-height:0;animation:spin 6s linear infinite}
 
 .mbtn:hover{background:#e6def8}

@@ -750,6 +750,12 @@ eq('경계 직전은 아직 앞 단계다',
 eq('연기 지시와 상메는 표가 따로다', /status: \{ jaeeon/.test(workerSrc), false);
 eq('안 쓴 문구도 남겨둔다', exists('docs/status-messages.md'), true);
 
+/* flex 안에서 svg는 자리가 모자라면 폭 0까지 쭈그러든다. 글자는 최소 폭이
+   있어서 버티는데 그림은 안 버틴다. peek 옆의 달이 그렇게 사라졌다. */
+eq('메뉴바 아이콘이 쭈그러들지 않는다', /\.menubar svg\{flex:none\}/.test(web), true);
+eq('관찰 버튼이 줄어들지 않는다', /\.moonbtn\{flex:none\}/.test(web), true);
+eq('달은 여전히 관찰 버튼 안에 있다', /<MoonIcon\/>\s*\n\s*<span>\{autoLoading/.test(web), true);
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 
