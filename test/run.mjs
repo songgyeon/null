@@ -953,12 +953,12 @@ eq('앱 프로필 창에도 지우기가 없다',
 /* "되돌릴 수 없다"는 추상이고 숫자는 구체다. 지우는 건 기록만이 아니라
    시계와 해금까지인데, 옛 경고문은 그 말을 안 했다 */
 eq('경고가 지금 상태를 숫자로 보여준다',
-  /실습 D-\{dLeft\} · 히든 \{unlocked\.length\}\/\{HIDDEN\.length\}/.test(web)
+  /d-\{dLeft\} · hidden \{unlocked\.length\}\/\{HIDDEN\.length\}/.test(web)
   && /실습 D-\{dLeft\} · 히든/.test(appSrc), true);
 /* 앱에는 취소가 없었다. 실수로 열었을 때 나갈 문이 안 보이는 건
    지우기 쉬운 것보다 나쁘다 */
 eq('웹·앱 둘 다 취소로 물러설 수 있다',
-  /onClick=\{\(\)=>setConfirming\(false\)\}>취소/.test(web)
+  /onClick=\{\(\)=>setConfirming\(false\)\}>nvm/.test(web)
   && /onPress=\{\(\)=>setPopup\('help'\)\}><Text style=\{mo\.btnT\}>취소/.test(appSrc), true);
 
 /* ── 선톡 ──

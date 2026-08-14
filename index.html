@@ -140,13 +140,27 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .etcdel .rr{font-size:12px;line-height:1;color:#e990b6}
 .etcdel:hover .rr{color:#d9749f}
 /* 지우기 확인. 되돌릴 수 없다는 말은 추상이고 숫자는 구체다 */
-.etcwarn{position:relative;margin:16px 14px 0;padding:12px 10px;text-align:center;
- border:1px solid #e8a8bd;background:#fff6f8;border-radius:4px}
-.etcwarn .w{font-size:11px;color:#c23b50;letter-spacing:.04em}
-.etcwarn .n{margin-top:7px;font-size:9.5px;color:#b07d92;letter-spacing:.03em}
-.etcwarn .dlgbtns{margin-top:11px;justify-content:center}
-.etctag{padding:4px 9px;font-size:9px;letter-spacing:.06em;color:#8a7fc0;background:#fff;white-space:nowrap;
- border:1px solid #e6d9f5;border-radius:11px}
+/* 지우기 확인. 각진 회색 테는 이 창에서 혼자 튄다 — 게스트북 톤으로 맞춘다.
+   위험한 버튼이 못생기면 더 무섭다. */
+.etcwarn{position:relative;margin:16px 12px 0;padding:15px 12px 14px;text-align:center;
+ border:1px solid #f0c4dc;border-radius:14px;
+ background:linear-gradient(180deg,#fffdfe 0%,#fff4fa 100%);
+ box-shadow:inset 0 1px 0 #fff,0 2px 0 #f6dcea}
+.etcwarn .w{font-size:11.5px;letter-spacing:.04em;color:#b0567f}
+.etcwarn .s{margin-top:7px;font-size:9.5px;letter-spacing:.03em;color:#d59ab8}
+.etcwarn .n{margin-top:5px;font-size:9px;letter-spacing:.06em;color:#e0b6cc}
+.etcbtns{display:flex;justify-content:center;gap:8px;margin-top:13px}
+.pill{font-family:inherit;font-size:10.5px;letter-spacing:.1em;cursor:pointer;
+ padding:9px 20px 10px;border-radius:999px;color:#b0567f;border:1px solid #f0a8c8;
+ background:linear-gradient(180deg,#ffffff 0%,#fff6fb 60%,#ffeaf4 100%);
+ box-shadow:inset 0 1px 0 #fff,0 2px 0 #f2bcd6}
+.pill.hot{color:#fff;border-color:#f07ba8;
+ background:linear-gradient(180deg,#ffa8c8 0%,#ff8ab4 55%,#f56b9c 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 2px 0 #e05f8e}
+.pill:active{transform:translateY(2px);box-shadow:inset 0 1px 3px rgba(176,86,127,.28)}
+.etctag{padding:5px 13px;font-size:9.5px;letter-spacing:.1em;color:#8a7fc0;white-space:nowrap;
+ border:1px solid #e0d4f2;border-radius:999px;
+ background:linear-gradient(180deg,#ffffff,#f7f2ff);box-shadow:inset 0 1px 0 #fff,0 1px 0 #e8dff8}
 .etcnote{position:relative;margin-top:14px;padding:0 16px;font-size:9.5px;line-height:2;letter-spacing:.02em;
  color:#b0a6d8;text-align:center}
 .etcstk{position:relative;display:flex;gap:11px;margin-top:14px;font-size:12px}
@@ -591,6 +605,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .nmbar b{width:7px;background:#f4ecf7;border-radius:1px}
 .nmbar b.on{box-shadow:0 0 4px rgba(0,0,0,.12)}
 .hompy .hv{flex:none}
+.hompy .hv.pk{margin-left:auto}
 .statusbar{flex:none;display:flex;gap:4px;padding:7px 8px calc(8px + env(safe-area-inset-bottom))}
 .statusbar span{padding:5px 9px;font-size:10px;color:#6b5fa8;background:#ece8fa;border:1px solid #b0a6d8;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
@@ -1992,7 +2007,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       <div className="etchi">안녕, NULL 기다렸어. ✧</div>
       <div className="etcsub">the blank u fill in</div>
       <div className="etcdiv">♡ ・ ♡ ・ ♡</div>
-      <div className="etcrow"><span className="etctag">실습 D-{dLeft}</span></div>
+      <div className="etcrow"><span className="etctag">D-{dLeft} ♡</span></div>
       <div className="etcnote">당신이 없어도 대화는 이어져요.<br/>항상 당신 이야기로.</div>
       <div className="etcstk">
         {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#ff9ec6","#ffd68a","#c3b2f0","#8fd8e8","#ffb0d4"][i]}}>{x}</span>)}
@@ -2004,11 +2019,14 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           <button className="etcdel" onClick={()=>setConfirming(true)}><span className="rr">↺</span>restart</button>
         </div>
         :<div className="etcwarn">
-          <div className="w">전부 처음으로 돌아갑니다</div>
-          <div className="n">실습 D-{dLeft} · 히든 {unlocked.length}/{HIDDEN.length} · 나눈 말 {totalN}</div>
-          <div className="dlgbtns">
-            <button className="bevel" onClick={()=>setConfirming(false)}>취소</button>
-            <button className="bevel pink" onClick={onReset}>erase all</button>
+          <div className="w">delete it all?? 4 real??</div>
+          <div className="s">no take backs ♡ everything goes bye</div>
+          {/* 되돌릴 수 없다는 말은 추상이고 숫자는 구체다. 지우는 건 기록만이
+              아니라 시계와 해금까지다 */}
+          <div className="n">d-{dLeft} · hidden {unlocked.length}/{HIDDEN.length} · {totalN} words</div>
+          <div className="etcbtns">
+            <button className="pill" onClick={()=>setConfirming(false)}>nvm ♡</button>
+            <button className="pill hot" onClick={onReset}>yes rly</button>
           </div>
         </div>}
     </Dialog>}
