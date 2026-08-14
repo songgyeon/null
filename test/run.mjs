@@ -836,5 +836,14 @@ eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 
 // ─────────────────────────────────────────────
+/* README가 "90개 회귀 테스트"라고 적어둔 채 159개가 더 늘어 있었다. 읽는 사람은
+   그 숫자를 믿는다. 틀리면 여기서 잡고, 고칠 숫자를 알려준다. */
+{
+  const want = pass + fail + 1;            // 이 검사 자신을 포함한 총수
+  const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
+  const got = (readme.match(/(\d+)개 회귀 테스트/) || [])[1];
+  eq(`README가 시험 수를 맞게 적었다 (지금 ${want}개)`, Number(got), want);
+}
+
 console.log(`\n${fail ? '실패' : '통과'} — ${pass}개 통과, ${fail}개 실패`);
 process.exit(fail ? 1 : 0);
