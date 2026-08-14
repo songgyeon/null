@@ -464,6 +464,14 @@ eq('etc. 팝업 문구가 웹·앱 같다',
 const enrollDays = src => (src.match(/ENROLL_DAYS\s*=\s*(\d+)/) || [])[1];
 eq('실습 기간이 웹·앱 같다', enrollDays(appSrc), enrollDays(web));
 eq('실습 기간이 30일이다', enrollDays(web), '30');
+/* 남은 날을 칸으로 그린다. 서른 칸이 다 차 있다가 앞에서 한 칸씩 빈다 —
+   채워지는 게 아니라 비어가는 쪽이어야 이 이야기와 맞는다. */
+eq('남은 날을 칸으로 그린다', /function DayBar/.test(web), true);
+eq('칸 수가 실습 기간과 같다', /length:ENROLL_DAYS/.test(web), true);
+eq('지난 날은 비고 오늘만 다르다',
+  /i<gone\?"gone":i===gone\?"now"/.test(web), true);
+eq('관전방에는 안 붙인다', /\{!watch&&<DayBar/.test(web), true);
+
 eq('D-카운트를 양쪽 다 실습으로 쓴다',
   /실습 D-/.test(appSrc) && /실습 D-/.test(web), true);
 
