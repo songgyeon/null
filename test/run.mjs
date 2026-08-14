@@ -712,6 +712,8 @@ const cells = new Function(cellSrc + ';return nameCells')();
 eq('칸이 한 번에 하나씩 차지 않는다', [cells(0), cells(1), cells(2), cells(3), cells(15), cells(99)],
   [0, 0, 0, 1, 5, 5]);
 eq('칸 수를 화면에 숫자로 안 쓴다', /\{calls\[c\]\}/.test(web), false);
+/* 줄을 갈아치우면서 오른쪽 별·하트를 같이 날린 적이 있다 */
+eq('별과 하트는 그 자리에 있다', /className="sp"><Sticker\.star/.test(web), true);
 
 /* 이름을 아껴 쓰라고 두 사람 다에게 말해둔다 — 안 그러면 칸이 하루에 다 찬다 */
 eq('두 사람 다 이름을 아껴 쓴다',
