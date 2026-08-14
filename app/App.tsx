@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, IMG } from './lib/api';
+import { demoAnswer, demoProactive } from './lib/demoLines';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK, saveStatus,
          GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
 import { useAudioPlayer } from 'expo-audio';
@@ -43,7 +44,7 @@ const ENROLL_DAYS = 30;
 
 /* 갤러리(Cam 탭) — 웹 버전과 동일. PHOTOS 키도 여기서 파생 */
 const GALLERY:Record<string,string[]> = {
-  jaeeon:['jaeeon-treat','jaeeon-care','jaeeon-cook','jaeeon-work','jaeeon-evening','jaeeon-market','jaeeon-laundry','jaeeon-car','jaeeon-classroom','jaeeon-rooftop','jaeeon-curtain','jaeeon-shelf','jaeeon-bandage','jaeeon-cabinet','jaeeon-bottle','jaeeon-chart','jaeeon-door','jaeeon-mug','jaeeon-back'],
+  jaeeon:['jaeeon-treat','jaeeon-care','jaeeon-cook','jaeeon-work','jaeeon-evening','jaeeon-market','jaeeon-laundry','jaeeon-car','jaeeon-classroom','jaeeon-rooftop','jaeeon-curtain','jaeeon-shelf','jaeeon-bandage','jaeeon-cabinet','jaeeon-bottle','jaeeon-chart','jaeeon-door','jaeeon-mug','jaeeon-back','jaeeon-driveseat','jaeeon-corridor','jaeeon-sink'],
   minhyun:['minhyun-candy','minhyun-corridor','minhyun-rain','minhyun-gate','minhyun-morning','minhyun-alley','minhyun-store','minhyun-gym','minhyun-busstop','minhyun-winter','minhyun-snow','minhyun-bench','minhyun-desk','minhyun-stair','minhyun-vending','minhyun-laundry','minhyun-conv','minhyun-nap','minhyun-neon','minhyun-ramen','minhyun-window','minhyun-mirror'],
 };
 const PHOTOS:Record<string,string> = {};
@@ -66,208 +67,16 @@ const HIDDEN=[
   {key:'minhyun-diary',        label:'민현의 일기', room:'minhyun', at:120},
 ];
 
-/* ── 데모 모드 ── index.html의 것과 같은 각본이다. 한쪽만 고치면 웹과 앱이
-   다른 말을 하게 되므로 대사를 바꿀 때는 양쪽을 같이 고친다.
-   서버가 죽었거나 키가 없을 때 빈 화면 대신 각본이라도 움직인다.
-   조용히 가짜로 바뀌면 진짜 장애를 못 알아채므로, 실패 원인은 콘솔에 남기고
-   하단 바에 demo 표시를 띄운다. */
+/* ── 데모 모드 ──
+   대사와 매칭은 lib/demoLines.ts에 있다. 그 파일은 docs/dialogue-corpus.md에서
+   만들어진다 — 대사를 고칠 때는 문구집을 고치고 node tools/build-demo.mjs를 돌린다.
+   웹(demo-lines.js)과 같은 데서 나오므로 한쪽만 고쳐질 일이 없다.
+   서버가 죽었거나 키가 없을 때 빈 화면 대신 각본이라도 움직인다. 조용히 가짜로
+   바뀌면 진짜 장애를 못 알아채므로 실패 원인은 콘솔에 남기고 하단 바에 표시한다. */
 const DEMO = { auto:false };
 const demoOn = () => DEMO.auto;
-
-// 유저 말에서 대충의 결만 고른다. 정확할 필요 없다 — 각본을 고르는 데만 쓴다
-/* 결을 좁게 잡을수록 알아들은 것처럼 보인다. 좁은 것부터 먼저 본다 —
-   아래 넓은 결(질문·인사)이 먼저 걸리면 좁은 게 영영 안 나온다. */
-const demoBucket = (t?:string) => {
-  const x=(t||'').trim();
-  if(/미안|죄송/.test(x))return 'sorry';
-  if(/보고 싶|보고싶/.test(x))return 'miss';
-  if(/곧 가|떠나|마지막|얼마 안 남|며칠 남/.test(x))return 'leave';
-  if(/담배|피우|금연|라이터/.test(x))return 'smoke';
-  if(/사탕|단 거|단거|초콜릿/.test(x))return 'candy';
-  if(/노래|음악|뭐 들어|뭐 듣|플레이리스트/.test(x))return 'song';
-  if(/안 자|못 자|잠이 안|밤새/.test(x))return 'night';
-  if(/보건실에|왜 여기|왜 자꾸 와/.test(x))return 'nurse';
-  if(/왜 좋아|왜 나를|나 왜 좋/.test(x))return 'like';
-  if(/쉬세요|좀 쉬|쉬어요|쉬시/.test(x))return 'rest';
-  if(/커피/.test(x))return 'coffee';
-  if(/챙겨 먹|밥은|잘 먹고|끼니|굶/.test(x))return 'feed';
-  if(/약|연고|밴드|소독/.test(x))return 'med';
-  if(/먹었|먹음|먹고|먹는|드셨|드시|점심|저녁|아침|밥/.test(x))return 'meal';
-  if(/본 적|만난 적|어디서 봤|어디서 본|낯익|낯설지/.test(x))return 'met';
-  if(/수업|졸|자더|잤|잠들/.test(x))return 'nap';
-  if(/친구|애들이랑|어울리|같이 놀/.test(x))return 'friend';
-  if(/스트레스|힘들|짜증|지쳐|지친|지쳤|지치|피곤|빡세/.test(x))return 'stress';
-  return demoBroad(x);
-};
-/* 넓은 결. 좁은 결에 걸렸는데 그 사람한테 그 결이 없으면 여기로 다시 떨어진다.
-   '친구 없어?'는 재언한테 질문이다 — 좁은 결에 걸렸다는 이유로 질문이라는
-   것까지 잃으면 아무 대답이나 나간다. */
-const demoBroad = (t?:string) => {
-  const x=(t||'').trim();
-  if(/아프|아파|다쳤|다쳐|열나|배가|머리가/.test(x))return 'hurt';
-  if(/안녕|하이|왔|뭐해|자니|일어/.test(x))return 'greet';
-  if(/잘생|예쁘|멋있|좋아|고마|최고|귀엽/.test(x))return 'praise';
-  if(/갈게|잘자|끊을|바이|간다|가야/.test(x))return 'bye';
-  if(/[?？]|왜|뭐|어때|어떻|얼마|언제/.test(x))return 'ask';
-  return 'any';
-};
-/* 재언은 말줄임표를 안 쓴다. 점만 찍힌 말풍선은 침묵이 아니라 삐친 사람으로
-   읽히고, 메신저에서는 전송 실패처럼 보이기까지 한다. 이 사람의 침묵은 짧은
-   대답이거나, 아예 대답이 없는 자리다 — 관전방에서 민현이 연달아 두 번
-   말하는 데가 그 자리다.
-   민현도 마찬가지다. 슬픔은 문장에서 나오지 점에서 안 나온다. '…아니 됐어요'
-   보다 '아니에요. 대답 안 해도 돼요'가 아프다 — 먼저 문을 닫아주는 쪽이. */
-const DEMO_LINES:Record<string,Record<string,string[][]>> = {
-  jaeeon:{
-    candy:[['다 먹어요.','더 사오게.']],
-    night:[['생각할 일이 생기네요.']],
-    feed:[['미안해요.','내가 걱정 시켰나 보네.']],
-    song:[['Sufjan Stevens - Should Have Known Better.','안 들어도 돼요.']],
-    miss:[['그래요. 저도.'],['알아요. 겪고 있거든.']],
-    leave:[['남았어요. 아직.'],['고마웠어요.'],['잘 지내요. 항상.']],
-    sorry:[['괜찮다고 해줄게요.'],['그런 말이 필요한 건 아니었는데.'],['사과 안 해도 돼요.']],
-    rest:[['쉬고 있어요.','일하는 줄 알았구나.']],
-    coffee:[['그래요.','{name} 선생님도요.']],
-    med:[['다 나았네요. 착하다.'],['잘 발랐네요.','오늘도 바르고 주무세요.']],
-    meal:[['그래요?','{it} 좋아하는구나.'],['드셨으면 됐어요.']],
-    met:[['글쎄요. 난 모르겠는데.'],['사람 잘못 보셨겠죠.']],
-    stress:[['많이 바쁘신가 보네요.','좀 앉았다 가세요.'],['잠깐 여기서 쉬어요.','내가 설명할게요.'],['들어줄게요.','해결은 못해주더라도.']],
-    greet:[['네.'],['무슨 일 있으세요.'],['오셨어요.','앉으세요.'],
-      ['오늘은 일찍이시네요.'],['문 닫고 들어오세요, 바람 들어와요.']],
-    ask:[['제가 알면 말씀드리죠.'],['글쎄요.','제가 답할 건 아닌 것 같은데요.'],
-      ['그런 건 안 궁금해하셔도 됩니다.'],['말해도 재미없는 얘긴데요.'],['그건 저도 몰라요.']],
-    hurt:[['어디가요.'],['가만있지 마시고 오세요.','앉아서 봅시다.'],['열은요.','재보고 말씀하세요.'],
-      ['앉으세요.','언제부터요.'],['약 드릴게요.','오늘은 일찍 들어가세요.']],
-    praise:[['커피 식어요.'],['그런 말 안 하셔도 됩니다.'],['할 일 있으시면 하세요.'],
-      ['그러려고 한 거 아니에요.'],['됐어요.','우산 가져가세요, 비 와요.']],
-    bye:[['네.'],['차 조심하세요.'],['늦었습니다.','가세요.'],
-      ['내일도 오시죠, 선생님.'],['늦으셨는데, 데려다 드릴까요.']],
-    any:[['그래요.'],['별일 없습니다.'],['커피 드릴까요.'],
-      ['말씀하세요, 듣고 있어요.'],['천천히 하세요.']],
-  },
-  minhyun:{
-    smoke:[['끊었어요.','근데 책임은 언제 져요?']],
-    candy:[['저도 먹을래요.','근데 보건실 자주 와요?']],
-    night:[['왜겠어요.']],
-    feed:[['이제 잘 먹으려고요.','선생님이 같이 먹어주면.']],
-    song:[['Wolf Alice - Don’t Delete the Kisses 같이 들어요.','제가 좋아하는 노래예요.']],
-    miss:[['진심이에요?'],['믿어도 돼요?'],['무슨 의미예요?']],
-    leave:[['곧이잖아요. 지금이 아니라.'],['안 알려줘도 알아요.'],['몰라요. 모르는 걸로 할게요.']],
-    sorry:[['그럼 더 잘해줘요.'],['상처 받았어요.','어떻게 위로해줄 거예요?'],['상관없어요. 선생님이니까.']],
-    nurse:[['침대가 여기 있어서요.','근데 요즘은 다른 사람 때문에 와요.']],
-    like:[['좋아하는 거 아닌데요.','피치 못하는 거지.']],
-    med:[['삼촌이 줬어요?'],['보여줘요.']],
-    meal:[['혼자요?'],['누구랑요.'],['또 저 빼고 드셨네요.']],
-    met:[['알면서 물어봐요?'],['골목에서요.','소문낼까요?']],
-    nap:[['꿈에 선생님 나왔어요','무슨 내용인지 알려줄까요?'],['밤에 선생님 생각하느라 바빠서요'],['그럼 언제 자요?']],
-    friend:[['저는 선생님이랑 어울리는 게 좋아요'],['없어요. 불쌍해요?'],['애들은 애들이죠, 뭐.']],
-    stress:[['옥상 갈래요?','아무도 안 오는 곳 아는데'],['누가 그랬어요?'],['저 때문이에요?']],
-    greet:[['왔어요?'],['안 올 줄 알았는데'],['뭐예요 갑자기.','심심했어요?'],
-      ['몇 시에 온다고 안 했잖아요','기다렸는데'],['안 잤어요 저','선생님 올까 봐서']],
-    ask:[['그건 왜요.'],['먼저 말해봐요','그럼 대답할게요'],['제가 왜 대답해야 되는데요.','농담이에요.'],
-      ['왜요, 저 궁금해요?','궁금해해줘요 좀'],['대답 안 하면 계속 물을 건데요']],
-    hurt:[['어디가 아픈데요'],['보건실 가요.','삼촌 있어요'],['혼자 가지 말고요','같이 가요'],
-      ['어디요','보여줘요'],['삼촌한테 가지 말고요','아니다, 가요. 가면 낫겠죠. 뭐라도.']],
-    praise:[['뭐예요.'],['그런 말 함부로 하지 마요'],['진짜예요?','아니에요. 대답 안 해도 돼요.'],
-      ['그런 말 딴 사람한테도 해요?'],['한 번만 더 해봐요','녹음할 건데']],
-    bye:[['가요?'],['벌써요'],['네.','잘 자요.'],
-      ['아직 가지 마요','5분만요'],['내일도 있죠?','확인한 거예요 그냥']],
-    any:[['저 지금 진지한데요.'],['그래서요'],['말 돌리지 마요','저 알아요 다'],
-      ['저 아까부터 있었는데요','안 보였어요?'],['아니에요.','말 안 할래요.']],
-  },
-};
-// 단톡방·관전방은 결이 아니라 통째로 고른다
-const DEMO_GROUP = [
-  [{sender:'minhyun',text:'오늘 급식 뭐였는지 아세요'},{sender:'jaeeon',text:'모른다.'},
-   {sender:'minhyun',text:'삼촌한테 안 물어봤는데요'}],
-  [{sender:'jaeeon',text:'무슨 일 있으세요'},{sender:'minhyun',text:'저도 궁금한데'},
-   {sender:'minhyun',text:'말해봐요 저도 웃게'}],
-  [{sender:'minhyun',text:'선생님 내일 오세요?'},{sender:'jaeeon',text:'그건 왜 묻냐.'},
-   {sender:'minhyun',text:'제가 물었는데요. 삼촌한테 안 물었고.'}],
-  [{sender:'minhyun',text:'누가 그래요'},{sender:'jaeeon',text:'늦게 잤냐.'},
-   {sender:'minhyun',text:'선생님이 왜 말해요.'},{sender:'jaeeon',text:'일찍 자.'}],
-  [{sender:'minhyun',text:'저요?'},{sender:'jaeeon',text:'왜 찍으세요.'},
-   {sender:'minhyun',text:'삼촌은 빠져요'}],
-  [{sender:'minhyun',text:'저는 선생님 기다렸는데요'},{sender:'minhyun',text:'삼촌은 왜 조용해요'},
-   {sender:'jaeeon',text:'할 일 해.'}],
-];
-/* 관전방. 앞의 둘은 아무 일 없는 날이고, 뒤의 여섯은 선물·약속·사진·남은 날에
-   각각 붙는 각본이다. 지금은 순서대로 도니까 눌러보는 사람이 여섯 개를 다 본다.
-   재언이 대답을 안 하는 자리에는 말풍선을 안 띄운다 — 민현이 두 번 연달아
-   말하는 것으로 그 침묵이 화면에 그대로 보인다. */
-const DEMO_AUTO = [
-  [{sender:'minhyun',text:'삼촌 오늘 왜 이렇게 일찍 왔어요'},{sender:'jaeeon',text:'일이 빨리 끝났어.'},
-   {sender:'minhyun',text:'그런 건 삼촌한테 처음 있는 일인데'},{sender:'jaeeon',text:'씻고 나와.'},
-   {sender:'minhyun',text:'그 선생님이랑 뭐 있었어요?'},{sender:'jaeeon',text:'없어.'},
-   {sender:'minhyun',text:'그게 대답이에요 지금'},{sender:'jaeeon',text:'밥 다 될 때까지 나오지 마.'}],
-  [{sender:'jaeeon',text:'약 먹었냐.'},{sender:'minhyun',text:'네'},
-   {sender:'minhyun',text:'아직요'},{sender:'jaeeon',text:'먹어.'},
-   {sender:'minhyun',text:'삼촌은 오늘 보건실에서 뭐 했어요'},{sender:'jaeeon',text:'일했지.'},
-   {sender:'minhyun',text:'혼자요?'},{sender:'minhyun',text:'아 혼자 아니었구나'}],
-  // 선물 — 재언이 받았다. 물건은 눈에 띄지만 무슨 말이 오갔는지는 모른다
-  [{sender:'minhyun',text:'삼촌 그 컵 뭐예요'},{sender:'jaeeon',text:'컵이야.'},
-   {sender:'minhyun',text:'원래 없던 건데'},{sender:'jaeeon',text:'생겼어.'},
-   {sender:'minhyun',text:'누가 줬어요?'},{sender:'jaeeon',text:'마셔, 식는다.'},
-   {sender:'minhyun',text:'물어봤는데'},{sender:'jaeeon',text:'들었어.'}],
-  // 선물 — 민현이 받았다. 자랑을 질문으로 포장하는 쪽
-  [{sender:'minhyun',text:'삼촌 이거 봐요'},{sender:'jaeeon',text:'뭔데.'},
-   {sender:'minhyun',text:'원래 제 거 아니었는데요'},{sender:'jaeeon',text:'좋네.'},
-   {sender:'minhyun',text:'그게 다예요?'},{sender:'jaeeon',text:'어디서 났어.'},
-   {sender:'minhyun',text:'이제 궁금해요?'},{sender:'jaeeon',text:'밥 먹어, 식어.'}],
-  // 약속 — 옥상에 다녀왔다. 간 것은 사실이고, 거기서 오간 말은 아무도 모른다
-  [{sender:'minhyun',text:'삼촌 아까 어디 있었어요'},{sender:'jaeeon',text:'학교에 있었지.'},
-   {sender:'minhyun',text:'보건실에 없던데요'},{sender:'jaeeon',text:'잠깐 나갔다 왔어.'},
-   {sender:'minhyun',text:'어디로요'},{sender:'jaeeon',text:'옥상에, 바람 쐬러.'},
-   {sender:'minhyun',text:'혼자요?'},{sender:'jaeeon',text:'씻어, 늦었어.'}],
-  // 사진 — 민현은 찍는 것만 봤다. 무엇을 찍었는지 볼 방법이 없다
-  [{sender:'minhyun',text:'삼촌 요즘 무슨 사진을 그렇게 찍어요'},{sender:'jaeeon',text:'안 찍어.'},
-   {sender:'minhyun',text:'아까 찍었잖아요'},{sender:'jaeeon',text:'그냥 찍은 거야.'},
-   {sender:'minhyun',text:'누구한테 보내려고'},{sender:'jaeeon',text:'보낼 데 없어.'},
-   {sender:'minhyun',text:'안 보낸다고는 안 하네요'},{sender:'jaeeon',text:'자, 내일 늦어.'}],
-  // 남은 날 D-7 — 주어를 비운 채로 오간다. 세고 있었다고 말하는 쪽이 진다
-  [{sender:'minhyun',text:'이제 일주일 남았네요'},{sender:'jaeeon',text:'뭐가.'},
-   {sender:'minhyun',text:'알잖아요'},{sender:'minhyun',text:'세고 있었죠'},
-   {sender:'jaeeon',text:'안 셌어.'},{sender:'minhyun',text:'근데 왜 아무 말도 안 해요'},
-   {sender:'jaeeon',text:'불 꺼, 안 자고 뭐 해.'}],
-  // 남은 날 D-1 — 여기서만 한 번 흘린다. 그리고 끝내 말을 못 한다
-  [{sender:'minhyun',text:'내일이에요'},{sender:'jaeeon',text:'알아.'},
-   {sender:'minhyun',text:'삼촌은 인사 안 해요?'},{sender:'jaeeon',text:'할 거야.'},
-   {sender:'minhyun',text:'진짜요?'},{sender:'minhyun',text:'아무 말도 안 할 거잖아요'},
-   {sender:'jaeeon',text:'자라, 민현아. 늦었어.'}],
-];
-/* 한 번만 이어 받는다. 혼자 먹었냐고 물어놓고 다음 대답을 그냥 넘기면
-   되묻던 게 거기서 끊긴다. 앞의 결이 뭐였는지 기억했다가 한 번 더 문다.
-   지금은 이 한 자리뿐이다 — 늘리면 대화가 아니라 대본이 된다. */
-const DEMO_FOLLOW:Record<string,Record<string,string[]>>={minhyun:{meal:['누군지 알아보려고?']}};
-const demoPrev:Record<string,string>={};
-// 같은 각본이 연달아 나오지 않게 방·결마다 자리를 기억한다
-const demoAt:Record<string,number> = {};
-const demoPick = (key:string, arr:any[]) => {const i=(demoAt[key]||0)%arr.length; demoAt[key]=i+1; return arr[i]};
-/* "점심 김밥 먹었어요"에서 김밥만 꺼낸다. 되받아 말해주는 것과 아닌 것의
-   차이가 크다 — 알아들었다는 증거는 그 단어 하나뿐이다.
-   못 꺼내면 {it}이 든 각본은 아예 안 고른다. 빈칸이 남으면 더 이상하다. */
-const demoIt = (t?:string) => {
-  const m=(t||'').match(/([가-힣A-Za-z]{2,12})\s*(?:을|를|은|는)?\s*(?:먹|드셨|드시)/);
-  const w=m?m[1].replace(/^(점심|저녁|아침|오늘|어제|내일|같이)/,'').trim():'';
-  return w.length>=2?w:'';
-};
 function demoReply(room:string, lastText?:string, userName?:string) {
-  if(room==='health') return demoPick('health',DEMO_AUTO);
-  if(room==='group')  return demoPick('group',DEMO_GROUP);
-  const set=DEMO_LINES[room]; if(!set) return [{sender:room,text:'…'}];
-  const prev=demoPrev[room]; delete demoPrev[room];
-  let b=demoBucket(lastText);
-  const fol=prev&&DEMO_FOLLOW[room]&&DEMO_FOLLOW[room][prev];
-  // 좁은 결에 안 걸린 대답일 때만 이어 받는다. 새 화제가 나왔으면 그쪽이 먼저다
-  if(fol&&b===demoBroad(lastText))return fol.map(t=>({sender:room,text:t}));
-  if(!set[b])b=demoBroad(lastText);
-  demoPrev[room]=b;
-  const it=demoIt(lastText);
-  let arr=set[b]||set.any;
-  if(!it)arr=arr.filter((s:string[])=>!s.some(t=>t.indexOf('{it}')>=0));
-  if(!arr.length)arr=set.any;
-  return demoPick(room+':'+b, arr).map((t:string)=>({sender:room,
-    text:t.split('{it}').join(it).split('{name}').join(userName||'')}));
+  return demoAnswer(room, lastText || '', userName || '');
 }
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.

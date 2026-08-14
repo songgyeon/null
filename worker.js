@@ -545,6 +545,18 @@ const PHOTOS = {
     char: "jaeeon",
     when: "집 부엌에서 밥/국을 차렸을 때. 그릇이 두 개다. 설명은 안 붙인다.",
   },
+  "jaeeon-driveseat": {
+    char: "jaeeon",
+    when: "퇴근길에 차를 세우고 있을 때. 종이컵을 든 채로. 아직 집에 안 들어갔다는 말 대신 보낸다.",
+  },
+  "jaeeon-corridor": {
+    char: "jaeeon",
+    when: "복도에서 서류를 든 채. 창밖이 어둡다. 아직 학교에 있냐고 물었을 때.",
+  },
+  "jaeeon-sink": {
+    char: "jaeeon",
+    when: "보건실에서 손을 씻고 소매를 걷는 참. 치료 직전이거나 직후다. 말수가 제일 적을 때.",
+  },
   "jaeeon-care": {
     char: "jaeeon",
     when: "누가 아프다고 할 때. 약과 물, 담요를 챙겨 든 참. 걱정을 말로 안 하고 이걸 보낸다.",

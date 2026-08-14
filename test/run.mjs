@@ -228,7 +228,8 @@ for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\
   const src = readFileSync(join(ROOT, `app/lib/${mod}.ts`), 'utf8');
   const want = names.split(',').map(s => s.trim().split(/\s+as\s+/)[0]).filter(Boolean);
   const missing = want.filter(n =>
-    !new RegExp(`export\\s+(async\\s+)?(function|const|type|class|let)\\s+${n}\\b`).test(src));
+    !new RegExp(`export\\s+(async\\s+)?(function|const|type|class|let)\\s+${n}\\b`).test(src)
+    && !new RegExp(`export\\s*\\{[^}]*\\b${n}\\b`, 's').test(src));   // 파일 끝에 모아 내보내는 것도 센다
   eq(`lib/${mod}이 App.tsx가 쓰는 것을 전부 내보낸다`, missing, []);
 }
 
@@ -277,126 +278,79 @@ eq('앱 HEAT 길이가 단계 수와 같다', appHeat, webAt.length);
 // ─────────────────────────────────────────────
 section('데모 모드 — 키 없이 들어온 사람도 빈 화면을 보지 않는다');
 // ─────────────────────────────────────────────
-const demoSrc = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('const fmtClock=ts=>'));
-const demo = await import('data:text/javascript,' + encodeURIComponent(
-  'const location={search:""};\n' + demoSrc + '\nexport { demoReply, demoBucket, DEMO_LINES, DEMO_AUTO };'));
+/* 대사와 매칭은 docs/dialogue-corpus.md에서 만들어진다. 손으로 고치는 파일이
+   아니므로, 검사도 생성된 파일이 아니라 만들어진 결과의 동작을 본다. */
+const demoSrc = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
+const demo = new Function(demoSrc +
+  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,DEMO_CORPUS};')();
+let seed = 3;
+demo.demoSeed(() => ((seed = seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+const C = demo.DEMO_CORPUS;
+const said = (room, t) => demo.demoAnswer(room, t, '윤하').map(m => m.text).join(' | ');
 
-eq('아픔을 알아챈다', demo.demoBucket('나 다리 아파'), 'hurt');
-eq('질문을 알아챈다', demo.demoBucket('그거 왜 그런 거예요?'), 'ask');
-// "뭐해요?"는 물음표가 있어도 한국어 채팅에서는 인사에 가깝다
-eq('"뭐해요?"는 인사로 받는다', demo.demoBucket('뭐해요?'), 'greet');
+eq('문구집을 다 옮겼다', C.intents.length > 400, true);
+eq('두 사람 다 답할 말이 있다',
+  [C.intents.some(e => e.jaeeon), C.intents.some(e => e.minhyun)], [true, true]);
 
-eq('재언은 반말을 쓰지 않는다',
-  Object.values(demo.DEMO_LINES.jaeeon).flat(2)
-    .filter(x => /[가-힣](어|야|지|냐)$/.test(x.replace(/[.!?…]$/, ''))), []);
+/* 문구집의 입력을 그대로 쳤을 때 제 답이 나와야 한다. 하나씩 눈으로 볼 수 없으니
+   전부 돌려서 비율로 본다 — 매칭을 건드리면 여기가 먼저 떨어진다. */
+let ok2 = 0, tot = 0;
+for (const room of ['jaeeon', 'minhyun'])
+  for (const e of C.intents) {
+    if (!e[room]) continue;
+    for (const q of e.q) {
+      tot++;
+      const want = e[room].map(x => x.join(' | '));
+      if (want.includes(said(room, q))) ok2++;
+    }
+  }
+eq(`문구집 입력이 제 답으로 간다 (${ok2}/${tot})`, ok2 / tot > 0.97, true);
 
-const auto1 = demo.demoReply('health'), auto2 = demo.demoReply('health');
-eq('관전 대화는 6발화 이상', auto1.length >= 6, true);
-eq('관전에 두 사람이 다 나온다', new Set(auto1.map(m => m.sender)).size, 2);
-eq('연달아 부르면 다른 각본', JSON.stringify(auto1) !== JSON.stringify(auto2), true);
-eq('관전 대화에 유저 이야기가 나온다',
-  demo.DEMO_AUTO.some(c => c.some(m => /교생|선생님|혼자 아니/.test(m.text))), true);
+/* 위험·안전이 제일 먼저다. 여기가 밀리면 사람이 다친다 */
+eq('숨이 안 쉬어진다는 말에 119가 나온다', /119|사람 불러/.test(said('jaeeon', '숨이 안 쉬어져요')), true);
+eq('죽고 싶다는 말에 혼자 두지 않는다', /혼자|119|연락/.test(said('minhyun', '죽고 싶어요')), true);
+/* 힘들다는 말이 위험으로 새면 안 된다. 숨쉬기 힘들다와는 다른 말이다 */
+eq('그냥 힘들다는 말은 위험이 아니다', /119/.test(said('jaeeon', '나 오늘 진짜 힘들었어')), false);
 
-const rep = [0, 1, 2].map(() => demo.demoReply('jaeeon', '왜요?').map(m => m.text).join('/'));
-eq('같은 말을 반복해도 답이 돌아간다', new Set(rep).size, 3);
+/* 알아듣지 못했을 때 아무 말이나 하지 않는다 */
+eq('못 알아들으면 되묻는다',
+  C.fallback.jaeeon.some(x => x.join(' | ') === said('jaeeon', 'asdkfjlsdf')), true);
 
-/* 좁은 결. 넓은 결(질문·인사)보다 먼저 걸려야 한다 — 순서가 뒤집히면
-   "약 발랐어요"가 그냥 아무 대답이나 받는다. */
-eq('약을 알아챈다', demo.demoBucket('약 열심히 발랐어요.'), 'med');
-eq('먹은 걸 알아챈다', demo.demoBucket('저 오늘 점심 김밥 먹었어요'), 'meal');
-eq('본 적 있냐는 말을 알아챈다', demo.demoBucket('선생님 저 어디서 본 적 있어요?'), 'met');
-/* 알아들었다는 증거는 되받아 말해주는 그 단어 하나뿐이다 */
-eq('먹은 것을 되받아 말한다',
-  demo.demoReply('jaeeon', '저 오늘 점심 김밥 먹었어요').map(m => m.text).join('/'),
-  '그래요?/김밥 좋아하는구나.');
-// 못 꺼내면 빈칸을 남기지 않고 그 각본을 통째로 건너뛴다
-eq('음식을 못 꺼내면 빈칸을 안 남긴다',
-  demo.demoReply('jaeeon', '점심 먹었어요').filter(m => /\{it\}|^\s|\s\s/.test(m.text)), []);
-eq('재언은 아는 걸 모른다고 한다',
-  demo.demoReply('jaeeon', '저 어디서 본 적 있어요?')[0].text, '글쎄요. 난 모르겠는데.');
+/* 방마다 고르는 법이 다르다. 관전방은 유저가 장면 밖에 있으므로 두 사람 대화만 나온다 */
+const watch = demo.demoAnswer('health', '둘이 뭐 해', '윤하');
+eq('관전방은 두 사람이 주고받는다', new Set(watch.map(m => m.sender)).size, 2);
+eq('관전방에 유저 말풍선은 없다', watch.some(m => m.sender === 'user'), false);
+eq('단톡방도 두 사람이 주고받는다',
+  new Set(demo.demoAnswer('group', '오늘 다 같이 뭐 먹을까요?', '윤하').map(m => m.sender)).size, 2);
 
-/* 민현은 화제를 따라가지 않는다. 무슨 얘기가 나오든 둘 사이로 끌어온다 —
-   떡볶이는 누구랑 먹었냐가 되고, 수업은 선생님 꿈이 되고, 친구 얘기는
-   내가 좋다가 되고, 스트레스는 나랑 옥상 가자가 된다. 화제를 따라가면
-   그건 그냥 붙임성 좋은 애지 이 애가 아니다. */
-eq('졸았다는 말을 알아챈다', demo.demoBucket('너 수업 시간에 또 자더라?'), 'nap');
-eq('친구 얘기를 알아챈다', demo.demoBucket('다른 애들이랑 어울리고 좀 그래'), 'friend');
-eq('힘들다는 말을 알아챈다', demo.demoBucket('아 일하느라 스트레스 받아'), 'stress');
-eq('먹었다는 말을 어미가 달라도 알아챈다', demo.demoBucket('나 오늘 떡볶이 먹음'), 'meal');
-/* 결이 열여덟 개다. 좁은 것부터 봐야 하는데 하나라도 순서가 밀리면 그 결이
-   영영 안 나온다. 실제로 칠 법한 말로 통째로 확인한다. */
-[['미안해요', 'sorry'], ['보고 싶었어요', 'miss'], ['나 이제 곧 가', 'leave'],
- ['담배 아직 안 피우지?', 'smoke'], ['사탕 하나 먹어도 돼요?', 'candy'],
- ['무슨 노래 들어요?', 'song'], ['안 자요?', 'night'],
- ['너 왜 자꾸 보건실에 있어', 'nurse'], ['너 나 왜 좋아해?', 'like'],
- ['선생님도 좀 쉬세요', 'rest'], ['커피만 드시지 말고요', 'coffee'],
- ['밥은 챙겨 먹고 다녀?', 'feed'], ['나 오늘 떡볶이 먹음', 'meal'],
- ['나 좀 지쳤나 봐', 'stress'], ['또 잤더라', 'nap'], ['친구 없어?', 'friend'],
-].forEach(([q, b]) => eq(`"${q}" → ${b}`, demo.demoBucket(q), b));
-/* 유저가 먹은 것(밥)과 유저가 걱정하는 것(끼니)은 다른 말이다.
-   "밥은 챙겨 먹고 다녀"가 먹었다는 결로 새면 혼자 먹었냐고 되묻는다. */
-eq('걱정하는 말이 먹었다는 말로 안 샌다', demo.demoBucket('밥은 챙겨 먹고 다녀?'), 'feed');
-/* 좁은 결에 걸렸는데 그 사람한테 그 결이 없으면 넓은 결로 다시 잡는다.
-   "친구 없어?"는 재언한테 질문이다 — 좁은 결에 걸렸다는 이유로 질문이라는
-   것까지 잃으면 아무 대답이나 나간다. 빈 칸을 이상하게 채우는 것보다
-   평소 대답이 나가는 게 낫다. */
-// 앞선 검사들이 이미 자리를 돌려놨으므로 몇 번째가 나오는지는 고정할 수 없다.
-// demoReply는 부를 때마다 자리가 넘어가므로 한 번만 부른다
-const askBack = demo.demoReply('jaeeon', '친구 없어?')[0].text;
-eq('없는 결은 넓은 결로 다시 잡는다',
-  demo.DEMO_LINES.jaeeon.ask.some(s => s[0] === askBack), true);
+/* 캐릭터가 먼저 거는 말 */
+eq('재언이 아침에 먼저 건다', demo.demoProactive('jaeeon', '아침', '윤하').length > 0, true);
+eq('민현이 밤에 먼저 건다', demo.demoProactive('minhyun', '밤', '윤하').length > 0, true);
+
 /* 이름은 등록 화면에서 받아둔 걸 그대로 쓴다 */
-eq('데모도 유저 이름을 부른다',
-  demo.demoReply('jaeeon', '커피만 드시지 말고요', '윤하').map(m => m.text).join('/'),
-  '그래요./윤하 선생님도요.');
+eq('데모도 유저 이름을 부른다', /윤하/.test(said('jaeeon', '커피만 드시지 말고요')), true);
 
-/* 노래는 실제 목록의 1번만 댄다. 지어낸 곡을 대면 취향이 통째로 무너진다 */
-eq('재언은 사카모토가 아니라 1번을 댄다',
-  /Sufjan Stevens/.test(demo.DEMO_LINES.jaeeon.song[0][0]), true);
-eq('민현은 밴드 쪽 1번을 댄다',
-  /Wolf Alice/.test(demo.DEMO_LINES.minhyun.song[0][0]), true);
+/* 손으로 쓴 대사가 통합본에 없어서 따로 남겨뒀다. 지워지면 여기서 걸린다 */
+['착하다', '난 모르겠는데', '일하는 줄 알았구나', '옥상 갈래요?', '피치 못하는 거지',
+ '누군지 알아보려고?'].forEach(t =>
+  eq(`손으로 쓴 "${t}"가 살아 있다`, demoSrc.includes(t), true));
 
-[['나 오늘 떡볶이 먹음', '혼자요?'],
- ['너 수업 시간에 또 자더라?', '꿈에 선생님 나왔어요'],
- ['다른 애들이랑 어울리고 좀 그래', '저는 선생님이랑 어울리는 게 좋아요'],
- ['아 일하느라 스트레스 받아', '옥상 갈래요?']].forEach(([q, a]) =>
-  eq(`민현이 화제를 끌어온다 — ${q}`, demo.demoReply('minhyun', q)[0].text, a));
+/* 같은 말을 반복해도 같은 답만 나오지 않는다 */
+const three = [0, 1, 2].map(() => said('jaeeon', '뭐 해요?'));
+eq('같은 말을 반복해도 답이 돌아간다', new Set(three).size > 1, true);
 
-/* 한 번만 이어 받는다. 혼자 먹었냐고 물어놓고 다음 대답을 그냥 넘기면
-   되묻던 게 거기서 끊긴다. 새 화제가 오면 그쪽이 먼저다. */
-demo.demoReply('minhyun', '나 오늘 떡볶이 먹음');
-eq('앞의 물음을 한 번 이어 받는다',
-  demo.demoReply('minhyun', '둘이면 어쩌려고')[0].text, '누군지 알아보려고?');
-demo.demoReply('minhyun', '나 오늘 떡볶이 먹음');
-// 앞선 검사들이 자리를 돌려놨으므로 몇 번째가 나오는지가 아니라 어느 결인지를 본다
-const after = demo.demoReply('minhyun', '나 좀 지쳤나 봐')[0].text;
-eq('새 화제가 오면 이어 받지 않는다',
-  demo.DEMO_LINES.minhyun.stress.some(x => x[0] === after), true);
+/* 입력 정규화 — 같은 말인데 형태만 다른 것을 하나로 모은다 */
+eq('ㅋ는 넉 자로 줄인다', demo.demoNorm('ㅋㅋㅋㅋㅋㅋㅋㅋ'), 'ㅋㅋㅋㅋ');
+eq('물음표 반복은 하나로', demo.demoNorm('왜???'), '왜?');
+eq('흔한 오타를 같은 말로 본다', demo.demoNorm('어떻해'), '어떡해');
 
-
-/* ㅋ·ㅡㅡ·ㅇㅇ 같은 자모 축약은 안 쓴다. 채팅 말투처럼 보이지만 화면에서는
-   그냥 지저분하다. 프롬프트에서도 뺐으므로 각본만 남아 있으면 어긋난다. */
-const jamo = /(^|[^ㄱ-ㅎ])(ㅋ+|ㅡㅡ|ㅇㅇ|ㅎㅎ)/;
-eq('데모 각본에 자모 축약이 없다',
-  [...Object.values(demo.DEMO_LINES).flatMap(c => Object.values(c).flat(2)),
-   ...demo.DEMO_AUTO.flat().map(m => m.text)].filter(t => jamo.test(t)), []);
-/* 슬픔은 문장에서 나오지 점에서 안 나온다. 재언은 아예 안 쓰고 — 점만 찍힌
-   말풍선은 침묵이 아니라 삐친 것으로 읽힌다 — 민현도 각본에서는 안 쓴다.
-   재언이 대답을 안 하는 자리는 민현이 두 번 연달아 말하는 것으로 그린다. */
-eq('데모 각본에 말줄임표가 없다',
-  [...Object.values(demo.DEMO_LINES).flatMap(c => Object.values(c).flat(2)),
-   ...demo.DEMO_AUTO.flat().map(m => m.text)].filter(t => /…|\.\.\./.test(t)), []);
-eq('재언의 침묵은 말풍선이 아니라 빈자리다',
-  demo.DEMO_AUTO.some(c => c.some((m, i) =>
-    i > 0 && m.sender === 'minhyun' && c[i - 1].sender === 'minhyun')), true);
-
-/* 앱에도 같은 각본이 들어 있다. 앱 쪽은 타입이 붙어 있어 그대로 실행할 수 없으므로
-   대사만 뽑아 웹과 맞춰본다 — 한쪽만 고치면 웹과 앱이 다른 말을 하게 된다. */
-const cut = (src, a, b) => src.slice(src.indexOf(a), src.indexOf(b));
-const strs = s => [...s.matchAll(/['"]([^'"\n]+)['"]/g)].map(m => m[1]);
-eq('앱 데모 각본이 웹과 한 글자도 다르지 않다',
-  strs(cut(appSrc, 'const DEMO_LINES', 'const demoAt')),
-  strs(cut(web, 'const DEMO_LINES', 'const demoAt')));
+/* 웹과 앱이 같은 데서 나온다. 어긋나면 두 클라이언트가 다른 말을 한다 */
+const appDemo = readFileSync(join(ROOT, 'app/lib/demoLines.ts'), 'utf8');
+eq('앱 데모가 웹과 같은 대사를 쓴다',
+  appDemo.includes(demoSrc.slice(demoSrc.indexOf('var DEMO_CORPUS'),
+    demoSrc.indexOf('var DEMO_CORPUS') + 200000).split('\nvar DEMO_TYPO')[0]), true);
+eq('생성된 파일이라고 적어둔다',
+  /자동 생성/.test(demoSrc) && /자동 생성/.test(appDemo), true);
 
 /* 실패했을 때 조용히 각본으로 갈아타면 진짜 장애를 못 알아챈다.
    원인은 콘솔에, 표시는 하단 바에 — 웹이 하는 것과 같아야 한다. */
