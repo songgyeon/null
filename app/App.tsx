@@ -13,7 +13,7 @@ import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg 
 import { sendChat, genAuto, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoWhen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
-import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK, saveStatus,
+import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
          GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
 import { useAudioPlayer } from 'expo-audio';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -861,16 +861,16 @@ const ct=StyleSheet.create({
 });
 
 // ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 민현=락페) ═══
-function Profile({char,onBack,refresh,dLeft}:{char:string;onBack:()=>void;refresh?:number;dLeft?:number}) {
+function Profile({char,onBack,refresh,dLeft,back}:{char:string;onBack:()=>void;refresh?:number;dLeft?:number;back?:boolean}) {
   const [stage,setStage]=useState<any>(null);
   const [count,setCount]=useState(0);
   const [gifts,setGifts]=useState<Record<string,string[]>>({});
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   useEffect(()=>{(async()=>{
-    setStage(await currentStage(char,dLeft));
+    setStage(await currentStage(char,dLeft,back));
     setCount(await countMsgs(char));
     setGifts(await loadGifts());
-  })()},[char,refresh,dLeft]);
+  })()},[char,refresh,dLeft,back]);
   const ch=CHARS[char];
   // 훅은 조건문 위에 있어야 한다 — 아래 return보다 뒤로 내리면 렌더마다 훅 수가 달라진다
   const bg=useBgUri(bgFor(char,count,gifts,stage?.bg), PROFILES[char]?.fallback||char+'-bg.webp');
@@ -1520,6 +1520,13 @@ function Root() {
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
   const firstTs=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0);
   const dLeft=firstTs?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5)):ENROLL_DAYS;
+  /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
+     그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다.
+     웹의 cameBack과 같은 식이다. */
+  const cameBack=firstTs
+    ? Object.values(msgs).flat().some((m:any)=>m.sender==='user'
+        && m.created_at>=firstTs+ENROLL_DAYS*864e5)
+    : false;
 
   const reload=useCallback(async(room?:string)=>{
     const rooms = room?[room]:['jaeeon','minhyun','group','health'];
@@ -1570,9 +1577,6 @@ function Root() {
         }
         return merged;
       });
-    }
-    if(data?.status&&typeof data.status==='object'){
-      for(const [c,t] of Object.entries(data.status)) await saveStatus(c,String(t||''));
     }
     setStamp(x=>x+1);
   };
@@ -1860,7 +1864,7 @@ function Root() {
       <Splash onEnter={handleEnter}/></View></>;
 
   let screen;
-  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} dLeft={dLeft}
+  if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} dLeft={dLeft} back={cameBack}
     onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='cart') screen=<CartScreen gifts={gifts} hearts={heartsOf(counts,gifts)}
     onSend={giveGift} onBack={()=>setView({type:'list'})}/>;

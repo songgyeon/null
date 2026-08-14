@@ -8,7 +8,13 @@ function calcVibe(msgs: Msg[]): string | undefined {
   const recent = msgs.slice(-8);
   if (!recent.length) return undefined;
   const userMsgs = recent.filter(m => m.sender === 'user');
-  if (!userMsgs.length) return undefined;
+  /* 표본이 적으면 비율이 비율 노릇을 못 한다. 유저 발화가 하나뿐이면
+     물음표 하나로 qRatio가 1.0이 돼서 "캐묻는 중"이 확정됐다 — 한 마디
+     묻고 나간 사람을 두고 관전방에서 "요즘 이것저것 캐묻던데"가 나갔다.
+     임계값도 저 구간에서 비단조다(1개→물음표 1, 2개→2, 3개→2, 4개→3).
+     넷으로 올리면 오판은 더 줄지만 최근 8발화에 유저 말은 보통 서넛이라
+     평범한 대화에서 눈치가 통째로 꺼진다. 셋이 경계다. */
+  if (userMsgs.length < 3) return undefined;
 
   const avgLen = userMsgs.reduce((s, m) => s + (m.text?.length || 0), 0) / userMsgs.length;
   const qRatio = userMsgs.filter(m => /[?？]/.test(m.text || '')).length / userMsgs.length;
@@ -18,7 +24,10 @@ function calcVibe(msgs: Msg[]): string | undefined {
   if (qRatio > 0.5) return '캐묻는 중';
   if (avgLen < 6) return '말이 짧아짐';
   if (avgLen > 30) return '길게 말하는 중';
-  return '평소';
+  /* '평소'는 아무것도 안 알려준다. 필드가 없는 것과 정보량이 같은데
+     프롬프트에서는 자리를 차지하고, 가변부라 캐시도 안 된다.
+     없으면 평소다 — vibe가 붙어 있으면 그건 진짜 신호라는 뜻이 된다. */
+  return undefined;
 }
 
 export async function buildSignals(excludeRoom: string | null) {

@@ -737,8 +737,8 @@ eq('목록이 본 단계를 넘겨받는다',
 eq('새로 시작하면 본 기록도 지운다',
   /setSeenStage\(\{\}\)/.test(web) && /setSeenStage\(\{\}\)/.test(appSrc), true);
 
-/* 상태메시지는 세 군데에 적혀 있다 — 워커(API를 켰을 때), 웹, 앱.
-   어긋나면 API를 켠 사람과 안 켠 사람이 다른 문구를 본다. 눈으로는 안 잡힌다. */
+/* 상태메시지는 두 군데에 적혀 있다 — 웹과 앱. 어긋나면 둘이 다른 문구를
+   쓴다. 눈으로는 안 잡힌다. */
 const STATUS_WANT = [
   ['별일 없어요.',    '수업 중. 아마도.'],
   ['문은 열어둘게요.', '기다리는 거 아니에요.'],
@@ -746,26 +746,32 @@ const STATUS_WANT = [
   ['아직 남았어요.',   '곧이잖아요. 지금이 아니라.'],
   ['남은 동안은 여기 있어요.', '안 알려줘도 알아요.'],
 ];
-const AT = [0, 16, 40, 80, 120];
 eq('웹 상메가 표와 같다',
   ['jaeeon', 'minhyun'].map((c, ci) => webProfiles[c].stages.map(s => s.status))
     .map((got, ci) => JSON.stringify(got) === JSON.stringify(STATUS_WANT.map(r => r[ci]))),
   [true, true]);
 eq('앱 상메가 표와 같다',
   STATUS_WANT.flat().filter(t => !profSrc.includes(`'${t}'`)), []);
-/* 워커 쪽은 statusOf를 실제로 돌려본다 — 표만 보면 경계값이 안 잡힌다 */
-const wStatus = new Function(
-  workerSrc.slice(workerSrc.indexOf('const STATUS = ['),
-    workerSrc.indexOf('function unlockedKeys')) + ';return statusOf')();
-eq('워커 상메가 표와 같다',
-  AT.map(n => { const o = wStatus({ jaeeon: n, minhyun: n }); return [o.jaeeon, o.minhyun]; }),
-  STATUS_WANT);
-/* 경계 바로 아래는 앞 단계여야 한다. 한 칸씩 밀린 적이 있다 */
+/* 경계 바로 아래는 앞 단계여야 한다. 한 칸씩 밀린 적이 있다.
+   단계 경계는 STAGE_AT이 정하고 문구는 PROFILES가 들고 있어서, 둘을
+   실제로 붙여봐야 밀렸는지 알 수 있다. */
+const STAGE_AT = JSON.parse((web.match(/const STAGE_AT=(\[[^\]]*\])/) || [])[1]);
+const stageIdx = n => { let i = 0; STAGE_AT.forEach((a, k) => { if (n >= a) i = k }); return i };
 eq('경계 직전은 아직 앞 단계다',
-  wStatus({ jaeeon: 39, minhyun: 15 }),
-  { jaeeon: '문은 열어둘게요.', minhyun: '수업 중. 아마도.' });
-/* 연기 지시는 넷, 화면 단계는 다섯이다. 한 표에 묶으면 상메를 고칠 때
-   모델 지시가 딸려 나온다 — 그래서 STAGES에서 status를 뺐다 */
+  [['jaeeon', 39], ['minhyun', 15]].map(([c, n]) => webProfiles[c].stages[stageIdx(n)].status),
+  ['문은 열어둘게요.', '수업 중. 아마도.']);
+eq('경계에 닿으면 다음 단계다',
+  [['jaeeon', 40], ['minhyun', 16]].map(([c, n]) => webProfiles[c].stages[stageIdx(n)].status),
+  ['어디 안 가요.', '기다리는 거 아니에요.']);
+/* 서버는 상메를 안 보낸다. 전에는 워커가 같은 표를 다시 계산해 응답에 실었고
+   앱이 그걸 저장해 기본값보다 우선했는데, 오가는 게 늘 제 값의 메아리였다 —
+   아무 일도 안 하면서, 한 번 저장되면 앱을 새로 빌드해도 옛 문구가 새 기본값을
+   이기는 길만 냈다. 되살아나면 여기서 잡는다. */
+eq('워커가 상메를 안 보낸다', /statusOf|const STATUS = \[/.test(workerSrc), false);
+eq('앱이 서버 상메를 저장하지 않는다', /saveStatus/.test(appSrc + profSrc), false);
+eq('워커에 상메 문구가 남아 있지 않다',
+  /별일 없어요\.|문은 열어둘게요\./.test(workerSrc), false);
+/* 연기 지시에는 원래도 상메가 없다 */
 eq('연기 지시와 상메는 표가 따로다', /status: \{ jaeeon/.test(workerSrc), false);
 eq('안 쓴 문구도 남겨둔다', exists('docs/status-messages.md'), true);
 
@@ -777,13 +783,19 @@ eq('120은 아직 떠나기 전 문구다',
 eq('작별 인사는 D-0이 정한다',
   /STATUS_GONE=\{jaeeon:"잘 지내요\. 항상\.", minhyun:"모르는 걸로 할게요\."\}/.test(web)
   && /STATUS_GONE/.test(profSrc), true);
-eq('웹은 떠났으면 단계를 무시한다', /dLeft===0\?STATUS_GONE\[char\]/.test(web), true);
+eq('웹은 떠났으면 단계를 무시한다',
+  /dLeft===0\?\(back\?STATUS_BACK:STATUS_GONE\)\[char\]/.test(web), true);
 /* 앱은 서버가 써준 상메를 쓰는데, 서버는 첫 대화가 언제였는지 모른다.
    그래서 D-0은 서버 값보다도 앞선다 */
-eq('앱은 떠났으면 서버 값도 무시한다', /if \(dLeft === 0\) return/.test(profSrc), true);
-eq('워커 표에는 작별 인사가 없다',
-  /잘 지내요\. 항상\./.test(workerSrc.slice(workerSrc.indexOf('const STATUS = ['),
-    workerSrc.indexOf('function statusOf'))), false);
+/* D-0에서 멈춰만 두면 작별 인사를 걸어둔 사람과 무한히 대화하는 화면이 된다.
+   떠난 뒤에 유저가 말을 걸었으면 그건 작별이 아니라 재회다. */
+eq('다시 오면 작별 인사가 아니다',
+  /STATUS_BACK=\{jaeeon:"아직 자리 있어요\.", minhyun:"이제 와요\?"\}/.test(web)
+  && /STATUS_BACK/.test(profSrc), true);
+/* 유저 발화만 센다 — 선톡만 오고 답을 안 한 건 다시 온 게 아니다 */
+eq('재회 판정은 유저 발화만 센다',
+  /sender==="user"&&m\.ts>=leaveAt/.test(web) && /cameBack/.test(appSrc), true);
+
 
 /* flex 안에서 svg는 자리가 모자라면 폭 0까지 쭈그러든다. 글자는 최소 폭이
    있어서 버티는데 그림은 안 버틴다. peek 옆의 달이 그렇게 사라졌다. */
@@ -831,6 +843,17 @@ eq('목록을 떠나면 선톡 예약이 취소된다',
    것을 참조해서 데모가 통째로 안 돌던 적이 있다 */
 eq('선톡이 선언보다 먼저 읽히지 않는다',
   web.indexOf('const [enrolling,setEnrolling]') < web.indexOf('const greetAtRef'), true);
+
+/* ── vibe ──
+   유저 발화가 하나뿐이면 물음표 하나로 비율이 1.0이 돼서 "캐묻는 중"이
+   확정됐다. 한 마디 묻고 나간 사람을 두고 관전방에서 "요즘 이것저것
+   캐묻던데"가 나갔다. 관전방이 유저를 읽는 유일한 입력값이라 오독이 비싸다. */
+const apiSrc = readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8');
+eq('표본이 셋은 돼야 눈치를 본다', /userMsgs\.length < 3\) return undefined/.test(apiSrc), true);
+/* '평소'는 필드가 없는 것과 정보량이 같은데 가변부에서 자리만 차지했다 */
+eq("'평소'를 신호로 보내지 않는다", /return '평소'/.test(apiSrc), false);
+eq('판정 넷은 그대로다',
+  ['들뜸', '캐묻는 중', '말이 짧아짐', '길게 말하는 중'].filter(v => !apiSrc.includes(`'${v}'`)), []);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

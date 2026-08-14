@@ -1272,6 +1272,12 @@ const PROFILES={
    대화 수에 걸어놨더니 하루에 백스무 마디 하면 D-29에 작별 인사가 떴다.
    D-0이 되면 단계가 어디든 이걸로 덮는다. */
 const STATUS_GONE={jaeeon:"잘 지내요. 항상.", minhyun:"모르는 걸로 할게요."};
+/* 그런데 D-0에서 멈춰만 두니 더 이상했다. 서른한 날째에도, 백 일째에도
+   "잘 지내요. 항상."을 걸어놓고 유저와 계속 대화하는 화면이 된다.
+   작별 인사를 붙여둔 사람과 무한히 이야기하는 셈이다.
+   그래서 떠난 뒤를 둘로 나눈다. 기준은 D-0 뒤에 유저가 말을 했느냐.
+   유저 발화만 센다 — 민현이 선톡만 보내고 답을 안 한 건 다시 온 게 아니다. */
+const STATUS_BACK={jaeeon:"아직 자리 있어요.", minhyun:"이제 와요?"};
 
 /* 본 단계와 지금 단계 사이에 실제로 달라진 것. 목록은 이게 비었는지만 본다.
    단계가 올랐어도 배경·곡·상메가 다 그대로면 알릴 일이 없다.
@@ -1325,7 +1331,7 @@ function MusicBar({track,color,onPlay}){
   </React.Fragment>;
 }
 
-function Profile({char,count,onBack,gifts,dLeft}){
+function Profile({char,count,onBack,gifts,dLeft,back}){
   const ch=CHARS[char], p=PROFILES[char], room=roomOf(char);
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   const st=p?(p.stages[stageIdx(count)]||p.stages[0]):null;
@@ -1344,8 +1350,9 @@ function Profile({char,count,onBack,gifts,dLeft}){
   const wanted=hung?(GIFTS.find(g=>g.key===hung)||{}).bg:(st&&st.bg);
   const bg=useBg(wanted,(p&&p.fallback)||char+"-bg.webp");
   if(!ch||!p)return null;
-  /* 떠났으면 단계와 상관없이 작별 인사다. 시계가 단계를 이긴다 */
-  const status=((dLeft===0?STATUS_GONE[char]:null)||st.status||"").trim();
+  /* 떠났으면 단계와 상관없다. 시계가 단계를 이긴다.
+     떠난 뒤에 유저가 말을 걸었으면 작별이 아니라 재회다. */
+  const status=((dLeft===0?(back?STATUS_BACK:STATUS_GONE)[char]:null)||st.status||"").trim();
   return <div className="pfscreen" style={{backgroundImage:`url("${bg}")`}}>
     <div className="pfdim" onClick={e=>{if(e.target===e.currentTarget)setFull(true)}}>
       <Sparkles/>
@@ -2359,6 +2366,15 @@ function App(){
     const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
     return first?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-first)/864e5)):ENROLL_DAYS;
   })();
+  /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
+     그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다. */
+  const cameBack=(()=>{
+    const all=Object.values(store.msgs||{}).flat();
+    if(!all.length)return false;
+    const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
+    const leaveAt=first+ENROLL_DAYS*864e5;
+    return all.some(m=>m.sender==="user"&&m.ts>=leaveAt);
+  })();
 
   /* 프로필 화면. 대화 수는 그 캐릭터가 낀 모든 방을 합쳐 센다 (worker의 단계 기준과 같다) */
   const [prof,setProf]=useState(null);
@@ -2434,7 +2450,7 @@ function App(){
         </div>
       </div>
     </div>}
-    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft}/>}
+    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack}/>}
     {film&&<IntroFilm onClose={()=>setFilm(false)}/>}
     {toast&&<div className="toast"><span>✧ {toast}</span></div>}
   </div>;

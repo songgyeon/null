@@ -113,12 +113,11 @@ export async function saveGifts(g: Record<string,string[]>) {
 // at 값은 worker.js의 STAGES와 같아야 한다. 어긋나면 앱이 보여주는 단계와
 // 모델이 연기하는 단계가 따로 논다. (0=처음 / 16=익숙 / 40=균열 / 80=시한)
 //
-// status는 기본 문구다. 서버가 status를 내려주면(meta: status_<char>)
-// 그쪽이 우선한다. 둘 다 비면 프로필에 상태메시지 줄 자체가 안 나온다.
+// status는 이 표가 정한다. 서버는 상메를 안 보낸다.
 // 둘 다 대놓고 상대를 지칭하지 않는다. 평범한 공지처럼 써놓고 실제로는
 // 한 사람만 알아듣게 한다. 그래서 같은 단계끼리 나란히 놓으면 주고받는
 // 말이 된다 — "문은 열어둘게요."에 "기다리는 거 아니에요."가 붙는 식이다.
-// worker.js의 STATUS와 같아야 한다. 어긋나면 API를 켰을 때만 문구가 달라진다.
+// index.html의 PROFILES와 같아야 한다. 어긋나면 웹과 앱이 다른 문구를 쓴다.
 // 재언은 밝은 데서 어두운 데로 — 미술관, 계단참, 복도, 밤 차 안, 그리고 부엌.
 // 마지막 부엌에 씻어서 엎어놓은 그릇이 두 개다.
 // 민현은 안에서 밖으로 — 레코드샵, 버스, 골목, 그리고 옥상.
@@ -146,13 +145,26 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   },
 };
 
-/* 떠난 뒤의 상메. 이건 대화 수가 아니라 시계가 정한다 — 실습이 끝나는 건
-   몇 마디 했느냐와 상관없는 일이라서다. 대화 수에 걸어놨더니 하루에
-   백스무 마디 하면 D-29에 작별 인사가 떴다.
-   D-0이면 단계가 어디든, 서버가 뭘 내려줬든 이걸로 덮는다 —
-   서버는 첫 대화가 언제였는지 모른다. index.html의 STATUS_GONE과 같다. */
+/* 떠난 뒤. 이건 대화 수가 아니라 시계가 정한다 — 실습이 끝나는 건 몇 마디
+   했느냐와 상관없는 일이라서다. 대화 수에 걸어놨더니 하루에 백스무 마디
+   하면 D-29에 작별 인사가 떴다.
+
+   그런데 D-0에서 멈춰만 두니 더 이상했다. 서른한 날째에도, 백 일째에도
+   "잘 지내요. 항상."을 걸어놓고 유저와 계속 대화하는 화면이 됐다.
+   작별 인사를 붙여둔 사람과 무한히 이야기하는 셈이다.
+
+   그래서 떠난 뒤를 둘로 나눈다. 기준은 D-0 뒤에 유저가 말을 했느냐다.
+   - 안 했으면 아직 떠나 있는 것이다 → GONE
+   - 했으면 다시 온 것이다 → BACK
+
+   유저 발화만 센다. 민현이 선톡만 보내고 유저가 답을 안 한 건 다시 온 게
+   아니다. 새로 저장할 상태가 없다 — 이미 갖고 있는 타임스탬프로 판정되고,
+   말을 거는 순간 저절로 넘어간다.
+   index.html의 STATUS_GONE·STATUS_BACK과 같아야 한다. */
 export const STATUS_GONE: Record<string, string> =
   { jaeeon: '잘 지내요. 항상.', minhyun: '모르는 걸로 할게요.' };
+export const STATUS_BACK: Record<string, string> =
+  { jaeeon: '아직 자리 있어요.', minhyun: '이제 와요?' };
 
 /* 마지막으로 프로필을 본 단계와 지금 단계 사이에 실제로 달라진 것.
    index.html의 stageDiff와 같아야 한다 — 어긋나면 웹과 앱이 다른 걸 알린다.
@@ -216,20 +228,17 @@ export async function currentStageIdx(char: string): Promise<number> {
   return idx;
 }
 
-// 현재 단계 + 서버가 써준 상태메시지 합성 (없으면 단계 기본 문구)
-// dLeft가 0이면 둘 다 무시하고 작별 인사다 — 시계가 단계도 서버도 이긴다
-export async function currentStage(char: string, dLeft?: number): Promise<Stage> {
+/* 현재 단계. 상메는 이 표가 정한다 — 서버는 상메를 안 보낸다.
+   전에는 서버 값을 저장해 기본값보다 우선했는데, 서버가 내려주던 게
+   같은 표의 메아리라 아무 일도 안 하면서 옛 문구가 눌러앉는 길만 냈다.
+   dLeft가 0이면 단계를 무시하고 작별 인사다 — 시계가 단계를 이긴다. */
+export async function currentStage(char: string, dLeft?: number, back?: boolean): Promise<Stage> {
   const idx = await currentStageIdx(char);
   const base = PROFILES[char]?.stages[idx];
   if (!base) return { at: 0, status: '', bg: char + '-bg.webp', track: null };
-  if (dLeft === 0) return { ...base, status: STATUS_GONE[char] || base.status || '' };
-  let saved = '';
-  try { saved = (await getMeta('status_' + char)) || ''; } catch (e) {}
-  return { ...base, status: (saved.trim() || base.status || '').trim() };
-}
-
-// 서버 응답에서 받은 상태메시지 저장 (빈 문자열이면 지운다 → 단계 기본 문구로 되돌아간다)
-export async function saveStatus(char: string, text: string) {
-  const { setMeta } = await import('./db');
-  await setMeta('status_' + char, (text || '').trim());
+  if (dLeft === 0) {
+    const t = (back ? STATUS_BACK : STATUS_GONE)[char];
+    return { ...base, status: t || base.status || '' };
+  }
+  return { ...base, status: (base.status || '').trim() };
 }

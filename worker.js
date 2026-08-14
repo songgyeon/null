@@ -978,40 +978,13 @@ const UNLOCKS = [
   { key: "minhyun-diary", room: "minhyun", at: 120 },
 ];
 
-/* 프로필 화면에 띄울 상태메시지. 각 캐릭터의 1:1 대화 수로 자리를 잡는다.
-   index.html·app/lib/profiles.ts의 stages와 같아야 한다.
-
-   STAGES와 표를 따로 두는 이유: 연기 지시는 넷이고 화면 단계는 다섯이다.
-   120에서 배경이 한 번 더 바뀌는데 연기 톤은 80 그대로여야 한다.
-   한 표에 묶으면 상메 하나 고치려다 모델 지시가 딸려 나온다.
-
-   떠난 뒤의 한 쌍("잘 지내요. 항상." / "모르는 걸로 할게요.")은 여기 없다.
-   그건 대화 수가 아니라 실습이 끝났느냐가 정하는데, 서버는 유저별 저장소가
-   없어서 첫 대화가 언제였는지를 모른다. 클라이언트가 D-0에 덮어쓴다.
-
-   둘 다 대놓고 상대를 지칭하지 않는다. 평범한 공지처럼 써놓고 실제로는
-   한 사람만 알아듣게 한다. 그래서 나란히 놓으면 주고받는 말이 된다 —
-   "문은 열어둘게요."에 "기다리는 거 아니에요."가 붙는 식이다. */
-const STATUS = [
-  { at: 0,   jaeeon: "별일 없어요.",     minhyun: "수업 중. 아마도." },
-  { at: 16,  jaeeon: "문은 열어둘게요.", minhyun: "기다리는 거 아니에요." },
-  { at: 40,  jaeeon: "어디 안 가요.",    minhyun: "그 말 취소하면 안 돼요." },
-  { at: 80,  jaeeon: "아직 남았어요.",   minhyun: "곧이잖아요. 지금이 아니라." },
-  { at: 120, jaeeon: "남은 동안은 여기 있어요.", minhyun: "안 알려줘도 알아요." },
-];
-
-// 모델을 더 부르지 않으므로 비용은 0이다.
-function statusOf(counts) {
-  if (!counts) return null;
-  const out = {};
-  for (const c of ["jaeeon", "minhyun"]) {
-    const n = Math.max(0, Number(counts[c]) || 0);
-    let row = STATUS[0];
-    for (const x of STATUS) if (n >= x.at) row = x;
-    out[c] = row[c] || "";
-  }
-  return out;
-}
+/* 상태메시지는 서버가 안 보낸다.
+   전에는 여기서 같은 표를 counts로 다시 계산해 응답에 실었고, 앱이 그걸
+   저장해 기본값보다 우선했다. 그런데 표가 클라이언트와 똑같아서 오가는 게
+   늘 제 값의 메아리였다 — 아무 일도 안 하면서, 한 번 저장되면 앱을 새로
+   빌드해도 옛 문구가 새 기본값을 이기는 길만 냈다.
+   나중에 모델이 상메를 직접 쓰게 하면 그때 별도 필드로 새로 계약한다.
+   기본값의 메아리를 재활용하면 "모델이 쓴 것"과 "그냥 기본값"이 구분되지 않는다. */
 
 function unlockedKeys(counts) {
   if (!counts) return [];
@@ -1732,7 +1705,7 @@ export default {
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
       const messages = trimTics(sanitizePhotos(splitLines(parseMessages(raw, fallbackSender, chars)), photoChars, fallbackSender, recentPhotos));
-      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts), status: statusOf(counts),
+      return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts),
         ...(invite ? { invite: { place: invite, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
