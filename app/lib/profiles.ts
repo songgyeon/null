@@ -142,6 +142,26 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   },
 };
 
+/* 마지막으로 프로필을 본 단계와 지금 단계 사이에 실제로 달라진 것.
+   index.html의 stageDiff와 같아야 한다 — 어긋나면 웹과 앱이 다른 걸 알린다.
+   두 단계를 건너뛰었어도 답은 "지금 무엇이 그때와 다른가" 하나다.
+   16단계는 곡이 그대로라 둘만 나온다. */
+export function stageDiff(char: string, seen: number, now: number): string[] {
+  const ss = PROFILES[char]?.stages || [];
+  const a = ss[seen], b = ss[now];
+  if (!a || !b || now <= seen) return [];
+  return (['bg', 'track', 'status'] as const).filter(k => (a[k] || '') !== (b[k] || ''));
+}
+
+/* 인물마다 프로필을 마지막으로 본 단계. db 스키마를 안 건드리려고 meta에 넣는다. */
+export async function loadSeenStage(): Promise<Record<string, number>> {
+  try { return JSON.parse((await getMeta('null_seen_stage')) || '{}') || {}; } catch (e) { return {}; }
+}
+export async function saveSeenStage(o: Record<string, number>) {
+  const { setMeta } = await import('./db');
+  await setMeta('null_seen_stage', JSON.stringify(o || {}));
+}
+
 // 대화 수 → 단계 (동기). 서버를 부르지 않는 계산에는 이쪽을 쓴다
 export function stageIdxOf(char: string, n: number): number {
   const stages = PROFILES[char]?.stages || [];

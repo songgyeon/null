@@ -12,6 +12,7 @@ import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoWhen } from './lib/demoLines';
+import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK, saveStatus,
          GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
 import { useAudioPlayer } from 'expo-audio';
@@ -164,6 +165,44 @@ function Face({char,size,radius,border}:{char:string;size:number;radius?:number;
       style={{width:size*ZOOM,height:size*ZOOM,marginLeft:-c.x*(ZOOM-1)*size,marginTop:-c.y*(ZOOM-1)*size}}/>
   </View>;
 }
+
+/* ── 프로필이 바뀌면 목록이 알려준다 ──
+   말풍선으로 알리지 않는다. 그건 그 사람이 나한테 한 말이 아니니까.
+   얼굴 둘레가 숨 쉬듯 뛰고, 무엇이 바뀌었는지 작은 도장이 이름 옆에 붙는다.
+   RN에는 SVG가 없어서 View로 그린다 — 글꼴에 든 기호를 쓰면 그 기호가 없는
+   폰에서 빈 네모가 된다. ✧으로 한 번 겪었다. */
+function NuRing(){
+  const a=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{
+    const loop=Animated.loop(Animated.sequence([
+      Animated.timing(a,{toValue:1,duration:900,easing:Easing.inOut(Easing.quad),useNativeDriver:true}),
+      Animated.timing(a,{toValue:0,duration:900,easing:Easing.inOut(Easing.quad),useNativeDriver:true}),
+    ]));
+    loop.start(); return ()=>loop.stop();
+  },[a]);
+  return <Animated.View pointerEvents="none" style={[nu.ring,{
+    opacity:a.interpolate({inputRange:[0,1],outputRange:[.22,1]}),
+    transform:[{scale:a.interpolate({inputRange:[0,1],outputRange:[.95,1.05]})}]}]}/>;
+}
+function NuMark({kind}:{kind:string}){
+  return <View style={nu.stamp}>
+    {kind==='bg'    &&<View style={nu.frame}><View style={nu.hill}/></View>}
+    {kind==='track' &&<><View style={nu.stem}/><View style={nu.head}/></>}
+    {kind==='status'&&<View style={nu.pencil}/>}
+  </View>;
+}
+const nu=StyleSheet.create({
+  row:{flexDirection:'row',alignItems:'center',gap:2},
+  stamp:{width:13,height:13,borderWidth:1,borderColor:'#e0aad0',borderRadius:3,
+         backgroundColor:'#fff6fb',alignItems:'center',justifyContent:'center'},
+  frame:{width:8,height:6,borderWidth:1,borderColor:'#c76aa0',justifyContent:'flex-end',overflow:'hidden'},
+  hill:{width:8,height:2,backgroundColor:'#c76aa0'},
+  stem:{position:'absolute',right:3.5,top:2.5,width:1.4,height:6,backgroundColor:'#c76aa0'},
+  head:{position:'absolute',right:2,top:7,width:4,height:3,borderRadius:2,backgroundColor:'#c76aa0'},
+  pencil:{width:8,height:2.2,backgroundColor:'#c76aa0',transform:[{rotate:'-45deg'}]},
+  ring:{position:'absolute',left:-4,top:-4,width:50,height:50,borderRadius:25,
+        borderWidth:1.6,borderColor:'#ff8fbe'},
+});
 
 // 타이핑 딜레이 — 캐릭터별 속도 차등
 const typeDelay = (sender:string, text:string) => {
@@ -1013,7 +1052,7 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -1115,11 +1154,14 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
           const ms=msgs[room.id]||[]; const last=ms[ms.length-1]; const un=unread[room.id]||0;
           const watch=room.type==='watch';
           const pr=presence(room.id);
+          /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 둘레가 뛰고 도장이 붙는다 */
+          const nuList=CHARS[room.id]?stageDiff(room.id,(seenStage||{})[room.id]||0,stageIdx(counts[room.id]||0)):[];
           const card=<TouchableOpacity style={[rl.card,watch&&rl.cardW]} onPress={()=>onOpen(room.id)}>
             {room.type==='dm'
               ? <TouchableOpacity onPress={()=>onProfile(room.id)}>
                   <Face char={room.id} size={42}
                     border={CHARS[room.id].dk+HEAT[stageIdx(counts[room.id]||0)].o}/>
+                  {nuList.length>0&&<NuRing/>}
                 </TouchableOpacity>
               /* 단톡방·관전방은 얼굴이 없다. 웹은 여기에 SVG로 물방울과 달을 그리는데
                  RN에는 SVG가 없어서 ✧ 글자로 때워놨었다. 그런데 이 Text에만
@@ -1140,6 +1182,8 @@ function RoomList({msgs,unread,unlocked,counts,album,autoAt,onOpen,onProfile,onA
             <View style={{flex:1}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                 <Text style={rl.nm}>{room.name}</Text>
+                {nuList.length>0&&<View style={nu.row}>
+                  {nuList.map(k=><NuMark key={k} kind={k}/>)}</View>}
                 {pr&&<View style={rl.pres}>
                   <View style={[rl.presDot,{backgroundColor:DOT[pr.s]}]}/>
                   <Text style={rl.presT}>{pr.t}</Text></View>}
@@ -1467,6 +1511,8 @@ function Root() {
   const [unread,setUnread]=useState<Record<string,number>>({});
   const [view,setView]=useState<{type:'list'|'chat'|'profile'|'cart';id?:string}>({type:'list'});
   const [gifts,setGifts]=useState<Record<string,string[]>>({});   // 누구에게 뭘 줬나
+  /* 인물마다 프로필을 마지막으로 본 단계. 지금 단계가 이보다 높으면 목록이 알린다 */
+  const [seenStage,setSeenStage]=useState<Record<string,number>>({});
   const [typing,setTyping]=useState(false);
   const [failed,setFailed]=useState<any>(null);
   const [autoLoading,setAutoLoading]=useState(false);
@@ -1505,6 +1551,7 @@ function Root() {
     const u=await getMeta('null_unlocked');
     if(u){try{setUnlocked(JSON.parse(u))}catch{}}
     setGifts(await loadGifts());
+    setSeenStage(await loadSeenStage());
     const a=await getMeta('null_auto_at');
     if(a) setAutoAt(Number(a)||0);
     if(n){ setName(n); await reload(); } else setName('');
@@ -1759,7 +1806,7 @@ function Root() {
   };
 
   const doReset = async()=>{
-    await clearAll(); setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({});
+    await clearAll(); setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
     lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
   };
 
@@ -1787,6 +1834,14 @@ function Root() {
     if(got.length) applyExtras({ unlocked:got });
   },[msgs,demo]);
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); demoGreet(id); };
+  /* 프로필을 열어보면 그 단계를 본 것으로 찍는다 — 목록의 표시가 그때 꺼진다.
+     방을 여는 걸로는 안 꺼진다. 바뀐 건 대화가 아니라 프로필이니까. */
+  const openProfile=(c:string)=>{
+    setView({type:'profile',id:c});
+    if(!CHARS[c])return;
+    const at=stageIdx(counts[c]||0);
+    setSeenStage(s=>{const n={...s,[c]:at}; saveSeenStage(n); return n});
+  };
 
   // 오프닝은 폰트가 올라온 뒤에 그린다 — 픽셀 폰트가 없으면 로고가 딴 글씨가 된다
   if(!ready||!fontsOk) return <View style={{flex:1,backgroundColor:'#c3b2f0'}}/>;
@@ -1803,11 +1858,10 @@ function Root() {
     const room=ROOMS.find(r=>r.id===view.id)!;
     screen=<ChatRoom room={room} msgs={msgs[view.id!]||[]} typing={typing&&view.id!=='health'} failed={failed}
       onBack={()=>setView({type:'list'})} onSend={handleSend} onRetry={handleRetry}
-      onProfile={(c:string)=>setView({type:'profile',id:c})}/>;
+      onProfile={openProfile}/>;
   } else {
     screen=<RoomList msgs={msgs} unread={unread} unlocked={unlocked} counts={counts} album={album}
-      autoAt={autoAt} onOpen={openRoom}
-      onProfile={(c:string)=>setView({type:'profile',id:c})}
+      seenStage={seenStage} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
       onCart={()=>setView({type:'cart'})} demo={demo}
       onFilm={()=>setFilm(true)}

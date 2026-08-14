@@ -596,5 +596,61 @@ eq('방문자 카운터가 웹·앱 둘 다 있다',
 eq('소개 영상 사진이 저장소에 있다', (filmOf(web)[0]||['x']).filter(f => !exists(f)), []);
 
 // ─────────────────────────────────────────────
+section('프로필이 바뀌면 목록이 알린다');
+// ─────────────────────────────────────────────
+/* 알림을 말풍선으로 넣지 않는 이유: 그건 그 사람이 나한테 한 말이 아니다.
+   화면이 알리게 두고, 대화창은 대화만 담는다. */
+const profSrc = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
+
+/* 단계 사이에 실제로 달라진 것만 고른다. 웹의 stageDiff와 앱의 stageDiff가
+   다른 걸 고르면 같은 지점에서 웹과 앱이 서로 다른 도장을 붙인다. */
+const webDiff = new Function('PROFILES', web.slice(web.indexOf('const stageDiff='),
+  web.indexOf('/* 무엇이 바뀌었는지')) + ';return stageDiff');
+/* PROFILES를 웹 소스에서 그대로 떼어내 돌린다 — 표를 손으로 베끼면 어긋난다 */
+const webProfiles = new Function('return ' + web.slice(
+  web.indexOf('const PROFILES={') + 'const PROFILES='.length,
+  web.indexOf('/* 본 단계와 지금 단계 사이에')).trim().replace(/;$/, ''))();
+const diff = webDiff(webProfiles);
+
+eq('처음 들어온 사람에게는 알릴 것이 없다', diff('jaeeon', 0, 0), []);
+/* 16단계는 곡이 그대로다. 셋 다 붙이면 거짓말이 된다 */
+eq('16에서는 배경과 상메 둘만 바뀐다', diff('jaeeon', 0, 1), ['bg', 'status']);
+eq('40에서는 곡까지 셋 다 바뀐다', diff('jaeeon', 1, 2), ['bg', 'track', 'status']);
+/* 두 단계를 한 번에 건너뛰어도 답은 "지금 무엇이 그때와 다른가" 하나다 */
+eq('건너뛴 단계는 합쳐서 한 번만 센다', diff('minhyun', 0, 2), ['bg', 'track', 'status']);
+eq('본 뒤로 안 오른 단계는 아무것도 안 알린다', diff('minhyun', 3, 2), []);
+
+eq('앱도 같은 stageDiff를 들고 있다', /export function stageDiff/.test(profSrc), true);
+eq('앱의 stageDiff도 같은 세 가지를 본다',
+  /\['bg', 'track', 'status'\]/.test(profSrc), true);
+
+/* 본 단계는 저장돼야 한다. 안 그러면 껐다 켤 때마다 다시 반짝인다 */
+eq('본 단계를 웹·앱 둘 다 저장한다',
+  /null_seen_stage/.test(web) && /null_seen_stage/.test(profSrc), true);
+/* 방을 여는 걸로는 안 꺼진다 — 바뀐 건 대화가 아니라 프로필이다 */
+eq('프로필을 열어야 표시가 꺼진다',
+  /openProfile/.test(web) && /openProfile/.test(appSrc), true);
+eq('목록이 본 단계를 넘겨받는다',
+  /seenStage=\{seenStage\}/.test(web) && /seenStage=\{seenStage\}/.test(appSrc), true);
+/* 대화를 다 지우면 본 기록도 같이 지워야 한다. 안 그러면 처음부터 다시
+   시작했는데 "이미 봤다"고 남아 첫 단계 변화를 놓친다 */
+eq('새로 시작하면 본 기록도 지운다',
+  /setSeenStage\(\{\}\)/.test(web) && /setSeenStage\(\{\}\)/.test(appSrc), true);
+
+// 도장 셋 — 배경/곡/상메. 하나라도 빠지면 그 변화는 표시가 안 붙는다
+eq('웹에 도장이 셋 다 있다',
+  ['bg:', 'track:', 'status:'].filter(k => !web.slice(web.indexOf('const NuMark='),
+    web.indexOf('const NuMark=') + 1200).includes(k)), []);
+eq('앱에 도장이 셋 다 있다',
+  ["kind==='bg'", "kind==='track'", "kind==='status'"].filter(k => !appSrc.includes(k)), []);
+/* RN에는 SVG가 없다. 글꼴 기호로 그리면 그 기호가 없는 폰에서 빈 네모가 된다 —
+   ✧으로 한 번 겪었다. 그래서 앱 도장은 View로만 그린다. */
+eq('앱 도장은 글꼴 기호를 안 쓴다',
+  /<Text/.test(appSrc.slice(appSrc.indexOf('function NuMark'),
+    appSrc.indexOf('const nu=StyleSheet'))), false);
+eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
+eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
+
+// ─────────────────────────────────────────────
 console.log(`\n${fail ? '실패' : '통과'} — ${pass}개 통과, ${fail}개 실패`);
 process.exit(fail ? 1 : 0);
