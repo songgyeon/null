@@ -893,6 +893,9 @@ const demoOn=()=>DEMO.on||DEMO.auto;
 const demoClose=room=>((storeRef.current&&storeRef.current.msgs[room])||[]).length>=40;
 const demoReply=(bucket,lastText,userName)=>
   demoAnswer(bucket,lastText,userName,{close:demoClose(bucket)});
+/* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
+   여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
+const demoUnlocked=msgs=>HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at).map(h=>h.key);
 /* 문구집에 물어볼 말. 보통은 유저가 방금 친 말이지만, 선물을 준 참이면
    그 물건 얘기로 묻는다 — 시스템 줄("…을(를) 받았다")을 그대로 넘기면
    그건 유저가 한 말이 아니라서 아무것도 안 걸린다. */
@@ -2067,7 +2070,7 @@ function App(){
     // 데모로 굳었으면 네트워크를 아예 타지 않는다
     if(demoOn()){
       inflightRef.current[bucket]=false;
-      setTimeout(()=>enqueue(bucket,demoReply(bucket,demoAsk(payload),name)),450);
+      setTimeout(()=>{enqueue(bucket,demoReply(bucket,demoAsk(payload),name));applyUnlocked(demoUnlocked(storeRef.current.msgs))},450);
       return;
     }
     try{
@@ -2097,7 +2100,7 @@ function App(){
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
-      setTimeout(()=>enqueue(bucket,demoReply(bucket,demoAsk(payload),name)),450);
+      setTimeout(()=>{enqueue(bucket,demoReply(bucket,demoAsk(payload),name));applyUnlocked(demoUnlocked(storeRef.current.msgs))},450);
     }
   };
 

@@ -215,6 +215,45 @@ var DEMO_SELFIE = {
 };
 var DEMO_SELFIE_PHOTO = 'minhyun-mirror';
 
+/* ── 사진 ──
+   데모에서도 사진첩이 차야 한다. 서버가 붙여주던 걸 여기서 한다.
+   말에 걸리는 게 있으면 그 사진을, 없으면 가끔 아무거나 — 아무거나가 없으면
+   사진첩이 영영 비고, 매번이면 사진첩이 아니라 슬라이드쇼가 된다. */
+var DEMO_PIC = [
+  [/아프|아파|다쳤|다쳐|상처|멍/,      'jaeeon-treat',    'minhyun-corridor'],
+  [/약|연고|밴드|소독/,                 'jaeeon-care',     ''],
+  [/밥|먹|점심|저녁|배고/,              'jaeeon-cook',     'minhyun-ramen'],
+  [/사탕|단 거|단거/,                   'jaeeon-cabinet',  'minhyun-candy'],
+  [/커피/,                              'jaeeon-mug',      ''],
+  [/비 |비가|비와|비 와|장마/,          'jaeeon-car',      'minhyun-rain'],
+  [/눈 |눈이|겨울|춥/,                  'jaeeon-evening',  'minhyun-snow'],
+  [/자|졸|잠/,                          '',                'minhyun-nap'],
+  [/옥상/,                              'jaeeon-rooftop',  'minhyun-stair'],
+  [/편의점/,                            'jaeeon-market',   'minhyun-conv'],
+  [/빨래|세탁/,                         'jaeeon-laundry',  'minhyun-laundry'],
+  [/버스|정류장/,                       '',                'minhyun-busstop'],
+  [/담배|라이터|골목/,                  '',                'minhyun-alley'],
+  [/수업|교실|학교/,                    'jaeeon-classroom','minhyun-desk'],
+  [/운동|체육/,                         '',                'minhyun-gym'],
+  [/노래|음악|이어폰/,                  'jaeeon-shelf',    'minhyun-window'],
+  [/보건실/,                            'jaeeon-sink',     'minhyun-nap'],
+];
+var DEMO_PIC_ANY = {
+  jaeeon: ['jaeeon-work','jaeeon-door','jaeeon-chart','jaeeon-bottle','jaeeon-curtain',
+           'jaeeon-bandage','jaeeon-driveseat','jaeeon-corridor','jaeeon-back'],
+  minhyun:['minhyun-gate','minhyun-store','minhyun-vending','minhyun-neon','minhyun-bench',
+           'minhyun-morning','minhyun-winter','minhyun-mirror'],
+};
+var demoPicN = 0;
+function demoPhoto(room, text) {
+  var i = room === 'jaeeon' ? 1 : 2;
+  for (var k = 0; k < DEMO_PIC.length; k++)
+    if (DEMO_PIC[k][i] && DEMO_PIC[k][0].test(text || '')) return DEMO_PIC[k][i];
+  if (++demoPicN % 7 !== 0) return '';
+  var pool = DEMO_PIC_ANY[room] || [];
+  return pool.length ? pool[Math.floor(demoRand() * pool.length)] : '';
+}
+
 /* 방마다 고르는 법이 다르다.
    관전방에서 유저는 장면 밖의 관찰자다 — 유저 입력은 장면 지시로 처리하고
    출력에는 두 사람의 대화만 나온다. 단톡방은 유저가 그 안에 있다. */
@@ -277,7 +316,10 @@ function demoAnswer(room, text, name, opts) {
   }
   if (hit) {
     DEMO_ST.lastTag = hit.q[0]; DEMO_ST.lastRoom = room;
-    return demoOut(room, demoPickFrom('i:' + room + ':' + hit.q[0], hit[room]) || [], name);
+    var res = demoOut(room, demoPickFrom('i:' + room + ':' + hit.q[0], hit[room]) || [], name);
+    var pic = demoPhoto(room, t);
+    if (pic && res.length) res[res.length - 1].photo = pic;
+    return res;
   }
   // 7~8. 알아듣지 못했을 때
   DEMO_ST.lastTag = '';

@@ -282,7 +282,7 @@ section('데모 모드 — 키 없이 들어온 사람도 빈 화면을 보지 �
    아니므로, 검사도 생성된 파일이 아니라 만들어진 결과의 동작을 본다. */
 const demoSrc = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
 const demo = new Function(demoSrc +
-  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,demoWhen,DEMO_SELFIE_RE,DEMO_CORPUS};')();
+  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,demoWhen,DEMO_SELFIE_RE,DEMO_PIC,DEMO_PIC_ANY,DEMO_CORPUS};')();
 let seed = 3;
 demo.demoSeed(() => ((seed = seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 const C = demo.DEMO_CORPUS;
@@ -322,6 +322,22 @@ eq('관전방은 두 사람이 주고받는다', new Set(watch.map(m => m.sender
 eq('관전방에 유저 말풍선은 없다', watch.some(m => m.sender === 'user'), false);
 eq('단톡방도 두 사람이 주고받는다',
   new Set(demo.demoAnswer('group', '오늘 다 같이 뭐 먹을까요?', '윤하').map(m => m.sender)).size, 2);
+
+/* 데모에서도 사진첩이 차야 한다. 서버가 붙여주던 걸 엔진이 대신 한다 —
+   말에 걸리는 게 있으면 그 사진을, 없으면 가끔 아무거나. */
+[['jaeeon', '밥 먹었어요?'], ['jaeeon', '커피 마셨어요?'],
+ ['minhyun', '사탕 있어요?'], ['minhyun', '졸려요']].forEach(([r, q]) =>
+  eq(`"${q}"에 사진이 붙는다`, demo.demoAnswer(r, q, '윤하').some(m => m.photo), true));
+/* 엔진이 부르는 사진 키가 클라이언트 사진첩에 실제로 있어야 한다.
+   없는 키를 부르면 말만 남고 사진은 조용히 사라진다. */
+const galleryKeys = [...web.matchAll(/"(jaeeon|minhyun)-[\w-]+\.webp"/g)].map(m => m[0].slice(1, -6));
+const usedKeys = [...demo.DEMO_PIC.map(p => [p[1], p[2]]).flat(),
+                  ...Object.values(demo.DEMO_PIC_ANY).flat()].filter(Boolean);
+eq('데모가 부르는 사진이 전부 사진첩에 있다',
+  usedKeys.filter(k => !galleryKeys.includes(k)), []);
+/* 해금도 서버가 세어준다. 데모에는 서버가 없으니 같은 기준으로 센다 */
+eq('데모에서도 .hidden이 열린다',
+  /demoUnlocked/.test(web) && /h\.at/.test(appSrc), true);
 
 /* 셀카. 민현만 보내고, 가까워지기 전에는 아낀다 — 처음부터 주면 그건
    셀카가 아니라 프로필 사진이다. 재언은 안 찍는 사람이라 대신 오라고 한다. */

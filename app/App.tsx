@@ -1780,6 +1780,12 @@ function Root() {
     if(lines.length){ await new Promise(r=>setTimeout(r,700)); await enqueue(id,lines); }
   };
   useEffect(()=>{ Object.keys(msgs).forEach(k=>{ demoCount[k]=((msgs as any)[k]||[]).length }) },[msgs]);
+  /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
+     여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
+  useEffect(()=>{ if(!demoOn())return;
+    const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at).map(h=>h.key);
+    if(got.length) applyExtras({ unlocked:got });
+  },[msgs,demo]);
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); demoGreet(id); };
 
   // 오프닝은 폰트가 올라온 뒤에 그린다 — 픽셀 폰트가 없으면 로고가 딴 글씨가 된다
