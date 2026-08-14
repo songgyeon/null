@@ -1132,14 +1132,13 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             <View style={rl.galgrid}>
               {HIDDEN.map(h=>{
                 const un=(unlocked||[]).includes(h.key);
-                /* 대화 수와 날짜를 둘 다 넘어야 열린다. 전에는 대화만 세서
-                   120마디를 채우면 "0 more"인데 안 열렸다. 남은 쪽을 보여준다 */
-                const needN=Math.max(0,h.at-(counts[h.room]||0));
-                const needD=Math.max(0,h.day-(dayN||0));
-                const need=needN?needN+' more':needD?needD+'일 뒤':'';
+                /* 숫자를 안 쓴다. 조건이 둘(대화 수·날짜)이라 남은 쪽만 보여주면
+                   도중에 세던 게 바뀌고, 둘 다 쓰면 규칙을 다 알려주는 셈이 된다.
+                   빈칸은 이 앱의 말버릇이다 — the blank u fill in */
+                const need=un?'':'__ more';
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
                   onPress={()=>un?setZoom(IMG+h.key+'.webp')
-                    :onToast(need?'still locked · '+need:'almost there')}>
+                    :onToast('still locked')}>
                   <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
                   {!un&&<View style={rl.hlock}>
                     <Text style={{fontSize:18}}>🔒</Text>

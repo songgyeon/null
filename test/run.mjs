@@ -815,10 +815,13 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
 eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 25)], [0, 2, 8, 12]);
 eq('말을 안 하면 날짜가 가도 안 열린다', uk(10, 30), 0);
 /* .hidden의 "N more"가 대화만 세고 있었다. 날짜를 걸고 나니 120마디를 채워도
-   "0 more"인데 안 열리는 칸이 생겼다. 남은 쪽을 보여준다 */
-eq('잠긴 칸이 날짜도 세어 보여준다',
-  /needD=Math\.max\(0,h\.day-dayN\)/.test(web)
-  && /needD=Math\.max\(0,h\.day-\(dayN\|\|0\)\)/.test(appSrc), true);
+   "0 more"인데 안 열리는 칸이 생겼다. 남은 쪽만 보여주는 것도 답이 아니었다 —
+   "12 more"가 어느 순간 "5일 뒤"로 바뀌면 속은 기분이 든다. 그렇다고 둘 다 쓰면
+   규칙을 다 알려주는 셈이다. 그래서 숫자를 아예 안 쓴다. */
+eq('잠긴 칸에 숫자를 안 쓴다',
+  /const need=un\?"":"__ more";/.test(web) && /const need=un\?'':'__ more';/.test(appSrc), true);
+eq('남은 수를 세던 코드가 없다',
+  /h\.at-\(counts\[h\.room\]/.test(web + appSrc), false);
 
 /* 세 군데가 같은 날짜를 써야 한다. 어긋나면 서버가 연기하는 단계와
    화면이 보여주는 단계가 따로 논다 */

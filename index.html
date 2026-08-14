@@ -1960,14 +1960,13 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         <div className="galgrid">
           {HIDDEN.map(h=>{
             const un=unlocked.includes(h.key);
-            /* 대화 수와 날짜를 둘 다 넘어야 열린다. 전에는 대화만 세서
-               120마디를 채우면 "0 more"인데 안 열렸다. 남은 쪽을 보여준다 —
-               둘 다 남았으면 말이 먼저다. 날짜는 기다리는 것밖에 못 하니까. */
-            const needN=Math.max(0,h.at-(counts[h.room]||0));
-            const needD=Math.max(0,h.day-dayN);
-            const need=needN?needN+" more":needD?needD+"일 뒤":"";
+            /* 숫자를 안 쓴다. 대화 수와 날짜를 둘 다 넘어야 열리는데, 남은 쪽만
+               보여주면 "12 more"가 어느 순간 "5일 뒤"로 바뀌어 속은 기분이 들고,
+               둘 다 쓰면 규칙을 다 알려주는 셈이 된다. 유저는 원래 모르는 사람이다.
+               빈칸은 이 앱의 말버릇이기도 하다 — the blank u fill in. */
+            const need=un?"":"__ more";
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
-              onClick={()=>un?setZoom(h.file):onToast(need?"still locked · "+need:"almost there")}>
+              onClick={()=>un?setZoom(h.file):onToast("still locked")}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
               {!un&&need&&<div className="need">{need}</div>}
