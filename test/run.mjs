@@ -332,6 +332,14 @@ for (const r of ['jaeeon', 'minhyun'])
     if (!demo.demoAnswer(r, t, '윤하').length) empties++;
 eq('짧은 입력에도 빈 답이 없다', empties, 0);
 eq('큐가 비면 타이핑 표시를 끈다', /queueRef\.current\.length===before/.test(web), true);
+/* 모듈 바깥에서 App 안의 것(storeRef 같은)을 참조하면 부를 때마다 터진다.
+   그러면 콜백이 죽고 타이핑 표시가 영영 안 꺼진다. 실제로 그렇게 났다. */
+const outside = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('function App()'));
+eq('모듈 바깥에서 App 안의 것을 참조하지 않는다',
+  ['storeRef', 'queueRef', 'viewRef', 'setBusy', 'setStore', 'unlockedRef']
+    .filter(n => new RegExp('\\b' + n + '\\b').test(outside)), []);
+/* 그래도 터질 수 있으니 데모 답은 통째로 감싸고, 터지면 표시를 끄고 콘솔에 남긴다 */
+eq('데모 답이 터져도 화면은 안 멈춘다', /const demoSay=\(room,ask\)=>\{[\s\S]{0,400}catch/.test(web), true);
 /* 대사 파일을 따로 뺐으므로 캐시를 끊어줘야 고친 게 반영된다 */
 eq('대사 파일에 캐시 무효화가 붙어 있다', /demo-lines\.js\?v=/.test(web), true);
 

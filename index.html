@@ -13,7 +13,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 <!-- 데모 대사·매칭. 문구집에서 만들어진 파일이라 직접 고치지 않는다 -->
-<script src="demo-lines.js?v=2"></script>
+<script src="demo-lines.js?v=3"></script>
 <style>
 /* ── Y2K 파스텔 OS 팔레트 ──
    잉크 #4a4276 · 보더 #5d5490/#8a7fc0/#b0a6d8 · 크롬 #dcd6f2 · 핑크 #ff9ec6 · 라벤더 #c3b2f0 */
@@ -890,9 +890,11 @@ const DEMO={on:new URLSearchParams(location.search).has("demo"),auto:false};
 const demoOn=()=>DEMO.on||DEMO.auto;
 /* 가까워졌는지. 셀카를 줄지 말지가 여기서 갈린다 — 처음부터 주면
    그건 셀카가 아니라 프로필 사진이다. 균열 단계(40마디)를 기준으로 삼는다. */
-const demoClose=room=>((storeRef.current&&storeRef.current.msgs[room])||[]).length>=40;
-const demoReply=(bucket,lastText,userName)=>
-  demoAnswer(bucket,lastText,userName,{close:demoClose(bucket)});
+/* 대화가 얼마나 쌓였는지는 App 안에만 있다. 여기서 바로 못 읽으므로 받아서 쓴다 —
+   모듈 바깥에서 App 안의 것을 참조하면 부를 때마다 터진다. 한 번 그랬다. */
+const demoClose=(msgs,room)=>((((msgs||{})[room])||[]).length)>=40;
+const demoReply=(bucket,lastText,userName,msgs)=>
+  demoAnswer(bucket,lastText,userName,{close:demoClose(msgs,bucket)});
 /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
    여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
 const demoUnlocked=msgs=>HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at).map(h=>h.key);
@@ -2062,6 +2064,18 @@ function App(){
     markEvent({kind:"unlock",name:HIDDEN_LABEL[fresh[0]]});
   };
 
+  /* 데모 답 한 번. 여기서 터지면 타이핑 표시가 영영 안 꺼지므로 통째로 감싼다.
+     원인은 콘솔에 남긴다 — 조용히 멈추면 뭐가 잘못됐는지 알 수가 없다. */
+  const demoSay=(room,ask)=>{
+    try{
+      enqueue(room,demoReply(room,ask,name,storeRef.current.msgs));
+      applyUnlocked(demoUnlocked(storeRef.current.msgs));
+    }catch(e){
+      console.error("%c[NULL] 데모 실패 ▶ "+(e&&e.message||e),"color:#c23b50;font-weight:bold");
+      setBusy(b=>({...b,[room]:false}));
+    }
+  };
+
   /* API 요청 — 실패 시 조용한 재시도 버튼 */
   const request=async(bucket,payload)=>{
     const up=userProfile();
@@ -2075,7 +2089,7 @@ function App(){
     // 데모로 굳었으면 네트워크를 아예 타지 않는다
     if(demoOn()){
       inflightRef.current[bucket]=false;
-      setTimeout(()=>{enqueue(bucket,demoReply(bucket,demoAsk(payload),name));applyUnlocked(demoUnlocked(storeRef.current.msgs))},450);
+      setTimeout(()=>demoSay(bucket,demoAsk(payload)),450);
       return;
     }
     try{
@@ -2105,7 +2119,7 @@ function App(){
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
-      setTimeout(()=>{enqueue(bucket,demoReply(bucket,demoAsk(payload),name));applyUnlocked(demoUnlocked(storeRef.current.msgs))},450);
+      setTimeout(()=>demoSay(bucket,demoAsk(payload)),450);
     }
   };
 
@@ -2194,7 +2208,7 @@ function App(){
       // 유저가 나가고 한 시간쯤 뒤의 일로 찍는다
       const at=Math.min(lastAny+AUTO_AWAY+Math.floor(Math.random()*30*60*1000),now-5*60*1000);
       let list=null;
-      if(demoOn()){ list=demoReply("health"); }
+      if(demoOn()){ list=demoReply("health",null,name,storeRef.current.msgs); }
       else{
         try{
           const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
