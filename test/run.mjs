@@ -775,6 +775,21 @@ eq('워커에 상메 문구가 남아 있지 않다',
 eq('연기 지시와 상메는 표가 따로다', /status: \{ jaeeon/.test(workerSrc), false);
 eq('안 쓴 문구도 남겨둔다', exists('docs/status-messages.md'), true);
 
+/* 사진첩은 고정 목록인데 프롬프트가 "직접 찍은 사진을 보낼 수 있다"로 시작해서,
+   모델이 지금 새로 찍을 수 있는 줄 알았다. 비니를 선물하니 "쓰고 찍을게요"를
+   세 번 되풀이했고 세 번 다 아무것도 안 갔다 — 없는 키는 서버가 버리기 때문이다. */
+eq('사진첩이 고정이라고 못 박았다', /사진첩은 아래가 전부다\. 새로 찍을 수 없다/.test(workerSrc), true);
+eq('없는 사진을 찍는 척하지 말라고 했다', /찍는 척하지 않는다/.test(workerSrc), true);
+/* 선물은 사진에 없다. 준 물건을 걸치고 찍은 사진은 목록에 없다 */
+eq('선물은 사진에 안 나온다고 했다', /선물은 사진에 안 나온다/.test(workerSrc), true);
+/* 대신 갈 곳이 있다 — 넷은 프로필 배경으로 걸린다. 사진 대신 거기를 가리키게 한다.
+   나머지 선물은 화면 어디에도 안 보이므로 "프로필 봐요"라고 하면 안 된다. */
+const giftHint = k => buildSystem('chat', 'minhyun', 'R', null, [], null, { minhyun: 50 },
+  { name: 'x', key: k }).map(b => b.text).join('').includes('이건 네 **프로필 배경**에 걸린다');
+eq('배경이 되는 선물만 프로필을 가리킨다',
+  ['beanie', 'mug', 'photobook', 'earphone', 'hotpack', 'candy', ''].map(giftHint),
+  [true, true, true, true, false, false, false]);
+
 /* 떠난 뒤의 한 쌍은 대화 수가 아니라 시계가 정한다. 대화 수에 걸어놨더니
    하루에 백스무 마디 하면 D-29에 작별 인사가 떴다. */
 eq('120은 아직 떠나기 전 문구다',
