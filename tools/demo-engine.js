@@ -107,8 +107,14 @@ function demoScore(input, entry) {
     if (lo >= 2 && (ak.indexOf(ik) === 0 || ik.indexOf(ak) === 0) && lo * 3 >= hi * 2) {
       best = Math.max(best, 70 + lo); continue;
     }
-    // 별칭이 입력 안에 통째로 들어 있으면 그건 사실상 같은 말이다
-    if (ak.length >= 3 && ik.indexOf(ak) >= 0) { best = Math.max(best, 60 + ak.length); continue; }
+    /* 별칭이 입력 안에 통째로 들어 있으면 그건 사실상 같은 말이다.
+       다만 입력이 별칭보다 크다는 건 뭔가를 더 얹었다는 뜻이다. 그 얹은 것이
+       뚜렷한 낱말이면 화제는 그쪽이다 — "라멘 좋아해?"는 "좋아해"를 통째로
+       품고 있지만 고백이 아니라 라멘 얘기다. */
+    if (ak.length >= 3 && ik.indexOf(ak) >= 0) {
+      if (keyw && kv >= 2.2 && !demoHasTok(al, keyw)) continue;
+      best = Math.max(best, 60 + ak.length); continue;
+    }
     /* 입력이 별칭의 일부일 때는 그 일부가 별칭의 절반은 돼야 한다.
        "좋아해"가 "단 거 좋아해요?" 안에 들어 있다고 단 거 얘기인 건 아니다.
        그리고 별칭이 덧붙이고 있는 게 뚜렷한 낱말이면 그건 다른 얘기다 —
@@ -145,6 +151,13 @@ function demoScore(input, entry) {
   }
   return best;
 }
+/* 이 별칭이 그 낱말을 갖고 있나 */
+function demoHasTok(alias, w) {
+  var at = demoTokens(alias);
+  for (var i = 0; i < at.length; i++) if (demoAlike(at[i], w)) return true;
+  return false;
+}
+
 /* 별칭에만 있는 뚜렷한 낱말이 있나. 있으면 그 별칭은 입력보다 좁은 얘기다 */
 function demoAdds(alias, it) {
   var at = demoUniq(demoTokens(alias));

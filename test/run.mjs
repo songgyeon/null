@@ -390,6 +390,25 @@ eq('별칭이 덧붙인 주어를 무시하지 않는다',
   (C.intents.find(x => x.q.includes('삼촌 보고 싶어요')).minhyun || [])
     .map(x => x.join(' | ')).includes(said('minhyun', '보고싶어요')), false);
 
+/* 고백은 이 장르에서 제일 중요한 입력인데 문구집에 없어서 폴백으로 빠졌다.
+   "좋아해"는 세 글자라 다른 말 안에 통째로 들어간다 — "라멘 좋아해?"가
+   고백으로 새면 안 된다. 입력이 별칭보다 크면 그 얹은 것이 화제다. */
+['좋아해요', '좋아해', '사랑해요', '사랑해'].forEach(q => {
+  ['jaeeon', 'minhyun'].forEach(r => {
+    demo.demoReset();
+    const e = C.intents.find(x => x.q.includes(q.replace('해', '해')) || x.q[0] === q);
+    const answers = ((e && e[r]) || []).map(x => x.join(' | '));
+    eq(`"${q}"가 ${r}의 고백 답으로 간다`,
+      answers.length > 0 && answers.includes(said(r, q)), true);
+  });
+});
+['라멘 좋아해?', '떡볶이 좋아해?'].forEach(q => ['jaeeon', 'minhyun'].forEach(r => {
+  demo.demoReset();
+  const conf = C.intents.find(x => x.q[0] === '좋아해요');
+  eq(`"${q}"는 고백으로 안 샌다`,
+    ((conf && conf[r]) || []).map(x => x.join(' | ')).includes(said(r, q)), false);
+}));
+
 /* ── 선물 ──
    물건을 받았는데 "무슨 말인지 잘 못 들었어요"가 돌아오면 그건 준 게 아니라
    허공에 던진 것이다. 이름을 문장으로 꾸며 매칭에 태우던 걸 열쇠로 바꿨다. */
