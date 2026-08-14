@@ -576,10 +576,10 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .chatbar{flex:none;display:flex;align-items:center;gap:9px;padding:8px 11px;background:#ece8fa;border-bottom:1px solid #c5bce8}
 .backbtn{width:30px;height:27px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
 .cname{font-size:13.5px}
-.csub{font-size:9.5px;color:#9a8fc8;margin-top:3px}
+.csub{font-size:9.5px;color:#9a8fc8;margin-top:3px;display:flex;align-items:center;gap:7px}
 /* 남은 날. 숫자로 적으면 읽어야 하는데 칸이면 보면 안다.
    그리고 채워지는 게 아니라 비어가는 쪽이다 — 이 이야기가 그렇다. */
-.dbar{display:flex;gap:1px;width:132px;height:7px;margin-top:4px;
+.dbar{display:flex;gap:1px;width:132px;height:7px;flex:none;
  border:1px solid #b9addc;background:#fff;padding:1px;box-sizing:content-box}
 .dbar i{flex:1;background:#8a7fc0}
 .dbar i.gone{background:#f3effc}
@@ -1905,8 +1905,10 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft})
       <Avatar room={room} size={31} onProfile={onProfile}/>
       <div>
         <div className="cname">{room.name}</div>
-        <div className="csub">{watch?<><span className="rec"/> watching</>:room.sub}</div>
-        {!watch&&<DayBar left={dLeft}/>}
+        <div className="csub">
+          {watch?<><span className="rec"/> watching</>:room.sub}
+          {!watch&&<DayBar left={dLeft}/>}
+        </div>
       </div>
     </div>
     <div className="msgs" ref={boxRef}>
