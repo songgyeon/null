@@ -1,0 +1,27 @@
+{
+  "name": "null-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "bundle": "expo export --platform android"
+  },
+  "dependencies": {
+    "expo": "~54.0.36",
+    "expo-asset": "~12.0.13",
+    "expo-audio": "~1.1.1",
+    "expo-constants": "~18.0.13",
+    "expo-font": "~14.0.12",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-sqlite": "~16.0.10",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
+  }
+}

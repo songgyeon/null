@@ -20,6 +20,8 @@ app/lib/              # api.ts(호출) · profiles.ts(단계·선물·BGM) · db
 app/assets/           # 앱에 묶어 넣는 그림 — 아이콘 3장 + 비눗방울·자막막·포인터
 app/app.json          # 패키지·아이콘·플러그인
 app/eas.json          # APK 빌드 설정
+app/package.json      # SDK 54에 맞춘 의존성. expo-asset·expo-constants를 명시로 박아뒀다
+app/package-lock.json # 트리 고정 — 이게 없어서 npm이 SDK를 안 보고 최신을 끌어왔다
 docs/dialogue-corpus.md  # 문구집 원본 — 488개 의도 · 2,047줄. 손으로 고치는 건 여기뿐
 docs/status-messages.md  # 상태메시지 — 쓰는 것과 안 쓴 것
 tools/demo-engine.js     # 매칭 엔진 — 웹·앱 결과물에 그대로 이어 붙는다
@@ -30,8 +32,11 @@ null-logo.mp3         # 오프닝 로고곡
 null-film.mp3         # 소개 영상 브금
 ```
 
-웹은 `index.html`을 그대로 열면 돕니다. 앱은 `npx expo start`,
-APK는 `npx eas-cli build -p android --profile preview`.
+웹은 `index.html`을 그대로 열면 돕니다. 앱은 `cd app && npm install && npx expo start`,
+APK는 `npx eas-cli build -p android --profile preview`(Expo 로그인 필요).
+
+앱 화면 글꼴은 Galmuri11입니다. `app/assets/fonts/Galmuri11.ttf`에 두면 되고,
+없으면 번들이 그 자리에서 멈춥니다.
 
 사진은 WebP입니다. 원래 PNG였는데 53장 합계가 103MB라 배경 한 장 뜨는 데 2MB를 받았습니다.
 같은 해상도 그대로 WebP q82로 바꿔 **4.5MB**가 됐습니다(23배). 1:1로 확대해 비교했고 눈에 띄는 차이는 없었습니다.
