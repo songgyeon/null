@@ -4,5 +4,5 @@
     "strict": false,
     "jsx": "react-jsx"
   },
-  "include": ["App.tsx", "lib/**/*.ts"]
+  "include": ["index.ts", "App.tsx", "lib/**/*.ts"]
 }
