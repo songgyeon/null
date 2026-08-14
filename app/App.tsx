@@ -1132,14 +1132,18 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             <View style={rl.galgrid}>
               {HIDDEN.map(h=>{
                 const un=(unlocked||[]).includes(h.key);
-                const need=Math.max(0,h.at-(counts[h.room]||0));
+                /* 대화 수와 날짜를 둘 다 넘어야 열린다. 전에는 대화만 세서
+                   120마디를 채우면 "0 more"인데 안 열렸다. 남은 쪽을 보여준다 */
+                const needN=Math.max(0,h.at-(counts[h.room]||0));
+                const needD=Math.max(0,h.day-(dayN||0));
+                const need=needN?needN+' more':needD?needD+'일 뒤':'';
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
                   onPress={()=>un?setZoom(IMG+h.key+'.webp')
-                    :onToast(need?'still locked · '+need+' more':'almost there')}>
+                    :onToast(need?'still locked · '+need:'almost there')}>
                   <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
                   {!un&&<View style={rl.hlock}>
                     <Text style={{fontSize:18}}>🔒</Text>
-                    {need>0&&<Text style={rl.hneed}>{need} more</Text>}</View>}
+                    {!!need&&<Text style={rl.hneed}>{need}</Text>}</View>}
                   <View style={rl.hlabel}><Text style={rl.hlabelT}>{un?h.label:'???'}</Text></View>
                 </TouchableOpacity>;
               })}

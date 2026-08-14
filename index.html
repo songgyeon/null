@@ -1960,12 +1960,17 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         <div className="galgrid">
           {HIDDEN.map(h=>{
             const un=unlocked.includes(h.key);
-            const need=Math.max(0,h.at-(counts[h.room]||0));   // 이 방에서 몇 번 더 주고받아야 하나
+            /* 대화 수와 날짜를 둘 다 넘어야 열린다. 전에는 대화만 세서
+               120마디를 채우면 "0 more"인데 안 열렸다. 남은 쪽을 보여준다 —
+               둘 다 남았으면 말이 먼저다. 날짜는 기다리는 것밖에 못 하니까. */
+            const needN=Math.max(0,h.at-(counts[h.room]||0));
+            const needD=Math.max(0,h.day-dayN);
+            const need=needN?needN+" more":needD?needD+"일 뒤":"";
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
-              onClick={()=>un?setZoom(h.file):onToast(need?"still locked · "+need+" more":"almost there")}>
+              onClick={()=>un?setZoom(h.file):onToast(need?"still locked · "+need:"almost there")}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
-              {!un&&need>0&&<div className="need">{need} more</div>}
+              {!un&&need&&<div className="need">{need}</div>}
               <div className="hlabel">{un?h.label:"???"}</div>
             </div>;
           })}
