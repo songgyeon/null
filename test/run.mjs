@@ -638,6 +638,38 @@ eq('목록이 본 단계를 넘겨받는다',
 eq('새로 시작하면 본 기록도 지운다',
   /setSeenStage\(\{\}\)/.test(web) && /setSeenStage\(\{\}\)/.test(appSrc), true);
 
+/* 상태메시지는 세 군데에 적혀 있다 — 워커(API를 켰을 때), 웹, 앱.
+   어긋나면 API를 켠 사람과 안 켠 사람이 다른 문구를 본다. 눈으로는 안 잡힌다. */
+const STATUS_WANT = [
+  ['별일 없어요.',    '수업 중. 아마도.'],
+  ['문은 열어둘게요.', '기다리는 거 아니에요.'],
+  ['어디 안 가요.',    '그 말 취소하면 안 돼요.'],
+  ['아직 남았어요.',   '곧이잖아요. 지금이 아니라.'],
+  ['잘 지내요. 항상.', '모르는 걸로 할게요.'],
+];
+const AT = [0, 16, 40, 80, 120];
+eq('웹 상메가 표와 같다',
+  ['jaeeon', 'minhyun'].map((c, ci) => webProfiles[c].stages.map(s => s.status))
+    .map((got, ci) => JSON.stringify(got) === JSON.stringify(STATUS_WANT.map(r => r[ci]))),
+  [true, true]);
+eq('앱 상메가 표와 같다',
+  STATUS_WANT.flat().filter(t => !profSrc.includes(`'${t}'`)), []);
+/* 워커 쪽은 statusOf를 실제로 돌려본다 — 표만 보면 경계값이 안 잡힌다 */
+const wStatus = new Function(
+  workerSrc.slice(workerSrc.indexOf('const STATUS = ['),
+    workerSrc.indexOf('function unlockedKeys')) + ';return statusOf')();
+eq('워커 상메가 표와 같다',
+  AT.map(n => { const o = wStatus({ jaeeon: n, minhyun: n }); return [o.jaeeon, o.minhyun]; }),
+  STATUS_WANT);
+/* 경계 바로 아래는 앞 단계여야 한다. 한 칸씩 밀린 적이 있다 */
+eq('경계 직전은 아직 앞 단계다',
+  wStatus({ jaeeon: 39, minhyun: 15 }),
+  { jaeeon: '문은 열어둘게요.', minhyun: '수업 중. 아마도.' });
+/* 연기 지시는 넷, 화면 단계는 다섯이다. 한 표에 묶으면 상메를 고칠 때
+   모델 지시가 딸려 나온다 — 그래서 STAGES에서 status를 뺐다 */
+eq('연기 지시와 상메는 표가 따로다', /status: \{ jaeeon/.test(workerSrc), false);
+eq('안 쓴 문구도 남겨둔다', exists('docs/status-messages.md'), true);
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 

@@ -115,6 +115,10 @@ export async function saveGifts(g: Record<string,string[]>) {
 //
 // status는 기본 문구다. 서버가 status를 내려주면(meta: status_<char>)
 // 그쪽이 우선한다. 둘 다 비면 프로필에 상태메시지 줄 자체가 안 나온다.
+// 둘 다 대놓고 상대를 지칭하지 않는다. 평범한 공지처럼 써놓고 실제로는
+// 한 사람만 알아듣게 한다. 그래서 같은 단계끼리 나란히 놓으면 주고받는
+// 말이 된다 — "문은 열어둘게요."에 "기다리는 거 아니에요."가 붙는 식이다.
+// worker.js의 STATUS와 같아야 한다. 어긋나면 API를 켰을 때만 문구가 달라진다.
 // 재언은 밝은 데서 어두운 데로 — 미술관, 계단참, 복도, 밤 차 안, 그리고 부엌.
 // 마지막 부엌에 씻어서 엎어놓은 그릇이 두 개다.
 // 민현은 안에서 밖으로 — 레코드샵, 버스, 골목, 그리고 옥상.
@@ -123,21 +127,21 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   jaeeon: {
     fallback: 'jaeeon-gallery.webp',
     stages: [
-      { at: 0,   status: '',              bg: 'jaeeon-gallery.webp', track: 'jaeeon-1' },
-      { at: 16,  status: '오늘 아무도 안 다쳤음',      bg: 'jaeeon-landing.webp', track: 'jaeeon-1' },
-      { at: 40,  status: '자꾸 뭘 두고 온다', bg: 'jaeeon-lobby.webp',   track: 'jaeeon-2' },
-      { at: 80,  status: '버릴 것, 둘 것',    bg: 'jaeeon-drive.webp',   track: 'jaeeon-3' },
-      { at: 120, status: '문을 안 잠갔다',     bg: 'jaeeon-kitchen.webp', track: 'jaeeon-4' },
+      { at: 0,   status: '별일 없어요.',       bg: 'jaeeon-gallery.webp', track: 'jaeeon-1' },
+      { at: 16,  status: '문은 열어둘게요.',    bg: 'jaeeon-landing.webp', track: 'jaeeon-1' },
+      { at: 40,  status: '어디 안 가요.',       bg: 'jaeeon-lobby.webp',   track: 'jaeeon-2' },
+      { at: 80,  status: '아직 남았어요.',      bg: 'jaeeon-drive.webp',   track: 'jaeeon-3' },
+      { at: 120, status: '잘 지내요. 항상.',    bg: 'jaeeon-kitchen.webp', track: 'jaeeon-4' },
     ],
   },
   minhyun: {
     fallback: 'minhyun-sunset.webp',
     stages: [
-      { at: 0,   status: '',                      bg: 'minhyun-shop.webp',     track: 'minhyun-1' },
-      { at: 16,  status: '보건실 침대는 내 자리', bg: 'minhyun-lp.webp',       track: 'minhyun-1' },
-      { at: 40,  status: '읽씹 아님 못 읽은 거임',    bg: 'minhyun-bus.webp', track: 'minhyun-2' },
-      { at: 80,  status: 'D-',         bg: 'minhyun-cat.webp',      track: 'minhyun-3' },
-      { at: 120, status: '다 셌다',             bg: 'minhyun-sunset.webp',   track: 'minhyun-4' },
+      { at: 0,   status: '수업 중. 아마도.',          bg: 'minhyun-shop.webp',     track: 'minhyun-1' },
+      { at: 16,  status: '기다리는 거 아니에요.',     bg: 'minhyun-lp.webp',       track: 'minhyun-1' },
+      { at: 40,  status: '그 말 취소하면 안 돼요.',   bg: 'minhyun-bus.webp', track: 'minhyun-2' },
+      { at: 80,  status: '곧이잖아요. 지금이 아니라.', bg: 'minhyun-cat.webp',      track: 'minhyun-3' },
+      { at: 120, status: '모르는 걸로 할게요.',       bg: 'minhyun-sunset.webp',   track: 'minhyun-4' },
     ],
   },
 };
