@@ -321,9 +321,11 @@ function demoAnswer(room, text, name, opts) {
     if (pic && res.length) res[res.length - 1].photo = pic;
     return res;
   }
-  // 7~8. 알아듣지 못했을 때
+  // 7~8. 알아듣지 못했을 때. 여기서도 빈 손으로 돌아가지 않는다 —
+  // 빈 답이 나가면 화면에서 타이핑 표시가 안 꺼진다
   DEMO_ST.lastTag = '';
-  return demoOut(room, demoPickFrom('fb:' + room, C.fallback[room]) || [], name);
+  var fb = demoPickFrom('fb:' + room, C.fallback[room]);
+  return demoOut(room, (fb && fb.length) ? fb : ['무슨 말인지 잘 못 들었어요.'], name);
 }
 /* 후속 조건은 "재언 — 기다렸어요 계열 다음" 꼴의 한국어 문장이다.
    앞 답의 의도 이름과 겹치는 낱말이 있으면 열어준다. */

@@ -323,6 +323,18 @@ eq('관전방에 유저 말풍선은 없다', watch.some(m => m.sender === 'user
 eq('단톡방도 두 사람이 주고받는다',
   new Set(demo.demoAnswer('group', '오늘 다 같이 뭐 먹을까요?', '윤하').map(m => m.sender)).size, 2);
 
+/* 빈 답이 나가면 화면에서 타이핑 표시가 안 꺼진다. 큐에 안 들어가면 pump가
+   안 돌기 때문이다. 엔진은 늘 무언가를 돌려주고, 그래도 비면 클라이언트가 끈다. */
+let empties = 0;
+for (const r of ['jaeeon', 'minhyun'])
+  for (const t of ['네?', '네', '응', '?', '!', 'ㅇㅇ', '아', '뭐', '좋아해', 'ㅋㅋ',
+                   '...', ' ', '1', 'ok', 'zzz', '네?', '네?', '네?'])
+    if (!demo.demoAnswer(r, t, '윤하').length) empties++;
+eq('짧은 입력에도 빈 답이 없다', empties, 0);
+eq('큐가 비면 타이핑 표시를 끈다', /queueRef\.current\.length===before/.test(web), true);
+/* 대사 파일을 따로 뺐으므로 캐시를 끊어줘야 고친 게 반영된다 */
+eq('대사 파일에 캐시 무효화가 붙어 있다', /demo-lines\.js\?v=/.test(web), true);
+
 /* 데모에서도 사진첩이 차야 한다. 서버가 붙여주던 걸 엔진이 대신 한다 —
    말에 걸리는 게 있으면 그 사진을, 없으면 가끔 아무거나. */
 [['jaeeon', '밥 먹었어요?'], ['jaeeon', '커피 마셨어요?'],
