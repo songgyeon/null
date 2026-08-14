@@ -42,11 +42,13 @@ for (const raw of md) {
   if ((m = line.match(/^##\s+(.*)$/)))  { flush(); sec = m[1].trim(); sub = ''; continue; }
   if ((m = line.match(/^###\s+(.*)$/))) { flush(); sub = m[1].trim();
     if (/장기 대화|선톡 후/.test(sec)) { cur = { title: sub, sec, script: [] }; mode = 'script'; }
+    else { cur = { q: [sub], sec, fromSub: true }; mode = 'cand'; }   // 소제목 아래 대사도 줍는다
     continue; }
-  if ((m = line.match(/^\*\*Q\.\s*(.+?)\*\*\s*(?:\*\((.+?)\)\*)?\s*$/))) {
+  if ((m = line.match(/^\*\*Q\.\s*(.+?)\*\*(.*)$/))) {
     flush();
     cur = { q: m[1].split('/').map(s => s.trim()).filter(Boolean), sec };
-    if (m[2]) cur.after = m[2].trim();
+    var cond = (m[2] || '').match(/\*\(([\s\S]+)\)\*/);   // 조건에 따옴표나 물음표가 들어와도 받는다
+    if (cond) cur.after = cond[1].trim();
     mode = isScript(sec) ? 'script' : 'cand';
     if (mode === 'script') cur.script = [];
     continue;
@@ -65,6 +67,13 @@ for (const raw of md) {
     mode = isScript(sec) ? 'script' : isProactive(sec) ? 'proactive' : 'cand';
     if (mode === 'script') cur.script = [];
     continue;
+  }
+  /* 소제목 아래 설명문에 "식사, 카페, 영화처럼" 하고 걸리는 말이 나열돼 있다.
+     그게 곧 이 갈래를 여는 입력이라 별칭으로 넣는다. */
+  if (cur && cur.fromSub && line.indexOf('처럼') > 0) {
+    const head = line.split('처럼')[0];
+    const words = head.split(/[,、]/).map(w => w.trim().split(' ').pop()).filter(w => w && w.length <= 6);
+    if (words.length >= 3) cur.q.push(...words);
   }
   if ((m = line.match(/^\*\*([^*]+)\*\*\s*$/))) {
     flush();

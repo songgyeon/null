@@ -165,7 +165,10 @@ function demoScript(sc, name) {
   }
   return out;
 }
-function demoFill(t, name) { return t.split('{name}').join(name || '선생님'); }
+/* 문구집이 자리표시자를 {이름}으로도 {name}으로도 쓴다. 둘 다 받는다 */
+function demoFill(t, name) {
+  return t.split('{name}').join(name || '선생님').split('{이름}').join(name || '선생님');
+}
 function demoOut(room, lines, name) {
   return lines.map(function (t) { return { sender: room, text: demoFill(t, name) }; });
 }
