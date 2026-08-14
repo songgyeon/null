@@ -794,6 +794,8 @@ const FORMAT_CHAT = `
   - 짧게, 한 호흡. 소리나 손짓 하나. 문단짜리 설명을 쓰지 않는다.
   - 자주 쓰지 않는다. 말로 될 일은 말로 한다.
 - 한 번에 1~3개의 짧은 말풍선으로 답한다. 카톡처럼.
+- **한국어로만 말한다.** 한자도 영어 문장도 쓰지 않는다. 노래 제목이나 상표처럼
+  원래 그런 이름인 것만 예외다. 목차·제목·머리말 같은 문서 조각을 대사에 넣지 않는다.
 - 반드시 아래 JSON만 출력한다. 다른 텍스트 금지:
 {"messages": ["지금요?", "그건 아까 말했잖아요."]}
 - 같이 가자고 하기로 한 턴에만 "invite"를 같이 쓴다. 아닌 턴에는 아예 쓰지 않는다:
@@ -1380,9 +1382,18 @@ function stripHan(t) {
   if (!t || !HAN.test(t)) return t;
   return t.replace(HAN, "").replace(/^[\s,.·、。]+/, "").replace(/\s{2,}/g, " ").trim();
 }
+/* 한글이 한 자도 없는데 영문이 든 말풍선. 모델이 흘린 조각이다 —
+   "Table of contents"가 민현의 말로 화면에 떨어진 적이 있다.
+   한글이 섞인 줄은 안 건드린다. 노래 제목이나 상표를 말할 수 있어야 하니까.
+   점만 있는 줄과 사진 말풍선도 그대로 둔다. */
+function isStray(t) {
+  return !/[가-힣]/.test(t || "") && /[A-Za-z]{2,}/.test(t || "");
+}
 function trimTics(list) {
   list = list.map(m => (m.text ? { ...m, text: stripHan(m.text) } : m))
-             .filter(m => m.photo || (m.text || "").trim());
+             .filter(m => m.photo || (m.text || "").trim())
+             .map(m => (m.photo && isStray(m.text) ? { ...m, text: "" } : m))
+             .filter(m => m.photo || !isStray(m.text));
   const out = [];
   let dots = 0, lead = 0;
   for (const m of list) {

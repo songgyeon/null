@@ -554,7 +554,7 @@ eq('등록 화면 빈칸이 웹·앱 같다', enrOf(appSrc), enrOf(web));
 eq('등록 화면 빈칸이 네 칸이다', enrOf(web).length, 4);
 
 /* etc. 팝업 문구 — 여기가 이 앱이 자기를 소개하는 유일한 자리다 */
-const etcLines = ['안녕, NULL 기다렸어. ✧', 'the blank u fill in', '당신이 없어도 대화는 이어져요.'];
+const etcLines = ['안녕, NULL 기다렸어. ✧', 'the blank u fill in'];
 eq('etc. 팝업 문구가 웹·앱 같다',
   etcLines.filter(t => !(appSrc.includes(t) && web.includes(t))), []);
 
@@ -899,6 +899,24 @@ eq('한자만 남은 말풍선은 버린다',
 eq('한글은 안 건드린다',
   trimTics([{ sender: 'jaeeon', text: '그럼 도서관 갈래요.' }]).map(m => m.text),
   ['그럼 도서관 갈래요.']);
+
+/* 한자만 흘리는 게 아니다. "Table of contents"가 민현의 말로 화면에 떨어졌다.
+   한글이 한 자도 없는데 영문이 든 말풍선은 모델이 흘린 조각이다. */
+eq('영문만 있는 말풍선은 버린다',
+  trimTics([{ sender: 'minhyun', text: '이거 왜 자꾸 생각나지.' },
+            { sender: 'minhyun', text: 'Table of contents' }]).map(m => m.text),
+  ['이거 왜 자꾸 생각나지.']);
+/* 한글이 섞인 줄은 안 건드린다 — 노래 제목이나 상표를 말할 수 있어야 한다 */
+eq('한글이 섞이면 영문도 남는다',
+  trimTics([{ sender: 'minhyun', text: 'Online at 2AM 들어봤어요?' }]).map(m => m.text),
+  ['Online at 2AM 들어봤어요?']);
+/* 사진은 살리고 말만 지운다 — 사진까지 버리면 보낸 게 통째로 사라진다 */
+eq('사진에 붙은 영문 조각만 지운다',
+  trimTics([{ sender: 'minhyun', text: 'Table of contents', photo: 'minhyun-nap' }])
+    .map(m => m.text + '|' + m.photo), ['|minhyun-nap']);
+eq('점만 있는 줄은 그대로다',
+  trimTics([{ sender: 'minhyun', text: '...' }]).map(m => m.text), ['...']);
+eq('한국어로만 말하라고 했다', /한국어로만 말한다/.test(workerSrc), true);
 /* 대신 갈 곳이 있다 — 넷은 프로필 배경으로 걸린다. 사진 대신 거기를 가리키게 한다.
    나머지 선물은 화면 어디에도 안 보이므로 "프로필 봐요"라고 하면 안 된다. */
 const giftHint = k => buildSystem('chat', 'minhyun', 'R', null, [], null, { minhyun: 50 },

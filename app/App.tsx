@@ -1933,7 +1933,6 @@ function Root() {
                 <Text style={mo.etcSub}>the blank u fill in</Text>
                 <Text style={mo.etcDiv}>♡ ・ ♡ ・ ♡</Text>
                 <View style={mo.etcRow}><Text style={mo.etcTag}>실습 D-{dLeft}</Text></View>
-                <Text style={mo.etcNote}>당신이 없어도 대화는 이어져요.{'\n'}항상 당신 이야기로.</Text>
                 <View style={mo.etcStk}>
                   {['✿','★','♡','✧','☾'].map((x,i)=>
                     <Text key={i} style={[mo.etcStkT,{color:['#ff9ec6','#ffd68a','#c3b2f0','#8fd8e8','#ffb0d4'][i]}]}>{x}</Text>)}
