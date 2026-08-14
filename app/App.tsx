@@ -168,9 +168,8 @@ function Face({char,size,radius,border}:{char:string;size:number;radius?:number;
 
 /* ── 프로필이 바뀌면 목록이 알려준다 ──
    말풍선으로 알리지 않는다. 그건 그 사람이 나한테 한 말이 아니니까.
-   얼굴 둘레가 숨 쉬듯 뛰고, 무엇이 바뀌었는지 작은 도장이 이름 옆에 붙는다.
-   RN에는 SVG가 없어서 View로 그린다 — 글꼴에 든 기호를 쓰면 그 기호가 없는
-   폰에서 빈 네모가 된다. ✧으로 한 번 겪었다. */
+   얼굴 둘레가 숨 쉬듯 뛴다. 그게 전부다 — 웹은 홀로그램이 도는데 RN에는
+   conic-gradient가 없어서 이쪽은 깜빡임으로 대신한다. */
 function NuRing(){
   const a=useRef(new Animated.Value(0)).current;
   useEffect(()=>{
@@ -184,22 +183,7 @@ function NuRing(){
     opacity:a.interpolate({inputRange:[0,1],outputRange:[.22,1]}),
     transform:[{scale:a.interpolate({inputRange:[0,1],outputRange:[.95,1.05]})}]}]}/>;
 }
-function NuMark({kind}:{kind:string}){
-  return <View style={nu.stamp}>
-    {kind==='bg'    &&<View style={nu.frame}><View style={nu.hill}/></View>}
-    {kind==='track' &&<><View style={nu.stem}/><View style={nu.head}/></>}
-    {kind==='status'&&<View style={nu.pencil}/>}
-  </View>;
-}
 const nu=StyleSheet.create({
-  row:{flexDirection:'row',alignItems:'center',gap:2},
-  stamp:{width:13,height:13,borderWidth:1,borderColor:'#e0aad0',borderRadius:3,
-         backgroundColor:'#fff6fb',alignItems:'center',justifyContent:'center'},
-  frame:{width:8,height:6,borderWidth:1,borderColor:'#c76aa0',justifyContent:'flex-end',overflow:'hidden'},
-  hill:{width:8,height:2,backgroundColor:'#c76aa0'},
-  stem:{position:'absolute',right:3.5,top:2.5,width:1.4,height:6,backgroundColor:'#c76aa0'},
-  head:{position:'absolute',right:2,top:7,width:4,height:3,borderRadius:2,backgroundColor:'#c76aa0'},
-  pencil:{width:8,height:2.2,backgroundColor:'#c76aa0',transform:[{rotate:'-45deg'}]},
   ring:{position:'absolute',left:-4,top:-4,width:50,height:50,borderRadius:25,
         borderWidth:1.6,borderColor:'#ff8fbe'},
 });
@@ -1154,7 +1138,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,album,autoAt,onOpen,onP
           const ms=msgs[room.id]||[]; const last=ms[ms.length-1]; const un=unread[room.id]||0;
           const watch=room.type==='watch';
           const pr=presence(room.id);
-          /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 둘레가 뛰고 도장이 붙는다 */
+          /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 얼굴 둘레가 뛴다 */
           const nuList=CHARS[room.id]?stageDiff(room.id,(seenStage||{})[room.id]||0,stageIdx(counts[room.id]||0)):[];
           const card=<TouchableOpacity style={[rl.card,watch&&rl.cardW]} onPress={()=>onOpen(room.id)}>
             {room.type==='dm'
@@ -1182,8 +1166,6 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,album,autoAt,onOpen,onP
             <View style={{flex:1}}>
               <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
                 <Text style={rl.nm}>{room.name}</Text>
-                {nuList.length>0&&<View style={nu.row}>
-                  {nuList.map(k=><NuMark key={k} kind={k}/>)}</View>}
                 {pr&&<View style={rl.pres}>
                   <View style={[rl.presDot,{backgroundColor:DOT[pr.s]}]}/>
                   <Text style={rl.presT}>{pr.t}</Text></View>}

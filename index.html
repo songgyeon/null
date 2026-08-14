@@ -526,21 +526,14 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .rname{font-size:13.5px}
 /* ── 프로필이 바뀌면 목록이 알려준다 ──
    말풍선으로 알리지 않는다 — 그건 그 사람이 나한테 한 말이 아니니까.
-   아바타 테두리가 한 바퀴 돌고, 무엇이 바뀌었는지 작은 도장이 붙는다.
-   프로필을 한 번 열어보면 둘 다 꺼진다. */
+   아바타 테두리가 홀로그램으로 한 바퀴 돈다. 그게 전부다.
+   프로필을 한 번 열어보면 꺼진다. */
 .avatar.nu::after{content:"";position:absolute;inset:-4px;border-radius:50%;pointer-events:none;
  background:conic-gradient(from 0deg,#ffb0d4,#c3b2f0,#9ae6f0,#ffe9a8,#ffb0d4);
  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 2px));
  mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 2px));
  animation:nuspin 3.6s linear infinite}
 @keyframes nuspin{to{transform:rotate(360deg)}}
-.numark{display:flex;align-items:center;gap:2px;flex:none;align-self:center}
-.numark i{display:flex;align-items:center;justify-content:center;width:13px;height:13px;
- border:1px solid #e0aad0;border-radius:3px;background:#fff6fb;
- box-shadow:1px 1px 0 rgba(93,84,144,.18);animation:nupop .34s ease-out backwards}
-.numark i:nth-child(2){animation-delay:.07s}
-.numark i:nth-child(3){animation-delay:.14s}
-@keyframes nupop{from{transform:scale(.2) rotate(-25deg);opacity:0}}
 .rtag{font-size:9px;padding:2px 6px;border:1px solid currentColor;border-radius:8px;letter-spacing:.05em;white-space:nowrap;flex:none}
 .rtime{margin-left:auto;font-size:9.5px;color:#b0a6d8;flex:none}
 .rprev{margin-top:5px;font-size:11px;color:#9a8fc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1259,19 +1252,13 @@ const PROFILES={
   ]},
 };
 
-/* 본 단계와 지금 단계 사이에 실제로 달라진 것만 고른다.
-   두 단계를 건너뛰었어도 결과는 "지금 무엇이 그때와 다른가" 하나다.
-   16은 곡이 그대로라 두 개만 나온다 — 그 차이가 오히려 정직하다. */
+/* 본 단계와 지금 단계 사이에 실제로 달라진 것. 목록은 이게 비었는지만 본다.
+   단계가 올랐어도 배경·곡·상메가 다 그대로면 알릴 일이 없다.
+   두 단계를 건너뛰었어도 답은 "지금 무엇이 그때와 다른가" 하나다. */
 const stageDiff=(char,seen,now)=>{
   const ss=(PROFILES[char]||{}).stages||[], a=ss[seen], b=ss[now];
   if(!a||!b||now<=seen)return [];
   return ["bg","track","status"].filter(k=>(a[k]||"")!==(b[k]||""));
-};
-/* 무엇이 바뀌었는지 알리는 작은 도장. 배경은 액자, 곡은 음표, 상메는 연필 */
-const NuMark={
-  bg:()=><svg width="9" height="9" viewBox="0 0 9 9" style={px}><rect x=".5" y="1.5" width="8" height="6" fill="#ffe9f4" stroke="#c76aa0"/><path d="M1 6l2-2 1.5 1.5L6 4l2 2.5" fill="none" stroke="#c76aa0"/></svg>,
-  track:()=><svg width="9" height="9" viewBox="0 0 9 9" style={px}><path d="M3.5 6V1.5L8 .5V5" fill="none" stroke="#c76aa0"/><circle cx="2.2" cy="6.3" r="1.6" fill="#c76aa0"/><circle cx="6.7" cy="5.3" r="1.6" fill="#c76aa0"/></svg>,
-  status:()=><svg width="9" height="9" viewBox="0 0 9 9" style={px}><path d="M6.5.8l1.7 1.7-5 5L1 8l.5-2.2z" fill="#ffe9f4" stroke="#c76aa0"/><path d="M5.4 1.9l1.7 1.7" fill="none" stroke="#c76aa0"/></svg>,
 };
 
 /* 프로필 뮤직 — 눌러야 나온다. 곡 정보가 비어 있으면 "BGM 없음"으로 둔다.
@@ -1824,7 +1811,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           const ms=store.msgs[r.id]||[], last=ms[ms.length-1], un=store.unread[r.id]||0;
           const watch=r.type==="watch";
           const pr=presence(r.id,new Date(now));
-          /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 아바타가 돌고 도장이 붙는다 */
+          /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 아바타 둘레가 돈다 */
           const nu=CHARS[r.id]?stageDiff(r.id,(seenStage||{})[r.id]||0,stageIdx(counts[r.id]||0)):[];
           return <React.Fragment key={r.id}>
             {watch&&<div className="sect">✧ LIVE<span className="deco"><Sticker.butterfly size={13} color="#9aa3d8"/></span></div>}
@@ -1833,8 +1820,6 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
               <div className="rinfo">
                 <div className="rtop">
                   <span className="rname">{r.name}</span>
-                  {nu.length>0&&<span className="numark" title="프로필이 바뀌었다">
-                    {nu.map(k=>{const M=NuMark[k];return <i key={k}><M/></i>})}</span>}
                   {pr&&<span className={"pres "+pr.s}><i/>{pr.t}</span>}
                   {last&&<span className="rtime">{fmtListTime(last.ts)}</span>}
                 </div>
