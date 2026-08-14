@@ -782,6 +782,35 @@ eq('사진첩이 고정이라고 못 박았다', /사진첩은 아래가 전부�
 eq('없는 사진을 찍는 척하지 말라고 했다', /찍는 척하지 않는다/.test(workerSrc), true);
 /* 선물은 사진에 없다. 준 물건을 걸치고 찍은 사진은 목록에 없다 */
 eq('선물은 사진에 안 나온다고 했다', /선물은 사진에 안 나온다/.test(workerSrc), true);
+
+/* ── 같이 가자는 제안 ──
+   조건이 "대화 수 ≥ 40" 하나뿐이라 그 뒤로 매 턴 참이었다. 같은 자리를 계속
+   조르고, 120이 넘으면 세 곳이 다 자격을 얻어 하나 끝나자마자 다음 걸 꺼냈다 —
+   옥상에 가기로 한 바로 그 답에서 도서관을 또 물었다. */
+const invSrc = workerSrc.slice(workerSrc.indexOf('const INVITES ='), workerSrc.indexOf('function buildInvite'));
+const inviteFor = new Function(invSrc + ';return inviteFor')();
+const inv = (n, done = []) => inviteFor('chat', 'jaeeon', { jaeeon: n }, done, []);
+eq('문턱을 넘으면 한 번 열린다', [inv(39), inv(40), inv(49)], [null, '옥상', '옥상']);
+eq('열 마디가 지나면 닫힌다', inv(50), null);
+eq('다음 문턱까지는 조용하다', [inv(60), inv(79)], [null, null]);
+eq('다녀온 자리는 다시 안 꺼낸다', inv(45, ['옥상']), null);
+/* 하나 끝나자마자 다음 걸 꺼내지 않는다 — 이게 원래 증상이었다 */
+eq('연달아 두 곳을 부르지 않는다', inv(45, ['옥상']), null);
+eq('다음 문턱에서는 다음 자리다', inv(82, ['옥상']), '도서관');
+eq('셋 다 끝나면 없다', inv(125, ['옥상', '도서관', '빨래방']), null);
+/* 화제를 끊고 꺼내면 딴사람처럼 보인다 */
+eq('하던 얘기 끝에 붙이라고 했다', /지금 하던 얘기 끝에 붙인다/.test(workerSrc), true);
+
+/* 모델이 가끔 한자를 흘린다 — "那, 도서관 갈래요." 스무 살과 스물아홉 살이
+   메신저에서 한자를 칠 일이 없다. */
+eq('한자를 지우고 앞 구두점까지 정리한다',
+  trimTics([{ sender: 'jaeeon', text: '那, 도서관 갈래요.' }]).map(m => m.text),
+  ['도서관 갈래요.']);
+eq('한자만 남은 말풍선은 버린다',
+  trimTics([{ sender: 'jaeeon', text: '那' }]).length, 0);
+eq('한글은 안 건드린다',
+  trimTics([{ sender: 'jaeeon', text: '그럼 도서관 갈래요.' }]).map(m => m.text),
+  ['그럼 도서관 갈래요.']);
 /* 대신 갈 곳이 있다 — 넷은 프로필 배경으로 걸린다. 사진 대신 거기를 가리키게 한다.
    나머지 선물은 화면 어디에도 안 보이므로 "프로필 봐요"라고 하면 안 된다. */
 const giftHint = k => buildSystem('chat', 'minhyun', 'R', null, [], null, { minhyun: 50 },

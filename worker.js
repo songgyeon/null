@@ -1070,17 +1070,27 @@ const INVITES = {
 };
 /* 이번 답에 같이 가자고 할 자리. 없으면 null.
    done(다녀온 곳)·refused(거절당한 곳)는 프론트가 들고 있다가 보내준다. */
+/* 문턱을 넘고 나서 열 마디 안에만 꺼낸다.
+   전에는 조건이 "대화 수 ≥ 40" 하나뿐이라 그 뒤로 매 턴 참이었다. 그래서
+   같은 자리를 계속 조르고, 120이 넘으면 세 곳이 다 자격을 얻어 하나 끝나자마자
+   다음 걸 꺼냈다 — 옥상에 가기로 한 바로 그 답에서 도서관을 또 물었다.
+   창을 좁히면 한 문턱에 한 번씩만 나온다. 창을 놓치면 그 자리는 없던 일이 된다.
+   조르는 것보다 낫다 — 두 번 조르지 않는 게 이 두 사람의 성격이다. */
+const INVITE_WINDOW = 10;
 function inviteFor(mode, room, counts, done, refused) {
   if (mode !== "chat" || !INVITES[room]) return null;
   const n = (counts && counts[room]) || 0;
   const skip = new Set([...(done || []), ...(refused || [])]);
-  const hit = INVITES[room].filter(v => n >= v.at && !skip.has(v.place));
-  return hit.length ? hit[hit.length - 1].place : null;
+  // 낮은 문턱부터 본다. 한 번에 하나만 열린다
+  const hit = INVITES[room].find(v => n >= v.at && n < v.at + INVITE_WINDOW && !skip.has(v.place));
+  return hit ? hit.place : null;
 }
 function buildInvite(place, room) {
   if (!place) return "";
   return `\n## 이번 답에 할 것\n${place}에 같이 가자고 말한다. 한 번만, 가볍게.\n`
        + `약속을 잡는 말투가 아니라 지나가듯 꺼낸다. 이유를 길게 대지 않는다.\n`
+       + `**지금 하던 얘기 끝에 붙인다.** 유저가 방금 물어본 게 있으면 그 대답을 먼저 하고,\n`
+       + `그 말끝에 자연스럽게 얹는다. 화제를 끊고 꺼내면 딴사람처럼 보인다.\n`
        + `대답을 재촉하지 않는다. 거절당하면 두 번 조르지 않는다 — 그건 이 사람이 안 하는 일이다.\n`;
 }
 
@@ -1328,7 +1338,17 @@ const LEAD_DOTS = /^[.·ㆍ…]{2,}\s*/;
 // - 문장을 말줄임표로 시작하는 것도 한 응답에 하나만 (나머지는 앞의 점만 뗀다)
 //   민현이 모든 줄을 "..."으로 시작해 화면이 점으로 뒤덮이던 것을 막는다
 // - 점만 있는 말풍선이 마지막에 홀로 남으면 아예 버린다 (대화가 끊긴 것처럼 보이므로)
+/* 모델이 가끔 한자를 흘린다 — "那, 도서관 갈래요." 스무 살과 스물아홉 살이
+   메신저에서 한자를 칠 일이 없다. 지우고 앞에 남은 구두점까지 정리한다.
+   고쳐 쓰지는 않는다. 무슨 말을 하려던 건지 짐작해서 바꾸면 더 이상해진다. */
+const HAN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g;
+function stripHan(t) {
+  if (!t || !HAN.test(t)) return t;
+  return t.replace(HAN, "").replace(/^[\s,.·、。]+/, "").replace(/\s{2,}/g, " ").trim();
+}
 function trimTics(list) {
+  list = list.map(m => (m.text ? { ...m, text: stripHan(m.text) } : m))
+             .filter(m => m.photo || (m.text || "").trim());
   const out = [];
   let dots = 0, lead = 0;
   for (const m of list) {
