@@ -75,8 +75,12 @@ const HIDDEN=[
    바뀌면 진짜 장애를 못 알아채므로 실패 원인은 콘솔에 남기고 하단 바에 표시한다. */
 const DEMO = { auto:false };
 const demoOn = () => DEMO.auto;
+/* 가까워졌는지. 셀카를 줄지 말지가 여기서 갈린다 — 처음부터 주면
+   그건 셀카가 아니라 프로필 사진이다. 균열 단계(40마디)를 기준으로 삼는다.
+   index.html의 demoClose와 같은 값이다. */
+const demoCount:Record<string,number> = {};
 function demoReply(room:string, lastText?:string, userName?:string) {
-  return demoAnswer(room, lastText || '', userName || '');
+  return demoAnswer(room, lastText || '', userName || '', { close:(demoCount[room]||0) >= 40 });
 }
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
@@ -1775,6 +1779,7 @@ function Root() {
     const lines=demoProactive(id,demoWhen(gapMin,new Date().getHours()),name);
     if(lines.length){ await new Promise(r=>setTimeout(r,700)); await enqueue(id,lines); }
   };
+  useEffect(()=>{ Object.keys(msgs).forEach(k=>{ demoCount[k]=((msgs as any)[k]||[]).length }) },[msgs]);
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); demoGreet(id); };
 
   // 오프닝은 폰트가 올라온 뒤에 그린다 — 픽셀 폰트가 없으면 로고가 딴 글씨가 된다

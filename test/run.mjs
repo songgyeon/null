@@ -282,7 +282,7 @@ section('데모 모드 — 키 없이 들어온 사람도 빈 화면을 보지 �
    아니므로, 검사도 생성된 파일이 아니라 만들어진 결과의 동작을 본다. */
 const demoSrc = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
 const demo = new Function(demoSrc +
-  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,demoWhen,DEMO_CORPUS};')();
+  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,demoWhen,DEMO_SELFIE_RE,DEMO_CORPUS};')();
 let seed = 3;
 demo.demoSeed(() => ((seed = seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 const C = demo.DEMO_CORPUS;
@@ -322,6 +322,24 @@ eq('관전방은 두 사람이 주고받는다', new Set(watch.map(m => m.sender
 eq('관전방에 유저 말풍선은 없다', watch.some(m => m.sender === 'user'), false);
 eq('단톡방도 두 사람이 주고받는다',
   new Set(demo.demoAnswer('group', '오늘 다 같이 뭐 먹을까요?', '윤하').map(m => m.sender)).size, 2);
+
+/* 셀카. 민현만 보내고, 가까워지기 전에는 아낀다 — 처음부터 주면 그건
+   셀카가 아니라 프로필 사진이다. 재언은 안 찍는 사람이라 대신 오라고 한다. */
+const selfieFar = demo.demoAnswer('minhyun', '셀카 보여', '윤하', { close: false });
+const selfieNear = demo.demoAnswer('minhyun', '셀카 보여', '윤하', { close: true });
+eq('가까워지기 전에는 셀카를 안 보낸다', selfieFar.some(m => m.photo), false);
+eq('가까워지면 보낸다', selfieNear.some(m => m.photo), true);
+eq('보낼 때도 말이 먼저 나온다', selfieNear[0].text.length > 0, true);
+eq('재언은 셀카를 안 보낸다',
+  demo.demoAnswer('jaeeon', '셀카 보여', '윤하', { close: true }).some(m => m.photo), false);
+eq('재언은 대신 오라고 한다',
+  /보러 와요|가서 보여줄게요|보내줄게요|민현이한테/
+    .test(demo.demoAnswer('jaeeon', '셀카 보내줘', '윤하').map(m => m.text).join(' ')), true);
+['셀카 보여', '셀카 보내', '셀카 볼래', '셀카 줘', '얼굴 좀 보여줘'].forEach(t =>
+  eq(`"${t}"를 셀카로 알아듣는다`, demo.DEMO_SELFIE_RE.test(t), true));
+/* 가까움 판단이 웹·앱에서 같아야 한다. 어긋나면 한쪽에서만 사진이 온다 */
+eq('가까움 기준이 웹·앱 같다',
+  [/>=\s*40/.test(web), />=\s*40/.test(appSrc)], [true, true]);
 
 /* 캐릭터가 먼저 거는 말. 만들어만 두고 아무 데서도 안 부르면 없는 것과 같다 */
 eq('재언이 아침에 먼저 건다', demo.demoProactive('jaeeon', '아침', '윤하').length > 0, true);

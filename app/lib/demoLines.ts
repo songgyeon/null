@@ -45,6 +45,11 @@ function demoStem(w) {
   }
   return s || w;
 }
+function demoUniq(a) {
+  var o = [], seen = {};
+  for (var i = 0; i < a.length; i++) if (!seen[a[i]]) { seen[a[i]] = 1; o.push(a[i]); }
+  return o;
+}
 function demoTokens(t) {
   return demoNorm(t).toLowerCase().split(/[^가-힣a-z0-9]+/).filter(Boolean)
     .map(demoStem).filter(function (w) { return w && !DEMO_STOP[w]; });
@@ -93,18 +98,32 @@ function demoScore(input, entry) {
     if (ak === ik) return 100;                                   // 4. 완전 일치
     // 별칭이 입력 안에 통째로 들어 있으면 그건 사실상 같은 말이다
     if (ak.length >= 3 && ik.indexOf(ak) >= 0) { best = Math.max(best, 60 + ak.length); continue; }
-    if (ik.length >= 3 && ak.indexOf(ik) >= 0) { best = Math.max(best, 45 + ik.length); continue; }
-    var at = demoTokens(al), got = 0, all = 0;
+    /* 입력이 별칭의 일부일 때는 그 일부가 별칭의 절반은 돼야 한다.
+       "좋아해"가 "단 거 좋아해요?" 안에 들어 있다고 단 거 얘기인 건 아니다. */
+    if (ik.length >= 4 && ak.indexOf(ik) >= 0 && ik.length * 2 >= ak.length) {
+      best = Math.max(best, 45 + ik.length); continue;
+    }
+    /* 같은 낱말이 두 번 나오는 별칭이 있다("바다 좋아해요, 산 좋아해요?").
+       겹친 낱말을 두 번 세면 하나만 걸렸는데 둘로 보인다. */
+    var at = demoUniq(demoTokens(al)), got = 0, all = 0, n = 0;
     for (var j = 0; j < at.length; j++) {
       var w = demoIdf(at[j]); all += w;
-      for (var k = 0; k < it.length; k++) if (demoAlike(at[j], it[k])) { got += w; break; }
+      for (var k = 0; k < it.length; k++) if (demoAlike(at[j], it[k])) { got += w; n++; break; }
     }
-    if (got <= 0) continue;
+    /* 낱말 하나만 겹쳤으면 그게 그 의도의 절반은 돼야 한다.
+       "바다 좋아해요, 산 좋아해요?"에 좋아 하나 걸린 건 그 얘기가 아니다. */
+    if (n < 2 && all && got / all < 0.5) continue;
+    /* 흔한 낱말 하나만 겹친 건 단서가 아니다. "좋아" 하나로 바다·산 고르기를
+       집어내면 안 된다. 그럴 때는 차라리 못 알아들었다고 하는 게 낫다. */
+    if (got < 1.6) continue;
     var sc = got * 3 + (all ? got / all : 0) * 18;
-    if (keyw) {
+    /* 입력에 뚜렷한 낱말이 있는데 이 의도에 그게 없으면 화제가 다른 것이다.
+       "라멘 좋아해?"의 라멘을 놓치면 좋아 하나 걸렸다고 바다·산 고르기로 샌다.
+       깎는 걸로는 못 막는다 — 아예 뺀다. 엉뚱한 답보다 되묻는 편이 낫다. */
+    if (keyw && kv >= 2.2) {
       var has = false;
       for (var q0 = 0; q0 < at.length; q0++) if (demoAlike(at[q0], keyw)) { has = true; break; }
-      if (!has) sc *= 0.5;
+      if (!has) continue;
     }
     if (sc > best) best = sc;
   }
@@ -179,12 +198,47 @@ function demoOut(room, lines, name) {
   return lines.map(function (t) { return { sender: room, text: demoFill(t, name) }; });
 }
 
+/* ── 셀카 ──
+   민현만 보낸다. 재언은 안 찍는 사람이다.
+   그리고 처음부터 주면 그건 셀카가 아니라 프로필 사진이다. 가까워지기
+   전에는 미룬다 — 미루는 말이 곧 아까워한다는 표시가 된다.
+   가까워진 뒤에도 순순히 주지는 않는다. 조건을 하나씩 붙인다. */
+var DEMO_SELFIE_RE = /셀카|얼굴 보여|얼굴 좀|얼굴 보고|얼굴 궁금|사진 보내|사진 줘|사진 보여|사진 좀/;
+var DEMO_SELFIE = {
+  hold: [['왜요.', '그런 건 안 보내요.'],
+         ['갑자기 그런 걸 왜 달래요.'],
+         ['좀 있다가요.', '지금은 별로예요.'],
+         ['찍은 거 없는데요.', '없다고 했어요.']],
+  give: [['알겠어요.', '부끄러운데.'],
+         ['한 장만이에요.', '저장은 하지 마요.'],
+         ['방금 찍은 거예요.', '딴 사람한테 보여주면 안 돼요.'],
+         ['이런 걸 왜 좋아하는지 모르겠지만.', '달라니까 주는 거예요.']],
+  /* 재언은 거절하면서 오라고 한다. 안 준다고 끝내는 게 아니라 대신 다른 걸 준다 */
+  no:   [['사진 잘 안 찍는데.', '그냥 보러 와요.'],
+         ['어디예요?', '가서 보여줄게요.'],
+         ['연습하고 보내줄게요.'],
+         ['그런 건 민현이한테 물어보세요.']],
+};
+var DEMO_SELFIE_PHOTO = 'minhyun-mirror';
+
 /* 방마다 고르는 법이 다르다.
    관전방에서 유저는 장면 밖의 관찰자다 — 유저 입력은 장면 지시로 처리하고
    출력에는 두 사람의 대화만 나온다. 단톡방은 유저가 그 안에 있다. */
-function demoAnswer(room, text, name) {
-  var C = DEMO_CORPUS, t = text || '', hurtBefore = DEMO_ST.hurt;
+function demoAnswer(room, text, name, opts) {
+  var C = DEMO_CORPUS, t = text || '';
   demoTick(t);
+
+  // 셀카는 문구집보다 먼저 본다. 사진이 붙는 답이라 다른 결과 섞이면 안 된다
+  if (DEMO_SELFIE_RE.test(t) && (room === 'jaeeon' || room === 'minhyun')) {
+    if (room === 'jaeeon')
+      return demoOut(room, demoPickFrom('selfie:j', DEMO_SELFIE.no) || [], name);
+    var close = !!(opts && opts.close);
+    var lines = demoPickFrom('selfie:' + (close ? 'give' : 'hold'),
+                             close ? DEMO_SELFIE.give : DEMO_SELFIE.hold) || [];
+    var out = demoOut(room, lines, name);
+    if (close && out.length) out[out.length - 1].photo = DEMO_SELFIE_PHOTO;
+    return out;
+  }
 
   if (room === 'health') {
     var w = demoFind(C.watch, t, 0);
@@ -271,4 +325,4 @@ function demoProactive(room, when, name) {
 }
 
 export { DEMO_CORPUS, demoAnswer, demoProactive, demoNorm, demoTokens,
-         demoReset, demoSeed, demoMood, demoWhen, DEMO_ST };
+         demoReset, demoSeed, demoMood, demoWhen, DEMO_SELFIE_RE, DEMO_ST };

@@ -888,7 +888,19 @@ const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"
    앱도 같은 파일을 쓴다(app/lib/demoLines.ts). 한쪽만 고쳐질 일이 없다. */
 const DEMO={on:new URLSearchParams(location.search).has("demo"),auto:false};
 const demoOn=()=>DEMO.on||DEMO.auto;
-const demoReply=(bucket,lastText,userName)=>demoAnswer(bucket,lastText,userName);
+/* 가까워졌는지. 셀카를 줄지 말지가 여기서 갈린다 — 처음부터 주면
+   그건 셀카가 아니라 프로필 사진이다. 균열 단계(40마디)를 기준으로 삼는다. */
+const demoClose=room=>((storeRef.current&&storeRef.current.msgs[room])||[]).length>=40;
+const demoReply=(bucket,lastText,userName)=>
+  demoAnswer(bucket,lastText,userName,{close:demoClose(bucket)});
+/* 문구집에 물어볼 말. 보통은 유저가 방금 친 말이지만, 선물을 준 참이면
+   그 물건 얘기로 묻는다 — 시스템 줄("…을(를) 받았다")을 그대로 넘기면
+   그건 유저가 한 말이 아니라서 아무것도 안 걸린다. */
+const demoAsk=payload=>{
+  if(payload.gift&&payload.gift.name)return payload.gift.name+" 선물이에요";
+  const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
+  return last&&last.content;
+};
 
 
 const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
@@ -2055,8 +2067,7 @@ function App(){
     // 데모로 굳었으면 네트워크를 아예 타지 않는다
     if(demoOn()){
       inflightRef.current[bucket]=false;
-      const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
-      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content,name)),450);
+      setTimeout(()=>enqueue(bucket,demoReply(bucket,demoAsk(payload),name)),450);
       return;
     }
     try{
@@ -2086,8 +2097,7 @@ function App(){
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
-      const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
-      setTimeout(()=>enqueue(bucket,demoReply(bucket,last&&last.content,name)),450);
+      setTimeout(()=>enqueue(bucket,demoReply(bucket,demoAsk(payload),name)),450);
     }
   };
 
