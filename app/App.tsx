@@ -80,8 +80,11 @@ const demoOn = () => DEMO.auto;
    그건 셀카가 아니라 프로필 사진이다. 균열 단계(40마디)를 기준으로 삼는다.
    index.html의 demoClose와 같은 값이다. */
 const demoCount:Record<string,number> = {};
-function demoReply(room:string, lastText?:string, userName?:string) {
-  return demoAnswer(room, lastText || '', userName || '', { close:(demoCount[room]||0) >= 40 });
+/* gift는 물건의 열쇠다. 선물은 말이 아니라 물건이라 매칭에 안 걸린다 —
+   "회색 머그컵을(를) 받았다"를 그대로 넘기면 못 알아들었다는 답이 나갔다. */
+function demoReply(room:string, lastText?:string, userName?:string, gift?:string|null) {
+  return demoAnswer(room, lastText || '', userName || '',
+    { close:(demoCount[room]||0) >= 40, gift });
 }
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
@@ -1629,23 +1632,23 @@ function Root() {
     setToast(`${CHARS[char].name} — ${gift.name}`);
     await markEvent({kind:'gift', to:char, name:gift.name});
     setFailed(null); setTyping(true);
-    if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line,name)); return; }
+    if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line,name,gift.key)); return; }
     try{
       const hist=await getMsgs(char);
       const data=await sendChat(char,name,hist,{key:gift.key,name:gift.name,note});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(char,data.messages);
-    }catch(e:any){ setTyping(false); await fallToDemo(e,char,line); }
+    }catch(e:any){ setTyping(false); await fallToDemo(e,char,line,gift.key); }
   };
 
   /* 서버가 안 되면 각본으로 넘어간다. 한 번 넘어가면 그 뒤로는 계속 데모다 —
      한 대화 안에서 진짜와 각본이 섞이면 어느 쪽이 고장인지 알 수가 없다.
      실패한 진짜 이유는 콘솔에 그대로 남긴다. */
-  const fallToDemo = async(e:any, room:string, lastText?:string)=>{
+  const fallToDemo = async(e:any, room:string, lastText?:string, gift?:string|null)=>{
     console.error('[NULL] 서버 호출 실패 → 데모로 전환', e);
     DEMO.auto=true; setDemo(true); setFailed(null);
-    await enqueue(room, demoReply(room,lastText,name));
+    await enqueue(room, demoReply(room,lastText,name,gift));
   };
 
   /* 보낸 말은 이미 저장돼 있다. 모델 호출만 다시 한다 —

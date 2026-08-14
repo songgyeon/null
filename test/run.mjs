@@ -286,7 +286,10 @@ const demo = new Function(demoSrc +
 let seed = 3;
 demo.demoSeed(() => ((seed = seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 const C = demo.DEMO_CORPUS;
-const said = (room, t) => demo.demoAnswer(room, t, '윤하').map(m => m.text).join(' | ');
+/* 사진은 제 말풍선으로 나간다("이거요." + 사진). 답이 맞았는지 볼 때는
+   그 줄을 빼고 본다 — 안 그러면 사진이 붙었다는 이유로 전부 틀린 게 된다. */
+const said = (room, t) => demo.demoAnswer(room, t, '윤하')
+  .filter(m => !m.photo).map(m => m.text).join(' | ');
 
 eq('문구집을 다 옮겼다', C.intents.length > 400, true);
 eq('두 사람 다 답할 말이 있다',
@@ -339,15 +342,83 @@ eq('모듈 바깥에서 App 안의 것을 참조하지 않는다',
   ['storeRef', 'queueRef', 'viewRef', 'setBusy', 'setStore', 'unlockedRef']
     .filter(n => new RegExp('\\b' + n + '\\b').test(outside)), []);
 /* 그래도 터질 수 있으니 데모 답은 통째로 감싸고, 터지면 표시를 끄고 콘솔에 남긴다 */
-eq('데모 답이 터져도 화면은 안 멈춘다', /const demoSay=\(room,ask\)=>\{[\s\S]{0,400}catch/.test(web), true);
+eq('데모 답이 터져도 화면은 안 멈춘다', /const demoSay=\(room,ask,gift\)=>\{[\s\S]{0,400}catch/.test(web), true);
 /* 대사 파일을 따로 뺐으므로 캐시를 끊어줘야 고친 게 반영된다 */
 eq('대사 파일에 캐시 무효화가 붙어 있다', /demo-lines\.js\?v=/.test(web), true);
 
 /* 데모에서도 사진첩이 차야 한다. 서버가 붙여주던 걸 엔진이 대신 한다 —
-   말에 걸리는 게 있으면 그 사진을, 없으면 가끔 아무거나. */
+   말에 걸리는 게 있으면 그 사진을, 없으면 가끔 아무거나.
+
+   사진은 제 말풍선으로 나가야 한다. 남의 문장 끝에 붙였더니 "비 그치면
+   알려줘요" 밑에 비 사진이 걸렸다. 보내는 사람의 뜻이 아니라 장식이 된다. */
 [['jaeeon', '밥 먹었어요?'], ['jaeeon', '커피 마셨어요?'],
- ['minhyun', '사탕 있어요?'], ['minhyun', '졸려요']].forEach(([r, q]) =>
-  eq(`"${q}"에 사진이 붙는다`, demo.demoAnswer(r, q, '윤하').some(m => m.photo), true));
+ ['minhyun', '사탕 있어요?'], ['minhyun', '졸려요']].forEach(([r, q]) => {
+  demo.demoReset();
+  const out = demo.demoAnswer(r, q, '윤하');
+  eq(`"${q}"에 사진이 붙는다`, out.some(m => m.photo), true);
+  const pic = out.filter(m => m.photo);
+  eq(`"${q}" 사진은 제 말풍선으로 나간다`,
+    pic.length === 1 && pic[0] === out[out.length - 1] && !!pic[0].text, true);
+});
+/* ── 매칭이 틀어졌던 자리 ── */
+
+/* 어간을 한 자까지 깎으면 상관없는 말이 같은 말이 된다.
+   "사랑해요" → 해요를 떼고 "사랑" → 조사 "랑"까지 떼면 "사".
+   "사과해요"도 "사". 그래서 사랑한다는 말에 사과가 돌아왔다. */
+eq('어간을 한 자로 깎지 않는다',
+  ['사랑해요', '사과해요', '라면', '떡볶이'].map(w => demo.demoTokens(w)[0]),
+  ['사랑', '사과', '라면', '떡볶']);
+eq('사랑과 사과가 같은 말이 아니다',
+  demo.demoTokens('사랑해요')[0] === demo.demoTokens('사과해요')[0], false);
+
+/* 사람은 띄어쓰기를 안 하고 어미를 자른다. "뭐해"가 "뭐 해요?"에 안 걸렸다 —
+   낱말로 쪼개면 "뭐"는 흔해서 버려지고 "해요"만 남아 영영 안 만난다. */
+eq('"뭐해"와 "뭐 해요?"가 같은 답으로 간다',
+  said('minhyun', '뭐해') === said('minhyun', '뭐 해요?')
+  || ((C.intents.find(x => x.q.includes('뭐 해요?')).minhyun || [])
+       .map(x => x.join(' | ')).includes(said('minhyun', '뭐해'))), true);
+/* 길이를 안 보면 "좋아"가 "좋아하는 색 뭐예요"까지 삼킨다 */
+demo.demoReset();
+eq('짧은 앞부분이 긴 말을 삼키지 않는다',
+  (C.intents.find(x => x.q.includes('단 거 좋아해요?')).minhyun || [])
+    .map(x => x.join(' | ')).includes(said('minhyun', '좋아')), false);
+
+/* "보고 싶어요"는 "삼촌 보고 싶어요"의 일부지만, 빠진 두 글자가 누구를
+   보고 싶다는 건지를 통째로 바꾼다. 그래서 삼촌을 불러주겠다는 답이 나갔다. */
+demo.demoReset();
+eq('별칭이 덧붙인 주어를 무시하지 않는다',
+  (C.intents.find(x => x.q.includes('삼촌 보고 싶어요')).minhyun || [])
+    .map(x => x.join(' | ')).includes(said('minhyun', '보고싶어요')), false);
+
+/* ── 선물 ──
+   물건을 받았는데 "무슨 말인지 잘 못 들었어요"가 돌아오면 그건 준 게 아니라
+   허공에 던진 것이다. 이름을 문장으로 꾸며 매칭에 태우던 걸 열쇠로 바꿨다. */
+const GIFT_KEYS = [...web.matchAll(/\{key:"([a-z]+)"/g)].map(m => m[1]);
+eq('선물이 열여섯 개다', GIFT_KEYS.length, 16);
+eq('모든 선물에 두 사람의 대답이 있다',
+  GIFT_KEYS.filter(k => ['jaeeon', 'minhyun'].some(r => {
+    demo.demoReset();
+    const out = demo.demoAnswer(r, '', '윤하', { gift: k });
+    return !out.length || /못 들었|못 알아/.test(out.map(m => m.text).join(' '));
+  })), []);
+/* 물건마다 다른 말이 나와야 한다. 다 같은 말이면 표가 아니라 폴백이다 */
+eq('물건마다 대답이 다르다',
+  new Set(GIFT_KEYS.map(k => { demo.demoReset();
+    return demo.demoAnswer('minhyun', '', '윤하', { gift: k }).map(m => m.text).join('|'); })).size,
+  GIFT_KEYS.length);
+/* 표에 없는 물건을 줘도 받기는 받는다 */
+demo.demoReset();
+eq('모르는 물건도 받는다',
+  demo.demoAnswer('jaeeon', '', '윤하', { gift: '없는물건' }).length > 0, true);
+/* 열쇠가 클라이언트에서 엔진까지 실제로 넘어가야 한다 */
+eq('웹·앱 둘 다 선물 열쇠를 넘긴다',
+  /demoGiftKey/.test(web) && /demoReply\(char,line,name,gift\.key\)/.test(appSrc), true);
+
+/* 사진이 매 턴 나가면 사진첩이 아니라 슬라이드쇼다 */
+demo.demoReset();
+eq('사진을 연달아 보내지 않는다',
+  ['밥 먹었어요?', '커피 마셨어요?', '사탕 있어요?'].map(q =>
+    demo.demoAnswer('jaeeon', q, '윤하').some(m => m.photo)).filter(Boolean).length, 1);
 /* 엔진이 부르는 사진 키가 클라이언트 사진첩에 실제로 있어야 한다.
    없는 키를 부르면 말만 남고 사진은 조용히 사라진다. */
 const galleryKeys = [...web.matchAll(/"(jaeeon|minhyun)-[\w-]+\.webp"/g)].map(m => m[0].slice(1, -6));
@@ -401,8 +472,17 @@ eq('데모도 유저 이름을 부른다', /윤하/.test(said('jaeeon', '커피�
  ['jaeeon', '선생님도 좀 쉬세요', '일하는 줄 알았구나'],
  ['minhyun', '담배 아직 안 피우지?', '책임은 언제 져요'],
  ['minhyun', '너 나 왜 좋아해?', '피치 못하는 거지'],
- ['minhyun', '너 왜 자꾸 보건실에 있어', '다른 사람 때문에']].forEach(([r, q, want]) =>
-  eq(`손으로 쓴 "${want}"가 제자리에서 나온다`, said(r, q).includes(want), true));
+ ['minhyun', '너 왜 자꾸 보건실에 있어', '다른 사람 때문에']].forEach(([r, q, want]) => {
+  /* 한 의도에 답이 여럿이라 한 번 불러서 그 줄이 나오길 기다리면 안 된다.
+     여러 번 불러도 안 된다 — 같은 말을 두 번 보내면 반복 갈래로 새기 때문이다.
+     그래서 둘로 나눠 본다. 그 줄이 아직 문구집에 있나, 그리고 이 입력이
+     그 의도로 가나. 무작위가 안 끼므로 매번 같은 답이 나온다. */
+  demo.demoReset();
+  const e = C.intents.find(x => x.q.includes(q));
+  const answers = ((e && e[r]) || []).map(x => x.join(' | '));
+  eq(`손으로 쓴 "${want}"가 제자리에서 나온다`,
+    answers.some(a => a.includes(want)) && answers.includes(said(r, q)), true);
+});
 
 /* 같은 말을 반복해도 같은 답만 나오지 않는다 */
 const three = [0, 1, 2].map(() => said('jaeeon', '뭐 해요?'));

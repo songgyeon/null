@@ -913,19 +913,21 @@ const demoOn=()=>DEMO.on||DEMO.auto;
 /* 대화가 얼마나 쌓였는지는 App 안에만 있다. 여기서 바로 못 읽으므로 받아서 쓴다 —
    모듈 바깥에서 App 안의 것을 참조하면 부를 때마다 터진다. 한 번 그랬다. */
 const demoClose=(msgs,room)=>((((msgs||{})[room])||[]).length)>=40;
-const demoReply=(bucket,lastText,userName,msgs)=>
-  demoAnswer(bucket,lastText,userName,{close:demoClose(msgs,bucket)});
+const demoReply=(bucket,lastText,userName,msgs,gift)=>
+  demoAnswer(bucket,lastText,userName,{close:demoClose(msgs,bucket),gift:gift});
 /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
    여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
 const demoUnlocked=msgs=>HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at).map(h=>h.key);
-/* 문구집에 물어볼 말. 보통은 유저가 방금 친 말이지만, 선물을 준 참이면
-   그 물건 얘기로 묻는다 — 시스템 줄("…을(를) 받았다")을 그대로 넘기면
-   그건 유저가 한 말이 아니라서 아무것도 안 걸린다. */
+/* 문구집에 물어볼 말. 유저가 방금 친 말이다. 시스템 줄("…을(를) 받았다")은
+   유저가 한 말이 아니라서 그대로 넘기면 아무것도 안 걸린다. */
 const demoAsk=payload=>{
-  if(payload.gift&&payload.gift.name)return payload.gift.name+" 선물이에요";
   const last=[...(payload.history||[])].reverse().find(m=>m.role==="user");
   return last&&last.content;
 };
+/* 선물은 말이 아니라 물건이다. 이름을 문장으로 꾸며 매칭에 태우면
+   "회색 머그컵 선물이에요"가 아무 데도 안 걸려서 못 알아들었다는 답이 나갔다.
+   열쇠를 그대로 넘겨 표에서 바로 찾는다. */
+const demoGiftKey=payload=>(payload.gift&&payload.gift.key)||null;
 
 
 const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
@@ -2111,9 +2113,9 @@ function App(){
 
   /* 데모 답 한 번. 여기서 터지면 타이핑 표시가 영영 안 꺼지므로 통째로 감싼다.
      원인은 콘솔에 남긴다 — 조용히 멈추면 뭐가 잘못됐는지 알 수가 없다. */
-  const demoSay=(room,ask)=>{
+  const demoSay=(room,ask,gift)=>{
     try{
-      enqueue(room,demoReply(room,ask,name,storeRef.current.msgs));
+      enqueue(room,demoReply(room,ask,name,storeRef.current.msgs,gift));
       applyUnlocked(demoUnlocked(storeRef.current.msgs));
     }catch(e){
       console.error("%c[NULL] 데모 실패 ▶ "+(e&&e.message||e),"color:#c23b50;font-weight:bold");
@@ -2134,7 +2136,7 @@ function App(){
     // 데모로 굳었으면 네트워크를 아예 타지 않는다
     if(demoOn()){
       inflightRef.current[bucket]=false;
-      setTimeout(()=>demoSay(bucket,demoAsk(payload)),450);
+      setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
       return;
     }
     try{
@@ -2164,7 +2166,7 @@ function App(){
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
-      setTimeout(()=>demoSay(bucket,demoAsk(payload)),450);
+      setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
     }
   };
 

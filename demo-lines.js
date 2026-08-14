@@ -32,13 +32,21 @@ function demoMood(t) {
 /* 어미와 조사를 떼고 알맹이만 남긴다. "먹었어요"와 "먹었어"가 같은 말이 되게 */
 var DEMO_STOP = {'저':1,'제':1,'나':1,'내':1,'너':1,'그':1,'좀':1,'그냥':1,'진짜':1,
   '오늘':1,'지금':1,'우리':1,'이거':1,'그거':1,'뭐':1,'왜':1};
+/* 두 자 밑으로는 깎지 않는다.
+   "사랑해요"에서 해요를 떼면 "사랑"이 남는데, 거기서 조사 "랑"까지 떼면 "사"다.
+   "사과해요"도 똑같이 "사"가 된다. 그래서 사랑한다는 말에 사과를 받았다.
+   한 자짜리 어간은 어차피 아무 말이나 걸린다 — 남길 이유가 없다. */
+function demoCut(s, re) {
+  var c = s.replace(re, '');
+  return c.length >= 2 ? c : s;
+}
 function demoStem(w) {
   var s = w;
   for (var i = 0; i < 3; i++) {
     var b = s;
-    s = s.replace(/(이에요|예요|에요|이요|해요|어요|아요|네요|나요|까요|군요|거든요|잖아요|는데요|는데|잖아|거든|하죠|하지|더라|드라)$/, '');
-    s = s.replace(/(았|었|였|겠|음|슴|기|고|서|면|니|자)$/, '');
-    s = s.replace(/(은|는|이|가|을|를|도|의|에|와|과|랑|한테|에게|보다|처럼|까지|부터|만)$/, '');
+    s = demoCut(s, /(이에요|예요|에요|이요|해요|어요|아요|네요|나요|까요|군요|거든요|잖아요|는데요|는데|잖아|거든|하죠|하지|더라|드라)$/);
+    s = demoCut(s, /(았|었|였|겠|음|슴|기|고|서|면|니|자)$/);
+    s = demoCut(s, /(은|는|이|가|을|를|도|의|에|와|과|랑|한테|에게|보다|처럼|까지|부터|만)$/);
     if (s === b) break;
   }
   return s || w;
@@ -94,11 +102,25 @@ function demoScore(input, entry) {
     var al = entry.q[i], ak = demoKey(al);
     if (!ak) continue;
     if (ak === ik) return 100;                                   // 4. 완전 일치
+    /* 사람은 띄어쓰기를 안 하고 어미를 자른다 — "뭐해"라고 치면 문구집의
+       "뭐 해요?"에 안 걸렸다. 낱말로 쪼개도 "뭐"는 흔해서 버려지고 "해요"만
+       남으니 영영 안 만난다. 한쪽이 다른 쪽의 앞부분이면 같은 말로 본다.
+       길이 차이는 봐야 한다 — 안 그러면 "좋아"가 "좋아하는 색 뭐예요"까지
+       삼킨다. 짧은 쪽이 긴 쪽의 2/3은 돼야 같은 말이다. */
+    var lo = Math.min(ik.length, ak.length), hi = Math.max(ik.length, ak.length);
+    if (lo >= 2 && (ak.indexOf(ik) === 0 || ik.indexOf(ak) === 0) && lo * 3 >= hi * 2) {
+      best = Math.max(best, 70 + lo); continue;
+    }
     // 별칭이 입력 안에 통째로 들어 있으면 그건 사실상 같은 말이다
     if (ak.length >= 3 && ik.indexOf(ak) >= 0) { best = Math.max(best, 60 + ak.length); continue; }
     /* 입력이 별칭의 일부일 때는 그 일부가 별칭의 절반은 돼야 한다.
-       "좋아해"가 "단 거 좋아해요?" 안에 들어 있다고 단 거 얘기인 건 아니다. */
-    if (ik.length >= 4 && ak.indexOf(ik) >= 0 && ik.length * 2 >= ak.length) {
+       "좋아해"가 "단 거 좋아해요?" 안에 들어 있다고 단 거 얘기인 건 아니다.
+       그리고 별칭이 덧붙이고 있는 게 뚜렷한 낱말이면 그건 다른 얘기다 —
+       "보고 싶어요"는 "삼촌 보고 싶어요"의 일부지만, 빠진 그 두 글자가
+       누구를 보고 싶다는 건지를 통째로 바꾼다. 그래서 삼촌을 불러다 주겠다는
+       답이 나갔다. */
+    if (ik.length >= 4 && ak.indexOf(ik) >= 0 && ik.length * 2 >= ak.length
+        && !demoAdds(al, it)) {
       best = Math.max(best, 45 + ik.length); continue;
     }
     /* 같은 낱말이 두 번 나오는 별칭이 있다("바다 좋아해요, 산 좋아해요?").
@@ -127,6 +149,18 @@ function demoScore(input, entry) {
   }
   return best;
 }
+/* 별칭에만 있는 뚜렷한 낱말이 있나. 있으면 그 별칭은 입력보다 좁은 얘기다 */
+function demoAdds(alias, it) {
+  var at = demoUniq(demoTokens(alias));
+  for (var i = 0; i < at.length; i++) {
+    if (demoIdf(at[i]) < 2.2) continue;
+    var has = false;
+    for (var j = 0; j < it.length; j++) if (demoAlike(at[i], it[j])) { has = true; break; }
+    if (!has) return true;
+  }
+  return false;
+}
+
 function demoFind(list, input, min) {
   var top = null, tv = min || 0;
   for (var i = 0; i < list.length; i++) {
@@ -176,7 +210,7 @@ function demoTick(text) {
   DEMO_ST.same = demoNorm(text) === DEMO_ST.last ? DEMO_ST.same + 1 : 0;
   DEMO_ST.last = demoNorm(text);
 }
-function demoReset() { DEMO_ST = demoState(); }
+function demoReset() { DEMO_ST = demoState(); demoPicN = 0; demoPicCool = 0; }
 
 /* 장면 하나를 말풍선 목록으로 편다 */
 function demoScript(sc, name) {
@@ -219,28 +253,123 @@ var DEMO_SELFIE = {
 };
 var DEMO_SELFIE_PHOTO = 'minhyun-mirror';
 
+/* ── 선물 ──
+   물건을 받았는데 "무슨 말인지 잘 못 들었어요"가 돌아오면 그건 준 게 아니라
+   허공에 던진 것이다. 선물은 문구집보다 먼저 본다 — 열쇠로 바로 찾는다.
+   (index.html의 GIFTS·app/lib/profiles.ts의 GIFTS와 열쇠가 같아야 한다)
+
+   둘 다 고맙다는 말을 먼저 하지 않는다. 재언은 쓸모부터 따지고 나서 받고,
+   민현은 안 쓴다고 해놓고 쓰겠다고 한다. 그게 이 둘이 고마워하는 방식이다.
+
+   ※ 이 대사는 전부 제가 쓴 것이다. 마음에 안 들면 여기만 고치면 된다. */
+var DEMO_GIFT = {
+  mug: {
+    jaeeon:  [['컵은 있는데요.', '이걸로 마실게요.']],
+    minhyun: [['저 커피 안 마시는데요.', '그래도 쓸게요. 물 마실 때.']],
+  },
+  photobook: {
+    jaeeon:  [['사진집은 오랜만이네요.', '겨울 사진만 있네요. 왜 겨울이에요?']],
+    minhyun: [['이런 거 볼 줄 알아요?', '저 겨울 싫어하는데. 이건 괜찮네요.']],
+  },
+  beanie: {
+    jaeeon:  [['머리 눌리는데.', '안 쓰면 아깝겠네요.']],
+    minhyun: [['저 이런 거 안 쓰는데.', '쓰고 갈게요. 내일.']],
+  },
+  earphone: {
+    jaeeon:  [['선 있는 걸로 주셨네요.', '잃어버릴 일은 없겠어요.']],
+    minhyun: [['한쪽은 누구 주라고요?', '안 줘요. 둘 다 제가 쓸 거예요.']],
+  },
+  hotpack: {
+    jaeeon:  [['손이 찬 편이긴 해요.', '흔들면 되는 거죠.']],
+    minhyun: [['제 손 찬 거 어떻게 알았어요?', '말한 적 없는데.']],
+  },
+  umbrella: {
+    jaeeon:  [['차에 하나 있는데.', '가방에 넣어둘게요.']],
+    minhyun: [['비 오면 그냥 맞는데요.', '이제 안 맞을게요.']],
+  },
+  hanky: {
+    jaeeon:  [['손 자주 씻는 건 어떻게 알았어요.', '잘 쓸게요.']],
+    minhyun: [['이런 거 쓰는 사람 처음 봐요.', '저도 갖고 다닐게요.']],
+  },
+  camera: {
+    jaeeon:  [['스물네 장이면 아껴 찍어야겠네요.', '뭘 찍으라고요.']],
+    minhyun: [['이걸로 뭘 찍어요?', '선생님 찍어도 돼요?']],
+  },
+  scarf: {
+    jaeeon:  [['두 번 감기네요.', '목만 따뜻해도 다르다고들 하죠.']],
+    minhyun: [['이거 색이 좀.', '그래도 할게요. 추우니까.']],
+  },
+  gloves: {
+    jaeeon:  [['손 트기 전에 주셨네요.', '고맙습니다.']],
+    minhyun: [['주머니 있는데요.', '손 시린 거 어떻게 알았어요.']],
+  },
+  bandana: {
+    jaeeon:  [['이건 저보다 민현이가 하겠는데요.', '일단 받아둘게요.']],
+    minhyun: [['왜 묶고 다니는지 안 물어봤잖아요.', '이제 물어봐도 돼요.']],
+  },
+  candy: {
+    jaeeon:  [['저 말 많이 안 하는데요.', '그래도 하나 먹을게요.']],
+    minhyun: [['이거 이제 제 건데요.', '하나 드려요?']],
+  },
+  ramen: {
+    jaeeon:  [['이건 민현이가 좋아하겠네요.', '저는 따로 챙겨 먹을게요.']],
+    minhyun: [['이거 하나로 되겠어요?', '같이 먹을 사람은요.']],
+  },
+  coffee: {
+    jaeeon:  [['아침이 급한 건 어떻게 알았어요.', '내일 마실게요.']],
+    minhyun: [['저 커피 마시면 잠 안 오는데.', '그럼 밤에 마셔야겠네요.']],
+  },
+  letter: {
+    jaeeon:  [['쓸 말이 있어야 쓰죠.', '한 장은 쓸게요.']],
+    minhyun: [['편지 써서 뭐 해요.', '쓰면 읽어줄 거예요?']],
+  },
+  mixcd: {
+    jaeeon:  [['목록이 없네요.', '들으면서 맞혀보라는 거죠.']],
+    minhyun: [['열두 곡이나요.', '다 들을 때까지 안 갈 거죠?']],
+  },
+};
+/* 열쇠가 없는 물건을 줬을 때. 새 선물을 넣고 표를 안 채웠을 때 여기로 온다 */
+var DEMO_GIFT_ANY = {
+  jaeeon:  [['뭐 이런 걸.', '잘 쓸게요.'],
+            ['받을 이유가 없는데.', '그래도 받을게요.']],
+  minhyun: [['이걸 왜 줘요.', '안 돌려줄 거예요.'],
+            ['저 주는 거 맞아요?', '그럼 가질게요.']],
+};
+function demoGiftLines(room, key) {
+  var g = DEMO_GIFT[key];
+  var pool = (g && g[room]) || DEMO_GIFT_ANY[room] || [];
+  return demoPickFrom('gift:' + room + ':' + (key || '?'), pool) || [];
+}
+
 /* ── 사진 ──
    데모에서도 사진첩이 차야 한다. 서버가 붙여주던 걸 여기서 한다.
+
+   사진은 제 말풍선으로 나간다. 남의 문장 끝에 붙이면 "비 그치면 알려줘요"
+   밑에 비 사진이 걸려서, 보내는 사람의 뜻이 아니라 화면 장식이 된다.
+   짧게 한 마디 붙여 보내면 그게 사진을 보내는 행동이 된다.
+
    말에 걸리는 게 있으면 그 사진을, 없으면 가끔 아무거나 — 아무거나가 없으면
    사진첩이 영영 비고, 매번이면 사진첩이 아니라 슬라이드쇼가 된다. */
 var DEMO_PIC = [
-  [/아프|아파|다쳤|다쳐|상처|멍/,      'jaeeon-treat',    'minhyun-corridor'],
-  [/약|연고|밴드|소독/,                 'jaeeon-care',     ''],
-  [/밥|먹|점심|저녁|배고/,              'jaeeon-cook',     'minhyun-ramen'],
-  [/사탕|단 거|단거/,                   'jaeeon-cabinet',  'minhyun-candy'],
-  [/커피/,                              'jaeeon-mug',      ''],
-  [/비 |비가|비와|비 와|장마/,          'jaeeon-car',      'minhyun-rain'],
-  [/눈 |눈이|겨울|춥/,                  'jaeeon-evening',  'minhyun-snow'],
-  [/자|졸|잠/,                          '',                'minhyun-nap'],
-  [/옥상/,                              'jaeeon-rooftop',  'minhyun-stair'],
-  [/편의점/,                            'jaeeon-market',   'minhyun-conv'],
-  [/빨래|세탁/,                         'jaeeon-laundry',  'minhyun-laundry'],
-  [/버스|정류장/,                       '',                'minhyun-busstop'],
-  [/담배|라이터|골목/,                  '',                'minhyun-alley'],
-  [/수업|교실|학교/,                    'jaeeon-classroom','minhyun-desk'],
-  [/운동|체육/,                         '',                'minhyun-gym'],
-  [/노래|음악|이어폰/,                  'jaeeon-shelf',    'minhyun-window'],
-  [/보건실/,                            'jaeeon-sink',     'minhyun-nap'],
+  [/아프|아파|다쳤|다쳐|상처|멍이|멍 /,  'jaeeon-treat',    'minhyun-corridor'],
+  /* "약"만 보면 약속·약간까지 걸린다. 바르고 붙이는 물건일 때만 잡는다 */
+  [/연고|밴드|소독|약 발|약을|약은|약 좀/, 'jaeeon-care',   ''],
+  [/밥|먹었|먹을|점심|저녁|배고/,        'jaeeon-cook',     'minhyun-ramen'],
+  [/사탕|단 거|단거/,                    'jaeeon-cabinet',  'minhyun-candy'],
+  [/커피/,                               'jaeeon-mug',      ''],
+  [/비 |비가|비와|비 와|장마/,           'jaeeon-car',      'minhyun-rain'],
+  [/눈 |눈이|겨울|춥/,                   'jaeeon-evening',  'minhyun-snow'],
+  /* "자" 한 자는 감자·의자·혼자에까지 걸렸다. 자는 얘기일 때만 */
+  [/자요|자니|잤|잘 거|졸려|졸음|잠 /,   '',                'minhyun-nap'],
+  [/옥상/,                               'jaeeon-rooftop',  'minhyun-stair'],
+  [/편의점/,                             'jaeeon-market',   'minhyun-conv'],
+  [/빨래|세탁/,                          'jaeeon-laundry',  'minhyun-laundry'],
+  [/버스|정류장/,                        '',                'minhyun-busstop'],
+  [/담배|라이터|골목/,                   '',                'minhyun-alley'],
+  [/수업|교실|학교/,                     'jaeeon-classroom','minhyun-desk'],
+  [/운동|체육/,                          '',                'minhyun-gym'],
+  [/노래|음악|이어폰/,                   'jaeeon-shelf',    'minhyun-window'],
+  [/보건실/,                             'jaeeon-sink',     'minhyun-nap'],
 ];
 var DEMO_PIC_ANY = {
   jaeeon: ['jaeeon-work','jaeeon-door','jaeeon-chart','jaeeon-bottle','jaeeon-curtain',
@@ -248,14 +377,23 @@ var DEMO_PIC_ANY = {
   minhyun:['minhyun-gate','minhyun-store','minhyun-vending','minhyun-neon','minhyun-bench',
            'minhyun-morning','minhyun-winter','minhyun-mirror'],
 };
-var demoPicN = 0;
+/* 사진에 붙는 한 마디. 앞말이 무엇이든 어긋나지 않는 것만 둔다 —
+   사진 자체가 하는 말이지 사진에 대한 설명이 아니다. */
+var DEMO_PIC_SAY = {
+  jaeeon:  ['이거요.', '보세요.', '지금 이래요.', '여기요.'],
+  minhyun: ['이거요.', '봐요.', '지금요.', '방금 찍었어요.'],
+};
+var demoPicN = 0, demoPicCool = 0;
 function demoPhoto(room, text) {
+  if (demoPicCool > 0) { demoPicCool--; return ''; }     // 연달아 보내지 않는다
   var i = room === 'jaeeon' ? 1 : 2;
   for (var k = 0; k < DEMO_PIC.length; k++)
-    if (DEMO_PIC[k][i] && DEMO_PIC[k][0].test(text || '')) return DEMO_PIC[k][i];
-  if (++demoPicN % 7 !== 0) return '';
+    if (DEMO_PIC[k][i] && DEMO_PIC[k][0].test(text || '')) { demoPicCool = 3; return DEMO_PIC[k][i]; }
+  if (++demoPicN % 9 !== 0) return '';
   var pool = DEMO_PIC_ANY[room] || [];
-  return pool.length ? pool[Math.floor(demoRand() * pool.length)] : '';
+  if (!pool.length) return '';
+  demoPicCool = 5;
+  return pool[Math.floor(demoRand() * pool.length)];
 }
 
 /* 방마다 고르는 법이 다르다.
@@ -264,6 +402,10 @@ function demoPhoto(room, text) {
 function demoAnswer(room, text, name, opts) {
   var C = DEMO_CORPUS, t = text || '';
   demoTick(t);
+
+  /* 선물이 제일 먼저다. 물건은 이미 도착했으니 못 알아들을 여지가 없다 */
+  if (opts && opts.gift && (room === 'jaeeon' || room === 'minhyun'))
+    return demoOut(room, demoGiftLines(room, opts.gift), name);
 
   // 셀카는 문구집보다 먼저 본다. 사진이 붙는 답이라 다른 결과 섞이면 안 된다
   if (DEMO_SELFIE_RE.test(t) && (room === 'jaeeon' || room === 'minhyun')) {
@@ -322,7 +464,10 @@ function demoAnswer(room, text, name, opts) {
     DEMO_ST.lastTag = hit.q[0]; DEMO_ST.lastRoom = room;
     var res = demoOut(room, demoPickFrom('i:' + room + ':' + hit.q[0], hit[room]) || [], name);
     var pic = demoPhoto(room, t);
-    if (pic && res.length) res[res.length - 1].photo = pic;
+    if (pic && res.length) {
+      var say = DEMO_PIC_SAY[room] || ['이거요.'];
+      res.push({ sender: room, text: say[Math.floor(demoRand() * say.length)], photo: pic });
+    }
     return res;
   }
   // 7~8. 알아듣지 못했을 때. 여기서도 빈 손으로 돌아가지 않는다 —
