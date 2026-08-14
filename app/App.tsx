@@ -1143,7 +1143,9 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                   {!un&&<View style={rl.hlock}>
                     <Text style={{fontSize:18}}>🔒</Text>
                     {!!need&&<Text style={rl.hneed}>{need}</Text>}</View>}
-                  <View style={rl.hlabel}><Text style={rl.hlabelT}>{un?h.label:'???'}</Text></View>
+                  {/* 잠긴 이름은 물음표가 아니라 빈칸이다. 글자 수만큼 밑줄을
+                      그으면 지워진 문서처럼 보인다 — 없는 게 아니라 가려진 것이다 */}
+                  <View style={rl.hlabel}><Text style={rl.hlabelT}>{un?h.label:h.label.replace(/\S/g,'_')}</Text></View>
                 </TouchableOpacity>;
               })}
             </View>

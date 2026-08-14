@@ -822,6 +822,11 @@ eq('잠긴 칸에 숫자를 안 쓴다',
   /const need=un\?"":"__ more";/.test(web) && /const need=un\?'':'__ more';/.test(appSrc), true);
 eq('남은 수를 세던 코드가 없다',
   /h\.at-\(counts\[h\.room\]/.test(web + appSrc), false);
+/* 숫자를 __로 가려놓고 이름만 ???이면 말이 안 맞는다. 둘 다 빈칸으로 간다 */
+eq('잠긴 이름도 빈칸이다',
+  /h\.label\.replace\(\/\\S\/g,"_"\)/.test(web)
+  && /h\.label\.replace\(\/\\S\/g,'_'\)/.test(appSrc), true);
+eq('물음표를 안 쓴다', /"\?\?\?"|'\?\?\?'/.test(web + appSrc), false);
 
 /* 세 군데가 같은 날짜를 써야 한다. 어긋나면 서버가 연기하는 단계와
    화면이 보여주는 단계가 따로 논다 */

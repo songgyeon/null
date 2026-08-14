@@ -1970,7 +1970,10 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
               {!un&&need&&<div className="need">{need}</div>}
-              <div className="hlabel">{un?h.label:"???"}</div>
+              {/* 잠긴 이름은 물음표가 아니라 빈칸이다. 숫자를 __로 가려놓고
+                  이름만 ???이면 말이 안 맞는다. 글자 수만큼 밑줄을 그으면
+                  지워진 문서처럼 보인다 — 없는 게 아니라 가려진 것이다. */}
+              <div className="hlabel">{un?h.label:h.label.replace(/\S/g,"_")}</div>
             </div>;
           })}
         </div>
