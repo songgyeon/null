@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, IMG } from './lib/api';
-import { demoAnswer, demoProactive } from './lib/demoLines';
+import { demoAnswer, demoProactive, demoWhen } from './lib/demoLines';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK, saveStatus,
          GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
 import { useAudioPlayer } from 'expo-audio';
@@ -1765,7 +1765,17 @@ function Root() {
   const album=new Set<string>();
   Object.values(msgs).forEach(list=>(list||[]).forEach(m=>{if(m.photo)album.add(m.photo)}));
 
-  const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); };
+  /* 데모에서는 캐릭터가 먼저 건다. 방을 열었는데 아무 말도 없으면 그건
+     메신저가 아니라 빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만 한 번. */
+  const demoGreet=async(id:string)=>{
+    if(!demoOn()||id==='health'||id==='group')return;
+    const list:any[]=(msgs as any)[id]||[];
+    const gapMin=list.length?(Date.now()-list[list.length-1].created_at)/60000:-1;
+    if(gapMin>=0&&gapMin<180)return;
+    const lines=demoProactive(id,demoWhen(gapMin,new Date().getHours()),name);
+    if(lines.length){ await new Promise(r=>setTimeout(r,700)); await enqueue(id,lines); }
+  };
+  const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); demoGreet(id); };
 
   // 오프닝은 폰트가 올라온 뒤에 그린다 — 픽셀 폰트가 없으면 로고가 딴 글씨가 된다
   if(!ready||!fontsOk) return <View style={{flex:1,backgroundColor:'#c3b2f0'}}/>;

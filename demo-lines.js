@@ -241,6 +241,22 @@ function demoAfterOk(after, tag) {
   return false;
 }
 
+/* 지금이 어떤 상황인지. 마지막으로 말한 지 얼마나 됐는지와 시각으로 고른다.
+   두 사람 문구집에 다 있는 이름만 돌려준다 — 한쪽에만 있는 이름을 주면
+   다른 한쪽은 아무거나 고르게 된다. */
+function demoWhen(gapMin, hour) {
+  /* 오래 안 온 것과 처음 온 것은 다르다. 방금 깐 사람한테 며칠이나 지났는지
+     아냐고 물으면 안 된다. 기록이 아예 없으면 gapMin에 음수가 온다. */
+  if (gapMin >= 0) {
+  if (gapMin >= 60 * 24 * 3) return '며칠 뒤';
+  if (gapMin >= 60 * 20)     return '하루 뒤';
+  if (gapMin >= 60 * 3)      return '몇 시간 뒤';
+  }
+  if (hour >= 23 || hour < 5) return '밤';
+  if (hour < 10)              return '아침';
+  return '별일 없는 날';
+}
+
 /* 캐릭터가 먼저 거는 말. when으로 상황을 고른다(아침·밤·무응답 등) */
 function demoProactive(room, when, name) {
   var list = (DEMO_CORPUS.proactive[room] || []).filter(function (p) {

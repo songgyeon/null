@@ -156,5 +156,5 @@ writeFileSync('demo-lines.js', head + data + engine);
 writeFileSync('app/lib/demoLines.ts',
   head + '/* eslint-disable */\n// @ts-nocheck\n' + data + engine
   + `\nexport { DEMO_CORPUS, demoAnswer, demoProactive, demoNorm, demoTokens,\n`
-  + `         demoReset, demoSeed, demoMood, DEMO_ST };\n`);
+  + `         demoReset, demoSeed, demoMood, demoWhen, DEMO_ST };\n`);
 console.log('내보냄  demo-lines.js · app/lib/demoLines.ts');

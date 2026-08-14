@@ -282,7 +282,7 @@ section('데모 모드 — 키 없이 들어온 사람도 빈 화면을 보지 �
    아니므로, 검사도 생성된 파일이 아니라 만들어진 결과의 동작을 본다. */
 const demoSrc = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
 const demo = new Function(demoSrc +
-  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,DEMO_CORPUS};')();
+  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,demoWhen,DEMO_CORPUS};')();
 let seed = 3;
 demo.demoSeed(() => ((seed = seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 const C = demo.DEMO_CORPUS;
@@ -323,9 +323,20 @@ eq('관전방에 유저 말풍선은 없다', watch.some(m => m.sender === 'user
 eq('단톡방도 두 사람이 주고받는다',
   new Set(demo.demoAnswer('group', '오늘 다 같이 뭐 먹을까요?', '윤하').map(m => m.sender)).size, 2);
 
-/* 캐릭터가 먼저 거는 말 */
+/* 캐릭터가 먼저 거는 말. 만들어만 두고 아무 데서도 안 부르면 없는 것과 같다 */
 eq('재언이 아침에 먼저 건다', demo.demoProactive('jaeeon', '아침', '윤하').length > 0, true);
 eq('민현이 밤에 먼저 건다', demo.demoProactive('minhyun', '밤', '윤하').length > 0, true);
+/* 상황 이름은 두 사람 문구집에 다 있어야 한다. 한쪽에만 있으면
+   다른 한쪽은 아무거나 고른다 */
+['아침', '밤', '몇 시간 뒤', '하루 뒤', '며칠 뒤', '별일 없는 날'].forEach(w =>
+  eq(`"${w}"이 두 사람 다 있다`,
+    ['jaeeon', 'minhyun'].every(c => C.proactive[c].some(p => (p.when + p.sec).includes(w))), true));
+eq('아침에는 아침 얘기를 고른다', demo.demoWhen(10, 8), '아침');
+eq('오래 안 왔으면 그 얘기를 먼저 한다', demo.demoWhen(60 * 30, 14), '하루 뒤');
+/* 방금 깐 사람한테 며칠이나 지났는지 아냐고 물으면 안 된다 */
+eq('처음 온 사람에게 오랜만이라고 하지 않는다', demo.demoWhen(-1, 14), '별일 없는 날');
+eq('방을 열면 먼저 건다 — 웹·앱 둘 다',
+  /demoGreet/.test(web) && /demoGreet/.test(appSrc), true);
 
 /* 이름은 등록 화면에서 받아둔 걸 그대로 쓴다 */
 eq('데모도 유저 이름을 부른다', /윤하/.test(said('jaeeon', '커피만 드시지 말고요')), true);
