@@ -1811,6 +1811,31 @@ function Root() {
     const lines=demoProactive(id,demoWhen(gapMin,new Date().getHours()),name);
     if(lines.length){ await new Promise(r=>setTimeout(r,700)); await enqueue(id,lines); }
   };
+  /* 선톡은 방을 열어야 오는 게 아니다. 안 보고 있을 때 오는 것이 메신저다 —
+     목록에 있는 동안 말이 도착하고 안 읽음이 붙는다.
+
+     한 번에 한 사람만 건다. 두 사람이 같은 초에 말을 걸면 그건 사람이 아니라
+     알림이다. 제일 오래 조용했던 쪽이 먼저 건다.
+
+     방을 열 때(demoGreet)와 조건이 같아서 둘이 겹치지 않는다 — 한쪽이 말을
+     걸면 간격이 0이 되므로 다른 쪽은 안 걸린다. 목록을 떠나면 예약도 취소된다. */
+  const greetAtRef=useRef(0);
+  useEffect(()=>{
+    if(!name||view.type!=='list'||!demoOn())return;
+    if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
+    const cand=['jaeeon','minhyun'].map(id=>{
+      const l:any[]=(msgs as any)[id]||[];
+      return {id,gap:l.length?(Date.now()-l[l.length-1].created_at)/60000:-1};
+    }).filter(c=>c.gap<0||c.gap>=180)
+      .sort((a,b)=>(b.gap<0?1e9:b.gap)-(a.gap<0?1e9:a.gap))[0];
+    if(!cand)return;
+    greetAtRef.current=Date.now();
+    const t=setTimeout(()=>{
+      const lines=demoProactive(cand.id,demoWhen(cand.gap,new Date().getHours()),name);
+      if(lines.length) enqueue(cand.id,lines);
+    },1600+Math.random()*2600);
+    return()=>clearTimeout(t);
+  },[name,view,msgs,demo]);
   useEffect(()=>{ Object.keys(msgs).forEach(k=>{ demoCount[k]=((msgs as any)[k]||[]).length }) },[msgs]);
   /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
      여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */

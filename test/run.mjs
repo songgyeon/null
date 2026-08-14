@@ -814,6 +814,24 @@ eq('웹·앱 둘 다 취소로 물러설 수 있다',
   /onClick=\{\(\)=>setConfirming\(false\)\}>취소/.test(web)
   && /onPress=\{\(\)=>setPopup\('help'\)\}><Text style=\{mo\.btnT\}>취소/.test(appSrc), true);
 
+/* ── 선톡 ──
+   방을 열어야 말을 거는 건 메신저가 아니다. 안 보고 있을 때 와야 안 읽음이
+   붙고, 안 읽음이 붙어야 열어볼 이유가 생긴다. */
+eq('웹·앱 둘 다 목록에서 선톡이 온다',
+  /greetAtRef/.test(web) && /greetAtRef/.test(appSrc), true);
+/* 두 사람이 같은 초에 말을 걸면 사람이 아니라 알림이다 */
+eq('한 번에 한 사람만 건다',
+  /\.sort\(\(a,b\)=>\(b\.gap<0\?1e9:b\.gap\)-\(a\.gap<0\?1e9:a\.gap\)\)\[0\]/.test(web)
+  && /\.sort\(\(a,b\)=>\(b\.gap<0\?1e9:b\.gap\)-\(a\.gap<0\?1e9:a\.gap\)\)\[0\]/.test(appSrc), true);
+/* 목록을 떠나면 예약도 취소돼야 한다 — 안 그러면 방을 연 직후에 한 번 더 온다 */
+eq('목록을 떠나면 선톡 예약이 취소된다',
+  (web.match(/return\(\)=>clearTimeout\(t\);/g) || []).length >= 1
+  && /return\(\)=>clearTimeout\(t\);/.test(appSrc), true);
+/* 선톡을 세우는 데 쓰는 것들이 App 안에 있어야 한다. 모듈 바깥에서 App 안의
+   것을 참조해서 데모가 통째로 안 돌던 적이 있다 */
+eq('선톡이 선언보다 먼저 읽히지 않는다',
+  web.indexOf('const [enrolling,setEnrolling]') < web.indexOf('const greetAtRef'), true);
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 

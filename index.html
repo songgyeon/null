@@ -2381,6 +2381,36 @@ function App(){
   const [enrolling,setEnrolling]=useState(false);
   const enter=n=>{localStorage.setItem("null_name",n);setName(n);setEnrolling(true)};
 
+  /* 선톡은 방을 열어야 오는 게 아니다. 안 보고 있을 때 오는 것이 메신저다 —
+     목록에 있는 동안 말이 도착하고 안 읽음이 붙는다. appendMsg가 지금 보고
+     있는 방이 아니면 알아서 세어준다.
+
+     한 번에 한 사람만 건다. 두 사람이 같은 초에 말을 걸면 그건 사람이 아니라
+     알림이다. 제일 오래 조용했던 쪽이 먼저 건다.
+
+     방을 열 때(demoGreet)와 조건이 같아서 둘이 겹치지 않는다 — 한쪽이
+     말을 걸면 간격이 0이 되므로 다른 쪽은 안 걸린다. 목록을 떠나면 예약도
+     같이 취소된다. */
+  const greetAtRef=useRef(0);
+  useEffect(()=>{
+    if(!name||view!=="list"||!demoOn()||enrolling)return;
+    if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
+    const cand=["jaeeon","minhyun"].map(id=>{
+      const l=storeRef.current.msgs[id]||[];
+      return {id,gap:l.length?(Date.now()-l[l.length-1].ts)/60000:-1};
+    }).filter(c=>c.gap<0||c.gap>=180)
+      .sort((a,b)=>(b.gap<0?1e9:b.gap)-(a.gap<0?1e9:a.gap))[0];
+    if(!cand)return;
+    greetAtRef.current=Date.now();
+    const t=setTimeout(()=>{
+      try{
+        const lines=demoProactive(cand.id,demoWhen(cand.gap,new Date().getHours()),name);
+        if(lines.length)enqueue(cand.id,lines);
+      }catch(e){ console.error("%c[NULL] 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
+    },1600+Math.random()*2600);
+    return()=>clearTimeout(t);
+  },[name,view,enrolling]);
+
   return <div className="phone">
     {enrolling&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling(false)}
       onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
