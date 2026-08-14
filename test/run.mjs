@@ -801,6 +801,9 @@ eq('재회 판정은 유저 발화만 센다',
    있어서 버티는데 그림은 안 버틴다. peek 옆의 달이 그렇게 사라졌다. */
 eq('메뉴바 아이콘이 쭈그러들지 않는다', /\.menubar svg\{flex:none\}/.test(web), true);
 eq('관찰 버튼이 줄어들지 않는다', /\.moonbtn\{flex:none\}/.test(web), true);
+/* 한 줄에 일곱 개가 앉는데 폭이 390이다. 줄이 넘치면 맨 끝 peek이 잘린다 */
+eq('메뉴바가 한 줄로 고정이다', /flex-wrap:nowrap/.test(web), true);
+eq('메뉴 글자가 안 접힌다', /\.mbtn\{[^}]*white-space:nowrap/.test(web), true);
 eq('달은 여전히 관찰 버튼 안에 있다', /<MoonIcon\/>\s*\n\s*<span>\{autoLoading/.test(web), true);
 
 /* ── 대화 지우기 ──

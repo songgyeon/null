@@ -68,10 +68,13 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .dots .d2{background:#ff9ec6}
 .dots .d3{background:#ff7fae}
 /* 메뉴바 / 베벨 버튼 / 선큰 패널 */
-.menubar{flex:none;display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:11px;color:#6b5fa8;
- background:rgba(240,236,252,.78);border-bottom:1px solid #c5bce8;position:relative;z-index:20}
-.mbtn{padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:3px}
-.mbtn.ico{position:relative;display:flex;align-items:center;gap:5px}
+/* 한 줄에 일곱 개가 앉는다. 폭이 390이라 여유가 없어서, 예전엔 맨 끝 peek이
+   창 테두리에 잘렸다. 여백을 좁히고 줄이 절대 넘치지 않게 고정한다. */
+.menubar{flex:none;display:flex;align-items:center;gap:2px;padding:4px 5px;font-size:11px;color:#6b5fa8;
+ background:rgba(240,236,252,.78);border-bottom:1px solid #c5bce8;position:relative;z-index:20;
+ max-width:100%;flex-wrap:nowrap}
+.mbtn{padding:5px 5px;cursor:pointer;border:1px solid transparent;border-radius:3px;white-space:nowrap}
+.mbtn.ico{position:relative;display:flex;align-items:center;gap:4px}
 /* flex 안에서 svg는 자리가 모자라면 폭 0까지 쭈그러든다. 글자는 최소 폭이
    있어서 버티는데 그림은 안 버틴다. 그래서 메뉴바가 빡빡해진 어느 날
    peek의 달만 소리 없이 사라졌다 — 아이콘은 안 줄어야 한다. */
@@ -123,7 +126,19 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .etcsub{position:relative;margin-top:8px;font-size:10px;letter-spacing:.22em;color:#c0a8d0;text-align:center}
 .etcdiv{position:relative;margin:14px 0 12px;font-size:9px;letter-spacing:.5em;color:#f0a8c8}
 .etcrow{position:relative;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:0 16px}
-.etcdel{position:relative;padding:6px 16px;font-size:10px;letter-spacing:.08em;border-radius:3px}
+/* restart — 위험한 버튼인데 못생기면 더 무섭다. 게스트북 톤의 분홍 알약 하나.
+   bevel을 쓰지 않는다(각진 회색 테가 이 창에서 혼자 튄다). */
+.etcdel{position:relative;display:inline-flex;align-items:center;gap:7px;
+ padding:9px 20px 10px;font-family:inherit;font-size:10.5px;letter-spacing:.16em;
+ color:#b0567f;cursor:pointer;border:1px solid #f0a8c8;border-radius:999px;
+ background:linear-gradient(180deg,#ffffff 0%,#ffeaf4 56%,#ffd9ec 100%);
+ box-shadow:inset 0 1px 0 #fff,0 2px 0 #f2bcd6,0 4px 8px rgba(190,120,155,.16)}
+.etcdel:hover{color:#95436a;border-color:#e990b6;
+ background:linear-gradient(180deg,#ffffff 0%,#ffe2f0 54%,#ffcde6 100%)}
+.etcdel:active{transform:translateY(2px);
+ box-shadow:inset 0 1px 3px rgba(176,86,127,.3),0 0 0 #f2bcd6}
+.etcdel .rr{font-size:12px;line-height:1;color:#e990b6}
+.etcdel:hover .rr{color:#d9749f}
 /* 지우기 확인. 되돌릴 수 없다는 말은 추상이고 숫자는 구체다 */
 .etcwarn{position:relative;margin:16px 14px 0;padding:12px 10px;text-align:center;
  border:1px solid #e8a8bd;background:#fff6f8;border-radius:4px}
@@ -496,7 +511,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .iconbtn.loading{animation:blink 1s steps(2) infinite}
 .tabs{flex:none;display:flex;gap:4px;padding:9px 12px 0}
 .tab{padding:6px 13px 7px;font-size:11px;color:#8a7fc0;background:rgba(226,220,246,.85);border:1px solid #8a7fc0;border-bottom:none;
- border-radius:7px 7px 0 0;cursor:pointer}
+ border-radius:7px 7px 0 0;cursor:pointer;white-space:nowrap;flex:none}
 .tab.on{background:#fff;color:#4a4276;position:relative;top:1px}
 .roomswrap{position:relative;flex:1;display:flex;flex-direction:column;margin:0 12px;border:1px solid #8a7fc0;
  background:
@@ -1924,7 +1939,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           시계와 해금까지다 — 그걸 글로 쓰지 말고 지금 상태로 보여준다. */}
       {!confirming
         ?<div className="etcrow" style={{marginTop:18}}>
-          <button className="bevel pink etcdel" onClick={()=>setConfirming(true)}>restart</button>
+          <button className="etcdel" onClick={()=>setConfirming(true)}><span className="rr">↺</span>restart</button>
         </div>
         :<div className="etcwarn">
           <div className="w">전부 처음으로 돌아갑니다</div>
