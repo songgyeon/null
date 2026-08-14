@@ -1132,17 +1132,12 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             <View style={rl.galgrid}>
               {HIDDEN.map(h=>{
                 const un=(unlocked||[]).includes(h.key);
-                /* 숫자를 안 쓴다. 조건이 둘(대화 수·날짜)이라 남은 쪽만 보여주면
-                   도중에 세던 게 바뀌고, 둘 다 쓰면 규칙을 다 알려주는 셈이 된다.
-                   빈칸은 이 앱의 말버릇이다 — the blank u fill in */
-                const need=un?'':'__ more';
+                /* 얼마나 남았는지 안 알려준다. 자물쇠만 있다 */
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
                   onPress={()=>un?setZoom(IMG+h.key+'.webp')
                     :onToast('still locked')}>
                   <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
-                  {!un&&<View style={rl.hlock}>
-                    <Text style={{fontSize:18}}>🔒</Text>
-                    {!!need&&<Text style={rl.hneed}>{need}</Text>}</View>}
+                  {!un&&<View style={rl.hlock}><Text style={{fontSize:18}}>🔒</Text></View>}
                   {/* 잠긴 이름은 물음표가 아니라 빈칸이다. 글자 수만큼 밑줄을
                       그으면 지워진 문서처럼 보인다 — 없는 게 아니라 가려진 것이다 */}
                   <View style={rl.hlabel}><Text style={rl.hlabelT}>{un?h.label:h.label.replace(/\S/g,'_')}</Text></View>
@@ -1262,7 +1257,6 @@ const rl=StyleSheet.create({
   progBar:{flex:1,height:5,backgroundColor:'#e6e0f6',borderWidth:1,borderColor:'#cfc6ee'},
   progFill:{height:'100%',backgroundColor:'#c3b2f0'},
   progN:{...F,fontSize:8.5,color:'#8a7fc0'},
-  hneed:{...F,marginTop:6,fontSize:9,color:'rgba(255,255,255,.9)'},
   menu:{flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:11,paddingVertical:3,backgroundColor:'rgba(240,236,252,.78)',borderBottomWidth:1,borderBottomColor:'#c5bce8'},
   mi:{...F,fontSize:11,color:'#6b5fa8'},
   tabs:{flexDirection:'row',gap:4,paddingHorizontal:12,paddingTop:9},

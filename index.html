@@ -762,8 +762,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .progline .bar i{display:block;height:100%;background:linear-gradient(90deg,#ffb0d4,#c3b2f0)}
 .progline .n{font-size:9.5px;color:#8a7fc0;white-space:nowrap}
 /* 잠긴 칸의 남은 횟수 */
-.hcell .need{position:absolute;left:0;right:0;top:50%;margin-top:14px;text-align:center;
- font-size:9px;letter-spacing:.05em;color:rgba(255,255,255,.9);text-shadow:0 1px 2px rgba(0,0,0,.5)}
 .galcell{position:relative;aspect-ratio:2/3;border-radius:5px;overflow:hidden;border:1px solid #cfc6ee;
  background:#efeaf9;cursor:pointer;box-shadow:1px 2px 0 rgba(93,84,144,.2)}
 .galcell img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1960,18 +1958,16 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         <div className="galgrid">
           {HIDDEN.map(h=>{
             const un=unlocked.includes(h.key);
-            /* 숫자를 안 쓴다. 대화 수와 날짜를 둘 다 넘어야 열리는데, 남은 쪽만
-               보여주면 "12 more"가 어느 순간 "5일 뒤"로 바뀌어 속은 기분이 들고,
-               둘 다 쓰면 규칙을 다 알려주는 셈이 된다. 유저는 원래 모르는 사람이다.
-               빈칸은 이 앱의 말버릇이기도 하다 — the blank u fill in. */
-            const need=un?"":"__ more";
+            /* 얼마나 남았는지 안 알려준다. 자물쇠만 있다.
+               대화 수와 날짜를 둘 다 넘어야 열리는데, 남은 쪽만 보여주면 세던 게
+               도중에 바뀌고, 둘 다 쓰면 규칙을 다 알려주는 셈이 된다.
+               유저는 원래 모르는 사람이다. */
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
               onClick={()=>un?setZoom(h.file):onToast("still locked")}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
-              {!un&&need&&<div className="need">{need}</div>}
               {/* 잠긴 이름은 물음표가 아니라 빈칸이다. 숫자를 __로 가려놓고
-                  이름만 ???이면 말이 안 맞는다. 글자 수만큼 밑줄을 그으면
+                  이름만 ???이면 말이 안 맞았다. 글자 수만큼 밑줄을 그으면
                   지워진 문서처럼 보인다 — 없는 게 아니라 가려진 것이다. */}
               <div className="hlabel">{un?h.label:h.label.replace(/\S/g,"_")}</div>
             </div>;

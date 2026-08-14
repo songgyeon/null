@@ -818,10 +818,10 @@ eq('말을 안 하면 날짜가 가도 안 열린다', uk(10, 30), 0);
    "0 more"인데 안 열리는 칸이 생겼다. 남은 쪽만 보여주는 것도 답이 아니었다 —
    "12 more"가 어느 순간 "5일 뒤"로 바뀌면 속은 기분이 든다. 그렇다고 둘 다 쓰면
    규칙을 다 알려주는 셈이다. 그래서 숫자를 아예 안 쓴다. */
-eq('잠긴 칸에 숫자를 안 쓴다',
-  /const need=un\?"":"__ more";/.test(web) && /const need=un\?'':'__ more';/.test(appSrc), true);
+eq('잠긴 칸에 남은 수를 안 쓴다', /__ more|more<\/div>|more'/.test(web + appSrc), false);
 eq('남은 수를 세던 코드가 없다',
   /h\.at-\(counts\[h\.room\]/.test(web + appSrc), false);
+eq('자물쇠는 남는다', /className="hlock"><LockIcon/.test(web) && /rl\.hlock/.test(appSrc), true);
 /* 숫자를 __로 가려놓고 이름만 ???이면 말이 안 맞는다. 둘 다 빈칸으로 간다 */
 eq('잠긴 이름도 빈칸이다',
   /h\.label\.replace\(\/\\S\/g,"_"\)/.test(web)
