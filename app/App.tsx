@@ -1900,6 +1900,8 @@ function Root() {
                   {['✿','★','♡','✧','☾'].map((x,i)=>
                     <Text key={i} style={[mo.etcStkT,{color:['#ff9ec6','#ffd68a','#c3b2f0','#8fd8e8','#ffb0d4'][i]}]}>{x}</Text>)}
                 </View>
+                <Bevel style={{marginTop:18,height:34,minWidth:118}} inner={{paddingHorizontal:18,backgroundColor:'#ffe3f0'}}
+                  onPress={()=>setPopup('reset')}><Text style={mo.btnT}>restart</Text></Bevel>
               </View>}
               {popup==='file'&&<>
                 <MenuRow label="💾  save all (.txt)" onPress={()=>{setPopup(null);exportTxt()}}/>
@@ -1921,13 +1923,23 @@ function Root() {
                       onEndEditing={e=>saveProfile(k,e.nativeEvent.text.trim())}/>
                     <Text style={mo.txt}>{sfx}</Text>
                   </View>)}
-                <Bevel style={{marginTop:16,height:38,minWidth:130}} inner={{paddingHorizontal:20,backgroundColor:'#ffe3f0'}}
-                  onPress={()=>setPopup('reset')}><Text style={mo.btnT}>restart</Text></Bevel>
               </>}
+              {/* restart는 프로필에 없다. 이름을 바꾸러 여는 창이라 위험한 버튼이
+                  안전한 일 옆에 앉아 있었다. 지금은 etc. 안이다. */}
               {popup==='reset'&&<>
-                <Text style={mo.txt}>this cannot be undone. rly?</Text>
-                <Bevel style={{marginTop:16,height:38,minWidth:130}} inner={{paddingHorizontal:20,backgroundColor:'#ffe3f0'}}
-                  onPress={doReset}><Text style={mo.btnT}>erase all</Text></Bevel>
+                <Text style={mo.warnW}>전부 처음으로 돌아갑니다</Text>
+                {/* 되돌릴 수 없다는 말보다 숫자가 손을 멈춘다. 지우는 건 기록만이
+                    아니라 시계와 해금까지다 */}
+                <Text style={mo.warnN}>실습 D-{dLeft} · 히든 {unlocked.length}/{HIDDEN.length}
+                  {' '}· 나눈 말 {ROOMS.reduce((n:number,r:any)=>n+((msgs as any)[r.id]||[]).length,0)}</Text>
+                <View style={{flexDirection:'row',gap:8,marginTop:16}}>
+                  {/* 웹에는 취소가 있는데 앱에는 없었다. 실수로 열었을 때 나갈 문이
+                      눈에 안 보이는 건 지우기 쉬운 것보다 나쁘다 */}
+                  <Bevel style={{height:38,minWidth:96}} inner={{paddingHorizontal:16}}
+                    onPress={()=>setPopup('help')}><Text style={mo.btnT}>취소</Text></Bevel>
+                  <Bevel style={{height:38,minWidth:110}} inner={{paddingHorizontal:16,backgroundColor:'#ffe3f0'}}
+                    onPress={doReset}><Text style={mo.btnT}>erase all</Text></Bevel>
+                </View>
               </>}
             </ScrollView>
           </View>
@@ -1972,6 +1984,9 @@ const mo=StyleSheet.create({
     backgroundColor:'#fff',borderWidth:1,borderColor:'#e79cc0',borderStyle:'dashed',borderRadius:3},
   txt:{...F,fontSize:12.5,color:'#8a4f74',marginVertical:4,textAlign:'center'},
   btnT:{...F,fontSize:12,color:P.ink,letterSpacing:2},
+  /* 지우기 확인. 되돌릴 수 없다는 말은 추상이고 숫자는 구체다 */
+  warnW:{...F,marginTop:4,fontSize:12,color:'#c23b50',letterSpacing:.5,textAlign:'center'},
+  warnN:{...F,marginTop:9,fontSize:10,lineHeight:17,color:'#b07d92',textAlign:'center'},
   toast:{position:'absolute',left:0,right:0,bottom:70,alignItems:'center'},
   toastT:{...F,fontSize:11,color:'#fff',letterSpacing:1,paddingVertical:9,paddingHorizontal:18,
     backgroundColor:'rgba(43,36,78,.88)',borderRadius:18,overflow:'hidden'},

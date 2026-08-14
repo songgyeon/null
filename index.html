@@ -123,6 +123,13 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
 .etcsub{position:relative;margin-top:8px;font-size:10px;letter-spacing:.22em;color:#c0a8d0;text-align:center}
 .etcdiv{position:relative;margin:14px 0 12px;font-size:9px;letter-spacing:.5em;color:#f0a8c8}
 .etcrow{position:relative;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:0 16px}
+.etcdel{position:relative;padding:6px 16px;font-size:10px;letter-spacing:.08em;border-radius:3px}
+/* 지우기 확인. 되돌릴 수 없다는 말은 추상이고 숫자는 구체다 */
+.etcwarn{position:relative;margin:16px 14px 0;padding:12px 10px;text-align:center;
+ border:1px solid #e8a8bd;background:#fff6f8;border-radius:4px}
+.etcwarn .w{font-size:11px;color:#c23b50;letter-spacing:.04em}
+.etcwarn .n{margin-top:7px;font-size:9.5px;color:#b07d92;letter-spacing:.03em}
+.etcwarn .dlgbtns{margin-top:11px;justify-content:center}
 .etctag{padding:4px 9px;font-size:9px;letter-spacing:.06em;color:#8a7fc0;background:#fff;white-space:nowrap;
  border:1px solid #e6d9f5;border-radius:11px}
 .etcnote{position:relative;margin-top:14px;padding:0 16px;font-size:9.5px;line-height:2;letter-spacing:.02em;
@@ -1712,10 +1719,12 @@ function Cart({gifts,hearts,onSend,onClose}){
   </div></div>;
 }
 
-function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
+/* restart는 여기 없다. 이름을 바꾸거나 □□를 채우러 여는 창이라, 위험한
+   버튼이 안전한 일 옆에 앉아 있었다. 단계 수보다 이웃이 문제였다.
+   지금은 etc. 안에 있다. */
+function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
   const [renaming,setRenaming]=useState(false);
   const [nv,setNv]=useState(name);
-  const [confirming,setConfirming]=useState(false);
   const doRename=()=>{const t=nv.trim();if(t)onRename(t);setRenaming(false)};
   return <Dialog title="you.txt" onClose={onClose}>
     {renaming
@@ -1726,18 +1735,9 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
     <div className="dlgline"><Blank value={profile.age} onSave={v=>onSaveField("age",v)} width={46}/> 세</div>
     <div className="dlgline"><Blank value={profile.likes} onSave={v=>onSaveField("likes",v)}/> 를 좋아하고</div>
     <div className="dlgline"><Blank value={profile.dislikes} onSave={v=>onSaveField("dislikes",v)}/> 를 싫어한다</div>
-    {!confirming
-      ?<div className="dlgbtns">
-        <button className="bevel" onClick={()=>{setNv(name);setRenaming(true)}}>이름 변경</button>
-        <button className="bevel pink" onClick={()=>setConfirming(true)}>restart</button>
-      </div>
-      :<React.Fragment>
-        <div className="dlgline" style={{marginTop:8,color:"#c23b50"}}>this cannot be undone. rly?</div>
-        <div className="dlgbtns">
-          <button className="bevel" onClick={()=>setConfirming(false)}>취소</button>
-          <button className="bevel pink" onClick={onReset}>erase all</button>
-        </div>
-      </React.Fragment>}
+    <div className="dlgbtns">
+      <button className="bevel" onClick={()=>{setNv(name);setRenaming(true)}}>이름 변경</button>
+    </div>
   </Dialog>;
 }
 
@@ -1745,6 +1745,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onReset,onClose}){
 function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,onFilm,gifts,onGift,hearts}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
+  const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap(r=>(store.msgs&&store.msgs[r.id])||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -1894,14 +1895,14 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
-      onRename={onRename} onReset={onReset} onClose={()=>setDlg(null)}/>}
+      onRename={onRename} onClose={()=>setDlg(null)}/>}
     {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>
       <LogPanel store={store} counts={counts} unlocked={unlocked} album={album}/>
     </Dialog>}
     {dlg==="find"&&<Dialog title="search" onClose={()=>setDlg(null)}>
       <FindPanel store={store} name={name} onOpen={id=>{setDlg(null);onOpen(id)}}/>
     </Dialog>}
-    {dlg==="help"&&<Dialog title="etc." cls="etc" onClose={()=>setDlg(null)}>
+    {dlg==="help"&&<Dialog title="etc." cls="etc" onClose={()=>{setDlg(null);setConfirming(false)}}>
       <div className="etcglit"/>
       <div className="etccd"/>
       <div className="etchi">안녕, NULL 기다렸어. ✧</div>
@@ -1912,6 +1913,20 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       <div className="etcstk">
         {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#ff9ec6","#ffd68a","#c3b2f0","#8fd8e8","#ffb0d4"][i]}}>{x}</span>)}
       </div>
+      {/* 되돌릴 수 없다는 말보다 숫자가 손을 멈춘다. 지우는 건 기록만이 아니라
+          시계와 해금까지다 — 그걸 글로 쓰지 말고 지금 상태로 보여준다. */}
+      {!confirming
+        ?<div className="etcrow" style={{marginTop:18}}>
+          <button className="bevel pink etcdel" onClick={()=>setConfirming(true)}>restart</button>
+        </div>
+        :<div className="etcwarn">
+          <div className="w">전부 처음으로 돌아갑니다</div>
+          <div className="n">실습 D-{dLeft} · 히든 {unlocked.length}/{HIDDEN.length} · 나눈 말 {totalN}</div>
+          <div className="dlgbtns">
+            <button className="bevel" onClick={()=>setConfirming(false)}>취소</button>
+            <button className="bevel pink" onClick={onReset}>erase all</button>
+          </div>
+        </div>}
     </Dialog>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;

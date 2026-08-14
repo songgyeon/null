@@ -791,6 +791,29 @@ eq('메뉴바 아이콘이 쭈그러들지 않는다', /\.menubar svg\{flex:none
 eq('관찰 버튼이 줄어들지 않는다', /\.moonbtn\{flex:none\}/.test(web), true);
 eq('달은 여전히 관찰 버튼 안에 있다', /<MoonIcon\/>\s*\n\s*<span>\{autoLoading/.test(web), true);
 
+/* ── 대화 지우기 ──
+   두 단계는 원래 있었다. 문제는 단계 수가 아니라 이웃이었다 — 이름 바꾸러
+   여는 창 안에 지우기 버튼이 앉아 있었다. */
+eq('프로필 창에 지우기가 없다',
+  /restart/.test(web.slice(web.indexOf('function ProfileDialog'),
+    web.indexOf('/* ── 방 목록'))), false);
+eq('지우기는 etc. 안에 있다',
+  /etcdel/.test(web) && /setPopup\('reset'\)/.test(appSrc), true);
+/* 앱의 프로필에도 없어야 한다 — 웹만 옮기고 앱을 두면 둘이 따로 논다 */
+eq('앱 프로필 창에도 지우기가 없다',
+  /setPopup\('reset'\)/.test(appSrc.slice(appSrc.indexOf("popup==='profile'"),
+    appSrc.indexOf("popup==='reset'"))), false);
+/* "되돌릴 수 없다"는 추상이고 숫자는 구체다. 지우는 건 기록만이 아니라
+   시계와 해금까지인데, 옛 경고문은 그 말을 안 했다 */
+eq('경고가 지금 상태를 숫자로 보여준다',
+  /실습 D-\{dLeft\} · 히든 \{unlocked\.length\}\/\{HIDDEN\.length\}/.test(web)
+  && /실습 D-\{dLeft\} · 히든/.test(appSrc), true);
+/* 앱에는 취소가 없었다. 실수로 열었을 때 나갈 문이 안 보이는 건
+   지우기 쉬운 것보다 나쁘다 */
+eq('웹·앱 둘 다 취소로 물러설 수 있다',
+  /onClick=\{\(\)=>setConfirming\(false\)\}>취소/.test(web)
+  && /onPress=\{\(\)=>setPopup\('help'\)\}><Text style=\{mo\.btnT\}>취소/.test(appSrc), true);
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 
