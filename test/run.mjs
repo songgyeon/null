@@ -688,32 +688,37 @@ eq('거절한 자리를 웹·앱 둘 다 들고 있다',
 eq('흐르는 띠가 웹·앱 둘 다 소개 영상을 안내한다',
   /press intro · 11 seconds/.test(web) && /press intro · 11 seconds/.test(appSrc), true);
 
-/* ── 이름이 불린 칸 ──
+/* ── 이름이 불린 만큼 채워지는 빈칸 ──
    방문자 수가 있던 자리다. 내가 내 대화를 세는 숫자라 아무것도 안 알려줬다.
-   지금은 두 사람이 내 이름을 부른 횟수다 — 내가 만든 게 아니라 받은 숫자다.
+   지금은 유저의 이름이 글자 단위로 차오른다 — 이 세계의 규칙이 "이름이 있어야
+   존재한다"이고, 오프닝의 오류창이 그 말이다.
 
    "선생님"은 안 센다. 그걸 세면 250번짜리 노가다가 된다. 이름은 프롬프트에서
-   아껴 쓰라고 박아뒀으니 잘 안 오르고, 한 번 오르는 게 사건이 된다. */
+   아껴 쓰라고 박아뒀으니 잘 안 오르고, 한 칸이 차는 게 사건이 된다. */
 eq('방문자 수는 뺐다', /visits/.test(web), false);
-eq('이름을 세는 자리가 있다', /const NAME_CALLS=/.test(web), true);
-const nameCalls = new Function('return ' + web.slice(web.indexOf('const NAME_CALLS=') + 'const NAME_CALLS='.length,
-  web.indexOf('/* 칸 하나가 한 번이 아니다')).trim().replace(/;$/, ''))();
-const M = t => ({ jaeeon: [{ sender: 'jaeeon', text: t }] });
-eq('이름을 부르면 센다', nameCalls(M('윤하 씨.'), '윤하').jaeeon, 1);
-eq('한 줄에 두 번이면 두 번', nameCalls(M('윤하. 윤하.'), '윤하').jaeeon, 2);
+const nmSrc = web.slice(web.indexOf('const CALL_PER_LETTER'), web.indexOf('const ROOMS ='));
+const NM = new Function(nmSrc + ';return {countCalls, filledLetters, CALL_PER_LETTER}')();
+const S = t => ({ msgs: { jaeeon: [{ sender: 'jaeeon', text: t }] } });
+eq('이름을 부르면 센다', NM.countCalls(S('윤하 씨.'), '윤하'), 1);
+eq('한 줄에 두 번이면 두 번', NM.countCalls(S('윤하. 윤하.'), '윤하'), 2);
 /* 이걸 세면 노가다가 된다 */
-eq('선생님은 안 센다', nameCalls(M('선생님, 앉으세요.'), '윤하').jaeeon, 0);
+eq('선생님은 안 센다', NM.countCalls(S('선생님, 앉으세요.'), '윤하'), 0);
+/* 유저가 제 이름을 쓰는 건 호명이 아니다 */
 eq('유저가 제 이름을 쳐도 안 센다',
-  nameCalls({ jaeeon: [{ sender: 'user', text: '저 윤하예요' }] }, '윤하').jaeeon, 0);
-eq('이름이 비면 아무것도 안 센다', nameCalls(M('아무 말'), '').jaeeon, 0);
-/* 칸 하나가 한 번이 아니다. 몇 번에 한 칸인지도 안 알려준다 */
-const cellSrc = web.slice(web.indexOf('const NAME_PER='), web.indexOf('const demoUnlocked'));
-const cells = new Function(cellSrc + ';return nameCells')();
-eq('칸이 한 번에 하나씩 차지 않는다', [cells(0), cells(1), cells(2), cells(3), cells(15), cells(99)],
-  [0, 0, 0, 1, 5, 5]);
-eq('칸 수를 화면에 숫자로 안 쓴다', /\{calls\[c\]\}/.test(web), false);
-/* 줄을 갈아치우면서 오른쪽 별·하트를 같이 날린 적이 있다 */
-eq('별과 하트는 그 자리에 있다', /className="sp"><Sticker\.star/.test(web), true);
+  NM.countCalls({ msgs: { jaeeon: [{ sender: 'user', text: '저 윤하예요' }] } }, '윤하'), 0);
+eq('이름이 비면 아무것도 안 센다', NM.countCalls(S('아무 말'), ''), 0);
+/* 글자 하나에 여러 번. 몇 번인지는 화면에 안 쓴다 */
+eq('글자가 한 번에 하나씩 차지 않는다',
+  [0, 3, 4, 8, 99].map(n => NM.filledLetters(n, '윤하')), [0, 0, 1, 2, 2]);
+eq('이름 길이를 넘지 않는다', NM.filledLetters(999, '윤하'), 2);
+eq('칸 수를 화면에 숫자로 안 쓴다', /\{calls\}/.test(web), false);
+
+/* ── D-0 · 계속 살아갈지 ──
+   이름이 다 불렸을 때만 남을 수 있다. 빈칸이 남았다는 건 끝까지 부를 사람이
+   하나도 없었다는 말이다. */
+eq('D-0에 묻는 창이 있다', /askDday/.test(web), true);
+eq('이름이 다 차야 남을 수 있다', /nameFull\?answerDday\(true\)/.test(web), true);
+eq('남기로 하면 날이 더 붙는다', /null_extend/.test(web), true);
 
 /* 이름을 아껴 쓰라고 두 사람 다에게 말해둔다 — 안 그러면 칸이 하루에 다 찬다 */
 eq('두 사람 다 이름을 아껴 쓴다',
@@ -818,14 +823,10 @@ eq('말을 안 하면 날짜가 가도 안 열린다', uk(10, 30), 0);
    "0 more"인데 안 열리는 칸이 생겼다. 남은 쪽만 보여주는 것도 답이 아니었다 —
    "12 more"가 어느 순간 "5일 뒤"로 바뀌면 속은 기분이 든다. 그렇다고 둘 다 쓰면
    규칙을 다 알려주는 셈이다. 그래서 숫자를 아예 안 쓴다. */
-eq('잠긴 칸에 남은 수를 안 쓴다', /__ more|more<\/div>|more'/.test(web + appSrc), false);
 eq('남은 수를 세던 코드가 없다',
   /h\.at-\(counts\[h\.room\]/.test(web + appSrc), false);
 eq('자물쇠는 남는다', /className="hlock"><LockIcon/.test(web) && /rl\.hlock/.test(appSrc), true);
 /* 숫자를 __로 가려놓고 이름만 ???이면 말이 안 맞는다. 둘 다 빈칸으로 간다 */
-eq('잠긴 이름도 빈칸이다',
-  /h\.label\.replace\(\/\\S\/g,"_"\)/.test(web)
-  && /h\.label\.replace\(\/\\S\/g,'_'\)/.test(appSrc), true);
 eq('물음표를 안 쓴다', /"\?\?\?"|'\?\?\?'/.test(web + appSrc), false);
 
 /* 세 군데가 같은 날짜를 써야 한다. 어긋나면 서버가 연기하는 단계와
