@@ -616,9 +616,9 @@ eq('사건은 auto에서만 받는다',
 eq('사건을 줘도 오간 말은 모른다고 못박는다',
   /무슨 말이 오갔는지는 모른다/.test(workerSrc), true);
 
-/* 같이 가자는 제안. 서버가 고른다 — 모델이 알아서 꺼내게 두면 아무 때나
-   조르거나 영영 안 꺼낸다. 거절한 곳을 다시 꺼내면 성격이 무너진다. */
-eq('제안 자리를 서버가 고른다', /function inviteFor/.test(workerSrc), true);
+/* 같이 가자는 제안. 서버는 갈 수 있는 자리만 열어두고 고르는 건 모델이 한다.
+   거절한 곳을 다시 꺼내면 성격이 무너지므로 그건 서버가 막는다. */
+eq('서버는 자리 목록만 연다', /function invitesFor/.test(workerSrc), true);
 eq('이미 갔거나 거절한 곳은 다시 안 꺼낸다',
   /skip\.has\(v\.place\)/.test(workerSrc), true);
 eq('제안은 1:1에서만 나온다', /mode !== "chat"/.test(workerSrc), true);
@@ -784,22 +784,38 @@ eq('없는 사진을 찍는 척하지 말라고 했다', /찍는 척하지 않�
 eq('선물은 사진에 안 나온다고 했다', /선물은 사진에 안 나온다/.test(workerSrc), true);
 
 /* ── 같이 가자는 제안 ──
-   조건이 "대화 수 ≥ 40" 하나뿐이라 그 뒤로 매 턴 참이었다. 같은 자리를 계속
-   조르고, 120이 넘으면 세 곳이 다 자격을 얻어 하나 끝나자마자 다음 걸 꺼냈다 —
-   옥상에 가기로 한 바로 그 답에서 도서관을 또 물었다. */
+   서버가 "이번 답에 옥상 가자고 해라"라고 꽂던 것이다. 조건이 대화 수 하나뿐이라
+   그 뒤로 매 턴 참이었고, 그래서 묻는 말에 답도 안 하고 딴 데 가자고 했다.
+   굳이 맨날 어디를 갈 이유가 없다. 지금은 서버가 문만 열어두고 모델이 고른다. */
 const invSrc = workerSrc.slice(workerSrc.indexOf('const INVITES ='), workerSrc.indexOf('function buildInvite'));
-const inviteFor = new Function(invSrc + ';return inviteFor')();
-const inv = (n, done = []) => inviteFor('chat', 'jaeeon', { jaeeon: n }, done, []);
-eq('문턱을 넘으면 한 번 열린다', [inv(39), inv(40), inv(49)], [null, '옥상', '옥상']);
-eq('열 마디가 지나면 닫힌다', inv(50), null);
-eq('다음 문턱까지는 조용하다', [inv(60), inv(79)], [null, null]);
-eq('다녀온 자리는 다시 안 꺼낸다', inv(45, ['옥상']), null);
-/* 하나 끝나자마자 다음 걸 꺼내지 않는다 — 이게 원래 증상이었다 */
-eq('연달아 두 곳을 부르지 않는다', inv(45, ['옥상']), null);
-eq('다음 문턱에서는 다음 자리다', inv(82, ['옥상']), '도서관');
-eq('셋 다 끝나면 없다', inv(125, ['옥상', '도서관', '빨래방']), null);
-/* 화제를 끊고 꺼내면 딴사람처럼 보인다 */
-eq('하던 얘기 끝에 붙이라고 했다', /지금 하던 얘기 끝에 붙인다/.test(workerSrc), true);
+const INV = new Function(invSrc + ';return {invitesFor, pickInvite}')();
+const open = (n, done = [], ref = []) => INV.invitesFor('chat', 'jaeeon', { jaeeon: n }, done, ref);
+
+eq('서버가 자리를 정하지 않는다', /이번 답에 할 것/.test(workerSrc), false);
+eq('문턱 전에는 문이 안 열린다', open(39), []);
+eq('문턱을 넘으면 열린다', open(40), ['옥상']);
+/* 열려 있어도 매 턴 꺼내는 게 아니다 — 안 꺼내는 게 기본이라고 말해둔다 */
+eq('안 꺼내는 게 기본이다', /대부분의 턴에는 안 꺼낸다/.test(workerSrc), true);
+eq('하던 얘기에서 이어질 때만', /지금 하던 얘기에서 자연스럽게 이어질 때/.test(workerSrc), true);
+eq('무거우면 안 꺼낸다', /아프다고 했거나 가라앉아 있으면 안 꺼낸다/.test(workerSrc), true);
+
+eq('다녀온 곳은 문이 닫힌다', open(125, ['옥상']), ['도서관', '빨래방']);
+eq('거절당한 곳도 닫힌다', open(125, [], ['도서관']), ['옥상', '빨래방']);
+eq('셋 다 끝나면 목록이 없다', open(125, ['옥상', '도서관', '빨래방']), []);
+/* 목록이 비면 그 대목 자체가 프롬프트에서 빠진다 */
+eq('열린 자리가 없으면 얘기도 안 꺼낸다',
+  buildSystem('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [])
+    .map(b => b.text).join('').includes('같이 가자고 할 수 있는 자리'), false);
+
+/* 모델이 지어낸 장소로 약속이 잡히면 유저 화면에 없는 곳이 남는다 */
+eq('지어낸 장소는 통과 못 한다', INV.pickInvite('한강', ['옥상', '도서관']), null);
+eq('열린 자리는 통과한다', INV.pickInvite('옥상', ['옥상', '도서관']), '옥상');
+eq('안 골랐으면 없다', [INV.pickInvite('', ['옥상']), INV.pickInvite(null, ['옥상'])], [null, null]);
+/* 모델이 JSON 맨 위에 쓴 것을 읽어온다 */
+parseMessages('{"invite":"옥상","messages":["갈래요?"]}', 'jaeeon', ['jaeeon']);
+eq('모델이 고른 자리를 읽는다', parseMessages.invite, '옥상');
+parseMessages('{"messages":["아뇨."]}', 'jaeeon', ['jaeeon']);
+eq('안 고른 턴은 비어 있다', parseMessages.invite, '');
 
 /* 모델이 가끔 한자를 흘린다 — "那, 도서관 갈래요." 스무 살과 스물아홉 살이
    메신저에서 한자를 칠 일이 없다. */

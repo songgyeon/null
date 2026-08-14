@@ -784,6 +784,8 @@ const FORMAT_CHAT = `
 - 한 번에 1~3개의 짧은 말풍선으로 답한다. 카톡처럼.
 - 반드시 아래 JSON만 출력한다. 다른 텍스트 금지:
 {"messages": ["지금요?", "그건 아까 말했잖아요."]}
+- 같이 가자고 하기로 한 턴에만 "invite"를 같이 쓴다. 아닌 턴에는 아예 쓰지 않는다:
+{"invite": "옥상", "messages": ["바람이나 쐬러 갈래요?"]}
 - 사진을 붙이는 말풍선만 객체로 쓴다:
 {"messages": ["지금요?", {"text": "이거 보세요.", "photo": "사진키"}]}
 `;
@@ -1070,28 +1072,40 @@ const INVITES = {
 };
 /* 이번 답에 같이 가자고 할 자리. 없으면 null.
    done(다녀온 곳)·refused(거절당한 곳)는 프론트가 들고 있다가 보내준다. */
-/* 문턱을 넘고 나서 열 마디 안에만 꺼낸다.
-   전에는 조건이 "대화 수 ≥ 40" 하나뿐이라 그 뒤로 매 턴 참이었다. 그래서
-   같은 자리를 계속 조르고, 120이 넘으면 세 곳이 다 자격을 얻어 하나 끝나자마자
-   다음 걸 꺼냈다 — 옥상에 가기로 한 바로 그 답에서 도서관을 또 물었다.
-   창을 좁히면 한 문턱에 한 번씩만 나온다. 창을 놓치면 그 자리는 없던 일이 된다.
-   조르는 것보다 낫다 — 두 번 조르지 않는 게 이 두 사람의 성격이다. */
-const INVITE_WINDOW = 10;
-function inviteFor(mode, room, counts, done, refused) {
-  if (mode !== "chat" || !INVITES[room]) return null;
+/* 지금 꺼낼 수 있는 자리들. 고르는 건 모델이 한다.
+   전에는 서버가 "이번 답에 옥상 가자고 해라"라고 꽂았다. 조건이 대화 수
+   하나뿐이라 그 뒤로 매 턴 참이었고, 그래서 묻는 말에 답도 안 하고 딴 데
+   가자고 했다. 굳이 맨날 어디를 갈 이유가 없는데. 서버는 문을 열어두기만
+   하고, 지금이 그럴 때인지는 대화를 보고 있는 쪽이 정한다. */
+function invitesFor(mode, room, counts, done, refused) {
+  if (mode !== "chat" || !INVITES[room]) return [];
   const n = (counts && counts[room]) || 0;
   const skip = new Set([...(done || []), ...(refused || [])]);
-  // 낮은 문턱부터 본다. 한 번에 하나만 열린다
-  const hit = INVITES[room].find(v => n >= v.at && n < v.at + INVITE_WINDOW && !skip.has(v.place));
-  return hit ? hit.place : null;
+  return INVITES[room].filter(v => n >= v.at && !skip.has(v.place)).map(v => v.place);
 }
-function buildInvite(place, room) {
-  if (!place) return "";
-  return `\n## 이번 답에 할 것\n${place}에 같이 가자고 말한다. 한 번만, 가볍게.\n`
-       + `약속을 잡는 말투가 아니라 지나가듯 꺼낸다. 이유를 길게 대지 않는다.\n`
-       + `**지금 하던 얘기 끝에 붙인다.** 유저가 방금 물어본 게 있으면 그 대답을 먼저 하고,\n`
-       + `그 말끝에 자연스럽게 얹는다. 화제를 끊고 꺼내면 딴사람처럼 보인다.\n`
-       + `대답을 재촉하지 않는다. 거절당하면 두 번 조르지 않는다 — 그건 이 사람이 안 하는 일이다.\n`;
+/* 모델이 고른 자리가 진짜 열려 있는 자리인지 본다. 아니면 없던 일로 한다 —
+   안 그러면 지어낸 장소로 약속이 잡히고, 유저 화면에는 그 장소가 남는다. */
+function pickInvite(raw, open) {
+  const p = (raw || "").toString().trim();
+  return p && open.includes(p) ? p : null;
+}
+function buildInvite(open, room) {
+  if (!open || !open.length) return "";
+  return `
+## 같이 가자고 할 수 있는 자리
+${open.map(p => `- ${p}`).join("\n")}
+
+**대부분의 턴에는 안 꺼낸다.** 굳이 맨날 어디를 갈 이유가 없다.
+꺼낼 때는 이 조건이 다 맞을 때만이다:
+- 지금 하던 얘기에서 자연스럽게 이어질 때. 유저가 방금 물어본 게 있으면 그 대답이 먼저다.
+  화제를 끊고 꺼내면 딴사람처럼 보인다.
+- 그 장소가 지금 말에 걸릴 때. (바람 얘기 끝의 옥상, 책 얘기 끝의 도서관)
+- 분위기가 무겁지 않을 때. 아프다고 했거나 가라앉아 있으면 안 꺼낸다.
+
+꺼내기로 했으면 JSON 맨 위에 "invite": "장소" 를 같이 쓴다. 목록에 있는 이름 그대로.
+말은 지나가듯 한다. 약속을 잡는 말투가 아니고 이유를 길게 대지 않는다.
+대답을 재촉하지 않는다. 거절당하면 두 번 조르지 않는다 — 그건 이 사람이 안 하는 일이다.
+`;
 }
 
 /* 「두 사람」방을 열게 만든 사건. 유저가 선물을 줬거나 무언가 해금됐을 때,
@@ -1407,12 +1421,15 @@ function parseTagged(text, allowed) {
 
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
+  parseMessages.invite = "";   // 이번 응답에서 모델이 고른 자리. 없으면 빈 문자열
   try {
     const cleaned = text.replace(/```json|```/g, "").trim();
     const start = cleaned.indexOf("{");
     if (start !== -1) {
       const j = JSON.parse(cleaned.slice(start));
       if (Array.isArray(j.messages)) {
+        // 모델이 같이 가자고 하기로 했으면 여기 장소 이름이 온다. 부수적으로 넘긴다
+        parseMessages.invite = typeof j.invite === "string" ? j.invite : "";
         return j.messages.map(m =>
           typeof m === "string" ? { sender: fallbackSender, text: m } : m
         ).filter(m => m && m.text)
@@ -1732,10 +1749,11 @@ export default {
       return new Response(JSON.stringify({ error: "history의 마지막은 user 메시지여야 함" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
     }
 
-    // 같이 가자고 할 자리. 프론트가 다녀온 곳·거절한 곳을 들고 있다가 보내준다
-    const invite = inviteFor(mode, room, counts,
+    // 열려 있는 자리들. 프론트가 다녀온 곳·거절한 곳을 들고 있다가 보내준다.
+    // 꺼낼지 말지는 모델이 정한다 — 서버는 문만 열어둔다
+    const openPlaces = invitesFor(mode, room, counts,
       Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
-    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite);
+    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces);
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
@@ -1746,7 +1764,10 @@ export default {
       const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
-      const messages = trimTics(sanitizePhotos(splitLines(parseMessages(raw, fallbackSender, chars)), photoChars, fallbackSender, recentPhotos));
+      const parsed = parseMessages(raw, fallbackSender, chars);
+      // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다
+      const invite = pickInvite(parseMessages.invite, openPlaces);
+      const messages = trimTics(sanitizePhotos(splitLines(parsed), photoChars, fallbackSender, recentPhotos));
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts),
         ...(invite ? { invite: { place: invite, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
