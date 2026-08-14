@@ -688,10 +688,36 @@ eq('거절한 자리를 웹·앱 둘 다 들고 있다',
 eq('흐르는 띠가 웹·앱 둘 다 소개 영상을 안내한다',
   /press intro · 11 seconds/.test(web) && /press intro · 11 seconds/.test(appSrc), true);
 
-// 미니홈피 방문자 카운터 — 웹에만 있다가 앱에 옮겼다
-eq('방문자 카운터가 웹·앱 둘 다 있다',
-  /today.*total/s.test(appSrc.slice(appSrc.indexOf('visits'), appSrc.indexOf('visits') + 400))
-  && /today.*total/s.test(web.slice(web.indexOf('visits'), web.indexOf('visits') + 400)), true);
+/* ── 이름이 불린 칸 ──
+   방문자 수가 있던 자리다. 내가 내 대화를 세는 숫자라 아무것도 안 알려줬다.
+   지금은 두 사람이 내 이름을 부른 횟수다 — 내가 만든 게 아니라 받은 숫자다.
+
+   "선생님"은 안 센다. 그걸 세면 250번짜리 노가다가 된다. 이름은 프롬프트에서
+   아껴 쓰라고 박아뒀으니 잘 안 오르고, 한 번 오르는 게 사건이 된다. */
+eq('방문자 수는 뺐다', /visits/.test(web), false);
+eq('이름을 세는 자리가 있다', /const NAME_CALLS=/.test(web), true);
+const nameCalls = new Function('return ' + web.slice(web.indexOf('const NAME_CALLS=') + 'const NAME_CALLS='.length,
+  web.indexOf('/* 칸 하나가 한 번이 아니다')).trim().replace(/;$/, ''))();
+const M = t => ({ jaeeon: [{ sender: 'jaeeon', text: t }] });
+eq('이름을 부르면 센다', nameCalls(M('윤하 씨.'), '윤하').jaeeon, 1);
+eq('한 줄에 두 번이면 두 번', nameCalls(M('윤하. 윤하.'), '윤하').jaeeon, 2);
+/* 이걸 세면 노가다가 된다 */
+eq('선생님은 안 센다', nameCalls(M('선생님, 앉으세요.'), '윤하').jaeeon, 0);
+eq('유저가 제 이름을 쳐도 안 센다',
+  nameCalls({ jaeeon: [{ sender: 'user', text: '저 윤하예요' }] }, '윤하').jaeeon, 0);
+eq('이름이 비면 아무것도 안 센다', nameCalls(M('아무 말'), '').jaeeon, 0);
+/* 칸 하나가 한 번이 아니다. 몇 번에 한 칸인지도 안 알려준다 */
+const cellSrc = web.slice(web.indexOf('const NAME_PER='), web.indexOf('const demoUnlocked'));
+const cells = new Function(cellSrc + ';return nameCells')();
+eq('칸이 한 번에 하나씩 차지 않는다', [cells(0), cells(1), cells(2), cells(3), cells(15), cells(99)],
+  [0, 0, 0, 1, 5, 5]);
+eq('칸 수를 화면에 숫자로 안 쓴다', /\{calls\[c\]\}/.test(web), false);
+
+/* 이름을 아껴 쓰라고 두 사람 다에게 말해둔다 — 안 그러면 칸이 하루에 다 찬다 */
+eq('두 사람 다 이름을 아껴 쓴다',
+  (workerSrc.match(/이름은 아껴 쓴다/g) || []).length, 2);
+eq('한 대화에 한 번을 넘기지 않는다',
+  (workerSrc.match(/한 대화에 한 번을 넘기지 않는다/g) || []).length, 2);
 eq('소개 영상 사진이 저장소에 있다', (filmOf(web)[0]||['x']).filter(f => !exists(f)), []);
 
 // ─────────────────────────────────────────────

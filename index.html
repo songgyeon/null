@@ -583,6 +583,14 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .hompy .hv b{font-weight:400;color:#6b5fa8}
 .hompy .hv.pk b{color:#e0699a}
 .hompy .sp{margin-left:auto;display:flex;align-items:center;gap:5px;opacity:.9}
+/* 이름이 불린 칸. 숫자를 안 쓴다 — 얼마가 충분한지 모르는 채로 차오르는 게 요점 */
+.nmt{flex:none;color:#b39ac2}
+.nmrow{display:flex;align-items:center;gap:4px;flex:none}
+.nmf{width:5px;height:5px;border-radius:50%;flex:none;opacity:.75}
+.nmbar{display:flex;gap:2px;height:8px;padding:1px;border:1px solid #e8cfe6;background:#fff;border-radius:2px}
+.nmbar b{width:7px;background:#f4ecf7;border-radius:1px}
+.nmbar b.on{box-shadow:0 0 4px rgba(0,0,0,.12)}
+.hompy .hv{flex:none}
 .statusbar{flex:none;display:flex;gap:4px;padding:7px 8px calc(8px + env(safe-area-inset-bottom))}
 .statusbar span{padding:5px 9px;font-size:10px;color:#6b5fa8;background:#ece8fa;border:1px solid #b0a6d8;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.18)}
@@ -945,6 +953,33 @@ const demoReply=(bucket,lastText,userName,msgs,gift)=>
   demoAnswer(bucket,lastText,userName,{close:demoClose(msgs,bucket),gift:gift});
 /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
    여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
+/* ── 이름이 불린 횟수 ──
+   이 세계의 규칙은 "이름이 있어야 존재한다"이다. 오프닝의 오류창이 그 말이고,
+   이름 칸을 채우는 게 그걸 지우는 일이었다. 그 규칙을 30일 내내 살려둔다.
+
+   두 사람은 평소에 "선생님"이라고 부른다. 이름은 아껴 쓰라고 프롬프트에
+   박아뒀다 — 재언에게는 자백에 가깝고, 민현에게는 장난으로 물릴 수 없게 되는
+   일이라서다. 그래서 이 숫자는 잘 안 오른다. 한 번 오르는 게 사건이다.
+
+   "선생님"은 안 센다. 그걸 세면 250번짜리 노가다가 된다. */
+const NAME_CALLS=(msgs,name)=>{
+  const who={jaeeon:0,minhyun:0};
+  const n=(name||"").trim();
+  if(n.length<1)return who;
+  Object.values(msgs||{}).forEach(list=>(list||[]).forEach(m=>{
+    if(who[m.sender]===undefined||!m.text)return;
+    const hit=m.text.split(n).length-1;      // 한 말풍선에 두 번 부르면 두 번
+    if(hit>0)who[m.sender]+=hit;
+  }));
+  return who;
+};
+/* 칸 하나가 한 번이 아니다. 몇 번을 불려야 한 칸인지도 안 알려준다 —
+   그래서 불렸는데 칸이 안 차는 날이 있고, 그게 이 화면의 요점이다.
+   유저는 규칙을 모르는 사람이니까. 다 차면 D-0에 남을 수 있다. */
+const NAME_PER=3;      // 이만큼 불려야 한 칸
+const NAME_CELLS=5;    // 칸 수. 다 채우려면 NAME_PER * NAME_CELLS 번
+const nameCells=n=>Math.min(NAME_CELLS,Math.floor((n||0)/NAME_PER));
+
 const demoUnlocked=msgs=>HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at).map(h=>h.key);
 /* 문구집에 물어볼 말. 유저가 방금 친 말이다. 시스템 줄("…을(를) 받았다")은
    유저가 한 말이 아니라서 그대로 넘기면 아무것도 안 걸린다. */
@@ -1784,6 +1819,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
   const left=Math.max(0,autoAt+AUTO_COOL-now);
   const album=seenPhotos(store.msgs);
+  const calls=NAME_CALLS(store.msgs,name);
   const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
@@ -1867,12 +1903,22 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
             </div>
           </React.Fragment>;
         })}
+        {/* 방문자 수가 있던 자리. 내가 내 대화를 세는 숫자라 아무것도 안 알려줬다.
+            대신 두 사람이 내 이름을 부른 횟수를 둔다 — 내가 만든 게 아니라
+            받은 숫자다. 숫자는 안 쓴다. 얼마가 충분한지도 안 알려준다. */}
         <div className="hompy">
-          visits
-          <span className="hv">today <b>{todayN}</b></span>
-          <span className="hv">total <b>{totalN}</b></span>
+          <span className="nmt">이름이 불린 날</span>
+          {["jaeeon","minhyun"].map(c=>
+            <span key={c} className="nmrow" title={CHARS[c].name}>
+              <i className="nmf" style={{background:CHARS[c].dk}}/>
+              <span className="nmbar">
+                {Array.from({length:NAME_CELLS},(_,i)=>{
+                  const on=i<nameCells(calls[c]);
+                  return <b key={i} className={on?"on":""} style={on?{background:CHARS[c].dk}:null}/>;
+                })}
+              </span>
+            </span>)}
           <span className="hv pk">♡ <b>{hearts}</b></span>
-          <span className="sp"><Sticker.star size={11} color="#ffd68a"/><Sticker.heart size={11}/></span>
         </div>
       </div>
       :tab==="cam"
