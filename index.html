@@ -26,7 +26,7 @@ html,body{height:100%}
    body의 background를 그라데이션으로 다시 써서, 그림이 늘 덮여 있었다.
    파일을 넣어도 화면에는 단색만 보였고 오류도 안 났다. */
 body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
- background:#c3b2f0 url("bg-6.webp") center/cover fixed no-repeat;
+ background:#c3b2f0 url("bg-desk.webp") center/cover fixed no-repeat;
  -webkit-font-smoothing:none}
 /* 배경 위에 얇은 막을 한 겹. 그림의 별빛이 창 양옆에서 너무 튀어서
    옅게 눌러두고 살짝 흐린다. z-index:-1이라 body 배경 바로 위,
@@ -471,7 +471,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .enr .ego:active{transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(190,120,160,.3)}
 @keyframes enrRow{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 /* 방 목록: 크롬 스타 월페이퍼 위 메신저 창 */
-.desk{background:#c3b2f0 url("bg-6.webp") center/cover no-repeat}
+.desk{background:#c3b2f0 url("bg-desk.webp") center/cover no-repeat}
 .iconbtn{width:34px;height:28px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
 .iconbtn.loading{animation:blink 1s steps(2) infinite}
 /* 탭 — 낝작한 사각형 대신 광택 있는 둥근 탭. 윈도우 밖으로 튀어나오는 느낌 */
@@ -1324,7 +1324,7 @@ const Sticker={
 };
 
 /* 떠다니는 반짝이 레이어 */
-const BG="bg-6.webp";
+const BG="bg-desk.webp";
 const BUBBLES=[[8,14,13,0],[22,9,17,2.5],[38,18,15,5],[54,11,19,1.2],[68,15,14,6.5],[84,8,16,3.4],[92,12,18,8]];
 const SPARKS=[[6,10,10,"#fff"],[86,7,8,"#ffd0e6"],[70,24,12,"#fff"],[13,42,9,"#ffe9a8"],[91,50,10,"#d5c8ff"],[38,68,8,"#fff"],[76,84,11,"#ffd0e6"],[8,88,8,"#d5c8ff"]];
 const Sparkles=()=><React.Fragment>{SPARKS.map((s,i)=><span key={i} className="spark" style={{left:s[0]+"%",top:s[1]+"%",width:s[2],height:s[2],background:s[3],animationDelay:(i*0.4)+"s"}}/>)}</React.Fragment>;
