@@ -21,7 +21,12 @@
   // 배포가 10021 validation error로 실패한다.
   // keep_vars는 변수만 지켜주고 이 설정은 안 지켜준다. 대시보드에서만
   // 고쳐두면 다음 Git 배포 때 되돌아가므로 여기에 같이 박아둔다.
-  "placement": { "mode": "targeted", "region": "azure:koreasouth" }
+  "placement": { "mode": "targeted", "region": "azure:koreasouth" },
+
+  // 로그. 대시보드에서 켜도 다음 배포 때 이 파일 기준으로 덮어써져 꺼진다 —
+  // placement와 같은 함정이라 여기에 박아둔다.
+  // Workers → null-api → Logs 에서 console.log가 보인다.
+  "observability": { "enabled": true }
 
   // index.html과 png들은 GitHub Pages가 서빙하므로 여기서 올리지 않는다.
   // 키는 절대 이 파일에 적지 말 것 — 저장소는 공개다.

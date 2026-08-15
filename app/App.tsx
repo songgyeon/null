@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
-import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, POISON, Msg } from './lib/db';
+import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoGreetWhen, demoWatchOpen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
@@ -1469,8 +1469,6 @@ function Root() {
   // 순차 등장 — 타이핑 연출
   const enqueue = async (room:string, list:any[]) => {
     for(const m of list){
-      // 오류 문장은 어떤 경로로 오든 대사가 되지 않는다. 화면에도 기록에도 안 남는다
-      if(POISON.test(m?.text||'')){ console.error('[NULL] 오류 문장이 대사로 왔다 ▶ '+String(m?.text).slice(0,300)); continue; }
       setTyping(true);
       await new Promise(r=>setTimeout(r, typeDelay(m.sender||room, m.text||'')));
       await insertMsg({ room, sender:m.sender||room, text:m.text||'', photo:m.photo||null, created_at:Date.now() });

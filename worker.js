@@ -8,43 +8,11 @@
 // - thinking: Sonnet 5는 사고가 기본으로 켜져 있고 max_tokens가 사고+응답을
 //   함께 제한한다. 짧은 말풍선만 뽑으므로 명시적으로 끈다.
 // - effort: Sonnet 4.5는 이 파라미터 자체를 거부하므로 보내지 않는다.
-/* json: 구조화 출력(output_config.format)을 받는 모델인가.
-   이게 켜지면 API가 스키마에 맞는 JSON만 내보낸다 — 형식을 어긴 응답이
-   원천적으로 안 나온다. 4.6/4.5는 이 기능이 없어서 붙이면 400이 난다. */
 const MODELS = [
-  { id: "claude-sonnet-5", effort: "medium", noThinking: true, json: true },
+  { id: "claude-sonnet-5", effort: "medium", noThinking: true },
   { id: "claude-sonnet-4-6", effort: "medium", noThinking: true },
   { id: "claude-sonnet-4-5", effort: null, noThinking: false },
 ];
-
-/* ── 대사 응답의 모양 ──
-   프롬프트로 「이 JSON만 출력하라」고 백 번 적어도 모델은 가끔 그냥 줄글을 뱉는다.
-   그러면 parseMessages가 그 줄글을 통째로 대사로 만들었다. 부탁 대신 스키마로
-   못 박는다 — 말풍선은 문자열이거나 {sender,text,photo} 객체다.
-   객체마다 additionalProperties:false가 있어야 한다(API 요구사항).
-   invite는 같이 가자고 하는 턴에만 붙으므로 required에 넣지 않는다. */
-const REPLY_SCHEMA = {
-  type: "object",
-  properties: {
-    messages: {
-      type: "array",
-      items: {
-        anyOf: [
-          { type: "string" },
-          {
-            type: "object",
-            properties: { sender: { type: "string" }, text: { type: "string" }, photo: { type: "string" } },
-            required: ["text"],
-            additionalProperties: false,
-          },
-        ],
-      },
-    },
-    invite: { type: "string" },
-  },
-  required: ["messages"],
-  additionalProperties: false,
-};
 /* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
    앞에서 자르지 않고 뒤에서 자르면 캐시된 앞부분이 매번 달라진다. */
 function budgetHistory(list, budget) {
@@ -1447,7 +1415,7 @@ function isEdgeBlock(status, headers) {
 }
 
 // 모델 하나로 한 번 호출한다. 성공하면 {ok:true, text}, 실패하면 {ok:false, status, body}.
-async function callModel(env, m, system, messages, maxTokens, schema) {
+async function callModel(env, m, system, messages, maxTokens) {
   const body = {
     model: m.id,
     max_tokens: maxTokens,
@@ -1457,9 +1425,6 @@ async function callModel(env, m, system, messages, maxTokens, schema) {
   };
   if (m.noThinking) body.thinking = { type: "disabled" };
   if (m.effort) body.output_config = { effort: m.effort };
-  /* 스키마를 받는 모델이면 형식을 API가 강제한다. effort와 같은 자리에 들어간다 */
-  const useSchema = !!(schema && m.json);
-  if (useSchema) body.output_config = { ...(body.output_config || {}), format: { type: "json_schema", schema } };
 
   let r;
   for (let i = 0; i < EDGE_RETRIES; i++) {
@@ -1479,13 +1444,6 @@ async function callModel(env, m, system, messages, maxTokens, schema) {
     // 지역 차단이 아니면 재시도해도 결과가 같으므로 그대로 진행한다
     if (!isEdgeBlock(r.status, r.headers)) break;
     if (i < EDGE_RETRIES - 1) await new Promise(s => setTimeout(s, 250 * (i + 1)));
-  }
-  /* 스키마 때문에 거부당했으면 스키마 없이 한 번 더 간다. 형식이 강제되는
-     편이 낫지만, 그것 때문에 대화가 통째로 멈추는 것보다는 못한 형식이 낫다. */
-  if (!r.ok && r.status === 400 && useSchema) {
-    const why = await r.text();
-    console.log(`[NULL] 스키마가 거부됐다 → 스키마 없이 재시도 ▶ ${why.slice(0, 200)}`);
-    return await callModel(env, m, system, messages, maxTokens, null);
   }
   if (!r.ok) {
     // 실패한 응답을 누가 보냈는지 헤더로 갈린다.
@@ -1526,7 +1484,7 @@ async function askSummary(env, system, messages, maxTokens) {
   return await askClaude(env, system, messages, maxTokens);
 }
 
-async function askClaude(env, system, messages, maxTokens, schema) {
+async function askClaude(env, system, messages, maxTokens) {
   // 이미 되는 모델을 알면 그것부터, 아니면 목록 순서대로
   const order = workingModel
     ? [workingModel, ...MODELS.filter(m => m.id !== workingModel.id)]
@@ -1534,7 +1492,7 @@ async function askClaude(env, system, messages, maxTokens, schema) {
 
   const failures = [];
   for (const m of order) {
-    const res = await callModel(env, m, system, messages, maxTokens, schema);
+    const res = await callModel(env, m, system, messages, maxTokens);
     if (res.ok) { workingModel = m; lastUsage = res.usage; return res.text; }
     failures.push(`${m.id} → ${res.status}`);
     // 400(파라미터 거부)/404(모델 없음)만 다음 모델로 넘어간다.
@@ -1696,10 +1654,6 @@ function parseTagged(text, allowed) {
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
   parseMessages.invite = "";   // 이번 응답에서 모델이 고른 자리. 없으면 빈 문자열
-  /* 형식이 맞았는지. 맨 아래 「원문을 한 덩어리로」는 형식이 깨졌다는 뜻이고,
-     그 길로 나온 것은 대사가 아니다 — 잘린 JSON이든 오류 문장이든 그대로
-     말풍선이 된다. 호출부가 그걸 알아야 다시 부르든 실패로 떨구든 한다. */
-  parseMessages.ok = true;
   try {
     const cleaned = text.replace(/```json|```/g, "").trim();
     const start = cleaned.indexOf("{");
@@ -1719,8 +1673,7 @@ function parseMessages(text, fallbackSender, allowed) {
   // JSON이 아니다 — 이름표 형식이면 화자별로 풀어준다
   const tagged = parseTagged(text, ok);
   if (tagged) return tagged;
-  // 그것도 아니면 원문을 한 덩어리 메시지로 — 형식이 깨진 것이다
-  parseMessages.ok = false;
+  // 그것도 아니면 원문을 한 덩어리 메시지로
   return [{ sender: fallbackSender, text: text }];
 }
 
@@ -1824,10 +1777,7 @@ export default {
         }).join(" / ");
         return new Response(
           ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
-           /* 「실행 위치」가 아니다. request.cf.colo는 요청이 들어온 콜로이고,
-              placement가 걸려 있으면 실행은 다른 데서 일어난다. 나가는 요청이
-              어디서 나갔는지는 전체 진단 [1]의 cf-ray 꼬리에만 나온다. */
-           `요청 받은 곳    ${colo}`,
+           `실행 위치      ${colo}`,
            `API 키         ${found ? "있음" : "없음"}`,
            `프롬프트 크기   ${sizes}`,
            "",
@@ -2084,28 +2034,16 @@ export default {
 
     try {
       // Sonnet 5는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
-      const cap = mode === "auto" ? 2200 : 900;
-      let raw = await askClaude(env, system, msgs, cap, REPLY_SCHEMA);
+      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
+      /* ── 관찰용. 원인을 잡으면 뺀다 ──
+         「api호출오류: litellm...」이 민현이 말풍선으로 나갔는데, 그게 어디서
+         들어오는지 아직 못 밝혔다. 실패했을 때만 찍으면 실패가 안 나는 동안은
+         아무것도 안 남는다. 그래서 성공이든 아니든 모델이 보낸 원문을 남긴다.
+         Cloudflare → Workers → null-api → Logs 에서 [NULL] 로 검색하면 된다. */
+      console.log(`[NULL] 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
-      let parsed = parseMessages(raw, fallbackSender, chars);
-      /* ── 형식이 깨진 응답은 대사가 아니다 ──
-         전에는 무슨 글자가 오든 말풍선이 됐다. 그래서 잘린 문장도, 오류
-         문구도 캐릭터가 한 말로 화면에 남고 기록에 저장돼 다음 턴부터
-         모델한테 자기 대사로 되먹여졌다.
-         한 번 더 부른다. 잘려서 깨진 경우가 많으므로 한도를 늘려서 부른다.
-         그래도 깨지면 502로 떨군다 — 클라이언트가 재시도를 띄운다.
-         받은 원문은 로그에 남긴다. 안 남기면 다음에도 원인을 못 본다. */
-      if (!parseMessages.ok) {
-        console.log(`[NULL] 형식이 깨진 응답 ▶ ${raw.slice(0, 400)}`);
-        raw = await askClaude(env, system, msgs, Math.round(cap * 1.5), REPLY_SCHEMA);
-        parsed = parseMessages(raw, fallbackSender, chars);
-      }
-      if (!parseMessages.ok) {
-        console.log(`[NULL] 다시 불러도 깨졌다 ▶ ${raw.slice(0, 400)}`);
-        return new Response(JSON.stringify({ error: "형식이 깨진 응답", detail: raw.slice(0, 300) }),
-          { status: 502, headers: { ...CORS, "content-type": "application/json" } });
-      }
+      const parsed = parseMessages(raw, fallbackSender, chars);
       // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다
       const invite = pickInvite(parseMessages.invite, openPlaces);
       const messages = trimTics(sanitizePhotos(splitLines(parsed), photoChars, fallbackSender, recentPhotos));
