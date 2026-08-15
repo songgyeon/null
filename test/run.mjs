@@ -1516,9 +1516,29 @@ eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) &&
 {
   const names = [...web.matchAll(/\{name:"([^"]+)",\s+bg:/g)].map(m => m[1]);
   eq('지도에 여덟 자리가 있다', names.length, 8);
-  eq('교실과 보건실이 처음부터 열려 있다',
-    [...web.matchAll(/\{name:"(교실|보건실)",[^}]*at:(\d+),\s*day:(\d+)/g)]
-      .map(m => m[2] + '/' + m[3]), ['0/0', '0/0']);
+  /* 대화 수나 날짜로는 안 열린다. 다녀와야 열린다 —
+     앉아서 말만 쌓아도 지도가 넓어지면 그건 지도가 아니라 또 하나의 게이지다 */
+  eq('지도는 대화 수로 안 열린다', /\{name:"[^"]+",\s+bg:[^,]+,\s+at:/.test(web), false);
+  eq('교실과 보건실만 처음부터 열려 있다',
+    [...web.matchAll(/\{name:"([^"]+)",\s+bg:[^,]+,\s+need:\[\]/g)].map(m => m[1]),
+    ['교실', '보건실']);
+  /* need에 적힌 자리가 목록에 없으면 그 자리는 영영 안 열린다 */
+  {
+    const all = new Set(names);
+    const bad = [...web.matchAll(/\{name:"([^"]+)",\s+bg:[^,]+,\s+need:\[([^\]]*)\]/g)]
+      .flatMap(m => (m[2].match(/"([^"]+)"/g) || []).map(s => s.slice(1, -1)))
+      .filter(n => !all.has(n));
+    eq('앞자리가 전부 지도에 있다', bad, []);
+  }
+  /* 여덟 자리가 두 자리에서 다 닿아야 한다 — 안 닿으면 영영 못 가는 자리가 생긴다 */
+  {
+    const need = Object.fromEntries([...web.matchAll(/\{name:"([^"]+)",\s+bg:[^,]+,\s+need:\[([^\]]*)\]/g)]
+      .map(m => [m[1], (m[2].match(/"([^"]+)"/g) || []).map(s => s.slice(1, -1))]));
+    const been = new Set();
+    for (let i = 0; i < names.length; i++)
+      for (const n of names) if (need[n].every(p => been.has(p))) been.add(n);
+    eq('여덟 자리에 전부 닿는다', names.filter(n => !been.has(n)), []);
+  }
   /* 자리 이름은 워커와 프론트가 같아야 한다 — 다르면 place가 서버에서 버려지고
      프롬프트에 자리 얘기가 아예 안 붙는다 */
   eq('자리 이름이 워커와 같다', names.filter(n => !PLACE_ITEMS[n]), []);

@@ -633,7 +633,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .mwho{position:absolute;right:7px;top:7px;display:flex;gap:3px}
 .mwho i{width:7px;height:7px;border-radius:50%;border:1px solid rgba(255,255,255,.85);
  box-shadow:0 1px 2px rgba(0,0,0,.4)}
-/* 여기서 뭘 받아왔다는 표시 */
+/* 다녀온 자리 — 여기가 다음 자리를 여는 열쇠라 눈에 띄어야 한다 */
+.mapcell.been{border-color:#ff8fbe;box-shadow:1px 2px 0 rgba(93,84,144,.2),inset 0 0 0 1px rgba(255,143,190,.5)}
 .mgot{position:absolute;left:7px;top:7px;display:flex;align-items:center;justify-content:center;
  width:15px;height:15px;border-radius:50%;background:rgba(255,143,190,.9);border:1px solid #fff;
  box-shadow:0 1px 2px rgba(0,0,0,.3)}
@@ -1233,28 +1234,33 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    말이 나왔다 — 가는 곳을 늘 저쪽이 정하니까. 지도는 반대다. 유저가 자리를
    고르고 누구를 부를지 정한다.
 
-   at은 세 방을 합친 대화 수다. 방마다 세면 한쪽만 붙잡고 있어도 세상이
-   열려서, 두 사람과 다 얘기해야 지도가 넓어지게 합쳐서 센다.
-   day가 있는 자리는 날짜도 차야 열린다 — 「집」은 대화 수로만 열리면 안 된다.
+   ★ 대화 수나 날짜로는 안 열린다. 다녀와야 열린다.
+   need에 적힌 자리를 다 다녀오면 열린다. 앉아서 말만 쌓아도 지도가 넓어지면
+   그건 지도가 아니라 그냥 또 하나의 게이지다. 학교 안 둘에서 시작해
+   학교 밖으로, 그 다음 사는 데로 — 발이 닿은 만큼만 넓어진다.
+
    who는 여기로 부를 수 있는 사람. 둘이면 고르게 한다.
    item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
    bg가 없으면 배경 없이 열린다 — 사진이 아직 없는 자리도 막지는 않는다. */
 const PLACES=[
-  {name:"교실",     bg:null,                  at:0,   day:0,  who:["minhyun"],          item:"note",
+  {name:"교실",     bg:null,                  need:[],                     who:["minhyun"],          item:"note",
    note:"네 자리는 창가 셋째 줄."},
-  {name:"보건실",   bg:"place-nurse.webp",    at:0,   day:0,  who:["jaeeon"],           item:"bandaid",
+  {name:"보건실",   bg:"place-nurse.webp",    need:[],                     who:["jaeeon"],           item:"bandaid",
    note:"커튼 안쪽 침대 두 개."},
-  {name:"옥상",     bg:"place-rooftop.webp",  at:30,  day:2,  who:["jaeeon","minhyun"], item:"can",
+  /* 옥상은 둘 다 만나본 뒤에 열린다 — 학교에서 유일하게 둘 다 오는 자리라서 */
+  {name:"옥상",     bg:"place-rooftop.webp",  need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
    note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
-  {name:"편의점",   bg:"place-conv.webp",     at:50,  day:4,  who:["minhyun"],          item:"haribo",
+  /* 여기서 갈라진다. 학교 밖 첫 자리 — 민현 쪽과 재언 쪽 */
+  {name:"편의점",   bg:"place-conv.webp",     need:["옥상"],               who:["minhyun"],          item:"haribo",
    note:"학교 뒷문에서 이 분."},
-  {name:"도서관",   bg:"place-library.webp",  at:70,  day:7,  who:["jaeeon"],           item:"book",
+  {name:"도서관",   bg:"place-library.webp",  need:["옥상"],               who:["jaeeon"],           item:"book",
    note:"시립. 삼 층은 늘 비어 있다."},
-  {name:"레코드샵", bg:"place-record.webp",   at:90,  day:10, who:["minhyun"],          item:"lp",
+  {name:"레코드샵", bg:"place-record.webp",   need:["편의점"],             who:["minhyun"],          item:"lp",
    note:"중고반 상자가 바닥에 있다."},
-  {name:"빨래방",   bg:"place-laundry.webp",  at:110, day:14, who:["jaeeon"],           item:"coin",
+  {name:"빨래방",   bg:"place-laundry.webp",  need:["도서관"],             who:["jaeeon"],           item:"coin",
    note:"건조기 도는 사십 분."},
-  {name:"집",       bg:"place-home.webp",     at:140, day:20, who:["jaeeon"],           item:"key",
+  /* 마지막. 양쪽을 다 걸어봐야 열린다 — 한쪽만 파서 남의 집에 갈 수는 없다 */
+  {name:"집",       bg:"place-home.webp",     need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
    note:"현관에 우산이 두 개."},
 ];
 const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
@@ -1276,8 +1282,10 @@ const ITEMS={
 const ITEM_CATS=["전체","간식","소품","기록"];
 const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}catch(e){return[]}};
 const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a))}catch(e){}};
-/* 자리가 열렸나. 대화 수와 날짜를 둘 다 본다 */
-const placeOpen=(p,total,days)=>total>=(p.at||0)&&days>=(p.day||0);
+/* 자리가 열렸나. 다녀온 자리 목록만 본다 — 대화 수도 날짜도 안 본다 */
+const placeOpen=(p,been)=>(p.need||[]).every(n=>been.includes(n));
+/* 아직 못 간 자리에 뭐가 남았는지. 잠긴 칸에 그대로 적어준다 */
+const placeNeed=(p,been)=>(p.need||[]).filter(n=>!been.includes(n));
 const loadScene=()=>{try{return JSON.parse(localStorage.getItem("null_scene"))||null}catch(e){return null}};
 const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):localStorage.removeItem("null_scene")}catch(e){}};
 const loadMet=()=>{try{return JSON.parse(localStorage.getItem("null_met"))||[]}catch(e){return[]}};
@@ -2018,7 +2026,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,onGo,picking,onPick}){
+function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGo,picking,onPick}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -2044,9 +2052,8 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const left=Math.max(0,autoAt+AUTO_COOL-now);
   const album=seenPhotos(store.msgs);
   const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
-  /* 지도는 세 방을 합친 대화 수로 열린다 — 한 사람만 붙잡고 있으면 안 넓어진다 */
-  const talked=["jaeeon","minhyun","group"].reduce((n,r)=>n+(counts[r]||0),0);
-  const mapOpen=PLACES.filter(p=>placeOpen(p,talked,dayN));
+  /* 지도는 다녀온 자리로만 열린다 — 앉아서 말만 쌓아도 넓어지면 그건 게이지다 */
+  const mapOpen=PLACES.filter(p=>placeOpen(p,met));
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
@@ -2152,24 +2159,27 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         </div>
         <div className="mapgrid">
           {PLACES.map(p=>{
-            const open=placeOpen(p,talked,dayN);
-            const got=(bag||[]).some(b=>b.where===p.name);
-            return <div key={p.name} className={"mapcell"+(open?"":" lock")}
+            const open=placeOpen(p,met);
+            const been=met.includes(p.name);
+            const want=placeNeed(p,met);
+            return <div key={p.name} className={"mapcell"+(open?"":" lock")+(been?" been":"")}
               style={p.bg?{backgroundImage:`url("${p.bg}")`}:null}
-              onClick={()=>{ if(!open){onToast("아직 갈 수 없다");return}
+              onClick={()=>{ if(!open){onToast(want.join("·")+" 먼저");return}
                 p.who.length>1?onPick(p.name):onGo(p.name,p.who[0]) }}>
               <div className="mshade"/>
               <div className="minfo">
                 <div className="mname">{open?p.name:p.name.split("").map(()=>"□").join("")}</div>
-                <div className="mnote">{open?p.note:`${Math.max(0,p.at-talked)}마디 · ${Math.max(0,p.day-dayN)}일 남음`}</div>
+                {/* 잠긴 칸에도 뭐가 남았는지는 적어준다 — 뭘 해야 열리는지
+                    모르면 그건 잠긴 게 아니라 없는 것이다 */}
+                <div className="mnote">{open?p.note:want.join(" · ")+" 다녀오면"}</div>
               </div>
               {open&&<div className="mwho">{p.who.map(w=><i key={w} style={{background:CHARS[w].color}}/>)}</div>}
-              {got&&<span className="mgot"><Sticker.heart size={9} color="#fff"/></span>}
+              {been&&<span className="mgot"><Sticker.heart size={9} color="#fff"/></span>}
               {!open&&<div className="hlock"><LockIcon/></div>}
             </div>;
           })}
         </div>
-        <div className="hnote">누굴 부를지는 네가 정한다<br/>가면 뭐든 하나씩 받아 온다</div>
+        <div className="hnote">한 자리 다녀오면 다음이 열린다<br/>누굴 부를지는 네가 정한다</div>
       </div>
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
@@ -2521,6 +2531,11 @@ function App(){
   const [invite,setInvite]=useState(null);
   /* 지금 어느 자리에 있나. 새로고침해도 그 자리에 남아 있게 저장해 둔다 */
   const [scene,setScene]=useState(loadScene);
+  /* 다녀온 자리. 지도가 열리는 유일한 근거라서 저장소에만 두면 안 된다 —
+     상태로 안 들고 있으면 갔다 와도 화면이 그대로다 */
+  const [met,setMet]=useState(loadMet);
+  const goneTo=place=>setMet(m=>{ if(m.includes(place))return m;
+    const next=[...m,place]; saveMet(next); return next; });
   const [bag,setBag]=useState(loadBag);
   const bagRef=useRef(bag); bagRef.current=bag;
   const sceneRef=useRef(scene); sceneRef.current=scene;
@@ -2550,7 +2565,7 @@ function App(){
     const line=ok?`${CHARS[iv.char].name}과 ${iv.place}에 가기로 했다`:`${iv.place}은 다음에 가기로 했다`;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
     appendMsg(iv.char,sys);
-    if(ok){ saveMet([...loadMet(),iv.place]); markEvent({kind:"met",to:iv.char,name:iv.place});
+    if(ok){ goneTo(iv.place); markEvent({kind:"met",to:iv.char,name:iv.place});
       // 그 자리로 화면을 옮긴다. 배경이 깔리고 말풍선이 걷힌다
       if(PLACE_BY[iv.place]){ const sc={room:iv.char,place:iv.place}; setScene(sc); saveScene(sc); } }
     else  { saveRefused([...loadRefused(),iv.place]); }
@@ -2575,7 +2590,7 @@ function App(){
     setPicking(null);
     const p=PLACE_BY[place]; if(!p||!CHARS[char])return;
     const sc={room:char,place}; setScene(sc); saveScene(sc);
-    if(!loadMet().includes(place))saveMet([...loadMet(),place]);
+    goneTo(place);
     setView(char);
     setStore(s=>({...s,unread:{...s.unread,[char]:0}}));
     const line=`${CHARS[char].name}을 ${place}로 불러냈다`;
@@ -2990,7 +3005,7 @@ function App(){
        onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
-       bag={bag} onGo={goPlace} picking={picking} onPick={setPicking}/>
+       bag={bag} met={met} onGo={goPlace} picking={picking} onPick={setPicking}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
