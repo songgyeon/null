@@ -1658,14 +1658,20 @@ eq('오려낸 도로 그림이 저장소에 있다', exists('null-roadmap-road-f
 }
 
 /* 건물은 길 밖에 있으니 어느 자리인지 길 위에서도 보여야 한다 */
-eq('길 위에 핀이 있다',
-  /const ROAD_PIN_POS=\{/.test(web) && /className="roadpin"/.test(web)
-  && /\.roadpin\{position:absolute;z-index:8/.test(web), true);
+eq('길 위에 PNG 하트 표지판이 있다',
+  /const ROAD_PIN_POS=\{/.test(web) && /className=\{"roadpin "\+state\}/.test(web)
+  && /\.roadpin\{position:absolute;z-index:8/.test(web)
+  && /src="map-icons\/heart-sign\.png"/.test(web)
+  && exists('map-icons/heart-sign.png'), true);
 eq('핀이 도로 덮개보다 위에 있다', (() => {
   const z = t => +(web.match(new RegExp(t + '\\{position:absolute;[^}]*z-index:(\\d+)'))||[])[1];
   return z('\\.roadpin') > z('\\.roadfront');
 })(), true);
-eq('지금 서 있는 자리가 보인다', /className="roadyou"/.test(web), true);
+eq('문 뒤에 입력창만 남고 YOU 표시는 없다',
+  /className="roadfinishpanel"/.test(web)
+  && /src="map-icons\/final-input-window\.png"/.test(web)
+  && exists('map-icons/final-input-window.png')
+  && !/className="roadyou"/.test(web), true);
 /* 자리마다 핀이 하나씩 있어야 한다 — 없으면 길에서 그 자리가 사라진다 */
 eq('자리마다 핀이 있다', (() => {
   const g = n => { const t = web.slice(web.indexOf('const ' + n + '={'));
