@@ -76,6 +76,8 @@ const WORLD = `
 ## 삼각의 구조 — 정보 비대칭 (연기의 핵심)
 - 이재언만 아는 것: 유저와의 과거, 사탕 목걸이.
 - 이민현만 아는 것: 삼각형 전체 — 삼촌의 마음, 자기 마음, 유저의 무지.
+  **단 이건 지켜본 뒤에 아는 것이다. 처음부터 알고 있지 않다.** 시작점은 유저가
+  삼촌과 아는 사이인지조차 모르는 자리다. 삼촌이 달라지는 걸 보고 나서 안다.
 - 유저가 아는 것: 거의 없음. 관계망의 중심인데 정보가 제일 적다 — "있지만 없는 존재", NULL 그 자체.
 - 아무도 모르는 것: 사탕의 삼각형. 유저(발화자, 잊음) → 이재언(수신자, 20년 보관) → 이민현(수혜자, 아무것도 모름). "행복해지라구"가 발신인 이름 없이 배달되고 있다. 셋 중 누구도 전체 경로를 모른다 — 그러므로 어떤 캐릭터도 이 전체 구조를 대사로 발설할 수 없다.
 
@@ -121,6 +123,9 @@ const WORLD = `
 - 캐릭터는 유저의 태도 변화, 분위기 변화만 감지할 수 있다.
 - "들은 것"과 "눈치챈 것"은 다르다. 캐릭터가 아는 것은 눈치챈 것뿐이다.
 - 아래 [눈치 신호]가 주어지면 — 그것을 직접 인용하거나 아는 척하지 말 것. 눈치챈 사람처럼만 반응할 것.
+- **[눈치 신호]가 없으면 다른 방은 없는 것이다.** 유저가 다른 사람과도 얘기한다는 걸
+  알 근거가 아직 없다는 뜻이다. 짐작해서 꺼내지 않는다. 특히 처음에는 유저가 저쪽과
+  아는 사이인지조차 모른다 — "방금 삼촌이랑 얘기하고 왔죠" 같은 말은 알 수 없는 말이다.
 - **신호는 배경이다. 화제로 쓰는 건 가끔이다.**
   떠보는 것도 견제하는 것도 이 인물들이 하는 짓이니까 없애지 않는다. 문제는 빈도다.
   **한 대화에 한 번.** 그 이상은 눈치가 아니라 감시가 되고, 유저는 다른 사람
@@ -943,12 +948,25 @@ function countWord(n) {
   return "많이 얘기했다";
 }
 
-function buildSignals(signals, forRoom) {
+/* 눈치를 채려면 먼저 알아야 한다. 유저가 저쪽과도 얘기하는 사이라는 걸
+   이 사람들이 어디서 아나 — 학교에서 같이 있는 걸 보거나, 삼촌이 달라진
+   걸 보고 안다. 둘 다 하루는 걸리는 일이다. 첫날에 「방금 삼촌이랑
+   얘기하고 온 얼굴인데」가 나가면 그건 눈치가 아니라 감시 카메라다.
+   하루 만에 몰아서 하는 사람도 있어서 누적 대화 수도 문을 연다.
+   단톡방은 셋이 다 보고 있다 — 추론이 아니라 목격이라 안 막는다. */
+function canNotice(room, counts, days) {
+  if (room === "group") return true;
+  if ((Number(days) || 0) >= 1) return true;
+  return ((counts && counts[room]) || 0) >= 20;
+}
+
+function buildSignals(signals, forRoom, counts, days) {
   if (!signals) return "";
   const lines = [];
   const label = { jaeeon: "이재언과의 1:1방", minhyun: "이민현과의 1:1방", group: "단톡방" };
   for (const [room, s] of Object.entries(signals)) {
     if (room === forRoom || !s) continue; // 자기 방 정보는 이미 history로 안다
+    if (!canNotice(room, counts, days)) continue;
     /* 알아챌 수 없는 것은 신호가 아니다. 몇 시간째 조용한 방은 눈치챌 게 없는데,
        그게 매 턴 프롬프트에 붙어 있으면 모델은 그걸 화제로 쓴다.
        지금 벌어지고 있는 일이거나 분위기가 잡힌 것만 준다. */
@@ -1358,7 +1376,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
     ? `\n## [지금 쓰지 않는 사진]\n${recent.map(k => `"${k}"`).join(", ")}\n`
     : "";
   const t = buildStage(mode, room, counts, days) + buildProfile(userProfile)
-          + buildSignals(signals, mode === "auto" ? null : room) + exclude
+          + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
           + buildInvite(invite, room);
   return t.trim() ? sub(t) : "";

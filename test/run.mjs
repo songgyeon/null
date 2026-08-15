@@ -275,7 +275,13 @@ eq('채우는 칸이 you.txt와 같은 것들이다',
 /* 네 칸을 채우는 데 클릭이 네 번 필요하면 아무도 다 안 채운다.
    엔터를 치면 다음 칸이 열리도록 Blank의 열림 상태를 Enroll이 쥔다. */
 eq('웹 등록 화면은 엔터로 다음 칸에 넘어간다',
-  /open=\{focus===i\}/.test(web) && /onNext=\{\(\)=>setFocus\(i\+1/.test(web), true);
+  (web.match(/open=\{focus===i\}/g) || []).length >= 1
+  && /onNext=\{\(\)=>setFocus\(i\+1/.test(web), true);
+/* you.txt도 같은 칸을 같은 순서로 채운다. 한쪽만 넘어가면 그게 더 이상하다 */
+eq('you.txt도 엔터로 넘어간다',
+  (web.match(/open=\{focus===i\}/g) || []).length, 2);
+eq('you.txt가 등록 화면과 같은 항목을 쓴다',
+  /you\.txt[\s\S]{0,900}ENR_FIELDS\.map/.test(web), true);
 eq('빈칸이 밖에서 여는 것과 혼자 여는 것을 둘 다 한다',
   /const ctl=typeof open==="boolean"/.test(web), true);
 /* 이름 옆의 「edit」 딱지는 뗐다 — 커서가 이미 그 말을 한다 */
@@ -1219,8 +1225,29 @@ eq('알아챌 수 없는 신호는 안 보낸다',
   buildVolatile('chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 600 } }, [], null, null, null)
     .includes('눈치 신호'), false);
 eq('지금 벌어지는 일은 보낸다',
-  buildVolatile('chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 5 } }, [], null, null, null)
+  buildVolatile('chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 5 } }, [], null, null, null, null, null, 2)
     .includes('눈치 신호'), true);
+/* 「얼굴 보니까 방금 삼촌이랑 얘기하고 온 사람 얼굴이라」가 첫날에 나갔다.
+   민현은 유저가 삼촌과 아는 사이인지도 모르는 데서 시작한다 — 눈치를
+   채려면 먼저 알아야 하고, 아는 데는 하루가 걸린다. */
+eq('첫날에는 다른 방 신호를 안 준다',
+  buildVolatile('chat', 'minhyun', 'R', { jaeeon: { count: 3, minsAgo: 5 } }, [], null, { jaeeon: 6 }, null, null, null, 0)
+    .includes('눈치 신호'), false);
+eq('하루 지나면 준다',
+  buildVolatile('chat', 'minhyun', 'R', { jaeeon: { count: 3, minsAgo: 5 } }, [], null, { jaeeon: 6 }, null, null, null, 1)
+    .includes('눈치 신호'), true);
+/* 하루 만에 몰아서 하는 사람도 있다. 그만큼 했으면 드러날 만큼 된 것이다 */
+eq('첫날이어도 많이 했으면 준다',
+  buildVolatile('chat', 'minhyun', 'R', { jaeeon: { count: 3, minsAgo: 5 } }, [], null, { jaeeon: 40 }, null, null, null, 0)
+    .includes('눈치 신호'), true);
+/* 단톡방은 셋이 다 보고 있다 — 추론이 아니라 목격이라 막을 이유가 없다 */
+eq('단톡방은 첫날에도 보인다',
+  buildVolatile('chat', 'minhyun', 'R', { group: { count: 3, minsAgo: 5 } }, [], null, null, null, null, null, 0)
+    .includes('단톡방'), true);
+eq('처음부터 삼각형을 다 아는 건 아니라고 적어뒀다',
+  /단 이건 지켜본 뒤에 아는 것이다\. 처음부터 알고 있지 않다/.test(workerSrc), true);
+eq('신호가 없으면 다른 방도 없다',
+  /\[눈치 신호\]가 없으면 다른 방은 없는 것이다/.test(workerSrc), true);
 /* 견제 자체는 이 인물들의 것이다. 없애는 게 아니라 빈도를 잡는다 */
 eq('떠보는 건 살려두고 횟수만 잡는다',
   /떠보는 것도 견제하는 것도 이 인물들이 하는 짓이니까 없애지 않는다/.test(workerSrc)
