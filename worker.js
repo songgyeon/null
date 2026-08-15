@@ -1109,7 +1109,8 @@ const UNLOCKS = [
   { key: "hidden-minhyun-counseling-record-2-a4", room: "minhyun", at: 106, day: 24 },
   { key: "hidden-jaeeon-diary-201x-07-11", room: "jaeeon", at: 112, day: 25 },
   { key: "hidden-jaeeon-diary-202x-start", room: "jaeeon", at: 116, day: 26 },
-  { key: "hidden-minhyun-reasons", room: "minhyun", at: 120, day: 27 },
+  { key: "hidden-minhyun-sns-1", room: "minhyun", at: 112, day: 25 },
+  { key: "hidden-minhyun-sns-2", room: "minhyun", at: 116, day: 26 },
 ];
 
 /* 상태메시지는 서버가 안 보낸다.

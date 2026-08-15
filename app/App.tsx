@@ -53,8 +53,8 @@ Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.webp'}));
 /* .hidden 탭 — 해금된 key는 meta 'null_unlocked'(JSON 배열)에서 읽는다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
-type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun';at:number;day:number;note?:string;kind?:'sns'};
-type GalleryZoom={uri:string;label?:string;note?:string;kind?:'sns'};
+type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun';at:number;day:number;note?:string};
+type GalleryZoom={uri:string;label?:string;note?:string};
 const HIDDEN:HiddenItem[]=[
   {key:'jaeeon-bag',           label:'재언의 가방', room:'jaeeon', at:12, day:3},
   {key:'minhyun-bag',          label:'민현의 가방', room:'minhyun', at:12, day:3},
@@ -72,7 +72,8 @@ const HIDDEN:HiddenItem[]=[
   {key:'hidden-minhyun-counseling-record-2-a4', label:'민현 상담 기록 · 2', room:'minhyun', at:106, day:24},
   {key:'hidden-jaeeon-diary-201x-07-11', label:'재언의 일기 · 7월 11일', room:'jaeeon', at:112, day:25},
   {key:'hidden-jaeeon-diary-202x-start', label:'재언의 일기 · 202X년', room:'jaeeon', at:116, day:26},
-  {key:'hidden-minhyun-reasons', label:'@mhy.wav', room:'minhyun', at:120, day:27, kind:'sns'},
+  {key:'hidden-minhyun-sns-1', label:'@mhy.wav · 1', room:'minhyun', at:112, day:25},
+  {key:'hidden-minhyun-sns-2', label:'@mhy.wav · 2', room:'minhyun', at:116, day:26},
 ];
 
 /* ── 데모 모드 ──
@@ -1055,89 +1056,6 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function ReasonsAccount({onClose}:{onClose:()=>void}) {
-  const bars=[7,13,19,10,19,13,7];
-  const postHead=(time:string)=><View style={sns.postHead}>
-    <View style={sns.postDot}/><Text style={sns.postWho}>@mhy.wav</Text><Text style={sns.time}>{time}</Text>
-  </View>;
-  return <Pressable style={sns.shell} onPress={(e:any)=>e.stopPropagation()}>
-    <View style={sns.top}>
-      <Text style={sns.topHandle}>@mhy.wav</Text><Text style={sns.private}>비공개</Text>
-      <TouchableOpacity style={sns.close} onPress={onClose}><Text style={sns.closeT}>×</Text></TouchableOpacity>
-    </View>
-    <ScrollView style={{flex:1}} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-      <View style={sns.profile}>
-        <View style={sns.profileRow}>
-          <View style={sns.avatar}><View style={sns.wave}>
-            {bars.map((h,i)=><View key={i} style={[sns.waveBar,{height:h}]}/>) }
-          </View></View>
-          <View style={{flex:1}}>
-            <Text style={sns.display}>의사가 쓰라고 해서 쓰는 계정</Text>
-            <Text style={sns.handle}>@mhy.wav</Text>
-          </View>
-        </View>
-        <Text style={sns.bio}>왜 사냐</Text>
-      </View>
-      <View style={sns.stats}>
-        <View style={sns.stat}><Text style={sns.statN}>3</Text><Text style={sns.statL}>게시물</Text></View>
-        <View style={sns.stat}><Text style={sns.statN}>0</Text><Text style={sns.statL}>팔로워</Text></View>
-        <View style={sns.stat}><Text style={sns.statN}>0</Text><Text style={sns.statL}>팔로잉</Text></View>
-      </View>
-      <Text style={sns.feedTag}>PRIVATE ARCHIVE</Text>
-      <View style={sns.post}>{postHead('8일 전')}
-        <Image source={{uri:IMG+'hidden-minhyun-reasons-cigarette.webp'}} style={sns.media} resizeMode="cover"/>
-        <Text style={sns.caption}><Text style={sns.captionWho}>@mhy.wav  </Text>담배? ㅋㅋ</Text>
-      </View>
-      <View style={sns.post}>{postHead('5일 전')}
-        <Image source={{uri:IMG+'hidden-minhyun-reasons.webp'}} style={sns.media} resizeMode="cover"/>
-        <Text style={sns.caption}><Text style={sns.captionWho}>@mhy.wav  </Text>이건 좀</Text>
-      </View>
-      {/* 마지막은 아무것도 안 올린 게시물이다. 검은 사진 한 장에 캡션 한 단어 —
-          글자를 사진 안에 넣으면 타이틀 카드가 되고, 캡션으로 내려야 진짜 올린 것이 된다 */}
-      <View style={sns.post}>{postHead('2일 전')}
-        <View style={[sns.media,sns.black]}/>
-        <Text style={sns.caption}><Text style={sns.captionWho}>@mhy.wav  </Text>선생님</Text>
-      </View>
-      <Text style={sns.end}>END OF PRIVATE POSTS</Text>
-    </ScrollView>
-  </Pressable>;
-}
-const sns=StyleSheet.create({
-  shell:{width:'100%',maxWidth:360,height:'94%',backgroundColor:'#f7f7f5',borderRadius:15,
-    borderWidth:1,borderColor:'#474747',overflow:'hidden'},
-  top:{height:48,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14,
-    backgroundColor:'#f7f7f5',borderBottomWidth:1,borderBottomColor:'#deded9'},
-  topHandle:{fontSize:14,fontWeight:'800',color:'#111'},
-  private:{fontSize:9,letterSpacing:.8,color:'#777',borderWidth:1,borderColor:'#bbb',
-    borderRadius:20,paddingVertical:3,paddingHorizontal:6},
-  close:{marginLeft:'auto',width:30,height:30,alignItems:'center',justifyContent:'center'},
-  closeT:{fontSize:24,lineHeight:26,color:'#333'},
-  profile:{paddingHorizontal:16,paddingTop:17,paddingBottom:14},
-  profileRow:{flexDirection:'row',alignItems:'center',gap:14},
-  avatar:{width:64,height:64,borderRadius:32,backgroundColor:'#111',borderWidth:4,
-    borderColor:'#e8e8e2',alignItems:'center',justifyContent:'center'},
-  wave:{height:22,flexDirection:'row',alignItems:'center',gap:3},
-  waveBar:{width:3,borderRadius:2,backgroundColor:'#f5f5f2'},
-  display:{fontSize:14,lineHeight:20,fontWeight:'800',color:'#111'},
-  handle:{marginTop:4,fontSize:11,color:'#777'},
-  bio:{marginTop:13,fontSize:13,fontWeight:'700',color:'#111'},
-  stats:{flexDirection:'row',backgroundColor:'#fff',borderTopWidth:1,borderBottomWidth:1,borderColor:'#deded9'},
-  stat:{flex:1,alignItems:'center',paddingVertical:10},statN:{fontSize:13,fontWeight:'800',color:'#111'},
-  statL:{marginTop:2,fontSize:10,color:'#777'},
-  feedTag:{paddingHorizontal:14,paddingTop:10,paddingBottom:8,fontSize:9,fontWeight:'700',letterSpacing:1.4,color:'#8a8a84'},
-  post:{backgroundColor:'#fff',borderTopWidth:1,borderTopColor:'#e4e4df'},
-  postHead:{height:39,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12},
-  postDot:{width:21,height:21,borderRadius:11,backgroundColor:'#111'},
-  postWho:{fontSize:11,fontWeight:'800',color:'#111'},time:{marginLeft:'auto',fontSize:10,color:'#8b8b85'},
-  media:{width:'100%',aspectRatio:1,backgroundColor:'#ddd'},
-  black:{alignItems:'center',justifyContent:'center',backgroundColor:'#050505'},
-  blackT:{fontSize:13,letterSpacing:.4,color:'#f4f4f1'},
-  caption:{minHeight:42,paddingHorizontal:12,paddingTop:10,paddingBottom:13,fontSize:12,lineHeight:19,color:'#181818'},
-  captionWho:{fontSize:11,fontWeight:'800'},
-  end:{paddingTop:14,paddingBottom:22,textAlign:'center',fontSize:9,letterSpacing:1.2,color:'#aaa'},
-});
-
-// ═══ 방 목록 ═══
 function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts,name}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
@@ -1224,7 +1142,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                 const un=(unlocked||[]).includes(h.key);
                 /* 얼마나 남았는지 안 알려준다. 자물쇠만 있다 */
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
-                  onPress={()=>un?setZoom({uri:IMG+h.key+'.webp',label:h.label,kind:h.kind,
+                  onPress={()=>un?setZoom({uri:IMG+h.key+'.webp',label:h.label,
                     note:(h.note||'').replace('{name}',name||'당신')})
                     :onToast('still locked')}>
                   <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
@@ -1314,10 +1232,8 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
       </ScrollView>
       </View>
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
-        <TouchableOpacity style={[rl.lb,zoom?.kind==='sns'&&{padding:10,backgroundColor:'rgba(17,17,20,.92)'}]} activeOpacity={1} onPress={()=>setZoom(null)}>
-          {zoom?.kind==='sns'
-            ?<ReasonsAccount onClose={()=>setZoom(null)}/>
-            :zoom&&<View style={rl.lbCard}>
+        <TouchableOpacity style={rl.lb} activeOpacity={1} onPress={()=>setZoom(null)}>
+          {zoom&&<View style={rl.lbCard}>
               <Image source={{uri:zoom.uri}} style={rl.lbImg} resizeMode="contain"/>
               {zoom.label&&<View style={rl.lbCap}>
                 <Text style={rl.lbTitle}>{zoom.label}</Text>
