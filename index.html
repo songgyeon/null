@@ -18,9 +18,12 @@
 /* ── Y2K 파스텔 OS 팔레트 ──
    잉크 #4a4276 · 보더 #5d5490/#8a7fc0/#b0a6d8 · 크롬 #dcd6f2 · 핑크 #ff9ec6 · 라벤더 #c3b2f0 */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#c3b2f0 url("bg-6.webp") center/cover fixed no-repeat}
+html,body{height:100%}
+/* 바탕은 body에만 깐다. 전에는 html·body에 같이 깔아놓고 바로 다음 줄에서
+   body의 background를 그라데이션으로 다시 써서, 그림이 늘 덮여 있었다.
+   파일을 넣어도 화면에는 단색만 보였고 오류도 안 났다. */
 body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
- background:linear-gradient(165deg,#c9bff1 0%,#b3a7e6 60%,#c4b0e8 100%);
+ background:#c3b2f0 url("bg-6.webp") center/cover fixed no-repeat;
  -webkit-font-smoothing:none}
 #root{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative}
 /* 메인 창(폰) */

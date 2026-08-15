@@ -726,6 +726,10 @@ eq('두 사람 다 이름을 아껴 쓴다',
 eq('한 대화에 한 번을 넘기지 않는다',
   (workerSrc.match(/한 대화에 한 번을 넘기지 않는다/g) || []).length, 2);
 /* 배경 파일이 없으면 CSS는 조용히 단색으로 떨어진다. 오류가 안 나서 못 알아챈다 */
+/* body의 background를 그라데이션으로 다시 쓰면 바탕 그림이 통째로 덮인다.
+   오류가 안 나서 파일이 없는 줄 알았다 */
+eq('바탕 그림이 그라데이션에 안 덮인다',
+  /body\{[^}]*background:linear-gradient/.test(web), false);
 eq('바탕 그림이 저장소에 있다',
   (web.match(/url\("([a-z0-9-]+\.(?:webp|png))"\)/g) || [])
     .map(m => m.replace(/.*url\("|"\).*/g, '')).filter(f => !exists(f)), []);
