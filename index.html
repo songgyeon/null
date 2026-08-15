@@ -18,7 +18,7 @@
 /* ── Y2K 파스텔 OS 팔레트 ──
    잉크 #4a4276 · 보더 #5d5490/#8a7fc0/#b0a6d8 · 크롬 #dcd6f2 · 핑크 #ff9ec6 · 라벤더 #c3b2f0 */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#c3b2f0 url("bg-6.png") center/cover fixed no-repeat}
+html,body{height:100%;background:#c3b2f0 url("bg-6.webp") center/cover fixed no-repeat}
 body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  background:linear-gradient(165deg,#c9bff1 0%,#b3a7e6 60%,#c4b0e8 100%);
  -webkit-font-smoothing:none}
@@ -564,7 +564,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .enr .ego:active{transform:translate(1px,1px)}
 @keyframes enrRow{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 /* 방 목록: 크롬 스타 월페이퍼 위 메신저 창 */
-.desk{background:#c3b2f0 url("bg-6.png") center/cover no-repeat}
+.desk{background:#c3b2f0 url("bg-6.webp") center/cover no-repeat}
 .iconbtn{width:34px;height:28px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
 .iconbtn.loading{animation:blink 1s steps(2) infinite}
 /* 탭 — 낝작한 사각형 대신 광택 있는 둥근 탭. 윈도우 밖으로 튀어나오는 느낌 */
@@ -1386,7 +1386,7 @@ const Sticker={
 };
 
 /* 떠다니는 반짝이 레이어 */
-const BG="bg-6.png";
+const BG="bg-6.webp";
 const BUBBLES=[[8,14,13,0],[22,9,17,2.5],[38,18,15,5],[54,11,19,1.2],[68,15,14,6.5],[84,8,16,3.4],[92,12,18,8]];
 const SPARKS=[[6,10,10,"#fff"],[86,7,8,"#ffd0e6"],[70,24,12,"#fff"],[13,42,9,"#ffe9a8"],[91,50,10,"#d5c8ff"],[38,68,8,"#fff"],[76,84,11,"#ffd0e6"],[8,88,8,"#d5c8ff"]];
 const Sparkles=()=><React.Fragment>{SPARKS.map((s,i)=><span key={i} className="spark" style={{left:s[0]+"%",top:s[1]+"%",width:s[2],height:s[2],background:s[3],animationDelay:(i*0.4)+"s"}}/>)}</React.Fragment>;
