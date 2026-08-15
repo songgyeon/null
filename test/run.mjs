@@ -1105,6 +1105,52 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
    처음 들어온 화면에서 조용한 게 제일 나쁜 그림이다. */
 eq('다시 시작하면 선톡 간격도 같이 지운다',
   /greetAtRef\.current=0/.test(web) && /greetAtRef\.current=0/.test(appSrc), true);
+
+/* ── 실제 플레이에서 나온 것들 ── */
+
+/* 「삼촌이 답장을 1분 전에 했다는 게 이상한 거지」가 나갔다. 직접 인용하지
+   말라고 적어둬도 소용없다 — 인용할 숫자가 눈앞에 있으면 쓴다. 숫자를 안 준다. */
+eq('눈치 신호에 숫자를 안 준다', /마지막 활동 \$\{s\.minsAgo\}분 전/.test(workerSrc), false);
+{
+  const W = new Function(workerSrc.slice(workerSrc.indexOf('function agoWord'),
+    workerSrc.indexOf('function buildSignals')) + '\nreturn {agoWord, countWord}')();
+  eq('시간이 말로 뭉쳐진다',
+    [W.agoWord(1), W.agoWord(30), W.agoWord(200), W.agoWord(5000)].map(t => /\d/.test(t)), [false, false, false, false]);
+  eq('개수도 말로 뭉쳐진다', /\d/.test(W.countWord(12)), false);
+}
+/* 몇 시간째 조용한 방은 눈치챌 게 없다. 그게 매 턴 붙어 있으면 화제가 된다 */
+eq('알아챌 수 없는 신호는 안 보낸다',
+  buildVolatile('chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 600 } }, [], null, null, null)
+    .includes('눈치 신호'), false);
+eq('지금 벌어지는 일은 보낸다',
+  buildVolatile('chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 5 } }, [], null, null, null)
+    .includes('눈치 신호'), true);
+/* 견제 자체는 이 인물들의 것이다. 없애는 게 아니라 빈도를 잡는다 */
+eq('떠보는 건 살려두고 횟수만 잡는다',
+  /떠보는 것도 견제하는 것도 이 인물들이 하는 짓이니까 없애지 않는다/.test(workerSrc)
+  && /한 대화에 한 번\.\*\* 그 이상은 눈치가 아니라 감시/.test(workerSrc), true);
+
+/* 라면 하나 먹는 데 뚜껑·젓가락·국물 소리가 다 붙어 말풍선보다 괄호가 많았다 */
+eq('행동 지문은 한 응답에 하나만',
+  trimTics([{ sender: 'minhyun', text: '(뚜껑을 만지작거린다)' },
+            { sender: 'minhyun', text: '잘 먹을게요.' },
+            { sender: 'minhyun', text: '(면발 후루룩)' },
+            { sender: 'minhyun', text: '근데 이거로 다예요?' },
+            { sender: 'minhyun', text: '(라면 국물 마시는 소리)' }]).map(m => m.text),
+  ['(뚜껑을 만지작거린다)', '잘 먹을게요.', '근데 이거로 다예요?']);
+
+/* 가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다 */
+eq('같이 가기로 하면 상대가 답을 한다',
+  /const next=\[\.\.\.\(storeRef\.current\.msgs\[iv\.char\]\|\|\[\]\),sys\];/.test(web)
+  && /await runTurn\(iv\.char\);/.test(appSrc), true);
+
+/* 세계관이 열리는 자리라 문장을 고정한다 — 각본만이 아니라 모델도 */
+eq('첫 연락 두 대목이 프롬프트에도 박혀 있다',
+  /### 첫 연락 — 이 두 대목만은 문장 그대로 쓴다/.test(workerSrc)
+  && /"선생님이 저 책임진다면서요\."/.test(workerSrc)
+  && /"그래서 책임은 어떻게 질 건데요\?"/.test(workerSrc), true);
+eq('설명은 유저가 물었을 때만',
+  /유저가 안 물으면 굳이 설명하지 않는다/.test(workerSrc), true);
   /* 절 이름에 '첫인사'가 들어가면 indexOf 필터가 첫 만남까지 삼킨다 — 한 번 그랬다 */
   eq('평소 인사에 첫 만남이 안 섞인다',
     ['jaeeon', 'minhyun'].map(c => (corpus.proactive[c] || [])
@@ -1176,12 +1222,15 @@ eq('웹·앱 둘 다 실측을 찍는다',
    값보다 문제는 따로 있다 — 한 규칙이 세 군데 있으면 하나를 고칠 때 나머지
    둘이 남아서, 프롬프트가 자기 자신과 다른 말을 하기 시작한다. */
 {
+  /* 세는 대상은 프롬프트다. 소스 주석에 같은 말이 나오는 건 중복이 아니다 —
+     주석은 모델이 안 읽는다. 그래서 주석을 걷어내고 센다. */
+  const promptSrc = workerSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   /* 자기분석 금지는 WORLD 연기 가드에 예시까지 붙어 있다. 인물 블록에 또 적지 않는다 */
   eq('자기분석 금지는 한 군데만',
-    (workerSrc.match(/자기분석을 대사로/g) || []).length, 1);
+    (promptSrc.match(/자기분석을 대사로/g) || []).length, 1);
   /* 눈치 신호 읽는 법은 WORLD 교차 인식에 있다 */
   eq('눈치 신호 읽는 법도 한 군데만',
-    (workerSrc.match(/직접 인용/g) || []).length, 1);
+    (promptSrc.match(/직접 인용/g) || []).length, 1);
   /* 1번이 최애라는 말은 인물마다 자기 목록에서 한다 — FACTS가 또 말하지 않는다 */
   eq('최애 규칙은 인물 블록에만', (workerSrc.match(/1번이 최애다/g) || []).length, 2);
   /* 침묵을 말줄임표로 대신하지 말라는 말이 TICS에 두 번, 인물에 한 번 있었다 */

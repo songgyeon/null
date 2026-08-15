@@ -1735,6 +1735,12 @@ function Root() {
     await insertMsg({room:iv.char,sender:'sys',text:line,created_at:Date.now()});
     await reload(iv.char);
     if(ok) await markEvent({kind:'met', to:iv.char, name:iv.place});
+    /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 — 가자고
+       해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다. 그 자리 얘기는 한
+       시간 뒤 관전방에서나 나왔고, 정작 같이 가기로 한 사람은 입을 다물고
+       있었다. 승낙이든 거절이든 반응이 있어야 사람이다. */
+    lastSent.current={room:iv.char,text:line};
+    await runTurn(iv.char);
   };
 
   const markEvent = async(ev:any)=>{
