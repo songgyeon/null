@@ -848,6 +848,11 @@ eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 2
   /* 안쪽까지 한쪽만 열리면 짝이 깨진다. 두 사람이 같은 수여야 한다 */
   eq('두 사람이 같은 수다',
     [W.filter(x => x.includes('jaeeon')).length, W.filter(x => x.includes('minhyun')).length], [9, 9]);
+  /* 격자가 2단이라 표 순서가 그대로 왼쪽·오른쪽이 된다. 재언 둘이 연달아
+     있으면 그 줄만 재언 둘이 되고, 그 아래로 두 사람이 통째로 어긋난다 */
+  eq('표가 재언·민현 순으로 번갈아 있다',
+    W.map((x, i) => x.includes(i % 2 ? 'minhyun' : 'jaeeon')).filter(v => !v).length, 0);
+  eq('웹 격자가 2단이다', /grid-template-columns:repeat\(2,1fr\)/.test(web), true);
   eq('워커와 웹이 같은 표를 쓴다', W.filter((x, i) => x !== H[i]), []);
   eq('웹과 앱이 같은 표를 쓴다', H.filter((x, i) => x !== A[i]), []);
 }

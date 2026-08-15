@@ -71,8 +71,8 @@ const HIDDEN:HiddenItem[]=[
   {key:'hidden-jaeeon-diary-200x-04-12', label:'재언의 일기 · 4월 12일', room:'jaeeon', at:106, day:24},
   {key:'hidden-minhyun-counseling-record-2-a4', label:'민현 상담 기록 · 2', room:'minhyun', at:106, day:24},
   {key:'hidden-jaeeon-diary-201x-07-11', label:'재언의 일기 · 7월 11일', room:'jaeeon', at:112, day:25},
-  {key:'hidden-jaeeon-diary-202x-start', label:'재언의 일기 · 202X년', room:'jaeeon', at:116, day:26},
   {key:'hidden-minhyun-sns-1', label:'@mhy.wav · 1', room:'minhyun', at:112, day:25},
+  {key:'hidden-jaeeon-diary-202x-start', label:'재언의 일기 · 202X년', room:'jaeeon', at:116, day:26},
   {key:'hidden-minhyun-sns-2', label:'@mhy.wav · 2', room:'minhyun', at:116, day:26},
 ];
 
