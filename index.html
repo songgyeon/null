@@ -621,32 +621,78 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .hnote{margin:14px 4px 8px;text-align:center;font-size:10px;color:#b0a6d8;letter-spacing:.08em;line-height:1.9}
 
 /* ── map 탭 ──
-   .hidden과 같은 격자를 쓰면 「잠긴 사진」으로 읽힌다. 여긴 갈 수 있는 곳이라
-   가로로 넓게 눕히고, 이름과 한 줄을 사진 위에 얹는다. */
-.mapgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.mapcell{position:relative;aspect-ratio:1/1;border-radius:7px;overflow:hidden;cursor:pointer;
- border:1px solid #cfc6ee;background:#efeaf9 center/cover no-repeat;
- box-shadow:1px 2px 0 rgba(93,84,144,.2);transition:transform .12s}
-.mapcell:active{transform:translate(1px,2px);box-shadow:0 0 0 rgba(93,84,144,.2)}
-/* 사진이 없는 자리 — 격자무늬로 채워둔다. 비어 보이면 고장난 줄 안다 */
-.mapcell:not([style*="url"]){background:
- repeating-linear-gradient(45deg,#e6def7 0 6px,#efeaf9 6px 12px)}
-.mapcell .mshade{position:absolute;inset:0;
- background:linear-gradient(180deg,rgba(30,24,58,0) 38%,rgba(30,24,58,.72) 100%)}
-.mapcell.lock{cursor:default}
-.mapcell.lock .mshade{background:rgba(40,33,70,.62);backdrop-filter:blur(4px)}
-.minfo{position:absolute;left:8px;right:8px;bottom:7px}
-.mname{font-size:12px;letter-spacing:.06em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
-.mnote{margin-top:2px;font-size:9px;line-height:1.5;color:rgba(255,255,255,.72);
- text-shadow:0 1px 2px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mwho{position:absolute;right:7px;top:7px;display:flex;gap:3px}
-.mwho i{width:7px;height:7px;border-radius:50%;border:1px solid rgba(255,255,255,.85);
- box-shadow:0 1px 2px rgba(0,0,0,.4)}
-/* 다녀온 자리 — 여기가 다음 자리를 여는 열쇠라 눈에 띄어야 한다 */
-.mapcell.been{border-color:#ff8fbe;box-shadow:1px 2px 0 rgba(93,84,144,.2),inset 0 0 0 1px rgba(255,143,190,.5)}
-.mgot{position:absolute;left:7px;top:7px;display:flex;align-items:center;justify-content:center;
- width:15px;height:15px;border-radius:50%;background:rgba(255,143,190,.9);border:1px solid #fff;
- box-shadow:0 1px 2px rgba(0,0,0,.3)}
+   장소 사진을 네모 칸에 나열하면 지도보다 잠긴 앨범처럼 보인다.
+   길은 배경 한 장, 장소는 open/lock 투명 PNG, 카드·제목·START는 실제 HTML UI다.
+   좌표는 퍼센트라 창 폭이 달라져도 길 위 제자리를 지킨다. */
+.mapscroll{padding:7px 7px 14px;scrollbar-width:thin;scrollbar-color:#b29be9 transparent}
+.roadhead{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:8px;margin:0 0 7px;padding:7px 9px;
+ border:1px solid rgba(255,255,255,.92);border-radius:8px;
+ background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(238,231,253,.88));
+ box-shadow:0 2px 0 rgba(123,101,184,.16),0 0 0 1px rgba(172,153,221,.22);
+ -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.roadhead .rt{font-size:10px;letter-spacing:.2em;color:#6655a6;white-space:nowrap}
+.roadhead .rbar{position:relative;flex:1;height:5px;overflow:hidden;border:1px solid #cfc3eb;background:#e6def7}
+.roadhead .rbar i{display:block;height:100%;background:linear-gradient(90deg,#ff9ec6,#c3b2f0,#9cdff1);
+ box-shadow:0 0 6px rgba(255,158,198,.7)}
+.roadhead .rn{font-size:9px;letter-spacing:.08em;color:#8a7fc0;white-space:nowrap}
+.roadmap{position:relative;isolation:isolate;width:100%;aspect-ratio:941/1672;overflow:hidden;border-radius:9px;
+ background:#8f82e1 url("null-roadmap-road.webp") center/100% 100% no-repeat;
+ border:1px solid rgba(255,255,255,.95);
+ box-shadow:inset 0 0 0 1px rgba(119,93,193,.28),0 3px 0 rgba(93,84,144,.24),0 8px 18px rgba(84,65,151,.16)}
+.roadmap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+ background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 18%,transparent 82%,rgba(105,82,183,.08))}
+.roadtitle{position:absolute;left:50%;top:1.65%;z-index:8;transform:translateX(-50%);white-space:nowrap;
+ display:flex;align-items:center;gap:7px;padding:6px 13px 7px;font-size:10px;letter-spacing:.2em;color:#594399;
+ border:1px solid rgba(255,255,255,.96);border-radius:999px;
+ background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(232,223,253,.9));
+ box-shadow:0 2px 0 rgba(111,88,180,.26),0 0 12px rgba(255,255,255,.82)}
+.roadtitle .heart{font-size:12px;line-height:1;color:#e66fa4;text-shadow:0 0 6px rgba(255,145,194,.65)}
+.roadtitle .roadstar{font-size:9px;color:#8e76d1}
+.roadstart{position:absolute;left:3.5%;bottom:1.8%;z-index:8;width:29%;padding:5px 7px 6px;text-align:center;
+ color:#fff;border:2px solid #fff;border-radius:5px;background:linear-gradient(180deg,#9174e1,#6f54bd);
+ box-shadow:0 3px 0 #4e388f,0 0 0 2px #927ce0,0 0 12px rgba(255,255,255,.72);
+ text-shadow:1px 1px 0 #51399b}
+.roadstart b{display:block;font-size:15px;font-weight:400;letter-spacing:.12em}
+.roadstart span{display:block;margin-top:4px;padding-top:3px;font-size:8px;letter-spacing:.18em;
+ border-top:1px solid rgba(255,255,255,.55)}
+.roadend{position:absolute;right:3.8%;top:6.5%;z-index:8;width:25%;padding:6px 7px 7px;text-align:center;
+ color:#6049a2;border:1px solid #fff;border-radius:7px;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(235,226,253,.9));
+ box-shadow:0 2px 0 #7f68c2,0 0 10px rgba(255,255,255,.7)}
+.roadend small{display:block;margin-bottom:3px;font-size:6.5px;letter-spacing:.16em;color:#9a86cc}
+.roadend b{display:block;font-size:14px;font-weight:400;letter-spacing:.16em}
+.roadiconbtn{position:absolute;z-index:5;width:23%;aspect-ratio:1;border:0;padding:0;cursor:pointer;background:transparent;
+ transform:translate(-50%,-50%);filter:drop-shadow(0 3px 1px rgba(72,48,145,.28));transition:transform .12s steps(2),filter .12s}
+.roadiconbtn img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.roadiconbtn:active{transform:translate(-50%,calc(-50% + 2px)) scale(.98)}
+.roadiconbtn.lock{cursor:default;filter:drop-shadow(0 2px 1px rgba(72,48,145,.14))}
+.roadiconbtn.been{filter:drop-shadow(0 2px 1px rgba(72,48,145,.28)) drop-shadow(0 0 7px rgba(255,151,196,.72))}
+.roadnode{position:absolute;z-index:6;width:34%;min-height:54px;padding:8px 9px 8px;font-family:inherit;text-align:left;
+ color:#544888;cursor:pointer;border:1px solid rgba(255,255,255,.98);border-radius:9px;
+ background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(238,231,253,.9));
+ box-shadow:0 2px 0 rgba(97,75,166,.24),0 0 0 1px rgba(164,143,218,.32),0 5px 10px rgba(80,59,151,.14);
+ -webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);transform:translate(-50%,-50%);
+ transition:transform .12s steps(2),filter .12s}
+.roadnode::before{content:"";position:absolute;left:7px;right:7px;top:2px;height:32%;border-radius:8px;
+ background:linear-gradient(180deg,rgba(255,255,255,.78),transparent);pointer-events:none}
+.roadnode:active{transform:translate(-50%,calc(-50% + 2px));filter:brightness(.97)}
+.roadnode strong{position:relative;display:block;padding-right:15px;font-size:11px;font-weight:400;letter-spacing:.08em;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roadnode small{position:relative;display:block;margin-top:4px;font-size:7.5px;line-height:1.35;letter-spacing:.02em;
+ color:#9a8bc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roadnode.lock{color:#a99bd1;cursor:default;background:linear-gradient(180deg,rgba(246,241,255,.78),rgba(218,207,244,.74));
+ box-shadow:0 2px 0 rgba(97,75,166,.16),0 0 0 1px rgba(164,143,218,.2);filter:saturate(.65)}
+.roadnode.lock strong{letter-spacing:.22em}
+.roadnode.been{color:#8b4771;box-shadow:0 2px 0 rgba(193,93,143,.24),0 0 0 1px rgba(255,143,190,.75),0 0 12px rgba(255,158,198,.28)}
+.roadnode .rheart{position:absolute;right:7px;top:7px;font-size:10px;color:#ff7fae;text-shadow:0 0 5px rgba(255,127,174,.55)}
+.rnwho{position:relative;display:flex;gap:3px;margin-top:4px}
+.rnwho i{width:6px;height:6px;border-radius:50%;border:1px solid rgba(255,255,255,.95);
+ box-shadow:0 1px 1px rgba(74,54,130,.25)}
+.roadyou{position:absolute;z-index:9;width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+ transform:translate(-50%,-50%) rotate(45deg);border:2px solid #fff;border-radius:55% 55% 55% 8px;
+ color:#fff;background:linear-gradient(135deg,#ff9ec6,#a78fe0);box-shadow:0 2px 0 #745bb5,0 0 10px rgba(255,255,255,.8);
+ transition:left .5s steps(8),top .5s steps(8)}
+.roadyou span{font-size:6.5px;letter-spacing:.08em;transform:rotate(-45deg);text-shadow:0 1px 1px rgba(73,48,135,.55)}
+.roadnote{margin:11px 4px 3px;text-align:center;font-size:9px;line-height:1.8;letter-spacing:.07em;color:#9d8dca}
 
 /* ── bag ── */
 .mbtn .mbcount{margin-left:4px;padding:0 4px;font-size:9px;font-style:normal;color:#fff;
@@ -1259,28 +1305,57 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
    bg가 없으면 배경 없이 열린다 — 사진이 아직 없는 자리도 막지는 않는다. */
 const PLACES=[
-  {name:"교실",     bg:"place-class.webp",    need:[],                     who:["minhyun"], own:"minhyun", item:"note",
+  {name:"교실",     bg:"place-class.webp",    icon:"class",   need:[],                     who:["minhyun"], own:"minhyun", item:"note",
    note:"네 자리는 창가 셋째 줄."},
-  {name:"보건실",   bg:"place-nurse.webp",    need:[],                     who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
+  {name:"보건실",   bg:"place-nurse.webp",    icon:"nurse",   need:[],                     who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
    note:"커튼 안쪽 침대 두 개."},
   /* 옥상은 둘 다 만나본 뒤에 열린다 — 학교에서 유일하게 둘 다 오는 자리라서 */
-  {name:"옥상",     bg:"place-rooftop.webp",  need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
+  {name:"옥상",     bg:"place-rooftop.webp",  icon:"rooftop", need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
    note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
   /* 여기서 갈라진다. 학교 밖 첫 자리 — 민현 쪽과 재언 쪽 */
-  {name:"편의점",   bg:"place-conv.webp",     need:["옥상"],               who:["minhyun"],          item:"haribo",
+  {name:"편의점",   bg:"place-conv.webp",     icon:"conv",    need:["옥상"],               who:["minhyun"],          item:"haribo",
    note:"학교 뒷문에서 이 분."},
-  {name:"도서관",   bg:"place-library.webp",  need:["옥상"],               who:["jaeeon"],           item:"book",
+  {name:"도서관",   bg:"place-library.webp",  icon:"library", need:["옥상"],               who:["jaeeon"],           item:"book",
    note:"시립. 삼 층은 늘 비어 있다."},
-  {name:"레코드샵", bg:"place-record.webp",   need:["편의점"],             who:["minhyun"],          item:"lp",
+  {name:"레코드샵", bg:"place-record.webp",   icon:"record",  need:["편의점"],             who:["minhyun"],          item:"lp",
    note:"중고반 상자가 바닥에 있다."},
-  {name:"빨래방",   bg:"place-laundry.webp",  need:["도서관"],             who:["jaeeon"],           item:"coin",
+  {name:"빨래방",   bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],             who:["jaeeon"],           item:"coin",
    note:"건조기 도는 사십 분."},
   /* 마지막. 양쪽을 다 걸어봐야 열린다 — 한쪽만 파서 남의 집에 갈 수는 없다 */
-  {name:"집",       bg:"place-home.webp",     need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
+  {name:"집",       bg:"place-home.webp",     icon:"home",    need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
    note:"현관에 우산이 두 개."},
 ];
 const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
 const PLACE_BY={};PLACES.forEach(p=>{PLACE_BY[p.name]=p});
+/* 로드맵 그림 위의 실제 버튼 자리. 그림은 한 줄의 길이고 해금 분기는
+   PLACES.need만 맡는다 — 보이는 길까지 갈라놓으면 관계도처럼 보여서 무겁다. */
+const ROAD_POS={
+  "교실":    {x:82,y:82.2},
+  "보건실":  {x:18,y:71.5},
+  "옥상":    {x:82,y:61.7},
+  "편의점":  {x:18,y:53.2},
+  "도서관":  {x:82,y:43.7},
+  "레코드샵":{x:18,y:35.2},
+  "빨래방":  {x:82,y:26.5},
+  "집":      {x:18,y:16.2},
+};
+/* 장소 그림은 배경에 박지 않는다. 같은 좌표에서 open/lock PNG만 교체한다. */
+const ROAD_ICON_POS={
+  "교실":    {x:53,y:82.2},
+  "보건실":  {x:50,y:71.5},
+  "옥상":    {x:45,y:61.7},
+  "편의점":  {x:52,y:53.2},
+  "도서관":  {x:43,y:43.7},
+  "레코드샵":{x:53,y:35.2},
+  "빨래방":  {x:46,y:26.5},
+  "집":      {x:53,y:16.2},
+};
+/* 다녀온 수만큼 길 위의 YOU가 올라간다. 첫 두 장소의 해금 순서는 자유지만
+   지도는 진행 방향만 보여주므로 한 개의 마커로 충분하다. */
+const ROAD_PROGRESS=[
+  {x:50,y:92.8},{x:53,y:82.2},{x:50,y:71.5},{x:45,y:61.7},{x:52,y:53.2},
+  {x:43,y:43.7},{x:53,y:35.2},{x:46,y:26.5},{x:53,y:16.2},
+];
 /* ── 가방 ──
    선물은 유저가 준다. 가방은 받은 것이다. 자리마다 하나씩 있고, 그 자리에
    가야만 생긴다 — 지도를 도는 이유가 여기 있다.
@@ -1732,13 +1807,7 @@ const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21">
 
 function Splash({onEnter}){
   const [v,setV]=useState("");
-  /* ── 이름 없이 누르면 ──
-     「이름을 입력하세요」 빨간 글씨 한 줄이면 될 일이다. 그런데 이 화면에서
-     비어 있다는 건 오류가 아니라 상태다. 누를 때마다 창이 하나씩 더 뜨고
-     책상이 오류로 덮이면, 없다는 말을 글로 읽는 대신 화면으로 겪게 된다.
-     순서가 곧 문장이다 — 입력해야 존재한다 → 당신을 찾을 수 없다 → 찾는 중.
-     마지막은 영영 안 끝난다. 끝나면 그건 오류가 아니라 로딩이다.
-     창은 원래 이 화면에 깔려 있던 셋 그대로다. 새로 만들지 않았다. */
+  /* 이름 없이 누르면 오류창이 하나씩 열린다. 이름이 생기면 오류 상태는 닫힌다. */
   const [errs,setErrs]=useState(0);
   const [nudge,setNudge]=useState(false);
   const [armed,setArmed]=useState(false);   // 자동재생이 됐는가
@@ -1766,13 +1835,11 @@ function Splash({onEnter}){
     const t=v.trim();
     if(t){onEnter(t);return}
     if(errs<3)setErrs(errs+1);
-    // 더 뜰 데가 없어도 누른 것이 무시당하면 안 된다 — 있는 것들이 흔들린다
     else{setNudge(true);setTimeout(()=>setNudge(false),380)}
     const el=document.querySelector(".spinput"); if(el)el.focus();
   };
-  const shut=i=>setErrs(e=>Math.min(e,i));   // 닫으면 그 뒤에 뜬 것까지 같이 걷힌다
-  /* 이름을 넣기 시작하면 오류는 물러난다. 없다고 하던 것들이라 있으면 할 말이 없다 */
-  const type=t=>{setV(t); if(t.trim()&&errs)setErrs(0)};
+  const shut=i=>setErrs(e=>Math.min(e,i));
+  const type=t=>{setV(t);if(t.trim()&&errs)setErrs(0)};
   return <div className="screen splash" onClick={wake}>
     <Bubbles/>
     <Sparkles/>
@@ -1784,7 +1851,6 @@ function Splash({onEnter}){
           <div className="splogo">NULL<i className="cur">_</i></div>
           <input className="spinput" value={v} maxLength={12} placeholder="안녕, 널 입력해줘."
             onChange={e=>type(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
-          {/* 비활성으로 두면 눌리지도 않는다. 눌러봐야 없다는 걸 알 수 있다 */}
           <button className={"spgo"+(v.trim()?"":" empty")} onClick={go}>Click!</button>
         </div>
       </div>
@@ -2105,8 +2171,9 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const left=Math.max(0,autoAt+AUTO_COOL-now);
   const album=seenPhotos(store.msgs);
   const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
-  /* 지도는 다녀온 자리로만 열린다 — 앉아서 말만 쌓아도 넓어지면 그건 게이지다 */
-  const mapOpen=PLACES.filter(p=>placeOpen(p,met));
+  /* 지도 진행은 실제로 다녀온 자리만 센다. 갈 수 있게 열린 칸은 진행도가 아니다. */
+  const visitedN=PLACES.filter(p=>met.includes(p.name)).length;
+  const roadYou=ROAD_PROGRESS[Math.min(visitedN,ROAD_PROGRESS.length-1)];
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
@@ -2204,35 +2271,47 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         </div>
       </div>
       :tab==="map"
-      ?<div className="gal">{/* map: 유저가 자리를 고르고 사람을 부른다 */}
-        <div className="progline">
-          <span className="t">PLACES</span>
-          <span className="bar"><i style={{width:(mapOpen.length/PLACES.length*100)+"%"}}/></span>
-          <span className="n">{mapOpen.length} / {PLACES.length}</span>
+      ?<div className="gal mapscroll">{/* 그림은 길, 버튼은 실제 장소 상태다 */}
+        <div className="roadhead">
+          <span className="rt">ROAD MAP</span>
+          <span className="rbar"><i style={{width:(visitedN/PLACES.length*100)+"%"}}/></span>
+          <span className="rn">{visitedN} / {PLACES.length}</span>
         </div>
-        <div className="mapgrid">
+        <div className="roadmap">
+          <div className="roadtitle"><span className="heart">♡</span><span>NULL ROAD MAP</span><span className="roadstar">✦</span></div>
+          <div className="roadend"><small>JOURNEY END</small><b>D-0</b></div>
+          <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
+          <div className="roadyou" style={{left:roadYou.x+"%",top:roadYou.y+"%"}}><span>YOU</span></div>
           {PLACES.map(p=>{
             const open=placeOpen(p,met);
             const been=met.includes(p.name);
             const want=placeNeed(p,met);
-            return <div key={p.name} className={"mapcell"+(open?"":" lock")+(been?" been":"")}
-              style={p.bg?{backgroundImage:`url("${p.bg}")`}:null}
-              onClick={()=>{ if(!open){onToast(want.join("·")+" 먼저");return}
-                p.who.length>1?onPick(p.name):onGo(p.name,p.who[0]) }}>
-              <div className="mshade"/>
-              <div className="minfo">
-                <div className="mname">{open?p.name:p.name.split("").map(()=>"□").join("")}</div>
-                {/* 잠긴 칸에도 뭐가 남았는지는 적어준다 — 뭘 해야 열리는지
-                    모르면 그건 잠긴 게 아니라 없는 것이다 */}
-                <div className="mnote">{open?p.note:want.join(" · ")+" 다녀오면"}</div>
-              </div>
-              {open&&<div className="mwho">{p.who.map(w=><i key={w} style={{background:CHARS[w].color}}/>)}</div>}
-              {been&&<span className="mgot"><Sticker.heart size={9} color="#fff"/></span>}
-              {!open&&<div className="hlock"><LockIcon/></div>}
-            </div>;
+            const pos=ROAD_POS[p.name]||{x:50,y:50};
+            const iconPos=ROAD_ICON_POS[p.name]||{x:50,y:50};
+            const enter=()=>{if(!open){onToast(want.join(" · ")+" 먼저");return}
+              p.who.length>1?onPick(p.name):onGo(p.name,p.who[0])};
+            return <React.Fragment key={p.name}>
+              <button type="button"
+                className={"roadiconbtn"+(open?"":" lock")+(been?" been":"")}
+                style={{left:iconPos.x+"%",top:iconPos.y+"%"}}
+                aria-label={open?`${p.name} 아이콘`:`잠긴 장소: ${want.join(", ")} 방문 필요`}
+                onClick={enter}>
+                <img src={`map-icons/place-${p.icon}-${open?"open":"lock"}.png`} alt=""/>
+              </button>
+              <button type="button"
+              className={"roadnode"+(open?"":" lock")+(been?" been":"")}
+              style={{left:pos.x+"%",top:pos.y+"%"}}
+              aria-label={open?p.name:`잠긴 장소: ${want.join(", ")} 방문 필요`}
+              onClick={enter}>
+              <strong>{open?p.name:"???"}</strong>
+              <small>{open?p.note:want.join(" · ")+" 다녀오면"}</small>
+              {open&&<span className="rnwho">{p.who.map(w=><i key={w} style={{background:CHARS[w].color}}/>)}</span>}
+              {been&&<span className="rheart">♡</span>}
+              </button>
+            </React.Fragment>;
           })}
         </div>
-        <div className="hnote">한 자리 다녀오면 다음이 열린다<br/>어디로 갈지는 네가 정한다</div>
+        <div className="roadnote">발이 닿은 만큼만 길이 열린다<br/>열린 이름을 누르면 그 장소로 간다</div>
       </div>
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
