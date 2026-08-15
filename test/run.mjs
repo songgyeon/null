@@ -1158,41 +1158,6 @@ eq('등록 화면에서 이름을 고칠 수 있다',
 eq('등록 화면이 다른 화면과 같은 색이다',
   /#17123a|#1e1848|#2a2159|#443a7d/.test(web) || /#17123a|#1e1848|#2a2159|#443a7d/.test(appSrc), false);
 
-/* ── 이름 없이 Click ──
-   「이름을 입력하세요」 한 줄이면 될 일이지만, 이 화면에서 비어 있다는 건
-   오류가 아니라 상태다. 누를 때마다 창이 하나씩 뜨고 책상이 덮인다.
-   창은 원래 이 화면에 있던 셋 그대로다 — 새로 만들지 않는다. */
-eq('원래 창 넷은 늘 떠 있다',
-  /<div className="spwin w1" style=\{\{animationDelay:"\.2s"\}\}>/.test(web)
-  && /<div className="spcurwrap w2">/.test(web)
-  && /<div className="spwin w3" style=\{\{animationDelay:"\.5s"\}\}>/.test(web), true);
-/* 흩어놓으면 그냥 창이 여럿인 것이다. 겹쳐야 「닫아도 또 뜬다」가 된다 */
-eq('같은 창이 계단처럼 겹친다',
-  /left:SPERR\.x\+i\*SPERR\.step,top:SPERR\.y\+i\*SPERR\.step,zIndex:24\+i/.test(web), true);
-/* 같은 문장이 두 번 뜨면 그건 연출이 아니라 버그로 보인다 */
-eq('겹치는 창은 배경 넷과 다른 말을 한다', /say:"존재값이 비어 있습니다\."/.test(web), true);
-/* 한 장씩 뜨면 「와다다」가 아니라 순서다 */
-eq('한 번 누르면 세 장씩 겹친다', /setErrs\(Math\.min\(SPERR\.max,errs\+3\)\)/.test(web), true);
-/* 뒷장은 제목줄만 보이면 된다. 앞장 하나만 온전히 읽히는 게 이 그림이다 */
-eq('맨 앞장만 닫을 수 있다',
-  /onClose=\{i===errs-1\?shut:undefined\}/.test(web)
-  && /onClick=\{i===errs-1\?shut:undefined\}/.test(web), true);
-eq('닫으면 한 장씩 걷힌다', /const shut=\(\)=>setErrs\(e=>Math\.max\(0,e-1\)\)/.test(web), true);
-/* 비활성으로 두면 눌리지도 않는다. 눌러봐야 없다는 걸 알 수 있다 */
-eq('빈 이름으로도 누를 수 있다', /<button className="spgo" disabled=\{!v\.trim\(\)\}/.test(web), false);
-eq('다 쌓인 뒤에 또 누르면 흔들린다',
-  /else\{setNudge\(true\)/.test(web) && /@keyframes errshake/.test(web), true);
-/* 없다고 하던 것들이라 이름이 생기면 할 말이 없다 */
-eq('이름을 넣으면 겹친 게 걷힌다', /if\(t\.trim\(\)&&errs\)setErrs\(0\)/.test(web), true);
-/* .spwin이 position:relative라 그 앞에 두면 자리가 안 먹고 줄줄이 흘러내린다 */
-eq('겹침 자리가 .spwin보다 뒤에서 잡힌다',
-  web.indexOf('.spwin{position:relative') < web.indexOf('.spwin.sperr{position:absolute'), true);
-/* 화면 430×900에 입력 카드가 207~421이다. 맨 앞장이 거기까지 안 내려와야 한다 */
-eq('다 겹쳐도 입력 카드를 안 덮는다', (() => {
-  const m = web.match(/x:\s*(\d+),\s*y:\s*(\d+),\s*step:\s*(\d+),\s*max:\s*(\d+)/);
-  return m ? +m[2] + (+m[4] - 1) * +m[3] + 100 : 999;
-})() <= 207, true);
-
 eq('첫날 통보가 있다', /title="null\.exe"/.test(web), true);
 eq('스무 시간 뒤에 뜬다', /const SYS1_AFTER = 20\*60\*60\*1000/.test(web), true);
 eq('한 번만 뜬다', /saveSys1\(\); setSys1\(true\)/.test(web) && /null_sys1/.test(web), true);

@@ -77,10 +77,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .spstack .w2{align-self:flex-end;width:194px;margin-top:-6px}
 .spstack .w3{align-self:stretch;margin-top:8px}
 .spcurwrap{position:relative}
-/* 셋이 다 떴는데 또 누르면 흔들린다 */
-@keyframes errshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}
- 40%{transform:translateX(4px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
-.splash.nudge .spwin.sperr{animation:errshake .34s steps(2) both}
 /* 키라키라 반짝이 */
 .spark{position:absolute;pointer-events:none;z-index:6;
  clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
@@ -399,9 +395,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #f0c8de,2px 2px 0 rgba(93,84,144,.22)}
 .spgo:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 #f0c8de}
 .spgo:disabled{opacity:.5;cursor:default}
-/* 이름이 비었을 때. 누를 수는 있고, 눌러도 못 나간다는 것만 색으로 알린다 */
-.spgo.empty{color:#8a7fc0;background:linear-gradient(180deg,#fbf6ff,#e6ddf8);border-color:#8a7fc0;
- box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #d9cbf3,2px 2px 0 rgba(93,84,144,.18)}
 .spbar{display:block;height:11px;background:#fff;border:1px solid #8a7fc0;overflow:hidden;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.3)}
 .spbar i{display:block;height:100%;background:repeating-linear-gradient(90deg,#ff9ec6 0 7px,#ffd0e6 7px 14px);
@@ -411,14 +404,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  box-shadow:3px 4px 0 rgba(60,45,100,.3);animation:pop .35s steps(3) both}
 .spwin .sptb{font-size:9px;padding:4px 7px}
 .spwin .spbd{padding:11px 11px 9px;font-size:9.5px;line-height:1.75;background:#fff;color:#6b5fa8}
-.spwin.sperr{position:absolute;width:188px;animation:errpop .18s steps(2) both}
-.spwin.sperr .spbtn{cursor:pointer}
-.spwin.sperr .spbtn:active{transform:translate(1px,1px)}
-@keyframes errpop{from{opacity:0;transform:translate(-5px,-5px)}to{opacity:1}}
 /* 버튼은 제 줄에서 오른쪽 아래. inline-block으로 두면 문장 뒤에 그대로 붙어
    "당신을 찾을 수 없습니다. [Cancel]" 처럼 한 줄이 된다 — 대화상자가 아니라 문장이 된다. */
-.spwin .spbtn{cursor:pointer}
-.spwin .spbtn:active{transform:translate(1px,1px)}
 .spbtn{display:block;width:fit-content;margin:11px 0 0 auto;padding:4px 14px;font-size:9px;color:#4a4276;
  background:#ece8fa;border:1px solid #5d5490;box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec}
 /* 커서 — CSS 보더로 만든 삼각형은 한쪽만 채워져서 작대기로 보였다. SVG로 그린다 */
@@ -1768,14 +1755,8 @@ const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21">
   <path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L13 12 Z" fill="#fff" stroke="#4a4276" strokeWidth="1.2" strokeLinejoin="round"/>
 </svg>;
 
-const SPERR={t:"Error",c:"linear-gradient(90deg,#b9a8ea,#8a7fc0)",
-  say:"존재값이 비어 있습니다.",b:"ok",x:8,y:26,step:7,max:8};
-
 function Splash({onEnter}){
   const [v,setV]=useState("");
-  /* 이름 없이 누르면 오류창이 하나씩 열린다. 이름이 생기면 오류 상태는 닫힌다. */
-  const [errs,setErrs]=useState(0);
-  const [nudge,setNudge]=useState(false);
   const [armed,setArmed]=useState(false);   // 자동재생이 됐는가
   const audio=useRef(null);
   useEffect(()=>{
@@ -1797,16 +1778,8 @@ function Splash({onEnter}){
     };
   },[]);
   const wake=()=>{const a=audio.current;if(!armed&&a)a.play().then(()=>setArmed(true)).catch(()=>{})};
-  const go=()=>{
-    const t=v.trim();
-    if(t){onEnter(t);return}
-    if(errs<SPERR.max)setErrs(Math.min(SPERR.max,errs+3));
-    else{setNudge(true);setTimeout(()=>setNudge(false),380)}
-    const el=document.querySelector(".spinput"); if(el)el.focus();
-  };
-  const shut=()=>setErrs(e=>Math.max(0,e-1));
-  const type=t=>{setV(t);if(t.trim()&&errs)setErrs(0)};
-  return <div className={"screen splash"+(nudge?" nudge":"")} onClick={wake}>
+  const go=()=>{const t=v.trim();if(t)onEnter(t)};
+  return <div className="screen splash" onClick={wake}>
     <Bubbles/>
     <Sparkles/>
     <div className="spstack">
@@ -1816,8 +1789,8 @@ function Splash({onEnter}){
         <div className="spbody">
           <div className="splogo">NULL<i className="cur">_</i></div>
           <input className="spinput" value={v} maxLength={12} placeholder="안녕, 널 입력해줘."
-            onChange={e=>type(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
-          <button className={"spgo"+(v.trim()?"":" empty")} onClick={go}>Click!</button>
+            onChange={e=>setV(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
+          <button className="spgo" disabled={!v.trim()} onClick={go}>Click!</button>
         </div>
       </div>
       {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
@@ -1840,14 +1813,6 @@ function Splash({onEnter}){
         </div>
       </div>
     </div>
-    {Array.from({length:errs},(_,i)=>
-      <div key={i} className="spwin sperr"
-        style={{left:SPERR.x+i*SPERR.step,top:SPERR.y+i*SPERR.step,zIndex:24+i}}>
-        <div className="sptb" style={{background:SPERR.c}}>{SPERR.t}
-          <WinDots onClose={i===errs-1?shut:undefined}/></div>
-        <div className="spbd">{SPERR.say}
-          <div className="spbtn" onClick={i===errs-1?shut:undefined}>{SPERR.b}</div></div>
-      </div>)}
     <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
   </div>;
 }
