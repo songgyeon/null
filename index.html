@@ -2105,8 +2105,12 @@ function PrivateReasonsAccount({onClose}){
       <div className="snsmedia"><img src="hidden-minhyun-reasons.webp" alt="턴테이블 옆에 놓인 LP"/></div>
       <div className="snscap"><b>@mhy.wav</b>이건 좀</div>
     </article>
+    {/* 마지막은 아무것도 안 올린 게시물이다. 검은 사진 한 장에 캡션 한 단어 —
+        앞의 둘과 같은 모양이라 더 그렇다. 글자를 사진 안에 넣으면 타이틀 카드가
+        되고, 캡션으로 내려야 진짜 올린 것이 된다. */}
     <article className="snspost">{head("2일 전")}
-      <div className="snsmedia snsblack">선생님</div>
+      <div className="snsmedia snsblack"/>
+      <div className="snscap"><b>@mhy.wav</b>선생님</div>
     </article>
     <div className="snsend">END OF PRIVATE POSTS</div>
   </div>;

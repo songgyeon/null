@@ -1104,8 +1104,11 @@ function ReasonsAccount({onClose}:{onClose:()=>void}) {
         <Image source={{uri:IMG+'hidden-minhyun-reasons.webp'}} style={sns.media} resizeMode="cover"/>
         <Text style={sns.caption}><Text style={sns.captionWho}>@mhy.wav  </Text>이건 좀</Text>
       </View>
+      {/* 마지막은 아무것도 안 올린 게시물이다. 검은 사진 한 장에 캡션 한 단어 —
+          글자를 사진 안에 넣으면 타이틀 카드가 되고, 캡션으로 내려야 진짜 올린 것이 된다 */}
       <View style={sns.post}>{postHead('2일 전')}
-        <View style={[sns.media,sns.black]}><Text style={sns.blackT}>선생님</Text></View>
+        <View style={[sns.media,sns.black]}/>
+        <Text style={sns.caption}><Text style={sns.captionWho}>@mhy.wav  </Text>선생님</Text>
       </View>
       <Text style={sns.end}>END OF PRIVATE POSTS</Text>
     </ScrollView>
