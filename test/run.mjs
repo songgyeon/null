@@ -1636,6 +1636,44 @@ eq('bag이 gift와 같은 카드·칩을 쓴다',
 eq('누가 줬는지가 물건보다 앞에 온다', /faceBg\(who\)/.test(web), true);
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
 
+/* ── 지도 ──
+   도로가 .roadmap의 배경이라 안에 놓인 건 뭐든 도로 앞에 왔다. 건물이 길을
+   깔고 앉은 것처럼 보였다. 도로만 오려낸 그림을 아이콘 위에 한 겹 더 덮는다 */
+eq('도로가 아이콘 위로 지나간다',
+  /\.roadfront\{position:absolute;inset:0;z-index:6/.test(web)
+  && /url\("null-roadmap-road-fg\.webp"\)/.test(web)
+  && /className="roadfront"/.test(web), true);
+eq('오려낸 도로 그림이 저장소에 있다', exists('null-roadmap-road-fg.webp'), true);
+/* 길 위에 얹으면 도로가 흔들리는 폭만큼밖에 못 벌어진다. 건물은 길 밖에 세운다 */
+{
+  /* 표가 둘이다 — 건물 자리(ROAD_ICON_POS)와 길 위 핀 자리(ROAD_PIN_POS).
+     건물 쪽만 센다 */
+  const tbl = web.slice(web.indexOf('const ROAD_ICON_POS={'));
+  const xs = [...tbl.slice(0, tbl.indexOf('};')).matchAll(/\{x:(\d+(?:\.\d+)?), y:/g)].map(m => +m[1]);
+  eq('자리가 여덟 개다', xs.length, 8);
+  eq('아이콘이 넓게 벌어진다', Math.max(...xs) - Math.min(...xs) >= 30, true);
+  /* 좌우로 번갈아야 지그재그가 된다 — 한쪽에 몰리면 다시 한 줄이다 */
+  eq('좌우가 갈린다',
+    [xs.filter(x => x < 50).length, xs.filter(x => x >= 50).length].every(n => n >= 3), true);
+}
+
+/* 건물은 길 밖에 있으니 어느 자리인지 길 위에서도 보여야 한다 */
+eq('길 위에 핀이 있다',
+  /const ROAD_PIN_POS=\{/.test(web) && /className="roadpin"/.test(web)
+  && /\.roadpin\{position:absolute;z-index:8/.test(web), true);
+eq('핀이 도로 덮개보다 위에 있다', (() => {
+  const z = t => +(web.match(new RegExp(t + '\\{position:absolute;[^}]*z-index:(\\d+)'))||[])[1];
+  return z('\\.roadpin') > z('\\.roadfront');
+})(), true);
+eq('지금 서 있는 자리가 보인다', /className="roadyou"/.test(web), true);
+/* 자리마다 핀이 하나씩 있어야 한다 — 없으면 길에서 그 자리가 사라진다 */
+eq('자리마다 핀이 있다', (() => {
+  const g = n => { const t = web.slice(web.indexOf('const ' + n + '={'));
+    return [...t.slice(0, t.indexOf('};')).matchAll(/"([^"]+)":/g)].map(m => m[1]); };
+  const a = g('ROAD_ICON_POS'), b = g('ROAD_PIN_POS');
+  return a.filter(n => !b.includes(n));
+})(), []);
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 
