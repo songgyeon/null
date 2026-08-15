@@ -46,7 +46,7 @@ const ENROLL_DAYS = 30;
 /* 갤러리(Cam 탭) — 웹 버전과 동일. PHOTOS 키도 여기서 파생 */
 const GALLERY:Record<string,string[]> = {
   jaeeon:['jaeeon-treat','jaeeon-care','jaeeon-cook','jaeeon-work','jaeeon-evening','jaeeon-market','jaeeon-laundry','jaeeon-car','jaeeon-classroom','jaeeon-rooftop','jaeeon-curtain','jaeeon-shelf','jaeeon-bandage','jaeeon-cabinet','jaeeon-bottle','jaeeon-chart','jaeeon-door','jaeeon-mug','jaeeon-back','jaeeon-driveseat','jaeeon-corridor','jaeeon-sink'],
-  minhyun:['minhyun-candy','minhyun-corridor','minhyun-rain','minhyun-gate','minhyun-morning','minhyun-alley','minhyun-store','minhyun-gym','minhyun-busstop','minhyun-winter','minhyun-snow','minhyun-bench','minhyun-desk','minhyun-stair','minhyun-vending','minhyun-laundry','minhyun-conv','minhyun-nap','minhyun-neon','minhyun-ramen','minhyun-window','minhyun-mirror'],
+  minhyun:['minhyun-candy','minhyun-corridor','minhyun-rain','minhyun-gate','minhyun-morning','minhyun-alley','minhyun-gym','minhyun-busstop','minhyun-winter','minhyun-snow','minhyun-bench','minhyun-desk','minhyun-stair','minhyun-vending','minhyun-laundry','minhyun-conv','minhyun-nap','minhyun-neon','minhyun-ramen','minhyun-window','minhyun-mirror'],
 };
 const PHOTOS:Record<string,string> = {};
 Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.webp'}));

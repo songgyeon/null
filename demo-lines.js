@@ -387,7 +387,7 @@ var DEMO_PIC = [
 var DEMO_PIC_ANY = {
   jaeeon: ['jaeeon-work','jaeeon-door','jaeeon-chart','jaeeon-bottle','jaeeon-curtain',
            'jaeeon-bandage','jaeeon-driveseat','jaeeon-corridor','jaeeon-back'],
-  minhyun:['minhyun-gate','minhyun-store','minhyun-vending','minhyun-neon','minhyun-bench',
+  minhyun:['minhyun-gate','minhyun-conv','minhyun-vending','minhyun-neon','minhyun-bench',
            'minhyun-morning','minhyun-winter','minhyun-mirror'],
 };
 /* 사진에 붙는 한 마디. 앞말이 무엇이든 어긋나지 않는 것만 둔다 —

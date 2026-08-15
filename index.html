@@ -32,8 +32,9 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
    구석은 안 건드린다 — 화면 전체를 밝히면 그냥 배경이 흐려진 것이 된다.
    .phone이 z-index:1이라 이 층 위에 그대로 올라온다. */
 #root::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
- background:radial-gradient(ellipse 560px 760px at 50% 50%,
-   rgba(255,255,255,.5) 0%,rgba(255,238,252,.26) 44%,transparent 74%)}
+ background:radial-gradient(ellipse 680px 900px at 50% 50%,
+   rgba(255,255,255,.88) 0%,rgba(255,246,254,.62) 34%,
+   rgba(255,238,252,.3) 58%,transparent 80%)}
 /* 메인 창(폰) */
 .phone{position:relative;z-index:1;width:390px;height:844px;max-height:min(94vh,844px);overflow:hidden;
  background:#dcd6f2;border:2px solid #8f7ccb;border-radius:14px;
@@ -970,7 +971,7 @@ const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["jaeeon-treat.webp","jaeeon-care.webp","jaeeon-cook.webp","jaeeon-work.webp","jaeeon-evening.webp","jaeeon-market.webp","jaeeon-laundry.webp","jaeeon-car.webp","jaeeon-classroom.webp","jaeeon-rooftop.webp","jaeeon-curtain.webp","jaeeon-shelf.webp","jaeeon-bandage.webp","jaeeon-cabinet.webp","jaeeon-bottle.webp","jaeeon-chart.webp","jaeeon-door.webp","jaeeon-mug.webp","jaeeon-back.webp","jaeeon-driveseat.webp","jaeeon-corridor.webp","jaeeon-sink.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-store.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp"]},
+    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp"]},
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;

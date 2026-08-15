@@ -681,7 +681,7 @@ const PHOTOS = {
   },
   "minhyun-conv": {
     char: "minhyun",
-    when: "편의점 냉장고 앞. 젤리를 골라 들었다. 뭐 먹냐, 단 거 얘기에.",
+    when: "편의점 냉장고 앞. 젤리를 골라 들었다. 뭐 먹냐, 배고프다, 군것질·단 거 얘기에.",
   },
   "minhyun-nap": {
     char: "minhyun",
@@ -710,10 +710,6 @@ const PHOTOS = {
   "minhyun-alley": {
     char: "minhyun",
     when: "후문 골목. 처음 만난 자리다. 담배·라이터 얘기가 나왔을 때.",
-  },
-  "minhyun-store": {
-    char: "minhyun",
-    when: "편의점. 군것질·배고프다·뭐 먹었냐는 얘기에.",
   },
   "minhyun-gym": {
     char: "minhyun",
