@@ -1649,13 +1649,14 @@ eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.t
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
 
 /* ── 지도 ──
-   도로가 .roadmap의 배경이라 안에 놓인 건 뭐든 도로 앞에 왔다. 건물이 길을
-   깔고 앉은 것처럼 보였다. 도로만 오려낸 그림을 아이콘 위에 한 겹 더 덮는다 */
-eq('도로가 아이콘 위로 지나간다',
-  /\.roadfront\{position:absolute;inset:0;z-index:6/.test(web)
-  && /url\("null-roadmap-road-fg\.webp"\)/.test(web)
-  && /className="roadfront"/.test(web), true);
-eq('오려낸 도로 그림이 저장소에 있다', exists('null-roadmap-road-fg.webp'), true);
+   장소와 마지막 입력창이 도로 아래에 묻히면 바닥이 잘린다. 배경 위에 온전히 둔다. */
+eq('장소 아이콘이 도로 위에서 잘리지 않는다',
+  !/className="roadfront"/.test(web)
+  && /\.roadmap::after\{content:"";position:absolute;inset:0;pointer-events:none;z-index:1/.test(web)
+  && /\.roadiconbtn\{position:absolute;z-index:6;width:29%/.test(web), true);
+eq('하트와 장소 아이콘이 모바일에서도 읽을 크기다',
+  /\.roadpin\{position:absolute;z-index:8;width:9\.6%;transform:translate\(-50%,-100%\)/.test(web)
+  && /\.roadfinishpanel\{position:absolute;left:72%;top:\.8%;z-index:5;width:17%;height:18\.8%/.test(web), true);
 /* 길 위에 얹으면 도로가 흔들리는 폭만큼밖에 못 벌어진다. 건물은 길 밖에 세운다 */
 {
   /* 표가 둘이다 — 건물 자리(ROAD_ICON_POS)와 길 위 핀 자리(ROAD_PIN_POS).
@@ -1675,10 +1676,9 @@ eq('길 위에 PNG 하트 표지판이 있다',
   && /\.roadpin\{position:absolute;z-index:8/.test(web)
   && /src="map-icons\/heart-sign\.png"/.test(web)
   && exists('map-icons/heart-sign.png'), true);
-eq('핀이 도로 덮개보다 위에 있다', (() => {
-  const z = t => +(web.match(new RegExp(t + '\\{position:absolute;[^}]*z-index:(\\d+)'))||[])[1];
-  return z('\\.roadpin') > z('\\.roadfront');
-})(), true);
+eq('하트가 장소 아이콘보다 위에 있다',
+  /\.roadpin\{position:absolute;z-index:8/.test(web)
+  && /\.roadiconbtn\{position:absolute;z-index:6/.test(web), true);
 eq('문 뒤에 입력창만 남고 YOU 표시는 없다',
   /className="roadfinishpanel"/.test(web)
   && /src="map-icons\/final-input-window\.png"/.test(web)
