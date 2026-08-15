@@ -311,10 +311,16 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
   {k:'likes',    lab:'LIKES',   tail:'를 좋아하고'},
   {k:'dislikes', lab:'HATES',   tail:'를 싫어한다'},
 ];
-function Enroll({name,profile,onSaveField,onDone}:{
+function Enroll({name,profile,onSaveField,onRename,onDone}:{
   name:string; profile:Record<string,string>;
-  onSaveField:(k:string,v:string)=>void; onDone:()=>void;
+  onSaveField:(k:string,v:string)=>void; onRename:(n:string)=>void; onDone:()=>void;
 }) {
+  /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 목록의 edit 메뉴까지
+     가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
+  const [edit,setEdit]=useState(false);
+  const [nv,setNv]=useState(name||'');
+  useEffect(()=>setNv(name||''),[name,edit]);
+  const saveName=()=>{setEdit(false);const t=nv.trim();if(t&&t!==name)onRename(t)};
   // 빈칸 넷 + DAYS LEFT 한 줄
   const rows = useRef(Array.from({length:ENR_FIELDS.length+1},()=>new Animated.Value(0))).current;
   const fade = useRef(new Animated.Value(0)).current;
@@ -333,7 +339,13 @@ function Enroll({name,profile,onSaveField,onDone}:{
     <View style={en.card}>
       <View style={en.tb}><Text style={en.tbT}>registering...</Text></View>
       <View style={en.body}>
-        <Text style={en.name}>{name}</Text>
+        <View style={en.nameRow}>
+          {edit
+            ?<TextInput style={en.nameIn} value={nv} autoFocus maxLength={12}
+               onChangeText={setNv} onBlur={saveName} onSubmitEditing={saveName} returnKeyType="done"/>
+            :<TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:6}} onPress={()=>setEdit(true)}>
+               <Text style={en.name}>{name}</Text><Text style={en.pen}>edit</Text></TouchableOpacity>}
+        </View>
         {ENR_FIELDS.map((f,i)=>
           <Animated.View key={f.k} style={[en.row,anim(rows[i])]}>
             <Text style={en.rowL}>{f.lab}</Text>
@@ -358,31 +370,39 @@ function Enroll({name,profile,onSaveField,onDone}:{
   </Animated.View>;
 }
 const en=StyleSheet.create({
-  root:{...StyleSheet.absoluteFillObject,zIndex:55,backgroundColor:'#17123a',
+  /* 이 화면만 진보라였다. 앞의 오프닝도 뒤의 방 목록도 파스텔이라 1.5초짜리
+     어두운 화면 하나가 다른 앱처럼 끼어 있었다. 같은 가족으로 옮겼다. */
+  root:{...StyleSheet.absoluteFillObject,zIndex:55,backgroundColor:'#cabff1',
         alignItems:'center',justifyContent:'center',padding:26},
-  card:{width:'100%',maxWidth:286,borderWidth:1,borderColor:P.border,backgroundColor:'#1e1848'},
-  tb:{backgroundColor:'#6b4aa8',paddingVertical:5,paddingHorizontal:9},
+  card:{width:'100%',maxWidth:286,borderRadius:14,overflow:'hidden',borderWidth:2,borderColor:'#fff',
+        backgroundColor:'#f6f1ff'},
+  tb:{backgroundColor:'#b79ceb',paddingVertical:6,paddingHorizontal:10,
+      borderBottomWidth:1.5,borderBottomColor:'#7f6cbb'},
   tbT:{...F,fontSize:9.5,letterSpacing:1.8,color:'#fff'},
   body:{paddingHorizontal:16,paddingTop:16,paddingBottom:15},
-  name:{...F,fontSize:15,letterSpacing:.9,color:'#fff',paddingBottom:11,
-        borderBottomWidth:1,borderBottomColor:'#443a7d'},
+  nameRow:{flexDirection:'row',alignItems:'center',gap:6,paddingBottom:11,
+           borderBottomWidth:1,borderBottomColor:'#d9cbf3'},
+  name:{...F,fontSize:15,letterSpacing:.9,color:'#4a4276'},
+  pen:{...F,fontSize:9,letterSpacing:1.4,color:'#b0a6d8'},
+  nameIn:{...F,flex:1,fontSize:15,color:'#4a4276',paddingVertical:3,paddingHorizontal:7,
+          backgroundColor:'#fff',borderWidth:1,borderColor:'#c3b2f0',borderRadius:5},
   row:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:5,
-       paddingVertical:9,borderBottomWidth:1,borderBottomColor:'#443a7d'},
-  rowL:{...F,fontSize:8.5,letterSpacing:2,color:'#8a7ac4',minWidth:66},
-  rowT:{...F,fontSize:12,color:'#c9b6f5'},
-  /* 어두운 창이라 빈칸도 어둡게 — 밝은 you.txt의 것을 그대로 쓰면 안 보인다 */
+       paddingVertical:9,borderBottomWidth:1,borderBottomColor:'#d9cbf3'},
+  rowL:{...F,fontSize:8.5,letterSpacing:2,color:'#a290d4',minWidth:66},
+  rowT:{...F,fontSize:12,color:'#6b5cae'},
+  /* 이제 밝은 창이라 you.txt와 같은 빈칸을 쓴다 */
   blank:{...F,fontSize:12,minWidth:44,paddingVertical:2,paddingHorizontal:6,textAlign:'center',
-         color:'#ffb0d4',backgroundColor:'#2a2159',borderWidth:1,borderColor:'#6b5fa8',
+         color:'#c46a97',backgroundColor:'#fff',borderWidth:1,borderColor:'#d9cbf3',
          borderStyle:'dashed',borderRadius:3},
-  blankOn:{color:'#fff',borderStyle:'solid'},
-  nullv:{...F,fontSize:12,letterSpacing:.7,color:'#6b5fa8'},
-  bar:{marginTop:15,height:6,backgroundColor:'#2a2159',borderWidth:1,borderColor:P.border,overflow:'hidden'},
+  blankOn:{color:'#4a4276',borderStyle:'solid'},
+  nullv:{...F,fontSize:12,letterSpacing:.7,color:'#b0a6d8'},
+  bar:{marginTop:15,height:6,borderRadius:999,backgroundColor:'#eae1fb',borderWidth:1,borderColor:'#d9cbf3',overflow:'hidden'},
   fill:{height:'100%',backgroundColor:'#ff8fbe'},
-  msg:{...F,marginTop:8,fontSize:8.5,letterSpacing:1.8,color:'#8a7ac4'},
-  msgOn:{color:'#8fe0b0'},
-  go:{marginTop:13,paddingVertical:9,alignItems:'center',backgroundColor:'#ffd5e8',
-      borderWidth:1,borderColor:P.border},
-  goT:{...F,fontSize:12,letterSpacing:3.6,color:P.ink},
+  msg:{...F,marginTop:8,fontSize:8.5,letterSpacing:1.8,color:'#a290d4'},
+  msgOn:{color:'#5fb98a'},
+  go:{marginTop:13,paddingVertical:10,alignItems:'center',borderRadius:999,backgroundColor:'#ffd9ec',
+      borderWidth:1.5,borderColor:'#fff'},
+  goT:{...F,fontSize:12,letterSpacing:3.6,color:'#6b5fa8'},
 });
 
 // ═══ 소개 영상 ═══
@@ -1980,7 +2000,7 @@ function Root() {
       </View>
     </Modal>
     {enrolling&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
-      onDone={()=>setEnrolling(false)}/>}
+      onRename={doRename} onDone={()=>setEnrolling(false)}/>}
     {film&&<IntroFilm onClose={()=>setFilm(false)}/>}
     {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
     <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>

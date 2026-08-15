@@ -1153,6 +1153,14 @@ eq('창 폭에도 상한이 있다', /\.phone\{[^}]*max-width:100vw/.test(web), 
 eq('보건실이 누구 자리인지 적어뒀다',
   /보건실은 이재언의 자리다/.test(workerSrc) && /누가 왔느냐만 사건이다/.test(workerSrc), true);
 
+/* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 목록의 edit 메뉴까지
+   가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
+eq('등록 화면에서 이름을 고칠 수 있다',
+  /onRename=\{rename\}/.test(web) && /onRename=\{doRename\}/.test(appSrc), true);
+/* 이 화면만 진보라라 1.5초짜리 어두운 화면 하나가 다른 앱처럼 끼어 있었다 */
+eq('등록 화면이 다른 화면과 같은 색이다',
+  /#17123a|#1e1848|#2a2159|#443a7d/.test(web) || /#17123a|#1e1848|#2a2159|#443a7d/.test(appSrc), false);
+
 eq('첫날 통보가 있다', /title="null\.exe"/.test(web), true);
 eq('스무 시간 뒤에 뜬다', /const SYS1_AFTER = 20\*60\*60\*1000/.test(web), true);
 eq('한 번만 뜬다', /saveSys1\(\); setSys1\(true\)/.test(web) && /null_sys1/.test(web), true);

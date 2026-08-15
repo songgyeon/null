@@ -568,43 +568,54 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 
    막대는 채운 칸 수를 그대로 보여준다. 다 안 채워도 들어갈 수 있다 —
    비워두는 것도 이 이야기에서는 답이다. DAYS LEFT는 끝까지 null이다. */
+/* 등록 화면. 전에는 이 화면만 진보라였다 — 바로 앞 오프닝도
+   파스텔이고 바로 뒤 방 목록도 파스텔이라, 1.5초짜리 어두운 화면 하나가
+   다른 앱처럼 끼어 있었다. 어둠이 뜻을 지고 있던 것도 아니다:
+   「아직 안 들어왔다」는 오프닝의 "당신을 찾을 수 없습니다"가 이미 말하고,
+   null.exe도 d-0.exe도 밝은 창이다. 그래서 같은 가족으로 옮긴다. */
 .enr{position:absolute;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;
- padding:26px;background:#17123a}
+ padding:26px;background:linear-gradient(180deg,#dcd3f7 0%,#c9bff1 52%,#e6d3ef 100%)}
 .enr.out{animation:enrOut .42s steps(5) both}
 @keyframes enrOut{
  0%{transform:scaleY(1);opacity:1}
  72%{transform:scaleY(.06);opacity:1}
  100%{transform:scaleY(.02);opacity:0}}
-.enr .ecard{width:100%;max-width:286px;border:1px solid #5d5490;background:#1e1848;
- box-shadow:5px 5px 0 rgba(0,0,0,.35);animation:fadeUp .4s steps(4) both}
-.enr .etb{display:flex;align-items:center;background:linear-gradient(90deg,#6b4aa8,#8a6fd0);color:#fff;
- font-size:9.5px;letter-spacing:.18em;padding:5px 9px}
+.enr .ecard{width:100%;max-width:286px;overflow:hidden;border-radius:14px;border:2px solid #fff;
+ background:linear-gradient(180deg,#ffffff 0%,#f2ecfe 46%,#eae1fb 100%);
+ box-shadow:0 3px 0 rgba(150,135,210,.35),0 0 0 1px #e4dbf8,0 10px 24px rgba(93,84,144,.28);
+ animation:fadeUp .4s steps(4) both}
+.enr .etb{display:flex;align-items:center;color:#fff;font-size:9.5px;letter-spacing:.18em;padding:6px 10px;
+ background:linear-gradient(100deg,#f3b9d8 0%,#d5b3ef 34%,#b79ceb 62%,#a992e6 100%);
+ border-bottom:1.5px solid #7f6cbb;text-shadow:0 1px 0 rgba(80,66,140,.6)}
 .enr .ebody{padding:16px 16px 15px}
-.enr .ename{font-size:15px;color:#fff;letter-spacing:.06em;padding-bottom:11px;
- border-bottom:1px dotted #443a7d}
+/* 이름도 고칠 수 있다. 등록 화면인데 정작 이름만 못 고치면 그건 등록이 아니다 —
+   여기서 놓치면 방 목록의 edit 메뉴까지 가야 한다. */
+.enr .ename{display:flex;align-items:center;gap:6px;font-size:15px;color:#4a4276;letter-spacing:.06em;
+ padding-bottom:11px;border-bottom:1px dotted #d9cbf3;cursor:pointer}
+.enr .ename .pen{font-size:9px;letter-spacing:.14em;color:#b0a6d8}
+.enr .ename:hover .pen{color:#8a7fc0}
+.enr .namein{flex:1;min-width:0;padding:3px 7px;font-family:inherit;font-size:15px;color:#4a4276;
+ background:#fff;border:1px solid #c3b2f0;border-radius:5px;outline:none}
 .enr .eline{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:9px 0;font-size:12px;
- color:#c9b6f5;border-bottom:1px dotted #443a7d;opacity:0;animation:enrRow .35s steps(3) both}
+ color:#6b5cae;border-bottom:1px dotted #d9cbf3;opacity:0;animation:enrRow .35s steps(3) both}
 .enr .eline:nth-of-type(1){animation-delay:.30s}
 .enr .eline:nth-of-type(2){animation-delay:.55s}
 .enr .eline:nth-of-type(3){animation-delay:.80s}
 .enr .eline:nth-of-type(4){animation-delay:1.05s}
 .enr .eline:nth-of-type(5){animation-delay:1.30s}
-.enr .eline .lab{font-size:8.5px;letter-spacing:.2em;color:#8a7ac4;min-width:66px}
-/* 어두운 창이라 빈칸도 어둡게 — you.txt(밝은 창)의 것을 그대로 쓰면 안 보인다 */
-.enr .blank{color:#ffb0d4;background:#2a2159;border-color:#6b5fa8}
-.enr .blank:hover{background:#332a6b}
-.enr .blank.filled{color:#fff;border-style:solid}
-.enr .blankin{background:#2a2159;color:#fff;border:1px solid #8a7fc0}
-.enr .nullv{font-size:12px;color:#6b5fa8;letter-spacing:.06em}
-.enr .ebar{margin-top:15px;height:6px;background:#2a2159;border:1px solid #5d5490;overflow:hidden}
+.enr .eline .lab{font-size:8.5px;letter-spacing:.2em;color:#a290d4;min-width:66px}
+/* 빈칸은 you.txt(밝은 창)의 것을 그대로 쓴다 — 이제 같은 가족이다 */
+.enr .nullv{font-size:12px;color:#b0a6d8;letter-spacing:.06em}
+.enr .ebar{margin-top:15px;height:6px;border-radius:999px;background:#eae1fb;border:1px solid #d9cbf3;overflow:hidden}
 .enr .ebar i{display:block;height:100%;background:linear-gradient(90deg,#ff8fbe,#c3b2f0);
  transition:width .35s steps(6)}
-.enr .emsg{margin-top:8px;font-size:8.5px;letter-spacing:.18em;color:#8a7ac4}
-.enr .emsg.done{color:#8fe0b0}
-.enr .ego{width:100%;margin-top:13px;padding:9px;font-family:inherit;font-size:12px;letter-spacing:.3em;
- text-indent:.3em;color:#4a4276;cursor:pointer;background:linear-gradient(180deg,#fff0f7,#ffc2dd);
- border:1px solid #5d5490;box-shadow:inset 1px 1px 0 #fff,2px 2px 0 rgba(0,0,0,.28)}
-.enr .ego:active{transform:translate(1px,1px)}
+.enr .emsg{margin-top:8px;font-size:8.5px;letter-spacing:.18em;color:#a290d4}
+.enr .emsg.done{color:#5fb98a}
+.enr .ego{width:100%;margin-top:13px;padding:10px;font-family:inherit;font-size:12px;letter-spacing:.3em;
+ text-indent:.3em;color:#6b5fa8;cursor:pointer;border-radius:999px;
+ background:linear-gradient(180deg,#fff0f7 0%,#ffd9ec 48%,#ffc2dd 52%,#ffe4f1 100%);
+ border:1.5px solid #fff;box-shadow:inset 0 1px 0 #fff,0 3px 0 #edbcd6}
+.enr .ego:active{transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(190,120,160,.3)}
 @keyframes enrRow{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 /* 방 목록: 크롬 스타 월페이퍼 위 메신저 창 */
 .desk{background:#c3b2f0 url("bg-6.webp") center/cover no-repeat}
@@ -1849,15 +1860,26 @@ const ENR_FIELDS=[
   {k:"likes",    lab:"LIKES",   tail:"를 좋아하고"},
   {k:"dislikes", lab:"HATES",   tail:"를 싫어한다"},
 ];
-function Enroll({name,profile,onSaveField,onDone}){
+function Enroll({name,profile,onSaveField,onRename,onDone}){
   const [out,setOut]=useState(false);
+  /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 방 목록의 edit 메뉴까지
+     가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
+  const [edit,setEdit]=useState(false);
+  const [nv,setNv]=useState(name||"");
+  useEffect(()=>setNv(name||""),[name,edit]);
+  const saveName=()=>{setEdit(false);const t=nv.trim();if(t&&t!==name)onRename(t)};
   const filled=ENR_FIELDS.filter(f=>(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr"+(out?" out":"")}>
     <div className="ecard">
       <div className="etb">registering...<WinDots/></div>
       <div className="ebody">
-        <div className="ename">{name}</div>
+        {edit
+          ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
+             onChange={e=>setNv(e.target.value)} onBlur={saveName}
+             onKeyDown={e=>e.key==="Enter"&&saveName()}/></div>
+          :<div className="ename" onClick={()=>setEdit(true)} title="이름 고치기">
+             {name}<span className="pen">edit</span></div>}
         {ENR_FIELDS.map(f=>
           <div className="eline" key={f.k}>
             <span className="lab">{f.lab}</span>
@@ -2873,7 +2895,7 @@ function App(){
 
   return <div className="phone">
     {enrolling&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling(false)}
-      onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
+      onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
