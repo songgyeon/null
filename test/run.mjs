@@ -1077,6 +1077,28 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
     eq('골목과 책임은 프롬프트에 남아 있다',
       /맞담했다고 소문낼 거예요/.test(workerSrc) && /책임은 언제 져요/.test(workerSrc), true);
   }
+
+  /* ── 되물으면 그때 골목을 꺼낸다 ──
+     묻고 나서 들으면 해명이고, 안 물었는데 들으면 고발이다. 순서가 전부다. */
+  {
+    const E = new Function(readFileSync(join(ROOT, 'demo-lines.js'), 'utf8')
+      + '\nreturn {demoProactive, demoAnswer, demoGreetWhen}')();
+    const open = () => E.demoProactive('minhyun', E.demoGreetWhen(-1), '수연');
+    const ask = t => E.demoAnswer('minhyun', t, '수연', {}).map(m => m.text).join(' / ');
+    open();
+    eq('되물으면 골목이 나온다', /후문에서 맞담/.test(ask('무슨 말이에요?')), true);
+    /* 표현이 갈려도 열려야 한다 — 여기서 안 열리면 첫 대화가 막힌다 */
+    eq('말을 어떻게 바꿔 물어도 열린다',
+      ['뭔 소리야', '네?', '무슨 책임이요', '기억 안 나는데', '누구세요', '제가요?']
+        .filter(t => { open(); return !/후문에서 맞담/.test(ask(t)); }), []);
+    /* 아무 데서나 열리면 안 된다. 첫 선톡 바로 뒤에서만이다 */
+    E.demoAnswer('minhyun', '밥 먹었어요?', '수연', {});
+    eq('평범한 대화 뒤에는 안 열린다', /후문에서 맞담/.test(ask('무슨 말이에요?')), false);
+    /* 재언에게는 이 갈래가 없다 — 20년 전은 유저가 몰라야 한다 */
+    E.demoProactive('jaeeon', E.demoGreetWhen(-1), '수연');
+    eq('재언은 이 갈래가 없다',
+      /후문|맞담/.test(E.demoAnswer('jaeeon', '무슨 말이에요?', '수연', {}).map(m => m.text).join(' ')), false);
+  }
   /* 절 이름에 '첫인사'가 들어가면 indexOf 필터가 첫 만남까지 삼킨다 — 한 번 그랬다 */
   eq('평소 인사에 첫 만남이 안 섞인다',
     ['jaeeon', 'minhyun'].map(c => (corpus.proactive[c] || [])
