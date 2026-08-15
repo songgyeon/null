@@ -1,4 +1,4 @@
-import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, Msg } from './db';
+import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -46,7 +46,21 @@ export async function buildSignals(excludeRoom: string | null) {
   return sig;
 }
 
-export const HISTORY_CHARS = 60000;
+/* 원문으로 보내는 창. 이보다 오래된 것은 요약이 들고 있다.
+   원문은 말투와 흐름을 위한 것이고, 사실은 요약이 담당한다. */
+export const HISTORY_CHARS = 12000;
+/* 안 요약된 원문이 이만큼 쌓이면 한 번 뭉친다. 뭉칠 때 끝의 TAIL_KEEP
+   글자는 남긴다 — 다 뭉치면 방금 하던 얘기까지 요약으로만 남는다. */
+export const SUM_AT = 12000, TAIL_KEEP = 4000;
+
+export type Summary = { text: string; upto: number };
+export async function loadSum(room: string): Promise<Summary> {
+  try { return JSON.parse((await getMeta('null_sum_' + room)) || 'null') || { text: '', upto: 0 }; }
+  catch { return { text: '', upto: 0 }; }
+}
+export async function saveSum(room: string, v: Summary) {
+  await setMeta('null_sum_' + room, JSON.stringify(v));
+}
 
 export function buildHistory(msgs: Msg[]) {
   /* sender가 'sys'인 줄은 "일어난 일"이다(선물 전달 등). 유저가 한 말은
@@ -123,11 +137,15 @@ export async function callApi(payload: any) {
 
 export async function sendChat(room: string, userName: string, history: Msg[],
                                gift?: { key: string; name: string; note?: string }) {
+  const sum = await loadSum(room);
   return callApi({
     mode: 'chat',
     room,
     user_name: userName,
-    history: buildHistory(history),
+    /* 요약이 이미 삼킨 구간은 안 보낸다 — 같은 얘기를 원문과 요약으로 두 번
+       보내면 값은 두 배인데 아는 건 그대로다 */
+    history: buildHistory(history.filter(m => m.created_at > (sum.upto || 0))),
+    ...(sum.text ? { summary: sum.text } : {}),
     signals: await buildSignals(room),
     recent_photos: await recentPhotos(room),
     counts: await buildCounts(),
@@ -143,6 +161,32 @@ export async function sendChat(room: string, userName: string, history: Msg[],
 async function loadList(key: string): Promise<string[]> {
   try { return JSON.parse((await getMeta(key)) || '[]'); } catch { return []; }
 }
+
+/* ── 요약을 한 칸 굴린다 ──
+   안 요약된 원문이 SUM_AT을 넘으면 끝의 TAIL_KEEP만 남기고 앞쪽을 뭉친다.
+   요약은 하이쿠가 쓴다(워커가 고른다). 답장 흐름과 무관한 뒷일이라 실패해도
+   조용히 넘어간다 — 다음 턴에 다시 시도된다. */
+export async function rollSummary(room: string, userName: string): Promise<boolean> {
+  const sum = await loadSum(room);
+  const all = (await getMsgs(room)).filter(m => m.created_at > (sum.upto || 0));
+  const total = all.reduce((n, m) => n + (m.text?.length || 0), 0);
+  if (total < SUM_AT) return false;
+  let keep = 0, cut = all.length;
+  for (let i = all.length - 1; i >= 0; i--) {
+    keep += m_len(all[i]);
+    if (keep >= TAIL_KEEP) { cut = i; break; }
+  }
+  const chunk = all.slice(0, cut);
+  if (!chunk.length) return false;
+  const data = await callApi({
+    mode: 'summarize', room, user_name: userName,
+    summary: sum.text, history: buildHistory(chunk),
+  });
+  if (!data?.summary) return false;
+  await saveSum(room, { text: data.summary, upto: chunk[chunk.length - 1].created_at });
+  return true;
+}
+function m_len(m: Msg) { return m.text?.length || 0; }
 
 export async function genAuto(userName: string, event?: any) {
   const healthMsgs = await getMsgs('health', 30);

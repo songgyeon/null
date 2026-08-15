@@ -1064,7 +1064,56 @@ eq('워커에 선톡 모드가 없다', /"greet"/.test(workerSrc), false);
    시스템 끝에 있던 가변부를 대화 뒤로 옮겨야 이력이 캐시 대상이 된다. */
 eq('워커가 개수가 아니라 글자로 센다', /MAX_HISTORY_CHARS = 60000/.test(workerSrc), true);
 eq('웹·앱도 같은 예산을 쓴다',
-  /const HISTORY_CHARS=60000/.test(web) && /HISTORY_CHARS = 60000/.test(apiSrc), true);
+  /const HISTORY_CHARS=12000/.test(web) && /HISTORY_CHARS = 12000/.test(apiSrc), true);
+
+/* ── 요약 ──
+   원문 창 밖으로 밀려난 대화는 요약이 들고 있다. 없으면 그냥 없던 일이 된다. */
+eq('요약이 고정부에 들어간다 — 300턴에 한 번 바뀌므로 캐시에 얹혀 간다', (() => {
+  const withSum = buildSystem('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [], 5, '옥상에 갔다.');
+  return withSum.every(b => b.cache_control) && withSum.map(b => b.text).join('').includes('옥상에 갔다.');
+})(), true);
+eq('요약이 없으면 그 대목도 없다',
+  buildSystem('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [], 5, '')
+    .map(b => b.text).join('').includes('## [그동안 있었던 일]'), false);
+/* 요약은 압축이지 연기가 아니다. 여기가 작은 모델 자리다 */
+eq('요약은 하이쿠가 쓴다', /SUMMARY_MODEL = \{ id: "claude-haiku-4-5"/.test(workerSrc), true);
+/* 인물 프롬프트를 쓰면 압축하러 가서 2만 자를 다시 읽는 꼴이다 */
+eq('요약 호출은 인물 프롬프트를 안 쓴다',
+  /askSummary\(env,\s*\n?\s*\[\{ type: "text", text: SUMMARIZE/.test(workerSrc), true);
+eq('웹·앱 둘 다 요약 뒤부터만 원문을 보낸다',
+  /sinceSum\(room,next\)/.test(web) && /m\.created_at > \(sum\.upto \|\| 0\)/.test(apiSrc), true);
+/* 다 뭉치면 방금 하던 얘기까지 요약으로만 남아 말투가 끊긴다 */
+eq('뭉칠 때 끝은 남긴다',
+  /TAIL_KEEP=4000/.test(web) && /TAIL_KEEP = 4000/.test(apiSrc), true);
+
+/* ── 매 턴 붙는 설명을 캐시되는 자리로 옮겼다 ──
+   가변부는 캐시가 안 걸린 정가 자리다. 897자 중 680자가 매번 똑같은 글자였고
+   그 897자가 캐시된 18,671자의 절반 값이었다. */
+{
+  const sig = { minhyun: { count: 12, minsAgo: 8, vibe: '들뜸' } };
+  const prof = { subject: '국어', likes: '커피' };
+  const v = buildVolatile('chat', 'jaeeon', 'R', sig, ['jaeeon-mug'], prof, { jaeeon: 90 }, null, null, ['옥상'], 12);
+  eq('가변부에 설명이 안 남아 있다',
+    ['이 단계에 맞게 연기한다', '목록을 읊지 말고', '직접 인용 금지',
+     '대부분의 턴에는 안 꺼낸다'].filter(t => v.includes(t)), []);
+  eq('설명은 고정부에 있다',
+    ['그 단계에 맞게 연기한다', '목록을 읊지 말고', '직접 인용 금지',
+     '대부분의 턴에는 안 꺼낸다'].filter(t =>
+      !buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text).join('').includes(t)), []);
+  eq('값은 가변부에 남아 있다',
+    ['옥상', '커피', '들뜸', 'jaeeon-mug'].filter(t => !v.includes(t)), []);
+  eq('가변부가 400자 밑이다 — 전에는 897자였다', v.length < 400, true);
+}
+/* 갈 자리가 애초에 안 열리는 방에 조건 설명만 실리면 그것도 낭비다 */
+eq('단톡·두 사람 방에는 자리 설명이 안 붙는다',
+  ['group', 'auto'].map(k => buildSystem(k === 'auto' ? 'auto' : 'chat', k === 'auto' ? 'jaeeon' : 'group',
+    'R', null, [], null, null, null).map(b => b.text).join('').includes('대부분의 턴에는 안 꺼낸다')),
+  [false, false]);
+
+/* 캐시가 안 맞아도 오류가 안 난다. 실측을 안 보면 정가를 무는 줄 모른다 */
+eq('응답에 실측 토큰이 실린다', /usage: lastUsage/.test(workerSrc), true);
+eq('웹·앱 둘 다 실측을 찍는다',
+  /cache_read_input_tokens/.test(web) && /cache_read_input_tokens/.test(appSrc), true);
 eq('서른 마디에서 자르던 건 없다',
   /slice\(-30\)/.test(web) || /slice\(-30\)/.test(apiSrc) || /MAX_HISTORY\b/.test(workerSrc), false);
 {

@@ -2368,7 +2368,18 @@ function App(){
      개수가 아니라 글자로 센다. 짧은 말 스무 마디와 긴 글 스무 마디는 같은
      스무 개인데 값이 열 배 다르다. 워커의 MAX_HISTORY_CHARS와 같은 값이다 —
      여기서 이미 걸러 보내면 쓸데없이 실어 나르지 않는다. */
-  const HISTORY_CHARS=60000;
+  /* 원문으로 보내는 창. 이보다 오래된 것은 요약이 들고 있다.
+     6만 자를 그냥 보내던 때보다 작다 — 요약이 생겼으니 원문을 다 이고 갈
+     이유가 없다. 원문은 말투와 흐름을 위한 것이고, 사실은 요약이 담당한다. */
+  const HISTORY_CHARS=12000;
+  /* 안 요약된 원문이 이만큼 쌓이면 한 번 뭉친다. 뭉칠 때 끝의 TAIL_KEEP
+     글자는 남긴다 — 다 뭉쳐버리면 방금 하던 얘기가 요약으로만 남는다. */
+  const SUM_AT=12000, TAIL_KEEP=4000;
+  const loadSum=room=>{try{return JSON.parse(localStorage.getItem("null_sum_"+room)||"null")||{text:"",upto:0}}catch(e){return{text:"",upto:0}}};
+  const saveSum=(room,v)=>{try{localStorage.setItem("null_sum_"+room,JSON.stringify(v))}catch(e){}};
+  /* 요약이 이미 삼킨 구간은 안 보낸다 — 같은 얘기를 원문과 요약으로 두 번
+     보내면 값은 두 배인데 아는 건 그대로다 */
+  const sinceSum=(room,ms)=>{const u=loadSum(room).upto||0;return ms.filter(m=>m.ts>u)};
   const buildHistory=ms=>{
     const all=ms.map(m=>({role:m.sender==="user"?"user":"assistant",sender:m.sender,
       content:m.photo?((m.text?m.text+" ":"")+"(사진을 보냈다)"):m.text}))
@@ -2447,6 +2458,37 @@ function App(){
     }
   };
 
+  /* ── 요약을 한 칸 굴린다 ──
+     안 요약된 원문이 SUM_AT을 넘으면, 끝의 TAIL_KEEP만 남기고 앞쪽을 뭉친다.
+     다 뭉치면 방금 하던 얘기까지 요약으로만 남아 말투가 끊긴다.
+     한 번에 하나만 돈다. 답장 흐름과 무관한 뒷일이라 실패해도 조용히 넘어간다 —
+     다음 턴에 다시 시도된다. */
+  const summingRef=useRef({});
+  const rollSummary=async room=>{
+    if(!CHARS[room]||demoOn()||summingRef.current[room])return;
+    const all=sinceSum(room,storeRef.current.msgs[room]||[]);
+    const total=all.reduce((n,m)=>n+((m.text||"").length),0);
+    if(total<SUM_AT)return;
+    let keep=0,cut=all.length;
+    for(let i=all.length-1;i>=0;i--){ keep+=(all[i].text||"").length; if(keep>=TAIL_KEEP){cut=i;break} }
+    const chunk=all.slice(0,cut);
+    if(!chunk.length)return;
+    summingRef.current[room]=true;
+    try{
+      const prev=loadSum(room);
+      const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mode:"summarize",room,user_name:name,summary:prev.text,
+          history:buildHistory(chunk)})});
+      const data=await res.json().catch(()=>null);
+      if(res.ok&&data&&data.summary){
+        saveSum(room,{text:data.summary,upto:chunk[chunk.length-1].ts});
+        console.log("%c[NULL] 요약 갱신 "+room+" — 원문 "+total+"자 중 "+
+          chunk.length+"줄을 "+data.summary.length+"자로","color:#7a6cc4");
+      }
+    }catch(e){ console.warn("[NULL] 요약 실패 — 다음 턴에 다시",e); }
+    summingRef.current[room]=false;
+  };
+
   /* API 요청 — 실패 시 조용한 재시도 버튼 */
   const request=async(bucket,payload)=>{
     const up=userProfile();
@@ -2455,6 +2497,10 @@ function App(){
     if(up)payload.user_profile=up; else delete payload.user_profile;
     if(!payload.counts)payload.counts=roomCounts();
     if(payload.days==null)payload.days=daysSince(storeRef.current);
+    /* 이 방의 요약. 원문 창 밖으로 밀려난 얘기가 여기 들어 있다.
+       호출부마다 붙이지 않고 여기서 한 번에 얹는다 — 한 군데만 빠뜨려도
+       그 경로에서만 기억을 잃는데, 그건 눈으로 찾기 어렵다. */
+    if(payload.mode==="chat"){ const t=loadSum(payload.room||bucket).text; if(t)payload.summary=t; }
     inflightRef.current[bucket]=true;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
@@ -2478,6 +2524,13 @@ function App(){
       if(list.length)enqueue(bucket,list);
       else setBusy(b=>({...b,[bucket]:false}));
       applyUnlocked(data&&data.unlocked);
+      /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가
+         안 맞고 있다는 뜻인데, 그건 오류를 안 내고 조용히 정가를 문다 */
+      if(data&&data.usage)console.log("%c[NULL] 토큰 — 새로 "+(data.usage.input_tokens||0)+
+        " · 캐시 씀 "+(data.usage.cache_creation_input_tokens||0)+
+        " · 캐시 읽음 "+(data.usage.cache_read_input_tokens||0)+
+        " · 출력 "+(data.usage.output_tokens||0),"color:#7a6cc4");
+      setTimeout(()=>rollSummary(bucket),1200);
       if(data&&data.invite&&data.invite.place) setInvite(data.invite);
     }catch(e){
       inflightRef.current[bucket]=false;
@@ -2500,7 +2553,7 @@ function App(){
     const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};
     appendMsg(room,userMsg);
     const next=[...(storeRef.current.msgs[room]||[]),userMsg];
-    const history=buildHistory(next);
+    const history=buildHistory(sinceSum(room,next));
     request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),
       recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length})});
   };
@@ -2521,7 +2574,7 @@ function App(){
     setToast(`${CHARS[char].name} — ${gift.name}`);
     markEvent({kind:"gift",to:char,name:gift.name});
     const nextMsgs=[...(storeRef.current.msgs[char]||[]),sysMsg];
-    request(char,{mode:"chat",room:char,user_name:name,history:buildHistory(nextMsgs),
+    request(char,{mode:"chat",room:char,user_name:name,history:buildHistory(sinceSum(char,nextMsgs)),
       signals:buildSignals(char),recent_photos:recentPhotos(char),
       counts:roomCounts({[char]:nextMsgs.length}),gift:{name:gift.name,key:gift.key,note}});
   };
@@ -2529,7 +2582,7 @@ function App(){
   /* 재시도: 저장해둔 payload를 최신 history로 갱신해 다시 전송 */
   const retry=room=>{
     const p=failed[room]&&failed[room].payload;if(!p)return;
-    if(p.mode==="chat")p.history=buildHistory(storeRef.current.msgs[room]||[]);
+    if(p.mode==="chat")p.history=buildHistory(sinceSum(room,storeRef.current.msgs[room]||[]));
     p.recent_photos=recentPhotos(p.mode==="auto"?"health":room);
     request(room,p);
   };

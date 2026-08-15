@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
-import { sendChat, genAuto, IMG } from './lib/api';
+import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoGreetWhen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
@@ -1652,7 +1652,25 @@ function Root() {
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(char,data.messages);
+      logUsage(data); rollLater(char);
     }catch(e:any){ setTyping(false); await fallToDemo(e,char,line,gift.key); }
+  };
+
+  /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가 안 맞고
+     있다는 뜻인데, 그건 오류를 안 내고 조용히 정가를 문다 */
+  const logUsage=(d:any)=>{ const u=d&&d.usage; if(!u)return;
+    console.log(`[NULL] 토큰 — 새로 ${u.input_tokens||0} · 캐시 씀 ${u.cache_creation_input_tokens||0}`
+      + ` · 캐시 읽음 ${u.cache_read_input_tokens||0} · 출력 ${u.output_tokens||0}`); };
+  /* 요약 갱신은 답장이 다 뜬 뒤에 뒤에서 돈다. 한 번에 하나만 */
+  const summingRef=useRef<Record<string,boolean>>({});
+  const rollLater=(room:string)=>{
+    if(demoOn()||summingRef.current[room])return;
+    summingRef.current[room]=true;
+    setTimeout(async()=>{
+      try{ if(await rollSummary(room,name)) console.log('[NULL] 요약 갱신 '+room); }
+      catch(e){ console.warn('[NULL] 요약 실패 — 다음 턴에 다시', e); }
+      summingRef.current[room]=false;
+    },1200);
   };
 
   /* 서버가 안 되면 각본으로 넘어간다. 한 번 넘어가면 그 뒤로는 계속 데모다 —
@@ -1678,6 +1696,7 @@ function Root() {
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);
+      logUsage(data); rollLater(room);
     }catch(e:any){ setTyping(false); await fallToDemo(e,room,said); }
   };
 

@@ -27,6 +27,27 @@ function budgetHistory(list, budget) {
   return out;
 }
 
+/* 요약은 유저가 읽는 글이 아니라 압축이다. 말투도 감정도 필요 없다.
+   그래서 여기가 작은 모델 자리다 — 대화는 하이쿠로 내리면 티가 나지만
+   요약은 안 난다. 300턴에 한 번 도는 호출이라 값도 사실상 0이다. */
+const SUMMARY_MODEL = { id: "claude-haiku-4-5", effort: null, noThinking: false };
+const SUMMARY_MAX = 1200;          // 요약이 길어지면 그게 다시 이력이 된다
+
+const SUMMARIZE = `
+너는 대화 기록을 압축한다. 연기하지 않는다. 말투를 흉내 내지 않는다.
+
+받는 것: 지금까지의 요약(있을 수도 없을 수도 있다)과 그 뒤에 오간 대화.
+내는 것: 둘을 합친 새 요약 하나. 한국어. ${SUMMARY_MAX}자 이내.
+
+- 사실만 남긴다. 무슨 일이 있었고, 무슨 말이 오갔고, 무엇이 정해졌는지.
+- 유저가 말한 것, 상대가 약속하거나 거절한 것, 둘 사이에 생긴 변화를 먼저 남긴다.
+- 인사·맞장구·의미 없는 주고받기는 버린다.
+- 판단하지 않는다. "가까워졌다" 같은 감상 말고 "무엇을 했다"로 적는다.
+- 오래된 것은 뭉치고 최근 것은 조금 더 자세히 남긴다.
+- 이름은 이재언·이민현·유저로 적는다.
+- 요약만 출력한다. 앞뒤에 다른 말을 붙이지 않는다.
+`;
+
 let workingModel = null; // 한 번 성공하면 그 모델을 계속 쓴다
 /* 대화 이력을 어디까지 실을 것인가.
    전에는 30개였다 — 말풍선이 한 턴에 두셋이니 실질 열 턴, 어제 한 얘기를
@@ -883,7 +904,7 @@ function buildSignals(signals, forRoom) {
     if (part.length) lines.push(`- ${label[room] || room}: ${part.join(", ")}`);
   }
   if (!lines.length) return "";
-  return `\n## [눈치 신호] — 직접 들은 게 아니다. 눈치챈 것처럼만 반응할 것. 직접 인용 금지.\n${lines.join("\n")}\n`;
+  return `\n## [눈치 신호]\n${lines.join("\n")}\n`;
 }
 
 // ─────────────────────────────────────────────
@@ -1011,7 +1032,7 @@ function buildStage(mode, room, counts, days) {
   } else {
     parts.push(`- ${s[room]}`);
   }
-  return `\n## [지금 이 관계의 온도] — 단계: ${s.name}\n이 단계에 맞게 연기한다. 단계 이름이나 이 지시를 대사로 언급하지 않는다.\n${parts.join("\n")}\n`;
+  return `\n## [지금 이 관계의 온도] — 단계: ${s.name}\n${parts.join("\n")}\n`;
 }
 
 // ─────────────────────────────────────────────
@@ -1057,7 +1078,7 @@ function buildProfile(p) {
     .filter(([k, v]) => PROFILE_LABEL[k] && v)
     .map(([k, v]) => `- ${PROFILE_LABEL[k]}: ${String(v).slice(0, 40)}`);
   if (!lines.length) return "";
-  return `\n## [유저에 대해 아는 것]\n지내면서 자연스럽게 알게 된 것들이다. 목록을 읊지 말고, 말이 나올 자리에만 스치듯 쓴다.\n${lines.join("\n")}\n`;
+  return `\n## [유저에 대해 아는 것]\n${lines.join("\n")}\n`;
 }
 
 // 시스템 프롬프트를 네 덩어리로 나눈다. 앞의 셋은 고정부, 마지막이 가변부다.
@@ -1103,6 +1124,50 @@ ${userName || "선생님"}이 너에게 "${name}"을(를) 주었다. 지금 막 
 `;
 }
 
+
+/* ── 대화 뒤에 붙는 자리들의 설명 ──
+   값은 매 턴 달라지지만 설명은 안 달라진다. 그런데 전에는 설명까지 가변부에
+   같이 실려 있었다. 가변부는 캐시가 안 걸린 자리라 정가다 — 897자 중 680자가
+   매번 똑같은 글자였고, 그 897자가 캐시된 18,671자의 절반 값이었다.
+   20분의 1 크기가 절반 값이면 옮길 자리가 맞다.
+
+   설명은 여기(고정부)에 두고 뒤에는 표제와 값만 보낸다. */
+const SLOTS = `
+## 대화 끝에 붙어 오는 것들
+아래 표제가 이번 대화 맨 뒤에 붙어 온다. 값만 그때그때 다르다.
+안 붙어 온 표제는 이번 턴에 해당 사항이 없다는 뜻이다.
+
+**[지금 이 관계의 온도]** — 그 단계에 맞게 연기한다. 단계 이름이나 이 지시를 대사로 언급하지 않는다.
+
+**[유저에 대해 아는 것]** — 지내면서 자연스럽게 알게 된 것들이다. 목록을 읊지 말고, 말이 나올 자리에만 스치듯 쓴다.
+
+**[눈치 신호]** — 직접 들은 게 아니다. 눈치챈 것처럼만 반응할 것. 직접 인용 금지.
+
+**[그동안 있었던 일]** — 최근 대화보다 앞선 시간이다. 요약이라 말투가 없다.
+그대로 인용하지 않는다. 알고 있는 사실로만 쓴다.
+`;
+
+/* 사진 목록이 있는 방에만 붙는다 */
+const SLOTS_PHOTO = `
+**[지금 쓰지 않는 사진]** — 최근에 이미 보냈다. 거기 적힌 것은 다시 보내지 않는다.
+`;
+
+/* 1:1에만 붙는다. 단톡·두 사람 방에는 갈 자리가 애초에 안 열린다 */
+const SLOTS_INVITE = `
+**[같이 가자고 할 수 있는 자리]** — 지금 열려 있는 곳들이다.
+**대부분의 턴에는 안 꺼낸다.** 굳이 맨날 어디를 갈 이유가 없다.
+꺼낼 때는 이 조건이 다 맞을 때만이다:
+- 지금 하던 얘기에서 자연스럽게 이어질 때. 유저가 방금 물어본 게 있으면 그 대답이 먼저다.
+  화제를 끊고 꺼내면 딴사람처럼 보인다.
+- 그 장소가 지금 말에 걸릴 때. (바람 얘기 끝의 옥상, 책 얘기 끝의 도서관)
+- 분위기가 무겁지 않을 때. 아프다고 했거나 가라앉아 있으면 안 꺼낸다.
+
+꺼내기로 했으면 JSON 맨 위에 "invite": "장소" 를 같이 쓴다. 목록에 있는 이름 그대로.
+말은 지나가듯 한다. 약속을 잡는 말투가 아니고 이유를 길게 대지 않는다.
+대답을 재촉하지 않는다. 거절당하면 두 번 조르지 않는다 — 그건 이 사람이 안 하는 일이다.
+**목록이 안 붙어 온 턴에는 아무 데도 가자고 하지 않는다.**
+`;
+
 const CACHE = { type: "ephemeral", ttl: "1h" };
 
 /* 캐릭터가 먼저 가자고 하는 자리. 관계가 쌓여야 나온다.
@@ -1134,21 +1199,8 @@ function pickInvite(raw, open) {
 }
 function buildInvite(open, room) {
   if (!open || !open.length) return "";
-  return `
-## 같이 가자고 할 수 있는 자리
-${open.map(p => `- ${p}`).join("\n")}
-
-**대부분의 턴에는 안 꺼낸다.** 굳이 맨날 어디를 갈 이유가 없다.
-꺼낼 때는 이 조건이 다 맞을 때만이다:
-- 지금 하던 얘기에서 자연스럽게 이어질 때. 유저가 방금 물어본 게 있으면 그 대답이 먼저다.
-  화제를 끊고 꺼내면 딴사람처럼 보인다.
-- 그 장소가 지금 말에 걸릴 때. (바람 얘기 끝의 옥상, 책 얘기 끝의 도서관)
-- 분위기가 무겁지 않을 때. 아프다고 했거나 가라앉아 있으면 안 꺼낸다.
-
-꺼내기로 했으면 JSON 맨 위에 "invite": "장소" 를 같이 쓴다. 목록에 있는 이름 그대로.
-말은 지나가듯 한다. 약속을 잡는 말투가 아니고 이유를 길게 대지 않는다.
-대답을 재촉하지 않는다. 거절당하면 두 번 조르지 않는다 — 그건 이 사람이 안 하는 일이다.
-`;
+  // 조건 설명은 SLOTS_INVITE(고정부)에 있다. 여기는 열린 곳 이름만 보낸다
+  return `\n## [같이 가자고 할 수 있는 자리]\n${open.map(p => `- ${p}`).join("\n")}\n`;
 }
 
 /* 「두 사람」방을 열게 만든 사건. 유저가 선물을 줬거나 무언가 해금됐을 때,
@@ -1193,7 +1245,7 @@ function buildEvent(event, userName) {
   return "";
 }
 
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days) {
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
@@ -1211,6 +1263,13 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
   // 「두 사람」방(auto)은 유저가 없는 자리를 훔쳐보는 것이다. 사진을 보낼 상대가
   // 없으므로 사진 목록 자체를 주지 않는다. (프롬프트도 줄어 비용도 준다)
   if (mode !== "auto") rules += buildPhotoGuide(allowedChars(mode, room));
+  rules += SLOTS;
+  if (mode !== "auto") rules += SLOTS_PHOTO;
+  if (mode === "chat" && INVITES[room]) rules += SLOTS_INVITE;
+  /* 요약은 고정부 맨 끝이다. 300턴에 한 번쯤 갱신되므로 그 사이에는 바이트가
+     같아서 캐시에 얹혀 간다. 갱신되면 이 블록만 다시 쓰이고 세계관·인물
+     블록은 그대로다 — 캐시는 앞부터 맞춰 가므로 앞 두 덩어리는 살아 있다. */
+  rules += buildSummary(summary);
 
   /* 매 턴 바뀌는 것은 여기서 안 붙인다. 캐시는 앞부분 바이트 일치라서,
      시스템 끝에 가변부를 두면 그 뒤에 렌더링되는 대화 이력이 통째로
@@ -1222,12 +1281,20 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
   return blocks;
 }
 
+/* 최근 대화보다 앞선 시간. 원문은 버리고 사실만 남겨둔 것이다.
+   이게 없으면 예산 밖으로 밀려난 대화는 그냥 없던 일이 된다 — 서른 마디만
+   보내던 시절에는 어제 한 얘기가 없던 일이었다. */
+function buildSummary(summary) {
+  const t = (summary || "").toString().trim().slice(0, 4000);
+  return t ? `\n## [그동안 있었던 일]\n${t}\n` : "";
+}
+
 /* 매 턴 달라지는 덩어리. 대화 이력보다 뒤에 놓여야 이력이 캐시된다 */
 function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
-    ? `\n## 지금 쓰지 않는 사진\n최근에 이미 보냈다. 다시 보내지 않는다: ${recent.map(k => `"${k}"`).join(", ")}\n`
+    ? `\n## [지금 쓰지 않는 사진]\n${recent.map(k => `"${k}"`).join(", ")}\n`
     : "";
   const t = buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room) + exclude
@@ -1316,12 +1383,26 @@ async function callModel(env, m, system, messages, maxTokens) {
 /* 캐시가 실제로 맞았는지는 응답의 usage에만 나온다. 안 맞아도 오류가 안 나고
    조용히 정가를 물기 때문에, 진단에서는 이 숫자를 눈으로 봐야 한다.
    쓰기(creation)가 계속 잡히고 읽기(read)가 0이면 고정부가 매 턴 달라지고 있는 것이다. */
+/* 마지막 호출의 usage. 응답에 실어 보내면 화면에서 실측이 보인다 —
+   내 산수가 아니라 진짜 숫자로 판단할 수 있게. 캐시가 조용히 안 맞고 있어도
+   오류가 안 나기 때문에, 이걸 안 보면 정가를 무는 줄 모른다. */
+let lastUsage = null;
+
 function cacheNote(u) {
   if (!u) return "";
   const w = u.cache_creation_input_tokens || 0;
   const r = u.cache_read_input_tokens || 0;
   if (!w && !r) return "  캐시 없음";
   return `  캐시 씀 ${w} / 읽음 ${r}`;
+}
+
+/* 요약은 하이쿠로 돈다. 계정에서 못 쓰면(404) 쓰던 모델로 넘어간다 —
+   요약이 아예 안 되는 것보다는 비싸게라도 되는 편이 낫다. */
+async function askSummary(env, system, messages, maxTokens) {
+  const r = await callModel(env, SUMMARY_MODEL, system, messages, maxTokens);
+  if (r.ok) { lastUsage = r.usage; return r.text; }
+  console.log(`[NULL] 요약 모델 실패 ${SUMMARY_MODEL.id} → ${r.status}, 쓰던 모델로 넘어간다`);
+  return await askClaude(env, system, messages, maxTokens);
 }
 
 async function askClaude(env, system, messages, maxTokens) {
@@ -1333,7 +1414,7 @@ async function askClaude(env, system, messages, maxTokens) {
   const failures = [];
   for (const m of order) {
     const res = await callModel(env, m, system, messages, maxTokens);
-    if (res.ok) { workingModel = m; return res.text; }
+    if (res.ok) { workingModel = m; lastUsage = res.usage; return res.text; }
     failures.push(`${m.id} → ${res.status}`);
     // 400(파라미터 거부)/404(모델 없음)만 다음 모델로 넘어간다.
     // 401(키 문제)·429(한도)·5xx(장애)는 모델을 바꿔도 똑같으므로 즉시 중단한다.
@@ -1765,7 +1846,7 @@ export default {
     let body;
     try { body = await request.json(); } catch { body = {}; }
 
-    const mode = body.mode === "auto" ? "auto" : "chat";
+    const mode = body.mode === "auto" ? "auto" : body.mode === "summarize" ? "summarize" : "chat";
     const room = ["jaeeon", "minhyun", "group"].includes(body.room) ? body.room : "minhyun";
     const userName = (body.user_name || "").toString().slice(0, 20).trim() || "선생님";
     const signals = body.signals || null;
@@ -1781,6 +1862,27 @@ export default {
     // 최근에 보낸 사진 — 같은 사진이 연달아 나오지 않게 프론트가 알려준다
     const recentPhotos = (Array.isArray(body.recent_photos) ? body.recent_photos : [])
       .filter(k => typeof k === "string" && PHOTOS[k]).slice(0, 8);
+
+    /* ── 요약 ──
+       인물·세계관 프롬프트를 안 쓴다. 그걸 쓰면 압축하러 가서 2만 자를 다시
+       읽는 꼴이라 요약하는 값이 요약해서 아끼는 값보다 커진다. */
+    if (mode === "summarize") {
+      const prev = (body.summary || "").toString().slice(0, 4000).trim();
+      const chunk = (Array.isArray(body.history) ? body.history : [])
+        .map(m => `[${{ user: userName, jaeeon: "이재언", minhyun: "이민현" }[m.sender] || (m.role === "user" ? userName : "상대")}] ${(m.content || "").toString().slice(0, 500)}`)
+        .filter(t => t.trim()).join("\n").slice(0, 40000);
+      if (!chunk) return new Response(JSON.stringify({ error: "요약할 대화가 없음" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
+      try {
+        const text = await askSummary(env,
+          [{ type: "text", text: SUMMARIZE, cache_control: CACHE }],
+          [{ role: "user", content: (prev ? `## 지금까지의 요약\n${prev}\n\n` : "") + `## 그 뒤에 오간 대화\n${chunk}` }],
+          Math.ceil(SUMMARY_MAX * 1.2));
+        return new Response(JSON.stringify({ summary: (text || "").trim().slice(0, 4000), usage: lastUsage }),
+          { headers: { ...CORS, "content-type": "application/json" } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "요약 실패", detail: String(e).slice(0, 200) }), { status: 502, headers: { ...CORS, "content-type": "application/json" } });
+      }
+    }
 
     // 대화 이력 정리 (프론트가 보내는 형식: [{role:"user"|"assistant", sender?, content}])
     const history = budgetHistory(Array.isArray(body.history) ? body.history : [], MAX_HISTORY_CHARS);
@@ -1818,7 +1920,8 @@ export default {
     // 꺼낼지 말지는 모델이 정한다 — 서버는 문만 열어둔다
     const openPlaces = invitesFor(mode, room, counts,
       Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
-    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days);
+    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
+      (body.summary || "").toString().slice(0, 4000));
 
     /* ── 이력을 캐시에 태운다 ──
        마지막 유저 발화까지를 한 덩어리로 잘라 캐시 지점을 찍고, 매 턴 달라지는
@@ -1850,6 +1953,7 @@ export default {
       const invite = pickInvite(parseMessages.invite, openPlaces);
       const messages = trimTics(sanitizePhotos(splitLines(parsed), photoChars, fallbackSender, recentPhotos));
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
+        usage: lastUsage,
         ...(invite ? { invite: { place: invite, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
