@@ -34,10 +34,12 @@ const CHARS:Record<string,{name:string;color:string;dk:string;pale:string}> = {
 };
 
 const ROOMS = [
-  { id:'jaeeon',  name:'이재언', color:'#7FD8D8', type:'dm',    sub:'보건교사, 29세' },
-  { id:'minhyun', name:'이민현', color:'#FF9E80', type:'dm',    sub:'고등학생, 20세' },
+  /* 두 사람이 삼촌과 조카라는 걸 유저가 첫 화면에서 알아야 한다.
+     전에는 어디에도 안 적혀 있었고, 성이 둘 다 「이」인 게 전부였다. */
+  { id:'jaeeon',  name:'이재언', color:'#7FD8D8', type:'dm',    sub:'보건교사, 29세 · 민현의 삼촌' },
+  { id:'minhyun', name:'이민현', color:'#FF9E80', type:'dm',    sub:'고등학생, 20세 · 재언의 조카' },
   { id:'group',   name:'단톡방', color:'#B8A5E3', type:'group', sub:'loading...' },
-  { id:'health',  name:'두 사람', color:'#9aa3d8', type:'watch', sub:'access denied' },
+  { id:'health',  name:'두 사람', color:'#9aa3d8', type:'watch', sub:'삼촌과 조카 · access denied' },
 ] as const;
 
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다. 웹의 ENROLL_DAYS와 같다 */
