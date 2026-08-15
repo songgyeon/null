@@ -32,7 +32,26 @@ export async function initDB() {
       value TEXT
     );
   `);
+  await purgePoison(db);
   return db;
+}
+
+/* 한때 형식이 깨진 응답을 그대로 말풍선으로 만들었다. 오류 문장이 캐릭터가 한
+   말로 저장되면, 저장된 뒤로는 매 턴 모델한테 자기 대사로 되먹여진다 —
+   모델이 그걸 수습하려 들면서 대화가 통째로 어긋난다. 워커에서 길은 막았지만
+   이미 들어간 것은 여기서 걷어낸다. 한국어 대사에 이 낱말이 들어갈 일은 없다.
+   요약도 같이 지운다 — 요약은 매 턴 시스템 프롬프트로 들어가므로, 거기 남으면
+   말풍선을 지워도 모델은 계속 그걸 본다. 요약은 다시 만들어진다. */
+export const POISON = /litellm|APIConnectionError|AnthropicException|Traceback|호출오류|incomplete chunked read/i;
+const POISON_SQL = ['litellm', 'APIConnectionError', 'AnthropicException', 'Traceback', '호출오류', 'incomplete chunked read'];
+async function purgePoison(d: SQLite.SQLiteDatabase) {
+  const where = POISON_SQL.map(() => 'text LIKE ?').join(' OR ');
+  const args = POISON_SQL.map(s => `%${s}%`);
+  await d.runAsync(`DELETE FROM messages WHERE ${where}`, ...args);
+  const rows = await d.getAllAsync<{ key: string; value: string }>(
+    "SELECT key, value FROM meta WHERE key LIKE 'null_sum_%'");
+  for (const r of rows) if (POISON.test(r.value || ''))
+    await d.runAsync('DELETE FROM meta WHERE key = ?', r.key);
 }
 
 // ── meta ──

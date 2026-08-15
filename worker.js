@@ -1654,6 +1654,10 @@ function parseTagged(text, allowed) {
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
   parseMessages.invite = "";   // 이번 응답에서 모델이 고른 자리. 없으면 빈 문자열
+  /* 형식이 맞았는지. 맨 아래 「원문을 한 덩어리로」는 형식이 깨졌다는 뜻이고,
+     그 길로 나온 것은 대사가 아니다 — 잘린 JSON이든 오류 문장이든 그대로
+     말풍선이 된다. 호출부가 그걸 알아야 다시 부르든 실패로 떨구든 한다. */
+  parseMessages.ok = true;
   try {
     const cleaned = text.replace(/```json|```/g, "").trim();
     const start = cleaned.indexOf("{");
@@ -1673,7 +1677,8 @@ function parseMessages(text, fallbackSender, allowed) {
   // JSON이 아니다 — 이름표 형식이면 화자별로 풀어준다
   const tagged = parseTagged(text, ok);
   if (tagged) return tagged;
-  // 그것도 아니면 원문을 한 덩어리 메시지로
+  // 그것도 아니면 원문을 한 덩어리 메시지로 — 형식이 깨진 것이다
+  parseMessages.ok = false;
   return [{ sender: fallbackSender, text: text }];
 }
 
@@ -1777,7 +1782,10 @@ export default {
         }).join(" / ");
         return new Response(
           ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
-           `실행 위치      ${colo}`,
+           /* 「실행 위치」가 아니다. request.cf.colo는 요청이 들어온 콜로이고,
+              placement가 걸려 있으면 실행은 다른 데서 일어난다. 나가는 요청이
+              어디서 나갔는지는 전체 진단 [1]의 cf-ray 꼬리에만 나온다. */
+           `요청 받은 곳    ${colo}`,
            `API 키         ${found ? "있음" : "없음"}`,
            `프롬프트 크기   ${sizes}`,
            "",
@@ -2034,10 +2042,28 @@ export default {
 
     try {
       // Sonnet 5는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
-      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
+      const cap = mode === "auto" ? 2200 : 900;
+      let raw = await askClaude(env, system, msgs, cap);
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
-      const parsed = parseMessages(raw, fallbackSender, chars);
+      let parsed = parseMessages(raw, fallbackSender, chars);
+      /* ── 형식이 깨진 응답은 대사가 아니다 ──
+         전에는 무슨 글자가 오든 말풍선이 됐다. 그래서 잘린 문장도, 오류
+         문구도 캐릭터가 한 말로 화면에 남고 기록에 저장돼 다음 턴부터
+         모델한테 자기 대사로 되먹여졌다.
+         한 번 더 부른다. 잘려서 깨진 경우가 많으므로 한도를 늘려서 부른다.
+         그래도 깨지면 502로 떨군다 — 클라이언트가 재시도를 띄운다.
+         받은 원문은 로그에 남긴다. 안 남기면 다음에도 원인을 못 본다. */
+      if (!parseMessages.ok) {
+        console.log(`[NULL] 형식이 깨진 응답 ▶ ${raw.slice(0, 400)}`);
+        raw = await askClaude(env, system, msgs, Math.round(cap * 1.5));
+        parsed = parseMessages(raw, fallbackSender, chars);
+      }
+      if (!parseMessages.ok) {
+        console.log(`[NULL] 다시 불러도 깨졌다 ▶ ${raw.slice(0, 400)}`);
+        return new Response(JSON.stringify({ error: "형식이 깨진 응답", detail: raw.slice(0, 300) }),
+          { status: 502, headers: { ...CORS, "content-type": "application/json" } });
+      }
       // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다
       const invite = pickInvite(parseMessages.invite, openPlaces);
       const messages = trimTics(sanitizePhotos(splitLines(parsed), photoChars, fallbackSender, recentPhotos));

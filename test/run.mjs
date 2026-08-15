@@ -215,6 +215,7 @@ eq('찾는 사진이 50장은 된다', wanted.size >= 50, true);   // 정규식�
 section('앱 레이아웃 — 헤드리스로 못 돌리는 것은 소스로 막는다');
 // ─────────────────────────────────────────────
 const appSrc = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+const dbSrc  = readFileSync(join(ROOT, 'app/lib/db.ts'), 'utf8');
 
 /* React Native에서 padding을 ScrollView 자체 style에 주면 스크롤 프레임이 패딩되어
    내용 끝이 잘린다. .hidden 안내문이 끝까지 내려도 반쯤 잘리던 원인이 이것이었다.
@@ -1220,6 +1221,40 @@ eq('눈치 신호에 숫자를 안 준다', /마지막 활동 \$\{s\.minsAgo\}�
     [W.agoWord(1), W.agoWord(30), W.agoWord(200), W.agoWord(5000)].map(t => /\d/.test(t)), [false, false, false, false]);
   eq('개수도 말로 뭉쳐진다', /\d/.test(W.countWord(12)), false);
 }
+/* ── 형식이 깨진 응답이 대사가 되던 것 ──
+   「api호출오류: litellm.APIConnectionError ...」가 민현이 말풍선으로 나갔다.
+   parseMessages의 마지막 줄이 무슨 글자든 대사로 만들고 splitLines가 줄마다
+   말풍선으로 쪼갠 결과다. 그리고 저장돼서 매 턴 모델한테 되먹여졌다. */
+{
+  const ok = parseMessages('{"messages":["왔어요?","빨리 왔네요."]}', 'minhyun', ['minhyun']);
+  eq('제대로 온 응답은 ok다', [parseMessages.ok, ok.length], [true, 2]);
+  parseMessages('왔어요? 빨리 왔네요.\napi호출오류: litellm.APIConnectionError', 'minhyun', ['minhyun']);
+  eq('JSON이 아니면 ok가 아니다', parseMessages.ok, false);
+  eq('잘린 JSON도 ok가 아니다',
+    (parseMessages('{"messages":["왔어요?","빨리', 'minhyun', ['minhyun']), parseMessages.ok), false);
+}
+eq('형식이 깨지면 다시 부른다',
+  /if \(!parseMessages\.ok\) \{[\s\S]{0,320}askClaude\(env, system, msgs, Math\.round\(cap \* 1\.5\)\)/.test(workerSrc), true);
+eq('그래도 깨지면 대사로 안 내보낸다',
+  /형식이 깨진 응답"[\s\S]{0,120}status: 502/.test(workerSrc), true);
+eq('받은 원문을 로그에 남긴다',
+  /형식이 깨진 응답 ▶ \$\{raw\.slice\(0, 400\)\}/.test(workerSrc), true);
+/* 워커에서 막아도 이미 저장된 것이 남아 있다. 그건 매 턴 프롬프트로 들어간다 */
+eq('웹은 저장된 오류 말풍선을 걷어낸다',
+  /const POISON=/.test(web) && /msgs:cleanMsgs\(s\.msgs\)/.test(web), true);
+eq('앱도 켜질 때 지운다',
+  /await purgePoison\(db\)/.test(dbSrc) && /DELETE FROM messages WHERE \$\{where\}/.test(dbSrc), true);
+/* 요약에 섞이면 말풍선을 지워도 모델은 계속 그걸 본다 */
+eq('요약에 섞였으면 요약을 버린다',
+  /if\(POISON\.test\(v\.text\|\|""\)\)return\{text:"",upto:0\}/.test(web)
+  && /null_sum_%[\s\S]{0,200}DELETE FROM meta/.test(dbSrc), true);
+/* 어떤 경로로 오든 화면에 못 들어가게 한 겹 더 */
+eq('웹·앱 둘 다 대사로 들어오는 것도 막는다',
+  /if\(POISON\.test\(text\)\)/.test(web) && /if\(POISON\.test\(m\?\.text\|\|''\)\)/.test(appSrc), true);
+/* request.cf.colo는 실행 위치가 아니라 요청이 들어온 콜로다 */
+eq('진단 라벨이 거짓말하지 않는다',
+  /요청 받은 곳/.test(workerSrc) && !/`실행 위치/.test(workerSrc), true);
+
 /* 몇 시간째 조용한 방은 눈치챌 게 없다. 그게 매 턴 붙어 있으면 화제가 된다 */
 eq('알아챌 수 없는 신호는 안 보낸다',
   buildVolatile('chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 600 } }, [], null, null, null)
