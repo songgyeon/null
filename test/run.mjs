@@ -1598,6 +1598,15 @@ eq('같은 것은 가방에 두 번 안 들어간다',
   /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
 eq('자리에 있으면 place를 같이 보낸다', /\.\.\.\(at\?\{place:at,bag:/.test(web), true);
 eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true);
+/* gift가 준 것이면 bag은 받은 것이다. 작은 대화상자에 흰 줄로 늘어놓으니
+   이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
+eq('bag이 gift와 같은 창을 쓴다',
+  /function Bag\(\{bag,onClose\}\)/.test(web)
+  && /<div className="cartscreen"><div className="cartwin">[\s\S]{0,200}✿ bag/.test(web), true);
+eq('bag이 gift와 같은 카드·칩을 쓴다',
+  /className="cgcard"><span className="cribbon"\/>[\s\S]{0,120}bagface/.test(web)
+  && /ITEM_CATS\.map\(c=>[\s\S]{0,80}className=\{"cchip"/.test(web), true);
+eq('누가 줬는지가 물건보다 앞에 온다', /faceBg\(who\)/.test(web), true);
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
