@@ -80,7 +80,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* 셋이 다 떴는데 또 누르면 흔들린다 */
 @keyframes errshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}
  40%{transform:translateX(4px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
-.spstack.nudge .spwin,.spstack.nudge .spcurwrap{animation:errshake .34s steps(2) both}
+.splash.nudge .spwin.sperr{animation:errshake .34s steps(2) both}
 /* 키라키라 반짝이 */
 .spark{position:absolute;pointer-events:none;z-index:6;
  clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
@@ -411,6 +411,12 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  box-shadow:3px 4px 0 rgba(60,45,100,.3);animation:pop .35s steps(3) both}
 .spwin .sptb{font-size:9px;padding:4px 7px}
 .spwin .spbd{padding:11px 11px 9px;font-size:9.5px;line-height:1.75;background:#fff;color:#6b5fa8}
+/* 겹치는 오류창. .spwin이 position:relative라 반드시 그 뒤에서, 선택자도 두 겹으로
+   잡는다 — 앞에 두면 자리가 하나도 안 먹고 아래로 줄줄이 흘러내린다. */
+.spwin.sperr{position:absolute;width:188px;animation:errpop .18s steps(2) both}
+.spwin.sperr .spbtn{cursor:pointer}
+.spwin.sperr .spbtn:active{transform:translate(1px,1px)}
+@keyframes errpop{from{opacity:0;transform:translate(-5px,-5px)}to{opacity:1}}
 /* 버튼은 제 줄에서 오른쪽 아래. inline-block으로 두면 문장 뒤에 그대로 붙어
    "당신을 찾을 수 없습니다. [Cancel]" 처럼 한 줄이 된다 — 대화상자가 아니라 문장이 된다. */
 .spwin .spbtn{cursor:pointer}
@@ -1805,6 +1811,14 @@ const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21">
   <path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L13 12 Z" fill="#fff" stroke="#4a4276" strokeWidth="1.2" strokeLinejoin="round"/>
 </svg>;
 
+/* 같은 창이 계단처럼 겹쳐 쌓인다 — Y2K 바탕화면의 그 오류 무더기.
+   흩어놓으면 그냥 창이 여럿인 것이고, 겹쳐야 「닫아도 닫아도 또 뜬다」가 된다.
+   자리는 브라우저로 실제 좌표를 재서 잡았다. 화면 430×900에 입력 카드가
+   207~421을 쓰므로 그 위 칸만 쓴다 — 카드가 덮이면 다시 누를 수가 없다.
+   여덟 장이 7픽셀씩 밀리면 맨 앞장 아래가 202, 카드까지 5픽셀 남는다. */
+const SPERR={t:"Error", c:"linear-gradient(90deg,#b9a8ea,#8a7fc0)",
+  say:"존재값이 비어 있습니다.", b:"ok", x:8, y:26, step:7, max:8};
+
 function Splash({onEnter}){
   const [v,setV]=useState("");
   /* 이름 없이 누르면 오류창이 하나씩 열린다. 이름이 생기면 오류 상태는 닫힌다. */
@@ -1834,16 +1848,17 @@ function Splash({onEnter}){
   const go=()=>{
     const t=v.trim();
     if(t){onEnter(t);return}
-    if(errs<3)setErrs(errs+1);
+    /* 한 번에 세 장씩 겹친다. 한 장씩 뜨면 「와다다」가 아니라 순서다 */
+    if(errs<SPERR.max)setErrs(Math.min(SPERR.max,errs+3));
     else{setNudge(true);setTimeout(()=>setNudge(false),380)}
     const el=document.querySelector(".spinput"); if(el)el.focus();
   };
-  const shut=i=>setErrs(e=>Math.min(e,i));
+  const shut=()=>setErrs(e=>Math.max(0,e-1));
   const type=t=>{setV(t);if(t.trim()&&errs)setErrs(0)};
-  return <div className="screen splash" onClick={wake}>
+  return <div className={"screen splash"+(nudge?" nudge":"")} onClick={wake}>
     <Bubbles/>
     <Sparkles/>
-    <div className={"spstack"+(nudge?" nudge":"")}>
+    <div className="spstack">
       <span className="spcd"/>
       <div className="spcard">
         <div className="sptb">null.exe<WinDots/></div>
@@ -1855,25 +1870,35 @@ function Splash({onEnter}){
         </div>
       </div>
       {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
-      {errs>=1&&<div className="spwin w1">
+      <div className="spwin w1" style={{animationDelay:".2s"}}>
         <div className="sptb" style={{background:"linear-gradient(90deg,#b9a8ea,#8a7fc0)"}}>Error<WinDots/></div>
-        <div className="spbd">이름을 입력해야 존재할 수 있어요.<div className="spbtn" onClick={()=>shut(0)}>ok</div></div>
-      </div>}
+        <div className="spbd">이름을 입력해야 존재할 수 있어요.<div className="spbtn">ok</div></div>
+      </div>
       {/* 커서는 창에 매달아 둔다 — 좌표로 놓으면 글자를 깔고 앉는다 */}
-      {errs>=2&&<div className="spcurwrap w2">
-        <div className="spwin">
+      <div className="spcurwrap w2">
+        <div className="spwin" style={{animationDelay:".35s"}}>
           <div className="sptb" style={{background:"linear-gradient(90deg,#ff7fae,#ff5fa8)"}}>System error<WinDots/></div>
-          <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn" onClick={()=>shut(1)}>Cancel</div></div>
+          <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn">Cancel</div></div>
         </div>
         <SpCursor/>
-      </div>}
-      {errs>=3&&<div className="spwin w3">
+      </div>
+      <div className="spwin w3" style={{animationDelay:".5s"}}>
         <div className="sptb" style={{background:"linear-gradient(90deg,#8fd8e8,#c3b2f0)"}}>loading...<WinDots/></div>
         <div className="spbd" style={{background:"#fff8fc"}}>
           <span className="spbar"><i/></span>
         </div>
-      </div>}
+      </div>
     </div>
+    {/* 눌러서 겹친 것들. 이것만 닫힌다 — 배경 넷은 이 화면의 몫이라 그대로 둔다.
+        뒷장은 제목줄만 보이면 된다. 앞장 하나만 온전히 읽히는 게 이 그림이다 */}
+    {Array.from({length:errs},(_,i)=>
+      <div key={i} className="spwin sperr"
+        style={{left:SPERR.x+i*SPERR.step,top:SPERR.y+i*SPERR.step,zIndex:24+i}}>
+        <div className="sptb" style={{background:SPERR.c}}>{SPERR.t}
+          <WinDots onClose={i===errs-1?shut:undefined}/></div>
+        <div className="spbd">{SPERR.say}
+          <div className="spbtn" onClick={i===errs-1?shut:undefined}>{SPERR.b}</div></div>
+      </div>)}
     <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
   </div>;
 }
@@ -2303,7 +2328,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
               style={{left:pos.x+"%",top:pos.y+"%"}}
               aria-label={open?p.name:`잠긴 장소: ${want.join(", ")} 방문 필요`}
               onClick={enter}>
-              <strong>{open?p.name:"???"}</strong>
+              <strong>{open?p.name:p.name.split("").map(()=>"□").join("")}</strong>
               <small>{open?p.note:want.join(" · ")+" 다녀오면"}</small>
               {open&&<span className="rnwho">{p.who.map(w=><i key={w} style={{background:CHARS[w].color}}/>)}</span>}
               {been&&<span className="rheart">♡</span>}
