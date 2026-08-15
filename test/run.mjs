@@ -539,14 +539,11 @@ eq('배경 훅이 조건부 return보다 위에 있다',
 eq('앱도 메신저 BGM을 같은 파일로 튼다',
   /const MAIN_TRACK\s*=\s*'null-1'/.test(readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8'))
   && /const MAIN_TRACK="null-1"/.test(web), true);
-/* 💿는 소개 영상이다. 웹과 앱이 같은 사진·같은 문장이어야 한 작품으로 보인다. */
-const filmOf = (src, q) => {
-  const m = new RegExp(`FILM_(?:SHOTS|LINES)[^=]*=\\s*\\[([^\\]]*)\\]`, 'g');
-  return [...src.matchAll(m)].map(x => [...x[1].matchAll(/['"]([^'"]+)['"]/g)].map(y => y[1]));
-};
-eq('소개 영상이 웹·앱 둘 다 있다',
-  /function IntroFilm/.test(appSrc) && /function IntroFilm/.test(web), true);
-eq('소개 영상의 사진과 문장이 웹·앱 같다', filmOf(appSrc), filmOf(web));
+/* 소개 영상(VHS 11초)은 걷어냈다. 오프닝이 이미 그 일을 하고 있었다 —
+   Y2K 데스크톱에 도는 CD와 「당신을 찾을 수 없습니다」 오류창.
+   오프닝이 두 개였고 결이 갈렸다. 되살아나면 그 갈라짐도 같이 돌아온다. */
+eq('소개 영상은 웹·앱 어디에도 없다',
+  /IntroFilm|FILM_SHOTS|FILM_LINES/.test(web) || /IntroFilm|FILM_SHOTS|FILM_LINES/.test(appSrc), false);
 
 /* 등록 화면에서 채우는 빈칸. 웹에서만 고치고 앱을 안 고치는 일이 실제로 있었다.
    키와 꼬리말이 어긋나면 같은 값을 서버에 다르게 적어 보내게 된다. */
@@ -684,11 +681,9 @@ eq('다녀온 자리를 웹·앱 둘 다 들고 있다',
 eq('거절한 자리를 웹·앱 둘 다 들고 있다',
   /null_refused/.test(web) && /null_refused/.test(appSrc), true);
 
-/* 소개 영상은 설정 메뉴 옆에 평평하게 놓여 있어서 그 자체로는 눌릴 이유가
-   없다. 대신 흐르는 띠가 말해준다. 메뉴바를 건드려 튀게 만들면 줄 전체가
-   정신없어지므로, 초대는 띠 쪽에만 둔다. */
-eq('흐르는 띠가 웹·앱 둘 다 소개 영상을 안내한다',
-  /press intro · 11 seconds/.test(web) && /press intro · 11 seconds/.test(appSrc), true);
+/* 영상이 없어졌으니 띠도 그 얘기를 안 한다 */
+eq('흐르는 띠에 영상 안내가 없다',
+  /press intro/.test(web) || /press intro/.test(appSrc), false);
 
 /* ── 이름이 불린 만큼 채워지는 빈칸 ──
    방문자 수가 있던 자리다. 내가 내 대화를 세는 숫자라 아무것도 안 알려줬다.
@@ -740,7 +735,6 @@ eq('바탕 그림이 저장소에 있다',
   (web.match(/url\("([a-z0-9-]+\.(?:webp|png))"\)/g) || [])
     .map(m => m.replace(/.*url\("|"\).*/g, '')).filter(f => !exists(f)), []);
 
-eq('소개 영상 사진이 저장소에 있다', (filmOf(web)[0]||['x']).filter(f => !exists(f)), []);
 
 // ─────────────────────────────────────────────
 section('프로필이 바뀌면 목록이 알린다');

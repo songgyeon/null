@@ -405,161 +405,6 @@ const en=StyleSheet.create({
   goT:{...F,fontSize:12,letterSpacing:3.6,color:'#6b5fa8'},
 });
 
-// ═══ 소개 영상 ═══
-/* 데스크 CD를 누르면 도는 11초짜리. index.html의 .film과 같은 순서·같은 초다.
-   실제 동영상이 아니라 사진 넉 장과 문장 네 줄이 넘어가는 것을, VHS 테이프를
-   재생하는 것처럼 껍데기를 씌운 것이다.
-
-   RN에는 CSS가 없어서 웹과 만드는 법이 다르다.
-   - 스캔라인·트래킹 노이즈: repeating-linear-gradient가 없다. 작은 타일 이미지를
-     resizeMode="repeat"로 깔아서 반복시킨다.
-   - RGB 어긋남: mix-blend-mode가 없다. 양옆에 얇은 그라데이션을 얹는 것으로 대신한다.
-   - filter가 없어서 사진을 누르는 것도 반투명 한 겹으로 한다. */
-const FILM_SHOTS = ['minhyun-roof.webp','jaeeon-shelf.webp','minhyun-street.webp','jaeeon-back.webp'];
-const FILM_LINES = ['겨울이 끝나간다','당신은 한 달 뒤에 떠난다','두 사람은 그걸 알고 있다','당신이 모르는 건 따로 있다'];
-const FILM_TRACK = 'null-film.mp3';
-
-function IntroFilm({onClose}:{onClose:()=>void}) {
-  const ph  = useRef(FILM_SHOTS.map(()=>new Animated.Value(0))).current;
-  const zm  = useRef(FILM_SHOTS.map(()=>new Animated.Value(0))).current;
-  const ln  = useRef(FILM_LINES.map(()=>new Animated.Value(0))).current;
-  const dim = useRef(new Animated.Value(0)).current;   // 암전
-  const end = useRef(new Animated.Value(0)).current;   // 로고
-  const jump= useRef(new Animated.Value(0)).current;   // 세로로 튀는 글리치
-  const rec = useRef(new Animated.Value(1)).current;   // ● REC 깜빡임
-  const tr1 = useRef(new Animated.Value(0)).current;   // 트래킹 노이즈 띠
-  const tr2 = useRef(new Animated.Value(0)).current;
-  const fade= useRef(new Animated.Value(1)).current;
-  const [sec,setSec]=useState(0);
-  const [skipped,setSkipped]=useState(false);
-  const player=useAudioPlayer(IMG+FILM_TRACK);
-  const gone=useRef(false);
-  const {height:H}=useWindowDimensions();
-
-  const leave=()=>{
-    if(gone.current)return; gone.current=true;
-    try{ player.volume=.25 }catch(e){}          // 화면과 같이 소리도 줄인다
-    Animated.timing(fade,{toValue:0,duration:420,useNativeDriver:true}).start(onClose);
-  };
-  // 처음 누르면 결말로 건너뛰고, 거기서 또 누르면 닫힌다
-  const tap=()=>{
-    if(skipped){leave();return}
-    setSkipped(true); setSec(11);
-    ph.forEach(v=>v.setValue(0)); ln.forEach(v=>v.setValue(0));
-    dim.setValue(1);
-    Animated.timing(end,{toValue:1,duration:400,useNativeDriver:true}).start();
-  };
-
-  useEffect(()=>{
-    try{ player.loop=true; player.volume=.6; player.play(); }catch(e){}
-    const pulse=(v:Animated.Value,delay:number,i:number,hold:number,o:number)=>Animated.sequence([
-      Animated.delay(delay),
-      Animated.timing(v,{toValue:1,duration:i,useNativeDriver:true}),
-      Animated.delay(hold),
-      Animated.timing(v,{toValue:0,duration:o,useNativeDriver:true}),
-    ]);
-    ph.forEach((v,i)=>pulse(v,200+2000*i,700,1500,1200).start());
-    ln.forEach((v,i)=>pulse(v,700+2000*i,340,1060,600).start());
-    zm.forEach((v,i)=>Animated.timing(v,{toValue:1,duration:3400,delay:200+2000*i,useNativeDriver:true}).start());
-    Animated.timing(dim,{toValue:1,duration:600,delay:8400,useNativeDriver:true}).start();
-    Animated.timing(end,{toValue:1,duration:1000,delay:9300,useNativeDriver:true}).start();
-    // 세 번 튄다. 웹의 @keyframes jump와 같은 자리
-    const kick=(at:number)=>setTimeout(()=>Animated.sequence([
-      Animated.timing(jump,{toValue:-9,duration:60,useNativeDriver:true}),
-      Animated.timing(jump,{toValue:4,duration:60,useNativeDriver:true}),
-      Animated.timing(jump,{toValue:0,duration:60,useNativeDriver:true}),
-    ]).start(),at);
-    const k1=kick(2310),k2=kick(5170),k3=kick(8250);
-    Animated.loop(Animated.sequence([
-      Animated.timing(rec,{toValue:.15,duration:10,useNativeDriver:true}), Animated.delay(540),
-      Animated.timing(rec,{toValue:1,duration:10,useNativeDriver:true}),   Animated.delay(540),
-    ])).start();
-    Animated.loop(Animated.timing(tr1,{toValue:1,duration:5500,easing:Easing.linear,useNativeDriver:true})).start();
-    Animated.loop(Animated.timing(tr2,{toValue:1,duration:7500,easing:Easing.linear,useNativeDriver:true})).start();
-    const t=setInterval(()=>setSec(v=>Math.min(11,v+1)),1000);
-    return ()=>{clearInterval(t);[k1,k2,k3].forEach(clearTimeout);try{player.pause()}catch(e){}};
-  },[]);
-
-  const mm=String(Math.floor(sec/60)).padStart(2,'0'), ss=String(sec%60).padStart(2,'0');
-  return <Animated.View style={[fl.root,{opacity:fade}]}>
-    <Pressable style={{flex:1}} onPress={tap}>
-      <Animated.View style={[{flex:1,overflow:'hidden'},{transform:[{translateY:jump}]}]}>
-        {FILM_SHOTS.map((f,i)=>
-          <Animated.Image key={f} source={{uri:IMG+f}} resizeMode="cover"
-            style={[StyleSheet.absoluteFillObject,{opacity:ph[i],
-              transform:[{scale:zm[i].interpolate({inputRange:[0,1],outputRange:[1.06,1]})}]}]}/>)}
-        {/* 문장 — 밝은 사진 위에서 안 읽혀서 뒤에 어두운 막을 깐다.
-            단색 사각형에 borderRadius를 주면 알약 모양이 그대로 보인다.
-            웹은 radial-gradient로 가장자리를 없애는데 RN에 radial이 없어서,
-            가운데에서 밖으로 사라지는 그림 한 장을 늘려서 깐다. */}
-        <View style={fl.lines} pointerEvents="none">
-          {FILM_LINES.map((t,i)=>
-            <Animated.View key={i} style={[fl.lineWrap,{opacity:ln[i],
-              transform:[{translateY:ln[i].interpolate({inputRange:[0,1],outputRange:[8,0]})}]}]}>
-              <Image source={LINE_FADE} style={fl.lineFade} resizeMode="stretch"/>
-              <Text style={fl.line}>{t}</Text>
-            </Animated.View>)}
-        </View>
-        <Animated.View style={[StyleSheet.absoluteFillObject,{backgroundColor:'#0e0a24',opacity:dim}]} pointerEvents="none"/>
-        <Animated.View style={[fl.ending,{opacity:end}]} pointerEvents="none">
-          <Text style={fl.logo}>NULL</Text>
-          <LinearGradient colors={['#ff9ec6','#ffd68a','#a8e6e0','#b9e3ff','#c3b2f0']}
-            start={{x:0,y:0}} end={{x:1,y:0}} style={fl.rainbow}/>
-          <Text style={fl.sub}>the blank u fill in</Text>
-        </Animated.View>
-      </Animated.View>
-
-      {/* ── VHS 껍데기 ── */}
-      <Animated.Image source={{uri:IMG+'vhs-track.webp'}} resizeMode="repeat"
-        style={[fl.band,{top:0,transform:[{translateY:tr1.interpolate({inputRange:[0,1],outputRange:[-26,H]})}]},NO_TOUCH]}/>
-      <Animated.Image source={{uri:IMG+'vhs-track.webp'}} resizeMode="repeat"
-        style={[fl.band,{top:0,opacity:.4,transform:[{translateY:tr2.interpolate({inputRange:[0,1],outputRange:[H,-26]})}]},NO_TOUCH]}/>
-      <LinearGradient colors={['rgba(255,0,90,.32)','rgba(255,0,90,0)','rgba(0,190,255,0)','rgba(0,190,255,.32)']}
-        locations={[0,.12,.88,1]} start={{x:0,y:0}} end={{x:1,y:0}}
-        style={StyleSheet.absoluteFillObject} pointerEvents="none"/>
-      <Image source={{uri:IMG+'vhs-scan.webp'}} resizeMode="repeat"
-        style={[StyleSheet.absoluteFillObject,NO_TOUCH]}/>
-
-      <View style={[fl.hud,{top:0}]} pointerEvents="none">
-        <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
-          <Animated.View style={[fl.dot,{opacity:rec}]}/><Text style={fl.hudT}>REC</Text>
-        </View>
-        <Text style={fl.hudT}>00:{mm}:{ss}</Text>
-      </View>
-      <View style={[fl.hud,{bottom:0}]} pointerEvents="none">
-        <Text style={fl.hudT}>▶ PLAY</Text>
-        <Text style={fl.skip}>{skipped?'tap to close':'tap to skip'}</Text>
-      </View>
-      <Text style={[fl.sticker,{left:'8%',top:'33%',transform:[{rotate:'-12deg'}],color:'#ffe3f6'}]}>☆彡</Text>
-      <Text style={[fl.sticker,{right:'7%',bottom:'16%',transform:[{rotate:'9deg'}],color:'#ffd0e6'}]}>♡ 2026</Text>
-    </Pressable>
-  </Animated.View>;
-}
-const fl=StyleSheet.create({
-  root:{...StyleSheet.absoluteFillObject,zIndex:70,backgroundColor:'#0e0a24'},
-  lines:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center'},
-  lineWrap:{position:'absolute',left:0,right:0,paddingHorizontal:26,paddingVertical:22,
-            alignItems:'center',justifyContent:'center'},
-  /* 글자 상자보다 넉넉히 넘겨야 가장자리가 다 사라진 뒤에 화면과 만난다 */
-  lineFade:{position:'absolute',left:-30,right:-30,top:-46,bottom:-46},
-  line:{...F,fontSize:19,lineHeight:33,textAlign:'center',color:'#fff',
-        textShadowColor:'rgba(120,70,120,.9)',textShadowOffset:{width:2,height:2},textShadowRadius:8},
-  ending:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:16},
-  logo:{...F,fontSize:44,letterSpacing:15,color:'#fff',
-        textShadowColor:'#ff9ec6',textShadowOffset:{width:0,height:0},textShadowRadius:14},
-  rainbow:{width:150,height:5,borderRadius:3},
-  sub:{...F,fontSize:11,letterSpacing:3.4,color:'#ffd0e6'},
-  band:{position:'absolute',left:0,right:0,height:26,opacity:.5},
-  hud:{position:'absolute',left:0,right:0,flexDirection:'row',alignItems:'center',
-       justifyContent:'space-between',paddingHorizontal:14,paddingVertical:12},
-  hudT:{...F,fontSize:11,color:'#fff',letterSpacing:.8,
-        textShadowColor:'rgba(0,0,0,.55)',textShadowOffset:{width:1,height:1},textShadowRadius:0},
-  dot:{width:9,height:9,borderRadius:5,backgroundColor:'#ff5470'},
-  skip:{...F,fontSize:10,letterSpacing:2.4,color:'#ffd0e6'},
-  sticker:{...F,position:'absolute',fontSize:13},
-});
-
-
 // ═══ 오프닝 ═══
 /* Y2K 데스크톱 한 장. 도는 CD, 올라오는 방울, 흩어진 가짜 오류창.
    설명하는 문장이 없다 — 오류창이 대신 말한다. "당신을 찾을 수 없습니다".
@@ -1076,7 +921,7 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts,name}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -1096,16 +941,10 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
         {['you','file','chat','etc.'].map(m=>
           <TouchableOpacity key={m} onPress={()=>onMenu(m)} hitSlop={{top:10,bottom:10,left:6,right:6}}
             style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
-        {/* 💿 소개 영상 · 🎁 선물. 둘 다 메뉴 항목이다 — 버튼은 peek 하나뿐이어야
-            그게 특별한 동작으로 보인다 */}
-        {/* 눌릴 이유는 이 줄이 아니라 아래 흐르는 띠가 만든다. 메뉴바는 조용해야
-            한다 — 여기서 하나만 튀게 하면 줄 전체가 정신없어진다. */}
-        <TouchableOpacity onPress={onFilm} hitSlop={{top:10,bottom:10,left:6,right:6}}
-          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
-          <SpinCD size={13}/>
-          <Text style={rl.mi}>intro</Text></TouchableOpacity>
+        {/* 🎁 선물은 메뉴 항목이다 — 버튼은 peek 하나뿐이어야 그게 특별한
+            동작으로 보인다. 메뉴바는 조용해야 한다. */}
         <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
-          style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
+          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
         <Bevel style={{minWidth:86,height:30,marginLeft:6}} inner={{flexDirection:'row',gap:5,paddingHorizontal:8}}
           onPress={()=>{ if(autoLoading)return;
@@ -1114,7 +953,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
           <Image source={MOON_PNG} style={{width:13,height:13,tintColor:left>0?'#b0a6d8':'#6b5fa8'}}/>
           <Text style={rl.peek}>{autoLoading?'...':left>0?mmss(left):'peek'}</Text></Bevel>
       </View>
-      <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ♪ press intro · 11 seconds    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
+      <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
       <View style={rl.tabs}>
         <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms (4)</Text></TouchableOpacity>
         <TouchableOpacity style={tab==='cam'?rl.tabOn:rl.tab} onPress={()=>setTab('cam')}><Text style={tab==='cam'?rl.tabOnT:rl.tabT}>cam</Text></TouchableOpacity>
@@ -1560,8 +1399,6 @@ function Root() {
      앱을 열 때마다 볼 이유가 없다. */
   const [enrolling,setEnrolling]=useState(false);
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
-  /* 소개 영상. 화면 전환 바깥에 달아야 방을 오가도 안 끊긴다. */
-  const [film,setFilm]=useState(false);
   const [invite,setInvite]=useState<any>(null);   // 같이 가자는 제안
   const viewRef=useRef(view); viewRef.current=view;
   /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
@@ -1972,7 +1809,6 @@ function Root() {
       seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
       onCart={()=>setView({type:'cart'})} demo={demo} name={name}
-      onFilm={()=>setFilm(true)}
       hearts={heartsOf(counts,gifts)}/>;
   }
 
@@ -2001,7 +1837,6 @@ function Root() {
     </Modal>
     {enrolling&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
       onRename={doRename} onDone={()=>setEnrolling(false)}/>}
-    {film&&<IntroFilm onClose={()=>setFilm(false)}/>}
     {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
     <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>
       <TouchableOpacity style={mo.bg} activeOpacity={1} onPress={()=>setPopup(null)}>
