@@ -1503,6 +1503,12 @@ eq('스크롤 훅이 자리 분기보다 위에 있다',
 eq('그라데이션 대신 그림자만 건다',
   /\.scenewrap \.stext\{[^}]*text-shadow/.test(web), true);
 eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) && /saveScene\(sc\)/.test(web), true);
+/* ── 자리는 방의 연장이 아니라 장면이다 ──
+   방의 마지막 여섯 줄을 그냥 깔았더니 아까 문자로 주고받던 말이 교실 배경
+   위에 얹혔다. 선물 받은 반응이 교실에서 나오고 첫 연락이 교실에서 나왔다. */
+eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.test(web), true);
+eq('자리에 들어갈 때 시각을 찍는다',
+  (web.match(/since:Date\.now\(\)/g) || []).length, 2);
 
 /* ── 지도와 가방 ──
    초대는 저쪽이 정하고 지도는 이쪽이 정한다. 자리마다 받아오는 게 하나씩 있다. */
@@ -1552,11 +1558,24 @@ eq('그 자리 물건만 인정한다',
   ['haribo', null, null]);
 eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), null);
 {
-  const t = buildPlace('편의점', false);
+  const t = buildPlace('편의점', false, 'minhyun');
   eq('자리 블록은 마주 보고 있다고 알린다', /마주 보고/.test(t) && /어디냐고 묻지 않는다/.test(t), true);
   eq('자리 블록에 건넬 것이 적힌다', /"give": "haribo"/.test(t), true);
-  eq('이미 받았으면 건넬 것은 안 적는다', /give/.test(buildPlace('편의점', true)), false);
-  eq('자리에 없으면 블록도 없다', buildPlace(null, false), '');
+  eq('이미 받았으면 건넬 것은 안 적는다', /give/.test(buildPlace('편의점', true, 'minhyun')), false);
+  eq('자리에 없으면 블록도 없다', buildPlace(null, false, 'minhyun'), '');
+  /* 재언은 보건실에 있는 게 일이고 민현은 교실에 앉아 있다. 「불러줘서 왔어요」가
+     자기 교실에서 나오면 안 된다 — 찾아온 쪽은 유저다 */
+  eq('자기 자리에 있는 사람은 불려 나온 게 아니다',
+    /여기는 원래 네 자리다/.test(buildPlace('보건실', true, 'jaeeon'))
+    && /찾아온 쪽이 \{user_name\}이다/.test(buildPlace('교실', true, 'minhyun')), true);
+  eq('남의 자리에 가면 따로 만난 자리다',
+    /따로 만난 자리다/.test(buildPlace('보건실', true, 'minhyun'))
+    && !/여기는 원래 네 자리다/.test(buildPlace('옥상', true, 'jaeeon')), true);
+  /* 화면 지문도 마찬가지다. 「이재언을 보건실로 불러냈다」가 나갔었다 */
+  eq('지문이 자리 임자를 가린다',
+    /p\.own===char\?`\$\{place\}에 갔다`/.test(web), true);
+  eq('교실과 보건실에 임자가 적혀 있다',
+    (web.match(/own:"(minhyun|jaeeon)"/g) || []).length, 2);
 }
 /* 마주 앉아서 어디 가자고 하면 지금 여기가 어디가 되는지 알 수가 없다 */
 eq('자리에 있는 동안엔 갈 자리를 안 꺼낸다',
@@ -1570,6 +1589,11 @@ eq('자리에 없으면 갈 자리는 그대로 나온다',
 /* 모델이 안 건네주고 끝내는 턴이 있다. 그때마다 가방이 비면 지도를 돌 이유가 없다 */
 eq('자리에서 나올 때 못 받았으면 채워준다',
   /const leaveScene=\(\)=>\{[\s\S]{0,300}takeItem\(p\.item,sc\.room,sc\.place\)/.test(web), true);
+/* 「밴드을(를) 받았다」가 화면에 그대로 찍혔다. 괄호로 둘 다 적는 건
+   글로 쓸 때 쓰는 표기지 사람이 읽는 문장이 아니다 */
+eq('지문에 을(를)이 안 남아 있다', /을\(를\)|이\(가\)|과\(와\)/.test(
+  web.slice(web.indexOf('function App()'))), false);
+eq('받침을 보고 조사를 고른다', /const jos=\(w,pair\)=>/.test(web), true);
 eq('같은 것은 가방에 두 번 안 들어간다',
   /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
 eq('자리에 있으면 place를 같이 보낸다', /\.\.\.\(at\?\{place:at,bag:/.test(web), true);

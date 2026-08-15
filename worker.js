@@ -1685,8 +1685,11 @@ function buildInvite(open, room) {
    모델에게 맡기면 매번 다른 걸 지어내고, 그러면 가방에 넣을 수가 없다.
    언제 주는지만 모델이 정한다. index.html의 PLACES·ITEMS와 같아야 한다. */
 const PLACE_ITEMS = {
-  "교실":     { key: "note",    name: "접힌 쪽지",   how: "책상 위에 놓고 가거나 지나가면서 쥐여준다. 내용은 한 줄뿐이다." },
-  "보건실":   { key: "bandaid", name: "밴드",        how: "두 장 뜯어서 준다. 한 장은 남겨두라고 한다." },
+  /* own — 그 자리가 원래 누구 자리인가. 재언은 보건실에 있는 게 일이고
+     민현은 교실에 앉아 있다. 찾아온 쪽은 유저다. 이걸 안 알려주면
+     「불러주셔서 왔어요」 같은 말이 자기 교실에서 나온다. */
+  "교실":     { key: "note",    name: "접힌 쪽지",   own: "minhyun", how: "책상 위에 놓고 가거나 지나가면서 쥐여준다. 내용은 한 줄뿐이다." },
+  "보건실":   { key: "bandaid", name: "밴드",        own: "jaeeon",  how: "두 장 뜯어서 준다. 한 장은 남겨두라고 한다." },
   "옥상":     { key: "can",     name: "캔커피",      how: "자판기에서 뽑아 온다. 차가운 쪽을 골라준다." },
   "편의점":   { key: "haribo",  name: "하리보 젤리", how: "계산은 이쪽이 한다. 생색은 안 낸다." },
   "도서관":   { key: "book",    name: "책",          how: "빌려주는 것이다. 돌려받을 생각이지만 반납일을 못박지는 않는다." },
@@ -1701,10 +1704,15 @@ function placeOf(raw) {
 }
 /* 자리 블록. 문자가 아니라 마주 보고 하는 말이라는 것부터 알려준다 —
    이게 없으면 같은 자리에 앉아서 "지금 어디예요?"라고 묻는다. */
-function buildPlace(place, hasItem) {
+function buildPlace(place, hasItem, room) {
   if (!place) return "";
   const it = PLACE_ITEMS[place];
+  const mine = it.own && it.own === room;
   let t = `\n## 지금 있는 자리\n{user_name}과 ${place}에 같이 있다.\n`
+        + (mine
+            ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다. 찾아온 쪽이 {user_name}이다.\n`
+            + `불려 나온 것이 아니다. 와줘서 고맙다거나 불러줘서 왔다는 말을 하지 않는다.\n`
+            : `따로 만난 자리다. 둘 다 여기까지 왔다.\n`)
         + `문자가 아니라 마주 보고 하는 말이다. 어디냐고 묻지 않는다. 왔냐고도 이미 물었다.\n`
         + `짧게 주고받는다. 한 번에 한두 마디다. 눈앞에 있는 것이 말에 섞인다.\n`;
   if (!hasItem) {
@@ -1820,7 +1828,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
   const t = buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
-          + buildPlace(place, hasItem)
+          + buildPlace(place, hasItem, room)
           + (place ? "" : buildInvite(invite, room));
   return t.trim() ? sub(t) : "";
 }
