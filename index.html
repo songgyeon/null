@@ -797,6 +797,42 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  background:rgba(43,36,78,.82);animation:fadeUp .18s steps(3) both;cursor:pointer;padding:22px}
 .lightbox img{max-width:100%;max-height:100%;border:2px solid #fff;border-radius:4px;
  box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.lightcard{max-width:100%;max-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.lightcard:not(.solo) img{min-height:0;max-height:calc(100% - 68px)}
+.lightcap{width:min(100%,520px);box-sizing:border-box;margin-top:8px;padding:8px 10px;
+ border:1px solid #cfc6ee;background:rgba(255,253,255,.96);color:#4a4276;text-align:left;
+ box-shadow:2px 2px 0 rgba(138,127,192,.28);cursor:pointer}
+.lightcap .lt{font-size:10px;letter-spacing:.14em;color:#8a7fc0;margin-bottom:4px}
+.lightcap .ln{font-size:11.5px;line-height:1.65;word-break:keep-all}
+/* 민현의 마지막 개인 기록. 이미지 한 장이 아니라 실제로 아래까지 내려가야
+   결론이 보이는 비공개 피드다. 날짜는 일부러 남기지 않고 상대 시점만 둔다. */
+.sns-lightbox{padding:10px;background:rgba(17,17,20,.9)}
+.privsns{width:min(360px,100%);max-height:100%;overflow-y:auto;overscroll-behavior:contain;
+ background:#f7f7f5;color:#111;border:1px solid #474747;border-radius:15px;box-shadow:0 14px 42px rgba(0,0,0,.58);
+ font-family:Arial,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;cursor:auto;scrollbar-width:thin}
+.snstop{position:sticky;top:0;z-index:3;height:48px;display:flex;align-items:center;gap:8px;padding:0 14px;
+ background:rgba(247,247,245,.96);border-bottom:1px solid #deded9;backdrop-filter:blur(8px)}
+.snstop .handle{font-size:14px;font-weight:750;letter-spacing:-.02em}.snstop .private{font-size:9px;letter-spacing:.08em;
+ text-transform:uppercase;color:#777;border:1px solid #bbb;border-radius:999px;padding:3px 6px}
+.snsclose{margin-left:auto;width:28px;height:28px;border:0;background:transparent;color:#333;font:20px/1 Arial;cursor:pointer}
+.snsprofile{padding:17px 16px 14px}.snsrow{display:flex;align-items:center;gap:14px}
+.snsavatar{width:64px;height:64px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+ background:#111;border:4px solid #e8e8e2;box-shadow:0 0 0 1px #333}
+.snswave{height:22px;display:flex;align-items:center;gap:3px}.snswave i{display:block;width:3px;border-radius:3px;background:#f5f5f2}
+.snswave i:nth-child(1),.snswave i:nth-child(7){height:7px}.snswave i:nth-child(2),.snswave i:nth-child(6){height:13px}
+.snswave i:nth-child(3),.snswave i:nth-child(5){height:19px}.snswave i:nth-child(4){height:10px}
+.snsidentity{min-width:0}.snsdisplay{font-size:14px;line-height:1.42;font-weight:750;word-break:keep-all}
+.snshandle{margin-top:4px;font-size:11px;color:#777}.snsbio{margin:13px 1px 0;font-size:13px;font-weight:650}
+.snsstats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #deded9;border-bottom:1px solid #deded9;background:#fff}
+.snsstat{padding:11px 2px 10px;text-align:center;font-size:10px;color:#777}.snsstat b{display:block;margin-bottom:2px;font-size:13px;color:#111}
+.snsfeedtag{padding:10px 14px 8px;font-size:9px;font-weight:700;letter-spacing:.14em;color:#8a8a84;text-transform:uppercase}
+.snspost{background:#fff;border-top:1px solid #e4e4df}.snsposthead{height:39px;display:flex;align-items:center;padding:0 12px;gap:8px}
+.snspostdot{width:21px;height:21px;border-radius:50%;background:#111}.snspostwho{font-size:11px;font-weight:750}
+.snstime{margin-left:auto;font-size:10px;color:#8b8b85}.snsmedia{width:100%;aspect-ratio:1;background:#ddd;overflow:hidden}
+.snsmedia img{display:block;width:100%;height:100%;object-fit:cover;border:0;border-radius:0;box-shadow:none}
+.snsblack{display:flex;align-items:center;justify-content:center;background:#050505;color:#f4f4f1;font-size:13px;letter-spacing:.04em}
+.snscap{min-height:42px;box-sizing:border-box;padding:10px 12px 13px;font-size:12px;line-height:1.55;color:#181818}
+.snscap b{margin-right:7px;font-size:11px}.snsend{padding:14px 0 22px;text-align:center;font-size:9px;letter-spacing:.12em;color:#aaa;background:#f7f7f5}
 .typing{display:flex;gap:5px;padding:12px 12px}
 .typing i{width:5px;height:5px;border-radius:50%;background:#8a7fc0;animation:blink 1s steps(2) infinite}
 .typing i:nth-child(2){animation-delay:.15s}
@@ -1057,12 +1093,29 @@ const HIDDEN=[
   {key:"minhyun-room",           file:"minhyun-room.webp",           label:"민현의 방", room:"minhyun", at:26, day:7},
   {key:"jaeeon-playlist",        file:"jaeeon-playlist.webp",        label:"재언의 플레이리스트", room:"jaeeon", at:44, day:11},
   {key:"minhyun-playlist",       file:"minhyun-playlist.webp",       label:"민현의 플레이리스트", room:"minhyun", at:44, day:11},
+  {key:"minhyun-lighter",        file:"minhyun-lighter.webp",        label:"민현의 라이터", room:"minhyun", at:52, day:12,
+    note:"학교에 오기 전, 골목에서 담배를 껐던 날. 라이터는 버리지 않았다."},
   {key:"jaeeon-ticket",          file:"jaeeon-ticket.webp",          label:"재언의 티켓", room:"jaeeon", at:64, day:15},
   {key:"minhyun-ticket",         file:"minhyun-ticket.webp",         label:"민현의 티켓", room:"minhyun", at:64, day:15},
+  {key:"minhyun-rehab",          file:"minhyun-rehab.webp",          label:"재활 기록", room:"minhyun", at:76, day:17,
+    note:"열아홉. 재활 1년. 학교로 돌아온 건 스무 살이었다."},
+  {key:"minhyun-discharge",      file:"minhyun-discharge.webp",      label:"퇴원하던 날", room:"minhyun", at:84, day:19,
+    note:"보호자란에는 이재언 하나뿐이었다. 퇴원 날 재언은 ‘가자’고만 했다."},
   {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.webp",        label:"재언의 졸업사진", room:"jaeeon", at:90, day:20},
   {key:"minhyun-yearbook",       file:"minhyun-yearbook.webp",       label:"민현의 졸업사진", room:"minhyun", at:90, day:20},
-  {key:"jaeeon-diary",           file:"jaeeon-diary.webp",           label:"재언의 일기", room:"jaeeon", at:120, day:25},
-  {key:"minhyun-diary",          file:"minhyun-diary.webp",          label:"민현의 일기", room:"minhyun", at:120, day:25},
+  {key:"jaeeon-studyroom",       file:"jaeeon-studyroom.webp",       label:"오래된 공부방", room:"jaeeon", at:98, day:22,
+    note:"재언이 아홉 살 때 매일 끝까지 남아 있던 공부방."},
+  {key:"hidden-jaeeon-diary-200x-03-07", file:"hidden-jaeeon-diary-200x-03-07.webp", label:"재언의 일기 · 3월 7일", room:"jaeeon", at:100, day:23},
+  {key:"hidden-minhyun-counseling-record-1-a4", file:"hidden-minhyun-counseling-record-1-a4.webp", label:"민현 상담 기록 · 1", room:"minhyun", at:100, day:23},
+  {key:"hidden-jaeeon-diary-200x-04-12", file:"hidden-jaeeon-diary-200x-04-12.webp", label:"재언의 일기 · 4월 12일", room:"jaeeon", at:106, day:24},
+  {key:"hidden-minhyun-counseling-record-2-a4", file:"hidden-minhyun-counseling-record-2-a4.webp", label:"민현 상담 기록 · 2", room:"minhyun", at:106, day:24},
+  {key:"hidden-jaeeon-diary-201x-07-11", file:"hidden-jaeeon-diary-201x-07-11.webp", label:"재언의 일기 · 7월 11일", room:"jaeeon", at:112, day:25},
+  {key:"hidden-jaeeon-diary-202x-start", file:"hidden-jaeeon-diary-202x-start.webp", label:"재언의 일기 · 202X년", room:"jaeeon", at:116, day:26},
+  {key:"jaeeon-string",          file:"jaeeon-string.webp",          label:"남은 끈", room:"jaeeon", at:120, day:27,
+    note:"사탕은 녹아 없어졌고, 끈만 스무 해 남았다."},
+  {key:"hidden-minhyun-reasons", file:"hidden-minhyun-reasons.webp", label:"@mhy.wav", room:"minhyun", at:120, day:27, kind:"sns"},
+  {key:"final-studyroom",        file:"final-studyroom.webp",        label:"스무 해 전 사진", room:"both", at:120, day:30,
+    note:"사진 뒷면 — 2006년. 재언 아홉, {name} 다섯. ‘사탕 목걸이를 준 날.’"},
 ];
 const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
 
@@ -1178,7 +1231,14 @@ const demoReply=(bucket,lastText,userName,msgs,gift)=>
   demoAnswer(bucket,lastText,userName,{close:demoClose(msgs,bucket),gift:gift});
 /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
    여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
-const demoUnlocked=msgs=>{const d=daysSince({msgs});return HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at&&d>=h.day).map(h=>h.key)};
+/* room이 "both"인 것은 두 방을 다 만나야 열린다. 마지막 한 장은 한쪽만
+   파고들어서는 안 나오게 — 적은 쪽을 기준으로 센다. worker.js의 unlockedKeys와 같다 */
+const demoUnlocked=msgs=>{const d=daysSince({msgs});return HIDDEN.filter(h=>{
+  const n=h.room==="both"
+    ?Math.min(((msgs||{}).jaeeon||[]).length,((msgs||{}).minhyun||[]).length)
+    :((msgs||{})[h.room]||[]).length;
+  return n>=h.at&&d>=h.day;
+}).map(h=>h.key)};
 /* 문구집에 물어볼 말. 유저가 방금 친 말이다. 시스템 줄("…을(를) 받았다")은
    유저가 한 말이 아니라서 그대로 넘기면 아무것도 안 걸린다. */
 const demoAsk=payload=>{
@@ -2010,6 +2070,48 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
   </Dialog>;
 }
 
+/* 한 계정 전체가 하나의 히든이다. 첫 두 장은 농담과 취향처럼 지나가고,
+   마지막 검은 게시물은 스크롤해야만 읽힌다. */
+function PrivateReasonsAccount({onClose}){
+  const avatar=<span className="snsavatar"><span className="snswave" aria-hidden="true">
+    <i/><i/><i/><i/><i/><i/><i/>
+  </span></span>;
+  const head=time=><div className="snsposthead">
+    <span className="snspostdot"/><span className="snspostwho">@mhy.wav</span><span className="snstime">{time}</span>
+  </div>;
+  return <div className="privsns" onClick={e=>e.stopPropagation()}>
+    <div className="snstop">
+      <span className="handle">@mhy.wav</span><span className="private">비공개</span>
+      <button className="snsclose" type="button" aria-label="닫기" onClick={onClose}>×</button>
+    </div>
+    <div className="snsprofile">
+      <div className="snsrow">{avatar}<div className="snsidentity">
+        <div className="snsdisplay">의사가 쓰라고 해서 쓰는 계정</div>
+        <div className="snshandle">@mhy.wav</div>
+      </div></div>
+      <div className="snsbio">왜 사냐</div>
+    </div>
+    <div className="snsstats">
+      <div className="snsstat"><b>3</b>게시물</div>
+      <div className="snsstat"><b>0</b>팔로워</div>
+      <div className="snsstat"><b>0</b>팔로잉</div>
+    </div>
+    <div className="snsfeedtag">private archive</div>
+    <article className="snspost">{head("8일 전")}
+      <div className="snsmedia"><img src="hidden-minhyun-reasons-cigarette.webp" alt="골목 바닥의 담배와 라이터"/></div>
+      <div className="snscap"><b>@mhy.wav</b>담배? ㅋㅋ</div>
+    </article>
+    <article className="snspost">{head("5일 전")}
+      <div className="snsmedia"><img src="hidden-minhyun-reasons.webp" alt="턴테이블 옆에 놓인 LP"/></div>
+      <div className="snscap"><b>@mhy.wav</b>이건 좀</div>
+    </article>
+    <article className="snspost">{head("2일 전")}
+      <div className="snsmedia snsblack">선생님</div>
+    </article>
+    <div className="snsend">END OF PRIVATE POSTS</div>
+  </div>;
+}
+
 /* ── 방 목록: 메신저 창 ── */
 function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,onFilm,gifts,onGift,hearts}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
@@ -2141,7 +2243,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           return <React.Fragment key={id}>
             <div className="sect">✧ {ch.name} · {got.length} pics</div>
             <div className="galgrid">
-              {got.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom(f)}/>)}
+              {got.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom({src:f})}/>)}
             </div>
           </React.Fragment>;
         })}
@@ -2160,7 +2262,8 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           {HIDDEN.map(h=>{
             const un=unlocked.includes(h.key);
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
-              onClick={()=>un?setZoom(h.file):onToast("still locked ♡")}>
+              onClick={()=>un?setZoom({src:h.file,label:h.label,kind:h.kind,
+                note:(h.note||"").replace("{name}",name||"당신")}):onToast("still locked ♡")}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
               <div className={"hlabel"+(un?"":" hid")}>
@@ -2208,7 +2311,17 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           </div>
         </div>}
     </Dialog>}
-    {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
+    {zoom&&<div className={"lightbox"+(zoom.kind==="sns"?" sns-lightbox":"")} onClick={()=>setZoom(null)}>
+      {zoom.kind==="sns"
+        ?<PrivateReasonsAccount onClose={()=>setZoom(null)}/>
+        :<div className={"lightcard"+(zoom.label?"":" solo")}>
+          <img src={zoom.src} alt={zoom.label||""}/>
+          {zoom.label&&<div className="lightcap">
+            <div className="lt">{zoom.label}</div>
+            {zoom.note&&<div className="ln">{zoom.note}</div>}
+          </div>}
+        </div>}
+    </div>}
   </div>;
 }
 

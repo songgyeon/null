@@ -1099,12 +1099,23 @@ const UNLOCKS = [
   { key: "minhyun-room", room: "minhyun", at: 26, day: 7 },
   { key: "jaeeon-playlist", room: "jaeeon", at: 44, day: 11 },
   { key: "minhyun-playlist", room: "minhyun", at: 44, day: 11 },
+  { key: "minhyun-lighter", room: "minhyun", at: 52, day: 12 },
   { key: "jaeeon-ticket", room: "jaeeon", at: 64, day: 15 },
   { key: "minhyun-ticket", room: "minhyun", at: 64, day: 15 },
+  { key: "minhyun-rehab", room: "minhyun", at: 76, day: 17 },
+  { key: "minhyun-discharge", room: "minhyun", at: 84, day: 19 },
   { key: "jaeeon-yearbook", room: "jaeeon", at: 90, day: 20 },
   { key: "minhyun-yearbook", room: "minhyun", at: 90, day: 20 },
-  { key: "jaeeon-diary", room: "jaeeon", at: 120, day: 25 },
-  { key: "minhyun-diary", room: "minhyun", at: 120, day: 25 },
+  { key: "jaeeon-studyroom", room: "jaeeon", at: 98, day: 22 },
+  { key: "hidden-jaeeon-diary-200x-03-07", room: "jaeeon", at: 100, day: 23 },
+  { key: "hidden-minhyun-counseling-record-1-a4", room: "minhyun", at: 100, day: 23 },
+  { key: "hidden-jaeeon-diary-200x-04-12", room: "jaeeon", at: 106, day: 24 },
+  { key: "hidden-minhyun-counseling-record-2-a4", room: "minhyun", at: 106, day: 24 },
+  { key: "hidden-jaeeon-diary-201x-07-11", room: "jaeeon", at: 112, day: 25 },
+  { key: "hidden-jaeeon-diary-202x-start", room: "jaeeon", at: 116, day: 26 },
+  { key: "jaeeon-string", room: "jaeeon", at: 120, day: 27 },
+  { key: "hidden-minhyun-reasons", room: "minhyun", at: 120, day: 27 },
+  { key: "final-studyroom", room: "both", at: 120, day: 30 },
 ];
 
 /* 상태메시지는 서버가 안 보낸다.
@@ -1120,7 +1131,12 @@ const UNLOCKS = [
 function unlockedKeys(counts, days) {
   if (!counts) return [];
   const d = Math.max(0, Number(days) || 0);
-  return UNLOCKS.filter(u => (Number(counts[u.room]) || 0) >= u.at && d >= u.day).map(u => u.key);
+  /* room이 "both"인 것은 두 방을 다 만나야 열린다. 마지막 한 장은 한쪽만
+     파고들어서는 안 나오게 — 적은 쪽을 기준으로 센다 */
+  const countOf = u => u.room === "both"
+    ? Math.min(Number(counts.jaeeon) || 0, Number(counts.minhyun) || 0)
+    : Number(counts[u.room]) || 0;
+  return UNLOCKS.filter(u => countOf(u) >= u.at && d >= u.day).map(u => u.key);
 }
 
 // 유저가 '당신.txt'에서 채운 칸. 채워진 것만 온다.

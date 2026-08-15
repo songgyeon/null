@@ -53,19 +53,38 @@ Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.webp'}));
 /* .hidden 탭 — 해금된 key는 meta 'null_unlocked'(JSON 배열)에서 읽는다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
-const HIDDEN=[
+type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun'|'both';at:number;day:number;note?:string;kind?:'sns'};
+type GalleryZoom={uri:string;label?:string;note?:string;kind?:'sns'};
+const HIDDEN:HiddenItem[]=[
   {key:'jaeeon-bag',           label:'재언의 가방', room:'jaeeon', at:12, day:3},
   {key:'minhyun-bag',          label:'민현의 가방', room:'minhyun', at:12, day:3},
   {key:'jaeeon-room',          label:'재언의 방', room:'jaeeon', at:26, day:7},
   {key:'minhyun-room',         label:'민현의 방', room:'minhyun', at:26, day:7},
   {key:'jaeeon-playlist',      label:'재언의 플레이리스트', room:'jaeeon', at:44, day:11},
   {key:'minhyun-playlist',     label:'민현의 플레이리스트', room:'minhyun', at:44, day:11},
+  {key:'minhyun-lighter',      label:'민현의 라이터', room:'minhyun', at:52, day:12,
+    note:'학교에 오기 전, 골목에서 담배를 껐던 날. 라이터는 버리지 않았다.'},
   {key:'jaeeon-ticket',        label:'재언의 티켓', room:'jaeeon', at:64, day:15},
   {key:'minhyun-ticket',       label:'민현의 티켓', room:'minhyun', at:64, day:15},
+  {key:'minhyun-rehab',        label:'재활 기록', room:'minhyun', at:76, day:17,
+    note:'열아홉. 재활 1년. 학교로 돌아온 건 스무 살이었다.'},
+  {key:'minhyun-discharge',    label:'퇴원하던 날', room:'minhyun', at:84, day:19,
+    note:'보호자란에는 이재언 하나뿐이었다. 퇴원 날 재언은 ‘가자’고만 했다.'},
   {key:'jaeeon-yearbook',      label:'재언의 졸업사진', room:'jaeeon', at:90, day:20},
   {key:'minhyun-yearbook',     label:'민현의 졸업사진', room:'minhyun', at:90, day:20},
-  {key:'jaeeon-diary',         label:'재언의 일기', room:'jaeeon', at:120, day:25},
-  {key:'minhyun-diary',        label:'민현의 일기', room:'minhyun', at:120, day:25},
+  {key:'jaeeon-studyroom',     label:'오래된 공부방', room:'jaeeon', at:98, day:22,
+    note:'재언이 아홉 살 때 매일 끝까지 남아 있던 공부방.'},
+  {key:'hidden-jaeeon-diary-200x-03-07', label:'재언의 일기 · 3월 7일', room:'jaeeon', at:100, day:23},
+  {key:'hidden-minhyun-counseling-record-1-a4', label:'민현 상담 기록 · 1', room:'minhyun', at:100, day:23},
+  {key:'hidden-jaeeon-diary-200x-04-12', label:'재언의 일기 · 4월 12일', room:'jaeeon', at:106, day:24},
+  {key:'hidden-minhyun-counseling-record-2-a4', label:'민현 상담 기록 · 2', room:'minhyun', at:106, day:24},
+  {key:'hidden-jaeeon-diary-201x-07-11', label:'재언의 일기 · 7월 11일', room:'jaeeon', at:112, day:25},
+  {key:'hidden-jaeeon-diary-202x-start', label:'재언의 일기 · 202X년', room:'jaeeon', at:116, day:26},
+  {key:'jaeeon-string',        label:'남은 끈', room:'jaeeon', at:120, day:27,
+    note:'사탕은 녹아 없어졌고, 끈만 스무 해 남았다.'},
+  {key:'hidden-minhyun-reasons', label:'@mhy.wav', room:'minhyun', at:120, day:27, kind:'sns'},
+  {key:'final-studyroom',      label:'스무 해 전 사진', room:'both', at:120, day:30,
+    note:'사진 뒷면 — 2006년. 재언 아홉, {name} 다섯. ‘사탕 목걸이를 준 날.’'},
 ];
 
 /* ── 데모 모드 ──
@@ -1048,14 +1067,94 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts}:any) {
+function ReasonsAccount({onClose}:{onClose:()=>void}) {
+  const bars=[7,13,19,10,19,13,7];
+  const postHead=(time:string)=><View style={sns.postHead}>
+    <View style={sns.postDot}/><Text style={sns.postWho}>@mhy.wav</Text><Text style={sns.time}>{time}</Text>
+  </View>;
+  return <Pressable style={sns.shell} onPress={(e:any)=>e.stopPropagation()}>
+    <View style={sns.top}>
+      <Text style={sns.topHandle}>@mhy.wav</Text><Text style={sns.private}>비공개</Text>
+      <TouchableOpacity style={sns.close} onPress={onClose}><Text style={sns.closeT}>×</Text></TouchableOpacity>
+    </View>
+    <ScrollView style={{flex:1}} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+      <View style={sns.profile}>
+        <View style={sns.profileRow}>
+          <View style={sns.avatar}><View style={sns.wave}>
+            {bars.map((h,i)=><View key={i} style={[sns.waveBar,{height:h}]}/>) }
+          </View></View>
+          <View style={{flex:1}}>
+            <Text style={sns.display}>의사가 쓰라고 해서 쓰는 계정</Text>
+            <Text style={sns.handle}>@mhy.wav</Text>
+          </View>
+        </View>
+        <Text style={sns.bio}>왜 사냐</Text>
+      </View>
+      <View style={sns.stats}>
+        <View style={sns.stat}><Text style={sns.statN}>3</Text><Text style={sns.statL}>게시물</Text></View>
+        <View style={sns.stat}><Text style={sns.statN}>0</Text><Text style={sns.statL}>팔로워</Text></View>
+        <View style={sns.stat}><Text style={sns.statN}>0</Text><Text style={sns.statL}>팔로잉</Text></View>
+      </View>
+      <Text style={sns.feedTag}>PRIVATE ARCHIVE</Text>
+      <View style={sns.post}>{postHead('8일 전')}
+        <Image source={{uri:IMG+'hidden-minhyun-reasons-cigarette.webp'}} style={sns.media} resizeMode="cover"/>
+        <Text style={sns.caption}><Text style={sns.captionWho}>@mhy.wav  </Text>담배? ㅋㅋ</Text>
+      </View>
+      <View style={sns.post}>{postHead('5일 전')}
+        <Image source={{uri:IMG+'hidden-minhyun-reasons.webp'}} style={sns.media} resizeMode="cover"/>
+        <Text style={sns.caption}><Text style={sns.captionWho}>@mhy.wav  </Text>이건 좀</Text>
+      </View>
+      <View style={sns.post}>{postHead('2일 전')}
+        <View style={[sns.media,sns.black]}><Text style={sns.blackT}>선생님</Text></View>
+      </View>
+      <Text style={sns.end}>END OF PRIVATE POSTS</Text>
+    </ScrollView>
+  </Pressable>;
+}
+const sns=StyleSheet.create({
+  shell:{width:'100%',maxWidth:360,height:'94%',backgroundColor:'#f7f7f5',borderRadius:15,
+    borderWidth:1,borderColor:'#474747',overflow:'hidden'},
+  top:{height:48,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14,
+    backgroundColor:'#f7f7f5',borderBottomWidth:1,borderBottomColor:'#deded9'},
+  topHandle:{fontSize:14,fontWeight:'800',color:'#111'},
+  private:{fontSize:9,letterSpacing:.8,color:'#777',borderWidth:1,borderColor:'#bbb',
+    borderRadius:20,paddingVertical:3,paddingHorizontal:6},
+  close:{marginLeft:'auto',width:30,height:30,alignItems:'center',justifyContent:'center'},
+  closeT:{fontSize:24,lineHeight:26,color:'#333'},
+  profile:{paddingHorizontal:16,paddingTop:17,paddingBottom:14},
+  profileRow:{flexDirection:'row',alignItems:'center',gap:14},
+  avatar:{width:64,height:64,borderRadius:32,backgroundColor:'#111',borderWidth:4,
+    borderColor:'#e8e8e2',alignItems:'center',justifyContent:'center'},
+  wave:{height:22,flexDirection:'row',alignItems:'center',gap:3},
+  waveBar:{width:3,borderRadius:2,backgroundColor:'#f5f5f2'},
+  display:{fontSize:14,lineHeight:20,fontWeight:'800',color:'#111'},
+  handle:{marginTop:4,fontSize:11,color:'#777'},
+  bio:{marginTop:13,fontSize:13,fontWeight:'700',color:'#111'},
+  stats:{flexDirection:'row',backgroundColor:'#fff',borderTopWidth:1,borderBottomWidth:1,borderColor:'#deded9'},
+  stat:{flex:1,alignItems:'center',paddingVertical:10},statN:{fontSize:13,fontWeight:'800',color:'#111'},
+  statL:{marginTop:2,fontSize:10,color:'#777'},
+  feedTag:{paddingHorizontal:14,paddingTop:10,paddingBottom:8,fontSize:9,fontWeight:'700',letterSpacing:1.4,color:'#8a8a84'},
+  post:{backgroundColor:'#fff',borderTopWidth:1,borderTopColor:'#e4e4df'},
+  postHead:{height:39,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12},
+  postDot:{width:21,height:21,borderRadius:11,backgroundColor:'#111'},
+  postWho:{fontSize:11,fontWeight:'800',color:'#111'},time:{marginLeft:'auto',fontSize:10,color:'#8b8b85'},
+  media:{width:'100%',aspectRatio:1,backgroundColor:'#ddd'},
+  black:{alignItems:'center',justifyContent:'center',backgroundColor:'#050505'},
+  blackT:{fontSize:13,letterSpacing:.4,color:'#f4f4f1'},
+  caption:{minHeight:42,paddingHorizontal:12,paddingTop:10,paddingBottom:13,fontSize:12,lineHeight:19,color:'#181818'},
+  captionWho:{fontSize:11,fontWeight:'800'},
+  end:{paddingTop:14,paddingBottom:22,textAlign:'center',fontSize:9,letterSpacing:1.2,color:'#aaa'},
+});
+
+// ═══ 방 목록 ═══
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,onFilm,hearts,name}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
   const todayN=allMsgs.filter((m:any)=>(m.created_at||0)>=t0.getTime()).length;
   const totalN=allMsgs.length;
   const [tab,setTab]=useState<'rooms'|'cam'|'hidden'>('rooms');
-  const [zoom,setZoom]=useState<string|null>(null);
+  const [zoom,setZoom]=useState<GalleryZoom|null>(null);
   const [now,setNow]=useState(Date.now());
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
   const left=Math.max(0,(autoAt||0)+AUTO_COOL-now);
@@ -1111,7 +1210,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
               return <React.Fragment key={id}>
                 <Text style={[rl.sect,{color:c.dk}]}>✧ {c.name} · {got.length} pics</Text>
                 <View style={rl.galgrid}>
-                  {got.map(k=><TouchableOpacity key={k} style={rl.galcell} onPress={()=>setZoom(IMG+k+'.webp')}>
+                  {got.map(k=><TouchableOpacity key={k} style={rl.galcell} onPress={()=>setZoom({uri:IMG+k+'.webp'})}>
                     <Image source={{uri:IMG+k+'.webp'}} style={rl.galimg} resizeMode="cover"/>
                   </TouchableOpacity>)}
                 </View>
@@ -1134,7 +1233,8 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                 const un=(unlocked||[]).includes(h.key);
                 /* 얼마나 남았는지 안 알려준다. 자물쇠만 있다 */
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
-                  onPress={()=>un?setZoom(IMG+h.key+'.webp')
+                  onPress={()=>un?setZoom({uri:IMG+h.key+'.webp',label:h.label,kind:h.kind,
+                    note:(h.note||'').replace('{name}',name||'당신')})
                     :onToast('still locked')}>
                   <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
                   {!un&&<View style={rl.hlock}><Text style={{fontSize:18}}>🔒</Text></View>}
@@ -1223,8 +1323,16 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
       </ScrollView>
       </View>
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
-        <TouchableOpacity style={rl.lb} activeOpacity={1} onPress={()=>setZoom(null)}>
-          {zoom&&<Image source={{uri:zoom}} style={{width:'100%',height:'80%'}} resizeMode="contain"/>}
+        <TouchableOpacity style={[rl.lb,zoom?.kind==='sns'&&{padding:10,backgroundColor:'rgba(17,17,20,.92)'}]} activeOpacity={1} onPress={()=>setZoom(null)}>
+          {zoom?.kind==='sns'
+            ?<ReasonsAccount onClose={()=>setZoom(null)}/>
+            :zoom&&<View style={rl.lbCard}>
+              <Image source={{uri:zoom.uri}} style={rl.lbImg} resizeMode="contain"/>
+              {zoom.label&&<View style={rl.lbCap}>
+                <Text style={rl.lbTitle}>{zoom.label}</Text>
+                {!!zoom.note&&<Text style={rl.lbNote}>{zoom.note}</Text>}
+              </View>}
+            </View>}
         </TouchableOpacity>
       </Modal>
       <View style={rl.st}>
@@ -1267,6 +1375,11 @@ const rl=StyleSheet.create({
   galcell:{width:'48.6%',aspectRatio:2/3,marginBottom:8,borderRadius:5,borderWidth:1,borderColor:'#cfc6ee',overflow:'hidden',backgroundColor:'#efeaf9'},
   galimg:{width:'100%',height:'100%'},
   lb:{flex:1,backgroundColor:'rgba(43,36,78,.85)',justifyContent:'center',alignItems:'center',padding:22},
+  lbCard:{width:'100%',height:'90%',justifyContent:'center',alignItems:'center'},
+  lbImg:{width:'100%',flex:1},
+  lbCap:{width:'100%',marginTop:8,paddingVertical:8,paddingHorizontal:10,borderWidth:1,borderColor:'#cfc6ee',backgroundColor:'rgba(255,253,255,.97)'},
+  lbTitle:{...F,fontSize:10,color:'#8a7fc0',letterSpacing:1.4,marginBottom:4},
+  lbNote:{...F,fontSize:11.5,lineHeight:19,color:'#4a4276'},
   hlock:{...StyleSheet.absoluteFillObject,justifyContent:'center',alignItems:'center'},
   hlabel:{position:'absolute',left:0,right:0,bottom:0,paddingVertical:4,paddingHorizontal:7,backgroundColor:'rgba(43,36,78,.55)'},
   hlabelT:{...F,fontSize:9.5,color:'#fff',letterSpacing:1},
@@ -1887,7 +2000,12 @@ function Root() {
   /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
      여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
   useEffect(()=>{ if(!demoOn())return;
-    const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
+    const got=HIDDEN.filter(h=>{
+      const n=h.room==='both'
+        ?Math.min(((msgs as any).jaeeon||[]).length,((msgs as any).minhyun||[]).length)
+        :((msgs as any)[h.room]||[]).length;
+      return n>=h.at&&dayN>=h.day;
+    }).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });
   },[msgs,demo]);
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); greet(id,700); };
@@ -1920,7 +2038,7 @@ function Root() {
     screen=<RoomList msgs={msgs} unread={unread} unlocked={unlocked} counts={counts} album={album}
       seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
-      onCart={()=>setView({type:'cart'})} demo={demo}
+      onCart={()=>setView({type:'cart'})} demo={demo} name={name}
       onFilm={()=>setFilm(true)}
       hearts={heartsOf(counts,gifts)}/>;
   }
