@@ -1471,6 +1471,40 @@ eq('지점은 가변부 앞에 찍는다',
 }
 
 
+/* ── JSX 문법 ──
+   여기까지 index.html은 문자열로만 봤다. 그래서 태그 하나가 안 닫혀도
+   전부 통과했고, 화면은 새하얗게 뜬다. 파서가 있으면 실제로 읽어본다.
+   앱 쪽 node_modules에 얹혀 가므로 없으면 조용히 건너뛴다 — 이 파일의
+   의존성 없음 원칙은 지킨다. */
+{
+  let parse = null;
+  try { ({ parse } = await import('../app/node_modules/@babel/parser/lib/index.js')); } catch { }
+  if (!parse) {
+    console.log('  --   JSX 문법 (파서가 없어 건너뜀 — app에서 npm i 하면 돈다)');
+  } else {
+    const src = (/<script type="text\/babel">([\s\S]*?)<\/script>/.exec(web) || [])[1];
+    eq('babel 스크립트를 찾았다', !!src && src.length > 1000, true);
+    let err = '';
+    try { parse(src, { sourceType: 'script', plugins: ['jsx'] }); }
+    catch (e) { err = e.message; }
+    eq('index.html의 JSX가 실제로 파싱된다', err, '');
+  }
+}
+
+/* 「같이 가기로 했다」를 메신저 화면 그대로 두면 마주 앉은 걸 그릴 방법이 없다.
+   자리에 가면 그 자리를 깔고 말풍선을 걷는다 */
+eq('자리마다 배경 사진이 있다', ['옥상','도서관','빨래방','편의점','레코드샵']
+  .filter(p => !new RegExp(`"${p}":"place-`).test(web)), []);
+eq('배경 파일이 전부 저장소에 있다',
+  (web.match(/"(place-[\w-]+\.webp)"/g) || []).map(s => s.slice(1, -1))
+    .filter(f => !exists(f)), []);
+eq('자리에 가면 말풍선을 걷는다',
+  /const bg=scene&&PLACE_BG\[scene\.place\]/.test(web) && /className="screen scenewrap"/.test(web), true);
+/* 그라데이션은 안 깐다 — 장소 사진 아래쪽 밝기가 17~32라 흰 글씨가 그냥 읽힌다 */
+eq('그라데이션 대신 그림자만 건다',
+  /\.scenewrap \.stext\{[^}]*text-shadow/.test(web), true);
+eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) && /saveScene\(sc\)/.test(web), true);
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 

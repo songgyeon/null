@@ -639,6 +639,23 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* 관전방: 미디어 플레이어 흰 스크린 */
 .watchbg .msgs{background:#fdfffe}
 .divider{align-self:center;margin:12px 0 8px;font-size:9.5px;color:#c39ede;letter-spacing:.1em}
+/* ── 같이 간 자리 ──
+   사진을 깔고 말풍선을 걷는다. 그라데이션은 안 깐다 — 장소 사진들이 아래쪽
+   밝기 17~32라 흰 글씨가 그냥 읽힌다. 그림자는 나중에 밝은 사진이 들어와도
+   안 깨지라고 걸어두는 보험이다. */
+.scenewrap{display:flex;flex-direction:column;background-size:cover;background-position:center;background-color:#14121c}
+.scenewrap .scenebody{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;padding:0 16px 12px}
+.scenewrap .scenelines{display:flex;flex-direction:column;gap:9px}
+.scenewrap .sline{max-width:88%}
+.scenewrap .sline.me{align-self:flex-end;text-align:right}
+.scenewrap .sname{font-size:9px;letter-spacing:.14em;color:rgba(255,255,255,.62);margin-bottom:3px;
+ text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.scenewrap .stext{font-size:14px;line-height:1.55;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.scenewrap .stext.dim{color:rgba(255,255,255,.5)}
+.scenewrap .sphoto{display:block;max-width:172px;border-radius:6px;margin-bottom:5px;
+ box-shadow:0 2px 10px rgba(0,0,0,.45)}
+.scenewrap .scenebar{background:rgba(255,255,255,.72);backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.5)}
+
 /* 괄호 지문 — 말풍선이 아니라 채팅창에 쳐진 한 줄 */
 .narr{align-self:center;max-width:82%;margin:7px 0;padding:0 6px;text-align:center;
  font-size:10px;line-height:1.75;letter-spacing:.03em;color:#9a8fc8}
@@ -1163,6 +1180,15 @@ const AUTO_MAX_DAY=2;          // 하루 상한. 관전 프롬프트가 22,000�
 const loadAutoDay=()=>{try{return localStorage.getItem("null_auto_day")||""}catch(e){return""}};
 const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
 /* 다녀온 자리 / 거절한 자리. 서버가 다음 제안을 고르는 근거다 */
+/* ── 같이 간 자리 ──
+   「같이 가기로 했다」를 메신저 화면 그대로 두면 둘이 마주 앉은 걸 그릴 방법이
+   없다. 그래서 괄호 지문으로 때우다가 「이건 그냥 텍스트니까요」까지 갔다.
+   자리에 가면 그 자리를 깔고 말풍선을 걷는다 — 화면이 「지금 여기 같이 있다」를
+   대신 말해준다. 사진은 아래쪽이 다 어두워서 흰 글씨가 그냥 읽힌다. */
+const PLACE_BG={"옥상":"place-rooftop.webp","도서관":"place-library.webp","빨래방":"place-laundry.webp",
+  "편의점":"place-conv.webp","레코드샵":"place-record.webp"};
+const loadScene=()=>{try{return JSON.parse(localStorage.getItem("null_scene"))||null}catch(e){return null}};
+const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):localStorage.removeItem("null_scene")}catch(e){}};
 const loadMet=()=>{try{return JSON.parse(localStorage.getItem("null_met"))||[]}catch(e){return[]}};
 const saveMet=a=>{try{localStorage.setItem("null_met",JSON.stringify(a))}catch(e){}};
 const loadRefused=()=>{try{return JSON.parse(localStorage.getItem("null_refused"))||[]}catch(e){return[]}};
@@ -2076,11 +2102,51 @@ function DayBar({left}){
       <i key={i} className={i<gone?"gone":i===gone?"now":""}/>)}
   </div>;
 }
-function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft}){
+/* 장면 모드에서 보여줄 줄 수. 한 턴에 말풍선이 두셋 나오니 대여섯이면
+   방금 오간 말이 다 보이고, 그 위는 사진에 자리를 내준다. */
+const SCENE_LINES=6;
+function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene}){
   const [v,setV]=useState("");
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
   const boxRef=useRef(null);
   const watch=room.type==="watch";
+  const send0=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
+  /* ── 자리에 가 있을 때 ──
+     말풍선을 걷고 사진 위에 말만 얹는다. 지나간 말은 흘려보낸다 —
+     돌아가면 방에 그대로 남아 있으니 사라지는 게 아니다. */
+  const bg=scene&&PLACE_BG[scene.place];
+  if(bg){
+    const tail=msgs.filter(m=>!m.sys&&(m.text||"").trim()).slice(-SCENE_LINES);
+    return <div className="screen scenewrap" style={{backgroundImage:`url("${bg}")`}}>
+      <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
+        {scene.place}<WinDots/>
+      </div>
+      <div className="scenebody">
+        <div className="scenelines">
+          {tail.map((m,i)=>{
+            const me=m.sender==="user";
+            const prev=tail[i-1];
+            const head=!me&&(!prev||prev.sender!==m.sender);
+            return <div key={m.id||i} className={"sline"+(me?" me":"")}>
+              {head&&<div className="sname">{(CHARS[m.sender]||{}).name||m.sender}</div>}
+              {m.photo
+                ?<img className="sphoto" src={photoSrc(m.photo)} alt="" onClick={()=>setZoom(photoSrc(m.photo))}/>
+                :null}
+              {m.text&&<div className="stext">{m.text}</div>}
+            </div>;
+          })}
+          {busy&&<div className="sline"><div className="stext dim">…</div></div>}
+        </div>
+      </div>
+      <div className="inputbar scenebar">
+        <button className="backbtn bevel" onClick={onLeaveScene} title="돌아가기"><BackIcon/></button>
+        <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send0()}/>
+        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send0}
+          style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
+      </div>
+      {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
+    </div>;
+  }
   useEffect(()=>{const el=boxRef.current;if(el)requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight})},[msgs.length,busy,failed]);
   const send=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
   const senderMeta=s=>s==="user"?null:(CHARS[s]||{name:s,color:"#9aa3d8",pale:"#e2e6f5",dk:"#6b5fa8"});
@@ -2280,12 +2346,17 @@ function App(){
      한 시간 뒤 관전방에서 다른 한 사람이 그 얘기를 꺼낸다. 거절하면 안 간다 —
      그리고 그 자리는 다시 안 나온다. 두 번 조르지 않는 것이 이 두 사람의 성격이다. */
   const [invite,setInvite]=useState(null);
+  /* 지금 어느 자리에 있나. 새로고침해도 그 자리에 남아 있게 저장해 둔다 */
+  const [scene,setScene]=useState(loadScene);
+  const leaveScene=()=>{ setScene(null); saveScene(null); };
   const answerInvite=ok=>{
     const iv=invite; setInvite(null); if(!iv)return;
     const line=ok?`${CHARS[iv.char].name}과 ${iv.place}에 가기로 했다`:`${iv.place}은 다음에 가기로 했다`;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
     appendMsg(iv.char,sys);
-    if(ok){ saveMet([...loadMet(),iv.place]); markEvent({kind:"met",to:iv.char,name:iv.place}); }
+    if(ok){ saveMet([...loadMet(),iv.place]); markEvent({kind:"met",to:iv.char,name:iv.place});
+      // 그 자리로 화면을 옮긴다. 배경이 깔리고 말풍선이 걷힌다
+      if(PLACE_BG[iv.place]){ const sc={room:iv.char,place:iv.place}; setScene(sc); saveScene(sc); } }
     else  { saveRefused([...loadRefused(),iv.place]); }
     /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 —
        가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다.
@@ -2690,6 +2761,7 @@ function App(){
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
+       scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
     {invite&&<div className="dlgov" onClick={()=>answerInvite(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
