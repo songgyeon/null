@@ -1628,12 +1628,24 @@ eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true
 /* gift가 준 것이면 bag은 받은 것이다. 작은 대화상자에 흰 줄로 늘어놓으니
    이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
 eq('bag이 gift와 같은 창을 쓴다',
-  /function Bag\(\{bag,onClose\}\)/.test(web)
+  /function Bag\(\{bag,firstTs,onClose\}\)/.test(web)
   && /<div className="cartscreen"><div className="cartwin">[\s\S]{0,200}✿ bag/.test(web), true);
 eq('bag이 gift와 같은 카드·칩을 쓴다',
-  /className="cgcard"><span className="cribbon"\/>[\s\S]{0,120}bagface/.test(web)
+  /className="cgcard"><span className="cribbon"\/>[\s\S]{0,120}bagpic/.test(web)
   && /ITEM_CATS\.map\(c=>[\s\S]{0,80}className=\{"cchip"/.test(web), true);
-eq('누가 줬는지가 물건보다 앞에 온다', /faceBg\(who\)/.test(web), true);
+/* 가방은 물건이 주인공이다. 얼굴을 크게 놓으니 물건은 글자뿐이고 얼굴만
+   네 번 박히는 화면이 됐다 */
+eq('물건 그림이 앞에 온다', /className="bagpic" src=\{`item-\$\{b\.key\}\.webp`\}/.test(web), true);
+eq('여덟 개 그림이 전부 저장소에 있다',
+  ['note','bandaid','can','haribo','book','lp','coin','key']
+    .filter(k => !exists(`item-${k}.webp`)), []);
+eq('준 사람은 오른쪽 작은 원으로 남는다', /className="bagwho" style=\{faceBg\(who\)\}/.test(web), true);
+/* 이 앱에서 시간은 8월 16일이 아니라 D-18이다 */
+eq('받은 날을 남은 날로 적는다',
+  /ENROLL_DAYS-Math\.floor\(\(b\.ts-firstTs\)\/864e5\)/.test(web)
+  && /에게서 · \{b\.where\}에서/.test(web), true);
+/* 남은 날이 30을 넘을 수는 없다. 첫 대화 시각이 물건보다 늦게 잡히면 D-31이 나왔다 */
+eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
 
 /* ── 지도 ──

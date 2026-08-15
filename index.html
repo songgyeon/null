@@ -686,17 +686,18 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  background:#fff;border:1.5px solid #fff;border-radius:999px;box-shadow:0 0 0 1px #e4dbf8}
 .baglent{flex:none;padding:9px 13px;font-size:10.5px;letter-spacing:.04em;color:#c05f8c;
  background:#fff2f8;border:1.5px solid #fff;border-radius:999px;box-shadow:0 0 0 1px #f4c3d8}
-.bagface{width:52px;height:52px;flex:none;align-self:flex-start;border-radius:50%;
+/* 가방은 물건이 주인공이다. 얼굴을 크게 놓으니 물건은 글자뿐이고 얼굴만
+   네 번 박히는 화면이 됐다. 물건을 앞에 놓고 준 사람은 오른쪽 작은 원으로. */
+.bagpic{width:64px;height:64px;flex:none;align-self:center;object-fit:contain;
+ filter:drop-shadow(0 2px 2px rgba(93,84,144,.28))}
+.bagwho{position:relative;width:38px;height:38px;flex:none;align-self:flex-start;border-radius:50%;
  border:1.5px solid #fff;background:#ece4fb center/150% no-repeat;
  box-shadow:0 0 0 1px #ddd2f4,0 2px 0 rgba(150,135,210,.22)}
-.baglabel{margin-left:7px;padding:2px 7px 3px;font-size:8.5px;font-style:normal;letter-spacing:.08em;
- color:#c05f8c;background:#fff2f8;border:1px dashed #f4c3d8;border-radius:10px;vertical-align:2px}
-.bagmeta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px}
-.bagfrom{padding:2px 8px 3px;font-size:9.5px;letter-spacing:.04em;color:#6b5fa8;
- background:#fff;border:1px solid #e4dbf8;border-radius:999px}
-.bagat{padding:2px 8px 3px;font-size:9.5px;letter-spacing:.04em;color:#8f7ccb;
- background:#f4efff;border:1px solid #e4dbf8;border-radius:999px}
-.bagday{font-size:9px;letter-spacing:.1em;color:#c3b6e4}
+.bagwho i{position:absolute;right:-5px;top:-5px;font-style:normal;font-size:11px;color:#ff7fae;
+ text-shadow:0 1px 0 #fff,0 0 3px rgba(255,127,174,.6)}
+.baglabel{display:inline-block;margin-top:6px;padding:3px 9px 4px;font-size:9px;letter-spacing:.06em;
+ color:#c05f8c;background:#fff2f8;border:1px solid #f4c3d8;border-radius:999px}
+.bagmeta{margin-top:5px;font-size:10px;letter-spacing:.02em;color:#a99bd0}
 /* 해금 알림 */
 /* 알림 — 사진 위에 띄워서 가리면 겹쳐 보인다. 하단 상태바 자리에 대신 앛는다 */
 .toast{position:absolute;left:0;right:0;top:50%;z-index:45;display:flex;justify-content:center;
@@ -1956,7 +1957,7 @@ function LogPanel({store,counts,unlocked,album}){
    작은 대화상자에 흰 줄로 늘어놓으니 이 앱에서 혼자 다른 물건처럼 보였다.
    누가 어디서 줬는지가 물건보다 중요해서 얼굴을 앞에 놓는다.
    빌린 것은 따로 표시한다 — 돌려줄 게 남아 있으면 아직 안 끝난 것이다. */
-function Bag({bag,onClose}){
+function Bag({bag,firstTs,onClose}){
   const [cat,setCat]=useState("전체");
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
@@ -1972,18 +1973,19 @@ function Bag({bag,onClose}){
     <div className="cwrap">
       {rows.length?rows.map(b=>{
         const it=ITEMS[b.key], who=CHARS[b.from];
+        /* 받은 날은 날짜가 아니라 남은 날로 적는다 — 이 앱에서 시간은 8월 16일이
+           아니라 D-18이다. 첫 대화 날짜를 모르면 그냥 안 적는다. */
+        const d=firstTs?Math.min(ENROLL_DAYS,Math.max(0,
+          ENROLL_DAYS-Math.floor((b.ts-firstTs)/864e5))):null;
         return <div key={b.key} className="cgcard"><span className="cribbon"/>
-          <span className="bagface" style={who?faceBg(who):null}/>
+          <img className="bagpic" src={`item-${b.key}.webp`} alt=""/>
           <div style={{flex:1,minWidth:0}}>
-            <div className="cgname">{it.name}{it.lent&&<em className="baglabel">빌린 것</em>}</div>
-            <div className="bagmeta">
-              <span className="bagfrom" style={who?{color:who.dk,borderColor:who.pale}:null}>
-                {who?who.name:b.from}</span>
-              <span className="bagat">{b.where}</span>
-              <span className="bagday">{fmtDay(b.ts)}</span>
-            </div>
+            <div className="cgname">{it.name}</div>
+            <div className="bagmeta">{(who?who.name:b.from)}에게서 · {b.where}에서{d!=null?" · D-"+d:""}</div>
+            {it.lent&&<span className="baglabel">돌려줄 것</span>}
             <div className="cgdesc">{it.desc}</div>
           </div>
+          {who&&<span className="bagwho" style={faceBg(who)}><i>♡</i></span>}
         </div>;
       }):<div className="cnone">아직 아무것도 없다{"\n"}지도에서 자리를 골라 다녀와 봐</div>}
     </div>
@@ -2329,7 +2331,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
     </div>
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
-    {dlg==="bag"&&<Bag bag={bag||[]} onClose={()=>setDlg(null)}/>}
+    {dlg==="bag"&&<Bag bag={bag||[]} firstTs={firstTs} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onClose={()=>setDlg(null)}/>}
     {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>
