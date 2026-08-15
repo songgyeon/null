@@ -9,7 +9,7 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs     # 361개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/run.mjs     # 363개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
 ```
 
 ```
@@ -462,7 +462,7 @@ java.lang.NoClassDefFoundError: expo/modules/kotlin/types/AnyTypeCache
 node test/run.mjs
 ```
 
-의존성·네트워크·API 키 없이 돕니다. 모델을 부르지 않고 검증 가능한 것만 다룹니다. (361개)
+의존성·네트워크·API 키 없이 돕니다. 모델을 부르지 않고 검증 가능한 것만 다룹니다. (363개)
 
 | 묶음 | 내용 |
 |---|---|
