@@ -1094,10 +1094,10 @@ eq('뭉칠 때 끝은 남긴다',
   const prof = { subject: '국어', likes: '커피' };
   const v = buildVolatile('chat', 'jaeeon', 'R', sig, ['jaeeon-mug'], prof, { jaeeon: 90 }, null, null, ['옥상'], 12);
   eq('가변부에 설명이 안 남아 있다',
-    ['이 단계에 맞게 연기한다', '목록을 읊지 말고', '직접 인용 금지',
+    ['이 단계에 맞게 연기한다', '목록을 읊지 말고', '눈치챈 것처럼만',
      '대부분의 턴에는 안 꺼낸다'].filter(t => v.includes(t)), []);
   eq('설명은 고정부에 있다',
-    ['그 단계에 맞게 연기한다', '목록을 읊지 말고', '직접 인용 금지',
+    ['그 단계에 맞게 연기한다', '목록을 읊지 말고', '눈치챈 사람처럼만',
      '대부분의 턴에는 안 꺼낸다'].filter(t =>
       !buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text).join('').includes(t)), []);
   eq('값은 가변부에 남아 있다',
@@ -1114,6 +1114,28 @@ eq('단톡·두 사람 방에는 자리 설명이 안 붙는다',
 eq('응답에 실측 토큰이 실린다', /usage: lastUsage/.test(workerSrc), true);
 eq('웹·앱 둘 다 실측을 찍는다',
   /cache_read_input_tokens/.test(web) && /cache_read_input_tokens/.test(appSrc), true);
+
+/* ── 같은 규칙을 두 번 적지 않는다 ──
+   한 요청에 같이 실리는 덩어리들에 같은 말이 두세 판으로 적혀 있었다.
+   값보다 문제는 따로 있다 — 한 규칙이 세 군데 있으면 하나를 고칠 때 나머지
+   둘이 남아서, 프롬프트가 자기 자신과 다른 말을 하기 시작한다. */
+{
+  /* 자기분석 금지는 WORLD 연기 가드에 예시까지 붙어 있다. 인물 블록에 또 적지 않는다 */
+  eq('자기분석 금지는 한 군데만',
+    (workerSrc.match(/자기분석을 대사로/g) || []).length, 1);
+  /* 눈치 신호 읽는 법은 WORLD 교차 인식에 있다 */
+  eq('눈치 신호 읽는 법도 한 군데만',
+    (workerSrc.match(/직접 인용/g) || []).length, 1);
+  /* 1번이 최애라는 말은 인물마다 자기 목록에서 한다 — FACTS가 또 말하지 않는다 */
+  eq('최애 규칙은 인물 블록에만', (workerSrc.match(/1번이 최애다/g) || []).length, 2);
+  /* 침묵을 말줄임표로 대신하지 말라는 말이 TICS에 두 번, 인물에 한 번 있었다 */
+  eq('침묵 규칙이 겹치지 않는다',
+    (workerSrc.match(/침묵은 점 세 개가 아니라/g) || []).length, 0);
+  /* 존댓말 예시가 ★규칙 안과 [말투 예시]에 같은 문장으로 들어 있었다 */
+  eq('존댓말 예시가 두 번 나오지 않는다',
+    ['괜찮으시면 됐어요.', '제 걱정은 안 하셔도 됩니다.', '우산 가져가세요, 비 와요.']
+      .filter(t => (workerSrc.match(new RegExp(t.replace(/[.]/g, '\\.'), 'g')) || []).length > 1), []);
+}
 eq('서른 마디에서 자르던 건 없다',
   /slice\(-30\)/.test(web) || /slice\(-30\)/.test(apiSrc) || /MAX_HISTORY\b/.test(workerSrc), false);
 {
