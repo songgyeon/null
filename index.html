@@ -25,6 +25,12 @@ html,body{height:100%}
 body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  background:#c3b2f0 url("bg-6.webp") center/cover fixed no-repeat;
  -webkit-font-smoothing:none}
+/* 배경 위에 얇은 막을 한 겹. 그림의 별빛이 창 양옆에서 너무 튀어서
+   전체를 조금 옅게 눌러둔다. z-index:-1이라 body 배경 바로 위,
+   창 뒤 빛(#root::before, z-index:0)보다는 아래에 깔린다 —
+   그래서 별만 가라앉고 창 뒤 빛은 그대로 남는다. */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+ background:rgba(243,238,255,.42)}
 #root{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative}
 /* 창 뒤에만 빛을 하나 둔다.
    창이 배경보다 밝으면 바닥에 올려둔 흰 종이로 보이고, 창 뒤가 밝으면
