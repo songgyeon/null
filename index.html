@@ -77,6 +77,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .spstack .w2{align-self:flex-end;width:194px;margin-top:-6px}
 .spstack .w3{align-self:stretch;margin-top:8px}
 .spcurwrap{position:relative}
+/* 셋이 다 떴는데 또 누르면 흔들린다 */
+@keyframes errshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}
+ 40%{transform:translateX(4px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
+.spstack.nudge .spwin,.spstack.nudge .spcurwrap{animation:errshake .34s steps(2) both}
 /* 키라키라 반짝이 */
 .spark{position:absolute;pointer-events:none;z-index:6;
  clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
@@ -395,6 +399,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #f0c8de,2px 2px 0 rgba(93,84,144,.22)}
 .spgo:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 #f0c8de}
 .spgo:disabled{opacity:.5;cursor:default}
+/* 이름이 비었을 때. 누를 수는 있고, 눌러도 못 나간다는 것만 색으로 알린다 */
+.spgo.empty{color:#8a7fc0;background:linear-gradient(180deg,#fbf6ff,#e6ddf8);border-color:#8a7fc0;
+ box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #d9cbf3,2px 2px 0 rgba(93,84,144,.18)}
 .spbar{display:block;height:11px;background:#fff;border:1px solid #8a7fc0;overflow:hidden;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.3)}
 .spbar i{display:block;height:100%;background:repeating-linear-gradient(90deg,#ff9ec6 0 7px,#ffd0e6 7px 14px);
@@ -406,6 +413,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .spwin .spbd{padding:11px 11px 9px;font-size:9.5px;line-height:1.75;background:#fff;color:#6b5fa8}
 /* 버튼은 제 줄에서 오른쪽 아래. inline-block으로 두면 문장 뒤에 그대로 붙어
    "당신을 찾을 수 없습니다. [Cancel]" 처럼 한 줄이 된다 — 대화상자가 아니라 문장이 된다. */
+.spwin .spbtn{cursor:pointer}
+.spwin .spbtn:active{transform:translate(1px,1px)}
 .spbtn{display:block;width:fit-content;margin:11px 0 0 auto;padding:4px 14px;font-size:9px;color:#4a4276;
  background:#ece8fa;border:1px solid #5d5490;box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec}
 /* 커서 — CSS 보더로 만든 삼각형은 한쪽만 채워져서 작대기로 보였다. SVG로 그린다 */
@@ -1723,6 +1732,15 @@ const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21">
 
 function Splash({onEnter}){
   const [v,setV]=useState("");
+  /* ── 이름 없이 누르면 ──
+     「이름을 입력하세요」 빨간 글씨 한 줄이면 될 일이다. 그런데 이 화면에서
+     비어 있다는 건 오류가 아니라 상태다. 누를 때마다 창이 하나씩 더 뜨고
+     책상이 오류로 덮이면, 없다는 말을 글로 읽는 대신 화면으로 겪게 된다.
+     순서가 곧 문장이다 — 입력해야 존재한다 → 당신을 찾을 수 없다 → 찾는 중.
+     마지막은 영영 안 끝난다. 끝나면 그건 오류가 아니라 로딩이다.
+     창은 원래 이 화면에 깔려 있던 셋 그대로다. 새로 만들지 않았다. */
+  const [errs,setErrs]=useState(0);
+  const [nudge,setNudge]=useState(false);
   const [armed,setArmed]=useState(false);   // 자동재생이 됐는가
   const audio=useRef(null);
   useEffect(()=>{
@@ -1744,40 +1762,51 @@ function Splash({onEnter}){
     };
   },[]);
   const wake=()=>{const a=audio.current;if(!armed&&a)a.play().then(()=>setArmed(true)).catch(()=>{})};
-  const go=()=>{const t=v.trim();if(t)onEnter(t)};
+  const go=()=>{
+    const t=v.trim();
+    if(t){onEnter(t);return}
+    if(errs<3)setErrs(errs+1);
+    // 더 뜰 데가 없어도 누른 것이 무시당하면 안 된다 — 있는 것들이 흔들린다
+    else{setNudge(true);setTimeout(()=>setNudge(false),380)}
+    const el=document.querySelector(".spinput"); if(el)el.focus();
+  };
+  const shut=i=>setErrs(e=>Math.min(e,i));   // 닫으면 그 뒤에 뜬 것까지 같이 걷힌다
+  /* 이름을 넣기 시작하면 오류는 물러난다. 없다고 하던 것들이라 있으면 할 말이 없다 */
+  const type=t=>{setV(t); if(t.trim()&&errs)setErrs(0)};
   return <div className="screen splash" onClick={wake}>
     <Bubbles/>
     <Sparkles/>
-    <div className="spstack">
+    <div className={"spstack"+(nudge?" nudge":"")}>
       <span className="spcd"/>
       <div className="spcard">
         <div className="sptb">null.exe<WinDots/></div>
         <div className="spbody">
           <div className="splogo">NULL<i className="cur">_</i></div>
           <input className="spinput" value={v} maxLength={12} placeholder="안녕, 널 입력해줘."
-            onChange={e=>setV(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
-          <button className="spgo" disabled={!v.trim()} onClick={go}>Click!</button>
+            onChange={e=>type(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
+          {/* 비활성으로 두면 눌리지도 않는다. 눌러봐야 없다는 걸 알 수 있다 */}
+          <button className={"spgo"+(v.trim()?"":" empty")} onClick={go}>Click!</button>
         </div>
       </div>
       {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
-      <div className="spwin w1" style={{animationDelay:".2s"}}>
+      {errs>=1&&<div className="spwin w1">
         <div className="sptb" style={{background:"linear-gradient(90deg,#b9a8ea,#8a7fc0)"}}>Error<WinDots/></div>
-        <div className="spbd">이름을 입력해야 존재할 수 있어요.<div className="spbtn">ok</div></div>
-      </div>
+        <div className="spbd">이름을 입력해야 존재할 수 있어요.<div className="spbtn" onClick={()=>shut(0)}>ok</div></div>
+      </div>}
       {/* 커서는 창에 매달아 둔다 — 좌표로 놓으면 글자를 깔고 앉는다 */}
-      <div className="spcurwrap w2">
-        <div className="spwin" style={{animationDelay:".35s"}}>
+      {errs>=2&&<div className="spcurwrap w2">
+        <div className="spwin">
           <div className="sptb" style={{background:"linear-gradient(90deg,#ff7fae,#ff5fa8)"}}>System error<WinDots/></div>
-          <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn">Cancel</div></div>
+          <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn" onClick={()=>shut(1)}>Cancel</div></div>
         </div>
         <SpCursor/>
-      </div>
-      <div className="spwin w3" style={{animationDelay:".5s"}}>
+      </div>}
+      {errs>=3&&<div className="spwin w3">
         <div className="sptb" style={{background:"linear-gradient(90deg,#8fd8e8,#c3b2f0)"}}>loading...<WinDots/></div>
         <div className="spbd" style={{background:"#fff8fc"}}>
           <span className="spbar"><i/></span>
         </div>
-      </div>
+      </div>}
     </div>
     <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
   </div>;

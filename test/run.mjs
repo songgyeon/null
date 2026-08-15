@@ -1158,6 +1158,28 @@ eq('등록 화면에서 이름을 고칠 수 있다',
 eq('등록 화면이 다른 화면과 같은 색이다',
   /#17123a|#1e1848|#2a2159|#443a7d/.test(web) || /#17123a|#1e1848|#2a2159|#443a7d/.test(appSrc), false);
 
+/* ── 이름 없이 Click ──
+   「이름을 입력하세요」 한 줄이면 될 일이지만, 이 화면에서 비어 있다는 건
+   오류가 아니라 상태다. 누를 때마다 창이 하나씩 뜨고 책상이 덮인다.
+   창은 원래 이 화면에 있던 셋 그대로다 — 새로 만들지 않는다. */
+eq('오류창 셋이 눌러야 뜬다',
+  /\{errs>=1&&<div className="spwin w1">/.test(web)
+  && /\{errs>=2&&<div className="spcurwrap w2">/.test(web)
+  && /\{errs>=3&&<div className="spwin w3">/.test(web), true);
+eq('순서가 문장이 된다', (() => {
+  const i = web.indexOf('errs>=1'), j = web.indexOf('errs>=3');
+  const seg = web.slice(i, j + 400);
+  return [seg.indexOf('이름을 입력해야 존재할 수 있어요'), seg.indexOf('당신을 찾을 수 없습니다'),
+          seg.indexOf('loading...')].every((n, k, a) => n > -1 && (k === 0 || n > a[k - 1]));
+})(), true);
+/* 비활성으로 두면 눌리지도 않는다. 눌러봐야 없다는 걸 알 수 있다 */
+eq('빈 이름으로도 누를 수 있다', /<button className="spgo" disabled=\{!v\.trim\(\)\}/.test(web), false);
+eq('셋 다 뜬 뒤에 또 누르면 흔들린다',
+  /else\{setNudge\(true\)/.test(web) && /@keyframes errshake/.test(web), true);
+/* 없다고 하던 것들이라 이름이 생기면 할 말이 없다 */
+eq('이름을 넣으면 오류가 걷힌다', /if\(t\.trim\(\)&&errs\)setErrs\(0\)/.test(web), true);
+eq('닫으면 그 뒤에 뜬 것도 같이 걷힌다', /const shut=i=>setErrs\(e=>Math\.min\(e,i\)\)/.test(web), true);
+
 eq('첫날 통보가 있다', /title="null\.exe"/.test(web), true);
 eq('스무 시간 뒤에 뜬다', /const SYS1_AFTER = 20\*60\*60\*1000/.test(web), true);
 eq('한 번만 뜬다', /saveSys1\(\); setSys1\(true\)/.test(web) && /null_sys1/.test(web), true);
