@@ -272,6 +272,15 @@ eq('등록 화면에서 유저 프로필을 채운다',
   /const ENR_FIELDS=\[/.test(web) && /onSaveField=\{\(k,v\)/.test(web), true);
 eq('채우는 칸이 you.txt와 같은 것들이다',
   ['subject','age','likes','dislikes'].filter(k => !new RegExp(`k:"${k}"`).test(web)), []);
+/* 네 칸을 채우는 데 클릭이 네 번 필요하면 아무도 다 안 채운다.
+   엔터를 치면 다음 칸이 열리도록 Blank의 열림 상태를 Enroll이 쥔다. */
+eq('웹 등록 화면은 엔터로 다음 칸에 넘어간다',
+  /open=\{focus===i\}/.test(web) && /onNext=\{\(\)=>setFocus\(i\+1/.test(web), true);
+eq('빈칸이 밖에서 여는 것과 혼자 여는 것을 둘 다 한다',
+  /const ctl=typeof open==="boolean"/.test(web), true);
+/* 이름 옆의 「edit」 딱지는 뗐다 — 커서가 이미 그 말을 한다 */
+eq('이름 옆에 딱지가 없다',
+  /className="pen"/.test(web) || /en\.pen/.test(appSrc), false);
 
 /* HEAT는 stageIdx로 색인한다. 배열이 짧으면 마지막 단계에서 undefined를 읽고 터진다. */
 const appHeat = (appSrc.match(/\{w:[\d.]+,\s*o:'[0-9a-f]{2}'\}/g) || []).length;

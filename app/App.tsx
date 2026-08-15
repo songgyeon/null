@@ -343,8 +343,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone}:{
           {edit
             ?<TextInput style={en.nameIn} value={nv} autoFocus maxLength={12}
                onChangeText={setNv} onBlur={saveName} onSubmitEditing={saveName} returnKeyType="done"/>
-            :<TouchableOpacity style={{flexDirection:'row',alignItems:'center',gap:6}} onPress={()=>setEdit(true)}>
-               <Text style={en.name}>{name}</Text><Text style={en.pen}>edit</Text></TouchableOpacity>}
+            :<TouchableOpacity onPress={()=>setEdit(true)}>
+               <Text style={en.name}>{name}</Text></TouchableOpacity>}
         </View>
         {ENR_FIELDS.map((f,i)=>
           <Animated.View key={f.k} style={[en.row,anim(rows[i])]}>
@@ -383,7 +383,6 @@ const en=StyleSheet.create({
   nameRow:{flexDirection:'row',alignItems:'center',gap:6,paddingBottom:11,
            borderBottomWidth:1,borderBottomColor:'#d9cbf3'},
   name:{...F,fontSize:15,letterSpacing:.9,color:'#4a4276'},
-  pen:{...F,fontSize:9,letterSpacing:1.4,color:'#b0a6d8'},
   nameIn:{...F,flex:1,fontSize:15,color:'#4a4276',paddingVertical:3,paddingHorizontal:7,
           backgroundColor:'#fff',borderWidth:1,borderColor:'#c3b2f0',borderRadius:5},
   row:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:5,
