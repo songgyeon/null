@@ -1133,8 +1133,35 @@ eq('웹·앱 둘 다 실측을 찍는다',
     (workerSrc.match(/침묵은 점 세 개가 아니라/g) || []).length, 0);
   /* 존댓말 예시가 ★규칙 안과 [말투 예시]에 같은 문장으로 들어 있었다 */
   eq('존댓말 예시가 두 번 나오지 않는다',
-    ['괜찮으시면 됐어요.', '제 걱정은 안 하셔도 됩니다.', '우산 가져가세요, 비 와요.']
+    ['괜찮으시면 됐어요.', '우산 가져가세요, 비 와요.']
       .filter(t => (workerSrc.match(new RegExp(t.replace(/[.]/g, '\\.'), 'g')) || []).length > 1), []);
+}
+
+/* ── 말투 예시가 문구집과 어긋나지 않는다 ──
+   프롬프트의 예문은 문구집에서 뽑은 결이어야 한다. 어긋나면 모델이 문구집에
+   없는 말투로 연기한다 — 데모(각본)와 라이브(모델)가 다른 사람이 된다. */
+{
+  const corpus = readFileSync(join(ROOT, 'docs/dialogue-corpus.md'), 'utf8');
+  const say = who => corpus.split(/\r?\n/).map(l => l.replace(/\\$/, '').trim())
+    .filter(l => l.startsWith(who + ' —')).map(l => l.slice(who.length + 2).trim());
+  const J = say('재언'), M = say('민현');
+  eq('문구집을 제대로 읽었다', J.length > 1000 && M.length > 1000, true);
+  /* 재언은 문구집 1,321줄에서 한 번도 -습니다/-습니까를 쓰지 않는다 */
+  eq('문구집의 재언은 -ㅂ니다를 안 쓴다', J.filter(t => /(습니다|습니까|입니다|됩니다)/.test(t)).length, 0);
+  /* 그러니 프롬프트 예문에도 없어야 한다. 이름 밝히는 자리 하나만 예외 */
+  /* 규칙 문장 자체는 세지 않는다 — 따옴표 안의 예문만 본다 */
+  eq('재언 예문에 -ㅂ니다가 없다', (() => {
+    const j = workerSrc.match(/const JAEEON = `([\s\S]*?)`;/)[1];
+    return (j.slice(j.indexOf('### ★ 교생')).match(/"[^"]+"/g) || [])
+      .filter(q => /(습니다|습니까|입니다|됩니다)/.test(q) && q !== '"-습니다/-습니까"');
+  })(), ['"보건실 이재언입니다."']);
+  /* 민현은 유저에게도 삼촌에게도 존댓말이다 */
+  eq('문구집의 민현은 반말을 안 쓴다', M.filter(t => /(^뭐야|삼촌도 참|설명인데\.)/.test(t)).length, 0);
+  eq('민현 말투 예시에도 반말이 없다', (() => {
+    const m = workerSrc.match(/const MINHYUN = `([\s\S]*?)`;/)[1];
+    const i = m.indexOf('### 말투 예시'), j = m.indexOf('### 결 견본');
+    return ['뭐야', '삼촌도 참'].filter(t => m.slice(i, j).includes(t));
+  })(), []);
 }
 eq('서른 마디에서 자르던 건 없다',
   /slice\(-30\)/.test(web) || /slice\(-30\)/.test(apiSrc) || /MAX_HISTORY\b/.test(workerSrc), false);
