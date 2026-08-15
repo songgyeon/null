@@ -1189,13 +1189,17 @@ eq('비어 있을 때만 깐다',
     + '\nreturn {demoWatchOpen}')();
   const open = E.demoWatchOpen('수연');
   eq('첫 장면이 여섯 마디다', open.length, 6);
-  /* 첫 줄에서 관계가 드러나야 한다. 이 한 줄이 설명 대신이다 */
-  eq('첫 줄이 삼촌으로 시작한다', /^삼촌/.test(open[0].text), true);
+  /* 관계가 드러나야 한다. 「삼촌」 한 마디가 설명 대신이다 */
+  eq('조카가 삼촌이라고 부른다', /삼촌/.test(open.map(m => m.text).join(' ')), true);
   eq('두 사람이 주고받는다',
-    [open[0].sender, open[1].sender], ['minhyun', 'jaeeon']);
-  /* 유저는 이 방에 없다. 둘이 유저를 두고 얘기하는 것을 훔쳐보는 것이다 */
-  eq('유저에게 말을 걸지 않는다',
-    open.map(m => m.text).join(' ').includes('선생님 오늘 우산 없다고 했죠'), true);
+    [open[0].sender, open[1].sender], ['jaeeon', 'minhyun']);
+  /* 첫 장면이 할 일은 둘의 관계를 보여주는 것 하나뿐이다. 여기서 유저 얘기가
+     섞이면 그게 흐려진다 — 유저는 아직 이 방에 등장하지 않는다. */
+  eq('첫 장면에 유저가 안 나온다',
+    /선생님|\{name\}/.test(open.map(m => m.text).join(' ')), false);
+  /* 삼촌은 조카한테 반말을 쓴다. 이것도 관계를 말한다 */
+  eq('삼촌 쪽이 반말이다',
+    open.filter(m => m.sender === 'jaeeon').every(m => !/요[.?!]?$/.test(m.text)), true);
 }
 
 /* ── 실제 플레이에서 나온 것들 ── */
