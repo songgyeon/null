@@ -1303,6 +1303,49 @@ function buildInvite(open, room) {
   return `\n## [같이 가자고 할 수 있는 자리]\n${open.map(p => `- ${p}`).join("\n")}\n`;
 }
 
+/* ── 자리에서 주는 것 ──
+   유저가 지도에서 자리를 고르고 사람을 부르면 프론트가 place를 같이 보낸다.
+   그 자리에는 건네줄 것이 하나씩 정해져 있다. 뭘 줄지는 서버가 정한다 —
+   모델에게 맡기면 매번 다른 걸 지어내고, 그러면 가방에 넣을 수가 없다.
+   언제 주는지만 모델이 정한다. index.html의 PLACES·ITEMS와 같아야 한다. */
+const PLACE_ITEMS = {
+  "교실":     { key: "note",    name: "접힌 쪽지",   how: "책상 위에 놓고 가거나 지나가면서 쥐여준다. 내용은 한 줄뿐이다." },
+  "보건실":   { key: "bandaid", name: "밴드",        how: "두 장 뜯어서 준다. 한 장은 남겨두라고 한다." },
+  "옥상":     { key: "can",     name: "캔커피",      how: "자판기에서 뽑아 온다. 차가운 쪽을 골라준다." },
+  "편의점":   { key: "haribo",  name: "하리보 젤리", how: "계산은 이쪽이 한다. 생색은 안 낸다." },
+  "도서관":   { key: "book",    name: "책",          how: "빌려주는 것이다. 돌려받을 생각이지만 반납일을 못박지는 않는다." },
+  "레코드샵": { key: "lp",      name: "중고 LP",     how: "상자 밑에서 꺼내 사준다. 왜 이걸 골랐는지는 안 설명한다." },
+  "빨래방":   { key: "coin",    name: "동전 한 줌",  how: "건조기용이다. 남으면 가지라고 한다." },
+  "집":       { key: "key",     name: "여벌 열쇠",   how: "고리도 안 달린 것이다. 주면서 아무 말도 안 한다." },
+};
+/* 지금 어느 자리에 같이 있나. 프론트가 보낸 이름이 목록에 있어야 인정한다 */
+function placeOf(raw) {
+  const p = (raw || "").toString().trim();
+  return PLACE_ITEMS[p] ? p : null;
+}
+/* 자리 블록. 문자가 아니라 마주 보고 하는 말이라는 것부터 알려준다 —
+   이게 없으면 같은 자리에 앉아서 "지금 어디예요?"라고 묻는다. */
+function buildPlace(place, hasItem) {
+  if (!place) return "";
+  const it = PLACE_ITEMS[place];
+  let t = `\n## 지금 있는 자리\n{user_name}과 ${place}에 같이 있다.\n`
+        + `문자가 아니라 마주 보고 하는 말이다. 어디냐고 묻지 않는다. 왔냐고도 이미 물었다.\n`
+        + `짧게 주고받는다. 한 번에 한두 마디다. 눈앞에 있는 것이 말에 섞인다.\n`;
+  if (!hasItem) {
+    t += `\n## 여기서 건넬 것\n이 자리에서 ${it.name}을(를) 건넨다. ${it.how}\n`
+       + `**지금 당장은 아니다.** 말이 몇 번 오간 뒤, 건넬 만한 데서 건넨다.\n`
+       + `건네는 턴에만 JSON에 "give": "${it.key}" 를 같이 쓴다. 한 번뿐이다.\n`
+       + `이유를 길게 대지 않는다. 주는 이유를 설명하는 사람이 아니다.\n`;
+  }
+  return t;
+}
+/* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
+function pickGive(raw, place, hasItem) {
+  if (!place || hasItem) return null;
+  const k = (raw || "").toString().trim();
+  return k && PLACE_ITEMS[place].key === k ? k : null;
+}
+
 /* 「두 사람」방을 열게 만든 사건. 유저가 선물을 줬거나 무언가 해금됐을 때,
    그 일을 두고 두 사람이 이야기한다.
    원문은 여전히 안 준다. 물건은 눈에 보이지만 무슨 말이 오갔는지는 모른다 —
@@ -1390,16 +1433,19 @@ function buildSummary(summary) {
 }
 
 /* 매 턴 달라지는 덩어리. 대화 이력보다 뒤에 놓여야 이력이 캐시된다 */
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
     ? `\n## [지금 쓰지 않는 사진]\n${recent.map(k => `"${k}"`).join(", ")}\n`
     : "";
+  /* 자리에 있는 동안에는 갈 자리를 안 꺼낸다 — 같이 앉아서 어디 가자고 하면
+     지금 여기가 어디가 되는지 알 수가 없다 */
   const t = buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
-          + buildInvite(invite, room);
+          + buildPlace(place, hasItem)
+          + (place ? "" : buildInvite(invite, room));
   return t.trim() ? sub(t) : "";
 }
 
@@ -1690,6 +1736,7 @@ function parseTagged(text, allowed) {
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
   parseMessages.invite = "";   // 이번 응답에서 모델이 고른 자리. 없으면 빈 문자열
+  parseMessages.give = "";     // 이번 응답에서 건넨 물건. 없으면 빈 문자열
   try {
     const cleaned = text.replace(/```json|```/g, "").trim();
     const start = cleaned.indexOf("{");
@@ -1698,6 +1745,7 @@ function parseMessages(text, fallbackSender, allowed) {
       if (Array.isArray(j.messages)) {
         // 모델이 같이 가자고 하기로 했으면 여기 장소 이름이 온다. 부수적으로 넘긴다
         parseMessages.invite = typeof j.invite === "string" ? j.invite : "";
+        parseMessages.give = typeof j.give === "string" ? j.give : "";
         const out = j.messages.map(m =>
           typeof m === "string" ? { sender: fallbackSender, text: m } : m
         ).filter(m => m && m.text)
@@ -2051,6 +2099,12 @@ export default {
     // 꺼낼지 말지는 모델이 정한다 — 서버는 문만 열어둔다
     const openPlaces = invitesFor(mode, room, counts,
       Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
+    /* 지도에서 불러낸 자리. 1:1에서만 의미가 있다 — 단톡이나 관전방에
+       마주 앉을 자리는 없다. bag은 이미 받은 것들이라 두 번 안 준다. */
+    const place = mode === "chat" ? placeOf(body.place) : null;
+    const hasItem = place
+      ? (Array.isArray(body.bag) ? body.bag : []).includes(PLACE_ITEMS[place].key)
+      : false;
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
 
@@ -2062,7 +2116,7 @@ export default {
 
        지점은 요청당 넷까지다. 시스템이 셋을 쓰므로 여기 남은 하나를 쓴다.
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       const blocks = [{ type: "text", text: tail.content, cache_control: CACHE }];
@@ -2088,10 +2142,13 @@ export default {
       const parsed = parseMessages(raw, fallbackSender, chars);
       // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다
       const invite = pickInvite(parseMessages.invite, openPlaces);
+      // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
+      const give = pickGive(parseMessages.give, place, hasItem);
       const messages = trimTics(sanitizePhotos(splitLines(parsed), photoChars, fallbackSender, recentPhotos));
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
-        ...(invite ? { invite: { place: invite, char: room } } : {}) }),
+        ...(invite ? { invite: { place: invite, char: room } } : {}),
+        ...(give ? { give: { item: give, place, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
       return new Response(JSON.stringify({ error: "생성 실패", detail: String(e).slice(0, 200) }), { status: 502, headers: { ...CORS, "content-type": "application/json" } });
@@ -2102,4 +2159,5 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory };
+export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory,
+         PLACE_ITEMS, placeOf, pickGive, buildPlace };

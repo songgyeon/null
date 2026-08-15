@@ -4,7 +4,8 @@
    여기 모인 것은 전부 "실제로 한 번 터졌던 것"이다. 새 기능을 넣을 때가 아니라
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
-import { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory } from '../worker.js';
+import { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory,
+         PLACE_ITEMS, placeOf, pickGive, buildPlace } from '../worker.js';
 import worker from '../worker.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -1494,16 +1495,73 @@ eq('지점은 가변부 앞에 찍는다',
 /* 「같이 가기로 했다」를 메신저 화면 그대로 두면 마주 앉은 걸 그릴 방법이 없다.
    자리에 가면 그 자리를 깔고 말풍선을 걷는다 */
 eq('자리마다 배경 사진이 있다', ['옥상','도서관','빨래방','편의점','레코드샵']
-  .filter(p => !new RegExp(`"${p}":"place-`).test(web)), []);
+  .filter(p => !new RegExp(`name:"${p}",\\s*bg:"place-`).test(web)), []);
 eq('배경 파일이 전부 저장소에 있다',
   (web.match(/"(place-[\w-]+\.webp)"/g) || []).map(s => s.slice(1, -1))
     .filter(f => !exists(f)), []);
 eq('자리에 가면 말풍선을 걷는다',
   /const bg=scene&&PLACE_BG\[scene\.place\]/.test(web) && /className="screen scenewrap"/.test(web), true);
+/* 사진이 없는 자리(교실)도 열려야 한다 — 배경만 없고 자리는 자리다 */
+eq('배경이 없어도 자리는 열린다', /if\(scene\)\{/.test(web), true);
+/* 훅이 자리 분기보다 아래 있으면 자리에 들어가고 나올 때 훅 개수가 달라져 리액트가 터진다 */
+eq('스크롤 훅이 자리 분기보다 위에 있다',
+  web.indexOf('el.scrollTop=el.scrollHeight') < web.indexOf('const bg=scene&&PLACE_BG'), true);
 /* 그라데이션은 안 깐다 — 장소 사진 아래쪽 밝기가 17~32라 흰 글씨가 그냥 읽힌다 */
 eq('그라데이션 대신 그림자만 건다',
   /\.scenewrap \.stext\{[^}]*text-shadow/.test(web), true);
 eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) && /saveScene\(sc\)/.test(web), true);
+
+/* ── 지도와 가방 ──
+   초대는 저쪽이 정하고 지도는 이쪽이 정한다. 자리마다 받아오는 게 하나씩 있다. */
+{
+  const names = [...web.matchAll(/\{name:"([^"]+)",\s+bg:/g)].map(m => m[1]);
+  eq('지도에 여덟 자리가 있다', names.length, 8);
+  eq('교실과 보건실이 처음부터 열려 있다',
+    [...web.matchAll(/\{name:"(교실|보건실)",[^}]*at:(\d+),\s*day:(\d+)/g)]
+      .map(m => m[2] + '/' + m[3]), ['0/0', '0/0']);
+  /* 자리 이름은 워커와 프론트가 같아야 한다 — 다르면 place가 서버에서 버려지고
+     프롬프트에 자리 얘기가 아예 안 붙는다 */
+  eq('자리 이름이 워커와 같다', names.filter(n => !PLACE_ITEMS[n]), []);
+  /* 물건 키도 마찬가지. 어긋나면 pickGive가 전부 null을 뱉어 가방이 안 찬다 */
+  const items = [...web.matchAll(/\{name:"([^"]+)",[^}]*item:"(\w+)"/g)];
+  eq('물건 키가 워커와 같다',
+    items.filter(([, n, k]) => PLACE_ITEMS[n] && PLACE_ITEMS[n].key !== k).map(m => m[1]), []);
+  eq('물건마다 ITEMS에 설명이 있다',
+    items.filter(([, , k]) => !new RegExp(`\\n  ${k}:\\s*\\{name:`).test(web)).map(m => m[2]), []);
+  eq('편의점은 하리보, 도서관은 책, 레코드샵은 음반',
+    [PLACE_ITEMS['편의점'].key, PLACE_ITEMS['도서관'].key, PLACE_ITEMS['레코드샵'].key],
+    ['haribo', 'book', 'lp']);
+  eq('빌린 것은 표시가 남는다', /book:\s*\{name:"빌린 책",\s*cat:"기록",\s*lent:true/.test(web), true);
+}
+eq('모르는 자리는 안 받는다', [placeOf('편의점'), placeOf('용궁'), placeOf('')], ['편의점', null, null]);
+eq('그 자리 물건만 인정한다',
+  [pickGive('haribo', '편의점', false), pickGive('book', '편의점', false), pickGive('haribo', null, false)],
+  ['haribo', null, null]);
+eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), null);
+{
+  const t = buildPlace('편의점', false);
+  eq('자리 블록은 마주 보고 있다고 알린다', /마주 보고/.test(t) && /어디냐고 묻지 않는다/.test(t), true);
+  eq('자리 블록에 건넬 것이 적힌다', /"give": "haribo"/.test(t), true);
+  eq('이미 받았으면 건넬 것은 안 적는다', /give/.test(buildPlace('편의점', true)), false);
+  eq('자리에 없으면 블록도 없다', buildPlace(null, false), '');
+}
+/* 마주 앉아서 어디 가자고 하면 지금 여기가 어디가 되는지 알 수가 없다 */
+eq('자리에 있는 동안엔 갈 자리를 안 꺼낸다',
+  /\[같이 가자고 할 수 있는 자리\]/.test(
+    buildVolatile('chat', 'minhyun', '선생님', null, [], null, { minhyun: 60 }, null, null, ['옥상'], 5, '편의점', false)),
+  false);
+eq('자리에 없으면 갈 자리는 그대로 나온다',
+  /\[같이 가자고 할 수 있는 자리\]/.test(
+    buildVolatile('chat', 'minhyun', '선생님', null, [], null, { minhyun: 60 }, null, null, ['옥상'], 5, null, false)),
+  true);
+/* 모델이 안 건네주고 끝내는 턴이 있다. 그때마다 가방이 비면 지도를 돌 이유가 없다 */
+eq('자리에서 나올 때 못 받았으면 채워준다',
+  /const leaveScene=\(\)=>\{[\s\S]{0,300}takeItem\(p\.item,sc\.room,sc\.place\)/.test(web), true);
+eq('같은 것은 가방에 두 번 안 들어간다',
+  /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
+eq('자리에 있으면 place를 같이 보낸다', /\.\.\.\(at\?\{place:at,bag:/.test(web), true);
+eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true);
+eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

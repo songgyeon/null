@@ -610,6 +610,49 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* 잠긴 것은 글자 수만 알려준다 — 몇 글자짜리 이름인지가 궁금해야 한다 */
 .hlabel.hid{color:#b6a8dd;letter-spacing:.12em;background:rgba(255,255,255,.7)}
 .hnote{margin:14px 4px 8px;text-align:center;font-size:10px;color:#b0a6d8;letter-spacing:.08em;line-height:1.9}
+
+/* ── map 탭 ──
+   .hidden과 같은 격자를 쓰면 「잠긴 사진」으로 읽힌다. 여긴 갈 수 있는 곳이라
+   가로로 넓게 눕히고, 이름과 한 줄을 사진 위에 얹는다. */
+.mapgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mapcell{position:relative;aspect-ratio:1/1;border-radius:7px;overflow:hidden;cursor:pointer;
+ border:1px solid #cfc6ee;background:#efeaf9 center/cover no-repeat;
+ box-shadow:1px 2px 0 rgba(93,84,144,.2);transition:transform .12s}
+.mapcell:active{transform:translate(1px,2px);box-shadow:0 0 0 rgba(93,84,144,.2)}
+/* 사진이 없는 자리 — 격자무늬로 채워둔다. 비어 보이면 고장난 줄 안다 */
+.mapcell:not([style*="url"]){background:
+ repeating-linear-gradient(45deg,#e6def7 0 6px,#efeaf9 6px 12px)}
+.mapcell .mshade{position:absolute;inset:0;
+ background:linear-gradient(180deg,rgba(30,24,58,0) 38%,rgba(30,24,58,.72) 100%)}
+.mapcell.lock{cursor:default}
+.mapcell.lock .mshade{background:rgba(40,33,70,.62);backdrop-filter:blur(4px)}
+.minfo{position:absolute;left:8px;right:8px;bottom:7px}
+.mname{font-size:12px;letter-spacing:.06em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.mnote{margin-top:2px;font-size:9px;line-height:1.5;color:rgba(255,255,255,.72);
+ text-shadow:0 1px 2px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mwho{position:absolute;right:7px;top:7px;display:flex;gap:3px}
+.mwho i{width:7px;height:7px;border-radius:50%;border:1px solid rgba(255,255,255,.85);
+ box-shadow:0 1px 2px rgba(0,0,0,.4)}
+/* 여기서 뭘 받아왔다는 표시 */
+.mgot{position:absolute;left:7px;top:7px;display:flex;align-items:center;justify-content:center;
+ width:15px;height:15px;border-radius:50%;background:rgba(255,143,190,.9);border:1px solid #fff;
+ box-shadow:0 1px 2px rgba(0,0,0,.3)}
+
+/* ── bag ── */
+.mbtn .mbcount{margin-left:4px;padding:0 4px;font-size:9px;font-style:normal;color:#fff;
+ background:#ff8fbe;border-radius:999px;box-shadow:0 1px 0 rgba(93,84,144,.3)}
+.bagcats{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.bagcats .etctag{cursor:pointer}
+.bagcats .etctag.on{color:#fff;background:#c3b2f0;border-color:#a996e4}
+.bagrow{display:flex;align-items:flex-start;gap:9px;padding:9px 10px;margin-bottom:6px;
+ background:#fff;border:1px solid #e7dcf4;box-shadow:1px 2px 0 rgba(93,84,144,.12)}
+.bagrow .bdot{flex:none;width:8px;height:8px;margin-top:4px;border-radius:50%;
+ border:1px solid rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(93,84,144,.25)}
+.bagrow .bname{font-size:12px;color:#4a4276;letter-spacing:.03em}
+.bagrow .bname em{margin-left:6px;padding:1px 5px 2px;font-size:8.5px;font-style:normal;letter-spacing:.08em;
+ color:#8a4f74;background:#ffe6f1;border:1px solid #ffc9e0;border-radius:3px}
+.bagrow .bfrom{margin-top:2px;font-size:9px;letter-spacing:.05em;color:#b0a6d8}
+.bagrow .bdesc{margin-top:4px;font-size:10.5px;line-height:1.65;color:#8a7fc0;white-space:pre-line}
 /* 해금 알림 */
 /* 알림 — 사진 위에 띄워서 가리면 겹쳐 보인다. 하단 상태바 자리에 대신 앛는다 */
 .toast{position:absolute;left:0;right:0;top:50%;z-index:45;display:flex;justify-content:center;
@@ -1185,8 +1228,56 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    없다. 그래서 괄호 지문으로 때우다가 「이건 그냥 텍스트니까요」까지 갔다.
    자리에 가면 그 자리를 깔고 말풍선을 걷는다 — 화면이 「지금 여기 같이 있다」를
    대신 말해준다. 사진은 아래쪽이 다 어두워서 흰 글씨가 그냥 읽힌다. */
-const PLACE_BG={"옥상":"place-rooftop.webp","도서관":"place-library.webp","빨래방":"place-laundry.webp",
-  "편의점":"place-conv.webp","레코드샵":"place-record.webp"};
+/* ── 지도 ──
+   전에는 인물이 가자고 할 때만 자리가 열렸다. 그래서 「귀양 가는 기분」이라는
+   말이 나왔다 — 가는 곳을 늘 저쪽이 정하니까. 지도는 반대다. 유저가 자리를
+   고르고 누구를 부를지 정한다.
+
+   at은 세 방을 합친 대화 수다. 방마다 세면 한쪽만 붙잡고 있어도 세상이
+   열려서, 두 사람과 다 얘기해야 지도가 넓어지게 합쳐서 센다.
+   day가 있는 자리는 날짜도 차야 열린다 — 「집」은 대화 수로만 열리면 안 된다.
+   who는 여기로 부를 수 있는 사람. 둘이면 고르게 한다.
+   item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
+   bg가 없으면 배경 없이 열린다 — 사진이 아직 없는 자리도 막지는 않는다. */
+const PLACES=[
+  {name:"교실",     bg:null,                  at:0,   day:0,  who:["minhyun"],          item:"note",
+   note:"네 자리는 창가 셋째 줄."},
+  {name:"보건실",   bg:"place-nurse.webp",    at:0,   day:0,  who:["jaeeon"],           item:"bandaid",
+   note:"커튼 안쪽 침대 두 개."},
+  {name:"옥상",     bg:"place-rooftop.webp",  at:30,  day:2,  who:["jaeeon","minhyun"], item:"can",
+   note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
+  {name:"편의점",   bg:"place-conv.webp",     at:50,  day:4,  who:["minhyun"],          item:"haribo",
+   note:"학교 뒷문에서 이 분."},
+  {name:"도서관",   bg:"place-library.webp",  at:70,  day:7,  who:["jaeeon"],           item:"book",
+   note:"시립. 삼 층은 늘 비어 있다."},
+  {name:"레코드샵", bg:"place-record.webp",   at:90,  day:10, who:["minhyun"],          item:"lp",
+   note:"중고반 상자가 바닥에 있다."},
+  {name:"빨래방",   bg:"place-laundry.webp",  at:110, day:14, who:["jaeeon"],           item:"coin",
+   note:"건조기 도는 사십 분."},
+  {name:"집",       bg:"place-home.webp",     at:140, day:20, who:["jaeeon"],           item:"key",
+   note:"현관에 우산이 두 개."},
+];
+const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
+const PLACE_BY={};PLACES.forEach(p=>{PLACE_BY[p.name]=p});
+/* ── 가방 ──
+   선물은 유저가 준다. 가방은 받은 것이다. 자리마다 하나씩 있고, 그 자리에
+   가야만 생긴다 — 지도를 도는 이유가 여기 있다.
+   lent는 빌린 것. 돌려줘야 하는 게 하나쯤 있어야 다시 만날 이유가 남는다. */
+const ITEMS={
+  note:    {name:"접힌 쪽지",   cat:"기록", desc:"펴면 한 줄뿐이다.\n글씨는 급하게 썼다."},
+  bandaid: {name:"밴드",        cat:"소품", desc:"두 장 뜯어서 준.\n한 장은 남겨두라고."},
+  can:     {name:"캔커피",      cat:"간식", desc:"자판기에서 뽑은.\n차가운 쪽을 골라줬다."},
+  haribo:  {name:"하리보 젤리", cat:"간식", desc:"골드베렌 한 봉.\n계산은 자기가 했다."},
+  book:    {name:"빌린 책",     cat:"기록", lent:true, desc:"삼 층에서 꺼내온.\n반납일은 안 적어줬다."},
+  lp:      {name:"중고 LP",     cat:"기록", desc:"상자 밑에서 꺼낸.\n재킷 모서리가 닳았다."},
+  coin:    {name:"동전 한 줌",  cat:"소품", desc:"건조기용 오백 원.\n남으면 가지라고 했다."},
+  key:     {name:"여벌 열쇠",   cat:"소품", desc:"고리도 안 달린.\n주면서 아무 말도 안 했다."},
+};
+const ITEM_CATS=["전체","간식","소품","기록"];
+const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}catch(e){return[]}};
+const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a))}catch(e){}};
+/* 자리가 열렸나. 대화 수와 날짜를 둘 다 본다 */
+const placeOpen=(p,total,days)=>total>=(p.at||0)&&days>=(p.day||0);
 const loadScene=()=>{try{return JSON.parse(localStorage.getItem("null_scene"))||null}catch(e){return null}};
 const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):localStorage.removeItem("null_scene")}catch(e){}};
 const loadMet=()=>{try{return JSON.parse(localStorage.getItem("null_met"))||[]}catch(e){return[]}};
@@ -1228,6 +1319,13 @@ const CharIcon=({id,size=15})=>id==="jaeeon"?<CrossIcon size={size} color={CHARS
    많이 뿌리면 촌스러워지니 자리를 정해두고 거기에만 쓴다. */
 /* 선물 아이콘. 사진이 아니라 그림이라 파일이 없어도 지금 바로 보인다.
    장바구니에 뜨는 건 이것이고, 배경으로 걸리는 건 gift-*.webp 쪽이다. */
+/* 가방 — 받은 것들이 들어간다. 선물 상자와 헷갈리면 안 되므로 손잡이를 단다 */
+const BagIcon=({size=15})=><svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.1">
+  <path d="M8.4 9V6.6C8.4 4.6 10 3.2 12 3.2s3.6 1.4 3.6 3.4V9" fill="none" stroke="#5d5490"/>
+  <rect x="3.6" y="8.6" width="16.8" height="12.2" rx="1.6" fill="#c9e2d6" stroke="#5d5490"/>
+  <rect x="3.6" y="8.6" width="16.8" height="3.2" rx="1" fill="#e4f2ea" stroke="#5d5490"/>
+  <circle cx="12" cy="15.4" r="1.5" fill="#fff" stroke="#5d5490" strokeWidth=".9"/></svg>;
+
 const GiftIcon={
   /* 담아서 결제하는 화면이 아니라 골라서 포장해 보내는 화면이라 카트가 아니다.
      ♡로 사는 건데 카트가 붙어 있으면 돈 붙은 줄 안다. */
@@ -1757,6 +1855,40 @@ function LogPanel({store,counts,unlocked,album}){
   </div>;
 }
 
+/* [bag] 받은 것들. 누가 어디서 줬는지가 물건보다 중요해서 그걸 같이 적는다.
+   빌린 것은 따로 표시한다 — 돌려줄 게 남아 있으면 아직 안 끝난 것이다. */
+function BagPanel({bag}){
+  const [cat,setCat]=useState("전체");
+  const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
+    .slice().sort((a,b)=>b.ts-a.ts);
+  const lent=bag.filter(b=>ITEMS[b.key]&&ITEMS[b.key].lent).length;
+  return <div style={{padding:"2px"}}>
+    <div className="bagcats">
+      {ITEM_CATS.map(c=><span key={c} className={"etctag"+(cat===c?" on":"")}
+        onClick={()=>setCat(c)}>{c}</span>)}
+    </div>
+    <div style={{maxHeight:268,overflowY:"auto",marginTop:9}}>
+      {!rows.length&&<div className="dlgline" style={{textAlign:"center",color:"#b0a6d8",fontSize:11,lineHeight:1.9}}>
+        아직 아무것도 없다{"\n"}지도에서 자리를 골라 불러내 봐
+      </div>}
+      {rows.map(b=>{
+        const it=ITEMS[b.key], who=CHARS[b.from];
+        return <div key={b.key} className="bagrow">
+          <span className="bdot" style={{background:who?who.color:"#c3b2f0"}}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div className="bname">{it.name}{it.lent&&<em>빌린 것</em>}</div>
+            <div className="bfrom">{who?who.name:b.from} · {b.where} · {fmtDay(b.ts)}</div>
+            <div className="bdesc">{it.desc}</div>
+          </div>
+        </div>;
+      })}
+    </div>
+    <div className="dlgline" style={{marginTop:9,fontSize:10.5,color:"#b0a6d8",textAlign:"center"}}>
+      {bag.length} / {Object.keys(ITEMS).length}{lent?" · 돌려줄 것 "+lent:""}
+    </div>
+  </div>;
+}
+
 /* [대화 → 찾기] 방을 넘나들며 찾는다. 어디서 그 말을 했는지 기억나지 않을 때. */
 function FindPanel({store,name,onOpen}){
   const [q,setQ]=useState("");
@@ -1886,7 +2018,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts}){
+function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,onGo,picking,onPick}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -1904,7 +2036,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const lit=filledLetters(calls,name);
   const letters=(name||"").split("");
   const dayN=daysSince(store);
-  const [tab,setTab]=useState("rooms");    // 'rooms'|'cam'|'hidden'
+  const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
   const [now,setNow]=useState(Date.now()); // 접속 상태·쿨타임 갱신용
   const [autoAt,setAutoAt]=useState(loadAutoAt);
@@ -1912,6 +2044,9 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const left=Math.max(0,autoAt+AUTO_COOL-now);
   const album=seenPhotos(store.msgs);
   const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
+  /* 지도는 세 방을 합친 대화 수로 열린다 — 한 사람만 붙잡고 있으면 안 넓어진다 */
+  const talked=["jaeeon","minhyun","group"].reduce((n,r)=>n+(counts[r]||0),0);
+  const mapOpen=PLACES.filter(p=>placeOpen(p,talked,dayN));
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
@@ -1944,6 +2079,10 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           동작으로 보인다. 메뉴바는 조용해야 한다. */}
       <span className="mbtn ico" style={{marginLeft:"auto"}} title="give something"
         onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart size={14}/>gift</span>
+      {/* gift는 준 것, bag은 받은 것. 나란히 둔다 — 한쪽만 있으면 주기만 하는 앱이 된다 */}
+      <span className="mbtn ico" title="what they gave u"
+        onClick={()=>{setMenu(null);setDlg("bag")}}><BagIcon size={14}/>bag
+        {(bag||[]).length>0&&<b className="mbcount">{(bag||[]).length}</b>}</span>
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
         title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;
@@ -1960,6 +2099,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
     </span></div>
     <div className="tabs">
       <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms (4)</span>
+      <span className={"tab"+(tab==="map"?" on":"")} onClick={()=>setTab("map")}>map</span>
       <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
       <span className={"tab hid"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
       <span className="tabdeco"><Sticker.cursor size={15}/></span>
@@ -2003,6 +2143,34 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       </span>
         </div>
       </div>
+      :tab==="map"
+      ?<div className="gal">{/* map: 유저가 자리를 고르고 사람을 부른다 */}
+        <div className="progline">
+          <span className="t">PLACES</span>
+          <span className="bar"><i style={{width:(mapOpen.length/PLACES.length*100)+"%"}}/></span>
+          <span className="n">{mapOpen.length} / {PLACES.length}</span>
+        </div>
+        <div className="mapgrid">
+          {PLACES.map(p=>{
+            const open=placeOpen(p,talked,dayN);
+            const got=(bag||[]).some(b=>b.where===p.name);
+            return <div key={p.name} className={"mapcell"+(open?"":" lock")}
+              style={p.bg?{backgroundImage:`url("${p.bg}")`}:null}
+              onClick={()=>{ if(!open){onToast("아직 갈 수 없다");return}
+                p.who.length>1?onPick(p.name):onGo(p.name,p.who[0]) }}>
+              <div className="mshade"/>
+              <div className="minfo">
+                <div className="mname">{open?p.name:p.name.split("").map(()=>"□").join("")}</div>
+                <div className="mnote">{open?p.note:`${Math.max(0,p.at-talked)}마디 · ${Math.max(0,p.day-dayN)}일 남음`}</div>
+              </div>
+              {open&&<div className="mwho">{p.who.map(w=><i key={w} style={{background:CHARS[w].color}}/>)}</div>}
+              {got&&<span className="mgot"><Sticker.heart size={9} color="#fff"/></span>}
+              {!open&&<div className="hlock"><LockIcon/></div>}
+            </div>;
+          })}
+        </div>
+        <div className="hnote">누굴 부를지는 네가 정한다<br/>가면 뭐든 하나씩 받아 온다</div>
+      </div>
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
         {Object.entries(CHARS).map(([id,ch])=>{
@@ -2045,6 +2213,9 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
     </div>
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
+    {dlg==="bag"&&<Dialog title="bag" onClose={()=>setDlg(null)}>
+      <BagPanel bag={bag||[]}/>
+    </Dialog>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onClose={()=>setDlg(null)}/>}
     {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>
@@ -2110,14 +2281,17 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
   const boxRef=useRef(null);
   const watch=room.type==="watch";
+  /* 훅은 아래 자리 분기(early return)보다 위에 있어야 한다.
+     분기 뒤에 두면 자리에 들어가고 나올 때 훅 개수가 달라져서 리액트가 터진다. */
+  useEffect(()=>{const el=boxRef.current;if(el)requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight})},[msgs.length,busy,failed]);
   const send0=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
   /* ── 자리에 가 있을 때 ──
      말풍선을 걷고 사진 위에 말만 얹는다. 지나간 말은 흘려보낸다 —
      돌아가면 방에 그대로 남아 있으니 사라지는 게 아니다. */
   const bg=scene&&PLACE_BG[scene.place];
-  if(bg){
+  if(scene){
     const tail=msgs.filter(m=>!m.sys&&(m.text||"").trim()).slice(-SCENE_LINES);
-    return <div className="screen scenewrap" style={{backgroundImage:`url("${bg}")`}}>
+    return <div className="screen scenewrap" style={bg?{backgroundImage:`url("${bg}")`}:null}>
       <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
         {scene.place}<WinDots/>
       </div>
@@ -2147,7 +2321,6 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
     </div>;
   }
-  useEffect(()=>{const el=boxRef.current;if(el)requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight})},[msgs.length,busy,failed]);
   const send=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
   const senderMeta=s=>s==="user"?null:(CHARS[s]||{name:s,color:"#9aa3d8",pale:"#e2e6f5",dk:"#6b5fa8"});
   return <div className={"screen"+(watch?" watchbg":"")}>
@@ -2348,7 +2521,30 @@ function App(){
   const [invite,setInvite]=useState(null);
   /* 지금 어느 자리에 있나. 새로고침해도 그 자리에 남아 있게 저장해 둔다 */
   const [scene,setScene]=useState(loadScene);
-  const leaveScene=()=>{ setScene(null); saveScene(null); };
+  const [bag,setBag]=useState(loadBag);
+  const bagRef=useRef(bag); bagRef.current=bag;
+  const sceneRef=useRef(scene); sceneRef.current=scene;
+  /* 받은 것을 가방에 넣는다. 같은 것은 두 번 안 들어간다.
+     채팅에는 지문 한 줄로 남긴다 — 유저의 말이 아니라 일어난 일이니까. */
+  const takeItem=(key,from,where)=>{
+    const it=ITEMS[key]; if(!it)return false;
+    if(bagRef.current.some(b=>b.key===key))return false;
+    const next=[...bagRef.current,{key,from,where,ts:Date.now()}];
+    setBag(next); saveBag(next);
+    const line=`${CHARS[from]?CHARS[from].name:from}에게 ${it.name}을(를) 받았다`;
+    appendMsg(from,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
+    setToast(`bag — ${it.name}`);
+    return true;
+  };
+  /* 자리에서 나온다.
+     나오는데 아직 못 받았으면 여기서 넣어준다. 모델이 안 건네주고 끝내는
+     턴이 있는데, 그때마다 가방이 비면 지도를 도는 이유가 사라진다.
+     받는 순간을 모델에게 맡기되, 받는다는 사실까지 맡기지는 않는다. */
+  const leaveScene=()=>{
+    const sc=sceneRef.current;
+    if(sc){ const p=PLACE_BY[sc.place]; if(p&&p.item)takeItem(p.item,sc.room,sc.place); }
+    setScene(null); saveScene(null);
+  };
   const answerInvite=ok=>{
     const iv=invite; setInvite(null); if(!iv)return;
     const line=ok?`${CHARS[iv.char].name}과 ${iv.place}에 가기로 했다`:`${iv.place}은 다음에 가기로 했다`;
@@ -2356,7 +2552,7 @@ function App(){
     appendMsg(iv.char,sys);
     if(ok){ saveMet([...loadMet(),iv.place]); markEvent({kind:"met",to:iv.char,name:iv.place});
       // 그 자리로 화면을 옮긴다. 배경이 깔리고 말풍선이 걷힌다
-      if(PLACE_BG[iv.place]){ const sc={room:iv.char,place:iv.place}; setScene(sc); saveScene(sc); } }
+      if(PLACE_BY[iv.place]){ const sc={room:iv.char,place:iv.place}; setScene(sc); saveScene(sc); } }
     else  { saveRefused([...loadRefused(),iv.place]); }
     /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 —
        가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다.
@@ -2365,7 +2561,31 @@ function App(){
     const next=[...(storeRef.current.msgs[iv.char]||[]),sys];
     request(iv.char,{mode:"chat",room:iv.char,user_name:name,
       history:buildHistory(sinceSum(iv.char,next)),signals:buildSignals(iv.char),
-      recent_photos:recentPhotos(iv.char),counts:roomCounts({[iv.char]:next.length})});
+      recent_photos:recentPhotos(iv.char),counts:roomCounts({[iv.char]:next.length}),
+      ...(ok&&PLACE_BY[iv.place]?{place:iv.place,bag:bagRef.current.map(b=>b.key)}:{})});
+  };
+
+  /* ── 지도에서 부른다 ──
+     초대는 저쪽이 정하는 것이고 이건 이쪽이 정하는 것이다. 자리를 고르고
+     누구를 부를지 고르면 그 방으로 들어가면서 자리가 깔린다.
+     불려 나온 쪽은 이미 와 있다 — 오는 길을 그리지 않는 이유는, 문자로
+     "가는 중이에요"를 주고받는 화면이 이 앱에 이미 너무 많아서다. */
+  const [picking,setPicking]=useState(null);   // 누구를 부를지 고르는 중인 자리
+  const goPlace=(place,char)=>{
+    setPicking(null);
+    const p=PLACE_BY[place]; if(!p||!CHARS[char])return;
+    const sc={room:char,place}; setScene(sc); saveScene(sc);
+    if(!loadMet().includes(place))saveMet([...loadMet(),place]);
+    setView(char);
+    setStore(s=>({...s,unread:{...s.unread,[char]:0}}));
+    const line=`${CHARS[char].name}을 ${place}로 불러냈다`;
+    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
+    appendMsg(char,sys);
+    const next=[...(storeRef.current.msgs[char]||[]),sys];
+    request(char,{mode:"chat",room:char,user_name:name,
+      history:buildHistory(sinceSum(char,next)),signals:buildSignals(char),
+      recent_photos:recentPhotos(char),counts:roomCounts({[char]:next.length}),
+      place,bag:bagRef.current.map(b=>b.key)});
   };
 
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
@@ -2465,6 +2685,11 @@ function App(){
         " · 출력 "+(data.usage.output_tokens||0),"color:#7a6cc4");
       setTimeout(()=>rollSummary(bucket),1200);
       if(data&&data.invite&&data.invite.place) setInvite(data.invite);
+      /* 자리에서 뭘 건넸다. 말풍선이 다 뜬 뒤에 가방에 넣는다 —
+         "받았다" 줄이 주는 말보다 먼저 뜨면 순서가 거꾸로 보인다. */
+      if(data&&data.give&&data.give.item)
+        setTimeout(()=>takeItem(data.give.item,data.give.char,data.give.place),
+          Math.max(900,((data.messages||[]).length+1)*600));
     }catch(e){
       inflightRef.current[bucket]=false;
       setBusy(b=>({...b,[bucket]:false}));
@@ -2487,8 +2712,13 @@ function App(){
     appendMsg(room,userMsg);
     const next=[...(storeRef.current.msgs[room]||[]),userMsg];
     const history=buildHistory(sinceSum(room,next));
+    /* 자리에 있는 동안에는 어느 자리인지 같이 보낸다. 안 보내면 마주 앉아서
+       "지금 어디예요?"를 묻는다 — 화면만 바뀌고 사람은 안 바뀐 꼴이 된다. */
+    const sc=sceneRef.current;
+    const at=sc&&sc.room===room?sc.place:null;
     request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),
-      recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length})});
+      recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length}),
+      ...(at?{place:at,bag:bagRef.current.map(b=>b.key)}:{})});
   };
   /* 선물 보내기.
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
@@ -2759,7 +2989,8 @@ function App(){
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
-       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}/>
+       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
+       bag={bag} onGo={goPlace} picking={picking} onPick={setPicking}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
@@ -2772,6 +3003,21 @@ function App(){
           <div className="dlgbtns">
             <button className="bevel pink" onClick={()=>answerInvite(true)}>갈게요</button>
             <button className="bevel" onClick={()=>answerInvite(false)}>다음에요</button>
+          </div>
+        </div>
+      </div>
+    </div>}
+    {/* 둘 다 갈 수 있는 자리 — 누굴 부를지 고른다. 하나뿐인 자리는 안 묻고 바로 간다 */}
+    {picking&&<div className="dlgov" onClick={()=>setPicking(null)}>
+      <div className="dlg" onClick={e=>e.stopPropagation()}>
+        <div className="tb">{picking}<div className="dots"><span className="d3"/></div></div>
+        <div className="dlgbody">
+          <div className="dlgline" style={{textAlign:"center",padding:"8px 0 2px",fontSize:13,color:"#8a4f74"}}>
+            누굴 부를까</div>
+          <div className="dlgbtns">
+            {(PLACE_BY[picking]||{who:[]}).who.map(w=>
+              <button key={w} className={"bevel"+(w==="minhyun"?" pink":"")}
+                onClick={()=>goPlace(picking,w)}>{CHARS[w].name}</button>)}
           </div>
         </div>
       </div>
