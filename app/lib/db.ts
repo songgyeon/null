@@ -57,12 +57,25 @@ export async function insertMsg(m: Msg) {
   return res.lastInsertRowId;
 }
 
-export async function getMsgs(room: string, limit = 200): Promise<Msg[]> {
+/* 최근 것부터 limit개를 가져와 시간순으로 되돌려 준다.
+   전에는 ORDER BY ASC LIMIT 200이었다 — 200개가 넘는 순간 제일 오래된 200개가
+   돌아왔다. 화면에는 옛날 대화만 남고 새 말은 안 보이고, 프롬프트에도 옛날
+   것이 실렸다. .slice(-30)을 붙여봐야 오래된 200개 중 뒤쪽 30개다. */
+export async function getMsgs(room: string, limit = 1000): Promise<Msg[]> {
   const d = await initDB();
   const rows = await d.getAllAsync<Msg>(
-    'SELECT * FROM messages WHERE room = ? ORDER BY created_at ASC LIMIT ?', room, limit
+    'SELECT * FROM (SELECT * FROM messages WHERE room = ? ORDER BY created_at DESC LIMIT ?)'
+    + ' ORDER BY created_at ASC', room, limit
   );
   return rows;
+}
+
+/* 이 방에서 제일 처음 한 말. D-30을 세는 기준이라 진짜 오래된 쪽이 필요하다 */
+export async function getFirstMsg(room: string): Promise<Msg | null> {
+  const d = await initDB();
+  return await d.getFirstAsync<Msg>(
+    'SELECT * FROM messages WHERE room = ? ORDER BY created_at ASC LIMIT 1', room
+  );
 }
 
 export async function getLastMsg(room: string): Promise<Msg | null> {

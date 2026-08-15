@@ -13,8 +13,33 @@ const MODELS = [
   { id: "claude-sonnet-4-6", effort: "medium", noThinking: true },
   { id: "claude-sonnet-4-5", effort: null, noThinking: false },
 ];
+/* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
+   앞에서 자르지 않고 뒤에서 자르면 캐시된 앞부분이 매번 달라진다. */
+function budgetHistory(list, budget) {
+  const out = [];
+  let used = 0;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const n = ((list[i] && list[i].content) || "").toString().length;
+    if (out.length && used + n > budget) break;   // 최소 한 마디는 남긴다
+    used += n;
+    out.unshift(list[i]);
+  }
+  return out;
+}
+
 let workingModel = null; // 한 번 성공하면 그 모델을 계속 쓴다
-const MAX_HISTORY = 30;
+/* 대화 이력을 어디까지 실을 것인가.
+   전에는 30개였다 — 말풍선이 한 턴에 두셋이니 실질 열 턴, 어제 한 얘기를
+   못 기억했다. 첫 커밋에 적힌 숫자가 그대로 살아남은 것이지 정한 값이 아니다.
+
+   지금은 개수가 아니라 글자로 센다. 짧은 말 스무 마디와 긴 글 스무 마디는
+   같은 스무 개인데 값이 열 배 다르다. 예산 안에서 새것부터 담고, 넘치면
+   제일 오래된 것부터 뺀다.
+
+   6만 자면 한 달 치 평범한 대화가 통째로 들어간다. 이게 되는 건 이력이
+   캐시에 실리기 때문이다 — 앞부분은 재사용되고 새로 붙은 꼬리만 값을 낸다.
+   가변부를 시스템 끝에서 대화 뒤로 옮긴 것이 그 전제다. */
+const MAX_HISTORY_CHARS = 60000;
 
 // ─────────────────────────────────────────────
 // 공통 세계관
@@ -1187,21 +1212,28 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
   // 없으므로 사진 목록 자체를 주지 않는다. (프롬프트도 줄어 비용도 준다)
   if (mode !== "auto") rules += buildPhotoGuide(allowedChars(mode, room));
 
+  /* 매 턴 바뀌는 것은 여기서 안 붙인다. 캐시는 앞부분 바이트 일치라서,
+     시스템 끝에 가변부를 두면 그 뒤에 렌더링되는 대화 이력이 통째로
+     캐시 대상에서 빠진다 — 한 글자만 달라도 뒤가 전부 무효다.
+     가변부는 handler가 마지막 유저 발화 뒤에 따로 붙인다. */
+  const blocks = [WORLD, people, rules].map(t => (
+    { type: "text", text: sub(t), cache_control: CACHE }
+  ));
+  return blocks;
+}
+
+/* 매 턴 달라지는 덩어리. 대화 이력보다 뒤에 놓여야 이력이 캐시된다 */
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days) {
+  const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
     ? `\n## 지금 쓰지 않는 사진\n최근에 이미 보냈다. 다시 보내지 않는다: ${recent.map(k => `"${k}"`).join(", ")}\n`
     : "";
-
-  const volatile = buildStage(mode, room, counts, days) + buildProfile(userProfile)
-                 + buildSignals(signals, mode === "auto" ? null : room) + exclude
-                 + buildGift(gift, userName) + buildEvent(event, userName)
-                 + buildInvite(invite, room);
-
-  const blocks = [WORLD, people, rules].map(t => (
-    { type: "text", text: sub(t), cache_control: CACHE }
-  ));
-  if (volatile.trim()) blocks.push({ type: "text", text: volatile });
-  return blocks;
+  const t = buildStage(mode, room, counts, days) + buildProfile(userProfile)
+          + buildSignals(signals, mode === "auto" ? null : room) + exclude
+          + buildGift(gift, userName) + buildEvent(event, userName)
+          + buildInvite(invite, room);
+  return t.trim() ? sub(t) : "";
 }
 
 // ─────────────────────────────────────────────
@@ -1322,8 +1354,11 @@ async function askClaude(env, system, messages, maxTokens) {
 async function narrowDown(env, m, system, messages, maxTokens, first) {
   const lastUser = [...messages].reverse().find(x => x.role === "user");
   const sysLen = Array.isArray(system) ? system.reduce((n, b) => n + (b.text || "").length, 0) : String(system || "").length;
+  /* 마지막 발화의 content는 블록 배열이다(캐시 지점 + 가변부). 그대로 length를
+     재면 글자 수가 아니라 블록 수가 찍힌다 — 진단이 거짓말을 하면 안 된다 */
+  const clen = c => Array.isArray(c) ? c.reduce((n, b) => n + (b.text || "").length, 0) : String(c || "").length;
   const shape = `요청: 메시지 ${messages.length}개, 시스템 ${sysLen}자, 대화 ${
-    messages.reduce((n, x) => n + x.content.length, 0)}자`;
+    messages.reduce((n, x) => n + clen(x.content), 0)}자`;
 
   if (lastUser) {
     // 1) 히스토리를 마지막 한 마디로 줄여본다 — 통과하면 그 답을 그대로 쓴다
@@ -1748,7 +1783,7 @@ export default {
       .filter(k => typeof k === "string" && PHOTOS[k]).slice(0, 8);
 
     // 대화 이력 정리 (프론트가 보내는 형식: [{role:"user"|"assistant", sender?, content}])
-    const history = Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY) : [];
+    const history = budgetHistory(Array.isArray(body.history) ? body.history : [], MAX_HISTORY_CHARS);
     const msgs = [];
     for (const m of history) {
       const role = m.role === "user" ? "user" : "assistant";
@@ -1784,6 +1819,22 @@ export default {
     const openPlaces = invitesFor(mode, room, counts,
       Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days);
+
+    /* ── 이력을 캐시에 태운다 ──
+       마지막 유저 발화까지를 한 덩어리로 잘라 캐시 지점을 찍고, 매 턴 달라지는
+       가변부는 그 뒤에 표시 없이 붙인다. 이렇게 해야 이번 턴에 저장된 앞부분이
+       다음 턴 요청의 앞부분과 바이트로 같아진다 — 가변부에 지점을 찍으면
+       매 턴 다른 키가 되어 쓰기만 하고 한 번도 못 읽는다.
+
+       지점은 요청당 넷까지다. 시스템이 셋을 쓰므로 여기 남은 하나를 쓴다.
+       되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days);
+    const tail = msgs[msgs.length - 1];
+    if (tail) {
+      const blocks = [{ type: "text", text: tail.content, cache_control: CACHE }];
+      if (volatile) blocks.push({ type: "text", text: volatile });
+      tail.content = blocks;
+    }
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
@@ -1810,4 +1861,4 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem };
+export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory };

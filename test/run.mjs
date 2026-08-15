@@ -4,7 +4,7 @@
    여기 모인 것은 전부 "실제로 한 번 터졌던 것"이다. 새 기능을 넣을 때가 아니라
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
-import { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem } from '../worker.js';
+import { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory } from '../worker.js';
 import worker from '../worker.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -104,18 +104,20 @@ section('프롬프트 캐싱 — 고정부가 매 턴 같아야 캐시가 산다
 // ─────────────────────────────────────────────
 const fixed = (...a) => buildSystem(...a).filter(b => b.cache_control);
 const stable = (...a) => fixed(...a).map(b => b.text).join('');
-const vary = (...a) => buildSystem(...a).filter(b => !b.cache_control);
 const A = ['chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null];
 const B = ['chat', 'jaeeon', 'R', { minhyun: { count: 3, minsAgo: 1 } }, [], { likes: '커피' }, { jaeeon: 90 },
            { name: '회색 머그컵', key: 'mug' }];
 
 eq('고정부에 cache_control이 붙어 있다', fixed(...A).length > 0, true);
 eq('신호·프로필·단계·선물이 달라져도 고정부는 그대로', stable(...A) === stable(...B), true);
-eq('가변부에만 선물이 실린다', vary(...B).map(b => b.text).join('').includes('회색 머그컵'), true);
-eq('가변부는 하나뿐이고 캐시가 안 걸린다', vary(...B).length, 1);
-eq('선물이 없으면 그 대목도 없다', buildSystem(...A).some(b => b.text.includes('방금 일어난 일')), false);
-eq('가변부는 맨 뒤다 — 앞에 끼면 뒤가 전부 캐시에서 빠진다',
-  buildSystem(...B).findIndex(b => !b.cache_control), buildSystem(...B).length - 1);
+/* 시스템은 이제 고정부뿐이다. 매 턴 달라지는 것이 시스템에 하나라도 남으면
+   그 뒤에 렌더링되는 대화 이력이 통째로 캐시에서 빠진다 — 캐시는 앞부분
+   바이트 일치라서 한 글자만 달라도 뒤가 전부 무효다. */
+eq('시스템에 가변부가 없다', buildSystem(...B).every(b => b.cache_control), true);
+eq('시스템 캐시 지점은 셋이다 — 하나는 이력 몫으로 남긴다', buildSystem(...B).length, 3);
+eq('가변부에 선물이 실린다', buildVolatile(...B).includes('회색 머그컵'), true);
+eq('선물이 없으면 그 대목도 없다', buildVolatile(...A).includes('방금 일어난 일'), false);
+eq('선물은 고정부에 안 샌다', stable(...B).includes('회색 머그컵'), false);
 
 // 캐시 수명. 기본 5분은 메신저처럼 띄엄띄엄 열리는 앱과 안 맞는다.
 eq('고정부 캐시는 1시간짜리다', fixed(...A).every(b => b.cache_control.ttl === '1h'), true);
@@ -890,8 +892,8 @@ eq('거절당한 곳도 닫힌다', open(125, [], ['도서관']), ['옥상', '�
 eq('셋 다 끝나면 목록이 없다', open(125, ['옥상', '도서관', '빨래방']), []);
 /* 목록이 비면 그 대목 자체가 프롬프트에서 빠진다 */
 eq('열린 자리가 없으면 얘기도 안 꺼낸다',
-  buildSystem('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [])
-    .map(b => b.text).join('').includes('같이 가자고 할 수 있는 자리'), false);
+  buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [])
+    .includes('같이 가자고 할 수 있는 자리'), false);
 
 /* 모델이 지어낸 장소로 약속이 잡히면 유저 화면에 없는 곳이 남는다 */
 eq('지어낸 장소는 통과 못 한다', INV.pickInvite('한강', ['옥상', '도서관']), null);
@@ -933,8 +935,8 @@ eq('점만 있는 줄은 그대로다',
 eq('한국어로만 말하라고 했다', /한국어로만 말한다/.test(workerSrc), true);
 /* 대신 갈 곳이 있다 — 넷은 프로필 배경으로 걸린다. 사진 대신 거기를 가리키게 한다.
    나머지 선물은 화면 어디에도 안 보이므로 "프로필 봐요"라고 하면 안 된다. */
-const giftHint = k => buildSystem('chat', 'minhyun', 'R', null, [], null, { minhyun: 50 },
-  { name: 'x', key: k }).map(b => b.text).join('').includes('이건 네 **프로필 배경**에 걸린다');
+const giftHint = k => buildVolatile('chat', 'minhyun', 'R', null, [], null, { minhyun: 50 },
+  { name: 'x', key: k }).includes('이건 네 **프로필 배경**에 걸린다');
 eq('배경이 되는 선물만 프로필을 가리킨다',
   ['beanie', 'mug', 'photobook', 'earphone', 'hotpack', 'candy', ''].map(giftHint),
   [true, true, true, true, false, false, false]);
@@ -1055,6 +1057,40 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
 }
 /* 각본으로 돌렸으니 워커에는 선톡 모드가 없어야 한다 — 죽은 갈래를 남기지 않는다 */
 eq('워커에 선톡 모드가 없다', /"greet"/.test(workerSrc), false);
+
+/* ── 이력을 캐시에 태운다 ──
+   전에는 이력 상한이 30이었다. 말풍선이 한 턴에 두셋이니 실질 열 턴 —
+   어제 한 얘기를 못 기억했다. 그렇다고 그냥 늘리면 매 턴 정가로 다 낸다.
+   시스템 끝에 있던 가변부를 대화 뒤로 옮겨야 이력이 캐시 대상이 된다. */
+eq('워커가 개수가 아니라 글자로 센다', /MAX_HISTORY_CHARS = 60000/.test(workerSrc), true);
+eq('웹·앱도 같은 예산을 쓴다',
+  /const HISTORY_CHARS=60000/.test(web) && /HISTORY_CHARS = 60000/.test(apiSrc), true);
+eq('서른 마디에서 자르던 건 없다',
+  /slice\(-30\)/.test(web) || /slice\(-30\)/.test(apiSrc) || /MAX_HISTORY\b/.test(workerSrc), false);
+{
+  const h = n => Array.from({ length: n }, (_, i) => ({ role: 'user', content: 'x'.repeat(100) }));
+  eq('예산 안이면 통째로 간다', budgetHistory(h(5), 1000).length, 5);
+  eq('넘치면 오래된 쪽부터 뺀다', budgetHistory(h(20), 1000).length, 10);
+  /* 뒤에서 자르면 캐시된 앞부분이 매 턴 달라져 한 번도 못 읽는다 */
+  const kept = budgetHistory(h(3).map((m, i) => ({ role: 'user', content: String(i) })), 2);
+  eq('남는 건 늘 최근 쪽이다', kept[kept.length - 1].content, '2');
+  eq('예산이 0이어도 한 마디는 남긴다', budgetHistory(h(5), 0).length, 1);
+}
+/* 캐시 지점은 마지막 유저 발화에 찍고, 가변부는 그 뒤에 표시 없이 붙인다.
+   가변부에 지점을 찍으면 매 턴 다른 키가 되어 쓰기만 하고 못 읽는다. */
+eq('지점은 가변부 앞에 찍는다',
+  /const blocks = \[\{ type: "text", text: tail\.content, cache_control: CACHE \}\];/.test(workerSrc)
+  && /if \(volatile\) blocks\.push\(\{ type: "text", text: volatile \}\);/.test(workerSrc), true);
+/* 앱은 최근 것부터 가져와야 한다. ASC LIMIT이면 200개가 넘는 순간
+   제일 오래된 200개가 돌아온다 — 화면에도 프롬프트에도 옛날 것만 남는다 */
+{
+  const dbSrc = readFileSync(join(ROOT, 'app/lib/db.ts'), 'utf8');
+  eq('getMsgs가 최근 것부터 가져온다',
+    /ORDER BY created_at DESC LIMIT \?\)'\s*\n?\s*\+ ' ORDER BY created_at ASC/.test(dbSrc), true);
+  eq('D-30은 제일 처음 말로 센다', /export async function getFirstMsg/.test(dbSrc)
+    && /await getFirstMsg\(room\)/.test(apiSrc), true);
+}
+
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

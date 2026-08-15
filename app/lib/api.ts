@@ -1,4 +1,4 @@
-import { getMsgs, getLastMsg, countToday, countMsgs, recentPhotos, getMeta, Msg } from './db';
+import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, Msg } from './db';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -46,15 +46,29 @@ export async function buildSignals(excludeRoom: string | null) {
   return sig;
 }
 
+export const HISTORY_CHARS = 60000;
+
 export function buildHistory(msgs: Msg[]) {
   /* sender가 'sys'인 줄은 "일어난 일"이다(선물 전달 등). 유저가 한 말은
      아니지만 유저 쪽에서 일어난 사건이므로 user로 넘긴다 — assistant로
      넘기면 마지막 줄이 assistant가 되어 서버가 400으로 막는다. */
-  return msgs.slice(-30).map(m => ({
+  /* 이전에 한 얘기를 기억하려면 이전에 한 얘기를 보내야 한다. 전에는 서른
+     마디에서 잘랐다 — 말풍선이 한 턴에 두셋이니 실질 열 턴이었다.
+     개수가 아니라 글자로 센다. 워커의 MAX_HISTORY_CHARS와 같은 값이다. */
+  const all = msgs.map(m => ({
     role: (m.sender === 'user' || m.sender === 'sys') ? 'user' : 'assistant',
     sender: m.sender,
     content: m.photo ? `${m.text ? m.text + ' ' : ''}(사진을 보냈다)` : (m.text || ''),
-  }));
+  })).filter(m => m.content && m.content.trim());
+  const out: typeof all = [];
+  let used = 0;
+  for (let i = all.length - 1; i >= 0; i--) {
+    const n = all[i].content.length;
+    if (out.length && used + n > HISTORY_CHARS) break;   // 오래된 쪽부터 뺀다
+    used += n;
+    out.unshift(all[i]);
+  }
+  return out;
 }
 
 /* 방별 누적 대화 수. 서버는 이걸로 관계 단계를 정하고 .hidden 해금을 판단한다.
@@ -76,8 +90,7 @@ export async function buildCounts() {
 export async function buildDays() {
   let first = 0;
   for (const room of ['jaeeon', 'minhyun', 'group', 'health']) {
-    const m = await getMsgs(room, 1);
-    const t = m[0]?.created_at || 0;
+    const t = (await getFirstMsg(room))?.created_at || 0;
     if (t && (!first || t < first)) first = t;
   }
   return first ? Math.floor((Date.now() - first) / 864e5) : 0;
