@@ -1233,8 +1233,29 @@ eq('눈치 신호에 숫자를 안 준다', /마지막 활동 \$\{s\.minsAgo\}�
   eq('잘린 JSON도 ok가 아니다',
     (parseMessages('{"messages":["왔어요?","빨리', 'minhyun', ['minhyun']), parseMessages.ok), false);
 }
+/* ── 형식을 부탁이 아니라 스키마로 못 박는다 ──
+   프롬프트에 「이 JSON만 출력하라」고 적어도 모델은 가끔 줄글을 뱉었다.
+   구조화 출력(output_config.format)을 쓰면 API가 스키마에 맞는 JSON만 내보낸다. */
+eq('대사 응답에 스키마를 건다',
+  /askClaude\(env, system, msgs, cap, REPLY_SCHEMA\)/.test(workerSrc), true);
+eq('스키마가 말풍선의 모양을 적어뒀다',
+  /const REPLY_SCHEMA = \{[\s\S]{0,700}messages:[\s\S]{0,400}anyOf/.test(workerSrc), true);
+/* API가 객체마다 요구한다. 빠지면 400이다 */
+eq('객체에 additionalProperties가 있다',
+  (workerSrc.slice(workerSrc.indexOf('const REPLY_SCHEMA'), workerSrc.indexOf('const REPLY_SCHEMA') + 900)
+    .match(/additionalProperties: false/g) || []).length, 2);
+/* 4.6/4.5는 이 기능이 없다. 붙이면 400이 난다 */
+eq('스키마는 받는 모델에만 붙는다',
+  /\{ id: "claude-sonnet-5",[^}]*json: true \}/.test(workerSrc)
+  && !/claude-sonnet-4-6[^}]*json: true/.test(workerSrc), true);
+eq('스키마가 거부되면 스키마 없이 다시 간다',
+  /r\.status === 400 && useSchema[\s\S]{0,240}callModel\(env, m, system, messages, maxTokens, null\)/.test(workerSrc), true);
+/* 요약은 대사가 아니다 — 줄글이어야 한다 */
+eq('요약에는 스키마를 안 건다',
+  /callModel\(env, SUMMARY_MODEL, system, messages, maxTokens\)/.test(workerSrc), true);
+
 eq('형식이 깨지면 다시 부른다',
-  /if \(!parseMessages\.ok\) \{[\s\S]{0,320}askClaude\(env, system, msgs, Math\.round\(cap \* 1\.5\)\)/.test(workerSrc), true);
+  /if \(!parseMessages\.ok\) \{[\s\S]{0,320}askClaude\(env, system, msgs, Math\.round\(cap \* 1\.5\), REPLY_SCHEMA\)/.test(workerSrc), true);
 eq('그래도 깨지면 대사로 안 내보낸다',
   /형식이 깨진 응답"[\s\S]{0,120}status: 502/.test(workerSrc), true);
 eq('받은 원문을 로그에 남긴다',
