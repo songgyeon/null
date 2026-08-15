@@ -393,10 +393,14 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* ── 문장 ── */
 .film .lines{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
  display:flex;align-items:center;justify-content:center;padding:0 26px;pointer-events:none}
+/* 글자 뒤에 판때기를 깔지 않는다. 흰 타원을 깔면 사진 위에 흰 달걀이
+   하나 떠 있는 꼴이고, 사진마다 색이 달라서 어디서는 뜨고 어디서는
+   묻는다. 글자 자체에 흰 테를 둘러 읽히게 한다 — 판은 없고 글자만 뜬다. */
 .film .ln{position:absolute;padding:22px 26px;
- background:radial-gradient(ellipse at center,rgba(255,255,255,.97) 0%,rgba(255,255,255,.82) 46%,rgba(255,255,255,0) 76%);width:100%;text-align:center;font-size:20px;line-height:1.75;color:#38316b;
+ width:100%;text-align:center;font-size:20px;line-height:1.75;color:#38316b;
  letter-spacing:.02em;opacity:0;
- text-shadow:0 1px 0 #fff,0 2px 6px rgba(255,255,255,1),0 0 18px rgba(255,255,255,1);
+ text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 7px #fff,0 1px 0 #fff,0 -1px 0 #fff,
+   1px 0 0 #fff,-1px 0 0 #fff,0 0 16px rgba(255,255,255,.9);
  animation:say 2s ease-out both}
 @keyframes say{
  0%{opacity:0;transform:translateY(8px) scale(.98)}
