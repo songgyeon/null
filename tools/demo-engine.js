@@ -514,7 +514,11 @@ function demoWhen(gapMin, hour) {
    그 말을 하면 이 사람은 시계를 안 보는 사람이 된다.
    기록이 아예 없으면(gapMin<0) 처음 보는 인사라 고른 다섯 개에서만 뽑는다. */
 function demoGreetWhen(gapMin) {
-  if (!(gapMin >= 0)) return '첫인사 · 처음';
+  /* 처음 거는 말은 뽑기가 아니다. 한 사람에 하나씩 정해져 있다 —
+     첫인사는 한 번뿐이라 뽑기로 둘 이유가 없다.
+     절 이름에 '첫인사'가 들어가면 안 된다. 아래 필터가 indexOf라서
+     '첫인사'로 고를 때 그것까지 딸려온다 — 한 번 그랬다. */
+  if (!(gapMin >= 0)) return '첫 만남';
   if (gapMin >= 60 * 24) return '오랜만';
   return '첫인사';
 }

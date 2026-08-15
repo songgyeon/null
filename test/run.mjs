@@ -1039,7 +1039,7 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
   const eng = readFileSync(join(ROOT, 'tools/demo-engine.js'), 'utf8');
   const g = new Function(eng.slice(eng.indexOf('function demoGreetWhen'),
     eng.indexOf('/* 캐릭터가 먼저 거는 말')) + '\nreturn demoGreetWhen')();
-  eq('처음이면 처음 인사', g(-1), '첫인사 · 처음');
+  eq('처음이면 첫 만남', g(-1), '첫 만남');
   eq('세 시간 뒤는 평소 인사', g(60 * 5), '첫인사');
   eq('하루를 넘겨야 늦었다고 한다', [g(60 * 23), g(60 * 25)], ['첫인사', '오랜만']);
 }
@@ -1051,9 +1051,24 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
   const pick = (c, w) => (corpus.proactive[c] || [])
     .filter(p => (p.when + ' ' + p.sec).indexOf(w) >= 0)
     .reduce((n, p) => n + p.lines.length, 0);
-  eq('첫인사 갈래가 5·20·6이다',
-    ['jaeeon', 'minhyun'].map(c => [pick(c, '첫인사 · 처음'), pick(c, '첫인사'), pick(c, '오랜만')]),
-    [[5, 20, 6], [5, 20, 6]]);
+  eq('갈래가 1·20·6이다',
+    ['jaeeon', 'minhyun'].map(c => [pick(c, '첫 만남'), pick(c, '첫인사'), pick(c, '오랜만')]),
+    [[1, 20, 6], [1, 20, 6]]);
+  /* 첫인사는 한 번뿐이라 뽑기로 둘 이유가 없다. 한 사람에 하나씩 정해져 있다 */
+  eq('첫 만남은 정해진 한 줄이다',
+    ['jaeeon', 'minhyun'].map(c => (corpus.proactive[c] || [])
+      .filter(p => p.when === '첫 만남').flatMap(p => p.lines).length), [1, 1]);
+  eq('재언은 안내로 문을 연다',
+    (corpus.proactive.jaeeon.find(p => p.when === '첫 만남').lines[0] || []).join(' / '),
+    '새로 오셨죠. / 애들 때문에 정신 없으시겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.');
+  eq('민현은 협박으로 문을 연다',
+    (corpus.proactive.minhyun.find(p => p.when === '첫 만남').lines[0] || []).join(' / '),
+    '선생님. / 밥 사주세요. / 안 그러면... 저랑 후문에서 맞담했다고 소문낼 거예요.');
+  /* 절 이름에 '첫인사'가 들어가면 indexOf 필터가 첫 만남까지 삼킨다 — 한 번 그랬다 */
+  eq('평소 인사에 첫 만남이 안 섞인다',
+    ['jaeeon', 'minhyun'].map(c => (corpus.proactive[c] || [])
+      .filter(p => (p.when + ' ' + p.sec).indexOf('첫인사') >= 0)
+      .some(p => p.when === '첫 만남')), [false, false]);
 }
 /* 각본으로 돌렸으니 워커에는 선톡 모드가 없어야 한다 — 죽은 갈래를 남기지 않는다 */
 eq('워커에 선톡 모드가 없다', /"greet"/.test(workerSrc), false);
@@ -1147,14 +1162,19 @@ eq('웹·앱 둘 다 실측을 찍는다',
   const J = say('재언'), M = say('민현');
   eq('문구집을 제대로 읽었다', J.length > 1000 && M.length > 1000, true);
   /* 재언은 문구집 1,321줄에서 한 번도 -습니다/-습니까를 쓰지 않는다 */
-  eq('문구집의 재언은 -ㅂ니다를 안 쓴다', J.filter(t => /(습니다|습니까|입니다|됩니다)/.test(t)).length, 0);
+  /* 딱 하나 있다 — 처음 말을 거는 줄이다. 아직 아는 사이가 아닐 때만 허용된
+     어미라서, 여기가 늘어나면 규칙이 무너진 것이다. */
+  eq('문구집의 재언은 첫 마디에서만 -ㅂ니다를 쓴다',
+    J.filter(t => /(습니다|습니까|입니다|됩니다)/.test(t)),
+    ['새로 오셨죠. / 애들 때문에 정신 없으시겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.']);
+  eq('프롬프트도 그 예외를 적어뒀다', /아직 아는 사이가 아닐 때/.test(workerSrc), true);
   /* 그러니 프롬프트 예문에도 없어야 한다. 이름 밝히는 자리 하나만 예외 */
   /* 규칙 문장 자체는 세지 않는다 — 따옴표 안의 예문만 본다 */
   eq('재언 예문에 -ㅂ니다가 없다', (() => {
     const j = workerSrc.match(/const JAEEON = `([\s\S]*?)`;/)[1];
     return (j.slice(j.indexOf('### ★ 교생')).match(/"[^"]+"/g) || [])
       .filter(q => /(습니다|습니까|입니다|됩니다)/.test(q) && q !== '"-습니다/-습니까"');
-  })(), ['"보건실 이재언입니다."']);
+  })(), ['"보건실 이재언입니다."', '"저한테는 편하게 메세지 주셔도 됩니다."']);
   /* 민현은 유저에게도 삼촌에게도 존댓말이다 */
   eq('문구집의 민현은 반말을 안 쓴다', M.filter(t => /(^뭐야|삼촌도 참|설명인데\.)/.test(t)).length, 0);
   eq('민현 말투 예시에도 반말이 없다', (() => {
