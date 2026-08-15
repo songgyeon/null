@@ -653,7 +653,6 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
         <View style={ct.gthumb}><Text style={{fontSize:32}}>{pick.icon}</Text></View>
         <View style={{flex:1}}>
           <Text style={ct.gname}>{pick.name}</Text>
-          <Text style={ct.gdesc}>{pick.desc}</Text>
           <View style={ct.gprice}><Text style={ct.priceT}>♡ {pick.cost}</Text></View>
         </View>
       </View>
@@ -717,7 +716,6 @@ const ct=StyleSheet.create({
   gthumb:{width:70,height:70,alignItems:'center',justifyContent:'center',borderRadius:9,
     backgroundColor:'#f4f6fd',borderWidth:1,borderColor:'#d9d3f0'},
   gname:{...F,fontSize:14,color:P.ink},
-  gdesc:{...F,marginTop:7,fontSize:10,lineHeight:17,color:'#a99bd0'},
   gprice:{alignSelf:'flex-start',marginTop:8,paddingVertical:3,paddingHorizontal:9,
     backgroundColor:'#fff2f8',borderWidth:1,borderColor:'#f4c3d8',borderRadius:10},
   sect:{flexDirection:'row',alignItems:'center',gap:8,marginTop:2},

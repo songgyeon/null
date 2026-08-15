@@ -280,7 +280,6 @@ input.csearch::placeholder{color:#b9addc}
 .cgthumb{width:70px;height:70px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:9px;
  background:linear-gradient(180deg,#fff,#eef1fb);border:1px solid #d9d3f0}
 .cgname{font-size:14px;color:#4a4276}
-.cgdesc{margin-top:7px;font-size:10px;line-height:1.7;color:#a99bd0;white-space:pre-line}
 .cgprice{margin-top:8px;display:inline-block;padding:3px 9px;font-size:10px;color:#c05f8c;
  background:#fff2f8;border:1px dashed #f4c3d8;border-radius:10px}
 .csect{display:flex;align-items:center;gap:8px;font-size:9.5px;letter-spacing:.3em;color:#d3a0c0}
@@ -1074,16 +1073,12 @@ const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
    bg 파일이 아직 없어도 괜찮다. useBg가 기존 배경으로 돌려준다. */
 const GIFTS=[
   {key:"mug",       name:"회색 머그컵",  bg:"gift-mug.webp",  cat:"소품", cost:2, badge:"NEW",
-   desc:"매일 아침 쓰게 될.\n집에 컵이 있어도.",
    tags:"머그 머그컵 컵 커피 회색 무광 아침 소품 mug cup coffee grey"},
   {key:"photobook", name:"사진집",       bg:"gift-photobook.webp", cat:"기록", cost:5,
-   desc:"겨울 풍경만 모아둔.\n잘 안 읽는다고 해도.",
    tags:"사진집 사진 책 겨울 풍경 전시 미술관 기록 photo book winter"},
   {key:"beanie",    name:"남색 비니",    bg:"gift-beanie.webp", cat:"옷", cost:3,
-   desc:"겨울에 하나쯤은.\n머리가 눌려도 상관없다면.",
    tags:"비니 모자 니트 남색 겨울 옷 beanie hat knit navy"},
   {key:"earphone",  name:"유선 이어폰",  bg:"gift-earphone.webp", cat:"소품", cost:4, badge:"HOT",
-   desc:"한쪽만 껴도 되는.\n이번엔 진짜 음악을 틀도록.",
    tags:"이어폰 유선 음악 노래 소품 earphone earphones wired music"},
 ];
 /* bg가 있는 것만 프로필 배경이 된다. 없는 것은 주고 반응만 받는다 —
@@ -1091,40 +1086,28 @@ const GIFTS=[
    네 개가 오히려 특별해진다. */
 GIFTS.push(
   {key:"hotpack", name:"핫팩",        cat:"소품", cost:1,
-   desc:"흔들면 따뜻해지는.\n얇게 입고 다니는 사람한테.",
    tags:"핫팩 손난로 겨울 따뜻 소품 hotpack warm"},
   {key:"umbrella", name:"접이식 우산", cat:"소품", cost:3,
-   desc:"가방에 들어가는 크기.\n비 온다고 안 챙기는 사람한테.",
    tags:"우산 비 장마 접이식 소품 umbrella rain"},
   {key:"hanky",   name:"손수건",      cat:"소품", cost:2,
-   desc:"손을 자주 씻는 사람한테.\n종이는 금방 떨어지니까.",
    tags:"손수건 수건 천 소품 handkerchief cloth"},
   {key:"camera",  name:"필름 카메라",  cat:"소품", cost:6,
-   desc:"스물네 장뿐인.\n찍고 나면 한참 기다려야 하는.",
    tags:"카메라 필름 사진 소품 camera film"},
   {key:"scarf",   name:"목도리",      cat:"옷",   cost:4,
-   desc:"두 번 감기는 길이.\n목만 따뜻해도 다르다고 하니까.",
    tags:"목도리 머플러 겨울 옷 scarf muffler"},
   {key:"gloves",  name:"장갑",        cat:"옷",   cost:3,
-   desc:"손끝이 트기 전에.\n주머니만으로는 모자라서.",
    tags:"장갑 손 겨울 옷 gloves"},
   {key:"bandana", name:"파란 반다나",  cat:"옷",   cost:2,
-   desc:"손목에 묶는.\n왜 묶고 다니는지는 안 물어봤다.",
    tags:"반다나 손목 파랑 파란 옷 bandana wrist blue"},
   {key:"candy",   name:"목캔디",      cat:"간식", cost:1,
-   desc:"한 통에 스무 알.\n말을 많이 하는 사람한테.",
    tags:"목캔디 사탕 캔디 간식 candy throat"},
   {key:"ramen",   name:"컵라면",      cat:"간식", cost:1,
-   desc:"야자 끝나고 먹을.\n밥은 아니지만.",
    tags:"컵라면 라면 야식 간식 ramen noodle"},
   {key:"coffee",  name:"드립백 커피",  cat:"간식", cost:2,
-   desc:"한 봉에 한 잔.\n아침이 급한 사람한테.",
    tags:"커피 드립백 원두 아침 간식 coffee drip"},
   {key:"letter",  name:"편지지",      cat:"기록", cost:2,
-   desc:"줄이 그어진.\n쓸 말이 없어도 한 장은.",
    tags:"편지지 편지 종이 기록 letter paper"},
   {key:"mixcd",   name:"믹스 CD",     cat:"기록", cost:3,
-   desc:"열두 곡 구운.\n목록은 안 적어뒀다.",
    tags:"CD 시디 믹스 음악 노래 기록 mix music"},
 );
 const GIFT_CATS=["전체","소품","옷","간식","기록"];
@@ -1348,14 +1331,14 @@ const ROAD_LABEL={
    가야만 생긴다 — 지도를 도는 이유가 여기 있다.
    lent는 빌린 것. 돌려줘야 하는 게 하나쯤 있어야 다시 만날 이유가 남는다. */
 const ITEMS={
-  note:    {name:"접힌 쪽지",   cat:"기록", desc:"펴면 한 줄뿐이다.\n글씨는 급하게 썼다."},
-  bandaid: {name:"밴드",        cat:"소품", desc:"두 장 뜯어서 준.\n한 장은 남겨두라고."},
-  can:     {name:"캔커피",      cat:"간식", desc:"자판기에서 뽑은.\n차가운 쪽을 골라줬다."},
-  haribo:  {name:"하리보 젤리", cat:"간식", desc:"골드베렌 한 봉.\n계산은 자기가 했다."},
-  book:    {name:"빌린 책",     cat:"기록", lent:true, desc:"삼 층에서 꺼내온.\n반납일은 안 적어줬다."},
-  lp:      {name:"중고 LP",     cat:"기록", desc:"상자 밑에서 꺼낸.\n재킷 모서리가 닳았다."},
-  coin:    {name:"동전 한 줌",  cat:"소품", desc:"건조기용 오백 원.\n남으면 가지라고 했다."},
-  key:     {name:"여벌 열쇠",   cat:"소품", desc:"고리도 안 달린.\n주면서 아무 말도 안 했다."},
+  note:    {name:"접힌 쪽지",   cat:"기록"},
+  bandaid: {name:"밴드",        cat:"소품"},
+  can:     {name:"캔커피",      cat:"간식"},
+  haribo:  {name:"하리보 젤리", cat:"간식"},
+  book:    {name:"빌린 책",     cat:"기록", lent:true},
+  lp:      {name:"중고 LP",     cat:"기록"},
+  coin:    {name:"동전 한 줌",  cat:"소품"},
+  key:     {name:"여벌 열쇠",   cat:"소품"},
 };
 const ITEM_CATS=["전체","간식","소품","기록"];
 /* ── 조사 ──
@@ -1983,7 +1966,6 @@ function Bag({bag,firstTs,onClose}){
             <div className="cgname">{it.name}</div>
             <div className="bagmeta">{(who?who.name:b.from)}에게서 · {b.where}에서{d!=null?" · D-"+d:""}</div>
             {it.lent&&<span className="baglabel">돌려줄 것</span>}
-            <div className="cgdesc">{it.desc}</div>
           </div>
           {who&&<span className="bagwho" style={faceBg(who)}><i>♡</i></span>}
         </div>;
@@ -2066,7 +2048,6 @@ function Cart({gifts,hearts,onSend,onClose}){
         <span className="cgthumb">{React.createElement(GiftIcon[pick.key],{size:34})}</span>
         <div>
           <div className="cgname">{pick.name}</div>
-          <div className="cgdesc">{pick.desc}</div>
           <div className="cgprice">♡ {pick.cost}</div>
         </div>
       </div>

@@ -1692,6 +1692,13 @@ eq('자리마다 핀이 있다', (() => {
   return a.filter(n => !b.includes(n));
 })(), []);
 
+/* 물건 설명을 지웠다. 그림이 들어오면서 설명은 그림이 하는 말을 글로 또
+   하는 것이 됐다. 웹·앱·데이터 세 군데에서 같이 빠져야 한다 */
+eq('물건 설명이 남아 있지 않다',
+  [web, appSrc, readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8')]
+    .filter(t => /\bdesc:/.test(t) || /\.desc\b/.test(t)).length, 0);
+eq('설명 자리 CSS도 걷었다', /\.cgdesc\{/.test(web) || /gdesc:/.test(appSrc), false);
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 
