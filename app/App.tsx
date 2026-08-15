@@ -1823,7 +1823,10 @@ function Root() {
   };
 
   const doReset = async()=>{
-    await clearAll(); setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
+    /* greetAtRef도 같이 지운다 — ref라 DB를 비워도 안 없어진다.
+       방금 선톡을 받고 지웠으면 1분 동안 첫 인사가 안 왔다. */
+    await clearAll(); greetAtRef.current=0; summingRef.current={};
+    setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
     lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
   };
 

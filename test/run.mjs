@@ -1099,6 +1099,12 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
     eq('재언은 이 갈래가 없다',
       /후문|맞담/.test(E.demoAnswer('jaeeon', '무슨 말이에요?', '수연', {}).map(m => m.text).join(' ')), false);
   }
+
+/* 다시 시작하면 첫 만남부터다. greetAtRef는 리액트 ref라 저장소를 비워도
+   안 없어진다 — 방금 선톡을 받고 지웠으면 1분 동안 아무도 말을 안 걸었다.
+   처음 들어온 화면에서 조용한 게 제일 나쁜 그림이다. */
+eq('다시 시작하면 선톡 간격도 같이 지운다',
+  /greetAtRef\.current=0/.test(web) && /greetAtRef\.current=0/.test(appSrc), true);
   /* 절 이름에 '첫인사'가 들어가면 indexOf 필터가 첫 만남까지 삼킨다 — 한 번 그랬다 */
   eq('평소 인사에 첫 만남이 안 섞인다',
     ['jaeeon', 'minhyun'].map(c => (corpus.proactive[c] || [])
