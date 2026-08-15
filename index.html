@@ -944,6 +944,18 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .ddq .k{font-size:8.5px;letter-spacing:.28em;color:#d0b3dd}
 .ddq .q{margin-top:9px;font-size:15px;letter-spacing:.04em;color:#4a4276}
 .ddq .s{margin-top:9px;font-size:9.5px;letter-spacing:.06em;color:#b09ecf;line-height:1.95}
+/* null.exe의 상태 줄. 다른 창과 같은 껍데기(.ddq)를 쓰고 여기만 더한다 —
+   웹소설 상태창 형식이라 항목과 값만 적는다. 「어떻게 채우냐」를 쓸 자리가
+   형식에 없다: 판돈만 알려주고 방법은 못 알려준다.
+   존재값에 칸을 그리면 몇 칸인지가 힌트가 되므로 그것도 「비밀」이다. */
+.ddrows{margin:12px auto 0;max-width:190px;display:flex;flex-direction:column;gap:6px}
+.ddrows .r{display:flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:.06em;color:#8f7ccb}
+.ddrows .r .k2{flex:none;width:42px;text-align:left;letter-spacing:.2em;color:#d0b3dd}
+.ddrows .r .dot{flex:1;height:1px;background:repeating-linear-gradient(90deg,#e0d5f7 0 2px,transparent 2px 5px)}
+.ddrows .r .v{flex:none;color:#6b5fa8;letter-spacing:.1em}
+.ddrows .r .v.hush{color:#c98fb8}
+/* 이모티콘은 픽셀 글꼴에 없는 글자다. 여기만 시스템 글꼴로 두지 않으면 두부가 뜬다 */
+.kao{font-family:"Apple SD Gothic Neo","Malgun Gothic","Segoe UI Symbol",sans-serif;letter-spacing:0}
 .ddyn{display:flex;flex-direction:column;gap:8px;margin-top:16px}
 .ddyn button{position:relative;overflow:hidden;display:flex;align-items:center;gap:9px;width:100%;
  padding:12px 14px;font-family:inherit;font-size:11.5px;letter-spacing:.08em;cursor:pointer;text-align:left;
@@ -1013,6 +1025,12 @@ const CHARS = {
 const ENROLL_DAYS = 30;
 /* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
 const loadExtend=()=>{try{return +localStorage.getItem("null_extend")||0}catch(e){return 0}};
+/* 첫날의 통보. 하루가 끝나기 전에 판돈을 알려준다 — 방법은 빼고.
+   「24시간 안에」로 잡으면 그 시간에 앱을 안 연 사람에게는 영영 안 뜬다.
+   스무 시간이 지난 뒤 처음 여는 순간에 한 번만 띄운다. */
+const SYS1_AFTER = 20*60*60*1000;
+const loadSys1=()=>{try{return localStorage.getItem("null_sys1")==="1"}catch(e){return false}};
+const saveSys1=()=>{try{localStorage.setItem("null_sys1","1")}catch(e){}};
 const daysLeft=store=>{
   const span=ENROLL_DAYS+loadExtend();
   const all=Object.values((store&&store.msgs)||{}).flat();
@@ -2782,6 +2800,18 @@ function App(){
   const nameFull=!!name&&lit>=name.length;
   const [ddayAns,setDdayAns]=useState(()=>{try{return localStorage.getItem("null_dday_ans")||""}catch(e){return""}});
   const [ddayHide,setDdayHide]=useState(false);
+  /* 첫날의 통보. 스무 시간이 지난 뒤 처음 여는 순간에 한 번만.
+     떠나는 날(dLeft 0)에는 안 띄운다 — 그때는 d-0.exe가 할 말이 따로 있다. */
+  const [sys1,setSys1]=useState(false);
+  useEffect(()=>{
+    if(!name||loadSys1())return;
+    const first=Object.values((store&&store.msgs)||{}).flat()
+      .reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
+    if(!first||Date.now()-first<SYS1_AFTER)return;
+    if(dLeft<=0)return;
+    saveSys1(); setSys1(true);
+  },[name,store,dLeft]);
+
   const askDday=dLeft===0&&!!name&&ddayAns!==String(dSpan);
   const answerDday=yes=>{
     try{localStorage.setItem("null_dday_ans",String(dSpan))}catch(e){}
@@ -2863,6 +2893,22 @@ function App(){
       </div>
     </div>}
     {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN}/>}
+    {sys1&&<Dialog title="null.exe" onClose={()=>setSys1(false)}>
+      <div className="ddq">
+        <div className="k">［ N U L L ］♡</div>
+        <div className="ddrows">
+          <div className="r"><span className="k2">대 상</span><span className="dot"/><span className="v">{name}</span></div>
+          <div className="r"><span className="k2">등 록</span><span className="dot"/><span className="v">완료 ♡</span></div>
+          <div className="r"><span className="k2">존재값</span><span className="dot"/><span className="v hush">비밀</span></div>
+          <div className="r"><span className="k2">잔 여</span><span className="dot"/><span className="v">{dLeft}일</span></div>
+        </div>
+        <div className="q" style={{marginTop:16,fontSize:13}}>!! WARNING !!</div>
+        <div className="s">다 못 채우면 사라져요 ♡<br/>비밀은 Secret <span className="kao">(𓂂꜆◕⩊◕꜀𓂂)</span> ✧</div>
+        <div className="dlgbtns" style={{justifyContent:"center"}}>
+          <button className="wbtn" onClick={()=>setSys1(false)}>ok ♡</button>
+        </div>
+      </div>
+    </Dialog>}
     {askDday&&!ddayHide&&<Dialog title="d-0.exe" onClose={()=>setDdayHide(true)}>
       <div className="ddq">
         <div className="k">d-0 · last day</div>

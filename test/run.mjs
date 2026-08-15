@@ -1142,6 +1142,26 @@ eq('다시 시작하면 선톡 간격도 같이 지운다',
    처음 열었는데 비어 있으면 이 방이 무슨 방인지 알 길이 없고, 저 둘이 삼촌과
    조카라는 것도 못 듣는다. 화면에 「삼촌과 조카」라고 적어주는 건 설명이지
    이야기가 아니라서, 둘이 떠드는 걸 한 번 보여준다. */
+/* ── 첫날의 통보 ──
+   화면 구석의 null 칸이 무슨 뜻인지 알려주는 데가 d-0.exe 하나뿐이었다.
+   서른 날이 다 끝난 뒤에 규칙을 알려주는 셈이라, 첫날에 판돈만 먼저 알린다.
+   방법은 안 알려준다 — 존재값도 「비밀」이라 몇 칸인지조차 안 보인다. */
+eq('첫날 통보가 있다', /title="null\.exe"/.test(web), true);
+eq('스무 시간 뒤에 뜬다', /const SYS1_AFTER = 20\*60\*60\*1000/.test(web), true);
+eq('한 번만 뜬다', /saveSys1\(\); setSys1\(true\)/.test(web) && /null_sys1/.test(web), true);
+/* 채우는 법을 알려주면 첫날에 답이 나가버린다. 이름·부르다가 나오면 안 된다 */
+{
+  const i = web.indexOf('{sys1&&<Dialog'), j = web.indexOf('{askDday&&', i);
+  const box = web.slice(i, j);
+  eq('방법을 안 알려준다', ['이름', '부르', '불리'].filter(t => box.includes(t)), []);
+  eq('존재값이 비밀이다', /존재값<\/span>[\s\S]*?비밀/.test(box), true);
+  eq('판돈은 알려준다', /다 못 채우면 사라져요/.test(box), true);
+  /* 다른 창과 같은 껍데기여야 한다 — 따로 만든 카드를 쓰면 저 창만 떠 보인다 */
+  eq('d-0.exe와 같은 껍데기다', /className="ddq"/.test(box) && /className="wbtn"/.test(box), true);
+}
+/* 떠나는 날에는 d-0.exe가 할 말이 따로 있다 */
+eq('마지막 날에는 안 뜬다', /if\(dLeft<=0\)return;/.test(web), true);
+
 eq('웹·앱 둘 다 첫 장면을 깐다',
   /const seedWatch=/.test(web) && /const seedWatch=async/.test(appSrc), true);
 eq('비어 있을 때만 깐다',
