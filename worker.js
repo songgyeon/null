@@ -867,6 +867,8 @@ const FORMAT_CHAT = `
     (o) {"messages": ["(소독약 뚜껑을 여는 소리)", "가만히 계세요."]}
     (x) {"messages": ["(소독약 뚜껑을 여는 소리) 가만히 계세요."]}
   - 짧게, 한 호흡. 소리나 손짓 하나. 문단짜리 설명을 쓰지 않는다.
+  - **어미를 반복하지 않는다.** 「~하는 참」이 매번 붙으면 그건 지문이 아니라 버릇이다.
+    끝맺는 말은 그때그때 다르다 — 「~한다」, 「~하는 소리」, 「~하다 만다」, 명사로 끊기도 한다.
   - **한 응답에 하나를 넘기지 않는다.** 그리고 **연달아 두 응답에 쓰지 않는다.**
     매 턴 괄호가 붙으면 그건 메신저가 아니라 소설 지문이다. 라면 하나 먹는 데
     뚜껑 만지고 젓가락 놓고 국물 마시는 소리가 다 붙으면 대화가 안 보인다.
@@ -878,8 +880,9 @@ const FORMAT_CHAT = `
 {"messages": ["지금요?", "그건 아까 말했잖아요."]}
 - 같이 가자고 하기로 한 턴에만 "invite"를 같이 쓴다. 아닌 턴에는 아예 쓰지 않는다:
 {"invite": "옥상", "messages": ["바람이나 쐬러 갈래요?"]}
-- 사진을 붙이는 말풍선만 객체로 쓴다:
-{"messages": ["지금요?", {"text": "이거 보세요.", "photo": "사진키"}]}
+- 사진은 "photo"에 키만 적는다. **messages 안에는 문자열만 넣는다.**
+  한 응답에 사진은 하나뿐이고, 마지막 말풍선에 붙는다:
+{"messages": ["지금요?", "이거 보세요."], "photo": "사진키"}
 `;
 
 const FORMAT_GROUP = `
@@ -890,8 +893,8 @@ const FORMAT_GROUP = `
 - 지난 대화에는 "[이재언] 말" 처럼 이름표가 붙어 있다. 그건 누가 한 말인지
   읽으라고 붙여둔 것이지 답하는 형식이 아니다. **답할 때는 이름표를 쓰지 않는다.**
   누가 말하는지는 오직 "sender" 값으로만 밝힌다. text 안에 이름을 적지 않는다.
-- 반드시 아래 JSON만 출력한다. 다른 텍스트 금지:
-{"messages": [{"sender": "jaeeon", "text": "그건 네가 알아서 해."}, {"sender": "minhyun", "text": "알아서 하고 있는데요", "photo": "사진키"}]}
+- 반드시 아래 JSON만 출력한다. 다른 텍스트 금지. 사진은 "photo"에 키만 적는다:
+{"messages": [{"sender": "jaeeon", "text": "그건 네가 알아서 해."}, {"sender": "minhyun", "text": "알아서 하고 있는데요"}], "photo": "사진키"}
 `;
 
 const FORMAT_AUTO = `
@@ -1543,12 +1546,27 @@ async function narrowDown(env, m, system, messages, maxTokens, first) {
    여러 줄 들어 있으면 필터가 손도 못 대고 그대로 나간다(점돌이 현상).
    지문 줄도 이 과정에서 자기 말풍선을 갖게 된다.
    사진이 붙은 말풍선은 건드리지 않는다 — 캡션이 사진에서 떨어져 나간다. */
+/* 앞이나 뒤에 붙은 괄호 덩어리를 제 줄로 떼어낸다.
+   「(옥상 바람에 눈 찌푸리며) 그거 아까 대답도 웅이었잖아요」처럼 지문이 대사와
+   한 말풍선에 섞여 나온다. 그러면 지문으로 안 그려지고 괄호가 말풍선 안에 남는다.
+   프롬프트에 적어둬도 새므로 여기서 가른다. */
+const LEAD_PAREN = /^\s*([（(][^()（）]{1,60}[)）])\s*(.+)$/;
+const TAIL_PAREN = /^(.+?)\s*([（(][^()（）]{1,60}[)）])\s*$/;
+function splitParen(text) {
+  let m = LEAD_PAREN.exec(text);
+  if (m) return [m[1], ...splitParen(m[2])];
+  m = TAIL_PAREN.exec(text);
+  if (m && !/^[（(]/.test(m[1])) return [...splitParen(m[1]), m[2]];
+  return [text];
+}
+
 function splitLines(list) {
   const out = [];
   for (const m of list) {
     const text = (m.text || "").toString();
-    if (m.photo || !text.includes("\n")) { out.push(m); continue; }
-    const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    if (m.photo) { out.push(m); continue; }   // 캡션이 사진에서 떨어져 나간다
+    const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean)
+      .flatMap(splitParen).map(s => s.trim()).filter(Boolean);
     if (!lines.length) { out.push(m); continue; }
     for (const line of lines) out.push({ ...m, text: line });
   }
@@ -1662,11 +1680,17 @@ function parseMessages(text, fallbackSender, allowed) {
       if (Array.isArray(j.messages)) {
         // 모델이 같이 가자고 하기로 했으면 여기 장소 이름이 온다. 부수적으로 넘긴다
         parseMessages.invite = typeof j.invite === "string" ? j.invite : "";
-        return j.messages.map(m =>
+        const out = j.messages.map(m =>
           typeof m === "string" ? { sender: fallbackSender, text: m } : m
         ).filter(m => m && m.text)
          // 이 방에 없는 사람 이름이 오면 그 방 주인의 말로 돌린다 (1:1에 난입 방지)
          .map(m => ok.includes(m.sender) ? m : { ...m, sender: fallbackSender });
+        /* 사진은 말풍선 안이 아니라 밖에 온다. 안에 두면 모델이 객체를 통째로
+           문자열로 만들어 text에 처넣는 사고가 난다 — {"text":"이거요","photo":...}가
+           그대로 말풍선에 찍혔다. 밖으로 빼면 messages는 그냥 말의 목록이 된다.
+           한 응답에 하나뿐이고 마지막 말풍선에 붙는다. */
+        if (typeof j.photo === "string" && j.photo && out.length) out[out.length - 1].photo = j.photo;
+        return out;
       }
     }
   } catch (e) { /* fall through */ }
