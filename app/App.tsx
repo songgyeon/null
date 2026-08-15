@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
-import { sendChat, genAuto, IMG } from './lib/api';
+import { sendChat, sendGreet, genAuto, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoWhen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
@@ -1814,15 +1814,31 @@ function Root() {
   const album=new Set<string>();
   Object.values(msgs).forEach(list=>(list||[]).forEach(m=>{if(m.photo)album.add(m.photo)}));
 
-  /* 데모에서는 캐릭터가 먼저 건다. 방을 열었는데 아무 말도 없으면 그건
-     메신저가 아니라 빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만 한 번. */
-  const demoGreet=async(id:string)=>{
-    if(!demoOn()||id==='health'||id==='group')return;
+  /* 캐릭터가 먼저 건다. 방을 열었는데 아무 말도 없으면 그건 메신저가 아니라
+     빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만 한 번.
+
+     전에는 데모 전용이었다 — 키가 살아 있으면 아무도 먼저 말을 걸지 않았다.
+     지금은 모델이 쓴다(mode:'greet'). 실패하면 각본으로 떨어진다. */
+  const greet=async(id:string,delay:number)=>{
+    if(id==='health'||id==='group'||!name)return;
     const list:any[]=(msgs as any)[id]||[];
-    const gapMin=list.length?(Date.now()-list[list.length-1].created_at)/60000:-1;
+    const gapMin=list.length?Math.round((Date.now()-list[list.length-1].created_at)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
-    const lines=demoProactive(id,demoWhen(gapMin,new Date().getHours()),name);
-    if(lines.length){ await new Promise(r=>setTimeout(r,700)); await enqueue(id,lines); }
+    if(delay) await new Promise(r=>setTimeout(r,delay));
+    const scripted=async()=>{
+      const lines=demoProactive(id,demoWhen(gapMin,new Date().getHours()),name);
+      if(lines.length) await enqueue(id,lines);
+    };
+    if(demoOn()){ await scripted(); return; }
+    try{
+      const data=await sendGreet(id,name,await getMsgs(id),gapMin);
+      await applyExtras(data);
+      if(data.messages?.length) await enqueue(id,data.messages);
+    }catch(e:any){
+      console.error('[NULL] 선톡 실패 → 데모로 전환', e);
+      DEMO.auto=true; setDemo(true);
+      await scripted();
+    }
   };
   /* 선톡은 방을 열어야 오는 게 아니다. 안 보고 있을 때 오는 것이 메신저다 —
      목록에 있는 동안 말이 도착하고 안 읽음이 붙는다.
@@ -1834,7 +1850,7 @@ function Root() {
      걸면 간격이 0이 되므로 다른 쪽은 안 걸린다. 목록을 떠나면 예약도 취소된다. */
   const greetAtRef=useRef(0);
   useEffect(()=>{
-    if(!name||view.type!=='list'||!demoOn())return;
+    if(!name||view.type!=='list')return;
     if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
     const cand=['jaeeon','minhyun'].map(id=>{
       const l:any[]=(msgs as any)[id]||[];
@@ -1843,11 +1859,9 @@ function Root() {
       .sort((a,b)=>(b.gap<0?1e9:b.gap)-(a.gap<0?1e9:a.gap))[0];
     if(!cand)return;
     greetAtRef.current=Date.now();
-    const t=setTimeout(()=>{
-      const lines=demoProactive(cand.id,demoWhen(cand.gap,new Date().getHours()),name);
-      if(lines.length) enqueue(cand.id,lines);
-    },1600+Math.random()*2600);
-    return()=>clearTimeout(t);
+    let live=true;
+    const t=setTimeout(()=>{ if(live) greet(cand.id,0); },1600+Math.random()*2600);
+    return()=>{live=false;clearTimeout(t)};
   },[name,view,msgs,demo]);
   useEffect(()=>{ Object.keys(msgs).forEach(k=>{ demoCount[k]=((msgs as any)[k]||[]).length }) },[msgs]);
   /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
@@ -1856,7 +1870,7 @@ function Root() {
     const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });
   },[msgs,demo]);
-  const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); demoGreet(id); };
+  const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); greet(id,700); };
   /* 프로필을 열어보면 그 단계를 본 것으로 찍는다 — 목록의 표시가 그때 꺼진다.
      방을 여는 걸로는 안 꺼진다. 바뀐 건 대화가 아니라 프로필이니까. */
   const openProfile=(c:string)=>{

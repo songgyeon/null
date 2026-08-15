@@ -1002,14 +1002,16 @@ eq('웹·앱 둘 다 목록에서 선톡이 온다',
 eq('한 번에 한 사람만 건다',
   /\.sort\(\(a,b\)=>\(b\.gap<0\?1e9:b\.gap\)-\(a\.gap<0\?1e9:a\.gap\)\)\[0\]/.test(web)
   && /\.sort\(\(a,b\)=>\(b\.gap<0\?1e9:b\.gap\)-\(a\.gap<0\?1e9:a\.gap\)\)\[0\]/.test(appSrc), true);
-/* 목록을 떠나면 예약도 취소돼야 한다 — 안 그러면 방을 연 직후에 한 번 더 온다 */
+/* 목록을 떠나면 예약도 취소돼야 한다 — 안 그러면 방을 연 직후에 한 번 더 온다.
+   선톡이 모델 호출로 바뀌면서 타이머를 지우는 것만으로는 부족해졌다. 지우기
+   직전에 이미 발화한 타이머가 네트워크를 타면 떠난 뒤에 말이 도착한다.
+   그래서 깃발(live)을 같이 내린다 — 둘 다 있어야 통과다. */
 eq('목록을 떠나면 선톡 예약이 취소된다',
-  (web.match(/return\(\)=>clearTimeout\(t\);/g) || []).length >= 1
-  && /return\(\)=>clearTimeout\(t\);/.test(appSrc), true);
-/* 선톡을 세우는 데 쓰는 것들이 App 안에 있어야 한다. 모듈 바깥에서 App 안의
-   것을 참조해서 데모가 통째로 안 돌던 적이 있다 */
-eq('선톡이 선언보다 먼저 읽히지 않는다',
-  web.indexOf('const [enrolling,setEnrolling]') < web.indexOf('const greetAtRef'), true);
+  /return\(\)=>\{live=false;clearTimeout\(t\)\};/.test(web)
+  && /return\(\)=>\{live=false;clearTimeout\(t\)\};/.test(appSrc), true);
+eq('예약이 터져도 깃발이 내려가 있으면 안 건다',
+  /if\(live\)greet\(cand\.id,0\)/.test(web)
+  && /if\(live\) greet\(cand\.id,0\)/.test(appSrc), true);
 
 /* ── vibe ──
    유저 발화가 하나뿐이면 물음표 하나로 비율이 1.0이 돼서 "캐묻는 중"이
@@ -1021,6 +1023,36 @@ eq('표본이 셋은 돼야 눈치를 본다', /userMsgs\.length < 3\) return un
 eq("'평소'를 신호로 보내지 않는다", /return '평소'/.test(apiSrc), false);
 eq('판정 넷은 그대로다',
   ['들뜸', '캐묻는 중', '말이 짧아짐', '길게 말하는 중'].filter(v => !apiSrc.includes(`'${v}'`)), []);
+
+/* ── 선톡을 모델이 쓴다 ──
+   전에는 각본에만 있어서 데모 모드에서만 왔다. 키가 살아 있으면 아무도 먼저
+   말을 걸지 않는 메신저였다. */
+eq('선톡이 데모 전용이 아니다',
+  /!demoOn\(\)\|\|enrolling\)return/.test(web), false);
+eq('웹·앱 둘 다 선톡을 서버에 묻는다',
+  /mode:"greet"/.test(web) && /mode: 'greet'/.test(apiSrc), true);
+eq('선톡에 얼마 만인지와 몇 시인지를 같이 보낸다',
+  /gap_min:gapMin,hour:new Date\(\).getHours\(\)/.test(web)
+  && /gap_min: gapMin/.test(apiSrc) && /hour: new Date\(\).getHours\(\)/.test(apiSrc), true);
+/* 워커가 선톡을 chat으로 착각하면 "history의 마지막은 user"에서 400이 난다 */
+eq('워커가 선톡 모드를 안다', /body\.mode === "greet" \? "greet"/.test(workerSrc), true);
+eq('선톡은 단톡에서 안 걸린다', /mode === "greet" && room === "group"/.test(workerSrc), true);
+/* 먼저 걸어놓고 대뜸 어디 가자는 건 용건이 있어서 연락한 사람이다 */
+eq('선톡에서는 자리를 안 연다', /mode === "greet" \? \[\] : invitesFor/.test(workerSrc), true);
+{ /* 시간대·간격 말이 유저 시계 기준으로 나오는지 */
+  const w = new Function(workerSrc.slice(workerSrc.indexOf('function timeWord'),
+    workerSrc.indexOf('function buildSystem')) + '\nreturn {timeWord,gapWord,buildGreet}')();
+  eq('새벽과 밤을 가른다', [w.timeWord(3), w.timeWord(23), w.timeWord(8)], ['새벽', '밤', '아침']);
+  eq('처음이면 간격이 없다', w.gapWord(-1), null);
+  eq('하루가 넘으면 날로 센다', w.gapWord(60 * 24 * 3), '마지막으로 말한 지 3일쯤 됐다');
+  eq('chat에는 선톡 지시가 안 붙는다', w.buildGreet('chat', -1, 3), '');
+  eq('선톡 지시에 시간이 들어간다', /새벽/.test(w.buildGreet('greet', -1, 3)), true);
+}
+/* 선톡을 세우는 데 쓰는 것들이 App 안에 있어야 한다. 모듈 바깥에서 App 안의
+   것을 참조해서 데모가 통째로 안 돌던 적이 있다 */
+eq('선톡이 선언보다 먼저 읽히지 않는다',
+  web.indexOf('const [enrolling,setEnrolling]') < web.indexOf('const greetAtRef'), true);
+
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

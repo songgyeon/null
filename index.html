@@ -2438,6 +2438,23 @@ function App(){
       setBusy(b=>({...b,[room]:false}));
     }
   };
+  /* 데모로 떨어졌을 때의 선톡. 답이 아니라 먼저 거는 말이므로 demoReply가
+     아니라 demoProactive를 쓴다 — 여기서 demoReply를 부르면 아무도 안 한 말에
+     대한 대답이 온다. */
+  const demoGreetSay=(room,gapMin)=>{
+    try{
+      const lines=demoProactive(room,demoWhen(gapMin,new Date().getHours()),name);
+      if(lines.length)enqueue(room,lines); else setBusy(b=>({...b,[room]:false}));
+    }catch(e){
+      console.error("%c[NULL] 데모 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50;font-weight:bold");
+      setBusy(b=>({...b,[room]:false}));
+    }
+  };
+
+  /* 각본으로 떨어질 때의 갈림길. 선톡이면 먼저 거는 말, 아니면 대답이다 */
+  const demoFall=(bucket,payload)=>payload.mode==="greet"
+    ? demoGreetSay(bucket,payload.gap_min)
+    : demoSay(bucket,demoAsk(payload),demoGiftKey(payload));
 
   /* API 요청 — 실패 시 조용한 재시도 버튼 */
   const request=async(bucket,payload)=>{
@@ -2453,7 +2470,7 @@ function App(){
     // 데모로 굳었으면 네트워크를 아예 타지 않는다
     if(demoOn()){
       inflightRef.current[bucket]=false;
-      setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
+      setTimeout(()=>demoFall(bucket,payload),450);
       return;
     }
     try{
@@ -2483,7 +2500,7 @@ function App(){
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
-      setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
+      setTimeout(()=>demoFall(bucket,payload),450);
     }
   };
 
@@ -2628,18 +2645,23 @@ function App(){
   const rename=n=>{localStorage.setItem("null_name",n);setName(n)};
   const reset=()=>{localStorage.clear();setStore({msgs:{},unread:{}});setProfile({});setUnlocked([]);setGifts({});setSeenStage({});setName("")};
 
-  /* 데모에서는 캐릭터가 먼저 건다. 방을 열었는데 아무 말도 없으면 그건
-     메신저가 아니라 빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만
-     한 번 — 들어올 때마다 말을 걸면 사람이 아니라 알림이 된다. */
-  const demoGreet=id=>{
-    if(!demoOn()||id==="health"||id==="group")return;
+  /* 캐릭터가 먼저 건다. 방을 열었는데 아무 말도 없으면 그건 메신저가 아니라
+     빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만 한 번 — 들어올 때마다
+     말을 걸면 사람이 아니라 알림이 된다.
+
+     전에는 이게 데모 전용이었다. 키가 살아 있으면 아무도 먼저 말을 걸지
+     않았다는 뜻이다. 지금은 모델이 쓴다(mode:"greet") — 실패하면 request가
+     알아서 각본으로 떨어진다. */
+  const greet=(id,delay)=>{
+    if(id==="health"||id==="group")return;
     const list=storeRef.current.msgs[id]||[];
-    const gapMin=list.length?(Date.now()-list[list.length-1].ts)/60000:-1;
+    const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
-    const lines=demoProactive(id,demoWhen(gapMin,new Date().getHours()),name);
-    if(lines.length)setTimeout(()=>enqueue(id,lines),700);
+    setTimeout(()=>request(id,{mode:"greet",room:id,user_name:name,
+      history:buildHistory(list),signals:buildSignals(id),recent_photos:recentPhotos(id),
+      gap_min:gapMin,hour:new Date().getHours()}),delay);
   };
-  const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));demoGreet(id)};
+  const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));greet(id,700)};
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
@@ -2700,7 +2722,7 @@ function App(){
      같이 취소된다. */
   const greetAtRef=useRef(0);
   useEffect(()=>{
-    if(!name||view!=="list"||!demoOn()||enrolling)return;
+    if(!name||view!=="list"||enrolling)return;
     if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
     const cand=["jaeeon","minhyun"].map(id=>{
       const l=storeRef.current.msgs[id]||[];
@@ -2709,13 +2731,9 @@ function App(){
       .sort((a,b)=>(b.gap<0?1e9:b.gap)-(a.gap<0?1e9:a.gap))[0];
     if(!cand)return;
     greetAtRef.current=Date.now();
-    const t=setTimeout(()=>{
-      try{
-        const lines=demoProactive(cand.id,demoWhen(cand.gap,new Date().getHours()),name);
-        if(lines.length)enqueue(cand.id,lines);
-      }catch(e){ console.error("%c[NULL] 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
-    },1600+Math.random()*2600);
-    return()=>clearTimeout(t);
+    let live=true;
+    const t=setTimeout(()=>{ if(live)greet(cand.id,0); },1600+Math.random()*2600);
+    return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
   return <div className="phone">
