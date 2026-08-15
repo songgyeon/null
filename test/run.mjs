@@ -832,7 +832,7 @@ const unlockedKeys = new Function(workerSrc.slice(workerSrc.indexOf('const UNLOC
   workerSrc.indexOf('// 유저가 \'당신.txt\'')) + ';return unlockedKeys')();
 const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
 /* 단계는 안 올라가는데 일기만 첫날에 열리면 안쪽으로 들어가는 순서가 무너진다 */
-eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 25)], [0, 2, 9, 19]);
+eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 25)], [0, 2, 8, 15]);
 /* 표가 세 군데 있다 — 워커·웹·앱. 하나만 고치면 화면에 뜨는 진행도와 실제
    해금 시점이 어긋나는데, 그건 눈으로 안 보인다. 키·조건을 통째로 대조한다. */
 {
@@ -844,17 +844,19 @@ eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 2
     /key:"([^"]+)",\s*file:[^,]+,\s*label:[^,]+, room:"([a-z]+)", at:(\d+)/g);
   const A = pick(appSrc, 'const HIDDEN:HiddenItem', '/* ── 데모 모드',
     /key:'([^']+)',\s*label:[^,]+, room:'([a-z]+)', at:(\d+)/g);
-  eq('해금 표가 23개다', [W.length, H.length, A.length], [23, 23, 23]);
+  eq('해금 표가 17개다', [W.length, H.length, A.length], [17, 17, 17]);
   eq('워커와 웹이 같은 표를 쓴다', W.filter((x, i) => x !== H[i]), []);
   eq('웹과 앱이 같은 표를 쓴다', H.filter((x, i) => x !== A[i]), []);
 }
 
-/* 마지막 한 장은 두 방을 다 만나야 열린다. 한쪽만 파고들어서는 안 나온다 */
-eq('둘 다 만나야 열리는 것이 있다', (() => {
-  const one = unlockedKeys({ jaeeon: 120, minhyun: 0 }, 30);
-  const both = unlockedKeys({ jaeeon: 120, minhyun: 120 }, 30);
-  return [one.includes('final-studyroom'), both.includes('final-studyroom')];
-})(), [false, true]);
+/* 안쪽 일곱은 종이다 — 일기 넉 장, 상담 기록 둘, 그리고 계정 하나.
+   사진으로 보여주던 것들은 뺐다. 안으로 들어갈수록 사진이 아니라 기록이 나온다 */
+eq('안쪽은 전부 기록이다', (() => {
+  const late = unlockedKeys({ jaeeon: 120, minhyun: 120 }, 30)
+    .filter(k => /^hidden-/.test(k));
+  return [late.length, late.filter(k => /diary/.test(k)).length,
+          late.filter(k => /counseling/.test(k)).length, late.filter(k => /reasons/.test(k)).length];
+})(), [7, 4, 2, 1]);
 eq('말을 안 하면 날짜가 가도 안 열린다', uk(10, 30), 0);
 /* .hidden의 "N more"가 대화만 세고 있었다. 날짜를 걸고 나니 120마디를 채워도
    "0 more"인데 안 열리는 칸이 생겼다. 남은 쪽만 보여주는 것도 답이 아니었다 —

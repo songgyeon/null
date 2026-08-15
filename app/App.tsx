@@ -53,7 +53,7 @@ Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.webp'}));
 /* .hidden 탭 — 해금된 key는 meta 'null_unlocked'(JSON 배열)에서 읽는다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
-type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun'|'both';at:number;day:number;note?:string;kind?:'sns'};
+type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun';at:number;day:number;note?:string;kind?:'sns'};
 type GalleryZoom={uri:string;label?:string;note?:string;kind?:'sns'};
 const HIDDEN:HiddenItem[]=[
   {key:'jaeeon-bag',           label:'재언의 가방', room:'jaeeon', at:12, day:3},
@@ -62,29 +62,17 @@ const HIDDEN:HiddenItem[]=[
   {key:'minhyun-room',         label:'민현의 방', room:'minhyun', at:26, day:7},
   {key:'jaeeon-playlist',      label:'재언의 플레이리스트', room:'jaeeon', at:44, day:11},
   {key:'minhyun-playlist',     label:'민현의 플레이리스트', room:'minhyun', at:44, day:11},
-  {key:'minhyun-lighter',      label:'민현의 라이터', room:'minhyun', at:52, day:12,
-    note:'학교에 오기 전, 골목에서 담배를 껐던 날. 라이터는 버리지 않았다.'},
   {key:'jaeeon-ticket',        label:'재언의 티켓', room:'jaeeon', at:64, day:15},
   {key:'minhyun-ticket',       label:'민현의 티켓', room:'minhyun', at:64, day:15},
-  {key:'minhyun-rehab',        label:'재활 기록', room:'minhyun', at:76, day:17,
-    note:'열아홉. 재활 1년. 학교로 돌아온 건 스무 살이었다.'},
-  {key:'minhyun-discharge',    label:'퇴원하던 날', room:'minhyun', at:84, day:19,
-    note:'보호자란에는 이재언 하나뿐이었다. 퇴원 날 재언은 ‘가자’고만 했다.'},
   {key:'jaeeon-yearbook',      label:'재언의 졸업사진', room:'jaeeon', at:90, day:20},
   {key:'minhyun-yearbook',     label:'민현의 졸업사진', room:'minhyun', at:90, day:20},
-  {key:'jaeeon-studyroom',     label:'오래된 공부방', room:'jaeeon', at:98, day:22,
-    note:'재언이 아홉 살 때 매일 끝까지 남아 있던 공부방.'},
   {key:'hidden-jaeeon-diary-200x-03-07', label:'재언의 일기 · 3월 7일', room:'jaeeon', at:100, day:23},
   {key:'hidden-minhyun-counseling-record-1-a4', label:'민현 상담 기록 · 1', room:'minhyun', at:100, day:23},
   {key:'hidden-jaeeon-diary-200x-04-12', label:'재언의 일기 · 4월 12일', room:'jaeeon', at:106, day:24},
   {key:'hidden-minhyun-counseling-record-2-a4', label:'민현 상담 기록 · 2', room:'minhyun', at:106, day:24},
   {key:'hidden-jaeeon-diary-201x-07-11', label:'재언의 일기 · 7월 11일', room:'jaeeon', at:112, day:25},
   {key:'hidden-jaeeon-diary-202x-start', label:'재언의 일기 · 202X년', room:'jaeeon', at:116, day:26},
-  {key:'jaeeon-string',        label:'남은 끈', room:'jaeeon', at:120, day:27,
-    note:'사탕은 녹아 없어졌고, 끈만 스무 해 남았다.'},
   {key:'hidden-minhyun-reasons', label:'@mhy.wav', room:'minhyun', at:120, day:27, kind:'sns'},
-  {key:'final-studyroom',      label:'스무 해 전 사진', room:'both', at:120, day:30,
-    note:'사진 뒷면 — 2006년. 재언 아홉, {name} 다섯. ‘사탕 목걸이를 준 날.’'},
 ];
 
 /* ── 데모 모드 ──
@@ -2003,12 +1991,7 @@ function Root() {
   /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
      여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
   useEffect(()=>{ if(!demoOn())return;
-    const got=HIDDEN.filter(h=>{
-      const n=h.room==='both'
-        ?Math.min(((msgs as any).jaeeon||[]).length,((msgs as any).minhyun||[]).length)
-        :((msgs as any)[h.room]||[]).length;
-      return n>=h.at&&dayN>=h.day;
-    }).map(h=>h.key);
+    const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });
   },[msgs,demo]);
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); greet(id,700); };

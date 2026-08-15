@@ -1093,29 +1093,17 @@ const HIDDEN=[
   {key:"minhyun-room",           file:"minhyun-room.webp",           label:"민현의 방", room:"minhyun", at:26, day:7},
   {key:"jaeeon-playlist",        file:"jaeeon-playlist.webp",        label:"재언의 플레이리스트", room:"jaeeon", at:44, day:11},
   {key:"minhyun-playlist",       file:"minhyun-playlist.webp",       label:"민현의 플레이리스트", room:"minhyun", at:44, day:11},
-  {key:"minhyun-lighter",        file:"minhyun-lighter.webp",        label:"민현의 라이터", room:"minhyun", at:52, day:12,
-    note:"학교에 오기 전, 골목에서 담배를 껐던 날. 라이터는 버리지 않았다."},
   {key:"jaeeon-ticket",          file:"jaeeon-ticket.webp",          label:"재언의 티켓", room:"jaeeon", at:64, day:15},
   {key:"minhyun-ticket",         file:"minhyun-ticket.webp",         label:"민현의 티켓", room:"minhyun", at:64, day:15},
-  {key:"minhyun-rehab",          file:"minhyun-rehab.webp",          label:"재활 기록", room:"minhyun", at:76, day:17,
-    note:"열아홉. 재활 1년. 학교로 돌아온 건 스무 살이었다."},
-  {key:"minhyun-discharge",      file:"minhyun-discharge.webp",      label:"퇴원하던 날", room:"minhyun", at:84, day:19,
-    note:"보호자란에는 이재언 하나뿐이었다. 퇴원 날 재언은 ‘가자’고만 했다."},
   {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.webp",        label:"재언의 졸업사진", room:"jaeeon", at:90, day:20},
   {key:"minhyun-yearbook",       file:"minhyun-yearbook.webp",       label:"민현의 졸업사진", room:"minhyun", at:90, day:20},
-  {key:"jaeeon-studyroom",       file:"jaeeon-studyroom.webp",       label:"오래된 공부방", room:"jaeeon", at:98, day:22,
-    note:"재언이 아홉 살 때 매일 끝까지 남아 있던 공부방."},
   {key:"hidden-jaeeon-diary-200x-03-07", file:"hidden-jaeeon-diary-200x-03-07.webp", label:"재언의 일기 · 3월 7일", room:"jaeeon", at:100, day:23},
   {key:"hidden-minhyun-counseling-record-1-a4", file:"hidden-minhyun-counseling-record-1-a4.webp", label:"민현 상담 기록 · 1", room:"minhyun", at:100, day:23},
   {key:"hidden-jaeeon-diary-200x-04-12", file:"hidden-jaeeon-diary-200x-04-12.webp", label:"재언의 일기 · 4월 12일", room:"jaeeon", at:106, day:24},
   {key:"hidden-minhyun-counseling-record-2-a4", file:"hidden-minhyun-counseling-record-2-a4.webp", label:"민현 상담 기록 · 2", room:"minhyun", at:106, day:24},
   {key:"hidden-jaeeon-diary-201x-07-11", file:"hidden-jaeeon-diary-201x-07-11.webp", label:"재언의 일기 · 7월 11일", room:"jaeeon", at:112, day:25},
   {key:"hidden-jaeeon-diary-202x-start", file:"hidden-jaeeon-diary-202x-start.webp", label:"재언의 일기 · 202X년", room:"jaeeon", at:116, day:26},
-  {key:"jaeeon-string",          file:"jaeeon-string.webp",          label:"남은 끈", room:"jaeeon", at:120, day:27,
-    note:"사탕은 녹아 없어졌고, 끈만 스무 해 남았다."},
   {key:"hidden-minhyun-reasons", file:"hidden-minhyun-reasons.webp", label:"@mhy.wav", room:"minhyun", at:120, day:27, kind:"sns"},
-  {key:"final-studyroom",        file:"final-studyroom.webp",        label:"스무 해 전 사진", room:"both", at:120, day:30,
-    note:"사진 뒷면 — 2006년. 재언 아홉, {name} 다섯. ‘사탕 목걸이를 준 날.’"},
 ];
 const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
 
@@ -1231,14 +1219,7 @@ const demoReply=(bucket,lastText,userName,msgs,gift)=>
   demoAnswer(bucket,lastText,userName,{close:demoClose(msgs,bucket),gift:gift});
 /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
    여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
-/* room이 "both"인 것은 두 방을 다 만나야 열린다. 마지막 한 장은 한쪽만
-   파고들어서는 안 나오게 — 적은 쪽을 기준으로 센다. worker.js의 unlockedKeys와 같다 */
-const demoUnlocked=msgs=>{const d=daysSince({msgs});return HIDDEN.filter(h=>{
-  const n=h.room==="both"
-    ?Math.min(((msgs||{}).jaeeon||[]).length,((msgs||{}).minhyun||[]).length)
-    :((msgs||{})[h.room]||[]).length;
-  return n>=h.at&&d>=h.day;
-}).map(h=>h.key)};
+const demoUnlocked=msgs=>{const d=daysSince({msgs});return HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at&&d>=h.day).map(h=>h.key)};
 /* 문구집에 물어볼 말. 유저가 방금 친 말이다. 시스템 줄("…을(를) 받았다")은
    유저가 한 말이 아니라서 그대로 넘기면 아무것도 안 걸린다. */
 const demoAsk=payload=>{
