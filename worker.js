@@ -2082,6 +2082,30 @@ function trimTics(list) {
 }
 
 const NAME_TO_ID = { "이재언": "jaeeon", "이민현": "minhyun" };
+/* 말풍선 앞에 붙는 이름표. 성을 뗀 것까지 받는다 — 모델이 「재언: 」으로 쓴다.
+   「삼촌」은 안 넣는다. 부르는 말이라 「삼촌, 아까 그 커피」가 통째로 잘려나간다. */
+const LABEL_TO_ID = { ...NAME_TO_ID, "재언": "jaeeon", "민현": "minhyun" };
+/* 「[이재언] 말」은 대괄호만으로, 「재언: 말」은 쌍점으로 붙는다. 둘 다 받는다 */
+const LABEL_RE = /^\s*(?:\[\s*(이재언|이민현|재언|민현)\s*\]|(이재언|이민현|재언|민현)\s*[:：])\s*(.*)$/;
+
+/* ── 이름표 떼기 ──
+   누가 말하는지는 "sender"로만 밝히라고 형식에 적어뒀는데도, 관전방·단톡방은
+   이력을 「[이재언] 말」로 넣어주다 보니 모델이 그 모양을 따라 text 안에
+   「민현: 」을 박아 보낸다. 그러면 말풍선마다 이름이 찍히고, sender는 다들
+   같은 값이라 아바타가 한 덩어리로 뭉친다.
+   이름표를 떼서 sender로 옮긴다. 이 방에 없는 사람 이름이면 이름만 떼고
+   화자는 그대로 둔다 — 1:1 방에 상대가 끼어들지 않게. */
+function unlabel(list, allowed) {
+  const ok = Array.isArray(allowed) && allowed.length ? allowed : [];
+  return (list || []).map(m => {
+    const hit = LABEL_RE.exec(m.text || "");
+    if (!hit) return m;
+    const id = LABEL_TO_ID[hit[1] || hit[2]];
+    const text = (hit[3] || "").trim();
+    if (!text) return { ...m, text };                 // 이름표뿐인 줄은 비운다 (뒤에서 걸러진다)
+    return ok.includes(id) ? { ...m, sender: id, text } : { ...m, text };
+  }).filter(m => (m.text || "").trim() || m.photo);
+}
 
 /* 단톡방·「두 사람」방은 이력을 "[이재언] 말" 형태로 넣어준다. 모델이 JSON을
    안 쓰고 그 형식을 그대로 따라 쓸 때가 있는데, 그러면 세 사람 대사가 말풍선
@@ -2528,7 +2552,7 @@ export default {
       const invite = pickInvite(parseMessages.invite, openPlaces);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
       const give = pickGive(parseMessages.give, place, hasItem);
-      const messages = trimTics(sanitizePhotos(splitLines(parsed), photoChars, fallbackSender, recentPhotos));
+      const messages = trimTics(sanitizePhotos(unlabel(splitLines(parsed), chars), photoChars, fallbackSender, recentPhotos));
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
         ...(invite ? { invite: { place: invite, char: room } } : {}),
@@ -2543,5 +2567,5 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory,
+export { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace };

@@ -4,7 +4,7 @@
    여기 모인 것은 전부 "실제로 한 번 터졌던 것"이다. 새 기능을 넣을 때가 아니라
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
-import { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildVolatile, budgetHistory,
+import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace } from '../worker.js';
 import worker from '../worker.js';
 import { readFileSync } from 'node:fs';
@@ -1509,6 +1509,33 @@ eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) &&
 eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.test(web), true);
 eq('자리에 들어갈 때 시각을 찍는다',
   (web.match(/since:Date\.now\(\)/g) || []).length, 2);
+
+/* ── 이름표가 말풍선 안으로 새는 것 ──
+   누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을
+   「[이재언] 말」로 넣어주다 보니 모델이 그 모양을 따라 text에 「민현: 」을
+   박아 보낸다. 말풍선마다 이름이 찍히고 sender는 다 같아서 아바타가 뭉친다. */
+{
+  const B = ['jaeeon', 'minhyun'];
+  const one = (sender, text, allowed = B) => unlabel([{ sender, text }], allowed)[0];
+  eq('쌍점 이름표를 뗀다', one('minhyun', '민현: 네네.').text, '네네.');
+  eq('성을 뗀 이름표도 화자를 바꾼다',
+    [one('minhyun', '재언: 실수라니까.').sender, one('minhyun', '재언: 실수라니까.').text],
+    ['jaeeon', '실수라니까.']);
+  eq('대괄호 이름표도 뗀다',
+    [one('minhyun', '[이재언] 애들 준다고 했잖아.').sender, one('minhyun', '[이재언] 애들 준다고 했잖아.').text],
+    ['jaeeon', '애들 준다고 했잖아.']);
+  /* 「삼촌」은 부르는 말이다. 이름표로 치면 「삼촌, 아까 그 커피」가 통째로 잘린다 */
+  eq('부르는 말은 안 건드린다', one('minhyun', '삼촌, 아까 그 커피 왜 시켰어요.').text,
+    '삼촌, 아까 그 커피 왜 시켰어요.');
+  eq('유저 이름표는 이름으로 안 본다', one('jaeeon', '선생님: 안녕하세요').text, '선생님: 안녕하세요');
+  /* 1:1 방에 상대가 끼어들면 안 된다 — 이름만 떼고 화자는 그대로 둔다 */
+  eq('이 방에 없는 사람은 말하지 못한다',
+    [one('jaeeon', '민현: 삼촌 뭐해요', ['jaeeon']).sender, one('jaeeon', '민현: 삼촌 뭐해요', ['jaeeon']).text],
+    ['jaeeon', '삼촌 뭐해요']);
+  eq('이름표뿐인 줄은 버린다', unlabel([{ sender: 'minhyun', text: '민현:' }], B).length, 0);
+  eq('사진만 있는 말풍선은 안 버린다',
+    unlabel([{ sender: 'minhyun', text: '', photo: 'minhyun-conv' }], B).length, 1);
+}
 
 /* ── 지도와 가방 ──
    초대는 저쪽이 정하고 지도는 이쪽이 정한다. 자리마다 받아오는 게 하나씩 있다. */
