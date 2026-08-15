@@ -411,8 +411,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  box-shadow:3px 4px 0 rgba(60,45,100,.3);animation:pop .35s steps(3) both}
 .spwin .sptb{font-size:9px;padding:4px 7px}
 .spwin .spbd{padding:11px 11px 9px;font-size:9.5px;line-height:1.75;background:#fff;color:#6b5fa8}
-/* 겹치는 오류창. .spwin이 position:relative라 반드시 그 뒤에서, 선택자도 두 겹으로
-   잡는다 — 앞에 두면 자리가 하나도 안 먹고 아래로 줄줄이 흘러내린다. */
 .spwin.sperr{position:absolute;width:188px;animation:errpop .18s steps(2) both}
 .spwin.sperr .spbtn{cursor:pointer}
 .spwin.sperr .spbtn:active{transform:translate(1px,1px)}
@@ -666,39 +664,12 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  box-shadow:0 2px 0 #7f68c2,0 0 10px rgba(255,255,255,.7)}
 .roadend small{display:block;margin-bottom:3px;font-size:6.5px;letter-spacing:.16em;color:#9a86cc}
 .roadend b{display:block;font-size:14px;font-weight:400;letter-spacing:.16em}
-.roadiconbtn{position:absolute;z-index:5;width:23%;aspect-ratio:1;border:0;padding:0;cursor:pointer;background:transparent;
+.roadiconbtn{position:absolute;z-index:5;width:25%;aspect-ratio:1;border:0;padding:0;cursor:pointer;background:transparent;
  transform:translate(-50%,-50%);filter:drop-shadow(0 3px 1px rgba(72,48,145,.28));transition:transform .12s steps(2),filter .12s}
 .roadiconbtn img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
 .roadiconbtn:active{transform:translate(-50%,calc(-50% + 2px)) scale(.98)}
 .roadiconbtn.lock{cursor:default;filter:drop-shadow(0 2px 1px rgba(72,48,145,.14))}
 .roadiconbtn.been{filter:drop-shadow(0 2px 1px rgba(72,48,145,.28)) drop-shadow(0 0 7px rgba(255,151,196,.72))}
-.roadnode{position:absolute;z-index:6;width:34%;min-height:54px;padding:8px 9px 8px;font-family:inherit;text-align:left;
- color:#544888;cursor:pointer;border:1px solid rgba(255,255,255,.98);border-radius:9px;
- background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(238,231,253,.9));
- box-shadow:0 2px 0 rgba(97,75,166,.24),0 0 0 1px rgba(164,143,218,.32),0 5px 10px rgba(80,59,151,.14);
- -webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);transform:translate(-50%,-50%);
- transition:transform .12s steps(2),filter .12s}
-.roadnode::before{content:"";position:absolute;left:7px;right:7px;top:2px;height:32%;border-radius:8px;
- background:linear-gradient(180deg,rgba(255,255,255,.78),transparent);pointer-events:none}
-.roadnode:active{transform:translate(-50%,calc(-50% + 2px));filter:brightness(.97)}
-.roadnode strong{position:relative;display:block;padding-right:15px;font-size:11px;font-weight:400;letter-spacing:.08em;
- white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.roadnode small{position:relative;display:block;margin-top:4px;font-size:7.5px;line-height:1.35;letter-spacing:.02em;
- color:#9a8bc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.roadnode.lock{color:#a99bd1;cursor:default;background:linear-gradient(180deg,rgba(246,241,255,.78),rgba(218,207,244,.74));
- box-shadow:0 2px 0 rgba(97,75,166,.16),0 0 0 1px rgba(164,143,218,.2);filter:saturate(.65)}
-.roadnode.lock strong{letter-spacing:.22em}
-.roadnode.been{color:#8b4771;box-shadow:0 2px 0 rgba(193,93,143,.24),0 0 0 1px rgba(255,143,190,.75),0 0 12px rgba(255,158,198,.28)}
-.roadnode .rheart{position:absolute;right:7px;top:7px;font-size:10px;color:#ff7fae;text-shadow:0 0 5px rgba(255,127,174,.55)}
-.rnwho{position:relative;display:flex;gap:3px;margin-top:4px}
-.rnwho i{width:6px;height:6px;border-radius:50%;border:1px solid rgba(255,255,255,.95);
- box-shadow:0 1px 1px rgba(74,54,130,.25)}
-.roadyou{position:absolute;z-index:9;width:32px;height:32px;display:flex;align-items:center;justify-content:center;
- transform:translate(-50%,-50%) rotate(45deg);border:2px solid #fff;border-radius:55% 55% 55% 8px;
- color:#fff;background:linear-gradient(135deg,#ff9ec6,#a78fe0);box-shadow:0 2px 0 #745bb5,0 0 10px rgba(255,255,255,.8);
- transition:left .5s steps(8),top .5s steps(8)}
-.roadyou span{font-size:6.5px;letter-spacing:.08em;transform:rotate(-45deg);text-shadow:0 1px 1px rgba(73,48,135,.55)}
-.roadnote{margin:11px 4px 3px;text-align:center;font-size:9px;line-height:1.8;letter-spacing:.07em;color:#9d8dca}
 
 /* ── bag ── */
 .mbtn .mbcount{margin-left:4px;padding:0 4px;font-size:9px;font-style:normal;color:#fff;
@@ -1333,18 +1304,6 @@ const PLACES=[
 ];
 const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
 const PLACE_BY={};PLACES.forEach(p=>{PLACE_BY[p.name]=p});
-/* 로드맵 그림 위의 실제 버튼 자리. 그림은 한 줄의 길이고 해금 분기는
-   PLACES.need만 맡는다 — 보이는 길까지 갈라놓으면 관계도처럼 보여서 무겁다. */
-const ROAD_POS={
-  "교실":    {x:82,y:82.2},
-  "보건실":  {x:18,y:71.5},
-  "옥상":    {x:82,y:61.7},
-  "편의점":  {x:18,y:53.2},
-  "도서관":  {x:82,y:43.7},
-  "레코드샵":{x:18,y:35.2},
-  "빨래방":  {x:82,y:26.5},
-  "집":      {x:18,y:16.2},
-};
 /* 장소 그림은 배경에 박지 않는다. 같은 좌표에서 open/lock PNG만 교체한다. */
 const ROAD_ICON_POS={
   "교실":    {x:53,y:82.2},
@@ -1356,12 +1315,10 @@ const ROAD_ICON_POS={
   "빨래방":  {x:46,y:26.5},
   "집":      {x:53,y:16.2},
 };
-/* 다녀온 수만큼 길 위의 YOU가 올라간다. 첫 두 장소의 해금 순서는 자유지만
-   지도는 진행 방향만 보여주므로 한 개의 마커로 충분하다. */
-const ROAD_PROGRESS=[
-  {x:50,y:92.8},{x:53,y:82.2},{x:50,y:71.5},{x:45,y:61.7},{x:52,y:53.2},
-  {x:43,y:43.7},{x:53,y:35.2},{x:46,y:26.5},{x:53,y:16.2},
-];
+const ROAD_LABEL={
+  class:"CLASSROOM",nurse:"INFIRMARY",rooftop:"ROOFTOP",conv:"STORE",
+  library:"LIBRARY",record:"RECORD SHOP",laundry:"LAUNDROMAT",home:"HOME",
+};
 /* ── 가방 ──
    선물은 유저가 준다. 가방은 받은 것이다. 자리마다 하나씩 있고, 그 자리에
    가야만 생긴다 — 지도를 도는 이유가 여기 있다.
@@ -1811,13 +1768,8 @@ const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21">
   <path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L13 12 Z" fill="#fff" stroke="#4a4276" strokeWidth="1.2" strokeLinejoin="round"/>
 </svg>;
 
-/* 같은 창이 계단처럼 겹쳐 쌓인다 — Y2K 바탕화면의 그 오류 무더기.
-   흩어놓으면 그냥 창이 여럿인 것이고, 겹쳐야 「닫아도 닫아도 또 뜬다」가 된다.
-   자리는 브라우저로 실제 좌표를 재서 잡았다. 화면 430×900에 입력 카드가
-   207~421을 쓰므로 그 위 칸만 쓴다 — 카드가 덮이면 다시 누를 수가 없다.
-   여덟 장이 7픽셀씩 밀리면 맨 앞장 아래가 202, 카드까지 5픽셀 남는다. */
-const SPERR={t:"Error", c:"linear-gradient(90deg,#b9a8ea,#8a7fc0)",
-  say:"존재값이 비어 있습니다.", b:"ok", x:8, y:26, step:7, max:8};
+const SPERR={t:"Error",c:"linear-gradient(90deg,#b9a8ea,#8a7fc0)",
+  say:"존재값이 비어 있습니다.",b:"ok",x:8,y:26,step:7,max:8};
 
 function Splash({onEnter}){
   const [v,setV]=useState("");
@@ -1848,7 +1800,6 @@ function Splash({onEnter}){
   const go=()=>{
     const t=v.trim();
     if(t){onEnter(t);return}
-    /* 한 번에 세 장씩 겹친다. 한 장씩 뜨면 「와다다」가 아니라 순서다 */
     if(errs<SPERR.max)setErrs(Math.min(SPERR.max,errs+3));
     else{setNudge(true);setTimeout(()=>setNudge(false),380)}
     const el=document.querySelector(".spinput"); if(el)el.focus();
@@ -1889,8 +1840,6 @@ function Splash({onEnter}){
         </div>
       </div>
     </div>
-    {/* 눌러서 겹친 것들. 이것만 닫힌다 — 배경 넷은 이 화면의 몫이라 그대로 둔다.
-        뒷장은 제목줄만 보이면 된다. 앞장 하나만 온전히 읽히는 게 이 그림이다 */}
     {Array.from({length:errs},(_,i)=>
       <div key={i} className="spwin sperr"
         style={{left:SPERR.x+i*SPERR.step,top:SPERR.y+i*SPERR.step,zIndex:24+i}}>
@@ -2198,7 +2147,6 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
   /* 지도 진행은 실제로 다녀온 자리만 센다. 갈 수 있게 열린 칸은 진행도가 아니다. */
   const visitedN=PLACES.filter(p=>met.includes(p.name)).length;
-  const roadYou=ROAD_PROGRESS[Math.min(visitedN,ROAD_PROGRESS.length-1)];
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
@@ -2306,37 +2254,24 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           <div className="roadtitle"><span className="heart">♡</span><span>NULL ROAD MAP</span><span className="roadstar">✦</span></div>
           <div className="roadend"><small>JOURNEY END</small><b>D-0</b></div>
           <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
-          <div className="roadyou" style={{left:roadYou.x+"%",top:roadYou.y+"%"}}><span>YOU</span></div>
           {PLACES.map(p=>{
             const open=placeOpen(p,met);
             const been=met.includes(p.name);
             const want=placeNeed(p,met);
-            const pos=ROAD_POS[p.name]||{x:50,y:50};
             const iconPos=ROAD_ICON_POS[p.name]||{x:50,y:50};
-            const enter=()=>{if(!open){onToast(want.join(" · ")+" 먼저");return}
+            const enter=()=>{if(!open){
+              const needed=want.map(n=>ROAD_LABEL[PLACE_BY[n]?.icon]||"PLACE").join(" + ");
+              onToast("LOCKED · "+needed+" FIRST");return}
               p.who.length>1?onPick(p.name):onGo(p.name,p.who[0])};
-            return <React.Fragment key={p.name}>
-              <button type="button"
+            return <button type="button" key={p.name}
                 className={"roadiconbtn"+(open?"":" lock")+(been?" been":"")}
                 style={{left:iconPos.x+"%",top:iconPos.y+"%"}}
-                aria-label={open?`${p.name} 아이콘`:`잠긴 장소: ${want.join(", ")} 방문 필요`}
+                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?"":" · LOCKED")}
                 onClick={enter}>
                 <img src={`map-icons/place-${p.icon}-${open?"open":"lock"}.png`} alt=""/>
-              </button>
-              <button type="button"
-              className={"roadnode"+(open?"":" lock")+(been?" been":"")}
-              style={{left:pos.x+"%",top:pos.y+"%"}}
-              aria-label={open?p.name:`잠긴 장소: ${want.join(", ")} 방문 필요`}
-              onClick={enter}>
-              <strong>{open?p.name:p.name.split("").map(()=>"□").join("")}</strong>
-              <small>{open?p.note:want.join(" · ")+" 다녀오면"}</small>
-              {open&&<span className="rnwho">{p.who.map(w=><i key={w} style={{background:CHARS[w].color}}/>)}</span>}
-              {been&&<span className="rheart">♡</span>}
-              </button>
-            </React.Fragment>;
+              </button>;
           })}
         </div>
-        <div className="roadnote">발이 닿은 만큼만 길이 열린다<br/>열린 이름을 누르면 그 장소로 간다</div>
       </div>
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
