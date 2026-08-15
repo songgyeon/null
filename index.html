@@ -2107,7 +2107,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           const got=ch.gallery.filter(f=>album.has(f.replace(/\.webp$/,"")));
           if(!got.length)return null;
           return <React.Fragment key={id}>
-            <div className="sect" style={{color:ch.dk}}>✧ {ch.name} · {got.length} pics</div>
+            <div className="sect">✧ {ch.name} · {got.length} pics</div>
             <div className="galgrid">
               {got.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom(f)}/>)}
             </div>
