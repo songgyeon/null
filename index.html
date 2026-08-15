@@ -26,6 +26,14 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;color:#4a4276;
  background:#c3b2f0 url("bg-6.webp") center/cover fixed no-repeat;
  -webkit-font-smoothing:none}
 #root{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative}
+/* 창 뒤에만 빛을 하나 둔다.
+   창이 배경보다 밝으면 바닥에 올려둔 흰 종이로 보이고, 창 뒤가 밝으면
+   빛 속에 놓인 유리로 보인다. 지금은 관계가 반대였다.
+   구석은 안 건드린다 — 화면 전체를 밝히면 그냥 배경이 흐려진 것이 된다.
+   .phone이 z-index:1이라 이 층 위에 그대로 올라온다. */
+#root::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+ background:radial-gradient(ellipse 560px 760px at 50% 50%,
+   rgba(255,255,255,.5) 0%,rgba(255,238,252,.26) 44%,transparent 74%)}
 /* 메인 창(폰) */
 .phone{position:relative;z-index:1;width:390px;height:844px;max-height:min(94vh,844px);overflow:hidden;
  background:#dcd6f2;border:2px solid #8f7ccb;border-radius:14px;

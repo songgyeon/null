@@ -728,6 +728,10 @@ eq('한 대화에 한 번을 넘기지 않는다',
 /* 배경 파일이 없으면 CSS는 조용히 단색으로 떨어진다. 오류가 안 나서 못 알아챈다 */
 /* body의 background를 그라데이션으로 다시 쓰면 바탕 그림이 통째로 덮인다.
    오류가 안 나서 파일이 없는 줄 알았다 */
+/* 창이 배경보다 밝으면 바닥에 올려둔 종이로 보인다. 창 뒤에 빛을 둬서
+   빛 속에 놓인 유리로 읽히게 한다. 창은 그 위에 있어야 한다 */
+eq('창 뒤에 빛이 있다', /#root::before\{[^}]*radial-gradient/.test(web), true);
+eq('창이 그 빛 위에 온다', /\.phone\{[^}]*z-index:1/.test(web), true);
 eq('바탕 그림이 그라데이션에 안 덮인다',
   /body\{[^}]*background:linear-gradient/.test(web), false);
 eq('바탕 그림이 저장소에 있다',
