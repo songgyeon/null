@@ -509,6 +509,16 @@ function demoWhen(gapMin, hour) {
   return '별일 없는 날';
 }
 
+/* 들어왔을 때 거는 첫인사만 따로 고른다. 「늦었네요」「안 올 줄 알았는데」는
+   공백이 하루를 넘겼을 때만 나와야 한다 — 십 분 만에 다시 들어온 사람한테
+   그 말을 하면 이 사람은 시계를 안 보는 사람이 된다.
+   기록이 아예 없으면(gapMin<0) 처음 보는 인사라 고른 다섯 개에서만 뽑는다. */
+function demoGreetWhen(gapMin) {
+  if (!(gapMin >= 0)) return '첫인사 · 처음';
+  if (gapMin >= 60 * 24) return '오랜만';
+  return '첫인사';
+}
+
 /* 캐릭터가 먼저 거는 말. when으로 상황을 고른다(아침·밤·무응답 등) */
 function demoProactive(room, when, name) {
   var list = (DEMO_CORPUS.proactive[room] || []).filter(function (p) {

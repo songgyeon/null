@@ -10,8 +10,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
-import { sendChat, sendGreet, genAuto, IMG } from './lib/api';
-import { demoAnswer, demoProactive, demoWhen } from './lib/demoLines';
+import { sendChat, genAuto, IMG } from './lib/api';
+import { demoAnswer, demoProactive, demoGreetWhen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
          GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
@@ -1818,27 +1818,19 @@ function Root() {
      빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만 한 번.
 
      전에는 데모 전용이었다 — 키가 살아 있으면 아무도 먼저 말을 걸지 않았다.
-     지금은 모델이 쓴다(mode:'greet'). 실패하면 각본으로 떨어진다. */
+     지금은 항상 온다.
+
+     문장은 문구집의 「도착 선톡」에서 고른다. 공백에 따라 갈래가 다르다 —
+     처음이면 고른 다섯 개, 평소면 스무 개, 하루를 넘겼으면 늦었다는 말이
+     들어 있는 여섯 개다. 십 분 만에 들어온 사람한테 「이제 와요?」는 안 한다. */
   const greet=async(id:string,delay:number)=>{
     if(id==='health'||id==='group'||!name)return;
     const list:any[]=(msgs as any)[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].created_at)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
     if(delay) await new Promise(r=>setTimeout(r,delay));
-    const scripted=async()=>{
-      const lines=demoProactive(id,demoWhen(gapMin,new Date().getHours()),name);
-      if(lines.length) await enqueue(id,lines);
-    };
-    if(demoOn()){ await scripted(); return; }
-    try{
-      const data=await sendGreet(id,name,await getMsgs(id),gapMin);
-      await applyExtras(data);
-      if(data.messages?.length) await enqueue(id,data.messages);
-    }catch(e:any){
-      console.error('[NULL] 선톡 실패 → 데모로 전환', e);
-      DEMO.auto=true; setDemo(true);
-      await scripted();
-    }
+    const lines=demoProactive(id,demoGreetWhen(gapMin),name);
+    if(lines.length) await enqueue(id,lines);
   };
   /* 선톡은 방을 열어야 오는 게 아니다. 안 보고 있을 때 오는 것이 메신저다 —
      목록에 있는 동안 말이 도착하고 안 읽음이 붙는다.

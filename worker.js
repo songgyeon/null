@@ -1168,56 +1168,7 @@ function buildEvent(event, userName) {
   return "";
 }
 
-/* ── 선톡 ──
-   답하는 말이 아니라 먼저 거는 말이다. 전에는 각본(demo-lines.js)에만 있어서
-   데모 모드에서만 왔다 — 키가 살아 있으면 아무도 먼저 말을 걸지 않았다.
-   메신저에서 상대가 절대 먼저 안 거는 건 상대가 없는 것과 같다.
-
-   서버에 유저별 저장소가 없으므로 얼마 만인지·지금 몇 시인지는 클라이언트가
-   세어 보낸다. 시간은 유저의 시계다 — 워커의 UTC로 새벽인지 아침인지를
-   판단하면 지구 반대편 이야기가 된다. */
-function timeWord(hour) {
-  const h = Number(hour);
-  if (!Number.isFinite(h)) return "";
-  if (h < 5) return "새벽";
-  if (h < 10) return "아침";
-  if (h < 13) return "점심때";
-  if (h < 17) return "오후";
-  if (h < 21) return "저녁";
-  return "밤";
-}
-
-function gapWord(gapMin) {
-  const g = Number(gapMin);
-  if (!Number.isFinite(g) || g < 0) return null;   // 아직 한 마디도 오간 적 없다
-  if (g < 180) return "조금 전까지 얘기하고 있었다";
-  if (g < 1440) return `마지막으로 말한 지 ${Math.floor(g / 60)}시간쯤 됐다`;
-  return `마지막으로 말한 지 ${Math.floor(g / 1440)}일쯤 됐다`;
-}
-
-function buildGreet(mode, gapMin, hour) {
-  if (mode !== "greet") return "";
-  const t = timeWord(hour);
-  const g = gapWord(gapMin);
-  const when = [t && `지금은 ${t}이다.`, g ? g + "." : "아직 한 번도 말을 걸어본 적이 없다."]
-    .filter(Boolean).join(" ");
-  return `
-## 먼저 거는 말
-${when}
-
-유저는 아무것도 묻지 않았다. 답할 것이 없다. 그냥 네가 먼저 거는 것이다.
-
-- **한 마디, 길어야 두 마디.** 먼저 걸어놓고 길게 쓰면 할 말을 참고 있던 사람이 된다.
-- **용건을 지어내지 않는다.** 일이 있어서 거는 게 아니다. 없는 사건을 만들지 않는다.
-- **답을 재촉하지 않는다.** 유저가 안 볼 수도 있다. 그걸 아는 사람처럼 쓴다.
-- 왜 연락했는지 설명하지 않는다. 설명하는 순간 용건이 된다.
-- 시간이 오래 지났으면 그 사실을 아는 채로 쓴다. 다만 며칠인지 세어 말하지 않는다 —
-  세고 있었다는 걸 들키는 쪽이 지는 대화다.
-- 사진은 웬만하면 안 붙인다. 먼저 걸면서 사진부터 보내는 사람은 없다.
-`;
-}
-
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, gapMin, hour) {
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
@@ -1244,7 +1195,7 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
   const volatile = buildStage(mode, room, counts, days) + buildProfile(userProfile)
                  + buildSignals(signals, mode === "auto" ? null : room) + exclude
                  + buildGift(gift, userName) + buildEvent(event, userName)
-                 + buildInvite(invite, room) + buildGreet(mode, gapMin, hour);
+                 + buildInvite(invite, room);
 
   const blocks = [WORLD, people, rules].map(t => (
     { type: "text", text: sub(t), cache_control: CACHE }
@@ -1779,11 +1730,8 @@ export default {
     let body;
     try { body = await request.json(); } catch { body = {}; }
 
-    const mode = body.mode === "auto" ? "auto" : body.mode === "greet" ? "greet" : "chat";
+    const mode = body.mode === "auto" ? "auto" : "chat";
     const room = ["jaeeon", "minhyun", "group"].includes(body.room) ? body.room : "minhyun";
-    /* 선톡은 한 사람이 거는 것이다. 단톡에서 누가 먼저 거는 말은 이 방의 것이 아니다 */
-    if (mode === "greet" && room === "group")
-      return new Response(JSON.stringify({ error: "선톡은 1:1 방에서만" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
     const userName = (body.user_name || "").toString().slice(0, 20).trim() || "선생님";
     const signals = body.signals || null;
     const userProfile = body.user_profile || null;   // 당신.txt에서 채운 칸
@@ -1791,10 +1739,6 @@ export default {
     /* 첫 대화로부터 며칠이 지났나. 서버는 유저별 저장소가 없어 못 세므로
        클라이언트가 세어 보낸다. 없으면 0 — 대화 수만으로는 단계가 안 오른다. */
     const days = Math.max(0, Math.floor(Number(body.days) || 0));
-    /* 선톡용. 마지막 대화로부터 몇 분인지(없으면 -1 = 처음)와 유저 시계의 시(0~23).
-       둘 다 클라이언트가 센다 — 서버에는 유저별 저장소도, 유저의 시간대도 없다. */
-    const gapMin = Number.isFinite(Number(body.gap_min)) ? Number(body.gap_min) : -1;
-    const hour = Number.isFinite(Number(body.hour)) ? Math.max(0, Math.min(23, Math.floor(Number(body.hour)))) : null;
     // 장바구니에서 방금 보낸 선물 (1:1 방에서만 의미가 있다)
     const gift = (mode !== "auto" && body.gift && body.gift.name) ? body.gift : null;
     // 「두 사람」방을 열게 만든 사건 — 선물이나 해금. auto에서만 의미가 있다
@@ -1823,10 +1767,8 @@ export default {
       }
     }
 
-    if (mode === "auto" || mode === "greet") {
-      const prompt = mode === "auto"
-        ? "(유저 부재. 두 사람의 대화를 생성하라.)"
-        : "(유저는 아직 아무 말도 하지 않았다. 네가 먼저 건다.)";
+    if (mode === "auto") {
+      const prompt = "(유저 부재. 두 사람의 대화를 생성하라.)";
       // 마지막이 user면 병합(role 연속 방지), 아니면 새 user 메시지로 추가
       if (msgs.length && msgs[msgs.length - 1].role === "user") {
         msgs[msgs.length - 1].content += "\n" + prompt;
@@ -1839,11 +1781,9 @@ export default {
 
     // 열려 있는 자리들. 프론트가 다녀온 곳·거절한 곳을 들고 있다가 보내준다.
     // 꺼낼지 말지는 모델이 정한다 — 서버는 문만 열어둔다
-    // 선톡에서는 자리를 안 연다. 먼저 걸어놓고 대뜸 어디 가자는 건 용건이 있어서
-    // 연락한 사람이고, 선톡은 용건이 없어서 거는 말이다.
-    const openPlaces = mode === "greet" ? [] : invitesFor(mode, room, counts,
+    const openPlaces = invitesFor(mode, room, counts,
       Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
-    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, gapMin, hour);
+    const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days);
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
@@ -1851,7 +1791,7 @@ export default {
 
     try {
       // Sonnet 5는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
-      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : mode === "greet" ? 400 : 900);
+      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
       const parsed = parseMessages(raw, fallbackSender, chars);
@@ -1870,4 +1810,4 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem, buildGreet, timeWord, gapWord };
+export { parseMessages, splitLines, trimTics, sanitizePhotos, buildSystem };

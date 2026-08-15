@@ -1024,35 +1024,37 @@ eq("'평소'를 신호로 보내지 않는다", /return '평소'/.test(apiSrc), 
 eq('판정 넷은 그대로다',
   ['들뜸', '캐묻는 중', '말이 짧아짐', '길게 말하는 중'].filter(v => !apiSrc.includes(`'${v}'`)), []);
 
-/* ── 선톡을 모델이 쓴다 ──
-   전에는 각본에만 있어서 데모 모드에서만 왔다. 키가 살아 있으면 아무도 먼저
-   말을 걸지 않는 메신저였다. */
+/* ── 도착 선톡 ──
+   전에는 선톡이 데모 전용이라 키가 살아 있으면 아무도 먼저 말을 걸지 않았다.
+   지금은 항상 오고, 문장은 문구집의 「도착 선톡」에서 고른다. */
 eq('선톡이 데모 전용이 아니다',
   /!demoOn\(\)\|\|enrolling\)return/.test(web), false);
-eq('웹·앱 둘 다 선톡을 서버에 묻는다',
-  /mode:"greet"/.test(web) && /mode: 'greet'/.test(apiSrc), true);
-eq('선톡에 얼마 만인지와 몇 시인지를 같이 보낸다',
-  /gap_min:gapMin,hour:new Date\(\).getHours\(\)/.test(web)
-  && /gap_min: gapMin/.test(apiSrc) && /hour: new Date\(\).getHours\(\)/.test(apiSrc), true);
-/* 워커가 선톡을 chat으로 착각하면 "history의 마지막은 user"에서 400이 난다 */
-eq('워커가 선톡 모드를 안다', /body\.mode === "greet" \? "greet"/.test(workerSrc), true);
-eq('선톡은 단톡에서 안 걸린다', /mode === "greet" && room === "group"/.test(workerSrc), true);
-/* 먼저 걸어놓고 대뜸 어디 가자는 건 용건이 있어서 연락한 사람이다 */
-eq('선톡에서는 자리를 안 연다', /mode === "greet" \? \[\] : invitesFor/.test(workerSrc), true);
-{ /* 시간대·간격 말이 유저 시계 기준으로 나오는지 */
-  const w = new Function(workerSrc.slice(workerSrc.indexOf('function timeWord'),
-    workerSrc.indexOf('function buildSystem')) + '\nreturn {timeWord,gapWord,buildGreet}')();
-  eq('새벽과 밤을 가른다', [w.timeWord(3), w.timeWord(23), w.timeWord(8)], ['새벽', '밤', '아침']);
-  eq('처음이면 간격이 없다', w.gapWord(-1), null);
-  eq('하루가 넘으면 날로 센다', w.gapWord(60 * 24 * 3), '마지막으로 말한 지 3일쯤 됐다');
-  eq('chat에는 선톡 지시가 안 붙는다', w.buildGreet('chat', -1, 3), '');
-  eq('선톡 지시에 시간이 들어간다', /새벽/.test(w.buildGreet('greet', -1, 3)), true);
+eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
+  /demoProactive\(id,demoGreetWhen\(gapMin\),name\)/.test(web)
+  && /demoProactive\(id,demoGreetWhen\(gapMin\),name\)/.test(appSrc), true);
+/* 십 분 만에 다시 들어온 사람한테 「이제 와요?」를 하면 시계를 안 보는 사람이 된다 */
+{
+  const eng = readFileSync(join(ROOT, 'tools/demo-engine.js'), 'utf8');
+  const g = new Function(eng.slice(eng.indexOf('function demoGreetWhen'),
+    eng.indexOf('/* 캐릭터가 먼저 거는 말')) + '\nreturn demoGreetWhen')();
+  eq('처음이면 처음 인사', g(-1), '첫인사 · 처음');
+  eq('세 시간 뒤는 평소 인사', g(60 * 5), '첫인사');
+  eq('하루를 넘겨야 늦었다고 한다', [g(60 * 23), g(60 * 25)], ['첫인사', '오랜만']);
 }
-/* 선톡을 세우는 데 쓰는 것들이 App 안에 있어야 한다. 모듈 바깥에서 App 안의
-   것을 참조해서 데모가 통째로 안 돌던 적이 있다 */
-eq('선톡이 선언보다 먼저 읽히지 않는다',
-  web.indexOf('const [enrolling,setEnrolling]') < web.indexOf('const greetAtRef'), true);
-
+/* 「오랜만」 줄이 평소 인사에 섞이면 안 된다. 절 이름에 '첫인사'가 들어가면
+   indexOf 필터가 세 갈래를 다 삼킨다 — 한 번 그랬다 */
+{
+  const corpus = new Function(readFileSync(join(ROOT, 'demo-lines.js'), 'utf8')
+    + '\nreturn DEMO_CORPUS')();
+  const pick = (c, w) => (corpus.proactive[c] || [])
+    .filter(p => (p.when + ' ' + p.sec).indexOf(w) >= 0)
+    .reduce((n, p) => n + p.lines.length, 0);
+  eq('첫인사 갈래가 5·20·6이다',
+    ['jaeeon', 'minhyun'].map(c => [pick(c, '첫인사 · 처음'), pick(c, '첫인사'), pick(c, '오랜만')]),
+    [[5, 20, 6], [5, 20, 6]]);
+}
+/* 각본으로 돌렸으니 워커에는 선톡 모드가 없어야 한다 — 죽은 갈래를 남기지 않는다 */
+eq('워커에 선톡 모드가 없다', /"greet"/.test(workerSrc), false);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

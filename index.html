@@ -2438,23 +2438,6 @@ function App(){
       setBusy(b=>({...b,[room]:false}));
     }
   };
-  /* 데모로 떨어졌을 때의 선톡. 답이 아니라 먼저 거는 말이므로 demoReply가
-     아니라 demoProactive를 쓴다 — 여기서 demoReply를 부르면 아무도 안 한 말에
-     대한 대답이 온다. */
-  const demoGreetSay=(room,gapMin)=>{
-    try{
-      const lines=demoProactive(room,demoWhen(gapMin,new Date().getHours()),name);
-      if(lines.length)enqueue(room,lines); else setBusy(b=>({...b,[room]:false}));
-    }catch(e){
-      console.error("%c[NULL] 데모 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50;font-weight:bold");
-      setBusy(b=>({...b,[room]:false}));
-    }
-  };
-
-  /* 각본으로 떨어질 때의 갈림길. 선톡이면 먼저 거는 말, 아니면 대답이다 */
-  const demoFall=(bucket,payload)=>payload.mode==="greet"
-    ? demoGreetSay(bucket,payload.gap_min)
-    : demoSay(bucket,demoAsk(payload),demoGiftKey(payload));
 
   /* API 요청 — 실패 시 조용한 재시도 버튼 */
   const request=async(bucket,payload)=>{
@@ -2470,7 +2453,7 @@ function App(){
     // 데모로 굳었으면 네트워크를 아예 타지 않는다
     if(demoOn()){
       inflightRef.current[bucket]=false;
-      setTimeout(()=>demoFall(bucket,payload),450);
+      setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
       return;
     }
     try{
@@ -2500,7 +2483,7 @@ function App(){
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
-      setTimeout(()=>demoFall(bucket,payload),450);
+      setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
     }
   };
 
@@ -2650,16 +2633,24 @@ function App(){
      말을 걸면 사람이 아니라 알림이 된다.
 
      전에는 이게 데모 전용이었다. 키가 살아 있으면 아무도 먼저 말을 걸지
-     않았다는 뜻이다. 지금은 모델이 쓴다(mode:"greet") — 실패하면 request가
-     알아서 각본으로 떨어진다. */
+     않았다는 뜻이다. 지금은 항상 온다.
+
+     문장은 문구집의 「도착 선톡」에서 고른다. 모델에게 첫 마디를 시켜도
+     봤는데, 첫인사는 매번 같은 자리에서 같은 목적으로 나오는 말이라
+     쓰여 있는 스무 개를 도는 편이 낫다. 대신 공백에 따라 갈래가 다르다 —
+     처음이면 고른 다섯 개, 평소면 스무 개, 하루를 넘겼으면 늦었다는 말이
+     들어 있는 여섯 개다. 십 분 만에 들어온 사람한테 「이제 와요?」는 안 한다. */
   const greet=(id,delay)=>{
     if(id==="health"||id==="group")return;
     const list=storeRef.current.msgs[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
-    setTimeout(()=>request(id,{mode:"greet",room:id,user_name:name,
-      history:buildHistory(list),signals:buildSignals(id),recent_photos:recentPhotos(id),
-      gap_min:gapMin,hour:new Date().getHours()}),delay);
+    setTimeout(()=>{
+      try{
+        const lines=demoProactive(id,demoGreetWhen(gapMin),name);
+        if(lines.length)enqueue(id,lines);
+      }catch(e){ console.error("%c[NULL] 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
+    },delay||0);
   };
   const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));greet(id,700)};
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.

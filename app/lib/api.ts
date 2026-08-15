@@ -127,27 +127,6 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     refused: await loadList('null_refused'),
   });
 }
-/* 선톡. 유저가 아무 말도 안 한 상태에서 캐릭터가 먼저 거는 말이다.
-   전에는 각본(demoLines)에만 있어서 데모에서만 왔다 — 키가 살아 있으면
-   아무도 먼저 말을 걸지 않았다.
-   얼마 만인지(분)와 유저 시계의 시를 같이 보낸다. 서버에는 유저별 저장소도
-   유저의 시간대도 없어서 이쪽에서 세야 한다. */
-export async function sendGreet(room: string, userName: string, history: Msg[], gapMin: number) {
-  return callApi({
-    mode: 'greet',
-    room,
-    user_name: userName,
-    history: buildHistory(history),
-    signals: await buildSignals(room),
-    recent_photos: await recentPhotos(room),
-    counts: await buildCounts(),
-    days: await buildDays(),
-    user_profile: await buildUserProfile(),
-    gap_min: gapMin,
-    hour: new Date().getHours(),
-  });
-}
-
 async function loadList(key: string): Promise<string[]> {
   try { return JSON.parse((await getMeta(key)) || '[]'); } catch { return []; }
 }
