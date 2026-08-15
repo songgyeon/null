@@ -348,7 +348,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 
    .logo·.sub·.scan처럼 흔한 이름이 많아 전부 .film 아래로 가뒀다. */
 .film{position:absolute;inset:0;z-index:70;display:flex;flex-direction:column;
- overflow:hidden;background:#0e0a24;cursor:pointer}
+ overflow:hidden;cursor:pointer;
+ background:linear-gradient(180deg,#ffffff 0%,#f6f1ff 46%,#efe7fc 100%)}
 .film.out{animation:filmOut .45s ease-in both}
 @keyframes filmOut{to{opacity:0;visibility:hidden}}
 /* ══ NULL 소개 영상 (11초) · VHS 테이프 재생 느낌 ══
@@ -374,7 +375,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* minhyun-record.webp */
 .film .f2{animation-delay:2.2s;background-image:linear-gradient(160deg,#ffb38f,#f0a2c8 55%,#c3b2f0)}
 /* jaeeon-night.webp */
-.film .f3{animation-delay:4.2s;background-image:linear-gradient(160deg,#3b2c6e,#7d5f9e 55%,#c98fb8)}
+.film .f3{animation-delay:4.2s;background-image:linear-gradient(160deg,#c9bdf2,#e6d2f5 55%,#ffd9ec)}
 /* minhyun-roof.webp */
 .film .f4{animation-delay:6.2s;background-image:linear-gradient(160deg,#ffd7a8,#ff9ec6 55%,#a2a8ea)}
 
@@ -393,9 +394,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .film .lines{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
  display:flex;align-items:center;justify-content:center;padding:0 26px;pointer-events:none}
 .film .ln{position:absolute;padding:22px 26px;
- background:radial-gradient(ellipse at center,rgba(16,10,36,.62) 0%,rgba(16,10,36,.3) 46%,rgba(16,10,36,0) 74%);width:100%;text-align:center;font-size:19px;line-height:1.75;color:#fff;
+ background:radial-gradient(ellipse at center,rgba(255,255,255,.97) 0%,rgba(255,255,255,.82) 46%,rgba(255,255,255,0) 76%);width:100%;text-align:center;font-size:20px;line-height:1.75;color:#38316b;
  letter-spacing:.02em;opacity:0;
- text-shadow:2px 2px 0 rgba(120,70,120,.65),0 0 14px rgba(255,158,198,.8);
+ text-shadow:0 1px 0 #fff,0 2px 6px rgba(255,255,255,1),0 0 18px rgba(255,255,255,1);
  animation:say 2s ease-out both}
 @keyframes say{
  0%{opacity:0;transform:translateY(8px) scale(.98)}
@@ -406,37 +407,59 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .film .ln2{animation-delay:2.7s}
 .film .ln3{animation-delay:4.7s}
 .film .ln4{animation-delay:6.7s}
-.film .ln b{color:#ffe3f6}
-.film .ln .deco{display:block;margin-top:10px;font-size:12px;letter-spacing:.4em;color:#ffd0e6}
+.film .ln b{color:#9c3f7e}
+.film .ln .deco{display:block;margin-top:10px;font-size:12px;letter-spacing:.4em;color:#a98ada}
 
 /* ── 암전 + 로고 ── */
-.film .blackout{position:absolute;inset:0;background:#0e0a24;opacity:0;
- animation:bo .6s ease-in 8.4s both}
+.film .blackout{position:absolute;inset:0;opacity:0;animation:bo .6s ease-in 8.4s both;
+ background:
+  radial-gradient(120% 58% at 50% 44%,rgba(255,214,240,.75),transparent 64%),
+  radial-gradient(92% 46% at 50% 44%,rgba(214,198,252,.7),transparent 68%),
+  linear-gradient(180deg,#ffffff 0%,#f6f1ff 44%,#eee5fc 100%)}
 @keyframes bo{to{opacity:1}}
 .film .ending{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
- gap:16px;opacity:0;animation:endin 1s ease-out 9.3s both}
+ gap:14px;opacity:0;animation:endin 1s ease-out 9.3s both}
+/* 로고 뒤 후광 — 천천히 숨쉰다 */
+.film .ending::before{content:"";position:absolute;left:50%;top:50%;width:300px;height:300px;
+ transform:translate(-50%,-56%);border-radius:50%;pointer-events:none;
+ background:radial-gradient(circle,rgba(255,255,255,.95) 0%,rgba(226,213,253,.55) 44%,transparent 70%);
+ filter:blur(6px);animation:halo 5s ease-in-out infinite}
+@keyframes halo{0%,100%{opacity:.7;transform:translate(-50%,-56%) scale(1)}
+ 50%{opacity:1;transform:translate(-50%,-56%) scale(1.08)}}
+/* 점선 액자 — 텅 빈 자리를 잡아준다 */
+.film .ending .frame{position:absolute;left:26px;right:26px;top:96px;bottom:96px;pointer-events:none;
+ border:1.5px dashed #d9cbf3;border-radius:20px}
+.film .ending .frame::before,.film .ending .frame::after{content:"✦";position:absolute;font-size:12px;color:#c9a8e8}
+.film .ending .frame::before{left:-7px;top:-11px}
+.film .ending .frame::after{right:-7px;bottom:-11px}
 @keyframes endin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 .film .logo{font-family:"Galmuri9","Galmuri11",sans-serif;font-size:44px;letter-spacing:.34em;text-indent:.34em;
- background:linear-gradient(118deg,#fff 0 12%,#ffd8f2 28%,#bfe6ff 48%,#fff 64%,#e0cdff 86%,#fff 100%);
+ background:linear-gradient(118deg,#a48fdd 0 12%,#ec8fc4 28%,#8fb4e8 48%,#b9a7e6 64%,#d68fc8 86%,#a48fdd 100%);
  background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
- -webkit-text-stroke:1.4px #ff9ec6;filter:drop-shadow(0 0 12px rgba(255,158,198,.75));
+ -webkit-text-stroke:1.6px #8f7ccb;filter:drop-shadow(0 2px 0 rgba(120,100,180,.45));
  animation:shim 4s linear infinite}
 @keyframes shim{0%{background-position:0% 50%}100%{background-position:200% 50%}}
-.film .sub{font-size:11px;letter-spacing:.34em;color:#ffd0e6;text-shadow:0 0 8px rgba(255,158,198,.8)}
-.film .rainbow{width:150px;height:5px;border-radius:3px;
- background:linear-gradient(90deg,#ff9ec6,#ffd68a,#a8e6e0,#b9e3ff,#c3b2f0,#ff9ec6)}
-.film .ending .heart{position:absolute;font-size:13px;color:#ff9ec6;animation:tw 2.6s ease-in-out infinite}
+.film .sub{position:relative;padding:5px 14px 6px;border-radius:999px;font-size:10.5px;letter-spacing:.3em;
+ color:#4a2b50;font-weight:400;background:linear-gradient(180deg,#fff 0%,#ffe6f5 52%,#f3ddff 100%);
+ border:1.5px solid #fff;box-shadow:0 2px 0 rgba(150,135,210,.35),0 0 0 1px #e4dbf8}
+/* 아래쪽 여백에 놓는 작은 도장 */
+.film .ending .stamp{position:relative;margin-top:6px;font-size:9px;letter-spacing:.34em;color:#8f7ccb}
+.film .rainbow{position:relative;width:186px;height:6px;border-radius:999px;
+ background:linear-gradient(90deg,#ff9ec6,#ffd68a,#a8e6e0,#b9e3ff,#c3b2f0,#ff9ec6);
+ box-shadow:0 1px 0 rgba(150,135,210,.3),inset 0 1px 0 rgba(255,255,255,.85)}
+.film .ending .heart{position:absolute;font-size:13px;color:#c9a8e8;
+ text-shadow:0 1px 0 #fff;animation:tw 2.6s ease-in-out infinite}
 
 /* ── VHS 껍데기 ── */
 .film .scan{position:absolute;inset:0;z-index:20;pointer-events:none;
- background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px)}
-.film .rgb{position:absolute;inset:0;z-index:19;pointer-events:none;mix-blend-mode:screen;opacity:.28;
+ background:repeating-linear-gradient(0deg,rgba(120,100,175,.07) 0 1px,transparent 1px 3px)}
+.film .rgb{position:absolute;inset:0;z-index:19;pointer-events:none;mix-blend-mode:multiply;opacity:.1;
  background:linear-gradient(90deg,rgba(255,0,90,.45),transparent 12%,transparent 88%,rgba(0,190,255,.45));
  animation:fringe 2.6s steps(3) infinite}
 @keyframes fringe{0%{transform:translateX(0)}33%{transform:translateX(1.5px)}66%{transform:translateX(-1.5px)}100%{transform:translateX(0)}}
 .film .track{position:absolute;left:0;right:0;height:26px;z-index:21;pointer-events:none;opacity:.5;
- background:repeating-linear-gradient(0deg,rgba(255,255,255,.55) 0 1px,rgba(255,255,255,0) 1px 2px,
-   rgba(255,255,255,.25) 2px 3px,rgba(255,255,255,0) 3px 5px);
+ background:repeating-linear-gradient(0deg,rgba(150,135,210,.45) 0 1px,rgba(255,255,255,0) 1px 2px,
+   rgba(150,135,210,.2) 2px 3px,rgba(255,255,255,0) 3px 5px);
  filter:blur(.4px)}
 .film .track.t1{top:0;animation:tr1 5.5s linear infinite}
 .film .track.t2{bottom:0;animation:tr2 7.5s linear infinite}
@@ -445,8 +468,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 @keyframes tr2{0%{transform:translateY(26px);opacity:0}
  10%{opacity:.55}55%{transform:translateY(-40vh);opacity:.4}100%{transform:translateY(-88vh);opacity:0}}
 .film .hud{position:absolute;left:0;right:0;z-index:22;display:flex;align-items:center;justify-content:space-between;
- padding:12px 14px;font-family:"Galmuri9","Galmuri11",sans-serif;font-size:11px;color:#fff;
- text-shadow:1px 1px 0 rgba(0,0,0,.55);pointer-events:none;letter-spacing:.08em}
+ padding:12px 14px;font-family:"Galmuri9","Galmuri11",sans-serif;font-size:11px;color:#4a4276;
+ text-shadow:0 1px 0 #fff,0 0 6px #fff;pointer-events:none;letter-spacing:.08em}
 .film .hud.top{top:0}
 .film .hud.bot{bottom:0;align-items:flex-end}
 .film .rec{display:flex;align-items:center;gap:6px}
@@ -455,13 +478,13 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 @keyframes rb{0%,49%{opacity:1}50%,100%{opacity:.15}}
 .film .tc{letter-spacing:.14em}
 .film .play{letter-spacing:.16em}
-.film .skip{color:#ffd0e6;font-size:10px;letter-spacing:.24em;animation:rb 1.7s steps(2) infinite}
+.film .skip{color:#8f7ccb;font-size:10px;letter-spacing:.24em;animation:rb 1.7s steps(2) infinite}
 /* 스티커 */
 .film .sticker{position:absolute;z-index:23;pointer-events:none;font-size:13px;
- text-shadow:1px 1px 0 rgba(120,70,120,.5)}
+ text-shadow:0 1px 0 #fff}
 .film .tape{position:absolute;z-index:23;width:52px;height:16px;pointer-events:none;
- background:repeating-linear-gradient(90deg,rgba(255,255,255,.55) 0 4px,rgba(255,214,240,.45) 4px 8px);
- border-left:1px solid rgba(255,255,255,.5);border-right:1px solid rgba(255,255,255,.5)}
+ background:repeating-linear-gradient(90deg,rgba(201,184,242,.5) 0 4px,rgba(255,214,240,.5) 4px 8px);
+ border-left:1px solid rgba(255,255,255,.85);border-right:1px solid rgba(255,255,255,.85)}
 /* 건너뛰기 상태 */
 .tv.skipped .stage>.fr,.tv.skipped .lines{animation:none;opacity:0}
 .film.skipped .blackout{animation:none;opacity:1}
@@ -1678,12 +1701,16 @@ function IntroFilm({onClose}){
       <div className="lines">{FILM_LINES.map((t,i)=><div key={i} className={"ln ln"+(i+1)}>{t}</div>)}</div>
       <div className="blackout"/>
       <div className="ending">
-        <span className="heart" style={{left:"22%",top:"32%"}}>♡</span>
-        <span className="heart" style={{right:"20%",top:"38%",animationDelay:"1s"}}>✦</span>
+        <div className="frame"/>
+        <span className="heart" style={{left:"20%",top:"33%"}}>♡</span>
+        <span className="heart" style={{right:"19%",top:"30%",animationDelay:".8s"}}>✦</span>
+        <span className="heart" style={{left:"28%",top:"27%",fontSize:9,animationDelay:"1.9s"}}>✧</span>
         <div className="logo">NULL</div>
         <div className="rainbow"/>
         <div className="sub">the blank u fill in</div>
-        <span className="heart" style={{left:"30%",bottom:"30%",animationDelay:"1.6s"}}>✦</span>
+        <div className="stamp">♡ 2 0 2 6 ♡</div>
+        <span className="heart" style={{left:"24%",bottom:"31%",animationDelay:"1.4s"}}>✦</span>
+        <span className="heart" style={{right:"22%",bottom:"28%",fontSize:11,animationDelay:"2.2s"}}>♡</span>
       </div>
     </div>
     <div className="track t1"/><div className="track t2"/><div className="rgb"/><div className="scan"/>
