@@ -515,6 +515,20 @@ function demoWhen(gapMin, hour) {
   return '별일 없는 날';
 }
 
+/* ── 「두 사람」 방의 첫 장면 ──
+   그 방을 처음 열었을 때 비어 있으면 안 된다. 유저는 저 둘이 삼촌과 조카라는
+   걸 어디서도 못 듣는데, 화면에 「삼촌과 조카」라고 적어주면 그건 설명이지
+   이야기가 아니다. 둘이 떠드는 걸 한 번 보면 저절로 알게 된다 —
+   첫 줄이 「삼촌,」으로 시작하고, 같이 나갈 준비를 하는 걸 보면 같이 산다는
+   것도 읽힌다. 둘 다 유저를 챙기면서 인정 안 하는 것까지 여섯 줄에 다 있다. */
+var DEMO_WATCH_OPEN = '둘 다 말보다 행동이 먼저 나오는 날';
+function demoWatchOpen(name) {
+  var list = DEMO_CORPUS.watch || [];
+  for (var i = 0; i < list.length; i++)
+    if (list[i].situation === DEMO_WATCH_OPEN) return demoScript(list[i].script, name);
+  return list.length ? demoScript(list[0].script, name) : [];
+}
+
 /* 들어왔을 때 거는 첫인사만 따로 고른다. 「늦었네요」「안 올 줄 알았는데」는
    공백이 하루를 넘겼을 때만 나와야 한다 — 십 분 만에 다시 들어온 사람한테
    그 말을 하면 이 사람은 시계를 안 보는 사람이 된다.
@@ -546,4 +560,4 @@ function demoProactive(room, when, name) {
 }
 
 export { DEMO_CORPUS, demoAnswer, demoProactive, demoNorm, demoTokens,
-         demoReset, demoSeed, demoMood, demoWhen, demoGreetWhen, DEMO_SELFIE_RE, DEMO_PIC, DEMO_PIC_ANY, DEMO_ST };
+         demoReset, demoSeed, demoMood, demoWhen, demoGreetWhen, demoWatchOpen, DEMO_SELFIE_RE, DEMO_PIC, DEMO_PIC_ANY, DEMO_ST };

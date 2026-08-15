@@ -857,19 +857,6 @@ eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 2
   eq('웹과 앱이 같은 표를 쓴다', H.filter((x, i) => x !== A[i]), []);
 }
 
-/* 이 이야기의 축은 셋의 관계인데, 두 사람이 삼촌과 조카라는 게 화면 어디에도
-   없었다. 성이 둘 다 「이」인 게 전부였고 그건 우연으로 읽힌다. 대화에서
-   삼촌 얘기가 나와야 알게 되는데, 안 나오면 관계도 모른 채로 삼각형
-   한가운데 서 있게 된다. 첫 화면에서 알 수 있어야 한다. */
-{
-  const rooms = web.slice(web.indexOf('const ROOMS = ['), web.indexOf('const roomOf'));
-  eq('방 목록이 삼촌·조카를 적어둔다',
-    [/민현의 삼촌/.test(rooms), /재언의 조카/.test(rooms), /삼촌과 조카/.test(rooms)], [true, true, true]);
-  eq('앱도 같이 적어둔다',
-    [/민현의 삼촌/.test(appSrc), /재언의 조카/.test(appSrc), /삼촌과 조카/.test(appSrc)], [true, true, true]);
-  eq('프로필에도 관계가 있다', /이민현의 삼촌|이재언의 조카/.test(web), true);
-}
-
 /* 안쪽 일곱은 종이다 — 일기 넉 장, 상담 기록 둘, 그리고 계정 하나.
    사진으로 보여주던 것들은 뺐다. 안으로 들어갈수록 사진이 아니라 기록이 나온다 */
 eq('안쪽은 전부 기록이다', (() => {
@@ -1150,6 +1137,28 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
    처음 들어온 화면에서 조용한 게 제일 나쁜 그림이다. */
 eq('다시 시작하면 선톡 간격도 같이 지운다',
   /greetAtRef\.current=0/.test(web) && /greetAtRef\.current=0/.test(appSrc), true);
+
+/* ── 「두 사람」 방의 첫 장면 ──
+   처음 열었는데 비어 있으면 이 방이 무슨 방인지 알 길이 없고, 저 둘이 삼촌과
+   조카라는 것도 못 듣는다. 화면에 「삼촌과 조카」라고 적어주는 건 설명이지
+   이야기가 아니라서, 둘이 떠드는 걸 한 번 보여준다. */
+eq('웹·앱 둘 다 첫 장면을 깐다',
+  /const seedWatch=/.test(web) && /const seedWatch=async/.test(appSrc), true);
+eq('비어 있을 때만 깐다',
+  /if\(\(storeRef\.current\.msgs\.health\|\|\[\]\)\.length\)return;/.test(web), true);
+{
+  const E = new Function(readFileSync(join(ROOT, 'demo-lines.js'), 'utf8')
+    + '\nreturn {demoWatchOpen}')();
+  const open = E.demoWatchOpen('수연');
+  eq('첫 장면이 여섯 마디다', open.length, 6);
+  /* 첫 줄에서 관계가 드러나야 한다. 이 한 줄이 설명 대신이다 */
+  eq('첫 줄이 삼촌으로 시작한다', /^삼촌/.test(open[0].text), true);
+  eq('두 사람이 주고받는다',
+    [open[0].sender, open[1].sender], ['minhyun', 'jaeeon']);
+  /* 유저는 이 방에 없다. 둘이 유저를 두고 얘기하는 것을 훔쳐보는 것이다 */
+  eq('유저에게 말을 걸지 않는다',
+    open.map(m => m.text).join(' ').includes('선생님 오늘 우산 없다고 했죠'), true);
+}
 
 /* ── 실제 플레이에서 나온 것들 ── */
 

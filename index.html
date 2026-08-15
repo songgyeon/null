@@ -858,7 +858,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .pfnamerow{display:flex;align-items:center;gap:7px;margin-top:14px}
 .pfnamerow .nm{font-size:16px;color:#4a4276;letter-spacing:.06em}
 .pfnamerow .deco{font-size:11px}
-.pfrel{margin-top:5px;font-size:9.5px;letter-spacing:.16em;color:#9a8fc8}
 /* 상태메시지 말풍선 */
 .pfbubble{margin-top:12px;display:flex;flex-direction:column;align-items:center}
 .pfbubble .b{max-width:250px;padding:10px 15px;background:#fff;border:1.5px solid #fff;border-radius:14px;
@@ -1042,16 +1041,11 @@ const countCalls=(store,name)=>{
   return n;
 };
 const filledLetters=(calls,name)=>Math.min((name||"").length,Math.floor(calls/CALL_PER_LETTER));
-/* 두 사람이 삼촌과 조카라는 걸 유저가 첫 화면에서 알아야 한다.
-   전에는 어디에도 안 적혀 있었다 — 성이 둘 다 「이」인 게 전부였고 그건
-   우연으로 읽힌다. 대화에서 삼촌 얘기가 나와야 알게 되는데, 안 나오면
-   관계도 모른 채로 삼각형 한가운데 서 있게 된다.
-   「두 사람」 방이 제일 잘 보여주는데 그 방은 사건이 있어야 열린다. */
 const ROOMS = [
-  {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",      empty:"보건교사, 29세 · 민현의 삼촌"},
-  {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",         empty:"고등학생, 20세 · 재언의 조카"},
-  {id:"group",  name:"단톡방", color:"#B8A5E3", type:"group", sub:"group chat",    empty:"loading..."},
-  {id:"health", name:"두 사람", color:"#9aa3d8", type:"watch", sub:"삼촌과 조카",  empty:"삼촌과 조카 · access denied"},
+  {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
+  {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},
+  {id:"group",  name:"단톡방", color:"#B8A5E3", type:"group", sub:"group chat", empty:"loading..."},
+  {id:"health", name:"두 사람", color:"#9aa3d8", type:"watch", sub:"LIVE cam",  empty:"access denied"},
 ];
 const roomOf = id => ROOMS.find(r=>r.id===id);
 
@@ -1649,8 +1643,6 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
             <span className="nm">{ch.name}</span>
             <span className="deco" style={{color:"#ff7fae"}}>♡</span>
           </div>
-          {/* 관계를 이름 밑에 적어둔다. 프로필까지 왔으면 확실히 알고 가게 */}
-          <div className="pfrel">{char==="jaeeon"?"보건교사 · 이민현의 삼촌":"3학년 · 이재언의 조카"}</div>
           {status&&<div className="pfbubble"><div className="b">{status}</div><div className="tail"/></div>}
         </div>
         <MusicBar track={trackOf(st.track)} color={ch.dk}/>
@@ -2756,7 +2748,23 @@ function App(){
       }catch(e){ console.error("%c[NULL] 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
     },delay||0);
   };
-  const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));greet(id,700)};
+  /* ── 「두 사람」 방의 첫 장면 ──
+     처음 열었는데 비어 있으면 이 방이 무슨 방인지 알 길이 없다. 유저는 저 둘이
+     삼촌과 조카라는 것도 못 듣는다. 화면에 「삼촌과 조카」라고 적어주는 건
+     설명이지 이야기가 아니라서, 둘이 떠드는 걸 한 번 보여주는 쪽으로 한다 —
+     첫 줄이 「삼촌,」으로 시작하고 같이 나갈 준비를 하고 있다. 그거면 안다.
+
+     사건이 있어야 도는 자동 생성과는 별개다. 그건 유저가 자리를 비운 사이의
+     일이고, 이건 방을 처음 여는 순간의 일이다. */
+  const seedWatch=()=>{
+    if((storeRef.current.msgs.health||[]).length)return;
+    try{
+      const lines=demoWatchOpen(name);
+      if(lines.length)setTimeout(()=>enqueue("health",lines),450);
+    }catch(e){ console.error("%c[NULL] 첫 장면 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
+  };
+  const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));
+    if(id==="health")seedWatch(); else greet(id,700)};
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */

@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
-import { demoAnswer, demoProactive, demoGreetWhen } from './lib/demoLines';
+import { demoAnswer, demoProactive, demoGreetWhen, demoWatchOpen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
          GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
@@ -34,12 +34,10 @@ const CHARS:Record<string,{name:string;color:string;dk:string;pale:string}> = {
 };
 
 const ROOMS = [
-  /* 두 사람이 삼촌과 조카라는 걸 유저가 첫 화면에서 알아야 한다.
-     전에는 어디에도 안 적혀 있었고, 성이 둘 다 「이」인 게 전부였다. */
-  { id:'jaeeon',  name:'이재언', color:'#7FD8D8', type:'dm',    sub:'보건교사, 29세 · 민현의 삼촌' },
-  { id:'minhyun', name:'이민현', color:'#FF9E80', type:'dm',    sub:'고등학생, 20세 · 재언의 조카' },
+  { id:'jaeeon',  name:'이재언', color:'#7FD8D8', type:'dm',    sub:'보건교사, 29세' },
+  { id:'minhyun', name:'이민현', color:'#FF9E80', type:'dm',    sub:'고등학생, 20세' },
   { id:'group',   name:'단톡방', color:'#B8A5E3', type:'group', sub:'loading...' },
-  { id:'health',  name:'두 사람', color:'#9aa3d8', type:'watch', sub:'삼촌과 조카 · access denied' },
+  { id:'health',  name:'두 사람', color:'#9aa3d8', type:'watch', sub:'access denied' },
 ] as const;
 
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다. 웹의 ENROLL_DAYS와 같다 */
@@ -1912,7 +1910,18 @@ function Root() {
     const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });
   },[msgs,demo]);
-  const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0})); greet(id,700); };
+  /* 「두 사람」 방을 처음 열었는데 비어 있으면 이 방이 무슨 방인지 알 길이 없다.
+     화면에 삼촌과 조카라고 적어주는 건 설명이지 이야기가 아니다 — 둘이 떠드는
+     걸 한 번 보여준다. 첫 줄이 「삼촌,」으로 시작한다. */
+  const seedWatch=async()=>{
+    if(((msgs as any).health||[]).length)return;
+    try{
+      const lines=demoWatchOpen(name);
+      if(lines.length){ await new Promise(r=>setTimeout(r,450)); await enqueue('health',lines); }
+    }catch(e){ console.warn('[NULL] 첫 장면 실패', e); }
+  };
+  const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0}));
+    if(id==='health') seedWatch(); else greet(id,700); };
   /* 프로필을 열어보면 그 단계를 본 것으로 찍는다 — 목록의 표시가 그때 꺼진다.
      방을 여는 걸로는 안 꺼진다. 바뀐 건 대화가 아니라 프로필이니까. */
   const openProfile=(c:string)=>{
