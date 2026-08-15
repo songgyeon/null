@@ -430,12 +430,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  filter:blur(6px);animation:halo 5s ease-in-out infinite}
 @keyframes halo{0%,100%{opacity:.7;transform:translate(-50%,-56%) scale(1)}
  50%{opacity:1;transform:translate(-50%,-56%) scale(1.08)}}
-/* 점선 액자 — 텅 빈 자리를 잡아준다 */
-.film .ending .frame{position:absolute;left:26px;right:26px;top:96px;bottom:96px;pointer-events:none;
- border:1.5px dashed #d9cbf3;border-radius:20px}
-.film .ending .frame::before,.film .ending .frame::after{content:"✦";position:absolute;font-size:12px;color:#c9a8e8}
-.film .ending .frame::before{left:-7px;top:-11px}
-.film .ending .frame::after{right:-7px;bottom:-11px}
 @keyframes endin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 .film .logo{font-family:"Galmuri9","Galmuri11",sans-serif;font-size:44px;letter-spacing:.34em;text-indent:.34em;
  background:linear-gradient(118deg,#a48fdd 0 12%,#ec8fc4 28%,#8fb4e8 48%,#b9a7e6 64%,#d68fc8 86%,#a48fdd 100%);
@@ -1705,7 +1699,6 @@ function IntroFilm({onClose}){
       <div className="lines">{FILM_LINES.map((t,i)=><div key={i} className={"ln ln"+(i+1)}>{t}</div>)}</div>
       <div className="blackout"/>
       <div className="ending">
-        <div className="frame"/>
         <span className="heart" style={{left:"20%",top:"33%"}}>♡</span>
         <span className="heart" style={{right:"19%",top:"30%",animationDelay:".8s"}}>✦</span>
         <span className="heart" style={{left:"28%",top:"27%",fontSize:9,animationDelay:"1.9s"}}>✧</span>
