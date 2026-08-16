@@ -346,7 +346,7 @@ section('데모 모드 — 키 없이 들어온 사람도 빈 화면을 보지 �
    아니므로, 검사도 생성된 파일이 아니라 만들어진 결과의 동작을 본다. */
 const demoSrc = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
 const demo = new Function(demoSrc +
-  '\nreturn {demoAnswer,demoProactive,demoSeed,demoReset,demoNorm,demoTokens,demoWhen,DEMO_SELFIE_RE,DEMO_PIC,DEMO_PIC_ANY,DEMO_CORPUS};')();
+  '\nreturn {demoAnswer,demoProactive,demoGreetWhen,demoSeed,demoReset,demoNorm,demoTokens,demoWhen,DEMO_SELFIE_RE,DEMO_PIC,DEMO_PIC_ANY,DEMO_CORPUS};')();
 let seed = 3;
 demo.demoSeed(() => ((seed = seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 const C = demo.DEMO_CORPUS;
@@ -522,6 +522,65 @@ eq('자는 쪽은 후보에서 먼저 뺀다',
 /* filter(canGreet)로 넘기면 두 번째 인자로 인덱스가 들어가 now가 0이 된다.
    0은 1970년이고 그 해의 시각은 UTC 기준이라 어느 쪽으로 튈지 모른다 */
 eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter\(canGreet\)/.test(web), false);
+
+/* ── 첫 자리 ──
+   전에는 앱을 켜면 둘이 인사를 보내는 걸로 시작했다. 그건 알림이지 만남이 아니다.
+   지금은 시작한 시각이 첫 자리를 정한다. 거기서 한 사람을 만나고, 다른 한 사람은
+   첫인사를 보낸다 — 그래서 첫 화면에서 이미 둘의 시간대가 갈린다. */
+{
+  const O = [...web.slice(web.indexOf('const OPENINGS=['), web.indexOf('const openingFor='))
+    .matchAll(/\{from:(\d+),\s*place:"([^"]+)",\s*room:"(\w+)"/g)].map(m => [+m[1], m[2], m[3]]);
+  eq('첫 자리가 다섯 띠다', O.length, 5);
+  eq('시간 경계가 timeWord와 같다', O.map(o => o[0]), [2, 6, 11, 17, 21]);
+  eq('자리와 사람이 시각을 따라간다', O.map(o => o[1] + ':' + o[2]),
+    ['편의점:minhyun', '후문 골목:minhyun', '보건실:jaeeon', '버스정류장:minhyun', '빨래방:jaeeon']);
+  /* 21시부터 다음날 2시까지가 밤이다. 자정을 넘어가는 띠라 표에서 못 찾는다 —
+     못 찾으면 마지막 것으로 떨어져야 새벽 한 시가 빨래방이 된다 */
+  eq('자정을 넘는 띠는 마지막으로 떨어진다',
+    /\|\|OPENINGS\[OPENINGS\.length-1\]/.test(web), true);
+  /* 골목과 정류장은 지도에 없다. 귀갓길과 같은 길로 들어간다 */
+  eq('지도에 없는 자리는 배경을 들고 온다',
+    /place:"후문 골목",\s*room:"minhyun", bg:"minhyun-alley\.webp"/.test(web)
+    && /place:"버스정류장",\s*room:"minhyun", bg:"minhyun-busstop\.webp"/.test(web), true);
+  eq('그 배경이 저장소에 있다', ['minhyun-alley.webp', 'minhyun-busstop.webp'].filter(f => !exists(f)), []);
+  /* 한 마디도 오간 적이 없을 때만 연다. 표식을 안 쓰므로 리스타트하면 저절로 다시 열린다 */
+  eq('첫 자리는 아무 방도 비었을 때만 연다',
+    /\["jaeeon","minhyun","group","health"\]\.some\(r=>\(storeRef\.current\.msgs\[r\]\|\|\[\]\)\.length\)\)return;/.test(web), true);
+  /* 자리에서 만난 사람 말고 다른 한 사람이 첫인사를 보낸다. 아래 선톡 추첨에
+     맡기면 안 된다 — 자리 쪽 상태가 아직 화면에 안 앉아서 두 방이 다 비어
+     보이고, 자리에서 만난 사람이 뽑혀 조용히 삼켜진다. 게다가 그 추첨은
+     view가 바뀌면 정리와 함께 예약까지 취소돼서 자리로 넘어가는 순간 죽는다.
+     실제로 다섯 띠 중 넷에서 첫인사가 안 왔다. 그래서 자리 여는 쪽에서 직접 건다 */
+  eq('다른 한 사람이 첫인사를 보낸다',
+    /const other=o\.room==="jaeeon"\?"minhyun":"jaeeon";\s*\n\s*if\(canGreet\(other\)\)\{/.test(web), true);
+  /* 새벽이면 재언은 안 온다 — 여섯 시에 온다 */
+  eq('그 첫인사도 자는 사람은 거른다', /if\(canGreet\(other\)\)\{/.test(web), true);
+  /* 직접 걸었으면 추첨은 일 분간 조용해야 한다. 안 그러면 둘이 같은 초에 온다 */
+  eq('직접 건 뒤에는 추첨이 조용하다',
+    /greetAtRef\.current=Date\.now\(\);\s*\/\/ 추첨은 일 분간 조용히/.test(web), true);
+  /* 워커도 그 자리를 알아야 한다. 모르면 place가 서버에서 버려지고
+     마주 앉아서 「지금 어디예요?」가 나온다 */
+  eq('워커가 골목과 정류장을 안다', ['후문 골목', '버스정류장'].filter(p => !placeOf(p)), []);
+  eq('골목은 처음 마주친 자리라고 적혀 있다',
+    /처음 마주친 자리/.test(buildPlace('후문 골목', true, 'minhyun')), true);
+  eq('정류장은 퇴근길이라고 적혀 있다',
+    /퇴근길/.test(buildPlace('버스정류장', true, 'minhyun')), true);
+  /* 귀갓길에만 붙던 「곧 내린다」가 골목·정류장에 따라오면 안 된다 */
+  eq('귀갓길 꼬리말이 딴 자리에 안 붙는다',
+    /곧 내린다/.test(buildPlace('귀갓길', true, 'jaeeon'))
+    && !/곧 내린다/.test(buildPlace('후문 골목', true, 'minhyun')), true);
+  eq('여기서도 사진은 안 보낸다',
+    ['귀갓길', '후문 골목', '버스정류장'].filter(p => !/"photo"를 쓰지 않는다/
+      .test(buildPlace(p, true, 'minhyun'))), []);
+}
+/* 저녁에 처음 켜면 재언의 첫인사는 하루가 끝난 뒤에 온다 — 시제가 바뀐다 */
+eq('저녁 첫인사는 지난 일을 묻는다', demo.demoGreetWhen(-1, 'jaeeon', new Date(2026, 0, 6, 19)), '하루 끝 인사');
+eq('낮에는 앞일을 짐작한다', demo.demoGreetWhen(-1, 'jaeeon', new Date(2026, 0, 6, 9)), '첫 만남');
+/* 민현에게는 그 갈래가 없다. 저녁이면 그는 선톡이 아니라 자리에서 만난다 */
+eq('민현은 시각을 안 본다', demo.demoGreetWhen(-1, 'minhyun', new Date(2026, 0, 6, 19)), '첫 만남');
+/* 절 이름에 「첫인사」나 「첫 만남」이 들어가면 고르는 쪽이 indexOf라 딸려 나온다 */
+eq('새 절 이름이 기존 이름과 안 겹친다',
+  ['첫인사', '첫 만남', '오랜만'].filter(n => '하루 끝 인사'.indexOf(n) >= 0), []);
 
 /* ── 선물은 한 사람에게 하루에 하나 ──
    새벽 2시 43분에 이어폰, 2시 48분에 사진집. 같은 사람이 오 분 만에 같은
@@ -1215,9 +1274,11 @@ eq('판정 넷은 그대로다',
    지금은 항상 오고, 문장은 문구집의 「도착 선톡」에서 고른다. */
 eq('선톡이 데모 전용이 아니다',
   /!demoOn\(\)\|\|enrolling\)return/.test(web), false);
-eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
-  /demoProactive\(id,demoGreetWhen\(gapMin\),name\)/.test(web)
-  && /demoProactive\(id,demoGreetWhen\(gapMin\),name\)/.test(appSrc), true);
+/* 방까지 넘긴다 — 저녁에 처음 켜면 재언만 시제가 다른 인사를 한다.
+   민현에게는 그 갈래가 없다(저녁이면 그는 선톡이 아니라 자리에서 만난다) */
+eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
+  /demoProactive\(id,demoGreetWhen\(gapMin,id\),name\)/.test(web)
+  && /demoProactive\(id,demoGreetWhen\(gapMin,id\),name\)/.test(appSrc), true);
 /* 십 분 만에 다시 들어온 사람한테 「이제 와요?」를 하면 시계를 안 보는 사람이 된다 */
 {
   const eng = readFileSync(join(ROOT, 'tools/demo-engine.js'), 'utf8');
@@ -1576,7 +1637,8 @@ eq('웹·앱 둘 다 실측을 찍는다',
      어미라서, 여기가 늘어나면 규칙이 무너진 것이다. */
   eq('문구집의 재언은 첫 마디에서만 -ㅂ니다를 쓴다',
     J.filter(t => /(습니다|습니까|입니다|됩니다)/.test(t)),
-    ['새로 오셨죠. / 애들 때문에 정신 없으시겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.']);
+    ['새로 오셨죠. / 애들 때문에 정신 없으시겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.',
+     '첫날인데 고생하셨어요. / 애들 때문에 정신 없으셨겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.']);
   eq('프롬프트도 그 예외를 적어뒀다', /첫 인사처럼 아직 모르는 사이에서는/.test(workerSrc), true);
   /* 그러니 프롬프트 예문에도 없어야 한다. 이름 밝히는 자리 하나만 예외 */
   /* 규칙 문장 자체는 세지 않는다 — 따옴표 안의 예문만 본다 */
@@ -1661,6 +1723,14 @@ eq('지점은 가변부 앞에 찍는다',
   eq('싣는 차례가 데이터 → 화면 → 앱이다',
     order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), true);
   /* 데이터에는 JSX가 없어서 바벨을 안 태운다 — 태우면 그만큼 늦게 뜬다 */
+  /* 판 번호가 없으면 브라우저가 옛 파일을 계속 쓴다. peek 넘치는 걸 고쳐
+     올렸는데 CSS에만 번호가 없어서 그대로 넘쳤다 — 화면으로는 배포가 된 것처럼
+     보이고 사람은 안 고쳐졌다고 한다. 넷이 같은 번호여야 한다 */
+  {
+    const v = [...html.matchAll(/(null\.css|app-data\.js|app-ui\.js|app\.js)\?v=(\d+)/g)];
+    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, 4);
+    eq('넷이 같은 판이다', new Set(v.map(m => m[2])).size, 1);
+  }
   eq('데이터는 바벨을 안 탄다', /<script src="app-data\.js/.test(html), true);
   eq('화면과 앱은 바벨을 탄다',
     /<script type="text\/babel" src="app-ui\.js/.test(html)
@@ -1711,9 +1781,9 @@ eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) &&
 eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.test(web), true);
 /* 자리로 들어가는 길은 둘이다 — 인물의 초대, 그리고 지도에서 내가 고르는 것.
    어느 쪽이든 들어간 시각을 찍어야 앞의 대화가 배경 위로 안 새어 나온다 */
-/* 셋 — 초대를 받아서, 지도에서 골라서, 그리고 귀갓길로 이어져서 */
+/* 넷 — 첫 자리로, 초대를 받아서, 지도에서 골라서, 그리고 귀갓길로 이어져서 */
 eq('자리에 들어갈 때 시각을 찍는다',
-  (web.match(/since:Date\.now\(\)/g) || []).length, 3);
+  (web.match(/since:Date\.now\(\)/g) || []).length, 4);
 
 /* ── 이름표가 말풍선 안으로 새는 것 ──
    누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을

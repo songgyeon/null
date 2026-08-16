@@ -566,7 +566,7 @@ function App(){
     if(gapMin>=0&&gapMin<180)return;
     setTimeout(()=>{
       try{
-        const lines=demoProactive(id,demoGreetWhen(gapMin),name);
+        const lines=demoProactive(id,demoGreetWhen(gapMin,id),name);
         if(lines.length)enqueue(id,lines);
       }catch(e){ console.error("%c[NULL] 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
     },delay||0);
@@ -657,7 +657,45 @@ function App(){
      방을 열 때(demoGreet)와 조건이 같아서 둘이 겹치지 않는다 — 한쪽이
      말을 걸면 간격이 0이 되므로 다른 쪽은 안 걸린다. 목록을 떠나면 예약도
      같이 취소된다. */
+  /* ── 첫 자리 ──
+     한 마디도 오간 적이 없으면 인사로 시작하지 않는다. 자리에서 시작한다.
+     시작한 시각이 어디인지를 정하고, 거기 있는 사람을 만난다.
+     다른 한 사람은 평소대로 첫인사를 보낸다 — 아래 선톡 고리가 알아서 한다.
+     새벽에 시작하면 재언은 여섯 시까지 조용하다(canGreet). 그래서 새벽에
+     켠 사람은 민현하고만 하루를 연다.
+
+     한 번만 돈다. 표식을 남기는 게 아니라 「아무 방에도 한 마디도 없다」를
+     조건으로 쓴다 — 리스타트하면 저절로 다시 열린다. */
+  const openedRef=useRef(false);
+  /* 마지막으로 말을 건 시각. 첫 자리와 아래 추첨이 같이 본다 */
   const greetAtRef=useRef(0);
+  useEffect(()=>{
+    if(!name||enrolling||openedRef.current)return;
+    if(["jaeeon","minhyun","group","health"].some(r=>(storeRef.current.msgs[r]||[]).length))return;
+    openedRef.current=true;
+    const o=openingFor();
+    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:o.note,ts:Date.now()};
+    appendMsg(o.room,sys);
+    if(PLACE_BY[o.place])goneTo(o.place);          // 지도 자리면 다녀온 걸로 친다
+    const sc={room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{})};
+    setScene(sc); saveScene(sc); setView(o.room);
+    const next=[...(storeRef.current.msgs[o.room]||[]),sys];
+    request(o.room,{mode:"chat",room:o.room,user_name:name,
+      history:buildHistory(sinceSum(o.room,next)),signals:buildSignals(o.room),
+      recent_photos:recentPhotos(o.room),counts:roomCounts({[o.room]:next.length}),
+      place:o.place,bag:bagRef.current.map(b=>b.key)});
+    /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 아래 선톡 추첨에
+       맡기면 자리 쪽 상태가 아직 화면에 안 앉아서 두 방이 다 비어 보이고,
+       자리에서 만난 사람이 뽑혀 조용히 삼켜진다. 게다가 그 추첨은 view가
+       바뀌면 정리와 함께 예약까지 취소돼서, 자리로 넘어가는 순간 죽는다.
+       새벽이면 재언은 안 온다 — 여섯 시에 온다(canGreet). */
+    const other=o.room==="jaeeon"?"minhyun":"jaeeon";
+    if(canGreet(other)){
+      greetAtRef.current=Date.now();               // 추첨은 일 분간 조용히
+      setTimeout(()=>greet(other,0),2600+Math.random()*2600);
+    }
+  },[name,enrolling]);
+
   useEffect(()=>{
     if(!name||view!=="list"||enrolling)return;
     if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게

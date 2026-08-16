@@ -1736,7 +1736,7 @@ function Root() {
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].created_at)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
     if(delay) await new Promise(r=>setTimeout(r,delay));
-    const lines=demoProactive(id,demoGreetWhen(gapMin),name);
+    const lines=demoProactive(id,demoGreetWhen(gapMin,id),name);
     if(lines.length) await enqueue(id,lines);
   };
   /* 선톡은 방을 열어야 오는 게 아니다. 안 보고 있을 때 오는 것이 메신저다 —
