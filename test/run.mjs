@@ -1507,9 +1507,10 @@ eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) &&
    방의 마지막 여섯 줄을 그냥 깔았더니 아까 문자로 주고받던 말이 교실 배경
    위에 얹혔다. 선물 받은 반응이 교실에서 나오고 첫 연락이 교실에서 나왔다. */
 eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.test(web), true);
-/* 지도는 보는 곳이다 — 자리로 들어가는 길은 초대 하나뿐이라 한 군데다 */
+/* 자리로 들어가는 길은 둘이다 — 인물의 초대, 그리고 지도에서 내가 고르는 것.
+   어느 쪽이든 들어간 시각을 찍어야 앞의 대화가 배경 위로 안 새어 나온다 */
 eq('자리에 들어갈 때 시각을 찍는다',
-  (web.match(/since:Date\.now\(\)/g) || []).length, 1);
+  (web.match(/since:Date\.now\(\)/g) || []).length, 2);
 
 /* ── 이름표가 말풍선 안으로 새는 것 ──
    누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을
@@ -1707,13 +1708,24 @@ eq('길 위에 PNG 하트 표지판이 있다',
   && /\.roadpin\{position:absolute;z-index:8/.test(web)
   && /src="map-icons\/heart-sign\.png"/.test(web)
   && exists('map-icons/heart-sign.png'), true);
-/* 지도는 어디까지 왔는지 보는 곳이다. 눌러서 그 자리로 건너뛰지 않는다 —
-   자리는 대화 중에 같이 가자는 말이 나올 때만 열린다 */
-eq('지도에서 자리로 건너뛰지 않는다',
-  /className=\{"roadicon"/.test(web) && !/roadiconbtn/.test(web)
-  && /\.roadicon\{[^}]*pointer-events:none/.test(web), true);
-eq('지도로 부르던 코드가 남아 있지 않다',
-  /goPlace|onPick|const \[picking/.test(web), false);
+/* 눌러서 갈 수는 있되 건너뛰지는 않는다 — 누르면 한 번 묻고, 답을 해야 간다.
+   초대창과 같은 창(.dlgov/.dlg/.bevel)을 쓴다 */
+eq('지도는 눌러도 바로 안 가고 한 번 묻는다',
+  /onClick=\{open\?\(\)=>onGoPlace\(p\.name\)/.test(web)
+  && /const \[ask,setAsk\]=useState\(null\)/.test(web)
+  && /\{ask&&<div className="dlgov" onClick=\{\(\)=>answerAsk\(false\)\}>/.test(web)
+  && /\{ask\}, 갈까요\?/.test(web), true);
+/* 아직 못 가는 자리는 눌러도 반응이 없어야 「아직 아니구나」가 읽힌다 */
+eq('안 열린 자리는 눌러도 아무 일이 없다',
+  /role=\{open\?"button":null\}/.test(web)
+  && /\.roadicon\{[^}]*pointer-events:none/.test(web)
+  && /\.roadicon\[role\]\{pointer-events:auto/.test(web), true);
+/* 인물이 부른 자리를 물리면 그 자리는 닫힌다(두 번 조르지 않는다).
+   내가 고른 자리를 물리는 건 마음이 바뀐 것뿐이라 닫히면 안 된다 */
+eq('지도에서 물러나도 그 자리가 닫히지 않는다', (() => {
+  const t = web.slice(web.indexOf('const answerAsk='));
+  return /saveRefused/.test(t.slice(0, t.indexOf('\n  };')));
+})(), false);
 /* 알약을 두르면 지도가 아니라 지도를 담은 창이 된다 */
 eq('제목에 알약이 없다', /\.roadtitle\{[^}]*border-radius:999px/.test(web), false);
 /* 구석에 떠 있으면 지도의 일부가 아니라 화면 위에 얹힌 버튼처럼 보인다 */
@@ -1744,6 +1756,28 @@ eq('문 뒤에 입력창만 남고 YOU 표시는 없다',
   && /src="map-icons\/final-input-window\.png"/.test(web)
   && exists('map-icons/final-input-window.png')
   && !/className="roadyou"/.test(web), true);
+/* 창이 문 벽 밖으로 나가면 창만 허공에 뜬 것처럼 보인다. 창 그림은 제 상자의
+   18.7~82.1%만 안 비치고, 문 그림의 벽 기둥은 제 상자의 33.4~70.3%다.
+   두 상자 다 left가 가운데다 */
+eq('빛나는 창이 문 벽 밖으로 안 삐져나온다', (() => {
+  const m = web.match(/\.roadfinishpanel\{position:absolute;left:([\d.]+)%;top:[\d.]+%;z-index:5;width:([\d.]+)%/);
+  const d = web.match(/"집":\s*\{x:([\d.]+), y:[\d.]+\}/);
+  if (!m || !d) return 'CSS를 못 읽음';
+  const pl = +m[1] - +m[2] / 2, pw = +m[2], dl = +d[1] - 29 / 2;
+  return [pl + pw * .187 >= dl + 29 * .334 - .1, pl + pw * .821 <= dl + 29 * .703 + .1];
+})(), [true, true]);
+
+/* 잠긴 자리에 자물쇠를 얹으니 그 자리가 무엇인지가 안 보였다. 이제 잠긴 것은
+   색이 죽은 그림 자체로 말한다 — 다만 열린 그림과 다른 그림이긴 해야 한다 */
+eq('잠긴 자리마다 제 그림이 따로 있다', (() => {
+  const icons = [...web.matchAll(/icon:"(\w+)"/g)].map(m => m[1]);
+  return icons.filter(k => {
+    const a = `map-icons/place-${k}-lock.png`, b = `map-icons/place-${k}-open.png`;
+    return !exists(a) || !exists(b)
+      || readFileSync(join(ROOT, a)).equals(readFileSync(join(ROOT, b)));
+  });
+})(), []);
+
 /* 자리마다 핀이 하나씩 있어야 한다 — 없으면 길에서 그 자리가 사라진다 */
 eq('자리마다 핀이 있다', (() => {
   const g = n => { const t = web.slice(web.indexOf('const ' + n + '={'));
@@ -1758,6 +1792,12 @@ eq('물건 설명이 남아 있지 않다',
   [web, appSrc, readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8')]
     .filter(t => /\bdesc:/.test(t) || /\.desc\b/.test(t)).length, 0);
 eq('설명 자리 CSS도 걷었다', /\.cgdesc\{/.test(web) || /gdesc:/.test(appSrc), false);
+
+/* ─ ▭ ✕ 단추가 납작하면 창틀에 그려 넣은 그림처럼 보인다. 위에서 빛을 받는
+   구슬로 세운다 — 왼쪽 위 흰 점, 아래 안쪽 그늘, 바깥에 얕은 그림자 */
+eq('창 단추가 볼록하다',
+  /\.dots>span\{[^}]*box-shadow:inset 0 -2px 3px rgba\(93,84,144,\.34\),0 1px 1\.5px/.test(web)
+  && /\.dots>span::after\{[^}]*radial-gradient\(circle at 33% 26%/.test(web), true);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
