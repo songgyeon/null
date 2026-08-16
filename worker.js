@@ -1476,7 +1476,11 @@ function buildStage(mode, room, counts, days) {
   if (!counts) return "";
   const n = k => Math.max(0, Number(counts[k]) || 0);
   const d = Math.max(0, Number(days) || 0);
-  const parts = [`- 유저를 만난 지 ${d}일째다. 떠나기까지 ${Math.max(0, ENROLL_DAYS - d)}일 남았다.`];
+  /* 「만난 지 0일째」는 아무 말도 아니다. 첫날은 첫날이라고 적어야 한다 —
+     인물 설정의 첫 만남을 이미 끝난 일로 읽고 아는 사이처럼 구는 일이 있었다 */
+  const parts = [d === 0
+    ? `- 오늘 처음 만났다. 떠나기까지 ${ENROLL_DAYS}일 남았다.`
+    : `- 유저를 만난 지 ${d}일째다. 떠나기까지 ${Math.max(0, ENROLL_DAYS - d)}일 남았다.`];
   if (mode === "auto" || room === "group") {
     parts.push(`- 오간 말: 이재언과 ${n("jaeeon")}번, 이민현과 ${n("minhyun")}번, 셋이서 ${n("group")}번.`);
   } else {
@@ -1592,6 +1596,7 @@ const SLOTS = `
 안 붙어 온 표제는 이번 턴에 해당 사항이 없다는 뜻이다.
 
 **[지금까지]** — 숫자다. 인물 설정에 적힌 변화가 어디쯤 와 있는지 이 숫자를 보고 스스로 가늠한다. 숫자 자체를 대사로 말하지 않는다.
+「오늘 처음 만났다」고 적혀 있으면 그 앞에 쌓인 것이 하나도 없다는 뜻이다 — 설정에 적힌 첫 만남이 오늘 일이고, 그 뒤의 일은 아직 일어나지 않았다.
 
 **[유저에 대해 아는 것]** — 지내면서 자연스럽게 알게 된 것들이다. 목록을 읊지 말고, 말이 나올 자리에만 스치듯 쓴다.
 

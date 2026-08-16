@@ -747,6 +747,16 @@ eq('지금까지는 숫자로만 준다', (() => {
   return /## \[지금까지\]/.test(t) && /만난 지 12일째/.test(t)
     && /떠나기까지 18일/.test(t) && /이 방에서 오간 말: 40번째/.test(t);
 })(), true);
+/* 「만난 지 0일째」는 아무 말도 아니다. 인물 설정의 첫 만남을 이미 끝난 일로
+   읽고 첫날부터 아는 사이처럼 굴었다. 첫날은 첫날이라고 적는다 */
+eq('첫날은 첫날이라고 적는다', (() => {
+  const t = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 3 }, null, null, null, 0);
+  return t.includes('오늘 처음 만났다') && !t.includes('0일째');
+})(), true);
+eq('첫날 읽는 법을 슬롯에 적어둔다', (() => {
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  return /「오늘 처음 만났다」고 적혀 있으면 그 앞에 쌓인 것이 하나도 없다는 뜻이다/.test(wk);
+})(), true);
 eq('다녀온 자리를 웹·앱 둘 다 들고 있다',
   /null_met/.test(web) && /null_met/.test(appSrc), true);
 eq('거절한 자리를 웹·앱 둘 다 들고 있다',
