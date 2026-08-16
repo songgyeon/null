@@ -1659,14 +1659,23 @@ eq('한 마디가 두 화면에 다 뜬다', (web.match(/className="itemsay"/g) 
 /* 분류를 걸러서 빈 것과 정말 하나도 없는 것은 다른 말이다 */
 eq('빈 칸과 빈 가방을 다르게 말한다',
   /this drawer : empty/.test(web) && /bag : 0 items/.test(web), true);
-/* 가방 창의 글자는 영어다. 칸 이름만은 데이터에 한글로 박혀 있어서
+/* 가방·선물 창의 글자는 영어다. 칸 이름만은 데이터에 한글로 박혀 있어서
    화면에만 영어를 씌운다 — 데이터를 바꾸면 저장된 가방이 어긋난다 */
 eq('가방 창에 한글이 안 남았다',
-  /const ITEM_CAT_EN=\{"전체":"ALL","간식":"SNACK","소품":"STUFF","기록":"TRACE"\}/.test(web)
-  && /\{ITEM_CAT_EN\[c\]\|\|c\}/.test(web)
-  && /className="bagcount">RECEIVED /.test(web)
+  /className="bagcount">RECEIVED /.test(web)
   && /className="baglent">TO RETURN /.test(web)
   && /className="baglabel">RETURN ME</.test(web), true);
+eq('선물 창에 한글이 안 남았다',
+  /placeholder="what r u looking 4 \?"/.test(web)
+  && !/placeholder="무엇을 찾고 있어\?"/.test(web), true);
+/* 두 창이 같은 표를 본다 — 한쪽만 고치면 선물과 가방의 칸 이름이 갈린다 */
+eq('칸 이름 표가 하나다',
+  /const CAT_EN=\{"전체":"ALL","소품":"STUFF","옷":"WEAR","간식":"SNACK","기록":"TRACE"\}/.test(web)
+  && (web.match(/\{CAT_EN\[c\]\|\|c\}/g) || []).length, 2);
+eq('선물 칸도 가방 칸도 다 영어 이름이 있다',
+  [...new Set([...web.matchAll(/const (?:GIFT|ITEM)_CATS=\[([^\]]+)\]/g)]
+    .flatMap(m => m[1].split(',').map(s => s.replace(/"/g, ''))))]
+    .filter(c => !new RegExp(`"${c}":"[A-Z]+"`).test(web)), []);
 /* 선물도 이제 그림이다. SVG로 그리던 열여섯 개는 걷어냈다 */
 eq('선물 그림 열여섯 개가 저장소에 있다',
   ['mug','photobook','beanie','earphone','hotpack','umbrella','hanky','camera',
@@ -1824,6 +1833,12 @@ eq('설명 자리 CSS도 걷었다', /\.cgdesc\{/.test(web) || /gdesc:/.test(app
 eq('창 단추가 볼록하다',
   /\.dots>span\{[^}]*box-shadow:inset 0 -2px 3px rgba\(93,84,144,\.34\),0 1px 1\.5px/.test(web)
   && /\.dots>span::after\{[^}]*radial-gradient\(circle at 33% 26%/.test(web), true);
+/* ─ □ ✕를 글자로 찍으면 글꼴마다 em 상자 안에 앉는 높이가 달라 기기마다
+   다른 데로 쏠린다. 상자로 그려서 가운데를 못박고, 글자는 한 개도 안 남긴다 */
+eq('창 단추의 표시가 글자가 아니다',
+  /\.dots>span>i\{position:relative;z-index:1;display:block/.test(web)
+  && /\.dots \.d3>i\{width:9px;height:1\.8px;transform:rotate\(45deg\)\}/.test(web)
+  && !/className="d1">─/.test(web) && !/className="d3">✕/.test(web), true);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
