@@ -1760,13 +1760,26 @@ eq('자리의 입력창이 따로 놀지 않는다',
    좁은 화면에서 보내기 단추가 화면 밖으로 밀려났다 */
 eq('좁은 화면에서 보내기가 안 밀린다',
   /\.inputbar input\{flex:1;min-width:0;/.test(web), true);
-/* 알약이 「몇 개 들었나」였다. 안 읽은 표시처럼 생겨서 열어도 안 사라지는
-   고장으로 읽혔다. 이제 마지막으로 연 뒤에 새로 들어온 것만 센다 */
-eq('가방 알약은 열면 사라진다',
-  /const \[bagSeen,setBagSeen\]=useState\(loadBagSeen\)/.test(web)
-  && /const bagNew=Math\.max\(0,\(bag\|\|\[\]\)\.length-bagSeen\)/.test(web)
-  && /setDlg\("bag"\);const n=\(bag\|\|\[\]\)\.length;setBagSeen\(n\);saveBagSeen\(n\)/.test(web)
-  && /\{bagNew>0&&<b className="mbcount">\{bagNew\}<\/b>\}/.test(web), true);
+/* 알약을 아예 뗐다. 가방은 알림함이 아니라 서랍이다 — 숫자가 뜨면 그걸
+   없애려고 여는 창이 되고, 그러면 물건이 알림이 된다 */
+eq('가방에 알약이 안 붙는다',
+  /mbcount|bagNew|bagSeen|null_bagseen/.test(web), false);
+/* 자리에 들어오자마자 손에 들어오면 그건 받은 게 아니라 주운 것이다.
+   들렀다 바로 나오는 것만으로 여덟 개가 다 모이면 지도가 심부름이 된다 */
+eq('말을 하고 나와야 받은 게 있다',
+  /const SCENE_MIN_TALK=2/.test(web)
+  && /const talkedEnough=sc=>!!sc&&/.test(web)
+  && /if\(sc&&talkedEnough\(sc\)\)\{ const p=PLACE_BY\[sc\.place\]/.test(web), true);
+eq('모델이 첫 턴에 건네도 안 받는다',
+  /data\.give&&data\.give\.item&&talkedEnough\(sceneRef\.current\)/.test(web), true);
+/* 표제를 「여기서 건넬 것」이라고 달아놨더니 첫 마디부터 건네줬다 */
+eq('언젠가 건넨다고 적는다', (() => {
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  return /## 여기서 언젠가 건넬 것/.test(wk)
+    && /\*\*대부분의 턴에는 안 건넨다\.\*\*/.test(wk)
+    && /막 도착해서 첫 마디를 주고받는 중이면 아니다/.test(wk)
+    && !/## 여기서 건넬 것/.test(wk);
+})(), true);
 /* 누런 종이는 이 창에서 혼자 다른 시대에서 온 물건이었다 */
 eq('쪽지가 흰 종이다',
   /repeating-linear-gradient\(180deg,#fff 0 25px,#f1ebfb 25px 26px\)/.test(web)
