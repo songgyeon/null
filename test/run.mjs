@@ -472,7 +472,10 @@ eq('별칭이 덧붙인 주어를 무시하지 않는다',
 /* ── 선물 ──
    물건을 받았는데 "무슨 말인지 잘 못 들었어요"가 돌아오면 그건 준 게 아니라
    허공에 던진 것이다. 이름을 문장으로 꾸며 매칭에 태우던 걸 열쇠로 바꿨다. */
-const GIFT_KEYS = [...web.matchAll(/\{key:"([a-z]+)"/g)].map(m => m[1]);
+/* GIFTS 표 안에서만 센다. 코드 아무 데서나 {key:"..."}를 세면 상관없는 것이
+   섞인다 — 가방에 넣는 줄 하나가 열일곱 번째 선물로 잡혔다 */
+const GIFT_KEYS = [...web.slice(web.indexOf('const GIFTS=['), web.indexOf('const GIFT_CATS'))
+  .matchAll(/\{key:"([a-z]+)"/g)].map(m => m[1]);
 eq('선물이 열여섯 개다', GIFT_KEYS.length, 16);
 eq('모든 선물에 두 사람의 대답이 있다',
   GIFT_KEYS.filter(k => ['jaeeon', 'minhyun'].some(r => {
@@ -1737,7 +1740,7 @@ eq('준 사람 이름을 글로 또 안 적는다', /에게서/.test(web), false
 eq('받은 것마다 한 마디가 있다', (() => {
   const t = web.slice(web.indexOf('const ITEMS={'));
   return (t.slice(0, t.indexOf('};')).match(/say:"/g) || []).length;
-})(), 8);
+})(), 9);   // 자리 여덟 + 야자 주의 에너지바
 eq('선물마다 한 마디가 있다', (() => {
   const t = web.slice(web.indexOf('const GIFTS=['));
   return (t.slice(0, t.indexOf('const GIFT_CATS')).match(/say:"/g) || []).length;
@@ -2031,6 +2034,50 @@ eq('다음 판 맨 앞에서 비운다',
 /* 비우는 자리가 리액트보다 앞이어야 한다. 뒤면 화면이 먼저 떠서 도로 저장한다 */
 eq('비우는 자리가 화면보다 앞이다',
   web.indexOf('null_wipe') < web.indexOf('<script type="text/babel">'), true);
+
+/* ── 시간표 ──
+   하루에 여섯 번 알림을 띄우면 사흘이면 벽지가 된다. 하루에 한 번이면
+   의식이 된다. 그 뒤로는 peek 옆 단추가 지금이 몇 교시인지 들고 있다. */
+{
+  const src = web.slice(web.indexOf('const PERIODS='), web.indexOf('/* 하루의 경계는'));
+  const f = new Function(src + ';return {nowLabel,daySlots,slotNow,isYajaWeek,isWend}')();
+  const at = (mo, d, h, mi) => new Date(2026, mo, d, h, mi);
+  /* 요즘 고등학교 기준 — 50분 수업 10분 쉬는 시간, 4교시 뒤 점심 */
+  eq('교시를 센다', ['등교 전','1교시','쉬는시간','점심','5교시','퇴근'].filter((w, i) =>
+    f.nowLabel([at(7,17,7,30),at(7,17,8,50),at(7,17,9,35),at(7,17,12,45),
+                at(7,17,13,40),at(7,17,16,45)][i]) !== w), []);
+  /* 야자는 강제가 아니라 희망자 자율학습이다 — 유저가 감독인 날에만 붙는다 */
+  eq('야자는 격주 목요일에만 붙는다',
+    [6,13,20,27].map(d => f.daySlots(at(7,d,19,0)).some(s => s.k === '야자')),
+    [false, true, false, true]);
+  /* 주말은 학교가 정해주는 하루가 아니다 — 칸이 비고 유저가 적는다 */
+  eq('주말은 칸이 비어 있다',
+    [f.daySlots(at(7,22,14,0)).length, f.nowLabel(at(7,22,14,0))], [0, '토요일']);
+  eq('주말 칸은 넷이다', /const WEND_SLOTS=4/.test(web), true);
+}
+/* 하루의 경계는 자정이 아니라 새벽 다섯 시다 — 대화 도중에 날짜가 넘어가면 안 된다 */
+eq('하루는 새벽 다섯 시에 넘어간다',
+  /if\(d\.getHours\(\)<5\)d\.setDate\(d\.getDate\(\)-1\)/.test(web), true);
+eq('그날 처음 열 때 한 번만 뜬다',
+  /if\(loadDaySeen\(\)===k\)return;/.test(web) && /saveDaySeen\(k\); setDlg\("timetable"\)/.test(web), true);
+/* 시간표는 「수업」 한 덩이로 두고 교시는 단추에서만 센다 */
+eq('시간표 칸에는 교시를 안 쓴다',
+  /\{k:"수업",at:520\},\{k:"점심",at:750\},\{k:"수업",at:810\}/.test(web)
+  && !/1교시",at:/.test(web), true);
+eq('단추가 peek 옆에 같은 모양으로 선다',
+  /<button className="moonbtn bevel nowbtn"[^>]*onClick=\{\(\)=>setDlg\("timetable"\)\}/.test(web), true);
+/* 야자 감독인 주에는 그 주 아무 때나 들어와도 보인다 */
+eq('야자 주에는 경고가 붙는다',
+  /\{yaja&&<div className="ttwarn">/.test(web) && /!!!WARNING!!!/.test(web)
+  && /목요일은 내가 야자 감독 ミ✭/.test(web), true);
+/* 사람이 준 게 아니라 시간표가 쥐여주는 것이라 준 사람도 자리도 없다 */
+eq('에너지바는 야자 주에 한 번만 들어온다',
+  /if\(bagRef\.current\.some\(b=>b\.key==="ebar"\)\)return;/.test(web)
+  && /ebar:\s*\{name:"에너지바",\s*cat:"간식", say:"energy level : restored \+20 ♡"\}/.test(web)
+  && exists('item-ebar.webp'), true);
+/* .blank은 이미 쓰이는 이름이다 — 붙이면 줄 전체가 점선 상자가 된다 */
+eq('주말 칸이 기존 빈칸과 이름이 안 겹친다',
+  /className="ttrow mine"/.test(web) && !/className="ttrow blank"/.test(web), true);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

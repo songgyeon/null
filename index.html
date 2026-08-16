@@ -706,6 +706,42 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .roadicon.shut{opacity:.5;filter:drop-shadow(0 2px 1px rgba(72,48,145,.14)) saturate(.45)}
 .roadicon.been{filter:drop-shadow(0 2px 1px rgba(72,48,145,.28)) drop-shadow(0 0 7px rgba(255,151,196,.72))}
 
+/* ── 시간표 ── */
+/* 판·알약·굽 전부 앱의 다른 창과 같은 결이다. 그림자는 번지지 않는 굽
+   (.etcwarn이 0 3px 0을 쓴다) — 번지는 그림자를 쓰면 혼자 다른 물건이 된다 */
+.ttwin .dlgbody{padding-bottom:14px}
+.ttpanel{position:relative;margin:14px 12px 0;padding:17px 13px 10px;border-radius:11px;background:#fff;
+ border:1.5px solid #fff;box-shadow:0 0 0 1px #e0d6f6,0 3px 0 #ddd2f5,inset 0 1px 0 #fff}
+.tttag{position:absolute;left:50%;top:-10px;transform:translateX(-50%);white-space:nowrap;overflow:hidden;
+ padding:3px 15px 4px;font-size:8px;letter-spacing:.22em;color:#fff;border-radius:999px;
+ text-shadow:0 1px 0 rgba(110,86,160,.5);border:1.5px solid #fff;
+ background:linear-gradient(100deg,#f3b9d8 0%,#d5b3ef 34%,#b79ceb 62%,#a992e6 100%);
+ box-shadow:0 2px 0 #b9a4e8}
+.tttag::before{content:"";position:absolute;left:7%;right:7%;top:2px;height:40%;border-radius:999px;
+ background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
+.ttrow{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:9px;letter-spacing:.16em}
+.ttrow .n{flex:none;width:54px;text-align:left}
+.ttrow .ln{flex:1;min-width:14px;height:0;border-top:1.5px dashed #ded5f4}
+.ttrow .mk{flex:none;white-space:nowrap;font-size:9px;letter-spacing:0;color:#dcd2f5}
+.ttrow.past .n{color:#c9bcf3}
+.ttrow.past .ln{height:1.5px;border-top:0;border-radius:2px;background:#e4dcf8}
+.ttrow.now  .n{color:#ff5fa8}
+.ttrow.now  .ln{border-top-color:#ffa6cb}
+.ttrow.now  .mk{color:#ff5fa8}
+.ttrow.next .n{color:#b9aee0}
+/* 주말 칸. 기존 빈칸(.blank)과 이름이 부딪히면 줄 전체가 점선 상자가 된다 */
+.ttrow.mine .n{width:auto;min-width:54px}
+/* 야자 감독인 주에만 붙는다. 그 주 아무 때나 들어와도 보인다 */
+.ttwarn{margin:13px 12px 0;padding:10px 12px 11px;text-align:center;border-radius:9px;
+ font-size:9px;line-height:1.9;letter-spacing:.02em;color:#8f7ccb;
+ background:#fff6fb;border:1.5px solid #fff;box-shadow:0 0 0 1px #f6cfe2,0 3px 0 #f7dbe8}
+.ttwarn b{display:block;margin-bottom:3px;font-weight:400;font-size:10.5px;letter-spacing:.1em;color:#ff5fa8}
+.ttsay{margin-top:11px;text-align:center;font-size:9px;line-height:1.95;color:#8f7ccb}
+.ttsay b{display:block;font-weight:400}
+.ttsay b i{font-style:normal;color:#ff8fbe}
+/* peek 옆에 같은 단추로 선다. 눌러서 시간표를 다시 연다 */
+.nowbtn{flex:none;margin-left:7px;letter-spacing:.06em}
+
 /* ── bag ── */
 /* gift 창과 같은 부품(.cartwin·.cgcard·.cchip)을 쓰고 여기서 다른 것만 더한다 */
 .bagcount{flex:1;padding:9px 13px;font-size:11px;letter-spacing:.04em;color:#6b5fa8;
@@ -1410,8 +1446,64 @@ const ITEMS={
   lp:      {name:"중고 LP",     cat:"기록", say:"surface : scratched / playable"},
   coin:    {name:"동전 한 줌",  cat:"소품", say:"credit : 500 × 5 / keep the rest"},
   key:     {name:"여벌 열쇠",   cat:"소품", say:"HOME access : granted ♡"},
+  /* 자리에서 받는 게 아니라 야자 감독인 주에 시스템이 쥐여주는 것.
+     그래서 where가 없다 — 어디서 받았는지가 없는 유일한 물건이다. */
+  ebar:    {name:"에너지바",    cat:"간식", say:"energy level : restored +20 ♡"},
 };
 const ITEM_CATS=["전체","간식","소품","기록"];
+
+/* ── 하루의 시간표 ──
+   요즘 고등학교 기준이다. 50분 수업에 10분 쉬는 시간, 4교시 끝나고 점심.
+   야자는 2017년쯤 강제가 없어져서 지금은 희망자만 남는 자율학습이다. 그래서
+   매일 붙지 않는다 — 유저가 감독으로 남는 날(격주 목요일)에만 붙는다.
+   민현이 그날 남는 것도 강제가 아니라서 성격이 된다. 갈 데가 없는 애다. */
+const PERIODS=[[520,570,1],[580,630,2],[640,690,3],[700,750,4],
+               [810,860,5],[870,920,6],[930,980,7]];   // 분 단위 · 시작·끝·교시
+const DAY_SLOTS=[
+  {k:"출근",at:480},{k:"수업",at:520},{k:"점심",at:750},{k:"수업",at:810},
+  {k:"퇴근",at:990},{k:"저녁",at:1020},{k:"야자",at:1110},
+];
+const WEND_SLOTS=4;      // 주말은 이름이 없다. 유저가 넷을 직접 채운다
+/* 격주. 어느 주부터인지는 유저 사정이 아니라 학교 사정이라 달력으로 센다 */
+const weekNo=d=>Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7);
+const isYajaWeek=(now)=>weekNo(now||new Date())%2===0;
+const isWend=d=>{const w=(d||new Date()).getDay();return w===0||w===6};
+/* 오늘 시간표. 야자는 담당인 목요일에만 붙고, 주말은 아예 칸이 없다 —
+   학교가 정해주는 하루가 아니라 유저가 적는 하루라서 */
+const daySlots=(now)=>{
+  const d=now||new Date();
+  if(isWend(d))return [];
+  const yaja=isYajaWeek(d)&&d.getDay()===4;
+  return DAY_SLOTS.filter(s=>s.k!=="야자"||yaja);
+};
+/* 지금 몇 번째 칸인가. 아직 출근 전이면 -1, 다 끝났으면 마지막 칸 */
+const slotNow=(now)=>{
+  const d=now||new Date(), m=d.getHours()*60+d.getMinutes(), list=daySlots(d);
+  let i=-1; list.forEach((s,n)=>{if(m>=s.at)i=n});
+  return i;
+};
+/* 상태 버튼에 뜨는 말. 시간표는 「수업」 한 덩이지만 여기서는 교시를 센다 */
+const nowLabel=(now)=>{
+  const d=now||new Date();
+  if(isWend(d))return d.getDay()===6?"토요일":"일요일";
+  const m=d.getHours()*60+d.getMinutes();
+  for(const [a,b,n] of PERIODS){ if(m>=a&&m<b)return n+"교시"; }
+  if(m>=PERIODS[0][0]&&m<PERIODS[3][1])return "쉬는시간";
+  if(m>=PERIODS[3][1]&&m<PERIODS[4][0])return "점심";
+  if(m>=PERIODS[4][0]&&m<PERIODS[6][1])return "쉬는시간";
+  const i=slotNow(d);
+  return i<0?"등교 전":daySlots(d)[i].k;
+};
+/* 하루의 경계는 자정이 아니라 새벽 다섯 시다. 새벽 두 시에 여는 건 어제의
+   연장이지 새 하루가 아니다 — 대화 도중에 날짜가 넘어가면 그게 제일 이상하다 */
+const dayKey=now=>{const d=new Date(now||Date.now()); if(d.getHours()<5)d.setDate(d.getDate()-1);
+  return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
+const loadDaySeen=()=>{try{return localStorage.getItem("null_dayseen")||""}catch(e){return""}};
+const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};
+/* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
+const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
+const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};
+
 /* ── 조사 ──
    「밴드을(를) 받았다」가 화면에 그대로 찍혔다. 괄호로 둘 다 적어두는 건
    글로 쓸 때 쓰는 표기지 사람이 읽는 문장이 아니다.
@@ -1955,6 +2047,52 @@ function LogPanel({store,counts,unlocked,album}){
   </div>;
 }
 
+/* ── 시간표 ──
+   그날 처음 열면 한 번 뜬다. 하루에 여섯 번 알림을 띄우면 사흘이면 벽지가
+   되는데, 하루에 한 번이면 의식이 된다. 그 뒤로는 peek 옆 버튼이 지금이
+   몇 교시인지 들고 있고, 눌러서 다시 볼 수 있다.
+   야자 감독인 주에는 경고가 하나 붙는다 — 그 주 아무 때나 들어와도 보이게. */
+function Timetable({wend,onFillWend,onClose}){
+  const now=new Date();
+  const wk=isWend(now), slots=daySlots(now), i=slotNow(now);
+  const key=dayKey(), mine=(wend||{})[key]||[];
+  const yaja=isYajaWeek(now);
+  const rows=wk
+    ?Array.from({length:WEND_SLOTS},(_,n)=>({k:mine[n]||"",n,blank:true}))
+    :slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i}));
+  return <div className="dlgov" onClick={onClose}>
+    <div className="dlg ttwin" onClick={e=>e.stopPropagation()}>
+      <div className="tb">null.exe<WinDots onClose={onClose}/></div>
+      <div className="dlgbody">
+        <div className="ttpanel">
+          <div className="tttag">TIMETABLE ♡</div>
+          {rows.map(r=>r.blank
+            ?<div key={r.n} className="ttrow mine">
+               <span className="n"><Blank value={r.k} width={54} onSave={v=>onFillWend(key,r.n,v)}/></span>
+               <span className="ln"/><span className="mk">{r.k?"♡":""}</span>
+             </div>
+            :<div key={r.n} className={"ttrow"+(r.now?" now":r.past?" past":" next")}>
+               <span className="n">{r.k}</span><span className="ln"/>
+               <span className="mk">{r.past?"♡":r.now?<><span className="kao">(՞៸៸›⩊‹៸៸՞)</span>🩷</>:""}</span>
+             </div>)}
+        </div>
+        {yaja&&<div className="ttwarn">
+          <b>!!!WARNING!!!</b>
+          목요일은 내가 야자 감독 ミ✭<br/>
+          에너지바가 NULL 지켜줄 거야 <span className="kao">(𓂂꜆◕⩊◕꜀𓂂)</span> 💗
+        </div>}
+        <div className="ttsay">
+          <b>{wk?"오늘은 학교가 없어요 ♡":`지금은 ${nowLabel(now)}예요 `}{wk?"":<i>♡</i>}</b>
+          NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span>
+        </div>
+        <div className="dlgbtns" style={{justifyContent:"center"}}>
+          <button className="wbtn" onClick={onClose}>ok ♡</button>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
 /* [bag] 받은 것들.
    gift가 준 것이면 bag은 받은 것이다. 그래서 같은 창으로 만든다 —
    작은 대화상자에 흰 줄로 늘어놓으니 이 앱에서 혼자 다른 물건처럼 보였다.
@@ -2128,10 +2266,24 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace}){
+function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
+  /* 시간표. 그날 처음 열면 한 번 뜨고, 그 뒤로는 버튼으로 다시 본다.
+     야자 감독인 주에는 에너지바가 가방에 들어온다 — 그 주에 한 번만. */
+  const [wend,setWend]=useState(loadWend);
+  const [tick,setTick]=useState(0);           // 교시가 바뀌면 버튼 글자도 바뀐다
+  useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),60000);return()=>clearInterval(t)},[]);
+  useEffect(()=>{
+    const k=dayKey();
+    if(loadDaySeen()===k)return;
+    saveDaySeen(k); setDlg("timetable");
+    if(isYajaWeek())onEnergyBar&&onEnergyBar();
+  },[]);
+  const fillWend=(k,n,v)=>setWend(w=>{
+    const next={...w,[k]:[...(w[k]||[])]}; next[k][n]=v; saveWend(next); return next;
+  });
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap(r=>(store.msgs&&store.msgs[r.id])||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -2193,6 +2345,9 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           있다고 숫자가 뜨면 그걸 없애려고 여는 창이 된다 */}
       <span className="mbtn ico" title="what they gave u"
         onClick={()=>{setMenu(null);setDlg("bag")}}><BagIcon size={14}/>bag</span>
+      {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
+      <button className="moonbtn bevel nowbtn" title="timetable"
+        onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
         title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;
@@ -2337,6 +2492,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
     {dlg==="bag"&&<Bag bag={bag||[]} firstTs={firstTs} onClose={()=>setDlg(null)}/>}
+    {dlg==="timetable"&&<Timetable wend={wend} onFillWend={fillWend} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onClose={()=>setDlg(null)}/>}
     {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>
@@ -2665,6 +2821,13 @@ function App(){
     appendMsg(from,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
     setToast(`bag — ${it.name}`);
     return true;
+  };
+  /* 야자 감독인 주에 하나. 사람이 준 게 아니라 시간표가 쥐여주는 것이라
+     대화에 지문도 안 남고 준 사람도 없다 — 가방에서 얼굴이 안 붙는 유일한 물건 */
+  const giveEnergyBar=()=>{
+    if(bagRef.current.some(b=>b.key==="ebar"))return;
+    const next=[...bagRef.current,{key:"ebar",ts:Date.now()}];
+    setBag(next); saveBag(next); setToast("bag — 에너지바");
   };
   /* 자리에서 나온다.
      나오는데 아직 못 받았으면 여기서 넣어준다. 모델이 안 건네주고 끝내는
@@ -3143,7 +3306,7 @@ function App(){
        onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
-       bag={bag} met={met} onGoPlace={setAsk}/>
+       bag={bag} met={met} onGoPlace={setAsk} onEnergyBar={giveEnergyBar}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
