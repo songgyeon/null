@@ -525,7 +525,9 @@ function Timetable({wend,onFillWend,onClose}){
              에너지바가 NULL 지켜줄 거야 <span className="kao">(𓂂꜆◕⩊◕꜀𓂂)</span> 💗
            </div>
           :<div className="ttsay">
-             <b>{wk?<>오늘은 학교가 없어요 <i>♡</i></>:<>지금은 {nowLabel(now)}예요 <i>♡</i></>}</b>
+             {/* 「등교전예요」가 그대로 찍혔다. 받침이 있으면 이에요, 없으면 예요다 —
+                 출근·수업·점심·퇴근·저녁·등교전은 이에요, 야자만 예요다 */}
+             <b>{wk?<>오늘은 학교가 없어요 <i>♡</i></>:<>지금은 {jos(nowLabel(now),"이에요/예요")} <i>♡</i></>}</b>
              NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span>
            </div>}
         <div className="dlgbtns" style={{justifyContent:"center"}}>

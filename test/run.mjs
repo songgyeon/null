@@ -1802,6 +1802,11 @@ eq('자리에서 나올 때 못 받았으면 채워준다',
 eq('지문에 을(를)이 안 남아 있다', /을\(를\)|이\(가\)|과\(와\)/.test(
   web.slice(web.indexOf('function App()'))), false);
 eq('받침을 보고 조사를 고른다', /const jos=\(w,pair\)=>/.test(web), true);
+/* 「등교전예요」가 시간표에 그대로 찍혔다. 서술격 조사도 받침을 본다 —
+   출근·수업·점심·퇴근·저녁·등교전은 이에요, 야자만 예요다 */
+eq('이에요와 예요도 받침을 본다',
+  /지금은 \{jos\(nowLabel\(now\),"이에요\/예요"\)\}/.test(web), true);
+eq('굳은 예요가 안 남아 있다', /\}예요/.test(web), false);
 eq('같은 것은 가방에 두 번 안 들어간다',
   /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
 eq('자리에 있으면 place를 같이 보낸다', /\.\.\.\(at\?\{place:at,bag:/.test(web), true);
