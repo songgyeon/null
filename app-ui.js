@@ -724,7 +724,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   /* 시간표. 그날 처음 열면 한 번 뜨고, 그 뒤로는 버튼으로 다시 본다.
      야자 감독인 주에는 에너지바가 가방에 들어온다 — 그 주에 한 번만. */
   const [wend,setWend]=useState(loadWend);
-  const [level,setLevel]=useState("town");    // 지도 두 장 — 마을 길 / 학교 안
+  const [schoolOpen,setSchoolOpen]=useState(false); // 학교 캐비닛 문 / 안의 TV
   const [tick,setTick]=useState(0);           // 교시가 바뀌면 버튼 글자도 바뀐다
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),60000);return()=>clearInterval(t)},[]);
   useEffect(()=>{
@@ -758,14 +758,18 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const left=Math.max(0,autoAt+AUTO_COOL-now);
   const album=seenPhotos(store.msgs);
   const un0=Object.values(store.unread||{}).reduce((a,b)=>a+(b||0),0);
-  /* 지도 진행은 실제로 다녀온 자리만 센다. 갈 수 있게 열린 칸은 진행도가 아니다. */
-  const visitedN=PLACES.filter(p=>met.includes(p.name)).length;
   useEffect(()=>{ // 바깥 클릭 시 드롭다운 닫기
     if(!menu)return;
     const h=()=>setMenu(null);
     document.addEventListener("click",h);
     return()=>document.removeEventListener("click",h);
   },[menu]);
+  const enterMapPlace=name=>{
+    const p=PLACE_BY[name];
+    if(!p||!placeOpen(p,met))return;
+    setZoom(null);
+    onGoPlace(p.name);
+  };
   const mb=(id,label,onClick)=><span className={"mbtn"+(menu===id?" open":"")}
     onClick={e=>{e.stopPropagation();onClick?onClick():setMenu(menu===id?null:id)}}>{label}</span>;
   return <div className="screen desk">
@@ -868,52 +872,37 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         </div>
       </div>
       :tab==="map"
-      ?<div className="gal mapscroll">{/* 그림은 길, 버튼은 실제 장소 상태다 */}
-        <div className="roadhead">
-          {level==="school"
-            ?<span className="rt rback" role="button" tabIndex={0}
-               onClick={()=>setLevel("town")}
-               onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setLevel("town")}}}>
-               ◁ <i className="rh">♡</i> SCHOOL</span>
-            :<span className="rt"><i className="rh">♡</i> NULL ROAD MAP</span>}
-          <span className="rbar"><i style={{width:(visitedN/SPOTS.length*100)+"%"}}/></span>
-          <span className="rn">{visitedN} / {SPOTS.length}</span>
-        </div>
-        <div className={"roadmap"+(level==="school"?" inside":"")}>
-          {level==="town"&&<>
-            <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
-            <img className="roadfinishpanel" src="map-icons/final-input-window.png" alt="" aria-hidden="true"/>
+      ?<div className="gal mapscroll">{/* 그림은 캐비닛 문, 버튼은 실제 장소 상태다 */}
+        <div className="cabmap">
+          <img className="cabshell" src="map-cabinet/cabinet-shell-empty.png" alt="" aria-hidden="true"/>
+          {CABINET_DOORS.map(d=>{
+            if(d.school&&schoolOpen)return null;
+            const p=d.place&&PLACE_BY[d.place];
+            const open=!p||placeOpen(p,met);
+            const nowOk=!p||placeHours(p);
+            const been=!!p&&met.includes(p.name);
+            const fixed=!d.place&&!d.school;
+            const go=()=>{
+              if(fixed||!open)return;
+              d.school?setSchoolOpen(true):onGoPlace(p.name);
+            };
+            return <button type="button" key={d.id}
+              className={"cabdoor"+(fixed?" fixed":"")+(open?"":" locked")+(open&&!nowOk?" shut":"")+(been?" been":"")}
+              style={{left:d.x+"%",top:d.y+"%"}}
+              aria-label={fixed?d.id.toUpperCase():(d.school?"SCHOOL":ROAD_LABEL[p.icon])+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}
+              aria-disabled={fixed||!open}
+              onClick={go}>
+              <img src={`map-cabinet/door-${d.id}.png`} alt=""/>
+              {!open&&<img className="cablock" src="map-icons/locker-padlock.png" alt="" aria-hidden="true"/>}
+            </button>;
+          })}
+          {schoolOpen&&<>
+            <img className="cab-school-open" src="map-cabinet/cabinet-school-open.png" alt="" aria-hidden="true"/>
+            <button type="button" className="cab-tv-hit" aria-label="OPEN SCHOOL TV"
+              onClick={()=>setZoom({src:"map-cabinet/school-tv-large.png",school:true})}/>
+            <button type="button" className="cab-close-hit" aria-label="CLOSE SCHOOL LOCKER"
+              onClick={()=>setSchoolOpen(false)}/>
           </>}
-          {PLACES.filter(p=>p.map===level).map(p=>{
-            const open=placeOpen(p,met);
-            const nowOk=placeHours(p);           // 열렸어도 지금 갈 시간이 아닐 수 있다
-            const been=p.into?false:met.includes(p.name);
-            const pos=(level==="school"?SCHOOL_ICON_POS:ROAD_ICON_POS)[p.name]||{x:50,y:50};
-            /* 열린 자리는 눌러서 갈 수 있다. 다만 누르자마자 옮겨지지는 않는다 —
-               한 번 묻고 간다. 안 열린 자리는 눌러도 아무 일이 없다.
-               학교는 자리가 아니라 문이라 물어보지 않고 바로 안으로 들어간다. */
-            const go=p.into?()=>setLevel(p.into):()=>onGoPlace(p.name);
-            return <span key={p.name}
-                className={"roadicon"+(open?"":" lock")+(open&&!nowOk&&!p.into?" shut":"")+(been?" been":"")}
-                style={{left:pos.x+"%",top:pos.y+"%"}}
-                role={open?"button":null} tabIndex={open?0:null}
-                onClick={open?go:null}
-                onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}:null}
-                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
-                <img src={`map-icons/place-${p.icon}-${open?"open":"lock"}.png`} alt=""/>
-              </span>;
-          })}
-          {/* 길 위의 하트 표지판. 학교 안은 길이 아니라 건물이라 안 세운다 */}
-          {level==="town"&&PLACES.filter(p=>p.map==="town").map(p=>{
-            /* 장소 그림에 걸리는 표지판은 뺀다 — 겹치면 둘 다 안 읽힌다 */
-            const pin=ROAD_PIN_POS[p.name]; if(!pin||PIN_BURIED.includes(p.name))return null;
-            const open=placeOpen(p,met), been=met.includes(p.name);
-            const state=been?"been":open?"open":"lock";
-            return <span key={"pin"+p.name} className={"roadpin "+state}
-              style={{left:pin.x+"%",top:pin.y+"%"}} aria-hidden="true">
-              <img src="map-icons/heart-sign.png" alt=""/>
-            </span>;
-          })}
         </div>
       </div>
       :tab==="cam"
@@ -995,13 +984,31 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         </div>}
     </Dialog>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}>
-      {<div className={"lightcard"+(zoom.label?"":" solo")}>
+      <div className={"lightcard"+(zoom.label?"":" solo")} onClick={e=>e.stopPropagation()}>
+        {zoom.school
+        ?<div className="tvzoom">
+          <img src={zoom.src} alt="SCHOOL MAP"/>
+          {SCHOOL_TV.map(s=>{
+            const p=PLACE_BY[s.name];
+            const open=p&&placeOpen(p,met);
+            const nowOk=p&&placeHours(p);
+            return <button type="button" key={s.name}
+              className={"tvzone"+(open?"":" locked")+(open&&!nowOk?" shut":"")}
+              style={{left:s.x+"%",top:s.y+"%",width:"32.5%",height:"30%"}}
+              aria-label={(ROAD_LABEL[p?.icon]||s.name)+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}
+              onClick={()=>enterMapPlace(s.name)}>
+              {!open&&<img className="tvlock" src="map-icons/locker-padlock.png" alt="" aria-hidden="true"/>}
+            </button>;
+          })}
+        </div>
+        :<>
           <img src={zoom.src} alt={zoom.label||""}/>
           {zoom.label&&<div className="lightcap">
             <div className="lt">{zoom.label}</div>
             {zoom.note&&<div className="ln">{zoom.note}</div>}
           </div>}
-        </div>}
+        </>}
+      </div>
     </div>}
   </div>;
 }

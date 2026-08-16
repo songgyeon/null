@@ -368,52 +368,30 @@ const PLACES=[
   {name:"체육관",   map:"school", hours:[8,18], wend:false, bg:"place-gym.webp", icon:"gym",     need:["옥상"],           who:["minhyun"],          item:"wrist",
    note:"구석에 매트가 쌓여 있다."},
 ];
-/* 갈 수 있는 자리만 센다 — 학교는 문이지 자리가 아니다 */
-const SPOTS=PLACES.filter(p=>!p.into);
 const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
 const PLACE_BY={};PLACES.forEach(p=>{PLACE_BY[p.name]=p});
-/* 장소 그림은 배경에 박지 않는다. 같은 좌표에서 open/lock PNG만 교체한다. */
-/* 아이콘 자리 — 길이 굽이치는 대로 따라간다. 두 줄로 딱 세우면 지도가 아니라
-   목록으로 보인다. 각 자리 높이에서 길 가장자리를 재서 받침이 5%p 얹히게 놓았다 —
-   길가에 선 것처럼 보이려면 붙어야 한다. */
-/* 마을 길. 원래 여덟이던 자리 중 좌우가 번갈아 서는 여섯을 골랐다 —
-   길이 굽는 쪽이 자리를 정하므로 아무거나 빼면 한쪽에 두 개가 몰린다 */
-const ROAD_ICON_POS={
-  "학교":       {x:34.3, y:79.2},
-  "편의점":      {x:60.9, y:68.1},
-  "도서관":      {x:27.4, y:57.3},
-  "레코드샵":     {x:60.9, y:51.0},
-  "빨래방":      {x:38.1, y:24.8},
-  "집":        {x:64, y:10},   /* 길 위 끝을 받침이 덮게 */
-};
-/* 길 위에 찍는 핀. 건물은 길 밖에 있고 핀이 그 자리를 길 위에 표시한다.
-   좌표는 도로 그림에서 리본을 따라가며 각 자리 높이의 중심을 잰 값이다. */
-const ROAD_PIN_POS={
-  "학교":       {x:52.9, y:79.2},
-  "편의점":      {x:35.9, y:68.1},
-  "도서관":      {x:52.9, y:57.3},
-  "레코드샵":     {x:43.1, y:51.0},
-  "빨래방":      {x:56.4, y:24.8},
-  "집":        {x:64.6, y:10},
-};
-/* 학교 안. 길이 아니라 건물이라 표지판을 안 세운다 — 방 사이에 이정표가
-   서 있으면 복도가 아니라 등산로가 된다 */
-const SCHOOL_ICON_POS={
-  "교실":       {x:30, y:78},
-  "보건실":      {x:64, y:58},
-  "옥상":       {x:30, y:36},
-  "체육관":      {x:64, y:16},
-};
-/* 장소 그림에 파묻히는 표지판. 사각형으로 재면 아이콘이 29%라 여덟 개가
-   전부 겹친다고 나온다. 실제 그림의 안 비치는 픽셀끼리 겹쳐보고, 표지판
-   넓이의 12%를 넘게 먹히는 것만 골랐다 — 스치는 정도는 길가 표지판답다. */
-/* 「집」은 길이 끝나는 자리라 표지판이 필요 없다 — 문이 곧 끝 표시다 */
-const PIN_BURIED=["도서관","집"];
 const ROAD_LABEL={
   class:"CLASSROOM",nurse:"INFIRMARY",rooftop:"ROOFTOP",conv:"STORE",
   library:"LIBRARY",record:"RECORD SHOP",laundry:"LAUNDROMAT",home:"HOME",
   school:"SCHOOL",gym:"GYM",
 };
+/* 2×4 캐비닛 좌표. START·NULL은 고정칸이고, SCHOOL은 안의 TV 지도를 연다. */
+const CABINET_DOORS=[
+  {id:"start",   x:6.9,  y:2.3},
+  {id:"null",    x:48.8, y:2.3},
+  {id:"school",  x:6.9,  y:24.55, school:true},
+  {id:"store",   x:48.8, y:24.55, place:"편의점"},
+  {id:"record",  x:6.9,  y:46.8,  place:"레코드샵"},
+  {id:"home",    x:48.8, y:46.8,  place:"집"},
+  {id:"laundry", x:6.9,  y:69.05, place:"빨래방"},
+  {id:"library", x:48.8, y:69.05, place:"도서관"},
+];
+const SCHOOL_TV=[
+  {name:"교실",   x:17,   y:14},
+  {name:"보건실", x:50.5, y:14},
+  {name:"옥상",   x:17,   y:45},
+  {name:"체육관", x:50.5, y:45},
+];
 /* ── 가방 ──
    선물은 유저가 준다. 가방은 받은 것이다. 자리마다 하나씩 있고, 그 자리에
    가야만 생긴다 — 지도를 도는 이유가 여기 있다.
@@ -610,4 +588,3 @@ function seenPhotos(msgs){
   Object.values(msgs||{}).forEach(list=>(list||[]).forEach(m=>{if(m.photo)set.add(m.photo)}));
   return set;
 }
-
