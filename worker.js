@@ -1636,10 +1636,13 @@ const INVITES = {
    하나뿐이라 그 뒤로 매 턴 참이었고, 그래서 묻는 말에 답도 안 하고 딴 데
    가자고 했다. 굳이 맨날 어디를 갈 이유가 없는데. 서버는 문을 열어두기만
    하고, 지금이 그럴 때인지는 대화를 보고 있는 쪽이 정한다. */
-function invitesFor(mode, room, counts, done, refused) {
+/* closed — 지금 문 닫은 자리. 새벽 세 시에 교실에 가자고 하면 안 된다.
+   시간은 프론트가 재서 보낸다. 워커는 UTC로 돌고 어느 엣지에 뜨는지도
+   그때그때라 여기서 재면 엉뚱한 시간이 나온다. */
+function invitesFor(mode, room, counts, done, refused, closed) {
   if (mode !== "chat" || !INVITES[room]) return [];
   const n = (counts && counts[room]) || 0;
-  const skip = new Set([...(done || []), ...(refused || [])]);
+  const skip = new Set([...(done || []), ...(refused || []), ...(closed || [])]);
   return INVITES[room].filter(v => n >= v.at && !skip.has(v.place)).map(v => v.place);
 }
 /* 모델이 고른 자리가 진짜 열려 있는 자리인지 본다. 아니면 없던 일로 한다 —
@@ -2486,7 +2489,8 @@ export default {
     // 열려 있는 자리들. 프론트가 다녀온 곳·거절한 곳을 들고 있다가 보내준다.
     // 꺼낼지 말지는 모델이 정한다 — 서버는 문만 열어둔다
     const openPlaces = invitesFor(mode, room, counts,
-      Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : []);
+      Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : [],
+      Array.isArray(body.closed) ? body.closed : []);
     /* 지도에서 불러낸 자리. 1:1에서만 의미가 있다 — 단톡이나 관전방에
        마주 앉을 자리는 없다. bag은 이미 받은 것들이라 두 번 안 준다. */
     const place = mode === "chat" ? placeOf(body.place) : null;

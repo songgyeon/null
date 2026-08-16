@@ -703,6 +703,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .roadicon[role]:active{transform:translate(-50%,-50%) scale(.96)}
 .roadicon[role]:focus-visible{outline:2px solid #fff;outline-offset:-6%;border-radius:8px}
 .roadicon.lock{filter:drop-shadow(0 2px 1px rgba(72,48,145,.14))}
+/* 열려 있지만 지금 갈 시간이 아닌 자리. 잠긴 것과 달라 보여야 한다 —
+   잠긴 건 아직 못 가는 곳이고 이건 나중에 오면 되는 곳이다 */
+.roadicon.shut{opacity:.5;filter:drop-shadow(0 2px 1px rgba(72,48,145,.14)) saturate(.45)}
 .roadicon.been{filter:drop-shadow(0 2px 1px rgba(72,48,145,.28)) drop-shadow(0 0 7px rgba(255,151,196,.72))}
 
 /* ── bag ── */
@@ -1336,24 +1339,24 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
    bg가 없으면 배경 없이 열린다 — 사진이 아직 없는 자리도 막지는 않는다. */
 const PLACES=[
-  {name:"교실",     bg:"place-class.webp",    icon:"class",   need:[],                     who:["minhyun"], own:"minhyun", item:"note",
+  {name:"교실",     hours:[8,22], bg:"place-class.webp",    icon:"class",   need:[],                     who:["minhyun"], own:"minhyun", item:"note",
    note:"네 자리는 창가 셋째 줄."},
-  {name:"보건실",   bg:"place-nurse.webp",    icon:"nurse",   need:[],                     who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
+  {name:"보건실",   hours:[8,17], bg:"place-nurse.webp",    icon:"nurse",   need:[],                     who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
    note:"커튼 안쪽 침대 두 개."},
   /* 옥상은 둘 다 만나본 뒤에 열린다 — 학교에서 유일하게 둘 다 오는 자리라서 */
-  {name:"옥상",     bg:"place-rooftop.webp",  icon:"rooftop", need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
+  {name:"옥상",     hours:[8,22], bg:"place-rooftop.webp",  icon:"rooftop", need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
    note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
   /* 여기서 갈라진다. 학교 밖 첫 자리 — 민현 쪽과 재언 쪽 */
   {name:"편의점",   bg:"place-conv.webp",     icon:"conv",    need:["옥상"],               who:["minhyun"],          item:"haribo",
    note:"학교 뒷문에서 이 분."},
-  {name:"도서관",   bg:"place-library.webp",  icon:"library", need:["옥상"],               who:["jaeeon"],           item:"book",
+  {name:"도서관",   hours:[9,22], bg:"place-library.webp",  icon:"library", need:["옥상"],               who:["jaeeon"],           item:"book",
    note:"시립. 삼 층은 늘 비어 있다."},
-  {name:"레코드샵", bg:"place-record.webp",   icon:"record",  need:["편의점"],             who:["minhyun"],          item:"lp",
+  {name:"레코드샵", hours:[12,21], bg:"place-record.webp",   icon:"record",  need:["편의점"],             who:["minhyun"],          item:"lp",
    note:"중고반 상자가 바닥에 있다."},
   {name:"빨래방",   bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],             who:["jaeeon"],           item:"coin",
    note:"건조기 도는 사십 분."},
   /* 마지막. 양쪽을 다 걸어봐야 열린다 — 한쪽만 파서 남의 집에 갈 수는 없다 */
-  {name:"집",       bg:"place-home.webp",     icon:"home",    need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
+  {name:"집",       hours:[17,2], bg:"place-home.webp",     icon:"home",    need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
    note:"현관에 우산이 두 개."},
 ];
 const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
@@ -1423,6 +1426,16 @@ const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}c
 const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a))}catch(e){}};
 /* 자리가 열렸나. 다녀온 자리 목록만 본다 — 대화 수도 날짜도 안 본다 */
 const placeOpen=(p,been)=>(p.need||[]).every(n=>been.includes(n));
+/* 열린 것과 지금 갈 수 있는 것은 다르다. 새벽 세 시에 교실 문이 열려 있어도
+   거기 갈 일은 없다. 자리마다 시간을 적어두고(hours), 안 적힌 데는 24시간이다 —
+   편의점과 빨래방. 자정을 넘기는 시간대(집 17~2시)도 되게 감싼다.
+   시계는 presence·timeWord와 같은 것을 본다. 방 목록에 「자는 중」이라고 떠
+   있는데 그 사람 집에 갈 수 있으면 그게 제일 이상하다. */
+const placeHours=(p,now)=>{
+  if(!p.hours)return true;
+  const h=(now||new Date()).getHours(),[a,b]=p.hours;
+  return a<b ? (h>=a&&h<b) : (h>=a||h<b);
+};
 /* 아직 못 간 자리에 뭐가 남았는지. 잠긴 칸에 그대로 적어준다 */
 const placeNeed=(p,been)=>(p.need||[]).filter(n=>!been.includes(n));
 const loadScene=()=>{try{return JSON.parse(localStorage.getItem("null_scene"))||null}catch(e){return null}};
@@ -2235,18 +2248,19 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           <img className="roadfinishpanel" src="map-icons/final-input-window.png" alt="" aria-hidden="true"/>
           {PLACES.map(p=>{
             const open=placeOpen(p,met);
+            const nowOk=placeHours(p);           // 열렸어도 지금 갈 시간이 아닐 수 있다
             const been=met.includes(p.name);
             const want=placeNeed(p,met);
             const iconPos=ROAD_ICON_POS[p.name]||{x:50,y:50};
             /* 열린 자리는 눌러서 갈 수 있다. 다만 누르자마자 옮겨지지는 않는다 —
                한 번 묻고 간다. 안 열린 자리는 눌러도 아무 일이 없다. */
             return <span key={p.name}
-                className={"roadicon"+(open?"":" lock")+(been?" been":"")}
+                className={"roadicon"+(open?"":" lock")+(open&&!nowOk?" shut":"")+(been?" been":"")}
                 style={{left:iconPos.x+"%",top:iconPos.y+"%"}}
                 role={open?"button":null} tabIndex={open?0:null}
                 onClick={open?()=>onGoPlace(p.name):null}
                 onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onGoPlace(p.name)}}:null}
-                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?"":" · LOCKED")}>
+                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}>
                 <img src={`map-icons/place-${p.icon}-${open?"open":"lock"}.png`} alt=""/>
               </span>;
           })}
@@ -2683,7 +2697,7 @@ function App(){
   };
   const answerAsk=ok=>{
     const place=ask; setAsk(null);
-    const p=ok&&place&&PLACE_BY[place]; if(!p)return;
+    const p=ok&&place&&PLACE_BY[place]; if(!p||!placeHours(p))return;
     const who=whoAt(p); if(!who)return;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:`${place}에 갔다`,ts:Date.now()};
     appendMsg(who,sys);
@@ -2755,7 +2769,10 @@ function App(){
   const request=async(bucket,payload)=>{
     const up=userProfile();
     // 다녀온 자리·거절한 자리 — 서버가 다음 제안을 고르는 근거
-    if(payload.mode==="chat"){ payload.met=loadMet(); payload.refused=loadRefused(); }
+    if(payload.mode==="chat"){ payload.met=loadMet(); payload.refused=loadRefused();
+      /* 지금 문 닫은 자리는 인물도 가자고 안 한다. 시간은 프론트만 안다 —
+         워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때다 */
+      payload.closed=PLACES.filter(p=>!placeHours(p)).map(p=>p.name); }
     if(up)payload.user_profile=up; else delete payload.user_profile;
     if(!payload.counts)payload.counts=roomCounts();
     if(payload.days==null)payload.days=daysSince(storeRef.current);
@@ -3125,19 +3142,26 @@ function App(){
         </div>
       </div>
     </div>}
-    {ask&&<div className="dlgov" onClick={()=>answerAsk(false)}>
+    {/* 지금 갈 시간이 아니면 묻지 않고 이유를 말한다. 눌렀는데 아무 일도
+        안 일어나는 것보다 「몇 시부터」를 알려주는 편이 낫다 */}
+    {ask&&(()=>{ const p=PLACE_BY[ask], shut=!!p&&!placeHours(p);
+      return <div className="dlgov" onClick={()=>answerAsk(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
         <div className="tb">{ask}<div className="dots"><span className="d3"/></div></div>
         <div className="dlgbody">
-          <div className="dlgline" style={{textAlign:"center",padding:"10px 0",fontSize:13,color:"#8a4f74"}}>
-            {ask}, 갈까요?</div>
+          <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
+            {shut?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
+          <div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>
+            {shut?`open ${String(p.hours[0]).padStart(2,"0")}:00 – ${String(p.hours[1]).padStart(2,"0")}:00`:""}</div>
           <div className="dlgbtns">
-            <button className="bevel pink" onClick={()=>answerAsk(true)}>갈래요</button>
-            <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button>
+            {shut
+              ?<button className="bevel" onClick={()=>answerAsk(false)}>알겠어요</button>
+              :<><button className="bevel pink" onClick={()=>answerAsk(true)}>갈래요</button>
+                 <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>}
           </div>
         </div>
       </div>
-    </div>}
+    </div>; })()}
     {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN}/>}
     {sys1&&<Dialog title="null.exe" onClose={()=>setSys1(false)}>
       <div className="ddq">

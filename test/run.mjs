@@ -241,6 +241,9 @@ eq('아바타 테두리 단계 수가 STAGE_AT과 같다', heat, webAt.length);
 /* 코드가 찾는 사진이 저장소에 실제로 있는가. 웹은 파일명을 그대로 적고,
    앱은 키에 확장자를 붙여 만든다(k+'.webp'). 둘 다 확인한다.
    PNG를 WebP로 갈아끼울 때 한 군데만 놓쳐도 그 사진만 조용히 안 뜬다. */
+/* index.html의 placeHours를 그대로 떼어다 돌린다 — 베끼면 어긋난다 */
+const workerlessPlaceHours = web.slice(web.indexOf('const placeHours='),
+  web.indexOf('};', web.indexOf('const placeHours=')) + 2);
 const exists = f => { try { readFileSync(join(ROOT, f)); return true; } catch { return false; } };
 // 앞이 \w인 것만 — 웹에도 char+"-bg.webp"처럼 조립하는 자리가 있다
 const wanted = new Set(pick(web, /"(\w[\w-]*\.webp)"/g));
@@ -1554,7 +1557,7 @@ eq('지점은 가변부 앞에 찍는다',
 /* 「같이 가기로 했다」를 메신저 화면 그대로 두면 마주 앉은 걸 그릴 방법이 없다.
    자리에 가면 그 자리를 깔고 말풍선을 걷는다 */
 eq('자리마다 배경 사진이 있다', ['교실','보건실','옥상','도서관','빨래방','편의점','레코드샵','집']
-  .filter(p => !new RegExp(`name:"${p}",\\s*bg:"place-`).test(web)), []);
+  .filter(p => !new RegExp(`name:"${p}",[^}]*?bg:"place-`).test(web)), []);
 eq('배경 파일이 전부 저장소에 있다',
   (web.match(/"(place-[\w-]+\.webp)"/g) || []).map(s => s.slice(1, -1))
     .filter(f => !exists(f)), []);
@@ -1608,7 +1611,7 @@ eq('자리에 들어갈 때 시각을 찍는다',
 /* ── 지도와 가방 ──
    초대는 저쪽이 정하고 지도는 이쪽이 정한다. 자리마다 받아오는 게 하나씩 있다. */
 {
-  const names = [...web.matchAll(/\{name:"([^"]+)",\s*bg:/g)].map(m => m[1]);
+  const names = [...web.matchAll(/\{name:"([^"]+)",[^}]*?bg:/g)].map(m => m[1]);
   eq('지도에 여덟 자리가 있다', names.length, 8);
   /* 대화 수나 날짜로는 안 열린다. 다녀와야 열린다 —
      앉아서 말만 쌓아도 지도가 넓어지면 그건 지도가 아니라 또 하나의 게이지다 */
@@ -1827,8 +1830,34 @@ eq('길 위에 PNG 하트 표지판이 있다',
 eq('지도는 눌러도 바로 안 가고 한 번 묻는다',
   /onClick=\{open\?\(\)=>onGoPlace\(p\.name\)/.test(web)
   && /const \[ask,setAsk\]=useState\(null\)/.test(web)
-  && /\{ask&&<div className="dlgov" onClick=\{\(\)=>answerAsk\(false\)\}>/.test(web)
-  && /\{ask\}, 갈까요\?/.test(web), true);
+  && /\{ask&&\(\(\)=>\{ const p=PLACE_BY\[ask\], shut=!!p&&!placeHours\(p\);/.test(web)
+  && /`\$\{ask\}, 갈까요\?`/.test(web), true);
+/* 새벽 세 시에 교실 문이 열려 있으면 안 된다. 자리마다 시간을 적어두고,
+   안 적힌 데(편의점·빨래방)는 24시간이다. 자정을 넘기는 집 17~2시도 된다 */
+{
+  const at = (p, h) => new Function('p', 'h',
+    workerlessPlaceHours + '; return placeHours(p, {getHours:()=>h})')(p, h);
+  eq('학교는 새벽에 못 간다', [at({hours:[8,22]}, 3), at({hours:[8,22]}, 10)], [false, true]);
+  eq('보건실은 퇴근하면 닫는다', [at({hours:[8,17]}, 18), at({hours:[8,17]}, 12)], [false, true]);
+  eq('집은 자정을 넘겨서도 열린다',
+    [at({hours:[17,2]}, 1), at({hours:[17,2]}, 20), at({hours:[17,2]}, 12)], [true, true, false]);
+  eq('시간 안 적힌 데는 24시간이다', [at({}, 3), at({}, 15)], [true, true]);
+}
+/* 시간이 아닌 자리는 눌리되 이유를 말한다 — 눌렀는데 아무 일도 안 일어나는
+   것보다 「몇 시부터」를 알려주는 편이 낫다 */
+eq('못 가는 시간이면 이유를 말한다',
+  /지금은 못 가요/.test(web) && /open \$\{String\(p\.hours\[0\]\)/.test(web)
+  && /\.roadicon\.shut\{opacity:\.5/.test(web), true);
+/* 승낙을 눌러도 시간이 아니면 안 간다 — 창만 믿지 않는다 */
+eq('시간이 아니면 승낙해도 안 간다',
+  /if\(!p\|\|!placeHours\(p\)\)return;/.test(web), true);
+/* 지금 문 닫은 자리는 인물도 가자고 안 한다 */
+eq('닫힌 자리는 인물도 안 부른다', (() => {
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  return /payload\.closed=PLACES\.filter\(p=>!placeHours\(p\)\)\.map\(p=>p\.name\)/.test(web)
+    && /function invitesFor\(mode, room, counts, done, refused, closed\)/.test(wk)
+    && /\.\.\.\(closed \|\| \[\]\)/.test(wk);
+})(), true);
 /* 아직 못 가는 자리는 눌러도 반응이 없어야 「아직 아니구나」가 읽힌다 */
 eq('안 열린 자리는 눌러도 아무 일이 없다',
   /role=\{open\?"button":null\}/.test(web)
