@@ -625,7 +625,7 @@ function Cart({gifts,hearts,onSend,onClose}){
   const back=()=>{setPick(null);setTo(null);setMemo("")};
   const given=c=>(gifts[c]||[]).includes(pick&&pick.key);
   const poor=pick&&hearts<pick.cost;
-  const today=giftedToday();   // 오늘 몫은 이미 나갔다
+  const today=c=>giftedToday(c);   // 이 사람 오늘 몫은 이미 나갔다
 
   return <div className="cartscreen"><div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
@@ -661,11 +661,12 @@ function Cart({gifts,hearts,onSend,onClose}){
         </div>
       </div>
       <div className="csect">WHO GETS THIS</div>
-      {/* 하루에 하나. 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지
-          적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을 적어주는 것과 같다 */}
-      {today&&<div className="cshut">one a day ♡ come back tomorrow</div>}
+      {/* 한 사람에게 하루에 하나. 눌렀는데 아무 일도 안 일어나는 것보다 왜
+          안 되는지 적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을
+          적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
+      {(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
       {["jaeeon","minhyun"].map(c=>{
-        const done=given(c), shut=done||today, sel=to===c;
+        const done=given(c), shut=done||today(c), sel=to===c;
         return <div key={c}>
           <button className={"cto"+(sel?" sel":"")} disabled={shut}
             onClick={()=>{ if(shut)return;
@@ -676,7 +677,7 @@ function Cart({gifts,hearts,onSend,onClose}){
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
             <span className={shut?"csent":"csend"}>
-              {done?"SENT ♡":today?"TOMORROW ♡":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
+              {done?"SENT ♡":today(c)?"TOMORROW ♡":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
           </button>
           {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;

@@ -400,10 +400,10 @@ function App(){
     if(!char||!gift)return;
     const have=giftsRef.current[char]||[];
     if(have.includes(gift.key))return;              // 같은 걸 두 번 주지 않는다
-    /* 하루에 하나. 창에서 이미 막고 있지만 여기서도 막는다 —
+    /* 한 사람에게 하루에 하나. 창에서 이미 막고 있지만 여기서도 막는다 —
        주는 길이 둘이면 한쪽만 잠그는 자물쇠는 자물쇠가 아니다 */
-    if(giftedToday()){ setToast("one a day ♡ come back tmr"); return }
-    saveGiftDay(dayKey());
+    if(giftedToday(char)){ setToast(`${CHARS[char].name} — one a day ♡`); return }
+    stampGift(char);
     const next={...giftsRef.current,[char]:[...have,gift.key]};
     setGifts(next); saveGifts(next);
     const note=(memo||"").trim().slice(0,60);

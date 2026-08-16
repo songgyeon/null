@@ -458,15 +458,19 @@ const dayKey=now=>{const d=new Date(now||Date.now()); if(d.getHours()<5)d.setDat
   return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
 const loadDaySeen=()=>{try{return localStorage.getItem("null_dayseen")||""}catch(e){return""}};
 const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};
-/* ── 선물은 하루에 하나 ──
+/* ── 선물은 한 사람에게 하루에 하나 ──
    새벽 두 시 사십삼 분에 이어폰을 주고 두 시 사십팔 분에 사진집을 줬더니,
    같은 사람이 오 분 만에 같은 반응을 두 번 했다 — 밀어내고, 값어치를 인정하고,
    받고, 그러고 나서 고맙다고. 한 번이면 그 사람이고 두 번이면 틀이다.
-   모델을 고칠 일이 아니라 간격을 둘 일이었다. 하루의 경계는 여기서도
-   새벽 다섯 시다 — 새벽에 준 건 어제 준 것이다. */
-const loadGiftDay=()=>{try{return localStorage.getItem("null_giftday")||""}catch(e){return""}};
-const saveGiftDay=v=>{try{localStorage.setItem("null_giftday",v)}catch(e){}};
-const giftedToday=now=>loadGiftDay()===dayKey(now);
+   모델을 고칠 일이 아니라 간격을 둘 일이었다.
+   막는 것은 「한 사람이 하루에 두 번 받는 것」이지 「하루에 두 명에게 주는 것」이
+   아니다 — 재언에게 주고 민현에게 주는 건 같은 반응이 두 번 도는 게 아니다.
+   하루의 경계는 여기서도 새벽 다섯 시다. 새벽에 준 건 어제 준 것이다 —
+   저 이어폰과 사진집이 같은 날로 묶여야 이 규칙에 걸린다. */
+const loadGiftDay=()=>{try{return JSON.parse(localStorage.getItem("null_giftday"))||{}}catch(e){return{}}};
+const saveGiftDay=v=>{try{localStorage.setItem("null_giftday",JSON.stringify(v))}catch(e){}};
+const giftedToday=(char,now)=>loadGiftDay()[char]===dayKey(now);
+const stampGift=(char,now)=>saveGiftDay({...loadGiftDay(),[char]:dayKey(now)});
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
 const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};

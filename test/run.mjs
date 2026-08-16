@@ -500,26 +500,32 @@ eq('모르는 물건도 받는다',
 eq('웹·앱 둘 다 선물 열쇠를 넘긴다',
   /demoGiftKey/.test(web) && /demoReply\(char,line,name,gift\.key\)/.test(appSrc), true);
 
-/* ── 선물은 하루에 하나 ──
+/* ── 선물은 한 사람에게 하루에 하나 ──
    새벽 2시 43분에 이어폰, 2시 48분에 사진집. 같은 사람이 오 분 만에 같은
    반응을 두 번 했다 — 밀어내고, 값어치를 인정하고, 받고, 그러고 나서 고맙다고.
-   한 번이면 그 사람이고 두 번이면 틀이다. 모델이 아니라 간격의 문제였다. */
-eq('선물 몫도 새벽 다섯 시에 넘어간다',
-  /const giftedToday=now=>loadGiftDay\(\)===dayKey\(now\)/.test(web), true);
+   한 번이면 그 사람이고 두 번이면 틀이다. 모델이 아니라 간격의 문제였다.
+   막는 건 한 사람이 하루에 두 번 받는 것이지, 하루에 두 명에게 주는 게 아니다 */
+eq('선물 몫은 사람마다 따로 센다',
+  /const giftedToday=\(char,now\)=>loadGiftDay\(\)\[char\]===dayKey\(now\)/.test(web), true);
+eq('한쪽에 줘도 다른 쪽 몫은 남는다',
+  /const stampGift=\(char,now\)=>saveGiftDay\(\{\.\.\.loadGiftDay\(\),\[char\]:dayKey\(now\)\}\)/.test(web), true);
+/* 선물 몫도 새벽 다섯 시에 넘어간다 — 저 이어폰과 사진집이 같은 날로
+   묶여야 이 규칙에 걸린다. 자정 기준이면 둘 다 통과한다 */
+eq('선물 몫도 새벽 다섯 시에 넘어간다', /giftedToday=\(char,now\)=>loadGiftDay\(\)\[char\]===dayKey/.test(web), true);
 /* 창에서만 막으면 자물쇠가 아니다 — 주는 길이 둘이면 둘 다 잠가야 한다 */
 eq('보내는 쪽에서도 막는다',
-  /if\(giftedToday\(\)\)\{ setToast\("one a day[^"]*"\); return \}/.test(web)
-  && /saveGiftDay\(dayKey\(\)\)/.test(web), true);
-eq('창에서도 막는다', /shut=done\|\|today/.test(web), true);
-/* 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지 적어주는 편이 낫다 */
+  /if\(giftedToday\(char\)\)\{ setToast\(`\$\{CHARS\[char\]\.name\} — one a day ♡`\); return \}/.test(web)
+  && /stampGift\(char\);/.test(web), true);
+eq('창에서도 막는다', /shut=done\|\|today\(c\)/.test(web), true);
+/* 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지 적어주는 편이 낫다.
+   한쪽만 잠긴 날에도 규칙은 알려준다 */
 eq('왜 안 되는지 적어준다',
-  /\{today&&<div className="cshut">one a day ♡ come back tomorrow<\/div>\}/.test(web)
+  /\{\(today\("jaeeon"\)\|\|today\("minhyun"\)\)&&<div className="cshut">one a day ♡ each<\/div>\}/.test(web)
   && /\.cshut\{/.test(web), true);
-eq('오늘 몫이 나갔으면 단추가 내일이라고 한다', /today\?"TOMORROW ♡"/.test(web), true);
 /* 이미 준 물건과 오늘 몫이 나간 것은 다른 이유다. 같은 회색 단추를 쓰되
    글자는 달라야 한다 — 「SENT」는 이 물건 얘기고 「TOMORROW」는 오늘 얘기다 */
 eq('이미 준 것과 오늘 몫은 다른 말이다',
-  /\{done\?"SENT ♡":today\?"TOMORROW ♡"/.test(web), true);
+  /\{done\?"SENT ♡":today\(c\)\?"TOMORROW ♡"/.test(web), true);
 
 /* 사진이 매 턴 나가면 사진첩이 아니라 슬라이드쇼다 */
 demo.demoReset();
