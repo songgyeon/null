@@ -1633,13 +1633,16 @@ eq('자리에 들어갈 때 시각을 찍는다',
 /* ── 지도와 가방 ──
    초대는 저쪽이 정하고 지도는 이쪽이 정한다. 자리마다 받아오는 게 하나씩 있다. */
 {
-  const names = [...web.matchAll(/\{name:"([^"]+)",[^}]*?bg:/g)].map(m => m[1]);
-  eq('지도에 여덟 자리가 있다', names.length, 8);
+  /* 체육관은 아직 배경 사진이 없다. 자리는 icon으로 센다 — bg로 세면 빠진다 */
+  const names = [...web.matchAll(/\{name:"([^"]+)",[^}]*?icon:/g)].map(m => m[1])
+    .filter(n => n !== '학교');
+  eq('지도에 아홉 자리가 있다', names.length, 9);
   /* 대화 수나 날짜로는 안 열린다. 다녀와야 열린다 —
      앉아서 말만 쌓아도 지도가 넓어지면 그건 지도가 아니라 또 하나의 게이지다 */
   eq('지도는 대화 수로 안 열린다', /\{name:"[^"]+",[^}]*?\bat:/.test(web), false);
+  /* 학교는 자리가 아니라 문이라 처음부터 열려 있다 — 세는 데서 뺀다 */
   eq('교실과 보건실만 처음부터 열려 있다',
-    [...web.matchAll(/\{name:"([^"]+)",[^}]*?need:\[\]/g)].map(m => m[1]),
+    [...web.matchAll(/\{name:"([^"]+)",[^}]*?need:\[\]/g)].map(m => m[1]).filter(n => n !== '학교'),
     ['교실', '보건실']);
   /* need에 적힌 자리가 목록에 없으면 그 자리는 영영 안 열린다 */
   {
@@ -1740,7 +1743,7 @@ eq('준 사람 이름을 글로 또 안 적는다', /에게서/.test(web), false
 eq('받은 것마다 한 마디가 있다', (() => {
   const t = web.slice(web.indexOf('const ITEMS={'));
   return (t.slice(0, t.indexOf('};')).match(/say:"/g) || []).length;
-})(), 9);   // 자리 여덟 + 야자 주의 에너지바
+})(), 10);   // 자리 아홉 + 야자 주의 에너지바
 eq('선물마다 한 마디가 있다', (() => {
   const t = web.slice(web.indexOf('const GIFTS=['));
   return (t.slice(0, t.indexOf('const GIFT_CATS')).match(/say:"/g) || []).length;
@@ -1834,7 +1837,11 @@ eq('빛나는 창이 문 뒤에 붙어 있다', (() => {
      건물 쪽만 센다 */
   const tbl = web.slice(web.indexOf('const ROAD_ICON_POS={'));
   const xs = [...tbl.slice(0, tbl.indexOf('};')).matchAll(/\{x:(\d+(?:\.\d+)?), y:/g)].map(m => +m[1]);
-  eq('자리가 여덟 개다', xs.length, 8);
+  /* 마을 길 여섯 · 학교 안 넷. 축척이 다른 걸 한 길에 세우던 걸 갈랐다 */
+  eq('마을 여섯 · 학교 넷', [xs.length, (() => {
+    const t = web.slice(web.indexOf('const SCHOOL_ICON_POS={'));
+    return [...t.slice(0, t.indexOf('};')).matchAll(/\{x:/g)].length;
+  })()], [6, 4]);
   eq('아이콘이 넓게 벌어진다', Math.max(...xs) - Math.min(...xs) >= 30, true);
   /* 좌우로 번갈아야 지그재그가 된다 — 한쪽에 몰리면 다시 한 줄이다 */
   eq('좌우가 갈린다',
@@ -1850,7 +1857,7 @@ eq('길 위에 PNG 하트 표지판이 있다',
 /* 눌러서 갈 수는 있되 건너뛰지는 않는다 — 누르면 한 번 묻고, 답을 해야 간다.
    초대창과 같은 창(.dlgov/.dlg/.bevel)을 쓴다 */
 eq('지도는 눌러도 바로 안 가고 한 번 묻는다',
-  /onClick=\{open\?\(\)=>onGoPlace\(p\.name\)/.test(web)
+  /const go=p\.into\?\(\)=>setLevel\(p\.into\):\(\)=>onGoPlace\(p\.name\);/.test(web)
   && /const \[ask,setAsk\]=useState\(null\)/.test(web)
   && /\{ask&&\(\(\)=>\{ const p=PLACE_BY\[ask\], shut=!!p&&!placeHours\(p\);/.test(web)
   && /`\$\{ask\}, 갈까요\?`/.test(web), true);
@@ -1927,7 +1934,7 @@ eq('빛나는 창이 문 아래로 안 내려온다', (() => {
 
 /* 사각형으로 재면 아이콘이 29%라 표지판이 전부 겹친다고 나온다.
    실제 그림의 안 비치는 픽셀끼리 겹쳐보고 파묻히는 것만 골랐다 */
-eq('파묻히는 표지판만 뺀다', /const PIN_BURIED=\["옥상","도서관","집"\]/.test(web), true);
+eq('파묻히는 표지판만 뺀다', /const PIN_BURIED=\["도서관","집"\]/.test(web), true);
 eq('배경만 연보라로 띄운다',
   /\.roadmap::after\{[^}]*rgba\(242,236,255,\.36\)/.test(web), true);
 eq('D-0은 없앴다', /roadend|JOURNEY END/.test(web), false);
@@ -2043,7 +2050,7 @@ eq('비우는 자리가 화면보다 앞이다',
   const f = new Function(src + ';return {nowLabel,daySlots,slotNow,isYajaWeek,isWend}')();
   const at = (mo, d, h, mi) => new Date(2026, mo, d, h, mi);
   /* 요즘 고등학교 기준 — 50분 수업 10분 쉬는 시간, 4교시 뒤 점심 */
-  eq('교시를 센다', ['등교 전','1교시','쉬는시간','점심','5교시','퇴근'].filter((w, i) =>
+  eq('교시를 센다', ['등교전','1교시','쉬는시간','점심','5교시','퇴근'].filter((w, i) =>
     f.nowLabel([at(7,17,7,30),at(7,17,8,50),at(7,17,9,35),at(7,17,12,45),
                 at(7,17,13,40),at(7,17,16,45)][i]) !== w), []);
   /* 야자는 강제가 아니라 희망자 자율학습이다 — 유저가 감독인 날에만 붙는다 */
@@ -2080,6 +2087,39 @@ eq('에너지바는 야자 주에 한 번만 들어온다',
 /* .blank은 이미 쓰이는 이름이다 — 붙이면 줄 전체가 점선 상자가 된다 */
 eq('주말 칸이 기존 빈칸과 이름이 안 겹친다',
   /className="ttrow mine"/.test(web) && !/className="ttrow blank"/.test(web), true);
+
+/* ── 지도 두 장 ──
+   교실·보건실·옥상은 한 건물 안의 방이고 편의점·도서관은 동네의 다른 지점이다.
+   그걸 한 길에 세우니 교실에서 보건실 가는 길에 표지판이 서 있었다.
+   길은 그대로 두고(START에서 문까지가 30일이다) 학교만 안이 있는 정거장으로 */
+eq('학교는 자리가 아니라 문이다',
+  /\{name:"학교",\s*map:"town", into:"school"/.test(web)
+  && /const SPOTS=PLACES\.filter\(p=>!p\.into\)/.test(web), true);
+eq('진도는 갈 수 있는 자리로만 센다',
+  (web.match(/SPOTS\.length/g) || []).length, 2);
+eq('학교를 누르면 안으로 들어간다',
+  /const go=p\.into\?\(\)=>setLevel\(p\.into\)/.test(web)
+  && /const \[level,setLevel\]=useState\("town"\)/.test(web), true);
+/* 학교 안은 길이 아니라 건물이라 START도 문도 표지판도 없다 */
+eq('학교 안에는 표지판을 안 세운다',
+  /\{level==="town"&&PLACES\.filter\(p=>p\.map==="town"\)\.map/.test(web)
+  && /\{level==="town"&&<>/.test(web), true);
+eq('학교 안은 배경이 다르다',
+  /\.roadmap\.inside\{background-image:url\("school-roadmap-bg\.webp"\)\}/.test(web)
+  && exists('school-roadmap-bg.webp'), true);
+/* 나가기는 단추를 더 놓지 않고 제목 자리가 대신한다 */
+eq('머리글이 뒤로가기다', /className="rt rback" role="button"/.test(web), true);
+eq('학교·체육관 그림이 저장소에 있다',
+  ['school','gym'].flatMap(k => [`map-icons/place-${k}-open.png`, `map-icons/place-${k}-lock.png`])
+    .filter(f => !exists(f)), []);
+/* peek은 「두 사람」 방을 채우는 단추다. 메뉴바가 아니라 그 방 위가 제자리고,
+   메뉴바는 원래도 빠듯해서 시간표 단추를 넣을 자리가 없었다 */
+eq('peek이 두 사람 방 위로 갔다',
+  /<div className="sectwrap">\s*<button className=\{"moonbtn bevel"/.test(web)
+  && !/className="sect">LIVE/.test(web), true);
+eq('LIVE는 카드 안 오른쪽 아래에 점으로',
+  /\{watch&&<span className="livedot">LIVE <i\/><\/span>\}/.test(web)
+  && /\.livedot\{position:absolute;right:12px;bottom:9px/.test(web), true);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

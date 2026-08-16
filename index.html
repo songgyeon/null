@@ -126,11 +126,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* 메뉴바 / 베벨 버튼 / 선큰 패널 */
 /* 한 줄에 일곱 개가 앉는다. 폭이 390이라 여유가 없어서, 예전엔 맨 끝 peek이
    창 테두리에 잘렸다. 여백을 좁히고 줄이 절대 넘치지 않게 고정한다. */
-.menubar{flex:none;display:flex;align-items:center;gap:3px;padding:6px 6px;font-size:11px;color:#6b5fa8;
+.menubar{flex:none;display:flex;align-items:center;gap:2px;padding:6px 5px;font-size:11px;color:#6b5fa8;
  background:linear-gradient(180deg,#f6f2ff,#e9e1fb);border-bottom:1.5px solid #c5bce8;position:relative;z-index:20;
  max-width:100%;flex-wrap:nowrap}
 /* 메뉴 항목 — 레퍼런스의 home/platforms/metrics 처럼 광택 알약 */
-.mbtn{position:relative;padding:5px 7px 6px;cursor:pointer;white-space:nowrap;
+.mbtn{position:relative;padding:5px 6px 6px;cursor:pointer;white-space:nowrap;
  font-size:10.5px;letter-spacing:.03em;color:#6b5fa8;background:none;border:0;border-radius:5px}
 .mbtn:hover{color:#4a4276;background:rgba(255,255,255,.6)}
 .mbtn::after{display:none}
@@ -692,6 +692,12 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .roadfinishpanel{position:absolute;left:64.5%;top:.6%;z-index:5;width:17%;height:17%;object-fit:fill;pointer-events:none;
  transform:translateX(-50%);filter:drop-shadow(0 2px 1px rgba(71,47,142,.24)) drop-shadow(0 0 9px rgba(255,255,255,.7))}
 @keyframes roadheart{50%{transform:translate(-50%,-100%) scale(1.05)}}
+/* 학교 안. 길이 아니라 건물이라 START도 문도 표지판도 없다 */
+.roadmap.inside{background-image:url("school-roadmap-bg.webp")}
+.roadmap.inside::after{background:linear-gradient(180deg,rgba(244,238,255,.3),rgba(234,226,253,.22))}
+/* 나가기. 제목 자리가 그대로 뒤로가기가 된다 — 단추를 하나 더 놓으면 창이 시끄럽다 */
+.roadhead .rback{cursor:pointer}
+.roadhead .rback:active{opacity:.7}
 .roadicon{position:absolute;z-index:6;width:29%;aspect-ratio:1;pointer-events:none;
  transform:translate(-50%,-50%);filter:drop-shadow(0 3px 1px rgba(72,48,145,.28));transition:transform .12s steps(2),filter .12s}
 .roadicon img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
@@ -721,24 +727,25 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
 .ttrow{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:9px;letter-spacing:.16em}
 .ttrow .n{flex:none;width:54px;text-align:left}
-.ttrow .ln{flex:1;min-width:14px;height:0;border-top:1.5px dashed #ded5f4}
-.ttrow .mk{flex:none;white-space:nowrap;font-size:9px;letter-spacing:0;color:#dcd2f5}
-.ttrow.past .n{color:#c9bcf3}
-.ttrow.past .ln{height:1.5px;border-top:0;border-radius:2px;background:#e4dcf8}
-.ttrow.now  .n{color:#ff5fa8}
-.ttrow.now  .ln{border-top-color:#ffa6cb}
-.ttrow.now  .mk{color:#ff5fa8}
-.ttrow.next .n{color:#b9aee0}
+.ttrow .ln{flex:1;min-width:14px;height:0;border-top:1.5px dashed #c9bdea}
+.ttrow .mk{flex:none;white-space:nowrap;font-size:9px;letter-spacing:0;color:#c3b2f0}
+.ttrow.past .n{color:#a897dd}
+.ttrow.past .ln{height:1.5px;border-top:0;border-radius:2px;background:#cfc4ee}
+.ttrow.now  .n{color:#ff4d9e}
+.ttrow.now  .ln{border-top-color:#ff8fbe}
+.ttrow.now  .mk{color:#ff4d9e}
+.ttrow.next .n{color:#7d6ab8}
+.ttrow.next .ln{border-top-color:#c9bdea}
 /* 주말 칸. 기존 빈칸(.blank)과 이름이 부딪히면 줄 전체가 점선 상자가 된다 */
 .ttrow.mine .n{width:auto;min-width:54px}
-.ttsay{margin-top:11px;text-align:center;font-size:9px;line-height:1.95;color:#8f7ccb}
+.ttsay{margin-top:11px;text-align:center;font-size:9px;line-height:1.95;color:#6b5fa8}
 .ttsay b{display:block;font-weight:400}
-.ttsay b i{font-style:normal;color:#ff8fbe}
+.ttsay b i{font-style:normal;color:#ff4d9e}
 /* 야자 감독인 주. null.exe의 「!! WARNING !!」과 같은 크기·같은 자리다 */
 .ttsay.warn{margin-top:15px;line-height:2.05}
 .ttsay.warn b{margin-bottom:5px;font-size:12.5px;letter-spacing:.04em;color:#4a4276}
-/* peek 옆에 같은 단추로 선다. 눌러서 시간표를 다시 연다 */
-.nowbtn{flex:none;margin-left:7px;letter-spacing:.06em}
+.ttsay b{color:#5d4fa0}
+
 
 /* ── bag ── */
 /* gift 창과 같은 부품(.cartwin·.cgcard·.cchip)을 쓰고 여기서 다른 것만 더한다 */
@@ -870,6 +877,12 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .watchbar{flex:none;display:flex;align-items:center;justify-content:center;gap:8px;
  padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:11px;letter-spacing:.08em;color:#2f9e5a;
  background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
+/* 「두 사람」 카드의 오른쪽 아래. 핫핑크 점이 번지면서 깜빡인다 */
+.livedot{position:absolute;right:12px;bottom:9px;display:flex;align-items:center;gap:5px;
+ font-size:8px;letter-spacing:.22em;color:#ff4d9e;text-shadow:0 1px 0 rgba(255,255,255,.7)}
+.livedot i{width:7px;height:7px;border-radius:50%;background:#ff2e8b;
+ box-shadow:0 0 7px 2.5px rgba(255,46,139,.6),0 0 2px rgba(255,46,139,.9);
+ animation:recblink 1.4s infinite}
 .rec{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5470;animation:recblink 1.2s infinite}
 .empty{margin:auto;text-align:center;color:#b0a6d8;font-size:11.5px;line-height:2;letter-spacing:.04em;padding:0 30px}
 .msgs::-webkit-scrollbar,.rooms::-webkit-scrollbar,.gal::-webkit-scrollbar{width:0}
@@ -955,6 +968,10 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  transition:width .4s linear;pointer-events:none}
 .moonbtn span{position:relative}
 .moonbtn.cool{color:#9a8fc8}
+/* peek 옆에 같은 단추로 선다. 눌러서 시간표를 다시 연다.
+   .moonbtn 뒤에 둬야 한다 — 앞에 두면 padding:0 12px에 덮여서 안 좁아진다.
+   메뉴바는 원래도 빠듯한 줄이라 peek보다 좁아야 peek이 안 밀려난다. */
+.menubar .nowbtn{padding:0 8px;font-size:10px;letter-spacing:.01em;margin-left:5px}
 /* ── 이름 빈칸 — 불릴수록 채워진다. 방문자 카운터 자리를 대신한다 ── */
 /* NULL 줄 — 납작한 이름표 */
 .nmcard{flex:none;position:sticky;bottom:0;z-index:3;overflow:hidden;display:flex;align-items:center;gap:8px;
@@ -1373,63 +1390,81 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    따로 만나는 자리다.
    item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
    bg가 없으면 배경 없이 열린다 — 사진이 아직 없는 자리도 막지는 않는다. */
+/* ── 지도 두 장 ──
+   교실·보건실·옥상은 한 건물 안의 방이고 편의점·도서관은 동네의 다른 지점이다.
+   그걸 한 길에 나란히 세우니 교실에서 보건실 가는 길에 표지판이 서 있었다.
+   길은 그대로 두되(START에서 문까지가 30일이다) 학교만 안이 있는 정거장으로
+   만든다. 주말에 학교 셋이 같이 닫히던 것도 이제 아이콘 하나가 닫히면 된다. */
 const PLACES=[
-  {name:"교실",     hours:[8,22], wend:false, bg:"place-class.webp",    icon:"class",   need:[],                     who:["minhyun"], own:"minhyun", item:"note",
-   note:"네 자리는 창가 셋째 줄."},
-  {name:"보건실",   hours:[8,17], wend:false, bg:"place-nurse.webp",    icon:"nurse",   need:[],                     who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
-   note:"커튼 안쪽 침대 두 개."},
-  /* 옥상은 둘 다 만나본 뒤에 열린다 — 학교에서 유일하게 둘 다 오는 자리라서 */
-  {name:"옥상",     hours:[8,22], wend:false, bg:"place-rooftop.webp",  icon:"rooftop", need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
-   note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
-  /* 여기서 갈라진다. 학교 밖 첫 자리 — 민현 쪽과 재언 쪽 */
-  {name:"편의점",   bg:"place-conv.webp",     icon:"conv",    need:["옥상"],               who:["minhyun"],          item:"haribo",
+  /* ── 마을 길 ── 여섯 정거장. 학교가 첫 정거장이고 유일하게 안이 있다 */
+  {name:"학교",     map:"town", into:"school", hours:[8,22], wend:false, icon:"school", need:[]},
+  {name:"편의점",   map:"town", bg:"place-conv.webp",     icon:"conv",    need:["옥상"],              who:["minhyun"],          item:"haribo",
    note:"학교 뒷문에서 이 분."},
-  {name:"도서관",   hours:[9,22], bg:"place-library.webp",  icon:"library", need:["옥상"],               who:["jaeeon"],           item:"book",
+  {name:"도서관",   map:"town", hours:[9,22],  bg:"place-library.webp",  icon:"library", need:["옥상"],              who:["jaeeon"],           item:"book",
    note:"시립. 삼 층은 늘 비어 있다."},
-  {name:"레코드샵", hours:[12,21], bg:"place-record.webp",   icon:"record",  need:["편의점"],             who:["minhyun"],          item:"lp",
+  {name:"레코드샵", map:"town", hours:[12,21], bg:"place-record.webp",   icon:"record",  need:["편의점"],            who:["minhyun"],          item:"lp",
    note:"중고반 상자가 바닥에 있다."},
-  {name:"빨래방",   bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],             who:["jaeeon"],           item:"coin",
+  {name:"빨래방",   map:"town", bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],            who:["jaeeon"],           item:"coin",
    note:"건조기 도는 사십 분."},
   /* 마지막. 양쪽을 다 걸어봐야 열린다 — 한쪽만 파서 남의 집에 갈 수는 없다 */
-  {name:"집",       hours:[17,2], wend:[11,2], bg:"place-home.webp",     icon:"home",    need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
+  {name:"집",       map:"town", hours:[17,2], wend:[11,2], bg:"place-home.webp", icon:"home", need:["빨래방","레코드샵"], who:["jaeeon"], item:"key",
    note:"현관에 우산이 두 개."},
+  /* ── 학교 안 ── 길이 아니라 건물이다. 그래서 표지판을 안 세운다 */
+  {name:"교실",     map:"school", hours:[8,22], wend:false, bg:"place-class.webp",   icon:"class",   need:[],                 who:["minhyun"], own:"minhyun", item:"note",
+   note:"네 자리는 창가 셋째 줄."},
+  {name:"보건실",   map:"school", hours:[8,17], wend:false, bg:"place-nurse.webp",   icon:"nurse",   need:[],                 who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
+   note:"커튼 안쪽 침대 두 개."},
+  /* 옥상은 둘 다 만나본 뒤에 열린다 — 학교에서 유일하게 둘 다 오는 자리라서 */
+  {name:"옥상",     map:"school", hours:[8,22], wend:false, bg:"place-rooftop.webp", icon:"rooftop", need:["교실","보건실"],  who:["jaeeon","minhyun"], item:"can",
+   note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
+  {name:"체육관",   map:"school", hours:[8,18], wend:false, icon:"gym",     need:["옥상"],           who:["minhyun"],          item:"wrist",
+   note:"구석에 매트가 쌓여 있다."},
 ];
+/* 갈 수 있는 자리만 센다 — 학교는 문이지 자리가 아니다 */
+const SPOTS=PLACES.filter(p=>!p.into);
 const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
 const PLACE_BY={};PLACES.forEach(p=>{PLACE_BY[p.name]=p});
 /* 장소 그림은 배경에 박지 않는다. 같은 좌표에서 open/lock PNG만 교체한다. */
 /* 아이콘 자리 — 길이 굽이치는 대로 따라간다. 두 줄로 딱 세우면 지도가 아니라
    목록으로 보인다. 각 자리 높이에서 길 가장자리를 재서 받침이 5%p 얹히게 놓았다 —
    길가에 선 것처럼 보이려면 붙어야 한다. */
+/* 마을 길. 원래 여덟이던 자리 중 좌우가 번갈아 서는 여섯을 골랐다 —
+   길이 굽는 쪽이 자리를 정하므로 아무거나 빼면 한쪽에 두 개가 몰린다 */
 const ROAD_ICON_POS={
-  "교실":       {x:34.3, y:79.2},
-  "보건실":      {x:60.9, y:68.1},
-  "옥상":       {x:27.4, y:57.3},
-  "편의점":      {x:60.9, y:51.0},
-  "도서관":      {x:30.6, y:40.0},
-  "레코드샵":     {x:64.6, y:34.8},
+  "학교":       {x:34.3, y:79.2},
+  "편의점":      {x:60.9, y:68.1},
+  "도서관":      {x:27.4, y:57.3},
+  "레코드샵":     {x:60.9, y:51.0},
   "빨래방":      {x:38.1, y:24.8},
   "집":        {x:64, y:10},   /* 길 위 끝을 받침이 덮게 */
 };
 /* 길 위에 찍는 핀. 건물은 길 밖에 있고 핀이 그 자리를 길 위에 표시한다.
    좌표는 도로 그림에서 리본을 따라가며 각 자리 높이의 중심을 잰 값이다. */
 const ROAD_PIN_POS={
-  "교실":       {x:52.9, y:79.2},
-  "보건실":      {x:35.9, y:68.1},
-  "옥상":       {x:52.9, y:57.3},
-  "편의점":      {x:43.1, y:51.0},
-  "도서관":      {x:56.9, y:40.0},
-  "레코드샵":     {x:42.3, y:34.8},
+  "학교":       {x:52.9, y:79.2},
+  "편의점":      {x:35.9, y:68.1},
+  "도서관":      {x:52.9, y:57.3},
+  "레코드샵":     {x:43.1, y:51.0},
   "빨래방":      {x:56.4, y:24.8},
   "집":        {x:64.6, y:10},
+};
+/* 학교 안. 길이 아니라 건물이라 표지판을 안 세운다 — 방 사이에 이정표가
+   서 있으면 복도가 아니라 등산로가 된다 */
+const SCHOOL_ICON_POS={
+  "교실":       {x:30, y:78},
+  "보건실":      {x:64, y:58},
+  "옥상":       {x:30, y:36},
+  "체육관":      {x:64, y:16},
 };
 /* 장소 그림에 파묻히는 표지판. 사각형으로 재면 아이콘이 29%라 여덟 개가
    전부 겹친다고 나온다. 실제 그림의 안 비치는 픽셀끼리 겹쳐보고, 표지판
    넓이의 12%를 넘게 먹히는 것만 골랐다 — 스치는 정도는 길가 표지판답다. */
 /* 「집」은 길이 끝나는 자리라 표지판이 필요 없다 — 문이 곧 끝 표시다 */
-const PIN_BURIED=["옥상","도서관","집"];
+const PIN_BURIED=["도서관","집"];
 const ROAD_LABEL={
   class:"CLASSROOM",nurse:"INFIRMARY",rooftop:"ROOFTOP",conv:"STORE",
   library:"LIBRARY",record:"RECORD SHOP",laundry:"LAUNDROMAT",home:"HOME",
+  school:"SCHOOL",gym:"GYM",
 };
 /* ── 가방 ──
    선물은 유저가 준다. 가방은 받은 것이다. 자리마다 하나씩 있고, 그 자리에
@@ -1446,6 +1481,7 @@ const ITEMS={
   key:     {name:"여벌 열쇠",   cat:"소품", say:"HOME access : granted ♡"},
   /* 자리에서 받는 게 아니라 야자 감독인 주에 시스템이 쥐여주는 것.
      그래서 where가 없다 — 어디서 받았는지가 없는 유일한 물건이다. */
+  wrist:   {name:"손목 보호대", cat:"소품", say:"support : still on"},
   ebar:    {name:"에너지바",    cat:"간식", say:"energy level : restored +20 ♡"},
 };
 const ITEM_CATS=["전체","간식","소품","기록"];
@@ -1490,7 +1526,7 @@ const nowLabel=(now)=>{
   if(m>=PERIODS[3][1]&&m<PERIODS[4][0])return "점심";
   if(m>=PERIODS[4][0]&&m<PERIODS[6][1])return "쉬는시간";
   const i=slotNow(d);
-  return i<0?"등교 전":daySlots(d)[i].k;
+  return i<0?"등교전":daySlots(d)[i].k;
 };
 /* 하루의 경계는 자정이 아니라 새벽 다섯 시다. 새벽 두 시에 여는 건 어제의
    연장이지 새 하루가 아니다 — 대화 도중에 날짜가 넘어가면 그게 제일 이상하다 */
@@ -2275,6 +2311,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   /* 시간표. 그날 처음 열면 한 번 뜨고, 그 뒤로는 버튼으로 다시 본다.
      야자 감독인 주에는 에너지바가 가방에 들어온다 — 그 주에 한 번만. */
   const [wend,setWend]=useState(loadWend);
+  const [level,setLevel]=useState("town");    // 지도 두 장 — 마을 길 / 학교 안
   const [tick,setTick]=useState(0);           // 교시가 바뀌면 버튼 글자도 바뀐다
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),60000);return()=>clearInterval(t)},[]);
   useEffect(()=>{
@@ -2350,15 +2387,6 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
       <button className="moonbtn bevel nowbtn" title="timetable"
         onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>
-      <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
-        title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
-        onClick={()=>{ if(autoLoading)return;
-          if(left>0){onToast("too soon · "+mmss(left));return}
-          const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
-        {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
-        <MoonIcon/>
-        <span>{autoLoading?"time passing...":left>0?mmss(left):"peek"}</span>
-      </button>
     </div>
     <div className="marquee"><span>
       ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; 
@@ -2383,7 +2411,20 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 아바타 둘레가 돈다 */
           const nu=CHARS[r.id]?stageDiff(r.id,(seenStage||{})[r.id]||0,stageIdx(counts[r.id]||0,dayN)):[];
           return <React.Fragment key={r.id}>
-            {watch&&<div className="sectwrap"><span className="sect">LIVE</span></div>}
+            {/* LIVE라는 딱지는 이 방이 무슨 방인지 말해주지만 아무것도 안 한다.
+                peek이 이 방을 채우는 단추라서 그 자리가 제자리다 — 메뉴바도
+                한 칸 비고, 단추가 자기가 여는 방 바로 위에 앉는다 */}
+            {watch&&<div className="sectwrap">
+              <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
+                title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
+                onClick={e=>{ e.stopPropagation(); if(autoLoading)return;
+                  if(left>0){onToast("too soon · "+mmss(left));return}
+                  const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
+                {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
+                <MoonIcon/>
+                <span>{autoLoading?"time passing...":left>0?mmss(left):"peek"}</span>
+              </button>
+            </div>}
             <div className={"roomcard"+(watch?" watch":"")} style={{animationDelay:`${i*0.05}s`}} onClick={()=>onOpen(r.id)}>
               <Avatar room={r} onProfile={onProfile} heat={CHARS[r.id]?stageIdx(counts[r.id]||0,dayN):null} nu={nu.length>0}/>
               <div className="rinfo">
@@ -2395,6 +2436,9 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
                 <div className="rprev">{last?(last.sender==="user"?"나: ":"")+(last.photo?"[사진] "+(last.text||""):last.text) : r.empty.split("\n")[0]}</div>
               </div>
               {un>0&&<span className="rbadge">{un}</span>}
+              {/* 켜져 있다는 표시. 딱지는 카드 밖이 아니라 카드 안에 있어야
+                  「이 방이 지금 켜져 있다」가 된다 */}
+              {watch&&<span className="livedot">LIVE <i/></span>}
             </div>
           </React.Fragment>;
         })}
@@ -2413,33 +2457,41 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       :tab==="map"
       ?<div className="gal mapscroll">{/* 그림은 길, 버튼은 실제 장소 상태다 */}
         <div className="roadhead">
-          <span className="rt"><i className="rh">♡</i> NULL ROAD MAP</span>
-          <span className="rbar"><i style={{width:(visitedN/PLACES.length*100)+"%"}}/></span>
-          <span className="rn">{visitedN} / {PLACES.length}</span>
+          {level==="school"
+            ?<span className="rt rback" role="button" tabIndex={0}
+               onClick={()=>setLevel("town")}
+               onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setLevel("town")}}}>
+               ◁ <i className="rh">♡</i> SCHOOL</span>
+            :<span className="rt"><i className="rh">♡</i> NULL ROAD MAP</span>}
+          <span className="rbar"><i style={{width:(visitedN/SPOTS.length*100)+"%"}}/></span>
+          <span className="rn">{visitedN} / {SPOTS.length}</span>
         </div>
-        <div className="roadmap">
-          <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
-          <img className="roadfinishpanel" src="map-icons/final-input-window.png" alt="" aria-hidden="true"/>
-          {PLACES.map(p=>{
+        <div className={"roadmap"+(level==="school"?" inside":"")}>
+          {level==="town"&&<>
+            <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
+            <img className="roadfinishpanel" src="map-icons/final-input-window.png" alt="" aria-hidden="true"/>
+          </>}
+          {PLACES.filter(p=>p.map===level).map(p=>{
             const open=placeOpen(p,met);
             const nowOk=placeHours(p);           // 열렸어도 지금 갈 시간이 아닐 수 있다
-            const been=met.includes(p.name);
-            const want=placeNeed(p,met);
-            const iconPos=ROAD_ICON_POS[p.name]||{x:50,y:50};
+            const been=p.into?false:met.includes(p.name);
+            const pos=(level==="school"?SCHOOL_ICON_POS:ROAD_ICON_POS)[p.name]||{x:50,y:50};
             /* 열린 자리는 눌러서 갈 수 있다. 다만 누르자마자 옮겨지지는 않는다 —
-               한 번 묻고 간다. 안 열린 자리는 눌러도 아무 일이 없다. */
+               한 번 묻고 간다. 안 열린 자리는 눌러도 아무 일이 없다.
+               학교는 자리가 아니라 문이라 물어보지 않고 바로 안으로 들어간다. */
+            const go=p.into?()=>setLevel(p.into):()=>onGoPlace(p.name);
             return <span key={p.name}
-                className={"roadicon"+(open?"":" lock")+(open&&!nowOk?" shut":"")+(been?" been":"")}
-                style={{left:iconPos.x+"%",top:iconPos.y+"%"}}
+                className={"roadicon"+(open?"":" lock")+(open&&!nowOk&&!p.into?" shut":"")+(been?" been":"")}
+                style={{left:pos.x+"%",top:pos.y+"%"}}
                 role={open?"button":null} tabIndex={open?0:null}
-                onClick={open?()=>onGoPlace(p.name):null}
-                onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onGoPlace(p.name)}}:null}
-                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}>
+                onClick={open?go:null}
+                onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}:null}
+                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
                 <img src={`map-icons/place-${p.icon}-${open?"open":"lock"}.png`} alt=""/>
               </span>;
           })}
-          {/* 길 위의 하트 표지판. 건물과 합치지 않아 상태와 위치를 따로 바꾼다 */}
-          {PLACES.map(p=>{
+          {/* 길 위의 하트 표지판. 학교 안은 길이 아니라 건물이라 안 세운다 */}
+          {level==="town"&&PLACES.filter(p=>p.map==="town").map(p=>{
             /* 장소 그림에 걸리는 표지판은 뺀다 — 겹치면 둘 다 안 읽힌다 */
             const pin=ROAD_PIN_POS[p.name]; if(!pin||PIN_BURIED.includes(p.name))return null;
             const open=placeOpen(p,met), been=met.includes(p.name);

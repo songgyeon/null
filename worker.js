@@ -1637,7 +1637,7 @@ const CACHE = { type: "ephemeral", ttl: "1h" };
    거절은 기록으로 남는다. 두 번 조르지 않는 것이 이 두 사람의 성격이다. */
 const INVITES = {
   jaeeon:  [{ at: 40, place: "옥상" }, { at: 80, place: "도서관" }, { at: 120, place: "빨래방" }],
-  minhyun: [{ at: 40, place: "편의점" }, { at: 80, place: "레코드샵" }, { at: 120, place: "옥상" }],
+  minhyun: [{ at: 40, place: "편의점" }, { at: 80, place: "레코드샵" }, { at: 120, place: "체육관" }],
 };
 /* 이번 답에 같이 가자고 할 자리. 없으면 null.
    done(다녀온 곳)·refused(거절당한 곳)는 프론트가 들고 있다가 보내준다. */
@@ -1684,6 +1684,7 @@ const PLACE_ITEMS = {
   "레코드샵": { key: "lp",      name: "중고 LP",     how: "상자 밑에서 꺼내 사준다." },
   "빨래방":   { key: "coin",    name: "동전 한 줌",  how: "건조기용이다. 남으면 가지라고 한다." },
   "집":       { key: "key",     name: "여벌 열쇠",   how: "고리도 안 달린 것이다." },
+  "체육관":   { key: "wrist",   name: "손목 보호대", how: "손목에서 풀어서 준다. 늘어나 있다." },
 };
 /* 지금 어느 자리에 같이 있나. 프론트가 보낸 이름이 목록에 있어야 인정한다 */
 function placeOf(raw) {
