@@ -1888,9 +1888,9 @@ eq('지도에서 물러나도 그 자리가 닫히지 않는다', (() => {
 /* 지도 위에 얹혀 있던 흰 제목은 걷었다. 머리글이 이미 같은 말을 하고 있어서
    길 위에 한 번 더 적을 이유가 없다 — 그림은 길만 보이는 게 낫다 */
 eq('지도 위에 제목을 안 얹는다',
-  /roadtitle|NULL ROAD MAP/.test(web), false);
-eq('머리글이 널 로드맵이다',
-  /<span className="rt"><i className="rh">♡<\/i> 널 로드맵<\/span>/.test(web), true);
+  /roadtitle/.test(web) || (web.match(/NULL ROAD MAP/g) || []).length !== 1, false);
+eq('머리글이 NULL ROAD MAP이다',
+  /<span className="rt"><i className="rh">♡<\/i> NULL ROAD MAP<\/span>/.test(web), true);
 /* 구석에 떠 있으면 지도의 일부가 아니라 화면 위에 얹힌 버튼처럼 보인다 */
 /* 길이 시작하는 자리(아래 끝 x51)에 딱 붙어야 한다 — 떨어지면 길과 남남이다 */
 eq('START가 길 시작에 붙는다', /\.roadstart\{position:absolute;left:50%;bottom:\.6%/.test(web), true);
