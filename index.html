@@ -638,25 +638,22 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    마지막 입력창이 잘려 보인다. 장식막만 가장 뒤에 두고 모든 아이콘을 위에 둔다. */
 .roadmap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 18%,transparent 82%,rgba(105,82,183,.08))}
-.roadtitle{position:absolute;left:41.5%;top:1.65%;z-index:10;transform:translateX(-50%);white-space:nowrap;
- display:flex;align-items:center;gap:7px;padding:6px 13px 7px;font-size:10px;letter-spacing:.2em;color:#594399;
- border:1px solid rgba(255,255,255,.96);border-radius:999px;
- background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(232,223,253,.9));
- box-shadow:0 2px 0 rgba(111,88,180,.26),0 0 12px rgba(255,255,255,.82)}
+/* 제목은 하늘에 그냥 얹는다. 알약을 두르면 지도가 아니라 지도를 담은 창이 된다 */
+.roadtitle{position:absolute;left:50%;top:2%;z-index:10;transform:translateX(-50%);white-space:nowrap;
+ display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.24em;color:#5b47a2;
+ text-shadow:0 1px 0 rgba(255,255,255,.92),0 0 9px rgba(255,255,255,.88)}
 .roadtitle .heart{font-size:12px;line-height:1;color:#e66fa4;text-shadow:0 0 6px rgba(255,145,194,.65)}
 .roadtitle .roadstar{font-size:9px;color:#8e76d1}
-.roadstart{position:absolute;left:3.5%;bottom:1.8%;z-index:10;width:29%;padding:5px 7px 6px;text-align:center;
+/* 길이 시작하는 자리에 세운다. 구석에 떠 있으면 지도의 일부가 아니라
+   화면 위에 얹힌 버튼처럼 보인다. 길은 이 높이에서 46%를 지난다 */
+.roadstart{position:absolute;left:46%;bottom:1.6%;z-index:10;width:30%;padding:5px 7px 6px;
+ transform:translateX(-50%);text-align:center;
  color:#fff;border:2px solid #fff;border-radius:5px;background:linear-gradient(180deg,#9174e1,#6f54bd);
  box-shadow:0 3px 0 #4e388f,0 0 0 2px #927ce0,0 0 12px rgba(255,255,255,.72);
  text-shadow:1px 1px 0 #51399b}
 .roadstart b{display:block;font-size:15px;font-weight:400;letter-spacing:.12em}
 .roadstart span{display:block;margin-top:4px;padding-top:3px;font-size:8px;letter-spacing:.18em;
  border-top:1px solid rgba(255,255,255,.55)}
-.roadend{position:absolute;left:3.8%;top:6.5%;z-index:10;width:25%;padding:6px 7px 7px;text-align:center;
- color:#6049a2;border:1px solid #fff;border-radius:7px;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(235,226,253,.9));
- box-shadow:0 2px 0 #7f68c2,0 0 10px rgba(255,255,255,.7)}
-.roadend small{display:block;margin-bottom:3px;font-size:6.5px;letter-spacing:.16em;color:#9a86cc}
-.roadend b{display:block;font-size:14px;font-weight:400;letter-spacing:.16em}
 /* 장소 사이의 하트 표지판. 핀 좌표는 받침 바닥이라 그림의 아래끝을 맞춘다. */
 .roadpin{position:absolute;z-index:8;width:9.6%;transform:translate(-50%,-100%);pointer-events:none;
  filter:drop-shadow(0 2px 1px rgba(72,48,145,.3)) drop-shadow(0 0 5px rgba(255,215,244,.7));opacity:.78}
@@ -669,12 +666,11 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .roadfinishpanel{position:absolute;left:72%;top:.8%;z-index:5;width:17%;height:18.8%;object-fit:fill;pointer-events:none;
  transform:translateX(-50%);filter:drop-shadow(0 2px 1px rgba(71,47,142,.24)) drop-shadow(0 0 9px rgba(255,255,255,.7))}
 @keyframes roadheart{50%{transform:translate(-50%,-100%) scale(1.05)}}
-.roadiconbtn{position:absolute;z-index:6;width:29%;aspect-ratio:1;border:0;padding:0;cursor:pointer;background:transparent;
+.roadicon{position:absolute;z-index:6;width:29%;aspect-ratio:1;pointer-events:none;
  transform:translate(-50%,-50%);filter:drop-shadow(0 3px 1px rgba(72,48,145,.28));transition:transform .12s steps(2),filter .12s}
-.roadiconbtn img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
-.roadiconbtn:active{transform:translate(-50%,calc(-50% + 2px)) scale(.98)}
-.roadiconbtn.lock{cursor:default;filter:drop-shadow(0 2px 1px rgba(72,48,145,.14))}
-.roadiconbtn.been{filter:drop-shadow(0 2px 1px rgba(72,48,145,.28)) drop-shadow(0 0 7px rgba(255,151,196,.72))}
+.roadicon img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.roadicon.lock{filter:drop-shadow(0 2px 1px rgba(72,48,145,.14))}
+.roadicon.been{filter:drop-shadow(0 2px 1px rgba(72,48,145,.28)) drop-shadow(0 0 7px rgba(255,151,196,.72))}
 
 /* ── bag ── */
 .mbtn .mbcount{margin-left:4px;padding:0 4px;font-size:9px;font-style:normal;color:#fff;
@@ -2048,7 +2044,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGo,picking,onPick}){
+function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -2181,7 +2177,6 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         </div>
         <div className="roadmap">
           <div className="roadtitle"><span className="heart">♡</span><span>NULL ROAD MAP</span><span className="roadstar">✦</span></div>
-          <div className="roadend"><small>JOURNEY END</small><b>D-0</b></div>
           <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
           <img className="roadfinishpanel" src="map-icons/final-input-window.png" alt="" aria-hidden="true"/>
           {PLACES.map(p=>{
@@ -2189,17 +2184,14 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
             const been=met.includes(p.name);
             const want=placeNeed(p,met);
             const iconPos=ROAD_ICON_POS[p.name]||{x:50,y:50};
-            const enter=()=>{if(!open){
-              const needed=want.map(n=>ROAD_LABEL[PLACE_BY[n]?.icon]||"PLACE").join(" + ");
-              onToast("LOCKED · "+needed+" FIRST");return}
-              p.who.length>1?onPick(p.name):onGo(p.name,p.who[0])};
-            return <button type="button" key={p.name}
-                className={"roadiconbtn"+(open?"":" lock")+(been?" been":"")}
+            /* 지도는 어디까지 왔는지 보는 곳이다. 눌러서 그 자리로 건너뛰지 않는다 —
+               자리는 대화 중에 같이 가자는 말이 나올 때만 열린다. */
+            return <span key={p.name}
+                className={"roadicon"+(open?"":" lock")+(been?" been":"")}
                 style={{left:iconPos.x+"%",top:iconPos.y+"%"}}
-                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?"":" · LOCKED")}
-                onClick={enter}>
+                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?"":" · LOCKED")}>
                 <img src={`map-icons/place-${p.icon}-${open?"open":"lock"}.png`} alt=""/>
-              </button>;
+              </span>;
           })}
           {/* 길 위의 하트 표지판. 건물과 합치지 않아 상태와 위치를 따로 바꾼다 */}
           {PLACES.map(p=>{
@@ -2614,31 +2606,6 @@ function App(){
       ...(ok&&PLACE_BY[iv.place]?{place:iv.place,bag:bagRef.current.map(b=>b.key)}:{})});
   };
 
-  /* ── 지도에서 부른다 ──
-     초대는 저쪽이 정하는 것이고 이건 이쪽이 정하는 것이다. 자리를 고르고
-     누구를 부를지 고르면 그 방으로 들어가면서 자리가 깔린다.
-     불려 나온 쪽은 이미 와 있다 — 오는 길을 그리지 않는 이유는, 문자로
-     "가는 중이에요"를 주고받는 화면이 이 앱에 이미 너무 많아서다. */
-  const [picking,setPicking]=useState(null);   // 누구를 부를지 고르는 중인 자리
-  const goPlace=(place,char)=>{
-    setPicking(null);
-    const p=PLACE_BY[place]; if(!p||!CHARS[char])return;
-    const sc={room:char,place,since:Date.now()}; setScene(sc); saveScene(sc);
-    goneTo(place);
-    setView(char);
-    setStore(s=>({...s,unread:{...s.unread,[char]:0}}));
-    /* 재언은 보건실에 있는 게 일이고 민현은 교실에 앉아 있다.
-       그 자리에 「불러냈다」고 적으면 원래 계신 분을 호출한 꼴이 된다. */
-    const line=p.own===char?`${place}에 갔다`:`${jos(CHARS[char].name,"과/와")} ${place}에서 만났다`;
-    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
-    appendMsg(char,sys);
-    const next=[...(storeRef.current.msgs[char]||[]),sys];
-    request(char,{mode:"chat",room:char,user_name:name,
-      history:buildHistory(sinceSum(char,next)),signals:buildSignals(char),
-      recent_photos:recentPhotos(char),counts:roomCounts({[char]:next.length}),
-      place,bag:bagRef.current.map(b=>b.key)});
-  };
-
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
   const applyUnlocked=list=>{
     if(!Array.isArray(list)||!list.length)return;
@@ -3041,7 +3008,7 @@ function App(){
        onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
-       bag={bag} met={met} onGo={goPlace} picking={picking} onPick={setPicking}/>
+       bag={bag} met={met}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
@@ -3054,21 +3021,6 @@ function App(){
           <div className="dlgbtns">
             <button className="bevel pink" onClick={()=>answerInvite(true)}>갈게요</button>
             <button className="bevel" onClick={()=>answerInvite(false)}>다음에요</button>
-          </div>
-        </div>
-      </div>
-    </div>}
-    {/* 둘 다 갈 수 있는 자리 — 누굴 부를지 고른다. 하나뿐인 자리는 안 묻고 바로 간다 */}
-    {picking&&<div className="dlgov" onClick={()=>setPicking(null)}>
-      <div className="dlg" onClick={e=>e.stopPropagation()}>
-        <div className="tb">{picking}<div className="dots"><span className="d3"/></div></div>
-        <div className="dlgbody">
-          <div className="dlgline" style={{textAlign:"center",padding:"8px 0 2px",fontSize:13,color:"#8a4f74"}}>
-            누구랑 갈까</div>
-          <div className="dlgbtns">
-            {(PLACE_BY[picking]||{who:[]}).who.map(w=>
-              <button key={w} className={"bevel"+(w==="minhyun"?" pink":"")}
-                onClick={()=>goPlace(picking,w)}>{CHARS[w].name}</button>)}
           </div>
         </div>
       </div>

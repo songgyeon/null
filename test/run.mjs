@@ -1507,8 +1507,9 @@ eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) &&
    방의 마지막 여섯 줄을 그냥 깔았더니 아까 문자로 주고받던 말이 교실 배경
    위에 얹혔다. 선물 받은 반응이 교실에서 나오고 첫 연락이 교실에서 나왔다. */
 eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.test(web), true);
+/* 지도는 보는 곳이다 — 자리로 들어가는 길은 초대 하나뿐이라 한 군데다 */
 eq('자리에 들어갈 때 시각을 찍는다',
-  (web.match(/since:Date\.now\(\)/g) || []).length, 2);
+  (web.match(/since:Date\.now\(\)/g) || []).length, 1);
 
 /* ── 이름표가 말풍선 안으로 새는 것 ──
    누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을
@@ -1598,10 +1599,7 @@ eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), 
   eq('남의 자리에 가면 따로 만난 자리다',
     /따로 만난 자리다/.test(buildPlace('보건실', true, 'minhyun'))
     && !/여기는 원래 네 자리다/.test(buildPlace('옥상', true, 'jaeeon')), true);
-  /* 화면 지문도 마찬가지다. 「이재언을 보건실로 불러냈다」가 나갔었다 */
-  eq('지문이 자리 임자를 가린다',
-    /p\.own===char\?`\$\{place\}에 갔다`/.test(web), true);
-  eq('교실과 보건실에 임자가 적혀 있다',
+    eq('교실과 보건실에 임자가 적혀 있다',
     (web.match(/own:"(minhyun|jaeeon)"/g) || []).length, 2);
 }
 /* 마주 앉아서 어디 가자고 하면 지금 여기가 어디가 되는지 알 수가 없다 */
@@ -1680,7 +1678,7 @@ eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.
 eq('장소 아이콘이 도로 위에서 잘리지 않는다',
   !/className="roadfront"/.test(web)
   && /\.roadmap::after\{content:"";position:absolute;inset:0;pointer-events:none;z-index:1/.test(web)
-  && /\.roadiconbtn\{position:absolute;z-index:6;width:29%/.test(web), true);
+  && /\.roadicon\{position:absolute;z-index:6;width:29%/.test(web), true);
 eq('하트와 장소 아이콘이 모바일에서도 읽을 크기다',
   /\.roadpin\{position:absolute;z-index:8;width:9\.6%;transform:translate\(-50%,-100%\)/.test(web)
   && /\.roadfinishpanel\{position:absolute;left:72%;top:\.8%;z-index:5;width:17%;height:18\.8%/.test(web), true);
@@ -1703,9 +1701,22 @@ eq('길 위에 PNG 하트 표지판이 있다',
   && /\.roadpin\{position:absolute;z-index:8/.test(web)
   && /src="map-icons\/heart-sign\.png"/.test(web)
   && exists('map-icons/heart-sign.png'), true);
+/* 지도는 어디까지 왔는지 보는 곳이다. 눌러서 그 자리로 건너뛰지 않는다 —
+   자리는 대화 중에 같이 가자는 말이 나올 때만 열린다 */
+eq('지도에서 자리로 건너뛰지 않는다',
+  /className=\{"roadicon"/.test(web) && !/roadiconbtn/.test(web)
+  && /\.roadicon\{[^}]*pointer-events:none/.test(web), true);
+eq('지도로 부르던 코드가 남아 있지 않다',
+  /goPlace|onPick|const \[picking/.test(web), false);
+/* 알약을 두르면 지도가 아니라 지도를 담은 창이 된다 */
+eq('제목에 알약이 없다', /\.roadtitle\{[^}]*border-radius:999px/.test(web), false);
+/* 구석에 떠 있으면 지도의 일부가 아니라 화면 위에 얹힌 버튼처럼 보인다 */
+eq('START가 길 위에 선다', /\.roadstart\{position:absolute;left:46%/.test(web), true);
+eq('D-0은 없앴다', /roadend|JOURNEY END/.test(web), false);
+
 eq('하트가 장소 아이콘보다 위에 있다',
   /\.roadpin\{position:absolute;z-index:8/.test(web)
-  && /\.roadiconbtn\{position:absolute;z-index:6/.test(web), true);
+  && /\.roadicon\{position:absolute;z-index:6/.test(web), true);
 eq('문 뒤에 입력창만 남고 YOU 표시는 없다',
   /className="roadfinishpanel"/.test(web)
   && /src="map-icons\/final-input-window\.png"/.test(web)
