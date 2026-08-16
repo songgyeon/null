@@ -731,14 +731,12 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .ttrow.next .n{color:#b9aee0}
 /* 주말 칸. 기존 빈칸(.blank)과 이름이 부딪히면 줄 전체가 점선 상자가 된다 */
 .ttrow.mine .n{width:auto;min-width:54px}
-/* 야자 감독인 주에만 붙는다. 그 주 아무 때나 들어와도 보인다 */
-.ttwarn{margin:13px 12px 0;padding:10px 12px 11px;text-align:center;border-radius:9px;
- font-size:9px;line-height:1.9;letter-spacing:.02em;color:#8f7ccb;
- background:#fff6fb;border:1.5px solid #fff;box-shadow:0 0 0 1px #f6cfe2,0 3px 0 #f7dbe8}
-.ttwarn b{display:block;margin-bottom:3px;font-weight:400;font-size:10.5px;letter-spacing:.1em;color:#ff5fa8}
 .ttsay{margin-top:11px;text-align:center;font-size:9px;line-height:1.95;color:#8f7ccb}
 .ttsay b{display:block;font-weight:400}
 .ttsay b i{font-style:normal;color:#ff8fbe}
+/* 야자 감독인 주. null.exe의 「!! WARNING !!」과 같은 크기·같은 자리다 */
+.ttsay.warn{margin-top:15px;line-height:2.05}
+.ttsay.warn b{margin-bottom:5px;font-size:12.5px;letter-spacing:.04em;color:#4a4276}
 /* peek 옆에 같은 단추로 선다. 눌러서 시간표를 다시 연다 */
 .nowbtn{flex:none;margin-left:7px;letter-spacing:.06em}
 
@@ -2076,15 +2074,19 @@ function Timetable({wend,onFillWend,onClose}){
                <span className="mk">{r.past?"♡":r.now?<><span className="kao">(՞៸៸›⩊‹៸៸՞)</span>🩷</>:""}</span>
              </div>)}
         </div>
-        {yaja&&<div className="ttwarn">
-          <b>!!!WARNING!!!</b>
-          목요일은 내가 야자 감독 ミ✭<br/>
-          에너지바가 NULL 지켜줄 거야 <span className="kao">(𓂂꜆◕⩊◕꜀𓂂)</span> 💗
-        </div>}
-        <div className="ttsay">
-          <b>{wk?"오늘은 학교가 없어요 ♡":`지금은 ${nowLabel(now)}예요 `}{wk?"":<i>♡</i>}</b>
-          NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span>
-        </div>
+        {/* 야자 감독인 주에는 아랫줄이 통째로 경고로 바뀐다 — null.exe가 원래
+            「!! WARNING !!」+ 두 줄인 창이라 그 자리를 바꿔 끼우면 된다.
+            상자를 하나 더 만들면 창 안에 창이 생긴다 */}
+        {yaja
+          ?<div className="ttsay warn">
+             <b>!!!WARNING!!!</b>
+             목요일은 내가 야자 감독 ミ✭<br/>
+             에너지바가 NULL 지켜줄 거야 <span className="kao">(𓂂꜆◕⩊◕꜀𓂂)</span> 💗
+           </div>
+          :<div className="ttsay">
+             <b>{wk?<>오늘은 학교가 없어요 <i>♡</i></>:<>지금은 {nowLabel(now)}예요 <i>♡</i></>}</b>
+             NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span>
+           </div>}
         <div className="dlgbtns" style={{justifyContent:"center"}}>
           <button className="wbtn" onClick={onClose}>ok ♡</button>
         </div>

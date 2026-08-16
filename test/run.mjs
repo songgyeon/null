@@ -2067,9 +2067,11 @@ eq('시간표 칸에는 교시를 안 쓴다',
 eq('단추가 peek 옆에 같은 모양으로 선다',
   /<button className="moonbtn bevel nowbtn"[^>]*onClick=\{\(\)=>setDlg\("timetable"\)\}/.test(web), true);
 /* 야자 감독인 주에는 그 주 아무 때나 들어와도 보인다 */
-eq('야자 주에는 경고가 붙는다',
-  /\{yaja&&<div className="ttwarn">/.test(web) && /!!!WARNING!!!/.test(web)
-  && /목요일은 내가 야자 감독 ミ✭/.test(web), true);
+/* null.exe는 원래 「!! WARNING !!」 + 두 줄인 창이다. 야자 주에는 그 자리를
+   바꿔 끼운다 — 상자를 하나 더 만들면 창 안에 창이 생긴다 */
+eq('야자 주에는 아랫줄이 경고로 바뀐다',
+  /<div className="ttsay warn">/.test(web) && /!!!WARNING!!!/.test(web)
+  && /목요일은 내가 야자 감독 ミ✭/.test(web) && !/className="ttwarn"/.test(web), true);
 /* 사람이 준 게 아니라 시간표가 쥐여주는 것이라 준 사람도 자리도 없다 */
 eq('에너지바는 야자 주에 한 번만 들어온다',
   /if\(bagRef\.current\.some\(b=>b\.key==="ebar"\)\)return;/.test(web)
