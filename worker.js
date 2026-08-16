@@ -1464,9 +1464,12 @@ function stageOf(count, days) {
 // 못 박는 한 줄이 없으면 매 턴이 「아침이네요」로 시작한다. 아는 것과
 // 화제로 삼는 것은 다르다 — 시간은 배경이지 인사말이 아니다.
 const TIME_WORDS = ["새벽", "아침", "낮", "저녁", "밤"];
-function buildNow(now) {
-  if (!TIME_WORDS.includes(now)) return "";
-  return `\n## [지금] ${now}\n먼저 꺼내는 화제로 쓰지 않는다. 이 시간에 있을 만한 곳에 있고 이 시간에 할 만한 말을 하면 그걸로 족하다.\n`;
+const DAY_WORDS = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+function buildNow(now, day) {
+  const head = [DAY_WORDS.includes(day) ? day : "", TIME_WORDS.includes(now) ? now : ""]
+    .filter(Boolean).join(" ");
+  if (!head) return "";
+  return `\n## [지금] ${head}\n먼저 꺼내는 화제로 쓰지 않는다. 이 시간에 있을 만한 곳에 있고 이 시간에 할 만한 말을 하면 그걸로 족하다.\n`;
 }
 
 function buildStage(mode, room, counts, days) {
@@ -1796,7 +1799,7 @@ function buildSummary(summary) {
 }
 
 /* 매 턴 달라지는 덩어리. 대화 이력보다 뒤에 놓여야 이력이 캐시된다 */
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -1804,7 +1807,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
     : "";
   /* 자리에 있는 동안에는 갈 자리를 안 꺼낸다 — 같이 앉아서 어디 가자고 하면
      지금 여기가 어디가 되는지 알 수가 없다 */
-  const t = buildNow(now) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
+  const t = buildNow(now, day) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
           + buildPlace(place, hasItem, room)
@@ -2425,6 +2428,7 @@ export default {
        어느 엣지에 뜨는지도 그때그때라 여기서 재면 엉뚱한 때가 나온다.
        아는 낱말이 아니면 그냥 안 준다. 틀린 때보다 없는 편이 낫다. */
     const now = TIME_WORDS.includes(body.now) ? body.now : null;
+    const day = DAY_WORDS.includes(body.day) ? body.day : null;
     // 장바구니에서 방금 보낸 선물 (1:1 방에서만 의미가 있다)
     const gift = (mode !== "auto" && body.gift && body.gift.name) ? body.gift : null;
     // 「두 사람」방을 열게 만든 사건 — 선물이나 해금. auto에서만 의미가 있다
@@ -2508,7 +2512,7 @@ export default {
 
        지점은 요청당 넷까지다. 시스템이 셋을 쓰므로 여기 남은 하나를 쓴다.
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       const blocks = [{ type: "text", text: tail.content, cache_control: CACHE }];

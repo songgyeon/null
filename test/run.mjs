@@ -1835,18 +1835,34 @@ eq('지도는 눌러도 바로 안 가고 한 번 묻는다',
 /* 새벽 세 시에 교실 문이 열려 있으면 안 된다. 자리마다 시간을 적어두고,
    안 적힌 데(편의점·빨래방)는 24시간이다. 자정을 넘기는 집 17~2시도 된다 */
 {
-  const at = (p, h) => new Function('p', 'h',
-    workerlessPlaceHours + '; return placeHours(p, {getHours:()=>h})')(p, h);
+  // 수요일(3) 기본, 토요일(6)은 주말
+  const at = (p, h, wd = 3) => new Function('p', 'h', 'wd',
+    workerlessPlaceHours + '; return placeHours(p, {getHours:()=>h, getDay:()=>wd})')(p, h, wd);
   eq('학교는 새벽에 못 간다', [at({hours:[8,22]}, 3), at({hours:[8,22]}, 10)], [false, true]);
   eq('보건실은 퇴근하면 닫는다', [at({hours:[8,17]}, 18), at({hours:[8,17]}, 12)], [false, true]);
   eq('집은 자정을 넘겨서도 열린다',
     [at({hours:[17,2]}, 1), at({hours:[17,2]}, 20), at({hours:[17,2]}, 12)], [true, true, false]);
   eq('시간 안 적힌 데는 24시간이다', [at({}, 3), at({}, 15)], [true, true]);
+  /* 주말엔 재언이 출근을 안 하고 민현은 야자가 없다 — 학교가 통째로 닫힌다.
+     그래서 주말은 학교 밖에서 일부러 만나야만 하는 날이 된다 */
+  const 학교 = {hours:[8,22], wend:false};
+  eq('주말엔 학교가 통째로 닫힌다',
+    [at(학교, 10, 6), at(학교, 10, 0), at(학교, 10, 3)], [false, false, true]);
+  eq('집은 주말 낮에도 열린다',
+    [at({hours:[17,2], wend:[11,2]}, 13, 6), at({hours:[17,2], wend:[11,2]}, 13, 3)], [true, false]);
+  eq('주말 표시가 없는 데는 평일과 같다',
+    [at({hours:[9,22]}, 10, 6), at({hours:[9,22]}, 3, 6), at({}, 3, 0)], [true, false, true]);
+  /* 주말의 학교는 시간이 아니라 날이 문제다. 여덟 시가 돼도 안 열린다 */
+  const when = (p, wd) => new Function('p', 'wd',
+    web.slice(web.indexOf('const placeWhen='), web.indexOf('};', web.indexOf('const placeWhen=')) + 2)
+    + '; return placeWhen(p, {getHours:()=>10, getDay:()=>wd})')(p, wd);
+  eq('주말엔 시각 대신 요일을 말한다',
+    [when(학교, 6), when(학교, 3)], ['weekdays only', 'open 08:00 – 22:00']);
 }
 /* 시간이 아닌 자리는 눌리되 이유를 말한다 — 눌렀는데 아무 일도 안 일어나는
    것보다 「몇 시부터」를 알려주는 편이 낫다 */
 eq('못 가는 시간이면 이유를 말한다',
-  /지금은 못 가요/.test(web) && /open \$\{String\(p\.hours\[0\]\)/.test(web)
+  /지금은 못 가요/.test(web) && /\{shut\?placeWhen\(p\):""\}/.test(web)
   && /\.roadicon\.shut\{opacity:\.5/.test(web), true);
 /* 승낙을 눌러도 시간이 아니면 안 간다 — 창만 믿지 않는다 */
 eq('시간이 아니면 승낙해도 안 간다',
@@ -1946,6 +1962,21 @@ eq('때는 프론트가 재서 보낸다', (() => {
     && /if\(payload\.now==null\)payload\.now=timeWord\(\)/.test(web)
     && /const now = TIME_WORDS\.includes\(body\.now\) \? body\.now : null/.test(wk)
     && !/getHours\(\)/.test(wk);
+})(), true);
+/* 요일은 때보다 세다 — 주말이면 이 셋을 묶고 있던 건물이 통째로 사라진다 */
+eq('요일도 같이 보낸다', (() => {
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  return /const dayWord=now=>"일월화수목금토"/.test(web)
+    && /if\(payload\.day==null\)payload\.day=dayWord\(\)/.test(web)
+    && /const day = DAY_WORDS\.includes\(body\.day\) \? body\.day : null/.test(wk)
+    && !/getDay\(\)/.test(wk);
+})(), true);
+eq('요일과 때를 한 줄로 적는다', (() => {
+  const t = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 },
+    null, null, null, 0, null, false, '저녁', '토요일');
+  const only = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 },
+    null, null, null, 0, null, false, '저녁', '토욜');
+  return t.includes('## [지금] 토요일 저녁') && only.includes('## [지금] 저녁');
 })(), true);
 /* 윤이 양옆에서 9px씩 모자라 창틀 위에 짧은 막대 하나가 얹힌 꼴이었다 */
 eq('제목줄의 윤이 양옆 끝까지 간다',

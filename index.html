@@ -1268,6 +1268,9 @@ const StarGlyph=({color="#fff"})=><span style={{fontSize:11,color,textShadow:"1p
    서버에서 재면 안 된다. 워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때다. */
 const timeWord=now=>{const h=(now||new Date()).getHours();
   return h<2?"밤":h<6?"새벽":h<11?"아침":h<17?"낮":h<21?"저녁":"밤"};
+/* 요일은 때보다 세다. 주말이면 학교가 통째로 없어지고, 그러면 이 셋을
+   묶고 있던 건물이 사라진다 — 만나려면 학교 밖으로 나가야 한다 */
+const dayWord=now=>"일월화수목금토"[(now||new Date()).getDay()]+"요일";
 /* ── 접속 상태 ──
    시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다.
    재언은 근무 시간에 보건실에 있고, 민현은 학교에 매여 있다. */
@@ -1339,12 +1342,12 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
    bg가 없으면 배경 없이 열린다 — 사진이 아직 없는 자리도 막지는 않는다. */
 const PLACES=[
-  {name:"교실",     hours:[8,22], bg:"place-class.webp",    icon:"class",   need:[],                     who:["minhyun"], own:"minhyun", item:"note",
+  {name:"교실",     hours:[8,22], wend:false, bg:"place-class.webp",    icon:"class",   need:[],                     who:["minhyun"], own:"minhyun", item:"note",
    note:"네 자리는 창가 셋째 줄."},
-  {name:"보건실",   hours:[8,17], bg:"place-nurse.webp",    icon:"nurse",   need:[],                     who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
+  {name:"보건실",   hours:[8,17], wend:false, bg:"place-nurse.webp",    icon:"nurse",   need:[],                     who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
    note:"커튼 안쪽 침대 두 개."},
   /* 옥상은 둘 다 만나본 뒤에 열린다 — 학교에서 유일하게 둘 다 오는 자리라서 */
-  {name:"옥상",     hours:[8,22], bg:"place-rooftop.webp",  icon:"rooftop", need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
+  {name:"옥상",     hours:[8,22], wend:false, bg:"place-rooftop.webp",  icon:"rooftop", need:["교실","보건실"],      who:["jaeeon","minhyun"], item:"can",
    note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
   /* 여기서 갈라진다. 학교 밖 첫 자리 — 민현 쪽과 재언 쪽 */
   {name:"편의점",   bg:"place-conv.webp",     icon:"conv",    need:["옥상"],               who:["minhyun"],          item:"haribo",
@@ -1356,7 +1359,7 @@ const PLACES=[
   {name:"빨래방",   bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],             who:["jaeeon"],           item:"coin",
    note:"건조기 도는 사십 분."},
   /* 마지막. 양쪽을 다 걸어봐야 열린다 — 한쪽만 파서 남의 집에 갈 수는 없다 */
-  {name:"집",       hours:[17,2], bg:"place-home.webp",     icon:"home",    need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
+  {name:"집",       hours:[17,2], wend:[11,2], bg:"place-home.webp",     icon:"home",    need:["빨래방","레코드샵"],  who:["jaeeon"],           item:"key",
    note:"현관에 우산이 두 개."},
 ];
 const PLACE_BG={};PLACES.forEach(p=>{if(p.bg)PLACE_BG[p.name]=p.bg});
@@ -1432,9 +1435,26 @@ const placeOpen=(p,been)=>(p.need||[]).every(n=>been.includes(n));
    시계는 presence·timeWord와 같은 것을 본다. 방 목록에 「자는 중」이라고 떠
    있는데 그 사람 집에 갈 수 있으면 그게 제일 이상하다. */
 const placeHours=(p,now)=>{
-  if(!p.hours)return true;
-  const h=(now||new Date()).getHours(),[a,b]=p.hours;
+  const d=now||new Date(), wend=d.getDay()===0||d.getDay()===6;
+  /* 주말엔 학교가 없다. 재언은 출근을 안 하고 민현은 야자가 없다 —
+     교실·보건실·옥상이 통째로 닫힌다(wend:false). 그래서 주말은 학교 밖에서
+     일부러 만나야만 하는 날이 된다. 집은 낮에도 사람이 있다(wend:[11,2]).
+     wend가 없는 데는 평일과 같다 — 도서관·레코드샵·편의점·빨래방. */
+  const w=wend&&("wend" in p)?p.wend:p.hours;
+  if(w===false)return false;
+  if(!w)return true;
+  const h=d.getHours(),[a,b]=w;
   return a<b ? (h>=a&&h<b) : (h>=a||h<b);
+};
+/* 왜 지금은 못 가는지 한 줄. 주말의 학교는 시간이 아니라 날이 문제라
+   시각을 적어주면 거짓말이 된다 — 여덟 시가 돼도 안 열린다 */
+const placeWhen=(p,now)=>{
+  const d=now||new Date(), wend=d.getDay()===0||d.getDay()===6;
+  const w=wend&&("wend" in p)?p.wend:p.hours;
+  if(w===false)return "weekdays only";
+  if(!w)return "";
+  const pad=n=>String(n).padStart(2,"0");
+  return `open ${pad(w[0])}:00 – ${pad(w[1])}:00`;
 };
 /* 아직 못 간 자리에 뭐가 남았는지. 잠긴 칸에 그대로 적어준다 */
 const placeNeed=(p,been)=>(p.need||[]).filter(n=>!been.includes(n));
@@ -2777,6 +2797,7 @@ function App(){
     if(!payload.counts)payload.counts=roomCounts();
     if(payload.days==null)payload.days=daysSince(storeRef.current);
     if(payload.now==null)payload.now=timeWord();
+    if(payload.day==null)payload.day=dayWord();
     /* 이 방의 요약. 원문 창 밖으로 밀려난 얘기가 여기 들어 있다.
        호출부마다 붙이지 않고 여기서 한 번에 얹는다 — 한 군데만 빠뜨려도
        그 경로에서만 기억을 잃는데, 그건 눈으로 찾기 어렵다. */
@@ -3152,7 +3173,7 @@ function App(){
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
             {shut?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
           <div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>
-            {shut?`open ${String(p.hours[0]).padStart(2,"0")}:00 – ${String(p.hours[1]).padStart(2,"0")}:00`:""}</div>
+            {shut?placeWhen(p):""}</div>
           <div className="dlgbtns">
             {shut
               ?<button className="bevel" onClick={()=>answerAsk(false)}>알겠어요</button>
