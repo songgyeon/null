@@ -282,23 +282,37 @@ const OPENINGS=[
   /* 아침. 개학 전에 둘이 처음 마주친 자리다 — 다시 그 자리에서 시작한다 */
   {from:6,  place:"후문 골목",   room:"minhyun", bg:"minhyun-alley.webp",
    note:"후문 골목으로 들어섰다."},
-  /* 낮. 제 발로 간 게 아니라 손을 베여서 내려온 것이다.
-     주말엔 학교가 통째로 닫힌다. 첫날이 주말일 수는 없지만 앱을 까는 날은
-     주말일 수 있다 — 그날은 학교 밖에서 만난다. 낮은 재언이라는 것만 지킨다 */
-  {from:11, place:"보건실",     room:"jaeeon",  note:"손을 베여 보건실에 내려왔다.",
-   wend:{place:"도서관", note:"도서관 삼 층에 올라왔다."}},
+  /* 낮. 제 발로 간 게 아니라 손을 베여서 내려온 것이다 */
+  {from:11, place:"보건실",     room:"jaeeon",  note:"손을 베여 보건실에 내려왔다."},
   /* 저녁. 퇴근길에 붙잡힌다 */
   {from:17, place:"버스정류장",  room:"minhyun", bg:"minhyun-busstop.webp",
    note:"퇴근길 버스정류장에 섰다."},
   /* 밤. 동전이 없다 */
   {from:21, place:"빨래방",     room:"jaeeon",  note:"빨래방에 왔는데 동전이 없다."},
 ];
+/* 주말엔 정해진 자리가 없다.
+   평일은 시간표가 사람을 어디 있게 한다 — 여덟 시에 출근하고 네 시에 수업이
+   끝나니까 그 시각엔 거기 있다. 주말은 그게 없어서 아무 데나 있을 수 있다.
+   그래서 뽑는다. 그 시각에 열려 있는 자리 중에서 하나.
+   학교 안 넷은 애초에 안 열린다(wend:false). 집은 뺐다 — 처음 만나는 날에
+   남의 집에 가 있을 수는 없다. */
+const WEND_OPEN=[
+  {place:"편의점",    room:"minhyun", note:"라면을 먹으러 편의점에 들렀다."},
+  {place:"도서관",    room:"jaeeon",  note:"도서관 삼 층에 올라왔다."},
+  {place:"레코드샵",  room:"minhyun", note:"레코드샵 중고반 상자를 뒤졌다."},
+  {place:"빨래방",    room:"jaeeon",  note:"빨래방에 왔는데 동전이 없다."},
+  {place:"후문 골목",  room:"minhyun", bg:"minhyun-alley.webp",   note:"후문 골목으로 들어섰다."},
+  {place:"버스정류장", room:"minhyun", bg:"minhyun-busstop.webp", note:"버스를 기다렸다."},
+];
 const openingFor=now=>{
   const d=now||new Date(), h=d.getHours();
+  if(isWend(d)){
+    /* 지도에 없는 자리(골목·정류장)는 여는 시각이 없다. 늘 후보다 */
+    const open=WEND_OPEN.filter(o=>{const p=PLACE_BY[o.place];return !p||placeHours(p,d)});
+    if(open.length)return open[Math.floor(Math.random()*open.length)];
+  }
   /* 21시부터 다음날 2시까지가 밤이다. 자정을 넘어가는 띠라 표에서 못 찾는다 */
-  const o=OPENINGS.slice().reverse().find(x=>h>=x.from)||OPENINGS[OPENINGS.length-1];
-  /* 주말엔 닫히는 자리가 있다. 갈아탈 자리가 적힌 띠만 갈아탄다 */
-  return (isWend(d)&&o.wend)?{...o,...o.wend}:o;
+  return OPENINGS.slice().reverse().find(x=>h>=x.from)||OPENINGS[OPENINGS.length-1];
 };
 
 /* ── 접속 상태 ──

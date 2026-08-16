@@ -211,6 +211,11 @@ section('웹·앱 대조 — 클라이언트 둘이 같은 세계를 봐야 한�
 /* 앱은 이제 한 파일이 아니다 — index.html은 뼈대만 들고 있고 살은 넷으로 갈렸다.
    시험은 「앱 전체에 이 문장이 있나」를 묻지 어느 파일에 있는지는 안 묻는다.
    그래서 여기서 다시 한 덩어리로 붙인다. 파일이 또 갈라져도 여기만 고치면 된다. */
+const PLACE_BY_WEB = p => {
+  const m = new RegExp(`\\{name:"${p}",[\\s\\S]{0,400}?\\n`).exec(
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8'));
+  return m ? m[0] : null;
+};
 const APP_FILES = ['index.html', 'null.css', 'app-data.js', 'app-ui.js', 'app.js'];
 const web = APP_FILES.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n');
 const app = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
@@ -546,15 +551,30 @@ eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter
   /* 한 마디도 오간 적이 없을 때만 연다. 표식을 안 쓰므로 리스타트하면 저절로 다시 열린다 */
   eq('첫 자리는 아무 방도 비었을 때만 연다',
     /\["jaeeon","minhyun","group","health"\]\.some\(r=>\(storeRef\.current\.msgs\[r\]\|\|\[\]\)\.length\)\)return;/.test(web), true);
-  /* 주말엔 학교가 통째로 닫힌다. 첫날이 주말일 수는 없지만 앱을 까는 날은
-     주말일 수 있다 — 그날 낮에 켜면 보건실 문이 잠겨 있다.
-     낮은 재언이라는 것만 지키고 자리를 학교 밖으로 옮긴다 */
-  eq('주말 낮에는 학교 밖에서 만난다',
-    /wend:\{place:"도서관", note:"도서관 삼 층에 올라왔다\."\}/.test(web), true);
-  eq('갈아탈 자리가 적힌 띠만 갈아탄다',
-    /return \(isWend\(d\)&&o\.wend\)\?\{\.\.\.o,\.\.\.o\.wend\}:o;/.test(web), true);
-  /* 갈아탄 자리도 그 사람 자리여야 한다 — 도서관은 재언이다 */
-  eq('갈아탄 자리도 재언 자리다', /name:"도서관",[^}]*who:\["jaeeon"\]/.test(web), true);
+  /* ── 주말엔 정해진 자리가 없다 ──
+     평일은 시간표가 사람을 어디 있게 한다. 주말은 그게 없어서 아무 데나
+     있을 수 있고, 학교 넷은 통째로 닫힌다. 그래서 뽑는다 */
+  {
+    const W = [...web.slice(web.indexOf('const WEND_OPEN=['), web.indexOf('const openingFor='))
+      .matchAll(/\{place:"([^"]+)",\s*room:"(\w+)"/g)].map(m => [m[1], m[2]]);
+    eq('주말 후보가 여섯이다', W.length, 6);
+    /* 학교 안 넷은 주말에 안 열린다(wend:false). 후보에 있으면 잠긴 문으로 보낸다 */
+    eq('주말 후보에 학교가 없다',
+      W.map(w => w[0]).filter(p => ['교실', '보건실', '옥상', '체육관', '학교'].includes(p)), []);
+    /* 집은 뺐다 — 처음 만나는 날에 남의 집에 가 있을 수는 없다 */
+    eq('주말 후보에 집이 없다', W.map(w => w[0]).includes('집'), false);
+    /* 자리 임자와 만나는 사람이 어긋나면, 재언 자리에서 민현을 기다리게 된다 */
+    eq('주말 후보도 자리 임자를 따른다',
+      W.filter(([p, r]) => PLACE_BY_WEB(p) && !new RegExp(`who:\\[[^\\]]*"${r}"`).test(PLACE_BY_WEB(p))), []);
+    /* 그 시각에 닫힌 자리는 뽑지 않는다. 새벽 세 시의 레코드샵 같은 것 */
+    eq('열려 있는 자리에서만 뽑는다',
+      /const open=WEND_OPEN\.filter\(o=>\{const p=PLACE_BY\[o\.place\];return !p\|\|placeHours\(p,d\)\}\);/.test(web), true);
+    /* 지도에 없는 자리는 여는 시각이 없다. 늘 후보여야 한다 */
+    eq('지도에 없는 자리도 주말 후보다',
+      ['후문 골목', '버스정류장'].filter(p => !W.map(w => w[0]).includes(p)), []);
+    /* 뽑을 게 하나도 없으면 평일 표로 떨어진다 — 빈 화면보다는 낫다 */
+    eq('뽑을 게 없으면 평일 표로 떨어진다', /if\(open\.length\)return open\[/.test(web), true);
+  }
   /* 밤에 처음 켜면 빨래방에서 재언을 만난다. 그 자리에 그의 사진이 없었다 —
      빈 방 그대로 있었다. 사진은 있었는데 표에 안 걸려 있었을 뿐이다 */
   eq('빨래방에도 재언이 깔린다',
