@@ -1036,10 +1036,12 @@ We Are Lady Parts, Heartstopper, SKAM, Derry Girls, Reservation Dogs, My Mad Fat
 /* self — 자기가 찍어서 보낼 수 있는 사진. 이것만 채팅으로 나간다.
    나머지는 전부 남이 몇 미터 떨어져서 찍은 그림이라 본인이 보낼 수가 없다 —
    그건 자리(scene)에 깔리는 배경이 하는 일이다.
-   지금은 셋뿐이다. 그래서 사진 한 장이 오면 그게 사건이 된다. */
+   재언은 자기 모습을 안 보낸다. 대신 눈앞의 것은 찍을 수 있다 — 차린 밥상,
+   장바구니, 챙겨 든 약, 거즈에 붓는 소독약. 걱정을 말로 안 하는 사람이라
+   그게 이 사람의 문장이다. 민현은 셀카를 찍는다. 스무 살이라서. */
 const PHOTOS = {
   "jaeeon-cook": {
-    char: "jaeeon",
+    char: "jaeeon", self: true,
     when: "집 부엌에서 밥/국을 차렸을 때. 그릇이 두 개다. 설명은 안 붙인다.",
   },
   "jaeeon-driveseat": {
@@ -1055,11 +1057,11 @@ const PHOTOS = {
     when: "보건실에서 손을 씻고 소매를 걷는 참. 치료 직전이거나 직후다. 말수가 제일 적을 때.",
   },
   "jaeeon-care": {
-    char: "jaeeon",
+    char: "jaeeon", self: true,
     when: "누가 아프다고 할 때. 약과 물, 담요를 챙겨 든 참. 걱정을 말로 안 하고 이걸 보낸다.",
   },
   "jaeeon-treat": {
-    char: "jaeeon",
+    char: "jaeeon", self: true,
     when: "다쳤다는 말을 들었을 때. 소독약을 거즈에 붓는 중. '와.' 또는 '또 어디.'와 함께.",
   },
   "jaeeon-work": {
@@ -1089,7 +1091,7 @@ const PHOTOS = {
     when: "퇴근하고 난 저녁. 하루가 끝났을 때, 늦은 시간의 대화에.",
   },
   "jaeeon-market": {
-    char: "jaeeon",
+    char: "jaeeon", self: true,
     when: "장 보는 중. 뭐 먹을지, 반찬, 마트 얘기에. 2인분 살 것이 담겨 있다.",
   },
   "jaeeon-laundry": {

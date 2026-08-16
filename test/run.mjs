@@ -2157,7 +2157,16 @@ eq('LIVE는 카드 안 오른쪽 아래에 점으로',
     const t = wk.slice(wk.indexOf('const PHOTOS = {'));
     const body = t.slice(0, t.indexOf('\n};'));
     return [...body.matchAll(/"([\w-]+)":\s*\{\s*char:\s*"\w+", self: true,/g)].map(m => m[1]).sort();
-  })(), ['minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
+  })(), ['jaeeon-care', 'jaeeon-cook', 'jaeeon-market', 'jaeeon-treat',
+         'minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
+  /* 재언은 자기 모습을 안 보낸다. 눈앞의 것만 찍는다 — 걱정을 말로 안 하는
+     사람이라 그게 이 사람의 문장이다. 민현은 셀카를 찍는다. 스무 살이라서 */
+  eq('재언이 보내는 건 자기 모습이 아니다', (() => {
+    const t = wk.slice(wk.indexOf('const PHOTOS = {'));
+    const body = t.slice(0, t.indexOf('\n};'));
+    return [...body.matchAll(/"jaeeon-([\w]+)":\s*\{\s*char:\s*"jaeeon", self: true,/g)]
+      .map(m => m[1]).sort();
+  })(), ['care', 'cook', 'market', 'treat']);
 }
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
