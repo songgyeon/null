@@ -1681,7 +1681,7 @@ eq('장소 아이콘이 도로 위에서 잘리지 않는다',
   && /\.roadicon\{position:absolute;z-index:6;width:29%/.test(web), true);
 eq('하트와 장소 아이콘이 모바일에서도 읽을 크기다',
   /\.roadpin\{position:absolute;z-index:8;width:9\.6%;transform:translate\(-50%,-100%\)/.test(web)
-  && /\.roadfinishpanel\{position:absolute;left:[\d.]+%;top:\.8%;z-index:5;width:17%;height:18\.8%/.test(web), true);
+  && /\.roadfinishpanel\{position:absolute;left:[\d.]+%;top:[\d.]+%;z-index:5;width:17%;height:18\.8%/.test(web), true);
 /* 빛나는 창은 문 뒤에 선다 — 문이 옮겨지면 같이 옮겨야 둘이 안 갈라진다 */
 eq('빛나는 창이 문 뒤에 붙어 있다', (() => {
   const home = +(web.match(/"집":\s*\{x:([\d.]+)/) || [])[1];
@@ -1717,7 +1717,16 @@ eq('지도로 부르던 코드가 남아 있지 않다',
 /* 알약을 두르면 지도가 아니라 지도를 담은 창이 된다 */
 eq('제목에 알약이 없다', /\.roadtitle\{[^}]*border-radius:999px/.test(web), false);
 /* 구석에 떠 있으면 지도의 일부가 아니라 화면 위에 얹힌 버튼처럼 보인다 */
-eq('START가 길 위에 선다', /\.roadstart\{position:absolute;left:46%/.test(web), true);
+/* 길이 시작하는 자리(아래 끝 x51)에 딱 붙어야 한다 — 떨어지면 길과 남남이다 */
+eq('START가 길 시작에 붙는다', /\.roadstart\{position:absolute;left:50%;bottom:\.6%/.test(web), true);
+/* 문은 길이 끝나는 자리(위 끝 y11 · x64.6)를 받침이 덮어야 한다 */
+eq('문이 길 끝에 붙는다', /"집":\s*\{x:72, y:10\}/.test(web), true);
+/* 사각형으로 재면 아이콘이 29%라 표지판이 전부 겹친다고 나온다.
+   실제 그림의 안 비치는 픽셀끼리 겹쳐보고 파묻히는 것만 골랐다 */
+eq('파묻히는 표지판만 뺀다', /const PIN_BURIED=\["옥상","도서관"\]/.test(web), true);
+eq('배경만 연보라로 띄운다',
+  /\.roadmap::after\{[^}]*rgba\(242,236,255,\.36\)/.test(web), true);
+eq('지도 제목이 하얀색이다', /\.roadtitle\{[^}]*color:#fff/.test(web), true);
 eq('D-0은 없앴다', /roadend|JOURNEY END/.test(web), false);
 
 eq('하트가 장소 아이콘보다 위에 있다',
