@@ -1681,7 +1681,13 @@ eq('장소 아이콘이 도로 위에서 잘리지 않는다',
   && /\.roadicon\{position:absolute;z-index:6;width:29%/.test(web), true);
 eq('하트와 장소 아이콘이 모바일에서도 읽을 크기다',
   /\.roadpin\{position:absolute;z-index:8;width:9\.6%;transform:translate\(-50%,-100%\)/.test(web)
-  && /\.roadfinishpanel\{position:absolute;left:72%;top:\.8%;z-index:5;width:17%;height:18\.8%/.test(web), true);
+  && /\.roadfinishpanel\{position:absolute;left:[\d.]+%;top:\.8%;z-index:5;width:17%;height:18\.8%/.test(web), true);
+/* 빛나는 창은 문 뒤에 선다 — 문이 옮겨지면 같이 옮겨야 둘이 안 갈라진다 */
+eq('빛나는 창이 문 뒤에 붙어 있다', (() => {
+  const home = +(web.match(/"집":\s*\{x:([\d.]+)/) || [])[1];
+  const pane = +(web.match(/\.roadfinishpanel\{position:absolute;left:([\d.]+)%/) || [])[1];
+  return Math.abs(home - pane) <= 1;
+})(), true);
 /* 길 위에 얹으면 도로가 흔들리는 폭만큼밖에 못 벌어진다. 건물은 길 밖에 세운다 */
 {
   /* 표가 둘이다 — 건물 자리(ROAD_ICON_POS)와 길 위 핀 자리(ROAD_PIN_POS).
