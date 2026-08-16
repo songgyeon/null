@@ -625,6 +625,7 @@ function Cart({gifts,hearts,onSend,onClose}){
   const back=()=>{setPick(null);setTo(null);setMemo("")};
   const given=c=>(gifts[c]||[]).includes(pick&&pick.key);
   const poor=pick&&hearts<pick.cost;
+  const today=giftedToday();   // 오늘 몫은 이미 나갔다
 
   return <div className="cartscreen"><div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
@@ -660,20 +661,24 @@ function Cart({gifts,hearts,onSend,onClose}){
         </div>
       </div>
       <div className="csect">WHO GETS THIS</div>
+      {/* 하루에 하나. 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지
+          적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을 적어주는 것과 같다 */}
+      {today&&<div className="cshut">one a day ♡ come back tomorrow</div>}
       {["jaeeon","minhyun"].map(c=>{
-        const done=given(c), sel=to===c;
+        const done=given(c), shut=done||today, sel=to===c;
         return <div key={c}>
-          <button className={"cto"+(sel?" sel":"")} disabled={done}
-            onClick={()=>{ if(done)return;
+          <button className={"cto"+(sel?" sel":"")} disabled={shut}
+            onClick={()=>{ if(shut)return;
               if(!sel){setTo(c);return}
               if(poor)return;
               onSend(c,pick,memo); onClose(); }}>
             <span className="cradio"/>
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
-            <span className={done?"csent":"csend"}>{done?"SENT ♡":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
+            <span className={shut?"csent":"csend"}>
+              {done?"SENT ♡":today?"TOMORROW ♡":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
           </button>
-          {sel&&!done&&<div className="chint">{GIFT_HINT[c]}</div>}
+          {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
       })}
       <div className="csect">A NOTE (optional)</div>

@@ -304,6 +304,10 @@ input.csearch::placeholder{color:#b9addc}
 .csent{flex:none;padding:8px 16px;font-size:10.5px;letter-spacing:.12em;color:#a99bd0;border-radius:999px;
  background:#f4f0fc;border:1.5px solid #fff;box-shadow:0 0 0 1px #e4dbf8}
 .chint{margin:5px 0 0 64px;font-size:9px;color:#b4a7d6}
+/* 오늘 몫은 나갔다는 한 줄. 자리가 닫혔을 때 여는 시각을 적어주는 줄과
+   같은 자리·같은 톤이다 — 막는 것과 왜 막는지는 같이 와야 한다 */
+.cshut{margin:0 0 9px;padding:7px 10px;text-align:center;font-size:9.5px;letter-spacing:.14em;
+ color:#a99bd0;border-radius:8px;background:#f4f0fc;box-shadow:0 0 0 1px #e4dbf8}
 /* 누런 종이는 이 창에서 혼자 다른 시대에서 온 물건이었다. 흰 종이에 줄만 */
 textarea.cmemo{padding:13px 14px;min-height:74px;font-family:inherit;font-size:11px;line-height:26px;color:#8a4f74;
  resize:none;outline:none;border:1px solid #e6ddf7;border-radius:8px;
