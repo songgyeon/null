@@ -1584,15 +1584,33 @@ eq('배경 파일이 전부 저장소에 있다',
   (web.match(/"(place-[\w-]+\.webp)"/g) || []).map(s => s.slice(1, -1))
     .filter(f => !exists(f)), []);
 eq('자리에 가면 말풍선을 걷는다',
-  /const bg=scene&&PLACE_BG\[scene\.place\]/.test(web) && /className="screen scenewrap"/.test(web), true);
+  /const bg=scene&&\(scene\.shot\|\|PLACE_BG\[scene\.place\]\)/.test(web)
+  && /className="screen scenewrap"/.test(web), true);
 /* 사진이 없는 자리(교실)도 열려야 한다 — 배경만 없고 자리는 자리다 */
 eq('배경이 없어도 자리는 열린다', /if\(scene\)\{/.test(web), true);
 /* 훅이 자리 분기보다 아래 있으면 자리에 들어가고 나올 때 훅 개수가 달라져 리액트가 터진다 */
 eq('스크롤 훅이 자리 분기보다 위에 있다',
-  web.indexOf('el.scrollTop=el.scrollHeight') < web.indexOf('const bg=scene&&PLACE_BG'), true);
-/* 그라데이션은 안 깐다 — 장소 사진 아래쪽 밝기가 17~32라 흰 글씨가 그냥 읽힌다 */
-eq('그라데이션 대신 그림자만 건다',
-  /\.scenewrap \.stext\{[^}]*text-shadow/.test(web), true);
+  web.indexOf('el.scrollTop=el.scrollHeight') < web.indexOf('const bg=scene&&(scene.shot'), true);
+/* 장소 사진만 쓸 때는 아래가 우연히 어두워서 그림자만으로 버텼다. 이제 인물
+   사진이 깔리는데 그건 보장이 없다 — minhyun-window는 아래가 흰 프린트다 */
+eq('아래쪽에 어둠막을 깐다',
+  /\.scenewrap::before\{content:"";position:absolute;left:0;right:0;bottom:0;height:58%/.test(web)
+  && /\.scenewrap \.stext\{[^}]*text-shadow/.test(web), true);
+/* 들어간 순간엔 빈 방이고 그 사람이 입을 열면 그 사람이 화면이 된다.
+   짝은 지어내지 않았다 — 사진 설명이 이미 어디인지 말하고 있다 */
+eq('첫 답에 배경이 그 사람으로 바뀐다',
+  /if\(sc&&sc\.room===room&&!sc\.shot\)\{/.test(web)
+  && /const shot=sceneShot\(sc\.place,room\)/.test(web), true);
+eq('자리마다 그 사람 사진이 짝지어져 있다', (() => {
+  const t = web.slice(web.indexOf('const SCENE_SHOT={'));
+  const body = t.slice(0, t.indexOf('\n};'));
+  const keys = [...body.matchAll(/"([a-z]+-[a-z]+)"/g)].map(m => m[1]);
+  const files = [...web.matchAll(/"((?:jaeeon|minhyun)-[a-z]+)\.webp"/g)].map(m => m[1]);
+  return keys.filter(k => !files.includes(k));           // 없는 사진을 가리키면 빈 방이 된다
+})(), []);
+/* 교실만 낮/저녁이 갈린다 — desk는 짝이 찍어준 것(수업 중), nap은 자기가 찍은 것(빈 교실) */
+eq('교실은 낮과 저녁이 다르다',
+  /"교실":\s*\{minhyun:\{day:\["minhyun-window","minhyun-desk"\], eve:\["minhyun-nap"\]\}/.test(web), true);
 eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) && /saveScene\(sc\)/.test(web), true);
 /* ── 자리는 방의 연장이 아니라 장면이다 ──
    방의 마지막 여섯 줄을 그냥 깔았더니 아까 문자로 주고받던 말이 교실 배경
@@ -2120,6 +2138,27 @@ eq('peek이 두 사람 방 위로 갔다',
 eq('LIVE는 카드 안 오른쪽 아래에 점으로',
   /\{watch&&<span className="livedot">LIVE <i\/><\/span>\}/.test(web)
   && /\.livedot\{position:absolute;right:12px;bottom:9px/.test(web), true);
+
+/* ── 사진은 배경이 하는 일이다 ──
+   자리에 같이 있는데 사진을 문자로 받는 건 이상하고, 자리 밖에서 자기 모습을
+   보내는 것도 남이 찍어줘야 나오는 그림이다. 자기가 찍을 수 있는 것만 남긴다 */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  eq('자리에서는 사진을 안 보낸다',
+    /여기서는 사진을 안 보낸다\("photo"를 쓰지 않는다\)/.test(wk), true);
+  /* place는 매 턴 달라진다 — 시스템(캐시)에 섞으면 자리에 드나들 때마다 다시 쓰인다 */
+  eq('그 규칙은 가변부에 있다',
+    /buildPhotoGuide\(allowedChars\(mode, room\)\)/.test(wk)
+    && !/buildPhotoGuide\([^)]*place/.test(wk), true);
+  eq('보낼 수 있는 사진은 자기가 찍은 것뿐이다',
+    /\.filter\(\(\[, p\]\) => chars\.includes\(p\.char\) && p\.self\)/.test(wk)
+    && /\*\*자기가 찍어서 보낼 수 있는 것만 보낸다\.\*\*/.test(wk), true);
+  eq('self는 설명이 그렇다고 말하는 것만', (() => {
+    const t = wk.slice(wk.indexOf('const PHOTOS = {'));
+    const body = t.slice(0, t.indexOf('\n};'));
+    return [...body.matchAll(/"([\w-]+)":\s*\{\s*char:\s*"\w+", self: true,/g)].map(m => m[1]).sort();
+  })(), ['minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
+}
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);

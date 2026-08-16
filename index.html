@@ -798,7 +798,13 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    사진을 깔고 말풍선을 걷는다. 그라데이션은 안 깐다 — 장소 사진들이 아래쪽
    밝기 17~32라 흰 글씨가 그냥 읽힌다. 그림자는 나중에 밝은 사진이 들어와도
    안 깨지라고 걸어두는 보험이다. */
-.scenewrap{display:flex;flex-direction:column;background-size:cover;background-position:center;background-color:#14121c}
+.scenewrap{position:relative;display:flex;flex-direction:column;background-size:cover;background-position:center;background-color:#14121c}
+/* 아래 절반에 어둠막. 지금까지는 자리 사진들이 우연히 아래가 어두워서 버텼는데,
+   인물 사진은 그 보장이 없다 — minhyun-window는 아래가 흰 프린트다.
+   말풍선(z 1)보다 뒤에 깔린다 */
+.scenewrap::before{content:"";position:absolute;left:0;right:0;bottom:0;height:58%;z-index:0;pointer-events:none;
+ background:linear-gradient(180deg,rgba(14,11,26,0) 0%,rgba(14,11,26,.34) 38%,rgba(14,11,26,.72) 100%)}
+.scenewrap .scenebody,.scenewrap .tb{position:relative;z-index:1}
 .scenewrap .scenebody{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;padding:0 16px 12px}
 .scenewrap .scenelines{display:flex;flex-direction:column;gap:9px}
 .scenewrap .sline{max-width:88%}
@@ -1570,6 +1576,33 @@ const placeHours=(p,now)=>{
   const h=d.getHours(),[a,b]=w;
   return a<b ? (h>=a&&h<b) : (h>=a||h<b);
 };
+/* ── 자리에 깔리는 그 사람 사진 ──
+   들어간 순간엔 빈 방이고, 그 사람이 입을 열면 그 사람이 화면이 된다.
+   눈앞에 있는 사람 사진을 문자로 보내는 건 이상하니까 배경이 그 일을 한다.
+   짝은 지어내지 않았다 — 사진 설명이 이미 어디인지 말하고 있어서 그대로 옮겼다.
+   낮/저녁이 갈리는 건 교실뿐이다. desk는 짝이 찍어준 것(수업 중이라 제 손이
+   묶여 있다)이고 nap은 자기가 찍은 것(빈 교실이라 찍을 수 있다)이다. */
+const SCENE_SHOT={
+  "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]},
+               jaeeon:["jaeeon-classroom"]},
+  "보건실":   {jaeeon:["jaeeon-work","jaeeon-sink","jaeeon-cabinet","jaeeon-bottle","jaeeon-chart","jaeeon-mug"],
+               minhyun:["minhyun-candy"]},
+  "옥상":     {jaeeon:["jaeeon-rooftop"], minhyun:["minhyun-vending"]},
+  "편의점":   {minhyun:["minhyun-conv","minhyun-ramen"]},
+  "도서관":   {jaeeon:["jaeeon-shelf"]},
+  "레코드샵": {minhyun:["minhyun-mirror"]},
+  "빨래방":   {minhyun:["minhyun-laundry"]},
+  "체육관":   {minhyun:["minhyun-gym"]},
+  "집":       {jaeeon:["jaeeon-cook","jaeeon-evening","jaeeon-curtain","jaeeon-back"]},
+};
+/* 그 자리·그 사람·그 시간에 맞는 사진 하나. 없으면 빈 방 그대로 */
+const sceneShot=(place,who,now)=>{
+  const t=(SCENE_SHOT[place]||{})[who]; if(!t)return null;
+  const h=(now||new Date()).getHours();
+  const list=Array.isArray(t)?t:(h>=17?t.eve:t.day)||t.day||[];
+  return list.length?list[Math.floor(Math.random()*list.length)]+".webp":null;
+};
+
 /* 왜 지금은 못 가는지 한 줄. 주말의 학교는 시간이 아니라 날이 문제라
    시각을 적어주면 거짓말이 된다 — 여덟 시가 돼도 안 열린다 */
 const placeWhen=(p,now)=>{
@@ -2619,7 +2652,9 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
   /* ── 자리에 가 있을 때 ──
      말풍선을 걷고 사진 위에 말만 얹는다. 지나간 말은 흘려보낸다 —
      돌아가면 방에 그대로 남아 있으니 사라지는 게 아니다. */
-  const bg=scene&&PLACE_BG[scene.place];
+  /* 들어간 순간엔 빈 방이다. 그 사람이 입을 열면 그 사람이 화면이 된다 —
+     몇 턴 세지 않고 첫 답을 기준으로 한다. 세면 임의고 첫마디면 이유가 있다. */
+  const bg=scene&&(scene.shot||PLACE_BG[scene.place]);
   if(scene){
     /* 이 자리에 온 뒤에 오간 말만 보여준다.
        방의 마지막 여섯 줄을 그냥 깔았더니, 아까 문자로 주고받던 말이 교실
@@ -2786,6 +2821,15 @@ function App(){
       if(text||photo)queueRef.current.push({room,sender:m.sender||room,text,photo});
     });
     if(queueRef.current.length===before){ setBusy(b=>({...b,[room]:false})); return; }
+    /* 그 자리에서 그 사람이 처음 입을 열면 화면이 그 사람으로 바뀐다.
+       한 장면에 한 번만 — 열 번 주고받는 동안 얼굴이 계속 바뀌면 어지럽다 */
+    const sc=sceneRef.current;
+    if(sc&&sc.room===room&&!sc.shot){
+      const shot=sceneShot(sc.place,room);
+      if(shot){
+        const next={...sc,shot}; setScene(next); saveScene(next);
+      }
+    }
     pump();
   };
 
