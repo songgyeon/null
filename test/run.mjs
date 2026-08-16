@@ -753,6 +753,15 @@ eq('첫날은 첫날이라고 적는다', (() => {
   const t = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 3 }, null, null, null, 0);
   return t.includes('오늘 처음 만났다') && !t.includes('0일째');
 })(), true);
+/* 단계표를 걷어내니 「며칠째면 어떤 상태인가」를 말하는 문장이 없었다.
+   표를 다시 만드는 대신 원칙 한 줄을 세계관에 둔다 — 관계는 이미 있는 게
+   아니라 쌓이는 것이라고. 이건 코드가 지어낸 말이 아니라 작가의 문장이다 */
+eq('관계가 쌓이는 것이라고 못 박는다', (() => {
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  const w = wk.slice(wk.indexOf('const WORLD = `'), wk.indexOf('const JAEEON'));
+  return /유저와 보내는 하루가 쌓일 때마다 감정이 달라진다\. 이미 가까운 사이가 아니다\. 가까워질 수 있는 사이다\./.test(w)
+    && w.indexOf('가까워질 수 있는 사이다') < w.indexOf('이재언과 이민현\n\n이재언은 이민현을') + w.length;
+})(), true);
 eq('첫날 읽는 법을 슬롯에 적어둔다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
   return /「오늘 처음 만났다」고 적혀 있으면 그 앞에 쌓인 것이 하나도 없다는 뜻이다/.test(wk);
