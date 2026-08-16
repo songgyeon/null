@@ -1698,15 +1698,35 @@ const PLACE_ITEMS = {
   "집":       { key: "key",     name: "여벌 열쇠",   how: "고리도 안 달린 것이다." },
   "체육관":   { key: "wrist",   name: "손목 보호대", how: "손목에서 풀어서 준다. 늘어나 있다." },
 };
+/* ── 길 위의 자리 ── 지도에 없다. 골라서 가는 데가 아니라 자리가 끝나고 붙는 데다.
+   유저 집이 정거장이 아닌 것도 같은 이유다 — 갈 곳이 아니라 헤어지는 자리다.
+   건넬 물건이 없다. 데려다주는 것이 이미 그거다. */
+const WAY_PLACES = {
+  "귀갓길": {
+    jaeeon:  "네 차 안이다. {user_name}을 집까지 태워다 주는 길이고, 조수석에 앉아 있다. 밤이다.",
+    minhyun: "같이 버스를 탔다. {user_name}이 내리는 데까지 같이 가는 길이다. 밤이다.",
+  },
+};
 /* 지금 어느 자리에 같이 있나. 프론트가 보낸 이름이 목록에 있어야 인정한다 */
 function placeOf(raw) {
   const p = (raw || "").toString().trim();
-  return PLACE_ITEMS[p] ? p : null;
+  return PLACE_ITEMS[p] || WAY_PLACES[p] ? p : null;
 }
 /* 자리 블록. 문자가 아니라 마주 보고 하는 말이라는 것부터 알려준다 —
    이게 없으면 같은 자리에 앉아서 "지금 어디예요?"라고 묻는다. */
 function buildPlace(place, hasItem, room) {
   if (!place) return "";
+  /* 귀갓길은 방마다 그림이 다르다. 재언은 운전을 하고 있고 민현은 옆에 앉아 있다.
+     그리고 이 자리는 곧 끝난다 — 여기서 새 얘기를 길게 벌이면 내리는 데서 잘린다. */
+  const way = WAY_PLACES[place];
+  if (way) {
+    return `\n## 지금 있는 자리\n${way[room] || ""}\n`
+         + `문자가 아니라 옆에 두고 하는 말이다. 어디냐고 묻지 않는다.\n`
+         + `여기서는 사진을 안 보낸다("photo"를 쓰지 않는다). 눈앞에 있는데 사진을 왜 보내나.\n`
+         + `짧게 주고받는다. 한 번에 한두 마디다. 창밖이 말에 섞인다.\n`
+         + `데려다주는 길이다. 곧 내린다. 새 화제를 길게 벌이지 않는다.\n`
+         + `데려다주는 것을 생색내지 않는다. 왜 데려다주는지도 설명하지 않는다.\n`;
+  }
   const it = PLACE_ITEMS[place];
   const mine = it.own && it.own === room;
   let t = `\n## 지금 있는 자리\n{user_name}과 ${place}에 같이 있다.\n`
@@ -1733,7 +1753,7 @@ function buildPlace(place, hasItem, room) {
 }
 /* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
 function pickGive(raw, place, hasItem) {
-  if (!place || hasItem) return null;
+  if (!place || hasItem || !PLACE_ITEMS[place]) return null;
   const k = (raw || "").toString().trim();
   return k && PLACE_ITEMS[place].key === k ? k : null;
 }
@@ -2519,9 +2539,12 @@ export default {
     /* 지도에서 불러낸 자리. 1:1에서만 의미가 있다 — 단톡이나 관전방에
        마주 앉을 자리는 없다. bag은 이미 받은 것들이라 두 번 안 준다. */
     const place = mode === "chat" ? placeOf(body.place) : null;
-    const hasItem = place
-      ? (Array.isArray(body.bag) ? body.bag : []).includes(PLACE_ITEMS[place].key)
-      : false;
+    /* 귀갓길에는 건넬 것이 없다. 그래서 이미 받은 걸로 친다 — 「언젠가 건넬 것」
+       블록이 아예 안 붙는다 */
+    const hasItem = !place ? false
+      : PLACE_ITEMS[place]
+        ? (Array.isArray(body.bag) ? body.bag : []).includes(PLACE_ITEMS[place].key)
+        : true;
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
 

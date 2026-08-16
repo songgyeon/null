@@ -1584,7 +1584,7 @@ eq('배경 파일이 전부 저장소에 있다',
   (web.match(/"(place-[\w-]+\.webp)"/g) || []).map(s => s.slice(1, -1))
     .filter(f => !exists(f)), []);
 eq('자리에 가면 말풍선을 걷는다',
-  /const bg=scene&&\(scene\.shot\|\|PLACE_BG\[scene\.place\]\)/.test(web)
+  /const bg=scene&&\(scene\.shot\|\|scene\.bg\|\|PLACE_BG\[scene\.place\]\)/.test(web)
   && /className="screen scenewrap"/.test(web), true);
 /* 사진이 없는 자리(교실)도 열려야 한다 — 배경만 없고 자리는 자리다 */
 eq('배경이 없어도 자리는 열린다', /if\(scene\)\{/.test(web), true);
@@ -1618,8 +1618,9 @@ eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) &&
 eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.test(web), true);
 /* 자리로 들어가는 길은 둘이다 — 인물의 초대, 그리고 지도에서 내가 고르는 것.
    어느 쪽이든 들어간 시각을 찍어야 앞의 대화가 배경 위로 안 새어 나온다 */
+/* 셋 — 초대를 받아서, 지도에서 골라서, 그리고 귀갓길로 이어져서 */
 eq('자리에 들어갈 때 시각을 찍는다',
-  (web.match(/since:Date\.now\(\)/g) || []).length, 2);
+  (web.match(/since:Date\.now\(\)/g) || []).length, 3);
 
 /* ── 이름표가 말풍선 안으로 새는 것 ──
    누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을
@@ -1726,7 +1727,44 @@ eq('자리에 없으면 갈 자리는 그대로 나온다',
   true);
 /* 모델이 안 건네주고 끝내는 턴이 있다. 그때마다 가방이 비면 지도를 돌 이유가 없다 */
 eq('자리에서 나올 때 못 받았으면 채워준다',
-  /const leaveScene=\(\)=>\{[\s\S]{0,300}takeItem\(p\.item,sc\.room,sc\.place\)/.test(web), true);
+  /const closeScene=\(\)=>\{[\s\S]{0,300}takeItem\(p\.item,sc\.room,sc\.place\)/.test(web), true);
+
+/* ── 귀갓길 ──
+   유저 집은 지도에 없다. 갈 곳이 아니라 헤어지는 자리라서, 자리가 끝나고
+   붙는 한 다리가 그 일을 한다. 재언은 태워다 주고 민현은 같이 버스를 탄다. */
+{
+  eq('귀갓길은 지도에 없다',
+    /\{name:"귀갓길"/.test(web) || /"귀갓길":\s*\{x:/.test(web), false);
+  eq('귀갓길도 빈 자리로 시작한다',
+    /const WAY_BG=\{jaeeon:"jaeeon-drive\.webp", ?minhyun:"minhyun-bus\.webp"\}/.test(web), true);
+  eq('귀갓길에도 그 사람이 깔린다',
+    /"귀갓길":\s*\{jaeeon:\["jaeeon-driveseat"\], ?minhyun:\["minhyun-busstop","minhyun-neon"\]\}/.test(web), true);
+  /* 지도 자리가 아니라 PLACE_BG에 없다. 자리가 자기 배경을 들고 와야 한다 */
+  eq('지도에 없는 자리는 배경을 들고 온다', /scene\.shot\|\|scene\.bg\|\|PLACE_BG/.test(web), true);
+  /* 낮에 보건실 나오면서 집까지 태워다 주는 건 데려다주는 게 아니라 조퇴다 */
+  eq('밤에만 데려다준다', /const wayOK=\(now\)=>\{const h=\(now\|\|new Date\(\)\)\.getHours\(\);return h>=20\|\|h<5\}/.test(web), true);
+  /* 매번 나올 때마다 물으면 데려다주는 게 아니라 절차가 된다 */
+  eq('하루에 한 번만 묻는다',
+    /loadWay\(\)!==dayKey\(\)/.test(web) && /saveWay\(dayKey\(\)\)/.test(web), true);
+  eq('귀갓길에서 또 데려다주지 않는다', /sc\.place!==WAY&&talkedEnough\(sc\)/.test(web), true);
+  /* 여기서 물러나도 그 자리에 두고 온 건 챙긴다 — 나온 건 나온 거다 */
+  eq('데려다주기를 물어도 자리는 끝난다',
+    /const answerWay=ok=>\{[\s\S]{0,200}closeScene\(\);/.test(web), true);
+  /* ── 워커 쪽 ── */
+  eq('워커가 귀갓길을 자리로 인정한다', placeOf('귀갓길'), '귀갓길');
+  eq('없는 자리는 여전히 버린다', placeOf('노래방'), null);
+  {
+    const j = buildPlace('귀갓길', true, 'jaeeon'), m = buildPlace('귀갓길', true, 'minhyun');
+    eq('귀갓길은 방마다 그림이 다르다',
+      /차 안이다/.test(j) && /버스를 탔다/.test(m), true);
+    eq('귀갓길에서도 사진을 안 보낸다', /"photo"를 쓰지 않는다/.test(j), true);
+    eq('귀갓길은 곧 끝난다고 말해준다', /곧 내린다/.test(j), true);
+    eq('데려다주는 걸로 생색내지 않는다', /생색내지 않는다/.test(j), true);
+    /* 귀갓길에는 건넬 물건이 없다. 「언젠가 건넬 것」이 붙으면 없는 걸 내민다 */
+    eq('귀갓길에는 건넬 것이 없다', /give/.test(buildPlace('귀갓길', false, 'jaeeon')), false);
+    eq('귀갓길에서는 아무것도 못 건넨다', pickGive('key', '귀갓길', false), null);
+  }
+}
 /* 「밴드을(를) 받았다」가 화면에 그대로 찍혔다. 괄호로 둘 다 적는 건
    글로 쓸 때 쓰는 표기지 사람이 읽는 문장이 아니다 */
 eq('지문에 을(를)이 안 남아 있다', /을\(를\)|이\(가\)|과\(와\)/.test(

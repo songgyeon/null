@@ -1594,7 +1594,20 @@ const SCENE_SHOT={
   "빨래방":   {minhyun:["minhyun-laundry"]},
   "체육관":   {minhyun:["minhyun-gym"]},
   "집":       {jaeeon:["jaeeon-cook","jaeeon-evening","jaeeon-curtain","jaeeon-back"]},
+  /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
+     빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
+  "귀갓길":   {jaeeon:["jaeeon-driveseat"], minhyun:["minhyun-busstop","minhyun-neon"]},
 };
+/* ── 귀갓길 ── 지도에 없다. 골라서 가는 데가 아니라 자리가 끝나고 붙는 데다.
+   유저 집은 정거장이 아니라 데려다주는 일이 끝나는 곳이라서 아이콘이 없다.
+   재언은 태워다 주고(조수석에서 본 대시보드), 민현은 같이 버스를 탄다(빈 자리).
+   건넬 물건은 없다 — 데려다주는 것이 이미 그거다. */
+const WAY="귀갓길";
+const WAY_BG={jaeeon:"jaeeon-drive.webp", minhyun:"minhyun-bus.webp"};
+/* 밤에, 말을 나누고 나온 자리에서만. 그리고 하루에 한 번 */
+const wayOK=(now)=>{const h=(now||new Date()).getHours();return h>=20||h<5};
+const loadWay=()=>{try{return localStorage.getItem("null_way")||""}catch(e){return""}};
+const saveWay=v=>{try{localStorage.setItem("null_way",v)}catch(e){}};
 /* 그 자리·그 사람·그 시간에 맞는 사진 하나. 없으면 빈 방 그대로 */
 const sceneShot=(place,who,now)=>{
   const t=(SCENE_SHOT[place]||{})[who]; if(!t)return null;
@@ -2654,7 +2667,8 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
      돌아가면 방에 그대로 남아 있으니 사라지는 게 아니다. */
   /* 들어간 순간엔 빈 방이다. 그 사람이 입을 열면 그 사람이 화면이 된다 —
      몇 턴 세지 않고 첫 답을 기준으로 한다. 세면 임의고 첫마디면 이유가 있다. */
-  const bg=scene&&(scene.shot||PLACE_BG[scene.place]);
+  /* 귀갓길은 지도 자리가 아니라 PLACE_BG에 없다. 그럴 땐 자리가 자기 배경을 들고 온다 */
+  const bg=scene&&(scene.shot||scene.bg||PLACE_BG[scene.place]);
   if(scene){
     /* 이 자리에 온 뒤에 오간 말만 보여준다.
        방의 마지막 여섯 줄을 그냥 깔았더니, 아까 문자로 주고받던 말이 교실
@@ -2938,10 +2952,37 @@ function App(){
   const SCENE_MIN_TALK=2;
   const talkedEnough=sc=>!!sc&&(storeRef.current.msgs[sc.room]||[])
     .filter(m=>!m.sys&&m.sender==="user"&&m.ts>=(sc.since||0)).length>=SCENE_MIN_TALK;
-  const leaveScene=()=>{
+  const closeScene=()=>{
     const sc=sceneRef.current;
     if(sc&&talkedEnough(sc)){ const p=PLACE_BY[sc.place]; if(p&&p.item)takeItem(p.item,sc.room,sc.place); }
     setScene(null); saveScene(null);
+  };
+  /* 밤에 자리에서 나오면 그냥 사라지는 게 아니라 데려다준다.
+     유저 집을 지도에 세우지 않은 건 그게 갈 곳이 아니라 헤어지는 자리라서다 —
+     여기 붙는 한 다리가 그 일을 한다. 하루에 한 번이면 충분하다.
+     매번 나올 때마다 물으면 데려다주는 게 아니라 절차가 된다. */
+  const [way,setWay]=useState(null);
+  const leaveScene=()=>{
+    const sc=sceneRef.current;
+    if(sc&&sc.place!==WAY&&talkedEnough(sc)&&wayOK()&&loadWay()!==dayKey()){ setWay(sc); return; }
+    closeScene();
+  };
+  const answerWay=ok=>{
+    const sc=way; setWay(null); if(!sc)return;
+    closeScene();                       // 그 자리는 여기서 끝난다 — 두고 나온 것도 챙긴다
+    if(!ok)return;
+    saveWay(dayKey());
+    const who=sc.room, nm=CHARS[who].name;
+    const line=who==="jaeeon"?`${nm}의 차를 타고 집에 가는 길이다`:`${nm}과 같이 버스를 타고 집에 가는 길이다`;
+    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
+    appendMsg(who,sys);
+    const next2={room:who,place:WAY,since:Date.now(),bg:WAY_BG[who]};
+    setScene(next2); saveScene(next2); setView(who);
+    const next=[...(storeRef.current.msgs[who]||[]),sys];
+    request(who,{mode:"chat",room:who,user_name:name,
+      history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
+      recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
+      place:WAY,bag:bagRef.current.map(b=>b.key)});
   };
   const answerInvite=ok=>{
     const iv=invite; setInvite(null); if(!iv)return;
@@ -3417,6 +3458,20 @@ function App(){
           <div className="dlgbtns">
             <button className="bevel pink" onClick={()=>answerInvite(true)}>갈게요</button>
             <button className="bevel" onClick={()=>answerInvite(false)}>다음에요</button>
+          </div>
+        </div>
+      </div>
+    </div>}
+    {/* 밤에 자리에서 나올 때. 묻는 쪽이 상대라서 초대 창과 같은 모양이다 */}
+    {way&&<div className="dlgov" onClick={()=>answerWay(false)}>
+      <div className="dlg" onClick={e=>e.stopPropagation()}>
+        <div className="tb">{CHARS[way.room].name}<div className="dots"><span className="d3"/></div></div>
+        <div className="dlgbody">
+          <div className="dlgline" style={{textAlign:"center",padding:"10px 0",fontSize:13,color:"#8a4f74"}}>
+            {way.room==="jaeeon"?"늦었어요. 태워다 줄게요":"저도 그쪽 방향인데, 같이 갈래요?"}</div>
+          <div className="dlgbtns">
+            <button className="bevel pink" onClick={()=>answerWay(true)}>같이 가요</button>
+            <button className="bevel" onClick={()=>answerWay(false)}>혼자 갈게요</button>
           </div>
         </div>
       </div>
