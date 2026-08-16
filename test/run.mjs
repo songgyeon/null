@@ -842,9 +842,10 @@ eq('프로필을 열어야 표시가 꺼진다',
 eq('목록이 본 단계를 넘겨받는다',
   /seenStage=\{seenStage\}/.test(web) && /seenStage=\{seenStage\}/.test(appSrc), true);
 /* 대화를 다 지우면 본 기록도 같이 지워야 한다. 안 그러면 처음부터 다시
-   시작했는데 "이미 봤다"고 남아 첫 단계 변화를 놓친다 */
+   시작했는데 "이미 봤다"고 남아 첫 단계 변화를 놓친다.
+   웹은 다시 열어서 열 개를 한 번에 비운다. 앱은 다시 열 수가 없어 손으로 지운다 */
 eq('새로 시작하면 본 기록도 지운다',
-  /setSeenStage\(\{\}\)/.test(web) && /setSeenStage\(\{\}\)/.test(appSrc), true);
+  /location\.reload\(\)/.test(web) && /setSeenStage\(\{\}\)/.test(appSrc), true);
 
 /* 상태메시지는 두 군데에 적혀 있다 — 웹과 앱. 어긋나면 둘이 다른 문구를
    쓴다. 눈으로는 안 잡힌다. */
@@ -1197,7 +1198,7 @@ eq('웹·앱 둘 다 공백으로 인사 갈래를 고른다',
    안 없어진다 — 방금 선톡을 받고 지웠으면 1분 동안 아무도 말을 안 걸었다.
    처음 들어온 화면에서 조용한 게 제일 나쁜 그림이다. */
 eq('다시 시작하면 선톡 간격도 같이 지운다',
-  /greetAtRef\.current=0/.test(web) && /greetAtRef\.current=0/.test(appSrc), true);
+  /location\.reload\(\)/.test(web) && /greetAtRef\.current=0/.test(appSrc), true);
 
 /* ── 「두 사람」 방의 첫 장면 ──
    처음 열었는데 비어 있으면 이 방이 무슨 방인지 알 길이 없고, 저 둘이 삼촌과
@@ -1917,6 +1918,24 @@ eq('창 단추의 표시가 글자가 아니다',
   /\.dots>span>i\{position:relative;z-index:1;display:block/.test(web)
   && /\.dots \.d3>i\{width:9px;height:1\.8px;transform:rotate\(45deg\)\}/.test(web)
   && !/className="d1">─/.test(web) && !/className="d3">✕/.test(web), true);
+
+/* 리스타트가 지울 것을 하나씩 적어놨었다. 저장소에서 읽어오는 상태가 열 개인데
+   여섯 개만 적혀 있어서 가방·다녀온 자리·있던 자리가 화면에 남았다. 목록을
+   고치면 다음에 상태가 늘 때 또 빠진다 — 목록을 없애고 다시 연다 */
+eq('리스타트가 상태를 하나씩 안 지운다', (() => {
+  const t = web.slice(web.indexOf('const reset=()=>'));
+  return (t.slice(0, t.indexOf('\n')).match(/set[A-Z]\w*\(|setStore|setProfile/g) || []).length;
+})(), 1);   // setItem("null_wipe") 하나뿐
+/* 지우고 바로 다시 여는 것으로는 모자랐다 — 다시 열리기 전 몇 밀리초 사이에
+   아직 살아 있는 화면이 상태를 도로 저장한다. 지운 이름이 살아남아 오프닝이
+   안 뜬 적도 있다. 표식만 남기고 열어서, 다음 판 맨 앞에서 비운다 */
+eq('리스타트는 표식만 남기고 다시 연다',
+  /localStorage\.setItem\("null_wipe","1"\)/.test(web) && /location\.reload\(\)/.test(web), true);
+eq('다음 판 맨 앞에서 비운다',
+  /if\(localStorage\.getItem\("null_wipe"\)\)\{ localStorage\.clear\(\); \}/.test(web), true);
+/* 비우는 자리가 리액트보다 앞이어야 한다. 뒤면 화면이 먼저 떠서 도로 저장한다 */
+eq('비우는 자리가 화면보다 앞이다',
+  web.indexOf('null_wipe') < web.indexOf('<script type="text/babel">'), true);
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
