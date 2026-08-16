@@ -558,6 +558,9 @@ function App(){
      들어 있는 여섯 개다. 십 분 만에 들어온 사람한테 「이제 와요?」는 안 한다. */
   const greet=(id,delay)=>{
     if(id==="health"||id==="group")return;
+    /* 거는 길이 둘이다 — 목록에 앉아 있을 때, 그리고 방을 열 때.
+       한쪽만 잠그면 새벽에 재언 방을 열었을 때 그가 깨어난다 */
+    if(!canGreet(id))return;
     const list=storeRef.current.msgs[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
@@ -658,7 +661,9 @@ function App(){
   useEffect(()=>{
     if(!name||view!=="list"||enrolling)return;
     if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
-    const cand=["jaeeon","minhyun"].map(id=>{
+    /* 자는 쪽은 후보에서 먼저 뺀다. 뽑고 나서 막으면 그 판은 아무도 안 건다 —
+       새벽에는 제일 오래 조용한 쪽이 늘 재언이라, 민현이 영영 안 걸린다 */
+    const cand=["jaeeon","minhyun"].filter(id=>canGreet(id)).map(id=>{
       const l=storeRef.current.msgs[id]||[];
       return {id,gap:l.length?(Date.now()-l[l.length-1].ts)/60000:-1};
     }).filter(c=>c.gap<0||c.gap>=180)

@@ -500,6 +500,29 @@ eq('모르는 물건도 받는다',
 eq('웹·앱 둘 다 선물 열쇠를 넘긴다',
   /demoGiftKey/.test(web) && /demoReply\(char,line,name,gift\.key\)/.test(appSrc), true);
 
+/* ── 자는 사람은 먼저 말을 안 건다 ──
+   새벽 세 시에 처음 켜면 둘 다 몇 초 안에 인사를 보냈다. 목록에는 「자는 중」
+   이라고 떠 있는데 그 사람 말풍선이 왔다. 그리고 유저가 없어도 세계가
+   돌아간다는 앱인데, 켜자마자 둘이 인사하면 기다리고 있던 게 된다. */
+eq('재언은 여섯 시부터 말을 건다', /const GREET_FROM=\{jaeeon:6\}/.test(web), true);
+/* 점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
+   일어나는 시각과 말 거는 시각이 같아야 한다 */
+eq('일어나는 시각과 말 거는 시각이 같다',
+  /if\(h>=6&&h<8\)   return \{s:"away",t:"집"\}/.test(web), true);
+/* 민현은 시각을 안 본다 — 새벽까지 깨 있는 게 그 애다 */
+eq('민현은 시각을 안 본다', /GREET_FROM=\{jaeeon:6\}/.test(web) && !/minhyun:\d/.test(web), true);
+eq('시각을 안 정한 사람은 언제든 건다',
+  /const from=GREET_FROM\[id\];\s*\n\s*return from==null\|\|\(now\|\|new Date\(\)\)\.getHours\(\)>=from/.test(web), true);
+/* 거는 길이 둘이다 — 목록에 앉아 있을 때, 그리고 방을 열 때 */
+eq('선톡 함수 안에서도 막는다', /if\(!canGreet\(id\)\)return;/.test(web), true);
+/* 뽑고 나서 막으면 그 판은 아무도 안 건다. 새벽에는 제일 오래 조용한 쪽이
+   늘 재언이라, 민현이 영영 안 걸린다 */
+eq('자는 쪽은 후보에서 먼저 뺀다',
+  /\["jaeeon","minhyun"\]\.filter\(id=>canGreet\(id\)\)\.map\(id=>\{/.test(web), true);
+/* filter(canGreet)로 넘기면 두 번째 인자로 인덱스가 들어가 now가 0이 된다.
+   0은 1970년이고 그 해의 시각은 UTC 기준이라 어느 쪽으로 튈지 모른다 */
+eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter\(canGreet\)/.test(web), false);
+
 /* ── 선물은 한 사람에게 하루에 하나 ──
    새벽 2시 43분에 이어폰, 2시 48분에 사진집. 같은 사람이 오 분 만에 같은
    반응을 두 번 했다 — 밀어내고, 값어치를 인정하고, 받고, 그러고 나서 고맙다고.
