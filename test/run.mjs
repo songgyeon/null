@@ -1885,8 +1885,12 @@ eq('지도에서 물러나도 그 자리가 닫히지 않는다', (() => {
   const t = web.slice(web.indexOf('const answerAsk='));
   return /saveRefused/.test(t.slice(0, t.indexOf('\n  };')));
 })(), false);
-/* 알약을 두르면 지도가 아니라 지도를 담은 창이 된다 */
-eq('제목에 알약이 없다', /\.roadtitle\{[^}]*border-radius:999px/.test(web), false);
+/* 지도 위에 얹혀 있던 흰 제목은 걷었다. 머리글이 이미 같은 말을 하고 있어서
+   길 위에 한 번 더 적을 이유가 없다 — 그림은 길만 보이는 게 낫다 */
+eq('지도 위에 제목을 안 얹는다',
+  /roadtitle|NULL ROAD MAP/.test(web), false);
+eq('머리글이 널 로드맵이다',
+  /<span className="rt"><i className="rh">♡<\/i> 널 로드맵<\/span>/.test(web), true);
 /* 구석에 떠 있으면 지도의 일부가 아니라 화면 위에 얹힌 버튼처럼 보인다 */
 /* 길이 시작하는 자리(아래 끝 x51)에 딱 붙어야 한다 — 떨어지면 길과 남남이다 */
 eq('START가 길 시작에 붙는다', /\.roadstart\{position:absolute;left:50%;bottom:\.6%/.test(web), true);
@@ -1904,7 +1908,6 @@ eq('빛나는 창이 문 아래로 안 내려온다', (() => {
 eq('파묻히는 표지판만 뺀다', /const PIN_BURIED=\["옥상","도서관","집"\]/.test(web), true);
 eq('배경만 연보라로 띄운다',
   /\.roadmap::after\{[^}]*rgba\(242,236,255,\.36\)/.test(web), true);
-eq('지도 제목이 하얀색이다', /\.roadtitle\{[^}]*color:#fff/.test(web), true);
 eq('D-0은 없앴다', /roadend|JOURNEY END/.test(web), false);
 
 eq('하트가 장소 아이콘보다 위에 있다',

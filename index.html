@@ -667,11 +667,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .roadmap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
  background:linear-gradient(180deg,rgba(242,236,255,.36),rgba(232,223,253,.28))}
 /* 제목은 하늘에 그냥 얹는다. 알약을 두르면 지도가 아니라 지도를 담은 창이 된다 */
-.roadtitle{position:absolute;left:39%;top:2%;z-index:10;transform:translateX(-50%);white-space:nowrap;
- display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.24em;color:#fff;
- text-shadow:0 1px 2px rgba(93,84,144,.55),0 0 10px rgba(160,130,225,.6)}
-.roadtitle .heart{font-size:12px;line-height:1;color:#e66fa4;text-shadow:0 0 6px rgba(255,145,194,.65)}
-.roadtitle .roadstar{font-size:9px;color:#8e76d1}
+/* 지도 위에 얹혀 있던 흰 제목은 걷었다. 머리글이 이미 같은 말을 하고 있어서
+   길 위에 한 번 더 적을 이유가 없다 — 그림은 길만 보이는 게 낫다 */
+.roadhead .rt .rh{font-style:normal;color:#e66fa4;letter-spacing:0;margin-right:1px}
 /* 길이 시작하는 자리에 세운다. 구석에 떠 있으면 지도의 일부가 아니라
    화면 위에 얹힌 버튼처럼 보인다. 길은 이 높이에서 46%를 지난다 */
 .roadstart{position:absolute;left:50%;bottom:.6%;z-index:10;width:30%;padding:5px 7px 6px;
@@ -2258,12 +2256,11 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       :tab==="map"
       ?<div className="gal mapscroll">{/* 그림은 길, 버튼은 실제 장소 상태다 */}
         <div className="roadhead">
-          <span className="rt">ROAD MAP</span>
+          <span className="rt"><i className="rh">♡</i> 널 로드맵</span>
           <span className="rbar"><i style={{width:(visitedN/PLACES.length*100)+"%"}}/></span>
           <span className="rn">{visitedN} / {PLACES.length}</span>
         </div>
         <div className="roadmap">
-          <div className="roadtitle"><span className="heart">♡</span><span>NULL ROAD MAP</span><span className="roadstar">✦</span></div>
           <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
           <img className="roadfinishpanel" src="map-icons/final-input-window.png" alt="" aria-hidden="true"/>
           {PLACES.map(p=>{
