@@ -883,12 +883,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .watchbar{flex:none;display:flex;align-items:center;justify-content:center;gap:8px;
  padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:11px;letter-spacing:.08em;color:#2f9e5a;
  background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
-/* 「두 사람」 카드의 오른쪽 아래. 핫핑크 점이 번지면서 깜빡인다 */
-.livedot{position:absolute;right:12px;bottom:9px;display:flex;align-items:center;gap:5px;
- font-size:8px;letter-spacing:.22em;color:#ff4d9e;text-shadow:0 1px 0 rgba(255,255,255,.7)}
-.livedot i{width:7px;height:7px;border-radius:50%;background:#ff2e8b;
- box-shadow:0 0 7px 2.5px rgba(255,46,139,.6),0 0 2px rgba(255,46,139,.9);
- animation:recblink 1.4s infinite}
 .rec{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5470;animation:recblink 1.2s infinite}
 .empty{margin:auto;text-align:center;color:#b0a6d8;font-size:11.5px;line-height:2;letter-spacing:.04em;padding:0 30px}
 .msgs::-webkit-scrollbar,.rooms::-webkit-scrollbar,.gal::-webkit-scrollbar{width:0}
@@ -2433,6 +2427,15 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
       <button className="moonbtn bevel nowbtn" title="timetable"
         onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>
+      <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
+        title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
+        onClick={()=>{ if(autoLoading)return;
+          if(left>0){onToast("too soon · "+mmss(left));return}
+          const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
+        {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
+        <MoonIcon/>
+        <span>{autoLoading?"time passing...":left>0?mmss(left):"peek"}</span>
+      </button>
     </div>
     <div className="marquee"><span>
       ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; 
@@ -2457,20 +2460,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 아바타 둘레가 돈다 */
           const nu=CHARS[r.id]?stageDiff(r.id,(seenStage||{})[r.id]||0,stageIdx(counts[r.id]||0,dayN)):[];
           return <React.Fragment key={r.id}>
-            {/* LIVE라는 딱지는 이 방이 무슨 방인지 말해주지만 아무것도 안 한다.
-                peek이 이 방을 채우는 단추라서 그 자리가 제자리다 — 메뉴바도
-                한 칸 비고, 단추가 자기가 여는 방 바로 위에 앉는다 */}
-            {watch&&<div className="sectwrap">
-              <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
-                title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
-                onClick={e=>{ e.stopPropagation(); if(autoLoading)return;
-                  if(left>0){onToast("too soon · "+mmss(left));return}
-                  const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
-                {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
-                <MoonIcon/>
-                <span>{autoLoading?"time passing...":left>0?mmss(left):"peek"}</span>
-              </button>
-            </div>}
+            {watch&&<div className="sectwrap"><span className="sect">LIVE</span></div>}
             <div className={"roomcard"+(watch?" watch":"")} style={{animationDelay:`${i*0.05}s`}} onClick={()=>onOpen(r.id)}>
               <Avatar room={r} onProfile={onProfile} heat={CHARS[r.id]?stageIdx(counts[r.id]||0,dayN):null} nu={nu.length>0}/>
               <div className="rinfo">
@@ -2482,9 +2472,6 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
                 <div className="rprev">{last?(last.sender==="user"?"나: ":"")+(last.photo?"[사진] "+(last.text||""):last.text) : r.empty.split("\n")[0]}</div>
               </div>
               {un>0&&<span className="rbadge">{un}</span>}
-              {/* 켜져 있다는 표시. 딱지는 카드 밖이 아니라 카드 안에 있어야
-                  「이 방이 지금 켜져 있다」가 된다 */}
-              {watch&&<span className="livedot">LIVE <i/></span>}
             </div>
           </React.Fragment>;
         })}

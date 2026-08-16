@@ -2168,14 +2168,18 @@ eq('머리글이 뒤로가기다', /className="rt rback" role="button"/.test(web
 eq('학교·체육관 그림이 저장소에 있다',
   ['school','gym'].flatMap(k => [`map-icons/place-${k}-open.png`, `map-icons/place-${k}-lock.png`])
     .filter(f => !exists(f)), []);
-/* peek은 「두 사람」 방을 채우는 단추다. 메뉴바가 아니라 그 방 위가 제자리고,
-   메뉴바는 원래도 빠듯해서 시간표 단추를 넣을 자리가 없었다 */
-eq('peek이 두 사람 방 위로 갔다',
-  /<div className="sectwrap">\s*<button className=\{"moonbtn bevel"/.test(web)
-  && !/className="sect">LIVE/.test(web), true);
-eq('LIVE는 카드 안 오른쪽 아래에 점으로',
-  /\{watch&&<span className="livedot">LIVE <i\/><\/span>\}/.test(web)
-  && /\.livedot\{position:absolute;right:12px;bottom:9px/.test(web), true);
+/* peek은 메뉴바 맨 끝, LIVE는 「두 사람」 방 위의 딱지 — 원래 자리다.
+   시간표 단추가 들어오면서 한 번 자리를 옮겼다가 되돌렸다. 390에서 여덟이
+   한 줄에 앉는다(재봤다: peek 오른쪽 끝 385, 여백 5) */
+eq('peek은 메뉴바 맨 끝이다',
+  /<button className=\{"moonbtn bevel"\+\(left>0&&!autoLoading\?" cool":""\)\}[\s\S]{0,600}<\/button>\s*<\/div>\s*<div className="marquee">/.test(web), true);
+eq('LIVE는 방 위의 딱지다',
+  /\{watch&&<div className="sectwrap"><span className="sect">LIVE<\/span><\/div>\}/.test(web), true);
+/* 옮겼다 되돌린 흔적은 남기지 않는다 — 안 쓰는 CSS가 팔레트를 흐린다 */
+eq('핫핑크 점은 걷었다', /livedot/.test(web), false);
+/* 여기 좁히지 않으면 peek이 창 밖으로 밀려난다. 한 번 겪었다 */
+eq('시간표 단추는 peek보다 좁다',
+  /\.menubar \.nowbtn\{padding:0 8px;font-size:10px/.test(web), true);
 
 /* ── 사진은 배경이 하는 일이다 ──
    자리에 같이 있는데 사진을 문자로 받는 건 이상하고, 자리 밖에서 자기 모습을
