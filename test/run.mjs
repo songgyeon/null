@@ -1093,7 +1093,18 @@ eq('관찰 버튼이 줄어들지 않는다', /\.moonbtn\{flex:none\}/.test(web)
 /* 한 줄에 일곱 개가 앉는데 폭이 390이다. 줄이 넘치면 맨 끝 peek이 잘린다 */
 eq('메뉴바가 한 줄로 고정이다', /flex-wrap:nowrap/.test(web), true);
 eq('메뉴 글자가 안 접힌다', /\.mbtn\{[^}]*white-space:nowrap/.test(web), true);
-eq('달은 여전히 관찰 버튼 안에 있다', /<MoonIcon\/>\s*\n\s*<span>\{autoLoading/.test(web), true);
+/* 달은 「peek」일 때만 뜬다. 360에서 재봤더니 오른쪽에 남는 자리가 66px인데
+   달 달린 peek이 70px이라 처음부터 넘치고 있었다 — 글자가 길어지는 두 상태
+   (04:59 · ···)에는 달이 쓰던 자리를 글자가 쓴다. 재고 나서 60px로 고정했다 */
+eq('달은 peek일 때만 뜬다',
+  /\{!autoLoading&&left<=0&&<MoonIcon\/>\}\s*\n\s*<span>\{autoLoading/.test(web), true);
+eq('관찰 버튼은 세 상태가 같은 폭이다',
+  /\.menubar \.moonbtn\{padding:0 8px;gap:4px;min-width:60px;justify-content:center\}/.test(web), true);
+/* 「time passing...」은 단추에 안 들어간다 — 넣으면 119px이라 줄이 넘친다.
+   전광판이 상태를 흘려보내는 자리라 그 말은 거기서 한다 */
+eq('흐르는 중이라는 말은 전광판이 한다',
+  /\{autoLoading\s*\n?\s*\?<>✧ time passing\.\.\./.test(web), true);
+eq('단추에는 긴 글자가 안 들어간다', /time passing\.\.\.":left>0/.test(web), false);
 
 /* ── 대화 지우기 ──
    두 단계는 원래 있었다. 문제는 단계 수가 아니라 이웃이었다 — 이름 바꾸러
@@ -2206,7 +2217,7 @@ eq('학교·체육관 그림이 저장소에 있다',
    시간표 단추가 들어오면서 한 번 자리를 옮겼다가 되돌렸다. 390에서 여덟이
    한 줄에 앉는다(재봤다: peek 오른쪽 끝 385, 여백 5) */
 eq('peek은 메뉴바 맨 끝이다',
-  /<button className=\{"moonbtn bevel"\+\(left>0&&!autoLoading\?" cool":""\)\}[\s\S]{0,600}<\/button>\s*<\/div>\s*<div className="marquee">/.test(web), true);
+  /<button className=\{"moonbtn bevel"\+\(left>0&&!autoLoading\?" cool":""\)\}[\s\S]{0,900}<\/button>\s*<\/div>\s*\{\/\*[\s\S]{0,200}\*\/\}\s*<div className="marquee">/.test(web), true);
 eq('LIVE는 방 위의 딱지다',
   /\{watch&&<div className="sectwrap"><span className="sect">LIVE<\/span><\/div>\}/.test(web), true);
 /* 옮겼다 되돌린 흔적은 남기지 않는다 — 안 쓰는 CSS가 팔레트를 흐린다 */

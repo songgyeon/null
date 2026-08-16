@@ -800,13 +800,20 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           if(left>0){onToast("too soon · "+mmss(left));return}
           const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
         {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
-        <MoonIcon/>
-        <span>{autoLoading?"time passing...":left>0?mmss(left):"peek"}</span>
+        {/* 달은 「peek」일 때만 뜬다. 360 폭에서 이 줄은 이미 빠듯해서,
+            글자가 길어지는 두 상태(남은 시간·흐르는 중)에는 달이 쓰던
+            자리를 글자가 쓴다. 안 그러면 단추가 창 밖으로 밀린다 */}
+        {!autoLoading&&left<=0&&<MoonIcon/>}
+        <span>{autoLoading?"···":left>0?mmss(left):"peek"}</span>
       </button>
     </div>
+    {/* 「time passing...」은 단추에 안 들어간다 — 들어가면 줄이 넘친다.
+        전광판이 원래 상태를 흘려보내는 자리라 그 말을 여기서 한다 */}
     <div className="marquee"><span>
-      ✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp; 
-      {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧
+      {autoLoading
+        ?<>✧ time passing... &nbsp; ♡ &nbsp; 두 사람이 뭘 하고 있는지 보는 중 &nbsp; ✧</>
+        :<>✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp;
+          {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧</>}
     </span></div>
     <div className="tabs">
       <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms (4)</span>

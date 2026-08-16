@@ -944,6 +944,11 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    .moonbtn 뒤에 둬야 한다 — 앞에 두면 padding:0 12px에 덮여서 안 좁아진다.
    메뉴바는 원래도 빠듯한 줄이라 peek보다 좁아야 peek이 안 밀려난다. */
 .menubar .nowbtn{padding:0 8px;font-size:10px;letter-spacing:.01em;margin-left:5px}
+/* 360 폭에서 이 줄은 이미 빠듯하다. 재봤더니 오른쪽에 남는 자리가 66px인데
+   달 달린 peek이 70px였다 — 처음부터 4px씩 넘치고 있었다.
+   여백과 사이를 좁혀 60에 맞추고, min-width로 세 상태(peek·04:59····)가
+   같은 폭을 쓰게 한다. 글자가 바뀔 때마다 줄이 흔들리면 그게 더 눈에 띈다. */
+.menubar .moonbtn{padding:0 8px;gap:4px;min-width:60px;justify-content:center}
 /* ── 이름 빈칸 — 불릴수록 채워진다. 방문자 카운터 자리를 대신한다 ── */
 /* NULL 줄 — 납작한 이름표 */
 .nmcard{flex:none;position:sticky;bottom:0;z-index:3;overflow:hidden;display:flex;align-items:center;gap:8px;
