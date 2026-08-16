@@ -312,11 +312,12 @@ input.csearch::placeholder{color:#b9addc}
 .csent{flex:none;padding:8px 16px;font-size:10.5px;letter-spacing:.12em;color:#a99bd0;border-radius:999px;
  background:#f4f0fc;border:1.5px solid #fff;box-shadow:0 0 0 1px #e4dbf8}
 .chint{margin:5px 0 0 64px;font-size:9px;color:#b4a7d6}
+/* 누런 종이는 이 창에서 혼자 다른 시대에서 온 물건이었다. 흰 종이에 줄만 */
 textarea.cmemo{padding:13px 14px;min-height:74px;font-family:inherit;font-size:11px;line-height:26px;color:#8a4f74;
- resize:none;outline:none;border:1px solid #ecd9c8;border-radius:8px;
- background:repeating-linear-gradient(180deg,#fffdf6 0 25px,#fdf4ea 25px 26px);
- box-shadow:2px 3px 0 rgba(198,170,150,.2)}
-textarea.cmemo::placeholder{color:#cbbba8}
+ resize:none;outline:none;border:1px solid #e6ddf7;border-radius:8px;
+ background:repeating-linear-gradient(180deg,#fff 0 25px,#f1ebfb 25px 26px);
+ box-shadow:2px 3px 0 rgba(150,138,190,.16)}
+textarea.cmemo::placeholder{color:#c6bade}
 .cback{flex:none;margin-top:auto;padding:11px;font-family:inherit;font-size:11px;letter-spacing:.24em;color:#4a4276;
  cursor:pointer;background:linear-gradient(180deg,#ffffff,#e9e2fa);border:1px solid #5d5490;
  box-shadow:inset 2px 2px 0 #fff,inset -2px -2px 0 #cdc3ec,2px 2px 0 rgba(93,84,144,.22)}
@@ -748,10 +749,15 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .scenewrap .stext.dim{color:rgba(255,255,255,.5)}
 .scenewrap .sphoto{display:block;max-width:172px;border-radius:6px;margin-bottom:5px;
  box-shadow:0 2px 10px rgba(0,0,0,.45)}
-/* 반투명 흰색(72%)을 어두운 사진 위에 얹으니 사진이 비쳐서 회색으로 읽혔다.
-   입력창은 화면의 일부가 아니라 손이 닿는 자리라 깨끗해야 한다 */
-.scenewrap .scenebar{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);
- border-top:1px solid rgba(255,255,255,.85);box-shadow:0 -2px 10px rgba(30,24,58,.28)}
+/* 반투명 흰색을 사진 위에 얹으니 사진이 비쳐 회색으로 읽혔다. 그래서 거의
+   흰색으로 올렸더니 이번엔 그 위의 단추와 입력칸이 다 하얘져서 사라졌다 —
+   돌아가기도 보내기도 원래 연보라 바닥에 앉으라고 만든 부품이다.
+   이 줄은 사진의 일부가 아니라 손이 닿는 자리다. 다른 방과 같은 바를 쓴다. */
+.scenewrap .scenebar{box-shadow:inset 0 1px 0 #fff,0 -3px 14px rgba(20,16,40,.5)}
+/* 다른 방에서는 나가기가 위 줄(.chatbar)에 있다. 자리에서는 위가 사진이라
+   입력줄로 내려왔는데, 30×27 모난 상자가 40짜리 둥근 보내기 옆에 앉으니
+   혼자 다른 창에서 굴러온 부품처럼 보였다. 같은 크기 같은 모양으로 */
+.scenebar .backbtn{width:37px;height:37px;border-radius:999px}
 
 /* 괄호 지문 — 말풍선이 아니라 채팅창에 쳐진 한 줄 */
 .narr{align-self:center;max-width:82%;margin:7px 0;padding:0 6px;text-align:center;
@@ -797,7 +803,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* 입력바 */
 .inputbar{flex:none;display:flex;align-items:center;gap:8px;padding:9px 10px calc(11px + env(safe-area-inset-bottom));
  background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
-.inputbar input{flex:1;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;outline:none;border-radius:0}
+/* min-width:0이 없으면 input은 제 min-content(기본 size=20자) 아래로 안 줄어든다.
+   폭이 좁은 화면에서 입력칸이 버티는 바람에 보내기 단추가 화면 밖으로 밀렸다 */
+.inputbar input{flex:1;min-width:0;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;outline:none;border-radius:0}
 .inputbar input::placeholder{color:#b0a6d8}
 /* 보내기 — 방 색을 그대로 쓰되 유리 단추로 */
 .sendbtn{position:relative;overflow:hidden;width:40px;height:37px;display:flex;align-items:center;justify-content:center;
@@ -1371,6 +1379,9 @@ const ITEMS={
   key:     {name:"여벌 열쇠",   cat:"소품", say:"HOME access : granted ♡"},
 };
 const ITEM_CATS=["전체","간식","소품","기록"];
+/* 칸 이름은 데이터에 한글로 박혀 있다(ITEMS의 cat). 화면에만 영어를 씌운다 —
+   데이터를 바꾸면 이미 저장된 가방과 앱 쪽 표가 같이 어긋난다 */
+const ITEM_CAT_EN={"전체":"ALL","간식":"SNACK","소품":"STUFF","기록":"TRACE"};
 /* ── 조사 ──
    「밴드을(를) 받았다」가 화면에 그대로 찍혔다. 괄호로 둘 다 적어두는 건
    글로 쓸 때 쓰는 표기지 사람이 읽는 문장이 아니다.
@@ -1384,6 +1395,11 @@ const jos=(w,pair)=>{
 };
 const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}catch(e){return[]}};
 const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a))}catch(e){}};
+/* 가방 옆의 분홍 알약은 「몇 개 들었나」였는데, 생긴 게 안 읽은 표시라서
+   열어봐도 안 사라지는 고장으로 읽혔다. 마지막으로 열었을 때의 개수를
+   적어두고, 그 뒤에 새로 들어온 것만 센다. */
+const loadBagSeen=()=>{const n=+localStorage.getItem("null_bagseen");return n>0?n:0};
+const saveBagSeen=n=>{try{localStorage.setItem("null_bagseen",String(n))}catch(e){}};
 /* 자리가 열렸나. 다녀온 자리 목록만 본다 — 대화 수도 날짜도 안 본다 */
 const placeOpen=(p,been)=>(p.need||[]).every(n=>been.includes(n));
 /* 아직 못 간 자리에 뭐가 남았는지. 잠긴 칸에 그대로 적어준다 */
@@ -1900,11 +1916,11 @@ function Bag({bag,firstTs,onClose}){
   return <div className="cartscreen"><div className="cartwin">
     <div className="tb">✿ bag<WinDots onClose={onClose}/></div>
     <div className="cbar">
-      <span className="bagcount">받은 것 {bag.length} / {Object.keys(ITEMS).length}</span>
-      {lent>0&&<span className="baglent">돌려줄 것 {lent}</span>}
+      <span className="bagcount">RECEIVED {bag.length} / {Object.keys(ITEMS).length}</span>
+      {lent>0&&<span className="baglent">TO RETURN {lent}</span>}
     </div>
     <div className="cchips">{ITEM_CATS.map(c=>
-      <button key={c} className={"cchip"+(cat===c?" on":"")} onClick={()=>setCat(c)}>{c}</button>)}</div>
+      <button key={c} className={"cchip"+(cat===c?" on":"")} onClick={()=>setCat(c)}>{ITEM_CAT_EN[c]||c}</button>)}</div>
     <div className="cwrap">
       {rows.length?rows.map(b=>{
         const it=ITEMS[b.key], who=CHARS[b.from];
@@ -1917,15 +1933,15 @@ function Bag({bag,firstTs,onClose}){
           <div style={{flex:1,minWidth:0}}>
             <div className="cgname">{it.name}</div>
             {/* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */}
-            <div className="bagmeta">{b.where}에서{d!=null?" · D-"+d:""}</div>
+            <div className="bagmeta">{b.where}{d!=null?" · D-"+d:""}</div>
             <div className="itemsay">{it.say}</div>
-            {it.lent&&<span className="baglabel">돌려줄 것</span>}
+            {it.lent&&<span className="baglabel">RETURN ME</span>}
           </div>
           {who&&<span className="bagwho" style={faceBg(who)}><i>♡</i></span>}
         </div>;
       }):<div className="cnone">{bag.length
-        ?<>이 칸은 텅 ✧{"\n"}딴 데는 있음 ♡</>
-        :<>아직 텅 비었음 ✧{"\n"}지도 가서 하나 받아 와 ♡</>}</div>}
+        ?<>this drawer : empty ✧{"\n"}try another tab ♡</>
+        :<>bag : 0 items ✧{"\n"}go get one on the map ♡</>}</div>}
     </div>
     <div className="cfoot">FROM THEM ♡</div>
   </div></div>;
@@ -2025,7 +2041,7 @@ function Cart({gifts,hearts,onSend,onClose}){
           {sel&&!done&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
       })}
-      <div className="csect">A NOTE (선택)</div>
+      <div className="csect">A NOTE (optional)</div>
       <textarea className="cmemo" value={memo} maxLength={60} placeholder="P.S. ♡"
         onChange={e=>setMemo(e.target.value)}/>
       <button className="cback" onClick={back}>◁ back</button>
@@ -2064,6 +2080,9 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
+  /* 가방을 마지막으로 열었을 때 몇 개였나. 그 뒤에 들어온 것만 알약에 뜬다 */
+  const [bagSeen,setBagSeen]=useState(loadBagSeen);
+  const bagNew=Math.max(0,(bag||[]).length-bagSeen);
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap(r=>(store.msgs&&store.msgs[r.id])||[]);
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -2121,9 +2140,12 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
       <span className="mbtn ico" style={{marginLeft:"auto"}} title="give something"
         onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart size={14}/>gift</span>
       {/* gift는 준 것, bag은 받은 것. 나란히 둔다 — 한쪽만 있으면 주기만 하는 앱이 된다 */}
+      {/* 알약은 「몇 개 들었나」가 아니라 「열어보고 나서 새로 들어온 게 몇 개나」다.
+          열면 사라져야 안 읽은 표시로 읽히고도 거짓말이 아니다 */}
       <span className="mbtn ico" title="what they gave u"
-        onClick={()=>{setMenu(null);setDlg("bag")}}><BagIcon size={14}/>bag
-        {(bag||[]).length>0&&<b className="mbcount">{(bag||[]).length}</b>}</span>
+        onClick={()=>{setMenu(null);setDlg("bag");const n=(bag||[]).length;setBagSeen(n);saveBagSeen(n)}}>
+        <BagIcon size={14}/>bag
+        {bagNew>0&&<b className="mbcount">{bagNew}</b>}</span>
       <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
         title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;

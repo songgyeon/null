@@ -1642,7 +1642,7 @@ eq('준 사람은 오른쪽 작은 원으로 남는다', /className="bagwho" sty
 /* 이 앱에서 시간은 8월 16일이 아니라 D-18이다 */
 eq('받은 날을 남은 날로 적는다',
   /ENROLL_DAYS-Math\.floor\(\(b\.ts-firstTs\)\/864e5\)/.test(web)
-  && /\{b\.where\}에서/.test(web), true);
+  && /className="bagmeta">\{b\.where\}\{d!=null\?" · D-"\+d:""\}/.test(web), true);
 /* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */
 eq('준 사람 이름을 글로 또 안 적는다', /에게서/.test(web), false);
 /* 설명이 아니라 물건이 하는 한 마디 */
@@ -1657,7 +1657,16 @@ eq('선물마다 한 마디가 있다', (() => {
 /* 가방·선물 두 화면 다에 떠야 한다 — 한 군데만 넣으면 화면이 갈린다 */
 eq('한 마디가 두 화면에 다 뜬다', (web.match(/className="itemsay"/g) || []).length, 2);
 /* 분류를 걸러서 빈 것과 정말 하나도 없는 것은 다른 말이다 */
-eq('빈 칸과 빈 가방을 다르게 말한다', /이 칸은 텅/.test(web) && /아직 텅 비었음/.test(web), true);
+eq('빈 칸과 빈 가방을 다르게 말한다',
+  /this drawer : empty/.test(web) && /bag : 0 items/.test(web), true);
+/* 가방 창의 글자는 영어다. 칸 이름만은 데이터에 한글로 박혀 있어서
+   화면에만 영어를 씌운다 — 데이터를 바꾸면 저장된 가방이 어긋난다 */
+eq('가방 창에 한글이 안 남았다',
+  /const ITEM_CAT_EN=\{"전체":"ALL","간식":"SNACK","소품":"STUFF","기록":"TRACE"\}/.test(web)
+  && /\{ITEM_CAT_EN\[c\]\|\|c\}/.test(web)
+  && /className="bagcount">RECEIVED /.test(web)
+  && /className="baglent">TO RETURN /.test(web)
+  && /className="baglabel">RETURN ME</.test(web), true);
 /* 선물도 이제 그림이다. SVG로 그리던 열여섯 개는 걷어냈다 */
 eq('선물 그림 열여섯 개가 저장소에 있다',
   ['mug','photobook','beanie','earphone','hotpack','umbrella','hanky','camera',
@@ -1667,9 +1676,26 @@ eq('선물 SVG는 카트만 남았다', (() => {
   const t = web.slice(web.indexOf('const GiftIcon={'));
   return Object.keys({}).length + (t.slice(0, t.indexOf('\n};')).match(/^  \w+:\(/gm) || []).length;
 })(), 1);
-/* 반투명 흰색을 어두운 사진 위에 얹으니 사진이 비쳐서 회색으로 읽혔다 */
-eq('자리의 입력창이 회색으로 안 비친다',
-  /\.scenewrap \.scenebar\{background:rgba\(255,255,255,\.9\d\)/.test(web), true);
+/* 반투명 흰색은 사진이 비쳐 회색으로 읽혔고, 거의 흰색은 그 위의 단추와
+   입력칸을 같이 하얗게 만들어 없앴다. 자리의 입력줄도 다른 방과 같은 바다 */
+eq('자리의 입력창이 따로 놀지 않는다',
+  /\.scenewrap \.scenebar\{box-shadow:inset 0 1px 0 #fff,0 -3px 14px/.test(web)
+  && !/\.scenewrap \.scenebar\{[^}]*background:/.test(web), true);
+/* min-width:0이 없으면 input은 기본 size(20자) 아래로 안 줄어든다 —
+   좁은 화면에서 보내기 단추가 화면 밖으로 밀려났다 */
+eq('좁은 화면에서 보내기가 안 밀린다',
+  /\.inputbar input\{flex:1;min-width:0;/.test(web), true);
+/* 알약이 「몇 개 들었나」였다. 안 읽은 표시처럼 생겨서 열어도 안 사라지는
+   고장으로 읽혔다. 이제 마지막으로 연 뒤에 새로 들어온 것만 센다 */
+eq('가방 알약은 열면 사라진다',
+  /const \[bagSeen,setBagSeen\]=useState\(loadBagSeen\)/.test(web)
+  && /const bagNew=Math\.max\(0,\(bag\|\|\[\]\)\.length-bagSeen\)/.test(web)
+  && /setDlg\("bag"\);const n=\(bag\|\|\[\]\)\.length;setBagSeen\(n\);saveBagSeen\(n\)/.test(web)
+  && /\{bagNew>0&&<b className="mbcount">\{bagNew\}<\/b>\}/.test(web), true);
+/* 누런 종이는 이 창에서 혼자 다른 시대에서 온 물건이었다 */
+eq('쪽지가 흰 종이다',
+  /repeating-linear-gradient\(180deg,#fff 0 25px,#f1ebfb 25px 26px\)/.test(web)
+  && !/A NOTE \(선택\)/.test(web), true);
 /* 남은 날이 30을 넘을 수는 없다. 첫 대화 시각이 물건보다 늦게 잡히면 D-31이 나왔다 */
 eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
