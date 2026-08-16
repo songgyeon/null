@@ -117,6 +117,30 @@ eq('신호·프로필·단계·선물이 달라져도 고정부는 그대로', s
 eq('시스템에 가변부가 없다', buildSystem(...B).every(b => b.cache_control), true);
 eq('시스템 캐시 지점은 셋이다 — 하나는 이력 몫으로 남긴다', buildSystem(...B).length, 3);
 eq('가변부에 선물이 실린다', buildVolatile(...B).includes('회색 머그컵'), true);
+/* 인물이 시계를 아예 못 봤다. 새벽 세 시에 말을 걸어도 아침처럼 답했다.
+   몇 시인지는 안 준다 — 분을 주면 「7시 42분이네요」가 나온다. 때만 준다 */
+{
+  const now = w => buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 },
+    null, null, null, 0, null, false, w);
+  eq('지금이 언제인지를 알려준다', now('저녁').includes('## [지금] 저녁'), true);
+  eq('모르는 낱말이면 아예 안 준다', now('저녁쯤').includes('## [지금]'), false);
+  eq('안 보내면 없는 대로 간다', now(undefined).includes('## [지금]'), false);
+  /* 못 박지 않으면 매 턴이 「아침이네요」로 시작한다. 아는 것과 화제는 다르다 */
+  eq('시간을 인사말로 못 쓰게 막는다', now('아침').includes('먼저 꺼내는 화제로 쓰지 않는다'), true);
+  /* 방 목록에는 「야자」라고 떠 있는데 인물은 아침인 줄 알면 그게 제일 이상하다.
+     presence의 경계(8·16·22·2)를 가로지르지 않는 때가 나오면 안 된다 */
+  eq('때가 접속 상태와 안 어긋난다', (() => {
+    const word = h => h < 2 ? '밤' : h < 6 ? '새벽' : h < 11 ? '아침' : h < 17 ? '낮' : h < 21 ? '저녁' : '밤';
+    const bad = [];
+    for (let h = 0; h < 24; h++) {
+      const w = word(h);
+      if (w === '아침' && (h >= 11 || h < 6)) bad.push(h);
+      if (w === '새벽' && h >= 8) bad.push(h);        // 재언이 자는 시간(2~8) 안에 있어야
+      if (w === '낮' && (h < 8 || h >= 17)) bad.push(h);
+    }
+    return bad;
+  })(), []);
+}
 eq('선물이 없으면 그 대목도 없다', buildVolatile(...A).includes('방금 일어난 일'), false);
 eq('선물은 고정부에 안 샌다', stable(...B).includes('회색 머그컵'), false);
 
@@ -1830,6 +1854,19 @@ eq('설명 자리 CSS도 걷었다', /\.cgdesc\{/.test(web) || /gdesc:/.test(app
 
 /* ─ ▭ ✕ 단추가 납작하면 창틀에 그려 넣은 그림처럼 보인다. 위에서 빛을 받는
    구슬로 세운다 — 왼쪽 위 흰 점, 아래 안쪽 그늘, 바깥에 얕은 그림자 */
+/* 지금이 언제인지는 프론트가 재서 보낸다 — 워커는 UTC로 돌고 어느 엣지에
+   뜨는지도 그때그때라 거기서 재면 엉뚱한 때가 나온다 */
+eq('때는 프론트가 재서 보낸다', (() => {
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  return /const timeWord=now=>\{const h=\(now\|\|new Date\(\)\)\.getHours\(\)/.test(web)
+    && /if\(payload\.now==null\)payload\.now=timeWord\(\)/.test(web)
+    && /const now = TIME_WORDS\.includes\(body\.now\) \? body\.now : null/.test(wk)
+    && !/getHours\(\)/.test(wk);
+})(), true);
+/* 윤이 양옆에서 9px씩 모자라 창틀 위에 짧은 막대 하나가 얹힌 꼴이었다 */
+eq('제목줄의 윤이 양옆 끝까지 간다',
+  /\.tb::after\{content:"";position:absolute;left:0;right:0;top:3px/.test(web), true);
+
 eq('창 단추가 볼록하다',
   /\.dots>span\{[^}]*box-shadow:inset 0 -2px 3px rgba\(93,84,144,\.34\),0 1px 1\.5px/.test(web)
   && /\.dots>span::after\{[^}]*radial-gradient\(circle at 33% 26%/.test(web), true);
