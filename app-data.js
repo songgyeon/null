@@ -282,8 +282,11 @@ const OPENINGS=[
   /* 아침. 개학 전에 둘이 처음 마주친 자리다 — 다시 그 자리에서 시작한다 */
   {from:6,  place:"후문 골목",   room:"minhyun", bg:"minhyun-alley.webp",
    note:"후문 골목으로 들어섰다."},
-  /* 낮. 제 발로 간 게 아니라 손을 베여서 내려온 것이다 */
-  {from:11, place:"보건실",     room:"jaeeon",  note:"손을 베여 보건실에 내려왔다."},
+  /* 낮. 제 발로 간 게 아니라 손을 베여서 내려온 것이다.
+     주말엔 학교가 통째로 닫힌다. 첫날이 주말일 수는 없지만 앱을 까는 날은
+     주말일 수 있다 — 그날은 학교 밖에서 만난다. 낮은 재언이라는 것만 지킨다 */
+  {from:11, place:"보건실",     room:"jaeeon",  note:"손을 베여 보건실에 내려왔다.",
+   wend:{place:"도서관", note:"도서관 삼 층에 올라왔다."}},
   /* 저녁. 퇴근길에 붙잡힌다 */
   {from:17, place:"버스정류장",  room:"minhyun", bg:"minhyun-busstop.webp",
    note:"퇴근길 버스정류장에 섰다."},
@@ -291,9 +294,11 @@ const OPENINGS=[
   {from:21, place:"빨래방",     room:"jaeeon",  note:"빨래방에 왔는데 동전이 없다."},
 ];
 const openingFor=now=>{
-  const h=(now||new Date()).getHours();
+  const d=now||new Date(), h=d.getHours();
   /* 21시부터 다음날 2시까지가 밤이다. 자정을 넘어가는 띠라 표에서 못 찾는다 */
-  return OPENINGS.slice().reverse().find(o=>h>=o.from)||OPENINGS[OPENINGS.length-1];
+  const o=OPENINGS.slice().reverse().find(x=>h>=x.from)||OPENINGS[OPENINGS.length-1];
+  /* 주말엔 닫히는 자리가 있다. 갈아탈 자리가 적힌 띠만 갈아탄다 */
+  return (isWend(d)&&o.wend)?{...o,...o.wend}:o;
 };
 
 /* ── 접속 상태 ──
@@ -578,7 +583,9 @@ const SCENE_SHOT={
   "편의점":   {minhyun:["minhyun-conv","minhyun-ramen"]},
   "도서관":   {jaeeon:["jaeeon-shelf"]},
   "레코드샵": {minhyun:["minhyun-mirror"]},
-  "빨래방":   {minhyun:["minhyun-laundry"]},
+  /* 밤에 처음 켜면 여기서 재언을 만난다. 사진도 밤 코인세탁소다 —
+     건조기 앞에 앉아 수건을 개고 있고 창밖에 비가 온다 */
+  "빨래방":   {minhyun:["minhyun-laundry"], jaeeon:["jaeeon-laundry"]},
   "체육관":   {minhyun:["minhyun-gym"]},
   "집":       {jaeeon:["jaeeon-cook","jaeeon-evening","jaeeon-curtain","jaeeon-back"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
