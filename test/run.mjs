@@ -1643,7 +1643,34 @@ eq('준 사람은 오른쪽 작은 원으로 남는다', /className="bagwho" sty
 /* 이 앱에서 시간은 8월 16일이 아니라 D-18이다 */
 eq('받은 날을 남은 날로 적는다',
   /ENROLL_DAYS-Math\.floor\(\(b\.ts-firstTs\)\/864e5\)/.test(web)
-  && /에게서 · \{b\.where\}에서/.test(web), true);
+  && /\{b\.where\}에서/.test(web), true);
+/* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */
+eq('준 사람 이름을 글로 또 안 적는다', /에게서/.test(web), false);
+/* 설명이 아니라 물건이 하는 한 마디 */
+eq('받은 것마다 한 마디가 있다', (() => {
+  const t = web.slice(web.indexOf('const ITEMS={'));
+  return (t.slice(0, t.indexOf('};')).match(/say:"/g) || []).length;
+})(), 8);
+eq('선물마다 한 마디가 있다', (() => {
+  const t = web.slice(web.indexOf('const GIFTS=['));
+  return (t.slice(0, t.indexOf('const GIFT_CATS')).match(/say:"/g) || []).length;
+})(), 16);
+/* 가방·선물 두 화면 다에 떠야 한다 — 한 군데만 넣으면 화면이 갈린다 */
+eq('한 마디가 두 화면에 다 뜬다', (web.match(/className="itemsay"/g) || []).length, 2);
+/* 분류를 걸러서 빈 것과 정말 하나도 없는 것은 다른 말이다 */
+eq('빈 칸과 빈 가방을 다르게 말한다', /이 칸은 텅/.test(web) && /아직 텅 비었음/.test(web), true);
+/* 선물도 이제 그림이다. SVG로 그리던 열여섯 개는 걷어냈다 */
+eq('선물 그림 열여섯 개가 저장소에 있다',
+  ['mug','photobook','beanie','earphone','hotpack','umbrella','hanky','camera',
+   'scarf','gloves','bandana','candy','ramen','coffee','letter','mixcd']
+    .filter(k => !exists(`gicon-${k}.webp`)), []);
+eq('선물 SVG는 카트만 남았다', (() => {
+  const t = web.slice(web.indexOf('const GiftIcon={'));
+  return Object.keys({}).length + (t.slice(0, t.indexOf('\n};')).match(/^  \w+:\(/gm) || []).length;
+})(), 1);
+/* 반투명 흰색을 어두운 사진 위에 얹으니 사진이 비쳐서 회색으로 읽혔다 */
+eq('자리의 입력창이 회색으로 안 비친다',
+  /\.scenewrap \.scenebar\{background:rgba\(255,255,255,\.9\d\)/.test(web), true);
 /* 남은 날이 30을 넘을 수는 없다. 첫 대화 시각이 물건보다 늦게 잡히면 D-31이 나왔다 */
 eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);

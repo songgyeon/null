@@ -638,7 +638,8 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
           <TouchableOpacity key={g.key} style={ct.cell} activeOpacity={0.8} onPress={()=>setPick(g)}>
             {!!g.badge&&<View style={[ct.badge,g.badge==='HOT'&&{backgroundColor:'#5ec9c1'}]}>
               <Text style={ct.badgeT}>{g.badge}</Text></View>}
-            <View style={ct.thumb}><Text style={{fontSize:28}}>{g.icon}</Text></View>
+            <View style={ct.thumb}>
+              <Image source={{uri:IMG+`gicon-${g.key}.webp`}} style={ct.thumbImg} resizeMode="contain"/></View>
             <Text style={ct.cname}>{g.name}</Text>
             <View style={ct.price}><Text style={ct.priceT}>♡ {g.cost}</Text></View>
           </TouchableOpacity>)
@@ -650,7 +651,8 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
     {!!pick&&<ScrollView contentContainerStyle={ct.wrap}>
       <View style={ct.gcard}>
         <View style={ct.ribbon}/>
-        <View style={ct.gthumb}><Text style={{fontSize:32}}>{pick.icon}</Text></View>
+        <View style={ct.gthumb}>
+          <Image source={{uri:IMG+`gicon-${pick.key}.webp`}} style={ct.gthumbImg} resizeMode="contain"/></View>
         <View style={{flex:1}}>
           <Text style={ct.gname}>{pick.name}</Text>
           <View style={ct.gprice}><Text style={ct.priceT}>♡ {pick.cost}</Text></View>
@@ -715,6 +717,9 @@ const ct=StyleSheet.create({
   ribbon:{position:'absolute',left:0,top:16,bottom:16,width:5,backgroundColor:'#ff9ec6',borderRadius:3},
   gthumb:{width:70,height:70,alignItems:'center',justifyContent:'center',borderRadius:9,
     backgroundColor:'#f4f6fd',borderWidth:1,borderColor:'#d9d3f0'},
+  /* 물건은 그림이다. 이모지로 두면 기기마다 다른 그림이 나온다 */
+  thumbImg:{width:46,height:46},
+  gthumbImg:{width:54,height:54},
   gname:{...F,fontSize:14,color:P.ink},
   gprice:{alignSelf:'flex-start',marginTop:8,paddingVertical:3,paddingHorizontal:9,
     backgroundColor:'#fff2f8',borderWidth:1,borderColor:'#f4c3d8',borderRadius:10},

@@ -41,41 +41,41 @@ export type Stage = { at: number; day: number; status: string; bg: string; track
 /* 선물 — index.html의 GIFTS와 같아야 한다. 어긋나면 웹에서 준 선물이
    앱에서는 없는 물건이 된다.
    bg가 있는 넷만 프로필 배경이 되고, 나머지는 주고 반응만 받는다.
-   icon은 이모지다 — 앱에는 SVG가 없다. */
-export type Gift = { key:string; name:string; cat:string; cost:number; icon:string;
+   물건 그림은 gicon-{key}.webp — 웹과 같은 파일을 IMG에서 받는다. */
+export type Gift = { key:string; name:string; cat:string; cost:number;
                      tags:string; bg?:string; badge?:string };
 export const GIFTS: Gift[] = [
-  {key:'mug',       name:'회색 머그컵',  cat:'소품', cost:2, icon:'☕', badge:'NEW', bg:'gift-mug.webp',
+  {key:'mug',       name:'회색 머그컵',  cat:'소품', cost:2, badge:'NEW', bg:'gift-mug.webp',
    tags:'머그 머그컵 컵 커피 회색 무광 아침 소품 mug cup coffee grey'},
-  {key:'photobook', name:'사진집',       cat:'기록', cost:5, icon:'📖', bg:'gift-photobook.webp',
+  {key:'photobook', name:'사진집',       cat:'기록', cost:5, bg:'gift-photobook.webp',
    tags:'사진집 사진 책 겨울 풍경 전시 미술관 기록 photo book winter'},
-  {key:'beanie',    name:'남색 비니',    cat:'옷',   cost:3, icon:'🧢', bg:'gift-beanie.webp',
+  {key:'beanie',    name:'남색 비니',    cat:'옷',   cost:3, bg:'gift-beanie.webp',
    tags:'비니 모자 니트 남색 겨울 옷 beanie hat knit navy'},
-  {key:'earphone',  name:'유선 이어폰',  cat:'소품', cost:4, icon:'🎧', badge:'HOT', bg:'gift-earphone.webp',
+  {key:'earphone',  name:'유선 이어폰',  cat:'소품', cost:4, badge:'HOT', bg:'gift-earphone.webp',
    tags:'이어폰 유선 음악 노래 소품 earphone earphones wired music'},
-  {key:'hotpack',   name:'핫팩',        cat:'소품', cost:1, icon:'♨️',
+  {key:'hotpack',   name:'핫팩',        cat:'소품', cost:1,
    tags:'핫팩 손난로 겨울 따뜻 소품 hotpack warm'},
-  {key:'umbrella',  name:'접이식 우산',  cat:'소품', cost:3, icon:'☂️',
+  {key:'umbrella',  name:'접이식 우산',  cat:'소품', cost:3,
    tags:'우산 비 장마 접이식 소품 umbrella rain'},
-  {key:'hanky',     name:'손수건',      cat:'소품', cost:2, icon:'🧺',
+  {key:'hanky',     name:'손수건',      cat:'소품', cost:2,
    tags:'손수건 수건 천 소품 handkerchief cloth'},
-  {key:'camera',    name:'필름 카메라',  cat:'소품', cost:6, icon:'📷',
+  {key:'camera',    name:'필름 카메라',  cat:'소품', cost:6,
    tags:'카메라 필름 사진 소품 camera film'},
-  {key:'scarf',     name:'목도리',      cat:'옷',   cost:4, icon:'🧣',
+  {key:'scarf',     name:'목도리',      cat:'옷',   cost:4,
    tags:'목도리 머플러 겨울 옷 scarf muffler'},
-  {key:'gloves',    name:'장갑',        cat:'옷',   cost:3, icon:'🧤',
+  {key:'gloves',    name:'장갑',        cat:'옷',   cost:3,
    tags:'장갑 손 겨울 옷 gloves'},
-  {key:'bandana',   name:'파란 반다나',  cat:'옷',   cost:2, icon:'🪢',
+  {key:'bandana',   name:'파란 반다나',  cat:'옷',   cost:2,
    tags:'반다나 손목 파랑 파란 옷 bandana wrist blue'},
-  {key:'candy',     name:'목캔디',      cat:'간식', cost:1, icon:'🍬',
+  {key:'candy',     name:'목캔디',      cat:'간식', cost:1,
    tags:'목캔디 사탕 캔디 간식 candy throat'},
-  {key:'ramen',     name:'컵라면',      cat:'간식', cost:1, icon:'🍜',
+  {key:'ramen',     name:'컵라면',      cat:'간식', cost:1,
    tags:'컵라면 라면 야식 간식 ramen noodle'},
-  {key:'coffee',    name:'드립백 커피',  cat:'간식', cost:2, icon:'🫘',
+  {key:'coffee',    name:'드립백 커피',  cat:'간식', cost:2,
    tags:'커피 드립백 원두 아침 간식 coffee drip'},
-  {key:'letter',    name:'편지지',      cat:'기록', cost:2, icon:'✉️',
+  {key:'letter',    name:'편지지',      cat:'기록', cost:2,
    tags:'편지지 편지 종이 기록 letter paper'},
-  {key:'mixcd',     name:'믹스 CD',     cat:'기록', cost:3, icon:'💿',
+  {key:'mixcd',     name:'믹스 CD',     cat:'기록', cost:3,
    tags:'CD 시디 믹스 음악 노래 기록 mix music'},
 ];
 export const GIFT_CATS = ['전체','소품','옷','간식','기록'];
