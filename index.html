@@ -1340,7 +1340,8 @@ const ROAD_PIN_POS={
 /* 장소 그림에 파묻히는 표지판. 사각형으로 재면 아이콘이 29%라 여덟 개가
    전부 겹친다고 나온다. 실제 그림의 안 비치는 픽셀끼리 겹쳐보고, 표지판
    넓이의 12%를 넘게 먹히는 것만 골랐다 — 스치는 정도는 길가 표지판답다. */
-const PIN_BURIED=["옥상","도서관"];
+/* 「집」은 길이 끝나는 자리라 표지판이 필요 없다 — 문이 곧 끝 표시다 */
+const PIN_BURIED=["옥상","도서관","집"];
 const ROAD_LABEL={
   class:"CLASSROOM",nurse:"INFIRMARY",rooftop:"ROOFTOP",conv:"STORE",
   library:"LIBRARY",record:"RECORD SHOP",laundry:"LAUNDROMAT",home:"HOME",

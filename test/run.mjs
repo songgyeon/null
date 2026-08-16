@@ -1723,7 +1723,7 @@ eq('START가 길 시작에 붙는다', /\.roadstart\{position:absolute;left:50%;
 eq('문이 길 끝에 붙는다', /"집":\s*\{x:72, y:10\}/.test(web), true);
 /* 사각형으로 재면 아이콘이 29%라 표지판이 전부 겹친다고 나온다.
    실제 그림의 안 비치는 픽셀끼리 겹쳐보고 파묻히는 것만 골랐다 */
-eq('파묻히는 표지판만 뺀다', /const PIN_BURIED=\["옥상","도서관"\]/.test(web), true);
+eq('파묻히는 표지판만 뺀다', /const PIN_BURIED=\["옥상","도서관","집"\]/.test(web), true);
 eq('배경만 연보라로 띄운다',
   /\.roadmap::after\{[^}]*rgba\(242,236,255,\.36\)/.test(web), true);
 eq('지도 제목이 하얀색이다', /\.roadtitle\{[^}]*color:#fff/.test(web), true);
