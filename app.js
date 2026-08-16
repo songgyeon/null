@@ -508,6 +508,11 @@ function App(){
       const ms=storeRef.current.msgs[r.id]||[];if(!ms.length)return;
       lines.push("──── "+r.name+" ────");
       ms.forEach(m=>{
+        /* 지문에는 말한 사람이 없다. 「이민현이 이어폰을 받았다」는 아무도
+           한 말이 아닌데, 내보낸 파일에서는 유저 이름이 붙어서 유저가 자기
+           얘기를 삼인칭으로 한 것처럼 찍혔다. 화면에서는 지문으로 뜨는데
+           파일에서만 말이 됐다 — 화면과 파일이 다른 이야기를 하면 안 된다. */
+        if(m.sys){ lines.push(`[${fmtDivider(m.ts)}] · ${m.text||""}`); return }
         const who=m.sender==="user"?name:(CHARS[m.sender]?CHARS[m.sender].name:m.sender);
         lines.push(`[${fmtDivider(m.ts)}] ${who}: ${m.photo?"(사진) ":""}${m.text||""}`);
       });
