@@ -9,12 +9,16 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs     # 597개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/run.mjs     # 605개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
 ```
 
 ```
 worker.js             # Cloudflare Worker — 프롬프트 조립·캐싱·파싱·보안
-index.html            # 웹 (React 18, 단일 파일)
+index.html            # 웹 — 뼈대만. 아래 넷을 순서대로 싣는다 (React 18, 빌드 없음)
+null.css              #   전부의 생김새
+app-data.js           #   데이터와 규칙 — 인물·방·선물·장소·시간표. JSX가 없어서 바벨을 안 탄다
+app-ui.js             #   화면 조각 — 아이콘·창·방 목록·채팅방
+app.js                #   앱 — 상태를 들고 저장소를 읽고 워커를 부른다
 app/App.tsx           # Android (React Native / Expo)
 app/lib/              # api.ts(호출) · profiles.ts(단계·선물·BGM) · db.ts(expo-sqlite)
 app/assets/           # 앱에 묶어 넣는 그림 — 아이콘 3장 + 비눗방울·자막막·포인터
@@ -33,7 +37,9 @@ test/run.mjs          # 회귀 테스트
 null-logo.mp3         # 오프닝 로고곡
 ```
 
-웹은 `index.html`을 그대로 열면 돕니다. 앱은 `cd app && npm install && npx expo start`,
+웹은 `index.html`을 웹서버로 열면 돕니다 — 갈라진 네 파일을 가져오느라 `file://`로는
+안 돕니다(`python3 -m http.server`면 충분합니다). 빌드 단계는 없습니다: JSX는
+브라우저에서 Babel standalone이 그 자리에서 컴파일합니다. 앱은 `cd app && npm install && npx expo start`,
 APK는 `npx eas-cli build -p android --profile preview`(Expo 로그인 필요).
 
 앱 화면 글꼴은 Galmuri11(SIL OFL 1.1)입니다. `app/assets/fonts/`에 글꼴과 라이선스 전문이

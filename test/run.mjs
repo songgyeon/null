@@ -208,7 +208,11 @@ section('웹·앱 대조 — 클라이언트 둘이 같은 세계를 봐야 한�
 // ─────────────────────────────────────────────
 /* 웹(index.html)과 앱(app/lib/profiles.ts)은 같은 백엔드를 쓰지만 카탈로그를 각자 들고 있다.
    한쪽만 고쳐놓고 어긋나는 것이 이 프로젝트에서 가장 자주 난 사고다. */
-const web = readFileSync(join(ROOT, 'index.html'), 'utf8');
+/* 앱은 이제 한 파일이 아니다 — index.html은 뼈대만 들고 있고 살은 넷으로 갈렸다.
+   시험은 「앱 전체에 이 문장이 있나」를 묻지 어느 파일에 있는지는 안 묻는다.
+   그래서 여기서 다시 한 덩어리로 붙인다. 파일이 또 갈라져도 여기만 고치면 된다. */
+const APP_FILES = ['index.html', 'null.css', 'app-data.js', 'app-ui.js', 'app.js'];
+const web = APP_FILES.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n');
 const app = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
 const pick = (src, re) => [...src.matchAll(re)].map(m => m[1]);
 
@@ -1567,13 +1571,41 @@ eq('지점은 가변부 앞에 찍는다',
   if (!parse) {
     console.log('  --   JSX 문법 (파서가 없어 건너뜀 — app에서 npm i 하면 돈다)');
   } else {
-    const src = (/<script type="text\/babel">([\s\S]*?)<\/script>/.exec(web) || [])[1];
-    eq('babel 스크립트를 찾았다', !!src && src.length > 1000, true);
-    let err = '';
-    try { parse(src, { sourceType: 'script', plugins: ['jsx'] }); }
-    catch (e) { err = e.message; }
-    eq('index.html의 JSX가 실제로 파싱된다', err, '');
+    /* 바벨을 타는 파일 둘. 여기서 안 읽히면 브라우저에서도 안 읽히고 화면이 하얗다 */
+    for (const f of ['app-ui.js', 'app.js']) {
+      const src = readFileSync(join(ROOT, f), 'utf8');
+      eq(`${f}를 찾았다`, src.length > 1000, true);
+      let err = '';
+      try { parse(src, { sourceType: 'script', plugins: ['jsx'] }); }
+      catch (e) { err = e.message; }
+      eq(`${f}의 JSX가 실제로 파싱된다`, err, '');
+    }
+    /* 데이터 파일은 바벨을 안 탄다. JSX가 한 줄이라도 섞이면 브라우저가
+       그 자리에서 문법 오류를 내고 나머지가 통째로 안 실린다 */
+    let derr = '';
+    try { parse(readFileSync(join(ROOT, 'app-data.js'), 'utf8'), { sourceType: 'script' }); }
+    catch (e) { derr = e.message; }
+    eq('app-data.js에는 JSX가 안 섞였다', derr, '');
   }
+}
+
+/* ── 파일이 넷으로 갈렸다 ──
+   한 파일에 3,500줄이 있었다. 빌드 도구를 들이지 않고 나누려면 순서가 전부다 —
+   데이터가 먼저, 화면 조각이 다음, 앱이 마지막. 하나라도 어긋나면 화면이 하얗다. */
+{
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  eq('갈라진 파일이 전부 있다', APP_FILES.filter(f => !exists(f)), []);
+  eq('index.html은 뼈대만 남았다', html.split('\n').length < 60, true);
+  const order = ['null.css', 'app-data.js', 'app-ui.js', 'app.js'].map(f => html.indexOf(f));
+  eq('싣는 차례가 데이터 → 화면 → 앱이다',
+    order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), true);
+  /* 데이터에는 JSX가 없어서 바벨을 안 태운다 — 태우면 그만큼 늦게 뜬다 */
+  eq('데이터는 바벨을 안 탄다', /<script src="app-data\.js/.test(html), true);
+  eq('화면과 앱은 바벨을 탄다',
+    /<script type="text\/babel" src="app-ui\.js/.test(html)
+    && /<script type="text\/babel" src="app\.js/.test(html), true);
+  /* 지우고 다시 여는 표식은 리액트가 뜨기 전에 읽혀야 한다 */
+  eq('비우는 자리가 화면보다 앞이다', html.indexOf('null_wipe') < html.indexOf('app-data.js'), true);
 }
 
 /* 「같이 가기로 했다」를 메신저 화면 그대로 두면 마주 앉은 걸 그릴 방법이 없다.
@@ -2094,9 +2126,6 @@ eq('리스타트는 표식만 남기고 다시 연다',
   /localStorage\.setItem\("null_wipe","1"\)/.test(web) && /location\.reload\(\)/.test(web), true);
 eq('다음 판 맨 앞에서 비운다',
   /if\(localStorage\.getItem\("null_wipe"\)\)\{ localStorage\.clear\(\); \}/.test(web), true);
-/* 비우는 자리가 리액트보다 앞이어야 한다. 뒤면 화면이 먼저 떠서 도로 저장한다 */
-eq('비우는 자리가 화면보다 앞이다',
-  web.indexOf('null_wipe') < web.indexOf('<script type="text/babel">'), true);
 
 /* ── 시간표 ──
    하루에 여섯 번 알림을 띄우면 사흘이면 벽지가 된다. 하루에 한 번이면
