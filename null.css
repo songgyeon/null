@@ -122,7 +122,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
    숫자로 맞추는 대신 줄어들 순서를 정한다: 글자 항목은 자리가 모자라면
    줄고(min-width:0이라야 글자 폭 아래로도 준다), 오른쪽 두 알약은 안 준다.
    그래서 무슨 글꼴이 실리든 넘치는 쪽은 늘 왼쪽 글자다. */
-.mbtn,.ddwrap{flex:0 1 auto;min-width:0;overflow:hidden}
+/* 자르는 것은 단추만. .ddwrap에도 overflow:hidden을 줬더니 그 안에 든
+   드롭다운(.dd)까지 같이 잘려서 file·chat 메뉴가 안 열렸다 — 열리긴 했는데
+   단추 상자 밖으로 못 나와 보이지 않았다. 감싼 쪽은 줄어들기만 하고,
+   자르는 일은 안쪽 단추가 한다(max-width로 줄어든 폭을 따라간다). */
+.mbtn{flex:0 1 auto;min-width:0;overflow:hidden;max-width:100%}
+.ddwrap{flex:0 1 auto;min-width:0}
 
 .mbtn.open{color:#4a4276;background:#fff;box-shadow:0 0 0 1px #cfc6ee}
 .bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;

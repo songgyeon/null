@@ -582,6 +582,16 @@ eq('점이 꺼진 사람은 안 건다',
     /last\.sys\?"· ":last\.sender==="user"\?"나: ":""/.test(web)
     && /last\.sender==='sys'\?'· ':last\.sender==='user'\?'나: ':''/.test(appSrc), true);
 }
+/* 자르는 것은 단추만. .ddwrap에도 overflow:hidden을 줬더니 그 안에 든
+   드롭다운(.dd)까지 같이 잘려서 file·chat 메뉴가 안 열렸다 — 열리긴 했는데
+   단추 상자 밖으로 못 나와 보이지 않았다 */
+{
+  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('감싼 쪽은 안 자른다', /\.ddwrap\{flex:0 1 auto;min-width:0\}/.test(css), true);
+  eq('자르는 건 단추다', /\.mbtn\{flex:0 1 auto;min-width:0;overflow:hidden;max-width:100%\}/.test(css), true);
+  /* 드롭다운은 단추 밖으로 나와야 한다 */
+  eq('드롭다운은 절대 위치다', /\.dd\{position:absolute;left:0;top:calc\(100% \+ 5px\)/.test(css), true);
+}
 /* ── 유저가 먼저 가자고 하는 자리 ──
    자리를 여는 길이 둘뿐이었다. 지도에서 유저가 고르거나, 관계가 쌓여 인물이
    먼저 꺼내거나. 그래서 대화 중에 「편의점 가자」고 하면 인물에게는 그 자리를
