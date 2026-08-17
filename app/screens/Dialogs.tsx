@@ -1,0 +1,390 @@
+// @ts-nocheck
+/* ── 창(팝업)들 ──
+   웹 app.js의 ask / leaving / way / plate / groupNew / look을 그대로 옮겼다.
+   글월은 app.js에서 글자 그대로 가져온 것이다 — 이모티콘 한 자도 새로 짓지
+   않는다. 앱에서만 다르게 말하면 같은 세계가 아니게 된다.
+
+   판정은 여기서 안 한다. 무엇이 막혔는가도(away/locked/shut/wk/done/empty/
+   need/mv/klass/no/why), 첫 줄에 뭐라고 쓰는지도(title), 동행 줄을 세우는지도
+   (canPick/who) 전부 lib/flow.ts의 askState가 재고, 이 파일은 그 결과를
+   그림으로만 옮긴다. 규칙이 두 군데 살면 반드시 갈라진다 — 웹이 규칙을
+   app-data.js 한 곳에 몰아둔 것과 같은 이유다. 그래서 PLACE_BY를 안 들여온다:
+   자리표가 손에 있으면 여기서 조건 한 줄 더 재는 일이 반드시 생긴다.
+
+   왜 Modal이 아니라 절대배치 View인가:
+   창은 겹쳐 뜬다. 나가기에 답하면 귀갓길 창이 이어서 뜨고(answerLeave),
+   자리에 앉은 채로 초대가 올 수도 있다. RN의 Modal은 네이티브 창이라 둘이
+   동시에 서면 나중 것이 화면을 통째로 덮고 아래 창은 눌리지 않는다 —
+   웹에서 겹친 창 때문에 아래 창을 못 눌렀던 일이 네이티브에서는 더 크게
+   난다. 그래서 형제로 나란히 눕히고 쌓이는 차례만 z로 정한다.
+   z는 웹과 같은 값이다: 대화창 40, 문틈 42(토스트 45보다는 아래 —
+   구경 중에도 알림은 보여야 한다). */
+import React, { useState } from 'react';
+import { View, Text, Image, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { CHARS, AV_V } from '../lib/rules';
+import { IMG } from '../lib/api';
+/* 값이 아니라 모양만 가져온다 — 판정은 저쪽 파일의 일이다.
+   askState는 {away,locked,shut,wk,done,empty,need,mv,klass,no,why,
+   title,canPick,who}를 준다. */
+import type { AskState } from '../lib/flow';
+
+/* App.tsx의 P·F·TB·Dots·Bevel·Face와 같은 것들이다. App.tsx는 default export
+   하나뿐이라 가져올 길이 없어서 여기 다시 세운다 — 색과 치수를 바꾸려면
+   두 곳을 같이 고쳐야 한다. 나중에 조각들을 lib으로 빼면 이 블록은 사라진다. */
+const P = {
+  ink:'#4a4276', border:'#5d5490', mid:'#8a7fc0', chrome:'#dcd6f2', bg:'#ece8fa',
+  pink:'#ff9ec6', sub:'#9a8fc8', dim:'#b0a6d8', badge:'#ff7fae', err:'#c23b50', dark:'#2a2450',
+  lav:'#c3b2f0', shade:'#cdc3ec',
+};
+const F = { fontFamily:'Galmuri11' } as const;
+
+/* 이모티콘은 픽셀 글꼴에 없는 글자다. null.css가 .kao만 시스템 글꼴로
+   빼둔 것과 같은 이유 — Galmuri11로 그리면 얼굴 자리에 두부가 뜬다.
+   RN은 중첩 Text가 부모 글꼴을 물려받으므로 이름을 비우는 것으로는 안 되고
+   시스템 글꼴 이름을 또박또박 적어야 덮인다. */
+const KAO = {
+  fontFamily: Platform.select({ android:'sans-serif', ios:'System', default:'System' }),
+  letterSpacing: 0,
+};
+
+/* ── 프사 ──
+   웹 app-ui.js의 faceBg와 같은 계산이다. 정사각 액자에 원본을 통째로 넣으면
+   위가 비어서 이마만 나온다 — 확대해서 눈높이로 끌어올린다.
+   확대율과 위치는 rules.ts의 CHARS가 들고 있다("150%", "50% 22%"). 앱에
+   숫자를 베껴두면 사진을 갈아끼울 때 한쪽만 고쳐진다. */
+const pctOf = (s:string, d:number) => { const n = parseFloat(s); return isFinite(n) ? n/100 : d };
+function Face({char, size}:{char:string; size:number}) {
+  const c = CHARS[char] || {};
+  const zoom = pctOf(c.zoom, 1.5);
+  const [px, py] = String(c.pos || '50% 50%').split(/\s+/);
+  const x = pctOf(px, .5), y = pctOf(py, .5);
+  return <View style={{width:size, height:size, borderRadius:size/2, overflow:'hidden',
+      backgroundColor:c.pale || '#efeaf9', borderWidth:1.5, borderColor:'#fff'}}>
+    <Image source={{uri: IMG + c.img + AV_V}} resizeMode="cover"
+      style={{width:size*zoom, height:size*zoom,
+        marginLeft:-x*(zoom-1)*size, marginTop:-y*(zoom-1)*size}}/>
+  </View>;
+}
+
+// 신호등 ─ □ ✕ — ✕만 실제로 닫는다
+function Dots({onClose}:{onClose?:()=>void}) {
+  const d:[string,string,string][] = [['#ffd0e6','─','#c46a97'],['#ff9ec6','□','#fff'],['#ff7fae','✕','#fff']];
+  return <View style={{marginLeft:'auto', flexDirection:'row', gap:5}}>
+    {d.map(([bg,glyph,ink],i)=>{
+      const dot = <View style={{width:15, height:15, borderRadius:8, borderWidth:1, borderColor:P.border,
+        backgroundColor:bg, alignItems:'center', justifyContent:'center'}}>
+        <Text style={{...F, fontSize:7, lineHeight:9, color:ink}}>{glyph}</Text>
+      </View>;
+      return (i===2 && onClose)
+        ? <Pressable key={i} onPress={onClose} hitSlop={{top:14,bottom:14,left:14,right:14}}>{dot}</Pressable>
+        : <View key={i}>{dot}</View>;
+    })}
+  </View>;
+}
+
+// 베벨 버튼: 위/왼쪽 밝음 + 아래/오른쪽 음영, 누르면 반전 + 1px 밀림
+function Bevel({onPress, disabled, style, inner, children}:any) {
+  return <Pressable onPress={onPress} disabled={disabled} hitSlop={{top:8,bottom:8,left:8,right:8}}
+    style={[bv.outer, disabled && {opacity:.45}, style]}>
+    {({pressed}:any)=><>
+      <View pointerEvents="none" style={bv.shadow}/>
+      <View style={[bv.face, inner, pressed && bv.faceP]}>{children}</View>
+    </>}
+  </Pressable>;
+}
+const bv = StyleSheet.create({
+  outer:{borderWidth:1, borderColor:P.border, backgroundColor:P.bg},
+  shadow:{position:'absolute', left:2, top:2, right:-2, bottom:-2, backgroundColor:'rgba(93,84,144,.22)'},
+  face:{flexGrow:1, alignSelf:'stretch', alignItems:'center', justifyContent:'center',
+    borderWidth:2, borderTopColor:'#fff', borderLeftColor:'#fff',
+    borderBottomColor:P.shade, borderRightColor:P.shade},
+  faceP:{borderTopColor:P.shade, borderLeftColor:P.shade, borderBottomColor:'#fff', borderRightColor:'#fff',
+    backgroundColor:'#e4ddf6', transform:[{translateX:1},{translateY:1}]},
+});
+
+/* 창의 단추. 웹에서는 .dlgbtns .bevel이 광택 알약으로 덮이는데, 앱에는 이미
+   초대 창(App.tsx)이 네모 베벨로 서 있다. 한 앱 안에서 창마다 단추 모양이
+   다른 것이 웹과 알약 하나 다른 것보다 눈에 띈다 — 앱의 결을 따른다.
+   분홍은 그쪽에서 쓰는 것과 같은 안쪽 색(#ffe3f0)이다. */
+function Btn({label, pink, disabled, onPress, style}:any) {
+  return <Bevel style={[{flex:1, height:38}, style]} disabled={disabled}
+    inner={pink ? {backgroundColor:'#ffe3f0'} : null} onPress={onPress}>
+    <Text style={dl.btnT}>{label}</Text>
+  </Bevel>;
+}
+
+/* 창 껍데기 — 웹의 .dlgov + .dlg + .dlgbody 세 겹.
+   막은 형제로 깔고 창은 그 위에 얹는다. 창 안을 눌러도 막까지 안 내려간다 —
+   형제라서 애초에 타고 내려갈 길이 없다(웹의 stopPropagation 자리다). */
+function Dlg({title, onClose, z=40, children}:any) {
+  return <View style={[dl.ov, {zIndex:z}]}>
+    <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
+    <View style={dl.wrap}>
+      <View pointerEvents="none" style={dl.shadow}/>
+      <View style={dl.win}>
+        <LinearGradient colors={['#ff8fbe','#ffb0d4']} start={{x:0,y:0}} end={{x:1,y:0}} style={dl.tb}>
+          <Text style={dl.tbT}>{title}</Text>
+          <Dots onClose={onClose}/>
+        </LinearGradient>
+        <View style={dl.body}>{children}</View>
+      </View>
+    </View>
+  </View>;
+}
+
+/* ══ 1. 자리를 눌렀을 때 ══
+   지금 갈 시간이 아니면 묻지 않고 이유를 말한다. 눌렀는데 아무 일도 안
+   일어나는 것보다 「몇 시부터」를 알려주는 편이 낫다. */
+export function AskDialog({place, state, onGo, onMove, onLook, onClose, onPickWho, picked}:{
+  place:string; state:AskState;
+  onGo:()=>void; onMove:()=>void; onLook:()=>void; onClose:()=>void;
+  onPickWho:(who:string)=>void; picked:string|null;
+}) {
+  if (!place) return null;
+  const s:any = state || {};
+  /* 여기서 재는 것은 이 하나뿐이다. 잠긴 자리를 맨 위에 두는 건 「지금은 못
+     가요」가 아직 안 열린 자리에도 붙으면 시간 탓처럼 읽히기 때문이다. 자리에
+     앉아 있는 동안(away)은 그 말이 맞으므로 그때만 아래로 흘려보낸다.
+     askState가 title에 안 섞고 남겨둔 갈림이라 창이 맡는다 — 한 칸에 성격이
+     다른 두 문장을 넣지 않으려고 저쪽이 일부러 비워둔 자리다. */
+  const lock = !!s.locked && !s.away;
+  return <Dlg title={place} onClose={onClose} z={40}>
+    <View style={dl.lineBox}>
+      {lock
+        ? <Text style={dl.lock}>my bad <Text style={dl.lockI}>♡</Text>{'\n'}아직은 못 가요 <Text style={KAO}>𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</Text></Text>
+        : <Text style={dl.line}>{s.title}</Text>}
+    </View>
+    {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
+    {!s.no && !s.klass &&
+      <Text style={dl.rule}>앗! 하루에 1번만 갈 수 있어요 <Text style={KAO}>(υl|l◔ㅅ◔)՞՞</Text></Text>}
+    {/* 잠긴 자리는 이유가 빈 문자열이다(무엇을 먼저 가야 하는지는 안 적는다 —
+        순서를 알려주면 지도를 도는 게 심부름이 된다). 그럴 때 웹은 빈 칸을
+        띄우지만 여기서는 아예 건다 — 그 자리에는 이미 「my bad ♡」 두 줄이
+        서 있어서, 빈 칸까지 끼면 말과 단추 사이가 이유 있는 것처럼 벌어진다 */}
+    {!!s.no && !!s.why && <Text style={dl.why}>{s.why}</Text>}
+    {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져
+        있다. 그 갈림은 askState가 canPick에 넣어 준다 */}
+    {!!s.canPick && <View style={dl.who}>
+      {(s.who || []).map((c:string)=>
+        <Bevel key={c} style={{flex:1}} inner={[dl.whoIn, picked===c && dl.whoOn]}
+          onPress={()=>onPickWho && onPickWho(c)}>
+          <Face char={c} size={22}/>
+          <Text style={[dl.whoT, picked===c && dl.whoTOn]}>{CHARS[c].name}</Text>
+        </Bevel>)}
+    </View>}
+    <View style={dl.btns}>
+      {s.no
+        ? <Btn label="알겠어요" onPress={onClose}/>
+        : s.klass
+        /* 구경은 가는 길이 아니다 — 도장도 자리도 대화도 없어서 answerAsk를 안 탄다.
+           어느 장을 볼지는 부르는 쪽(App.tsx)이 뽑는다. 웹은 단추 손잡이에서
+           뽑지만 그 목록을 창에도 베껴 두면 두 벌이 된다 — 사진이 한 장 늘 때
+           한쪽만 늘어난다. 창은 「눌렸다」만 알린다 */
+        ? <>
+            <Btn pink label="살짝 볼래요" onPress={onLook}/>
+            <Btn label="다음에요" onPress={onClose}/>
+          </>
+        : s.mv
+        ? <>
+            <Btn pink label="같이 갈래요" onPress={onMove}/>
+            <Btn label="다음에요" onPress={onClose}/>
+          </>
+        : <>
+            <Btn pink disabled={!!s.need} label="갈래요" onPress={onGo}/>
+            <Btn label="다음에요" onPress={onClose}/>
+          </>}
+    </View>
+  </Dlg>;
+}
+
+/* ══ 2. 나가기 ══
+   들어올 때 물었으니 나갈 때도 묻는 게 짝이 맞다. 하루에 한 번뿐인 자리를
+   뒤로가기 한 번에 닫으면 실수로 그날이 끝난다.
+   막을 누르거나 ✕는 「더 있을래요」다 — 애매하게 닫혀서 자리를 잃지 않는다. */
+export function LeaveDialog({place, onLeave, onStay}:{place:string; onLeave:()=>void; onStay:()=>void}) {
+  if (!place) return null;
+  return <Dlg title={place} onClose={onStay} z={40}>
+    <View style={dl.lineBox}>
+      <Text style={dl.line}>{place}에서 나갈까요?</Text>
+    </View>
+    <Text style={dl.rule}>오늘은 못 와요 <Text style={KAO}>Σ(°△° ꪱꪱꪱ)</Text></Text>
+    <View style={dl.btns}>
+      <Btn pink label="나갈래요" onPress={onLeave}/>
+      <Btn label="더 있을래요" onPress={onStay}/>
+    </View>
+  </Dlg>;
+}
+
+/* ══ 3. 밤 귀갓길 ══
+   유저 집을 지도에 세우지 않은 건 그게 갈 곳이 아니라 헤어지는 자리라서다.
+   묻는 쪽이 상대라서 초대 창과 같은 모양이다 — 제목이 자리 이름이 아니라
+   사람 이름인 것도 그래서다. */
+export function WayDialog({room, onRide, onAlone}:{room:string; onRide:()=>void; onAlone:()=>void}) {
+  if (!room) return null;
+  return <Dlg title={CHARS[room] ? CHARS[room].name : ''} onClose={onAlone} z={40}>
+    <View style={dl.lineBoxWay}>
+      <Text style={dl.line}>
+        {room === 'jaeeon' ? '늦었어요. 태워다 줄게요' : '저도 그쪽 방향인데, 같이 갈래요?'}
+      </Text>
+    </View>
+    <View style={dl.btns}>
+      <Btn pink label="같이 가요" onPress={onRide}/>
+      <Btn label="혼자 갈게요" onPress={onAlone}/>
+    </View>
+  </Dlg>;
+}
+
+/* ══ 4. 사물함 명패 ══
+   갈 자리는 아니지만 누르면 한 마디 한다. 눌러도 아무 일이 없는 칸이
+   여덟 중 둘이면 나머지 여섯도 안 눌러보게 된다.
+   얼굴(kao)이 say와 따로 오는 건 픽셀 글꼴에 그 글자들이 없어서다. */
+export function PlateDialog({kind, say, kao, onClose}:{kind:string; say:string; kao:string; onClose:()=>void}) {
+  if (!say) return null;
+  return <Dlg title={kind === 'start' ? 'START' : 'NULL'} onClose={onClose} z={40}>
+    <View style={dl.lineBoxPlate}>
+      <Text style={dl.line}>{say} <Text style={KAO}>{kao}</Text></Text>
+    </View>
+    <View style={dl.btns}>
+      <Btn pink label="ok ♡" onPress={onClose}/>
+    </View>
+  </Dlg>;
+}
+
+/* ══ 5. 새 방 ══
+   단톡방은 민현이 판다. 유저는 초대를 받은 쪽이라 무슨 방인지 모른 채로
+   들어간다 — 그래서 「이 유」 칸이 비밀이다. 웹소설 상태창 형식이라
+   항목과 값만 적고, 왜 만들었는지를 쓸 자리가 형식에 없다. */
+export function GroupNewDialog({onClose}:{onClose:()=>void}) {
+  return <Dlg title="null.exe" onClose={onClose} z={40}>
+    <View style={dq.box}>
+      <Text style={dq.k}>［ 새 방 ］♡</Text>
+      <View style={dq.rows}>
+        {([['이 름','단톡방',false],['초 대','이민현',false],['이 유','비밀',true]] as [string,string,boolean][])
+          .map(([k,v,hush])=>
+            <View key={k} style={dq.r}>
+              <Text style={dq.k2}>{k}</Text>
+              <View style={dq.dot}/>
+              <Text style={[dq.v, hush && dq.hush]}>{v}</Text>
+            </View>)}
+      </View>
+      <Text style={dq.s}>
+        이민현이 방을 만들고 당신을 넣었어요{'\n'}
+        <Text style={KAO}>( ˶˘ ᵕ ˘˶ )</Text> ♡
+      </Text>
+      {/* 이 창의 ok는 다른 창보다 좁다(웹의 .wbtn max-width:112px).
+          알림이지 갈림길이 아니라서 단추가 창을 가로지를 이유가 없다 */}
+      <View style={dq.btns}>
+        <Btn label="ok ♡" style={{flex:0, width:112}} onPress={onClose}/>
+      </View>
+    </View>
+  </Dlg>;
+}
+
+/* ══ 6. 교실 문틈 ══
+   수업 중엔 대화가 아니라 구경이다. 교실 배경을 어둡게 깔고 그 애 사진
+   한 장을 폴라로이드처럼 얹는다. 캐비닛 TV처럼 아무 데나 누르면 돌아간다.
+   말풍선도 도장도 없다 — 방문이 아니니까. */
+export function LookOverlay({shot, onClose}:{shot:string; onClose:()=>void}) {
+  const {height} = useWindowDimensions();
+  /* 사진마다 비율이 다르다(1024×1536도 있고 1122×1402도 있다). 웹은 height:auto로
+     원본 비율이 저절로 나오는데 RN은 비율을 미리 알려줘야 해서, 일단 흔한 쪽으로
+     그려두고 사진이 도착하면 실제 값으로 고친다. 안 그러면 얼굴이 늘어난다. */
+  const [ratio, setRatio] = useState(1024/1536);
+  if (!shot) return null;
+  return <Pressable style={lk.ov} onPress={onClose}>
+    <Image source={{uri: IMG + 'place-class.webp'}} resizeMode="cover" style={StyleSheet.absoluteFill}/>
+    {/* RN에는 CSS filter가 없다. brightness(.5)를 어두운 막 한 겹으로 대신한다 —
+        사진을 보러 온 화면이라 배경이 밝으면 폴라로이드가 안 뜬다 */}
+    <View pointerEvents="none" style={lk.dim}/>
+    {/* 웹은 top:43%로 가운데보다 조금 위에 건다. 화면 높이의 7%만큼 끌어올리면
+        같은 자리다 — 아래에 남는 자리가 캡션 몫이다 */}
+    <View pointerEvents="none" style={[lk.shotWrap, {transform:[{translateY:-height*0.07}]}]}>
+      <View style={lk.shot}>
+        <Image source={{uri: IMG + shot}} resizeMode="cover"
+          onLoad={(e:any)=>{ const s = e && e.nativeEvent && e.nativeEvent.source;
+            if (s && s.width && s.height) setRatio(s.width/s.height) }}
+          style={{width:'100%', aspectRatio:ratio, borderRadius:1}}/>
+      </View>
+    </View>
+    <Text style={[lk.cap, {bottom:height*0.13}]}>수업 중이다. 말은 못 건다.</Text>
+  </Pressable>;
+}
+
+const dl = StyleSheet.create({
+  ov:{...StyleSheet.absoluteFillObject, alignItems:'center', justifyContent:'center',
+    padding:26, backgroundColor:'rgba(74,66,118,.4)'},
+  wrap:{width:'100%', maxWidth:290},
+  /* 웹의 box-shadow 0 3px 0 — 안드로이드의 elevation은 무조건 블러라 뷰로 그린다 */
+  shadow:{position:'absolute', left:0, top:3, right:0, bottom:-3,
+    backgroundColor:'rgba(150,135,210,.35)', borderRadius:8},
+  win:{width:'100%', backgroundColor:'#ffd0e4', borderWidth:1, borderColor:P.border,
+    borderRadius:8, overflow:'hidden'},
+  tb:{flexDirection:'row', alignItems:'center', paddingHorizontal:11, paddingVertical:8,
+    borderBottomWidth:1, borderBottomColor:P.border},
+  tbT:{...F, color:'#fff', fontSize:12, letterSpacing:1.2,
+    textShadowColor:'rgba(93,84,144,.55)', textShadowOffset:{width:1,height:1}, textShadowRadius:0},
+  body:{paddingTop:18, paddingHorizontal:16, paddingBottom:16, gap:8},
+
+  // .dlgline — 인라인으로 덮이는 padding까지 자리별로 그대로 옮긴다
+  lineBox:{paddingTop:10, paddingBottom:4},
+  lineBoxWay:{paddingVertical:10},
+  lineBoxPlate:{paddingTop:14, paddingBottom:12},
+  line:{...F, fontSize:13, lineHeight:25, color:'#8a4f74', textAlign:'center'},
+  // .asklock — 두 줄로 끊는다. 한 줄로 늘어놓으면 창이 옆으로 벌어지고 얼굴이 잘린다
+  lock:{...F, fontSize:11.5, lineHeight:22, color:'#a06a90', textAlign:'center'},
+  lockI:{color:'#e66fa4'},
+  // .askrule — 상자를 두르면 창 안에 창이 하나 더 생긴다. 글자색만 달리한다
+  rule:{...F, marginHorizontal:14, marginBottom:11, fontSize:10.5, lineHeight:16,
+    letterSpacing:.2, color:'#d47aa8', textAlign:'center'},
+  why:{...F, paddingBottom:8, fontSize:10, lineHeight:17, letterSpacing:.8,
+    color:'#b4a7d6', textAlign:'center'},
+
+  // .askwho / .whobtn
+  who:{flexDirection:'row', gap:7, marginHorizontal:12, marginBottom:10},
+  whoIn:{flexDirection:'row', gap:6, paddingVertical:7, paddingHorizontal:6},
+  whoOn:{backgroundColor:'#ffc2e2'},
+  whoT:{...F, fontSize:11, color:P.ink},
+  /* .whobtn.on — 고른 쪽은 흰 글씨다. 분홍 위에 남색을 얹으면 골랐다기보다
+     흐려진 것처럼 보여서, 고른 칸과 못 고르는 칸이 같은 얼굴이 된다 */
+  whoTOn:{color:'#fff', textShadowColor:'rgba(170,80,140,.5)',
+    textShadowOffset:{width:0,height:1}, textShadowRadius:0},
+
+  btns:{flexDirection:'row', gap:7, marginTop:10},
+  btnT:{...F, fontSize:12, color:P.ink, letterSpacing:2},
+});
+
+/* .ddq — null.exe의 상태 줄. 웹소설 상태창 형식이라 항목과 값만 적는다 */
+const dq = StyleSheet.create({
+  box:{paddingTop:4, paddingHorizontal:2, paddingBottom:2, alignItems:'center'},
+  k:{...F, fontSize:8.5, letterSpacing:2.4, color:'#d0b3dd', textAlign:'center'},
+  rows:{width:'100%', maxWidth:190, marginTop:12, gap:6},
+  r:{flexDirection:'row', alignItems:'center', gap:7},
+  k2:{...F, width:42, fontSize:9.5, letterSpacing:1.9, color:'#d0b3dd', textAlign:'left'},
+  /* 점선 한 줄. 웹은 repeating-linear-gradient인데 RN에는 없어서 dashed 테로 낸다 —
+     안드로이드가 이걸 실선으로 그리는 날이 있지만 여기서는 칸을 잇는 선일 뿐이라
+     실선이어도 뜻이 안 바뀐다 */
+  dot:{flex:1, height:1, borderTopWidth:1, borderStyle:'dashed', borderColor:'#e0d5f7'},
+  v:{...F, fontSize:9.5, letterSpacing:.95, color:'#6b5fa8'},
+  /* 비밀은 회색이 아니라 분홍이다. 못 보는 것과 안 알려주는 것은 다르다 */
+  hush:{color:'#c98fb8'},
+  s:{...F, marginTop:14, fontSize:9.5, lineHeight:18.5, letterSpacing:.57,
+    color:'#b09ecf', textAlign:'center'},
+  btns:{flexDirection:'row', justifyContent:'center', marginTop:10},
+});
+
+const lk = StyleSheet.create({
+  ov:{...StyleSheet.absoluteFillObject, zIndex:42, backgroundColor:'#1a1424',
+    alignItems:'center', justifyContent:'center'},
+  dim:{...StyleSheet.absoluteFillObject, backgroundColor:'rgba(26,20,36,.5)'},
+  shotWrap:{width:'100%', alignItems:'center'},
+  /* 폴라로이드 — 아래 여백이 넓어야 사진이 아니라 인화물로 보인다.
+     살짝 기울여두는 것도 같은 이유다(누가 놓고 간 것처럼) */
+  shot:{width:'66%', maxWidth:240, paddingTop:7, paddingHorizontal:7, paddingBottom:24,
+    backgroundColor:'#fdf9f2', borderRadius:2, transform:[{rotate:'-2deg'}],
+    shadowColor:'#0a0414', shadowOffset:{width:0,height:8}, shadowOpacity:.55, shadowRadius:22,
+    elevation:12},
+  cap:{...F, position:'absolute', left:0, right:0, textAlign:'center',
+    fontSize:11, letterSpacing:1.5, color:'#fff',
+    textShadowColor:'rgba(10,4,20,.9)', textShadowOffset:{width:0,height:1}, textShadowRadius:7},
+});

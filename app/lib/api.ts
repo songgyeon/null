@@ -1,4 +1,7 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
+/* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
+   접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
+import { presence, timeWord, dayWord, PLACES, placeHours } from './rules';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -135,9 +138,29 @@ export async function callApi(payload: any) {
   return data;
 }
 
+/* 워커에 보내는 것은 웹과 한 글자도 다르면 안 된다 — 다르면 같은 인물이
+   두 곳에서 다르게 군다. 웹의 request()가 얹는 것을 여기서도 다 얹는다:
+   요일·접속 상태·지금 있는 자리·가방·문 닫은 자리·자리의 때·선톡 표시. */
+export type ChatOpts = {
+  gift?: { key: string; name: string; note?: string };
+  place?: string | null;      // 지금 마주 앉은 자리
+  bag?: string[];             // 이미 받은 것 — 두 번 안 준다
+  placeOver?: boolean;        // 그 자리의 때가 지났다 — 이번 대답에서 일어선다
+  greet?: boolean;            // 선톡 턴 — 워커가 이력 캐시 지점을 안 찍는다
+  extra?: Record<string, any>;
+};
 export async function sendChat(room: string, userName: string, history: Msg[],
-                               gift?: { key: string; name: string; note?: string }) {
+                               opts: ChatOpts = {}) {
   const sum = await loadSum(room);
+  const { gift, place, bag, placeOver, greet, extra } = opts;
+  /* 그 방 사람의 접속 상태. 목록에 뜨는 것과 같은 함수(presence)를 쓴다 —
+     화면에는 「수업 중」인데 본인은 한가한 사람처럼 답하던 것이 이걸로 맞는다.
+     「주말」은 안 보낸다 — 요일이 이미 실려 있어 같은 말이 두 번 된다. */
+  const states: Record<string, string> = {};
+  for (const id of room === 'group' ? ['jaeeon', 'minhyun'] : [room]) {
+    const pr = presence(id);
+    if (pr && pr.t !== '주말') states[id] = pr.t;
+  }
   return callApi({
     mode: 'chat',
     room,
@@ -151,11 +174,22 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     counts: await buildCounts(),
     days: await buildDays(),
     user_profile: await buildUserProfile(),
+    /* 지금이 언제인가. 워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때라
+       여기서 재서 보낸다 — 요일은 때보다 세다(주말이면 학교가 통째로 없다) */
+    now: timeWord(),
+    day: dayWord(),
+    ...(Object.keys(states).length ? { states } : {}),
     // 방금 장바구니에서 보낸 선물. 없으면 아예 안 보낸다
     ...(gift ? { gift } : {}),
-    // 다녀온 자리·거절한 자리 — 서버가 다음 제안을 고르는 근거
+    // 마주 앉은 자리. 이게 없으면 같은 자리에 앉아서 「지금 어디예요?」를 묻는다
+    ...(place ? { place, bag: bag || [] } : {}),
+    ...(placeOver ? { place_over: true } : {}),
+    ...(greet ? { greet: true } : {}),
+    // 다녀온 자리·거절한 자리·지금 문 닫은 자리 — 서버가 다음 제안을 고르는 근거
     met: await loadList('null_met'),
     refused: await loadList('null_refused'),
+    closed: PLACES.filter((p: any) => !placeHours(p)).map((p: any) => p.name),
+    ...(extra || {}),
   });
 }
 async function loadList(key: string): Promise<string[]> {

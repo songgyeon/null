@@ -535,7 +535,7 @@ function demoWatchOpen(name) {
    공백이 하루를 넘겼을 때만 나와야 한다 — 십 분 만에 다시 들어온 사람한테
    그 말을 하면 이 사람은 시계를 안 보는 사람이 된다.
    기록이 아예 없으면(gapMin<0) 처음 보는 인사라 고른 다섯 개에서만 뽑는다. */
-function demoGreetWhen(gapMin, room, now) {
+function demoGreetWhen(gapMin, room, now = null) {
   /* 처음 거는 말은 뽑기가 아니다. 한 사람에 하나씩 정해져 있다 —
      첫인사는 한 번뿐이라 뽑기로 둘 이유가 없다.
      절 이름에 '첫인사'가 들어가면 안 된다. 아래 필터가 indexOf라서

@@ -9,7 +9,7 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs     # 777개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/run.mjs     # 796개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
 ```
 
 ```
@@ -20,7 +20,11 @@ app-data.js           #   데이터와 규칙 — 인물·방·선물·장소·�
 app-ui.js             #   화면 조각 — 아이콘·창·방 목록·채팅방
 app.js                #   앱 — 상태를 들고 저장소를 읽고 워커를 부른다
 app/App.tsx           # Android (React Native / Expo)
-app/lib/              # api.ts(호출) · profiles.ts(단계·선물·BGM) · db.ts(expo-sqlite)
+app/lib/rules.ts      #   ★ app-data.js에서 만들어진다 — 웹과 앱이 같은 규칙을 읽는다
+app/lib/shim.ts       #   그 규칙이 딛는 바닥(localStorage·location)을 앱에 만들어 준다
+app/lib/flow.ts       #   자리 판단 — 웹 app.js의 사다리를 순수 함수로
+app/screens/          #   캐비닛 지도 · 창들(자리·나가기·귀갓길·명패·단톡·문틈)
+app/lib/              # api.ts(호출) · profiles.ts(단계·BGM) · db.ts(expo-sqlite)
 app/assets/           # 앱에 묶어 넣는 그림 — 아이콘 3장 + 비눗방울·자막막·포인터
 app/assets/fonts/     # Galmuri11 + OFL 전문. 없으면 번들이 그 자리에서 멈춘다
 app/app.json          # 패키지·아이콘·플러그인
@@ -32,6 +36,7 @@ docs/dialogue-corpus.md  # 문구집 원본 — 488개 의도 · 2,047줄. 손�
 docs/status-messages.md  # 상태메시지 — 쓰는 것과 안 쓴 것
 tools/demo-engine.js     # 매칭 엔진 — 웹·앱 결과물에 그대로 이어 붙는다
 tools/build-demo.mjs     # 문구집 → demo-lines.js + app/lib/demoLines.ts
+tools/build-rules.mjs    # app-data.js → app/lib/rules.ts (규칙은 손으로 안 베낀다)
 test/run.mjs          # 회귀 테스트
 cab-icons/            # 캐비닛 지도 — 프레임·문짝 열림/잠김·명패·TV
 *.webp                # 배경·사진·프로필 72장

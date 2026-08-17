@@ -13,6 +13,13 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+/* 타입스크립트 파서. 글자로 세면 함수 안의 선언을 최상위로 착각하는 검사가
+   있어서 진짜 파서가 필요하다. 없으면(앱에서 npm i를 안 했으면) 그 검사만
+   건너뛴다 — 이 파일은 의존성 없이 도는 게 규칙이다. */
+let __parse = null;
+try { ({ parse: __parse } = await import('../app/node_modules/@babel/parser/lib/index.js')); } catch { }
+const parseTS = src => __parse(src, { sourceType: 'module', plugins: ['typescript', 'jsx'] });
+
 let pass = 0, fail = 0;
 const eq = (label, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -287,7 +294,10 @@ for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\
   const want = names.split(',').map(s => s.trim().split(/\s+as\s+/)[0]).filter(Boolean);
   const missing = want.filter(n =>
     !new RegExp(`export\\s+(async\\s+)?(function|const|type|class|let)\\s+${n}\\b`).test(src)
-    && !new RegExp(`export\\s*\\{[^}]*\\b${n}\\b`, 's').test(src));   // 파일 끝에 모아 내보내는 것도 센다
+    && !new RegExp(`export\\s*\\{[^}]*\\b${n}\\b`, 's').test(src)     // 파일 끝에 모아 내보내는 것도 센다
+    /* 규칙 파일(rules.ts)은 풀어헤쳐 내보낸다 — 자바스크립트에서 온 글이라
+       매개변수가 전부 필수로 굳는 것을 any 한 겹으로 푸는 모양이다 */
+    && !new RegExp(`export\\s+const\\s*\\{[^}]*\\b${n}\\b`, 's').test(src));
   eq(`lib/${mod}이 App.tsx가 쓰는 것을 전부 내보낸다`, missing, []);
 }
 
@@ -882,6 +892,137 @@ eq('앱 데모가 웹과 같은 대사를 쓴다',
 eq('생성된 파일이라고 적어둔다',
   /자동 생성/.test(demoSrc) && /자동 생성/.test(appDemo), true);
 
+/* ── 앱과 웹이 같은 규칙을 읽는다 ──
+   전에는 앱이 표를 손으로 베껴 들고 있었다. 그래서 웹에 지도가 생기고 자리가
+   생기고 점심이 생기는 동안 앱은 옛 규칙에 머물렀다 — 같은 이름을 단 다른
+   물건이 됐고, 앱의 재언은 주말에도 보건실에 앉아 있었다.
+   이제 app-data.js 하나가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를
+   만든다. 문구집(build-demo.mjs)에서 이미 쓰던 방식이다. */
+{
+  const rules = readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8');
+  const data = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  eq('규칙 파일은 만들어진 것이라고 적어둔다',
+    /손으로 고치지 않는다/.test(rules) && /build-rules\.mjs/.test(rules), true);
+  /* 낡으면 조용히 갈라진다 — 생성기를 다시 돌린 결과와 파일이 같아야 한다.
+     app-data.js를 고치고 생성기를 안 돌리면 여기서 걸린다. */
+  eq('규칙 파일이 최신이다 (node tools/build-rules.mjs)', (() => {
+    const body = data.replace(/^const \{useState,useEffect,useRef\} = React;\s*$/m, '');
+    const strip = t => t.replace(/^const \{useState,useEffect,useRef\} = React;\s*$/m, '')
+      .replace(/\/\* \(훅을 꺼내 쓰던 줄은 앱에서 뺀다 — 여기는 규칙만 산다\) \*\//, '');
+    return strip(rules).includes(strip(body).trim().slice(0, 4000));
+  })(), true);
+  /* 앱이 규칙을 다시 적으면 그 순간부터 두 판이 된다 */
+  eq('앱이 규칙을 다시 적지 않는다',
+    ['function presence(', 'const ROOMS = [', 'const ENROLL_DAYS =', 'const AUTO_AWAY=',
+     'const DDAY_MARKS=', 'const PHOTO_EVENT_AT='].filter(t => appSrc.includes(t)), []);
+  eq('앱이 규칙 파일에서 가져다 쓴다', /from '\.\/lib\/rules'/.test(appSrc), true);
+  /* 규칙이 딛고 서는 브라우저 것 둘을 앱이 만들어 준다 */
+  const shim = readFileSync(join(ROOT, 'app/lib/shim.ts'), 'utf8');
+  eq('앱이 localStorage와 location을 만들어 준다',
+    /g\.localStorage *=/.test(shim) && /g\.location *=/.test(shim), true);
+  /* 켤 때 한 번 통째로 읽어야 규칙이 저장된 값을 본다 — 안 하면 첫날처럼 보인다 */
+  eq('켤 때 저장소를 메모리로 올린다',
+    /await hydrateShim\(\)/.test(appSrc) && /getAllMeta/.test(shim), true);
+  eq('리스타트하면 그 메모리도 비운다', /resetShim\(\)/.test(appSrc), true);
+
+  /* ── 진짜로 불러지는가 ──
+     한 번은 파일 끝에서 `export const {AV_V,...} = __rules`로 풀었는데, 위에
+     이미 `const AV_V`가 있어서 같은 이름을 두 번 선언한 게 됐다. 앱이 아예
+     안 켜졌는데 @ts-nocheck 때문에 타입 검사는 통과했다 — 불러봐야만 나오는
+     종류다. 최상위에서 같은 이름이 두 번 선언되는지 본다. */
+  eq('규칙 파일이 같은 이름을 두 번 선언하지 않는다', (() => {
+    if (!__parse) return [];   // 파서가 없으면 건너뛴다
+    /* 글자로 세면 함수 안의 선언까지 최상위로 친다 — 파서로 진짜 최상위만 본다 */
+    const ast = parseTS(rules);
+    const top = [];
+    const take = d => {
+      if (d.type === 'FunctionDeclaration' && d.id) top.push(d.id.name);
+      if (d.type === 'VariableDeclaration') for (const v of d.declarations) {
+        if (v.id.type === 'Identifier') top.push(v.id.name);
+        if (v.id.type === 'ObjectPattern') for (const pr of v.id.properties)
+          if (pr.value && pr.value.type === 'Identifier') top.push(pr.value.name);
+      }
+    };
+    for (const node of ast.program.body) {
+      take(node);
+      if (node.type === 'ExportNamedDeclaration' && node.declaration) take(node.declaration);
+    }
+    return top.filter((n, i) => top.indexOf(n) !== i).slice(0, 5);
+  })(), []);
+  /* 규칙이 함수 안에 들어가 있어야 위 선언들이 내보내기와 안 부딪힌다 */
+  eq('규칙은 함수 안에 산다', /function __build\(\): any \{/.test(rules), true);
+
+  /* ── 글자가 아니라 답으로 대조한다 ──
+     같은 파일에서 나왔다는 것만으로는 부족하다 — 생성기가 뭔가 흘렸으면
+     조용히 다른 세계가 된다. 두 파일을 각각 돌려서 하루를 통째로 훑고
+     같은 답이 나오는지 본다(평일·주말 × 24시각). */
+  eq('웹과 앱의 규칙이 같은 답을 낸다', (() => {
+    const box = () => {
+      const mem = new Map();
+      return { localStorage: { getItem: k => mem.has(k) ? mem.get(k) : null,
+        setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
+        location: { search: '' } };
+    };
+    const run = (src, names) => {
+      const g = box();
+      return new Function('localStorage', 'location', src + '\nreturn {' + names.join(',') + '};')
+        (g.localStorage, g.location);
+    };
+    const NAMES = ['presence', 'placeHours', 'whoOut', 'openingFor', 'canGreet', 'jos',
+      'groupReady', 'PLACES', 'placeWhen', 'wendOnlyOk'];
+    const webBody = readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '');
+    /* 규칙은 함수(__build) 안에 산다. 그 함수를 불러 받은 것으로 견준다 */
+    /* 자를 자리는 «바꾼 뒤»의 글에서 찾아야 한다 — 원본 자리로 자르면
+       길이가 달라져 export 줄이 남고, new Function이 그 자리에서 터진다 */
+    const appBody = (() => {
+      const t = rules.replace(/^\/\/ @ts-nocheck$/m, '').replace(/^import '\.\/shim';.*$/m, '')
+        .replace(/: any/g, '');
+      return t.slice(0, t.indexOf('const __rules'));
+    })();
+    const W = run(webBody, NAMES);
+    const A = new Function('localStorage', 'location', appBody + '\nreturn __build();')
+      (box().localStorage, box().location);
+    const diff = [];
+    const cmp = (label, f) => {
+      const R0 = Math.random;   // 주말 오프닝은 뽑기다 — 같은 눈으로 고정해야 견줄 수 있다
+      Math.random = () => 0.42; const a = JSON.stringify(f(W));
+      Math.random = () => 0.42; const b = JSON.stringify(f(A));
+      Math.random = R0;
+      if (a !== b) diff.push(label);
+    };
+    for (const [wd, dd] of [['화', 6], ['토', 10]]) for (let h = 0; h < 24; h++) {
+      const d = new Date(2026, 0, dd, h, 30);
+      cmp(`presence ${wd}${h}`, R => ['jaeeon', 'minhyun'].map(id => R.presence(id, d)));
+      cmp(`whoOut ${wd}${h}`, R => R.whoOut(d));
+      cmp(`canGreet ${wd}${h}`, R => ['jaeeon', 'minhyun'].map(id => R.canGreet(id, d)));
+      cmp(`openingFor ${wd}${h}`, R => { const o = R.openingFor(d); return o && [o.place, o.room]; });
+      for (let i = 0; i < W.PLACES.length; i++)
+        cmp(`${W.PLACES[i].name} ${wd}${h}`, R => [R.placeHours(R.PLACES[i], d), R.wendOnlyOk(R.PLACES[i], d)]);
+    }
+    for (const w of ['교실', '옥상', '레코드샵', '학교', '집'])
+      cmp(`jos ${w}`, R => [R.jos(w, '으로/로'), R.jos(w, '을/를'), R.jos(w, '과/와')]);
+    return diff.slice(0, 5);
+  })(), []);
+}
+
+/* ── 앱이 워커에 보내는 것이 웹과 같다 ──
+   payload가 다르면 같은 인물이 두 앱에서 다르게 군다. 웹이 얹는 것을
+   앱도 다 얹어야 한다 — 특히 접속 상태와 자리는 인물의 대답을 바꾼다. */
+{
+  const api = readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8');
+  eq('앱도 요일·때를 보낸다', /now: timeWord\(\)/.test(api) && /day: dayWord\(\)/.test(api), true);
+  eq('앱도 접속 상태를 보낸다',
+    /states/.test(api) && /presence\(id\)/.test(api) && /pr\.t !== '주말'/.test(api), true);
+  eq('앱도 마주 앉은 자리를 보낸다', /\{ place, bag: bag \|\| \[\] \}/.test(api), true);
+  eq('앱도 자리의 때와 선톡 표시를 보낸다',
+    /place_over: true/.test(api) && /greet: true/.test(api), true);
+  eq('앱도 문 닫은 자리를 보낸다', /closed: PLACES\.filter/.test(api), true);
+  /* 선톡 지시문은 웹과 글자 그대로 같아야 한다 — 다르면 두 앱의 인물이 다르게 군다 */
+  const ask = web.match(/const GREET_ASK="([^"]+)"/);
+  eq('선톡 지시문이 웹과 같다', !!ask && appSrc.includes(ask[1]), true);
+}
+
 /* 실패했을 때 조용히 각본으로 갈아타면 진짜 장애를 못 알아챈다.
    원인은 콘솔에, 표시는 하단 바에 — 웹이 하는 것과 같아야 한다. */
 eq('앱도 서버가 죽으면 각본으로 넘어간다', /catch[\s\S]{0,80}fallToDemo/.test(appSrc), true);
@@ -920,7 +1061,9 @@ eq('etc. 팝업 문구가 웹·앱 같다',
 /* 실습 D-카운트. 첫 대화한 날부터 하루씩 깎이므로 양쪽이 같은 날짜 수에서
    출발해야 한다. 한쪽만 고치면 웹과 앱의 D가 어긋난다. */
 const enrollDays = src => (src.match(/ENROLL_DAYS\s*=\s*(\d+)/) || [])[1];
-eq('실습 기간이 웹·앱 같다', enrollDays(appSrc), enrollDays(web));
+/* 앱은 이제 이 값을 베끼지 않고 규칙 파일에서 가져온다 — 값이 한 곳뿐이라
+   어긋날 수가 없다. 대조하는 대신 베끼지 않았는지를 본다. */
+eq('앱은 실습 기간을 안 베낀다', enrollDays(appSrc), undefined);
 eq('실습 기간이 30일이다', enrollDays(web), '30');
 /* 남은 날을 칸으로 그린다. 서른 칸이 다 차 있다가 앞에서 한 칸씩 빈다 —
    채워지는 게 아니라 비어가는 쪽이어야 이 이야기와 맞는다. */
@@ -939,7 +1082,7 @@ eq('D-카운트를 양쪽 다 실습으로 쓴다',
    제일 비싸다. */
 const autoNum = (src, k) => (src.match(new RegExp(k + '\\s*=\\s*([\\d*]+)')) || [])[1];
 ['AUTO_AWAY', 'AUTO_MAX_DAY'].forEach(k =>
-  eq(`관전 자동 채움 ${k}가 웹·앱 같다`, autoNum(appSrc, k), autoNum(web, k)));
+  eq(`앱은 관전 자동 채움 ${k}를 안 베낀다`, autoNum(appSrc, k), undefined));
 eq('관전 자동 채움에 하루 상한이 있다', autoNum(web, 'AUTO_MAX_DAY'), '2');
 // 방아쇠 네 개를 다 적어둬야 한다. 하나만 걸면 다른 쪽은 영영 안 열린다
 ['gift', 'unlock', 'met', 'photos', 'dday'].forEach(k =>
@@ -951,9 +1094,9 @@ eq('관전 자동 채움에 하루 상한이 있다', autoNum(web, 'AUTO_MAX_DAY
    그리고 둘 다 한 번씩만 찍혀야 한다 — 사진이 여섯 장, 일곱 장 될 때마다
    같은 대화가 다시 나오면 그건 사건이 아니라 배경이 된다. */
 ['PHOTO_EVENT_AT'].forEach(k =>
-  eq(`쌓이는 방아쇠 ${k}가 웹·앱 같다`, autoNum(appSrc, k), autoNum(web, k)));
+  eq(`앱은 ${k}를 안 베낀다`, autoNum(appSrc, k), undefined));
 const ddayMarks = src => (src.match(/DDAY_MARKS\s*=\s*\[([^\]]*)\]/) || [])[1];
-eq('남은 날 방아쇠가 웹·앱 같다', ddayMarks(appSrc), ddayMarks(web));
+eq('앱은 남은 날 방아쇠를 안 베낀다', ddayMarks(appSrc), undefined);
 eq('남은 날 방아쇠가 7·3·1이다', ddayMarks(web).replace(/\s/g, ''), '7,3,1');
 eq('한 번 찍은 사건은 웹·앱 둘 다 다시 안 찍는다',
   /null_ev_done/.test(web) && /null_ev_done/.test(appSrc), true);
@@ -1228,8 +1371,10 @@ eq('해금도 날짜를 본다', [uk(120, 0), uk(120, 3), uk(120, 15), uk(120, 2
     /key: "([^"]+)", room: "([a-z]+)", at: (\d+)/g);
   const H = pick(web, 'const HIDDEN=[', 'const HIDDEN_LABEL',
     /key:"([^"]+)",\s*file:[^,]+,\s*label:[^,]+, room:"([a-z]+)", at:(\d+)/g);
-  const A = pick(appSrc, 'const HIDDEN:HiddenItem', '/* ── 데모 모드',
-    /key:'([^']+)',\s*label:[^,]+, room:'([a-z]+)', at:(\d+)/g);
+  /* 앱은 이 표를 안 들고 있다 — 규칙 파일에서 온다. 거기서 센다 */
+  const A = pick(readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8'),
+    'const HIDDEN=[', 'const HIDDEN_LABEL',
+    /key:"([^"]+)",\s*file:[^,]+,\s*label:[^,]+, room:"([a-z]+)", at:(\d+)/g);
   eq('해금 표가 18개다', [W.length, H.length, A.length], [18, 18, 18]);
   /* 안쪽까지 한쪽만 열리면 짝이 깨진다. 두 사람이 같은 수여야 한다 */
   eq('두 사람이 같은 수다',

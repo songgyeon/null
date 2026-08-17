@@ -47,6 +47,19 @@ export async function setMeta(key: string, value: string) {
   await d.runAsync('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', key, value);
 }
 
+export async function delMeta(key: string) {
+  const d = await initDB();
+  await d.runAsync('DELETE FROM meta WHERE key = ?', key);
+}
+
+/* 통째로 읽는다. 규칙 파일(rules.ts)이 쓰는 localStorage는 동기라, 켤 때
+   한 번 여기서 다 읽어 메모리에 올려두고 그 뒤로는 메모리에서 읽는다. */
+export async function getAllMeta(): Promise<[string, string][]> {
+  const d = await initDB();
+  const rows = await d.getAllAsync<{ key: string; value: string }>('SELECT key, value FROM meta');
+  return rows.map(r => [r.key, r.value] as [string, string]);
+}
+
 // ── messages ──
 export async function insertMsg(m: Msg) {
   const d = await initDB();

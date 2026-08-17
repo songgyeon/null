@@ -14,9 +14,33 @@ import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoGreetWhen, demoWatchOpen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
-         GIFTS, GIFT_CATS, GIFT_HINT, loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
+         loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
 import { useAudioPlayer } from 'expo-audio';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { hydrateShim, resetShim } from './lib/shim';
+import Cabinet from './screens/Cabinet';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, LookOverlay } from './screens/Dialogs';
+import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
+/* ── 규칙은 웹과 같은 파일에서 온다 ──
+   app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
+   전에는 이 표들을 앱이 손으로 베껴 들고 있었다. 그래서 웹에 지도가 생기고
+   자리가 생기고 점심이 생기는 동안 앱은 옛 규칙에 머물렀다 — 같은 이름을 단
+   다른 물건이 됐다. 베낀 것을 지우고 같은 글을 읽게 한다. */
+import {
+  CHARS, ROOMS, ENROLL_DAYS, HIDDEN, AV_V, presence, photoSrc,
+  AUTO_COOL, AUTO_AWAY, AUTO_MAX_DAY, PHOTO_EVENT_AT, DDAY_MARKS, mmss,
+  PLACES, PLACE_BY, SPOTS, WAY, WAY_BG, ITEMS, jos, dayKey, timeWord, isWend,
+  placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
+  loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
+  giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
+  openingFor, canGreet, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
+} from './lib/rules';
+
+/* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
+const GALLERY:Record<string,string[]> = {};
+Object.entries(CHARS).forEach(([id,c]:any)=>{ GALLERY[id]=(c.gallery||[]).map((f:string)=>f.replace(/\.webp$/,'')); });
 
 const W = Dimensions.get('window').width;
 const H = Dimensions.get('window').height;
@@ -28,53 +52,14 @@ const P = {
 };
 const F = { fontFamily:'Galmuri11' } as const; // 픽셀 폰트 — 모든 Text에 적용
 
-const CHARS:Record<string,{name:string;color:string;dk:string;pale:string}> = {
-  jaeeon:{ name:'이재언', color:'#7FD8D8', dk:'#2fa8a0', pale:'#cef0ee' },
-  minhyun:{ name:'이민현', color:'#FF9E80', dk:'#f0764a', pale:'#ffe0d2' },
-};
 
-const ROOMS = [
-  { id:'jaeeon',  name:'이재언', color:'#7FD8D8', type:'dm',    sub:'보건교사, 29세' },
-  { id:'minhyun', name:'이민현', color:'#FF9E80', type:'dm',    sub:'고등학생, 20세' },
-  { id:'group',   name:'단톡방', color:'#B8A5E3', type:'group', sub:'loading...' },
-  { id:'health',  name:'두 사람', color:'#9aa3d8', type:'watch', sub:'access denied' },
-] as const;
 
-/* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다. 웹의 ENROLL_DAYS와 같다 */
-const ENROLL_DAYS = 30;
 
-/* 갤러리(Cam 탭) — 웹 버전과 동일. PHOTOS 키도 여기서 파생 */
-const GALLERY:Record<string,string[]> = {
-  jaeeon:['jaeeon-treat','jaeeon-care','jaeeon-cook','jaeeon-work','jaeeon-evening','jaeeon-market','jaeeon-laundry','jaeeon-car','jaeeon-classroom','jaeeon-rooftop','jaeeon-curtain','jaeeon-shelf','jaeeon-bandage','jaeeon-cabinet','jaeeon-bottle','jaeeon-chart','jaeeon-door','jaeeon-mug','jaeeon-back','jaeeon-driveseat','jaeeon-corridor','jaeeon-sink'],
-  minhyun:['minhyun-candy','minhyun-corridor','minhyun-rain','minhyun-gate','minhyun-morning','minhyun-alley','minhyun-gym','minhyun-busstop','minhyun-winter','minhyun-snow','minhyun-bench','minhyun-desk','minhyun-stair','minhyun-vending','minhyun-laundry','minhyun-conv','minhyun-nap','minhyun-neon','minhyun-ramen','minhyun-window','minhyun-mirror'],
-};
-const PHOTOS:Record<string,string> = {};
-Object.values(GALLERY).forEach(l=>l.forEach(k=>{PHOTOS[k]=k+'.webp'}));
 /* .hidden 탭 — 해금된 key는 meta 'null_unlocked'(JSON 배열)에서 읽는다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
 type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun';at:number;day:number;note?:string};
 type GalleryZoom={uri:string;label?:string;note?:string};
-const HIDDEN:HiddenItem[]=[
-  {key:'jaeeon-bag',           label:'재언의 가방', room:'jaeeon', at:12, day:3},
-  {key:'minhyun-bag',          label:'민현의 가방', room:'minhyun', at:12, day:3},
-  {key:'jaeeon-room',          label:'재언의 방', room:'jaeeon', at:26, day:7},
-  {key:'minhyun-room',         label:'민현의 방', room:'minhyun', at:26, day:7},
-  {key:'jaeeon-playlist',      label:'재언의 플레이리스트', room:'jaeeon', at:44, day:11},
-  {key:'minhyun-playlist',     label:'민현의 플레이리스트', room:'minhyun', at:44, day:11},
-  {key:'jaeeon-ticket',        label:'재언의 티켓', room:'jaeeon', at:64, day:15},
-  {key:'minhyun-ticket',       label:'민현의 티켓', room:'minhyun', at:64, day:15},
-  {key:'jaeeon-yearbook',      label:'재언의 졸업사진', room:'jaeeon', at:90, day:20},
-  {key:'minhyun-yearbook',     label:'민현의 졸업사진', room:'minhyun', at:90, day:20},
-  {key:'hidden-jaeeon-diary-200x-03-07', label:'재언의 일기 · 3월 7일', room:'jaeeon', at:100, day:23},
-  {key:'hidden-minhyun-counseling-record-1-a4', label:'민현 상담 기록 · 1', room:'minhyun', at:100, day:23},
-  {key:'hidden-jaeeon-diary-200x-04-12', label:'재언의 일기 · 4월 12일', room:'jaeeon', at:106, day:24},
-  {key:'hidden-minhyun-counseling-record-2-a4', label:'민현 상담 기록 · 2', room:'minhyun', at:106, day:24},
-  {key:'hidden-jaeeon-diary-201x-07-11', label:'재언의 일기 · 7월 11일', room:'jaeeon', at:112, day:25},
-  {key:'hidden-minhyun-sns-1', label:'@mhy.wav · 1', room:'minhyun', at:112, day:25},
-  {key:'hidden-jaeeon-diary-202x-start', label:'재언의 일기 · 202X년', room:'jaeeon', at:116, day:26},
-  {key:'hidden-minhyun-sns-2', label:'@mhy.wav · 2', room:'minhyun', at:116, day:26},
-];
 
 /* ── 데모 모드 ──
    대사와 매칭은 lib/demoLines.ts에 있다. 그 파일은 docs/dialogue-corpus.md에서
@@ -97,7 +82,6 @@ function demoReply(room:string, lastText?:string, userName?:string, gift?:string
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = '?v=4';
 const face = (id:string) => IMG + id + '-profile.webp' + AV_V;
 
 /* 계산해서 만든 퍼센트 문자열. 그냥 (n*100)+'%'로 쓰면 타입이 string으로 넓어져
@@ -116,23 +100,6 @@ const fmtTime = (ts:number) => {
 const isNarr = (m:any) => !!m && !m.photo &&
   (m.sender === 'sys' || /^[（(][^()（）]*[)）]$/.test((m.text||'').trim()));
 
-/* ── 접속 상태 ── 시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다 */
-function presence(id:string){
-  const h=new Date().getHours();
-  if(id==='jaeeon'){
-    if(h>=8&&h<17)  return {s:'on',  t:'보건실'};
-    if(h>=17&&h<23) return {s:'away',t:'퇴근'};
-    if(h>=23||h<1)  return {s:'away',t:'집'};
-    return {s:'off', t:'자는 중'};
-  }
-  if(id==='minhyun'){
-    if(h>=8&&h<16)  return {s:'away',t:'수업 중'};
-    if(h>=16&&h<22) return {s:'on',  t:'야자'};
-    if(h>=22||h<2)  return {s:'on',  t:'안 자는 중'};
-    return {s:'off', t:'꺼짐'};
-  }
-  return null;
-}
 const DOT:Record<string,string>={on:'#4fc98a',away:'#f0b34a',off:'#c3bcd8'};
 
 /* ── 관계 온도 ── 단계 이름은 화면에 쓰지 않는다. 색으로만 말한다 */
@@ -144,8 +111,6 @@ const stageIdx=(n:number,days=0)=>{let i=0;STAGE_AT.forEach((a,k)=>{if(n>=a&&day
 // stageIdx로 색인한다 — STAGE_AT과 길이가 같아야 한다. 짧으면 마지막 단계에서 터진다
 const HEAT=[{w:1,o:'44'},{w:1.5,o:'80'},{w:2,o:'b8'},{w:2.5,o:'e0'},{w:3,o:'ff'}];
 
-/* ── peek 쿨타임 ── 관찰이 흔하면 값이 떨어진다. 연타로 새는 비용도 여기서 막는다 */
-const AUTO_COOL=5*60*1000;
 /* 관전방 자동 채움 — 유저가 선물을 주거나 무언가 해금되면, 두 사람이 그 일을
    두고 이야기한다. 시계가 아니라 사건이 방아쇠다.
    다만 바로 만들지 않는다. 유저가 앱을 떠난 지 한 시간쯤 지난 뒤의 일로 찍는다.
@@ -154,15 +119,6 @@ const AUTO_COOL=5*60*1000;
    서버 크론은 안 쓴다. 안 돌아올 사람 몫까지 미리 만들어 돈을 태우고, 지금
    백엔드는 유저별 저장소도 없다. 돌아왔을 때 만들고 시각을 과거로 찍으면
    화면에 보이는 결과는 같고 값은 돌아온 사람 수만큼만 든다. */
-const AUTO_AWAY=60*60*1000;    // 이만큼 자리를 비운 뒤에 있었던 일로 찍는다
-const AUTO_MAX_DAY=2;          // 하루 상한. 관전 프롬프트가 22,000자로 제일 비싸다
-/* 눌러서 만드는 사건(선물·해금·약속) 말고, 그냥 쌓여서 되는 사건이 둘 있다.
-   한 번씩만 찍는다 — 같은 일이 매일 나오면 그건 사건이 아니라 배경이다.
-   index.html의 PHOTO_EVENT_AT / DDAY_MARKS와 같은 값이다. */
-const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 민현이 눈치챈다
-const DDAY_MARKS=[7,3,1];    // 남은 날이 이 값이 되는 날
-const mmss=(ms:number)=>{const t=Math.max(0,Math.ceil(ms/1000));
-  return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
 
 /* ── 프사 크롭 ──
    정사각 사진을 정사각 액자에 넣으면 원본이 통째로 들어가 위가 빈다.
@@ -781,7 +737,7 @@ function Profile({char,onBack,refresh,dLeft,back,days}:{char:string;onBack:()=>v
                 <View style={[pf.tape,{right:-14,bottom:14,transform:[{rotate:'12deg'}],backgroundColor:'rgba(195,178,240,.75)'}]}/>
                 <View style={pf.pola}>
                   <Face char={char} size={126} radius={3}/>
-                  <Text style={pf.polaCap}>{room.sub}</Text>
+                  <Text style={pf.polaCap}>{room.empty}</Text>
                 </View>
               </View>
               <View style={pf.nameRow}>
@@ -923,13 +879,15 @@ function Marquee({text}:{text:string}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,met,groupOn,onGoPlace,onPlate}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
+  /* 단톡방은 민현이 나중에 판다 — 그전까지는 없는 방이다 */
+  const rooms=roomsOn(groupOn);
   const t0=new Date(); t0.setHours(0,0,0,0);
   const todayN=allMsgs.filter((m:any)=>(m.created_at||0)>=t0.getTime()).length;
   const totalN=allMsgs.length;
-  const [tab,setTab]=useState<'rooms'|'cam'|'hidden'>('rooms');
+  const [tab,setTab]=useState<'rooms'|'map'|'cam'|'hidden'>('rooms');
   const [zoom,setZoom]=useState<GalleryZoom|null>(null);
   const [now,setNow]=useState(Date.now());
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
@@ -957,7 +915,8 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
       </View>
       <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
       <View style={rl.tabs}>
-        <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms (4)</Text></TouchableOpacity>
+        <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms ({roomsOn(groupOn).length})</Text></TouchableOpacity>
+        <TouchableOpacity style={tab==='map'?rl.tabOn:rl.tab} onPress={()=>setTab('map')}><Text style={tab==='map'?rl.tabOnT:rl.tabT}>map</Text></TouchableOpacity>
         <TouchableOpacity style={tab==='cam'?rl.tabOn:rl.tab} onPress={()=>setTab('cam')}><Text style={tab==='cam'?rl.tabOnT:rl.tabT}>cam</Text></TouchableOpacity>
         <TouchableOpacity style={tab==='hidden'?rl.tabOn:rl.tab} onPress={()=>setTab('hidden')}><Text style={[tab==='hidden'?rl.tabOnT:rl.tabT,tab!=='hidden'&&{color:'#8f86c9'}]}>.hidden</Text></TouchableOpacity>
       </View>
@@ -972,7 +931,9 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
         <ScrollView style={{flex:1}}
         contentContainerStyle={{padding:10,paddingBottom:34}}
         showsVerticalScrollIndicator={false}>
-        {tab==='cam'
+        {tab==='map'
+        ? <Cabinet met={met} onGoPlace={onGoPlace} onPlate={onPlate}/>
+        : tab==='cam'
         ? <>
             {Object.entries(CHARS).map(([id,c]:[string,any])=>{
               const got=GALLERY[id].filter(k=>album.has(k));
@@ -1004,7 +965,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                 /* 얼마나 남았는지 안 알려준다. 자물쇠만 있다 */
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
                   onPress={()=>un?setZoom({uri:IMG+h.key+'.webp',label:h.label,
-                    note:(h.note||'').replace('{name}',name||'당신')})
+                    note:((h as any).note||'').replace('{name}',name||'당신')})
                     :onToast('still locked')}>
                   <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
                   {!un&&<View style={rl.hlock}><Text style={{fontSize:18}}>🔒</Text></View>}
@@ -1016,7 +977,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             </View>
             <Text style={rl.hnote}>LOCK! UNLOCK?{'\n'}keep talking · they open one by one</Text>
           </>
-        : ROOMS.map(room=>{
+        : rooms.map((room:any)=>{
           const ms=msgs[room.id]||[]; const last=ms[ms.length-1]; const un=unread[room.id]||0;
           const watch=room.type==='watch';
           const pr=presence(room.id);
@@ -1054,7 +1015,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                 {last&&<Text style={rl.tm}>{fmtTime(last.created_at)}</Text>}
               </View>
               <Text style={rl.pv} numberOfLines={1}>
-                {last?`${last.sender==='user'?'나: ':''}${last.photo?'[사진] ':''}${last.text}`:room.sub}
+                {last?`${last.sender==='user'?'나: ':''}${last.photo?'[사진] ':''}${last.text}`:room.empty}
               </Text>
             </View>
             {un>0&&<View style={rl.bd}>
@@ -1209,7 +1170,7 @@ function useKeyboardHeight() {
 }
 
 // ═══ 채팅방 ═══
-function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile}:any) {
+function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene,onLeaveScene,onMinimize}:any) {
   const [text,setText]=useState('');
   const [zoom,setZoom]=useState<string|null>(null);
   const ref=useRef<ScrollView>(null);
@@ -1219,29 +1180,40 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile}:any)
   const send=()=>{const t=text.trim(); if(!t||typing) return; setText(''); onSend(t);};
   const meta=(s:string)=>CHARS[s]||{name:s,color:'#9aa3d8',dk:'#6b5fa8',pale:'#e2e6f5'};
 
+  /* ── 자리 ──
+     같이 있으면 그 자리가 화면이 된다. 들어간 순간엔 빈 방이고, 그 사람이
+     입을 열면 그 사람이 배경이 된다(scene.shot) — 눈앞에 있는 사람 사진을
+     문자로 받는 건 이상하니까 배경이 그 일을 대신한다.
+     머리글의 X는 접기다(자리는 살아 있다). 나가기는 아래 뒤로가기가 맡는다 —
+     하루에 한 번뿐인 자리라 실수로 닫히면 그날이 끝난다. */
+  const bg=scene?(scene.shot||scene.bg||PLACE_BG[scene.place]):null;
+
   return <View style={{flex:1,backgroundColor:'#fdfcff'}}>
+    {bg&&<Image source={{uri:IMG+bg}} style={StyleSheet.absoluteFill as any} resizeMode="cover"/>}
+    {bg&&<View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(26,20,36,.42)'}]} pointerEvents="none"/>}
     <TB colors={watch?['#aab3d6','#c9c0ee']:[room.color,P.lav]}>
-      <Text style={tbT}>{room.name}{watch?'.cam':'.chat'}</Text><Dots onClose={onBack}/>
+      <Text style={tbT}>{scene?scene.place:room.name}{watch?'.cam':'.chat'}</Text>
+      <Dots onClose={scene?onMinimize:onBack}/>
     </TB>
-    <View style={ch.hdr}>
-      <Bevel style={{width:32,height:29}} onPress={onBack}>
+    <View style={[ch.hdr,bg&&{backgroundColor:'rgba(255,255,255,.82)'}]}>
+      <Bevel style={{width:32,height:29}} onPress={scene?onLeaveScene:onBack}>
         <Text style={{color:'#6b5fa8',fontSize:15}}>◁</Text></Bevel>
       {room.type==='dm'&&<TouchableOpacity onPress={()=>onProfile(room.id)}>
         <Face char={room.id} size={32} border={P.mid}/></TouchableOpacity>}
-      <View><Text style={ch.hdrN}>{room.name}</Text>
-        <Text style={ch.hdrS}>{watch?'🔴 watching':room.sub}</Text></View>
+      <View><Text style={ch.hdrN}>{scene?`${room.name} · ${scene.place}`:room.name}</Text>
+        <Text style={ch.hdrS}>{watch?'🔴 watching':scene?'같이 있는 중':room.sub}</Text></View>
     </View>
     <ScrollView ref={ref} style={{flex:1}} contentContainerStyle={{padding:16}}>
       {msgs.length===0&&!typing&&<View style={{paddingVertical:80,alignItems:'center'}}>
         {!watch&&<Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>}
-        <Text style={ch.empty}>{watch?'':room.sub}</Text></View>}
+        <Text style={ch.empty}>{watch?'':room.empty}</Text></View>}
       {msgs.map((m:Msg,i:number)=>{
         const prev=msgs[i-1]; const gap=!prev||m.created_at-prev.created_at>600000;
         const me=m.sender==='user'; const mt=meta(m.sender);
         // 지문 줄이 끼면 흐름이 끊기므로 다음 말은 프로필부터 다시 보여준다
         const head=gap||!prev||prev.sender!==m.sender||isNarr(prev);
         const showName=head&&!me&&(room.type==='group'||watch);
-        const pu=m.photo&&PHOTOS[m.photo]?IMG+PHOTOS[m.photo]:null;
+        const pu=m.photo&&photoSrc(m.photo)?IMG+photoSrc(m.photo):null;
         if (isNarr(m)) return <React.Fragment key={m.id||i}>
           {gap&&<Text style={ch.div}>✦ {fmtTime(m.created_at)} ✦</Text>}
           <Text style={ch.narr}>{m.text}</Text>
@@ -1402,6 +1374,25 @@ function Root() {
   const [enrolling,setEnrolling]=useState(false);
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
   const [invite,setInvite]=useState<any>(null);   // 같이 가자는 제안
+  /* ── 자리 ──
+     지도에서 자리를 고르고 사람을 부르면 그 자리에 마주 앉는다. 화면이
+     「지금 여기 같이 있다」를 대신 말해준다 — 전에는 그걸 그릴 방법이 없어
+     괄호 지문으로 때우다가 「이건 그냥 텍스트니까요」까지 갔다.
+     저장은 규칙 파일이 한다(loadScene/saveScene) — 웹과 같은 열쇠, 같은 모양. */
+  const [scene,setScene]=useState<any>(null);
+  const sceneRef=useRef<any>(null); sceneRef.current=scene;
+  const putScene=(v:any)=>{ setScene(v); saveScene(v); };
+  const [bag,setBag]=useState<any[]>([]);          // 자리에서 받은 것
+  const bagRef=useRef<any[]>([]); bagRef.current=bag;
+  const [met,setMet]=useState<string[]>([]);       // 다녀온 자리 — 지도가 열리는 근거
+  const [groupOn,setGroupOn]=useState(false);      // 단톡방은 민현이 나중에 판다
+  const [groupNew,setGroupNew]=useState(false);
+  const [ask,setAsk]=useState<string|null>(null);  // 지도에서 고른 자리
+  const [askWho,setAskWho]=useState<string|null>(null);
+  const [leaving,setLeaving]=useState<any>(null);  // 나가기 확인
+  const [way,setWay]=useState<any>(null);          // 밤 귀갓길 제안
+  const [plate,setPlate]=useState<any>(null);      // 사물함 명패
+  const [look,setLook]=useState<any>(null);        // 교실 문틈
   const viewRef=useRef(view); viewRef.current=view;
   /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
@@ -1425,6 +1416,13 @@ function Root() {
 
   useEffect(()=>{(async()=>{
     await initDB();
+    /* 규칙 파일이 읽는 localStorage를 저장소에서 한 번에 채운다. 이걸 안 하면
+       규칙이 전부 「저장된 게 없다」로 읽는다 — 가방도 다녀온 자리도 없는
+       첫날처럼 보인다. 화면을 그리기 전에 끝나야 한다. */
+    await hydrateShim();
+    /* 규칙이 들고 있는 것들을 화면 쪽으로 한 번 옮겨 온다. 저장은 계속
+       규칙 파일이 하고(웹과 같은 열쇠), 화면은 그 사본을 그린다. */
+    setScene(loadScene()); setBag(loadBag()); setMet(loadMet()); setGroupOn(loadGroupOn());
     const n=await getMeta('user_name');
     const p=await getMeta('null_profile');
     if(p){try{setProfile(JSON.parse(p))}catch{}}
@@ -1440,6 +1438,60 @@ function Root() {
 
   /* 토스트 자동 사라짐 */
   useEffect(()=>{ if(!toast) return; const t=setTimeout(()=>setToast(null),1400); return ()=>clearTimeout(t); },[toast]);
+
+  /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
+     X는 나가기가 아니라 접어두기다. 유효기간이 없으면 낮에 보건실을 접어두고
+     저녁에 열어도 아직 보건실에 앉아 있다 — 재언은 다섯 시에 퇴근하는데.
+     말이 끊긴 지 한 시간이거나 그 자리의 때가 지났으면 끝난 걸로 친다.
+     답이 오는 중이면 건너뛴다 — place_over 처리기가 말풍선 뒤에 알아서 닫는다.
+     자는 시간에 끝난 자리는 인사를 안 부른다. 점은 「자는 중」인데 지금 시각
+     말풍선이 오면 그게 처음 고치려던 그림이다. */
+  const expireScene=useCallback(async()=>{
+    const sc=sceneRef.current;
+    if(!sc||typing) return;
+    if(!sceneExpired(sc,msgsForFlow())) return;
+    closeScene();
+    await sysLine(sc.room, sc.place===WAY?'집에 도착했다':`${sc.place}에서 나왔다`);
+    const pr=presence(sc.room);
+    if(pr&&pr.s==='off') return;
+    await runTurn(sc.room);
+  },[msgs,typing]);
+  useEffect(()=>{ if(ready&&name&&!enrolling) expireScene(); },[ready,name,enrolling,view.type]);
+
+  /* ── 첫 자리 ──
+     한 마디도 오간 적이 없으면 인사로 시작하지 않는다. 자리에서 시작한다.
+     앱을 처음 켠 시각이 그 자리를 정하고, 거기 있는 사람을 만난다.
+     다른 한 사람은 평소대로 첫인사를 보낸다 — 새벽이면 재언은 안 온다. */
+  const openedRef=useRef(false);
+  useEffect(()=>{
+    if(!ready||!name||enrolling||openedRef.current) return;
+    if(['jaeeon','minhyun','group','health'].some(r=>((msgs as any)[r]||[]).length)) return;
+    openedRef.current=true;
+    (async()=>{
+      const o=openingNow();
+      if(PLACE_BY[o.place]){ const nm=met.includes(o.place)?met:[...met,o.place]; setMet(nm); saveMet(nm); }
+      await sysLine(o.room,o.note);
+      const shot=sceneShot(o.place,o.room);
+      putScene({room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{}),...(shot?{shot}:{})});
+      setView({type:'chat',id:o.room});
+      await runTurn(o.room);
+      /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 추첨에 맡기면
+         자리 쪽 상태가 아직 안 앉아서 두 방이 다 비어 보이고, 자리에서 만난
+         사람이 뽑혀 조용히 삼켜진다. */
+      const other=o.room==='jaeeon'?'minhyun':'jaeeon';
+      if(canGreet(other)){ greetAtRef.current=Date.now();
+        setTimeout(()=>greet(other,0),2600+Math.random()*2600); }
+    })();
+  },[ready,name,enrolling,msgs]);
+
+  /* 민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
+     그가 방을 파고 유저를 부른다. 왜 불렀는지는 말해주지 않는다. */
+  useEffect(()=>{
+    if(!ready||!name||groupOn) return;
+    if(!groupReady(msgsForFlow())) return;
+    saveGroupOn(); setGroupOn(true);
+    if(!((msgs as any).group||[]).length) setGroupNew(true);
+  },[ready,name,groupOn,msgs]);
   /* 안드로이드 물리 뒤로: 팝업 → 닫기, 방/프로필 → 목록 */
   useEffect(()=>{
     const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
@@ -1515,6 +1567,16 @@ function Root() {
     if(!name||!char||!gift) return;
     const have=gifts[char]||[];
     if(have.includes(gift.key)) return;            // 같은 걸 두 번 주지 않는다
+    /* 물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말했다.
+       「말로 주는 CD가 어딨어요. 지금 손에 든 거예요?」 */
+    const sc0=sceneRef.current;
+    if(!sc0||sc0.room!==char){ setToast('만나서 줘요 ♡'); return; }
+    /* 한 사람에게 하루에 하나. 새벽 2시 43분에 이어폰, 2시 48분에 사진집을
+       줬더니 같은 사람이 오 분 만에 같은 반응을 두 번 했다 — 한 번이면 그
+       사람이고 두 번이면 틀이다. 막는 건 한 사람이 두 번 받는 것이지
+       하루에 두 명에게 주는 게 아니다. */
+    if(giftedToday(char)){ setToast(`${CHARS[char].name} — one a day ♡`); return; }
+    stampGift(char);
     const next={...gifts,[char]:[...have,gift.key]};
     setGifts(next); await saveGifts(next);
     const note=(memo||'').trim().slice(0,60);
@@ -1527,7 +1589,9 @@ function Root() {
     if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line,name,gift.key)); return; }
     try{
       const hist=await getMsgs(char);
-      const data=await sendChat(char,name,hist,{key:gift.key,name:gift.name,note});
+      const data=await sendChat(char,name,hist,{gift:{key:gift.key,name:gift.name,note},
+        ...(sceneRef.current&&sceneRef.current.room===char
+          ?{place:sceneRef.current.place,bag:bag.map((b:any)=>b.key)}:{})});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(char,data.messages);
@@ -1571,7 +1635,14 @@ function Root() {
     if(demoOn()){ setTyping(false); await enqueue(room,demoReply(room,said,name)); return; }
     try{
       const hist=await getMsgs(room);
-      const data=await sendChat(room,name,hist);
+      /* 마주 앉은 자리면 어디인지 같이 보낸다. 안 보내면 같은 자리에 앉아서
+         「지금 어디예요?」를 묻는다 — 화면만 바뀌고 사람은 안 바뀐 꼴이다.
+         자리의 때가 지났으면(문 닫을 시각·잘 시각) 그것도 같이 보낸다 —
+         인물이 이번 대답에서 매듭짓고 일어선다. */
+      const sc=sceneRef.current;
+      const at=sc&&sc.room===room?sc.place:null;
+      const data=await sendChat(room,name,hist,at?{place:at,bag:bag.map((b:any)=>b.key),
+        ...(placeOverNow(sc)?{placeOver:true}:{})}:{});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);
@@ -1657,17 +1728,31 @@ function Root() {
   const autoBusy=useRef(false);
   useEffect(()=>{
     if(!ready||!name||enrolling||autoBusy.current) return;
-    if(view.type!=='list') return;
+    /* 목록에서도 돌고 관전방을 열 때도 돈다. 방을 열었는데 늘 같은 화면이면
+       그 방은 죽은 방이다 — 유저 없이도 돌아간다는 게 이 앱의 전제인데
+       정작 그 방만 유저가 뭘 해야 움직이고 있었다. */
+    if(view.type!=='list'&&!(view.type==='chat'&&view.id==='health')) return;
     (async()=>{
-      const raw=await getMeta('null_auto_event'); if(!raw) return;
-      let ev:any=null; try{ ev=JSON.parse(raw) }catch{ await setMeta('null_auto_event',''); return }
-      if(!ev||!ev.kind) { await setMeta('null_auto_event',''); return }
+      /* 사건이 있으면 그 일을 두고 얘기하고, 없으면 그냥 둘이 떠든다.
+         전에는 사건이 없으면 아무것도 안 만들었다 — 선물도 안 주고 자리도
+         안 간 사람에게는 관전방이 영영 첫 장면 그대로였다. */
+      let ev:any=null;
+      const raw=await getMeta('null_auto_event');
+      if(raw){ try{ ev=JSON.parse(raw) }catch{ ev=null } }
+      if(ev&&!ev.kind) ev=null;
       // 마지막으로 뭐라도 한 시각. 그때로부터 한 시간은 지나야 "없는 자리"가 된다
       const all=Object.values(msgs).flat() as any[];
-      const lastAny=all.reduce((a,m)=>m.created_at>a?m.created_at:a,ev.at||0);
+      const lastAny=all.reduce((a,m)=>m.created_at>a?m.created_at:a,(ev&&ev.at)||0);
       const now=Date.now();
+      /* 아직 아무 일도 없었으면 비운 자리도 없다. 이걸 안 막으면 lastAny가 0이라
+         「한 시간 뒤」가 1970년 1월 1일 한 시간 뒤가 된다 — 웹에서 실제로 첫
+         실행에 관전 대화가 1970년으로 찍혔고, 그게 이 판의 첫 대화가 돼서
+         D-0 종료 화면이 첫날에 떴다. */
+      if(!lastAny) return;
       if(now-lastAny<AUTO_AWAY) return;
-      const day=new Date().toISOString().slice(0,10);
+      /* 하루 경계는 여기서도 새벽 다섯 시다. UTC 날짜로 세면 아침 아홉 시에
+         상한이 리셋돼 한 하루에 네 번이 돈다 — 제일 비싼 호출인데 */
+      const day=dayKey();
       const [d,n]=((await getMeta('null_auto_day'))||'').split('|');
       const used=d===day?Number(n)||0:0;
       if(used>=AUTO_MAX_DAY){ await setMeta('null_auto_event',''); return; }
@@ -1678,8 +1763,11 @@ function Root() {
       // 유저가 나가고 한 시간쯤 뒤의 일로 찍는다
       const at=Math.min(lastAny+AUTO_AWAY+Math.floor(Math.random()*30*60*1000), now-5*60*1000);
       try{
-        const data=demoOn()?{messages:demoReply('health')}:await genAuto(name,{kind:ev.kind,to:ev.to,name:ev.name});
-        if(!demoOn()) await applyExtras(data);
+        /* 실패해서 넘어간 데모(DEMO.auto)는 여기서 안 본다 — 그걸 보면 한 번의
+           실패 뒤 관전 생성이 진짜를 시도조차 않고 적어둔 사건을 각본에
+           삼킨다. 이 경로는 진짜 요청을 안 하니 래치가 풀릴 길도 없었다. */
+        const data=await genAuto(name,ev?{kind:ev.kind,to:ev.to,name:ev.name}:undefined);
+        await applyExtras(data);
         if(data.messages?.length) await enqueuePast('health',data.messages,at);
       }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
       autoBusy.current=false;
@@ -1710,7 +1798,9 @@ function Root() {
   const doReset = async()=>{
     /* greetAtRef도 같이 지운다 — ref라 DB를 비워도 안 없어진다.
        방금 선톡을 받고 지웠으면 1분 동안 첫 인사가 안 왔다. */
-    await clearAll(); greetAtRef.current=0; summingRef.current={};
+    /* 저장소를 비웠으면 규칙이 보고 있는 메모리도 같이 비운다 — 안 비우면
+       지운 값이 화면에 남아 있다가 다음 저장 때 도로 써진다(웹에서 겪었다) */
+    await clearAll(); resetShim(); greetAtRef.current=0; summingRef.current={};
     setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
     lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
   };
@@ -1730,12 +1820,39 @@ function Root() {
      문장은 문구집의 「도착 선톡」에서 고른다. 공백에 따라 갈래가 다르다 —
      처음이면 고른 다섯 개, 평소면 스무 개, 하루를 넘겼으면 늦었다는 말이
      들어 있는 여섯 개다. 십 분 만에 들어온 사람한테 「이제 와요?」는 안 한다. */
+  /* 「왔어요」는 금지다. 유저가 방금 앱을 연 것을 인물은 모른다 — 알면
+     인사가 아니라 감시 카메라다. 이 선톡은 조용한 방에 대고 보내는 말이다.
+     웹의 GREET_ASK와 글자 그대로 같아야 한다 — 두 곳에서 다른 말을 시키면
+     같은 인물이 두 앱에서 다르게 군다. */
+  const GREET_ASK="(유저는 한동안 말이 없다. 지금이 언제인지와 네 상황에 맞춰 네가 먼저 한두 마디를 건다 — 안부든, 지금 하고 있는 것이든. 유저가 방금 접속했는지 너는 모른다. 「왔어요」처럼 상대가 온 걸 아는 말은 하지 않는다.)";
   const greet=async(id:string,delay:number)=>{
     if(id==='health'||id==='group'||!name)return;
+    /* 자는 사람은 먼저 말을 안 건다. 목록의 점을 정하는 함수가 선톡도 정한다 —
+       점은 「꺼짐」인데 그 사람 말풍선이 오면 그게 제일 이상하다 */
+    if(!canGreet(id))return;
+    /* 같이 있는 사람은 선톡을 안 한다 — 눈앞에 있는데 문자가 오면 이상하다 */
+    if(sceneRef.current&&sceneRef.current.room===id)return;
     const list:any[]=(msgs as any)[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].created_at)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
     if(delay) await new Promise(r=>setTimeout(r,delay));
+    /* 첫인사(기록 없는 방)는 문구집 각본이다 — 세계관이 열리는 자리라 문장을
+       고정한다. 그 뒤의 선톡은 모델이 쓴다. 각본 스무 개는 아침이든 새벽이든
+       같은 스무 개였다 — 낮에는 수업, 저녁에는 퇴근, 새벽에는 안 자냐는 말이
+       나와야 한다. 때와 자기 상태는 [지금] 줄이 이미 아니까 먼저 걸라는
+       지시 한 줄만 얹으면 된다. 지시는 저장하지 않는다 — 답장만 남는 게 맞다. */
+    if(gapMin>=0&&!DEMO.auto){
+      greetAtRef.current=Date.now();
+      try{
+        const hist=[...(await getMsgs(id)), {room:id,sender:'user',text:GREET_ASK,created_at:Date.now()} as any];
+        const data=await sendChat(id,name,hist,{greet:true});
+        /* 답이 오는 사이 그 사람 자리에 들어갔으면 버린다 — 눈앞에 앉은
+           사람이 보낸 원격 안부 문자가 도착하면 그게 처음 막으려던 그림이다 */
+        if(sceneRef.current&&sceneRef.current.room===id)return;
+        if(data?.messages?.length) await enqueue(id,data.messages);
+        return;
+      }catch{ /* 실패하면 아래 각본으로 메운다 */ }
+    }
     const lines=demoProactive(id,demoGreetWhen(gapMin,id),name);
     if(lines.length) await enqueue(id,lines);
   };
@@ -1781,6 +1898,90 @@ function Root() {
   };
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0}));
     if(id==='health') seedWatch(); else greet(id,700); };
+
+  /* ── 자리에 가고, 옮기고, 나온다 ──
+     판단은 lib/flow.ts가 한다(웹 app.js와 같은 사다리). 여기서는 그 판단대로
+     저장하고 지문을 남기고 요청을 보낸다. 규칙을 여기서 다시 쓰지 않는다 —
+     두 군데에 적히면 어긋나고, 어긋나면 뒤에 오는 쪽이 이긴다. */
+  const msgsForFlow=()=>{
+    const out:any={};
+    Object.entries(msgs).forEach(([k,v]:any)=>{ out[k]=(v||[]).map((m:any)=>({...m,ts:m.created_at})) });
+    return out;
+  };
+  const sysLine=async(room:string,text:string)=>{
+    await insertMsg({room,sender:'sys',text,created_at:Date.now()});
+    await reload(room);
+  };
+  /* 자리를 떠난다. 말을 나눈 자리면 두고 온 것을 챙긴다 — 모델이 안 건네고
+     끝내는 턴이 있는데, 그때마다 가방이 비면 지도를 도는 이유가 사라진다. */
+  const closeScene=()=>{
+    const sc=sceneRef.current;
+    if(sc&&talkedEnough(sc,msgsForFlow())){
+      const p=PLACE_BY[sc.place];
+      if(p&&p.item&&!bagRef.current.some((b:any)=>b.key===p.item)){
+        const next=[...bagRef.current,{key:p.item,from:sc.room,where:sc.place,ts:Date.now()}];
+        setBag(next); saveBag(next);
+        const it=ITEMS[p.item];
+        if(it){ sysLine(sc.room,`${CHARS[sc.room].name}에게 ${jos(it.name,'을/를')} 받았다`);
+          setToast(`bag — ${it.name}`); }
+      }
+    }
+    putScene(null);
+  };
+  const goPlace=async(place:string,who:string,note?:string)=>{
+    if(!name) return;
+    stampGone(place);
+    const nextMet=met.includes(place)?met:[...met,place];
+    setMet(nextMet); saveMet(nextMet);
+    await markEvent({kind:'met',to:who,name:place});
+    if(sceneRef.current) closeScene();
+    await sysLine(who,note||`${place}에 갔다`);
+    const shot=sceneShot(place,who);
+    putScene({room:who,place,since:Date.now(),...(shot?{shot}:{})});
+    setView({type:'chat',id:who}); setUnread(u=>({...u,[who]:0}));
+    await runTurn(who);
+  };
+  const answerAsk=async(ok:boolean)=>{
+    const place=ask, picked=askWho; setAsk(null); setAskWho(null);
+    if(!ok||!place) return;
+    const st=askState(place,{scene,met,msgs:msgsForFlow(),picked});
+    if(st.no) return;
+    const who=whoAt(PLACE_BY[place],picked,msgsForFlow());
+    if(who) await goPlace(place,who);
+  };
+  /* 같이 있다가 발길 닿는 이동. 떠나는 자리를 먼저 정리한다 */
+  const answerMove=async(ok:boolean)=>{
+    const place=ask; setAsk(null); setAskWho(null);
+    const sc=sceneRef.current;
+    if(!ok||!place||!sc) return;
+    const st=askState(place,{scene:sc,met,msgs:msgsForFlow()});
+    if(!st.mv) return;
+    await goPlace(place,sc.room,`${jos(place,'으로/로')} 같이 자리를 옮겼다`);
+  };
+  const answerLeave=async(ok:boolean)=>{
+    const sc=leaving; setLeaving(null);
+    if(!ok||!sc) return;
+    /* 창이 떠 있는 사이 자리가 이미 닫혔을 수 있다 — 죽은 자리로 진행하면
+       「나왔다」 지문과 작별 요청이 두 벌 나간다 */
+    const cur=sceneRef.current; if(!cur||cur.since!==sc.since) return;
+    closeScene();
+    await sysLine(sc.room, sc.place===WAY?'집에 도착했다':`${sc.place}에서 나왔다`);
+    await runTurn(sc.room);
+    /* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
+    if(sc.place!==WAY&&talkedEnough(sc,msgsForFlow())&&wayOK()&&loadWay()!==dayKey()) setWay(sc);
+  };
+  const answerWay=async(ok:boolean)=>{
+    const sc=way; setWay(null); if(!sc) return;
+    if(sceneRef.current&&sceneRef.current.since===sc.since) closeScene();
+    if(!ok) return;
+    saveWay(dayKey());
+    const who=sc.room, nm=CHARS[who].name;
+    await sysLine(who, who==='jaeeon'?`${nm}의 차를 타고 집에 가는 길이다`
+                                     :`${jos(nm,'과/와')} 같이 버스를 타고 집에 가는 길이다`);
+    putScene({room:who,place:WAY,since:Date.now(),bg:WAY_BG[who]});
+    setView({type:'chat',id:who});
+    await runTurn(who);
+  };
   /* 프로필을 열어보면 그 단계를 본 것으로 찍는다 — 목록의 표시가 그때 꺼진다.
      방을 여는 걸로는 안 꺼진다. 바뀐 건 대화가 아니라 프로필이니까. */
   const openProfile=(c:string)=>{
@@ -1803,15 +2004,22 @@ function Root() {
     onSend={giveGift} onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='chat'){
     const room=ROOMS.find(r=>r.id===view.id)!;
+    /* 자리에 있으면 그 자리를 같이 넘긴다. 뒤로가기는 나가기(묻는다)가 되고,
+       X는 접기다 — 자리는 살아 있고 다른 사람과 카톡만 할 수 있다.
+       하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면 실수로 닫힌다. */
+    const sc=scene&&scene.room===view.id?scene:null;
     screen=<ChatRoom room={room} msgs={msgs[view.id!]||[]} typing={typing&&view.id!=='health'} failed={failed}
-      onBack={()=>setView({type:'list'})} onSend={handleSend} onRetry={handleRetry}
+      scene={sc} onLeaveScene={()=>sc&&setLeaving(sc)} onMinimize={()=>setView({type:'list'})}
+      onBack={()=>sc?setLeaving(sc):setView({type:'list'})} onSend={handleSend} onRetry={handleRetry}
       onProfile={openProfile}/>;
   } else {
     screen=<RoomList msgs={msgs} unread={unread} unlocked={unlocked} counts={counts} album={album}
       seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
       onCart={()=>setView({type:'cart'})} demo={demo} name={name}
-      hearts={heartsOf(counts,gifts)}/>;
+      hearts={heartsOf(counts,gifts)}
+      met={met} groupOn={groupOn} onGoPlace={(pl:string)=>{ expireScene(); setAskWho(null); setAsk(pl); }}
+      onPlate={setPlate}/>;
   }
 
   return <>
@@ -1839,6 +2047,20 @@ function Root() {
     </Modal>
     {enrolling&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
       onRename={doRename} onDone={()=>setEnrolling(false)}/>}
+    {/* ── 지도와 자리의 창들 ── 판정은 flow.ts, 글월은 웹과 같다 */}
+    {ask&&<AskDialog place={ask}
+      state={askState(ask,{scene,met,msgs:msgsForFlow(),picked:askWho})}
+      picked={askWho} onPickWho={setAskWho}
+      onGo={()=>answerAsk(true)} onMove={()=>answerMove(true)}
+      onLook={()=>{ setAsk(null); setAskWho(null);
+        setLook({shot:['minhyun-window','minhyun-desk'][Math.floor(Math.random()*2)]+'.webp'}); }}
+      onClose={()=>{ setAsk(null); setAskWho(null); }}/>}
+    {leaving&&<LeaveDialog place={leaving.place}
+      onLeave={()=>answerLeave(true)} onStay={()=>answerLeave(false)}/>}
+    {way&&<WayDialog room={way.room} onRide={()=>answerWay(true)} onAlone={()=>answerWay(false)}/>}
+    {plate&&<PlateDialog say={plate.say} kao={plate.kao} kind={plate.kind} onClose={()=>setPlate(null)}/>}
+    {groupNew&&<GroupNewDialog onClose={()=>setGroupNew(false)}/>}
+    {look&&<LookOverlay shot={look.shot} onClose={()=>setLook(null)}/>}
     {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
     <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>
       <TouchableOpacity style={mo.bg} activeOpacity={1} onPress={()=>setPopup(null)}>
