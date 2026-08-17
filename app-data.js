@@ -254,18 +254,18 @@ const dayWord=now=>"일월화수목금토"[(now||new Date()).getDay()]+"요일";
    그리고 이 앱은 유저가 없어도 세계가 돌아간다고 말하는 앱인데, 켜자마자
    둘이 인사하면 돌아가고 있던 게 아니라 기다리고 있던 게 된다.
 
-   민현은 시각을 안 본다 — 새벽까지 깨 있는 게 그 애다.
-   재언은 여섯 시부터다. 그 전에 켜면 그의 인사는 없던 일이 아니라 미뤄진
-   것이고, 여섯 시 넘어 다시 열 때 온다. 기다린 인사가 아니라 일어나서
-   보낸 인사가 된다.
+   전에는 재언만 여섯 시로 못박은 상수를 따로 두고 민현은 시각을 안 봤다.
+   그런데 민현에게도 꺼진 시간(3~8시)이 생겼다 — 점은 「꺼짐」인데 그 사람
+   말풍선이 오면 처음 고치려던 그림 그대로다. 시계를 둘 두지 않는다.
+   목록의 점을 정하는 presence가 선톡도 정한다 — off면 안 건다.
+   재언은 여섯 시에 깨니(1~6시 off) 예전과 같은 시각에 인사가 온다.
 
    그래서 새벽에 시작한 사람은 첫 화면에서 두 가지를 공짜로 안다 —
    한 명은 이 시간에 깨 있는 애고 한 명은 자는 어른이라는 것,
    그리고 내가 켠다고 이 세계가 다 깨어나지는 않는다는 것. */
-const GREET_FROM={jaeeon:6};
 const canGreet=(id,now)=>{
-  const from=GREET_FROM[id];
-  return from==null||(now||new Date()).getHours()>=from;
+  const pr=presence(id,now);
+  return !pr||pr.s!=="off";
 };
 
 /* ── 첫 자리 ──
@@ -332,7 +332,7 @@ function presence(id, now){
   const d=now||new Date(), h=d.getHours();
   const wend=d.getDay()===0||d.getDay()===6;
   if(id==="jaeeon"){
-    /* 여섯 시에 일어난다. 여기가 GREET_FROM.jaeeon과 같아야 한다 —
+    /* 여섯 시에 일어난다. 선톡(canGreet)이 이 창의 끝을 그대로 본다 —
        점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
        출근은 여덟 시라 두 시간은 집에 깨어 있다 */
     if(h>=1&&h<6)   return {s:"off", t:"자는 중"};
@@ -348,7 +348,13 @@ function presence(id, now){
     if(h>=22||h<3)  return {s:"on",  t:"안 자는 중"};
     if(h>=3&&h<8)   return {s:"off", t:"꺼짐"};
     if(wend)        return {s:"on",  t:"주말"};
-    if(h>=8&&h<16)  return {s:"away",t:"수업 중"};
+    /* 시간표(PERIODS)와 같은 시계를 본다. 12시 40분에 상태 버튼은 「점심」인데
+       여기가 「수업 중」이면 교실이 점심에도 문틈으로 잠긴다 — 점심에 교실에서
+       만나 옥상으로 가는 게 이 지도의 그림이다. 7교시(16:00~16:20)가 야자로
+       새던 것도 분으로 세면 같이 잡힌다. */
+    const m=h*60+d.getMinutes();
+    if(m>=750&&m<810) return {s:"away",t:"점심"};
+    if(m<980)       return {s:"away",t:"수업 중"};
     return {s:"on",  t:"야자"};
   }
   return null;
@@ -661,7 +667,13 @@ const sceneOver=(sc,now)=>{
   const p=PLACE_BY[sc.place];
   if(p&&!placeHours(p,now))return true;
   const pr=presence(sc.room,now);
-  return !!pr&&pr.s==="off";
+  if(!pr||pr.s!=="off")return false;
+  /* 자리가 열릴 때부터 자는 시간이었다면 자리가 이긴다 — 새벽 오프닝
+     (편의점 라면, 여섯 시 후문 골목)은 시간표를 안 보고 여는 자리인데,
+     시간표로 닫으면 열리자마자 「나왔다」가 찍혔다. 눈앞에 있는 사람은
+     자고 있지 않다. 깨어 있다가 잘 시간이 된 경우만 때다. */
+  const at=presence(sc.room,new Date(sc.since));
+  return !at||at.s!=="off";
 };
 
 /* ── 하루에 한 자리는 한 번 ──
@@ -677,7 +689,9 @@ const stampGone=(place,now)=>saveGone({...loadGone(),[place]:dayKey(now)});
    누가 있을 수 있는지는 이미 있는 생활 리듬(presence)이 정한다 — 새 규칙을
    만들지 않는다. 근무 중이거나 수업 중이거나 야자 중이거나 자는 중이면
    밖에 없다. 주말엔 학교가 없으니 낮에도 나올 수 있다. */
-const AT_WORK=["보건실","수업 중","야자"];
+/* 점심도 학교 안이다 — 마주치는 자리(편의점·빨래방)에 나올 수는 없다.
+   교실이 열리는 것(문틈 해제)과 학교 밖에 나오는 것은 다른 일이다. */
+const AT_WORK=["보건실","수업 중","점심","야자"];
 const freeOut=(id,now)=>{
   const d=now||new Date(), pr=presence(id,d);
   if(!pr||pr.s==="off")return false;

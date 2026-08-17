@@ -513,16 +513,26 @@ eq('웹·앱 둘 다 선물 열쇠를 넘긴다',
    새벽 세 시에 처음 켜면 둘 다 몇 초 안에 인사를 보냈다. 목록에는 「자는 중」
    이라고 떠 있는데 그 사람 말풍선이 왔다. 그리고 유저가 없어도 세계가
    돌아간다는 앱인데, 켜자마자 둘이 인사하면 기다리고 있던 게 된다. */
-eq('재언은 여섯 시부터 말을 건다', /const GREET_FROM=\{jaeeon:6\}/.test(web), true);
+/* 시계를 둘 두지 않는다 — 목록의 점을 정하는 presence가 선톡도 정한다.
+   재언은 1~6시 off라 예전 그대로 여섯 시부터고, 민현도 꺼진 시간(3~8시)이
+   생겼다 — 점은 「꺼짐」인데 말풍선이 오면 처음 고치려던 그림이다 */
+eq('재언은 여섯 시부터 말을 건다', (() => {
+  const src = web.slice(web.indexOf('function presence'));
+  const P = new Function(src.slice(0, src.indexOf('\n}\n') + 3)
+    + 'const canGreet=(id,now)=>{const pr=presence(id,now);return !pr||pr.s!=="off"};'
+    + '\nreturn canGreet;')();
+  return !P('jaeeon', new Date(2026, 0, 6, 5, 30)) && P('jaeeon', new Date(2026, 0, 6, 6, 30))
+    && !P('minhyun', new Date(2026, 0, 6, 4)) && P('minhyun', new Date(2026, 0, 6, 23));
+})(), true);
 /* 점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
    일어나는 시각과 말 거는 시각이 같아야 한다 */
 /* 자는 창(1~6시)의 끝이 곧 일어나는 시각이다 — GREET_FROM.jaeeon=6과 같아야 한다 */
 eq('일어나는 시각과 말 거는 시각이 같다',
   /if\(h>=1&&h<6\)   return \{s:"off", t:"자는 중"\}/.test(web), true);
-/* 민현은 시각을 안 본다 — 새벽까지 깨 있는 게 그 애다 */
-eq('민현은 시각을 안 본다', /GREET_FROM=\{jaeeon:6\}/.test(web) && !/minhyun:\d/.test(web), true);
-eq('시각을 안 정한 사람은 언제든 건다',
-  /const from=GREET_FROM\[id\];\s*\n\s*return from==null\|\|\(now\|\|new Date\(\)\)\.getHours\(\)>=from/.test(web), true);
+/* 시각 상수(GREET_FROM)는 걷어냈다 — presence와 시계가 둘이면 어긋난다 */
+eq('선톡 시계는 목록의 점과 같은 것 하나다', /GREET_FROM/.test(web), false);
+eq('점이 꺼진 사람은 안 건다',
+  /const canGreet=\(id,now\)=>\{\s*\n\s*const pr=presence\(id,now\);\s*\n\s*return !pr\|\|pr\.s!=="off";/.test(web), true);
 /* 거는 길이 둘이다 — 목록에 앉아 있을 때, 그리고 방을 열 때 */
 eq('선톡 함수 안에서도 막는다', /if\(!canGreet\(id\)\)return;/.test(web), true);
 /* 뽑고 나서 막으면 그 판은 아무도 안 건다. 새벽에는 제일 오래 조용한 쪽이
@@ -1903,8 +1913,12 @@ eq('서른 마디에서 자르던 건 없다',
 /* 캐시 지점은 마지막 유저 발화에 찍고, 가변부는 그 뒤에 표시 없이 붙인다.
    가변부에 지점을 찍으면 매 턴 다른 키가 되어 쓰기만 하고 못 읽는다. */
 eq('지점은 가변부 앞에 찍는다',
-  /const blocks = \[\{ type: "text", text: tail\.content, cache_control: CACHE \}\];/.test(workerSrc)
+  /: \[\{ type: "text", text: tail\.content, cache_control: CACHE \}\];/.test(workerSrc)
   && /if \(volatile\) blocks\.push\(\{ type: "text", text: volatile \}\);/.test(workerSrc), true);
+/* 선톡 턴은 예외다 — 마지막 턴이 저장 안 되는 지시문이라 접두가 재현될 수
+   없고, 찍어봐야 2배 요금으로 쓰고 영영 못 읽는 항목이 된다 */
+eq('선톡 턴에는 이력 지점을 안 찍는다',
+  /body\.greet === true\s*\n\s*\? \[\{ type: "text", text: tail\.content \}\]/.test(workerSrc), true);
 /* 앱은 최근 것부터 가져와야 한다. ASC LIMIT이면 200개가 넘는 순간
    제일 오래된 200개가 돌아온다 — 화면에도 프롬프트에도 옛날 것만 남는다 */
 {
@@ -2223,7 +2237,12 @@ eq('닫고 나서 인사를 부른다 — 먼저 간 사람이 말을 남긴다'
    프론트가 자리를 닫는다 — 닫는 걸 모델에 맡기면 영영 안 닫힌다. */
 eq('자리의 때를 있는 시계 둘로 잰다', /const sceneOver=\(sc,now\)=>/.test(web)
   && /if\(p&&!placeHours\(p,now\)\)return true;/.test(web)
-  && /return !!pr&&pr\.s==="off";/.test(web), true);
+  && /if\(!pr\|\|pr\.s!=="off"\)return false;/.test(web), true);
+/* 새벽 오프닝(편의점 라면)은 시간표를 안 보고 여는 자리다 — 열릴 때부터
+   자는 시간이었다면 자리가 이긴다. 안 그러면 열리자마자 「나왔다」가 찍혔다 */
+eq('자리가 열릴 때부터 잔 사람은 안 쫓아낸다',
+  /const at=presence\(sc\.room,new Date\(sc\.since\)\);/.test(web)
+  && /return !at\|\|at\.s!=="off";/.test(web), true);
 eq('귀갓길은 안 본다 — 원래 곧 끝나는 자리다',
   /if\(!sc\|\|sc\.place===WAY\)return false;/.test(web), true);
 eq('때가 지나면 보내는 말에 실린다', /sceneOver\(sc\)\?\{place_over:true\}/.test(web), true);
@@ -2523,15 +2542,16 @@ eq('못 가는 이유를 셋 다 말한다',
 {
   const out = [...web.matchAll(/\{name:"([^"]+)",[\s\S]{0,60}?meet:"out"/g)].map(m => m[1]);
   eq('마주치는 자리가 둘이다', out.sort(), ['빨래방', '편의점']);
+  /* 점심도 학교 안이다 — 교실 문틈이 풀리는 것과 학교 밖에 나오는 건 다른 일 */
   eq('생활 리듬으로 정한다',
-    /const AT_WORK=\["보건실","수업 중","야자"\];/.test(web)
+    /const AT_WORK=\["보건실","수업 중","점심","야자"\];/.test(web)
     && /pr=presence\(id,d\)/.test(web), true);
   /* 주말엔 근무도 수업도 야자도 없다 */
   eq('주말엔 낮에도 나온다', /return isWend\(d\)\|\|!AT_WORK\.includes\(pr\.t\);/.test(web), true);
   const F = new Function('const isWend=d=>{const w=d.getDay();return w===0||w===6};'
     + web.slice(web.indexOf('function presence'),
         web.indexOf('function presence') + web.slice(web.indexOf('function presence')).indexOf('\n}\n') + 3)
-    + 'const AT_WORK=["보건실","수업 중","야자"];'
+    + 'const AT_WORK=["보건실","수업 중","점심","야자"];'
     + 'const freeOut=(id,now)=>{const d=now,pr=presence(id,d);'
     + 'if(!pr||pr.s==="off")return false;return isWend(d)||!AT_WORK.includes(pr.t)};'
     + '\nreturn (now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));')();

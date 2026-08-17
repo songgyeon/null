@@ -194,10 +194,17 @@ function App(){
      마무리하고 일어선다. 여기는 접어두고 자리를 뜬 사람 몫이다.
      나갈 때와 같은 규칙으로 닫는다: 말을 나눴으면 두고 온 것도 챙기고(closeScene),
      기록에 한 줄 남긴다. 닫고 나서 인사를 한 번 부른다 — 말없이 끝나 있으면
-     세계가 돌아간 게 아니라 꺼져 있던 게 된다. 먼저 간 사람이 말을 남긴다. */
-  useEffect(()=>{
+     세계가 돌아간 게 아니라 꺼져 있던 게 된다. 먼저 간 사람이 말을 남긴다.
+     단 그 사람이 자는 시간이면 인사는 안 부른다 — 점은 「자는 중」인데
+     지금 시각 말풍선이 오면 그게 처음 고치려던 그림이다. 지문만 남는다.
+     답이 오는 중이면(inflight) 이번엔 건너뛴다 — place_over 처리기가 말풍선
+     뒤에 알아서 닫는다. 여기서도 닫으면 「나왔다」 두 줄에 작별이 두 벌 온다.
+     함수로 뽑아둔 건 지도(openAsk)도 이걸 부르기 때문이다 — 목록에 밤새
+     앉아 있던 탭은 view가 안 바뀌어 효과가 못 돌고, 죽은 자리를 근거로
+     「같이 갈까요」가 뜬다. */
+  const expireScene=()=>{
     const sc=sceneRef.current;
-    if(!sc)return;
+    if(!sc||inflightRef.current[sc.room])return;
     const ms=storeRef.current.msgs[sc.room]||[];
     const last=ms.length?ms[ms.length-1].ts:sc.since;
     if(Date.now()-last<AUTO_AWAY&&!sceneOver(sc))return;
@@ -205,11 +212,14 @@ function App(){
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
       text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()};
     appendMsg(sc.room,sys);
+    const pr=presence(sc.room);
+    if(pr&&pr.s==="off")return;
     const next=[...(storeRef.current.msgs[sc.room]||[]),sys];
     request(sc.room,{mode:"chat",room:sc.room,user_name:name,
       history:buildHistory(sinceSum(sc.room,next)),signals:buildSignals(sc.room),
       recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length})});
-  },[name,view]);
+  };
+  useEffect(()=>{expireScene()},[name,view]);
   /* 밤에 자리에서 나오면 그냥 사라지는 게 아니라 데려다준다.
      유저 집을 지도에 세우지 않은 건 그게 갈 곳이 아니라 헤어지는 자리라서다 —
      여기 붙는 한 다리가 그 일을 한다. 하루에 한 번이면 충분하다.
@@ -234,6 +244,9 @@ function App(){
      새 프롬프트를 안 붙인다. 「보건실에서 나왔다」면 할 말이 정해져 있다. */
   const answerLeave=ok=>{
     const sc=leaving; setLeaving(null); if(!sc||!ok)return;
+    /* 창이 떠 있는 사이 자리가 이미 닫혔을 수 있다(place_over 타이머·만료).
+       죽은 자리로 진행하면 「나왔다」 지문과 작별 요청이 두 벌 나간다 */
+    const cur=sceneRef.current; if(!cur||cur.since!==sc.since)return;
     closeScene();
     /* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 */
     const line=sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`;
@@ -248,7 +261,8 @@ function App(){
   };
   const answerWay=ok=>{
     const sc=way; setWay(null); if(!sc)return;
-    closeScene();                       // 그 자리는 여기서 끝난다 — 두고 나온 것도 챙긴다
+    /* answerLeave가 이미 닫고 여기 온다 — 남은 자리가 있으면 그때 것이다 */
+    if(sceneRef.current&&sceneRef.current.since===sc.since)closeScene();
     if(!ok)return;
     saveWay(dayKey());
     const who=sc.room, nm=CHARS[who].name;
@@ -268,9 +282,11 @@ function App(){
     const line=ok?`${jos(CHARS[iv.char].name,"과/와")} ${iv.place}에 가기로 했다`:`${jos(iv.place,"은/는")} 다음에 가기로 했다`;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
     appendMsg(iv.char,sys);
-    if(ok){ goneTo(iv.place); markEvent({kind:"met",to:iv.char,name:iv.place});
+    if(ok){ goneTo(iv.place); stampGone(iv.place); markEvent({kind:"met",to:iv.char,name:iv.place});
       // 그 자리로 화면을 옮긴다. 배경이 깔리고 말풍선이 걷힌다
-      if(PLACE_BY[iv.place]){ const sc={room:iv.char,place:iv.place,since:Date.now()}; setScene(sc); saveScene(sc); } }
+      /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
+      if(PLACE_BY[iv.place]){ if(sceneRef.current)closeScene();
+        const sc={room:iv.char,place:iv.place,since:Date.now()}; setScene(sc); saveScene(sc); } }
     else  { saveRefused([...loadRefused(),iv.place]); }
     /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 —
        가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다.
@@ -300,6 +316,10 @@ function App(){
     if(!ok||!place||!sc||sc.place===WAY)return;
     const p=PLACE_BY[place]; if(!p)return;
     if(!placeHours(p)||goneToday(place)||!placeOpen(p,loadMet())||!(p.who||[]).includes(sc.room))return;
+    /* 창(mv)과 같은 검사 — 주는 길이 둘이면 둘 다 잠가야 한다.
+       근무·수업 중엔 학교 안에서만, 수업 중의 교실은 이동으로도 못 간다 */
+    if(!isWend()&&AT_WORK.includes((presence(sc.room)||{}).t||"")&&p.map!=="school")return;
+    if(place==="교실"&&presence("minhyun").t==="수업 중")return;
     const who=sc.room;
     closeScene();
     stampGone(place); goneTo(place); markEvent({kind:"met",to:who,name:place});
@@ -315,7 +335,9 @@ function App(){
   };
   /* 동행을 고르는 자리에서 고른 사람. 창을 닫으면 같이 비운다 */
   const [askWho,setAskWho]=useState(null);
-  const openAsk=place=>{setAskWho(null);setAsk(place)};
+  /* 지도를 여는 순간 죽은 자리를 정리한다 — 목록에 밤새 앉아 있던 탭은
+     만료 효과가 못 돌아서, 어제 자리를 근거로 「같이 갈까요」가 떴다 */
+  const openAsk=place=>{expireScene();setAskWho(null);setAsk(place)};
   /* 누구를 만나나.
      pick — 유저가 고른다(도서관·레코드샵). 시간을 내서 가는 자리라서.
      out  — 그 시각에 밖에 나와 있을 수 있는 사람 중에서 뽑는다. 마주치는 자리라서.
@@ -336,6 +358,8 @@ function App(){
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:`${place}에 갔다`,ts:Date.now()};
     appendMsg(who,sys);
     goneTo(place); markEvent({kind:"met",to:who,name:place});
+    /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
+    if(sceneRef.current)closeScene();
     const sc={room:who,place,since:Date.now()}; setScene(sc); saveScene(sc);
     setView(who);
     const next=[...(storeRef.current.msgs[who]||[]),sys];
@@ -452,6 +476,13 @@ function App(){
       }
       inflightRef.current[bucket]=false;
       DEMO.auto=false;   // 진짜가 살아 있다 — 실패로 넘어갔던 데모 표시를 끈다
+      /* 선톡 답이 오는 사이 유저가 그 사람 자리에 들어갔을 수 있다.
+         눈앞에 앉은 사람이 보낸 원격 안부 문자가 도착하면 버린다 — 발사 시점
+         가드는 요청만 막지 도착은 못 막는다 */
+      if(payload.greet&&sceneRef.current&&sceneRef.current.room===bucket){
+        setBusy(b=>({...b,[bucket]:false}));
+        return;
+      }
       const list=(data&&data.messages)||[];
       if(list.length)enqueue(bucket,list);
       else setBusy(b=>({...b,[bucket]:false}));
@@ -471,11 +502,14 @@ function App(){
         setTimeout(()=>takeItem(data.give.item,data.give.char,data.give.place),
           Math.max(900,((data.messages||[]).length+1)*600));
       /* 때가 지난 자리였다 — 방금 온 답이 마무리 인사다. 말풍선이 다 뜬 뒤에
-         자리를 닫는다. 인사보다 「나왔다」 줄이 먼저 뜨면 순서가 거꾸로다. */
+         자리를 닫는다. 인사보다 「나왔다」 줄이 먼저 뜨면 순서가 거꾸로다.
+         답을 기다리는 사이 유저가 나가고 다른 자리(귀갓길 등)를 열었을 수
+         있다 — 방만 보고 닫으면 새 자리가 죽는다. 그때 그 자리인지 본다. */
       if(payload.place_over){
+        const s0=sceneRef.current&&sceneRef.current.since;
         setTimeout(()=>{
           const sc=sceneRef.current;
-          if(!sc||sc.room!==bucket)return;
+          if(!sc||sc.room!==bucket||sc.since!==s0)return;
           closeScene();
           appendMsg(bucket,{id:Date.now()+Math.random(),sender:"user",sys:true,
             text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
@@ -494,6 +528,19 @@ function App(){
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
       setBusy(b=>({...b,[bucket]:true}));
+      /* 선톡 실패는 각본 선톡으로 메운다. demoSay로 넘기면 demoAsk가
+         지시문을 유저의 말로 알아듣고 「다시 말해봐요」가 나간다 —
+         몇 시간 침묵의 첫 마디가 있지도 않은 말에 대한 되묻기가 된다 */
+      if(payload.greet){
+        setTimeout(()=>{
+          try{
+            const lines=demoProactive(bucket,demoGreetWhen(200,bucket),name);
+            if(lines.length)enqueue(bucket,lines);
+            else setBusy(b=>({...b,[bucket]:false}));
+          }catch(e2){ setBusy(b=>({...b,[bucket]:false})); }
+        },450);
+        return;
+      }
       setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
     }
   };
@@ -565,6 +612,7 @@ function App(){
     appendMsg(char,at); appendMsg(char,got);
     goneTo(place); markEvent({kind:"gift",to:char,name:gift.name});
     setToast(`${CHARS[char].name} — ${gift.name}`);
+    if(sceneRef.current)closeScene();   // 하던 자리 정리 — 덮어쓰면 두고 온 것이 증발한다
     const sc={room:char,place,since:Date.now()}; setScene(sc); saveScene(sc); setView(char);
     const ms=[...(storeRef.current.msgs[char]||[]),at,got];
     request(char,{mode:"chat",room:char,user_name:name,
@@ -633,7 +681,9 @@ function App(){
       const lastAny=all.reduce((a,x)=>x.ts>a?x.ts:a,(ev&&ev.at)||0);
       const now=Date.now();
       if(now-lastAny<AUTO_AWAY)return;
-      const day=new Date().toISOString().slice(0,10);
+      /* 하루 경계는 여기서도 새벽 다섯 시다. UTC 날짜로 세면 아침 아홉 시에
+         상한이 리셋돼 한 하루에 네 번이 돈다 — 제일 비싼 호출인데 */
+      const day=dayKey();
       const [d,n]=loadAutoDay().split("|");
       const used=d===day?Number(n)||0:0;
       if(used>=AUTO_MAX_DAY){ saveAutoEvent(null); return; }
@@ -643,7 +693,11 @@ function App(){
       // 유저가 나가고 한 시간쯤 뒤의 일로 찍는다
       const at=Math.min(lastAny+AUTO_AWAY+Math.floor(Math.random()*30*60*1000),now-5*60*1000);
       let list=null;
-      if(demoOn()){ list=demoReply("health",null,name,storeRef.current.msgs); }
+      /* 명시적 데모만 각본이다. demoOn()으로 보면 실패 래치(DEMO.auto)가
+         여기 전염돼서, 429 한 번 뒤의 관전 생성이 진짜를 시도조차 않고
+         적어둔 사건(선물)을 각본에 삼켰다 — 이 경로는 진짜 요청을 안 하니
+         래치가 풀릴 길도 없었다 */
+      if(DEMO.on){ list=demoReply("health",null,name,storeRef.current.msgs); }
       else{
         try{
           const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
@@ -745,10 +799,18 @@ function App(){
     if(gapMin>=0&&gapMin<180)return;
     /* 시간표를 아는 선톡 — 모델이 쓴다. 지시는 이력 끝에만 얹고 저장은
        안 한다. 답장만 남는 게 맞다 — 지시가 기록에 남으면 다음 턴부터
-       그 지시까지 대화가 된다. */
+       그 지시까지 대화가 된다.
+       greet:true 표시의 몫 셋 — ① 워커가 이 턴에는 이력 캐시 지점을 안
+       찍는다(저장 안 되는 턴이라 그 캐시는 영영 안 읽힌다), ② 실패하면
+       지시문을 유저 말로 알아듣는 데모 대신 각본 선톡으로 폴백한다,
+       ③ 답이 오기 전에 그 사람 자리에 들어갔으면 답을 버린다.
+       두 경로(방 열기·목록 추첨)가 서로를 못 봐 이중으로 나가던 것은
+       inflight와 greetAtRef를 같이 보는 걸로 막는다. */
     if(gapMin>=0&&!demoOn()){
+      if(inflightRef.current[id])return;
+      greetAtRef.current=Date.now();
       const ms=storeRef.current.msgs[id]||[];
-      request(id,{mode:"chat",room:id,user_name:name,
+      request(id,{mode:"chat",room:id,user_name:name,greet:true,
         history:[...buildHistory(sinceSum(id,ms)),{role:"user",content:GREET_ASK}],
         signals:buildSignals(id),recent_photos:recentPhotos(id),counts:roomCounts()});
       return;
@@ -992,9 +1054,15 @@ function App(){
       const empty=!!out&&!out.length;
       const need=!away&&!!p&&p.pick&&!askWho;    // 동행을 아직 안 골랐다 — 이동이면 이미 정해져 있다
       /* 같이 있다가 발길 닿는 이동. 그 사람이 갈 수 있는 자리(who)여야 하고,
-         열려 있어야 하고, 오늘 안 간 데여야 한다. 귀갓길에서는 못 옮긴다 — 곧 내린다 */
+         열려 있어야 하고, 오늘 안 간 데여야 한다. 귀갓길에서는 못 옮긴다 — 곧 내린다.
+         근무·수업·점심·야자 중에는 학교 안에서만 옮긴다 — 점심의 보건실→옥상은
+         되고, 근무 중의 재언을 편의점으로 빼내지는 못한다. 학교 밖은 퇴근 뒤다.
+         수업 중의 교실은 이동으로도 못 들어간다 — 문틈(klass)과 같은 이유다. */
+      const stuck=away&&!isWend()&&AT_WORK.includes((presence(scene.room)||{}).t||"");
       const mv=away&&scene.place!==WAY&&!!p&&(p.who||[]).includes(scene.room)
-             &&!locked&&!shut&&!done;
+             &&!locked&&!shut&&!done
+             &&!(stuck&&p.map!=="school")
+             &&!(ask==="교실"&&presence("minhyun").t==="수업 중");
       /* 수업 중의 교실은 가는 데가 아니라 들여다보는 데다. 앉아서 대화하던
          것이 이상했다 — 수업 중인 애랑 마주 앉아 떠들 수는 없다.
          구경은 방문이 아니라 도장(goneToday)을 안 본다 — 오늘 다녀왔어도 본다.
@@ -1007,7 +1075,6 @@ function App(){
       const why=away&&!mv
         ? (done?"오늘은 벌써 다녀왔어요"
            :shut&&!locked?placeWhen(p)
-           :locked?""
            :`지금 ${scene.place}에 있어요`)
         :locked?""
         :done?"오늘은 벌써 다녀왔어요"

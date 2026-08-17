@@ -1497,7 +1497,7 @@ const DAY_WORDS = ["일요일", "월요일", "화요일", "수요일", "목요�
    같은 값(presence)을 보내주면 여기서 [지금] 줄에 얹는다.
    아는 낱말이 아니면 안 싣는다 — 틀린 상태보다 없는 편이 낫다.
    「주말」은 프론트가 아예 안 보낸다. 요일이 이미 실려 있다. */
-const STATE_WORDS = ["보건실", "퇴근", "집", "자는 중", "수업 중", "야자", "안 자는 중", "꺼짐"];
+const STATE_WORDS = ["보건실", "퇴근", "집", "자는 중", "수업 중", "점심", "야자", "안 자는 중", "꺼짐"];
 function buildNow(now, day, states) {
   const head = [DAY_WORDS.includes(day) ? day : "", TIME_WORDS.includes(now) ? now : ""]
     .filter(Boolean).join(" ");
@@ -2630,7 +2630,12 @@ export default {
     const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver);
     const tail = msgs[msgs.length - 1];
     if (tail) {
-      const blocks = [{ type: "text", text: tail.content, cache_control: CACHE }];
+      /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
+         되는 지시문이라, 여기 찍은 캐시는 다음 요청과 접두가 갈라져 영영 안
+         읽힌다 — 2배 요금으로 쓰기만 하고 버리는 항목이 된다. */
+      const blocks = body.greet === true
+        ? [{ type: "text", text: tail.content }]
+        : [{ type: "text", text: tail.content, cache_control: CACHE }];
       if (volatile) blocks.push({ type: "text", text: volatile });
       tail.content = blocks;
     }
@@ -2651,8 +2656,11 @@ export default {
       // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
       // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
       const parsed = parseMessages(raw, fallbackSender, chars);
-      // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다
-      const invite = pickInvite(parseMessages.invite, openPlaces);
+      // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다.
+      // 자리에 같이 있는 턴에는 아예 안 받는다 — 프롬프트는 자리에서 초대
+      // 목록을 빼는데 검증만 열려 있으면, 모델이 어겼을 때 마주 앉은 장면
+      // 위로 초대 창이 뜬다. 억제와 검증이 같은 규칙을 봐야 한다.
+      const invite = pickInvite(parseMessages.invite, place ? [] : openPlaces);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
       const give = pickGive(parseMessages.give, place, hasItem);
       const messages = trimTics(sanitizePhotos(unlabel(splitLines(parsed), chars), photoChars, fallbackSender, recentPhotos));
