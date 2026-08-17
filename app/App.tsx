@@ -643,7 +643,7 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
       <TextInput style={ct.memo} value={memo} onChangeText={setMemo} maxLength={60}
         multiline placeholder="P.S. ♡" placeholderTextColor="#cbbba8"/>
       <Bevel style={{marginTop:14,height:40}} onPress={back}>
-        <Text style={ct.backT}>◁  back</Text></Bevel>
+        <Text style={ct.backT}>BACK...</Text></Bevel>
     </ScrollView>}
   </View>;
 }
@@ -770,7 +770,7 @@ function Profile({char,onBack,refresh,dLeft,back,days}:{char:string;onBack:()=>v
                 <Text key={i} style={[pf.sticker,{color:['#ff9ec6','#ffd68a','#c3b2f0','#8fd8e8','#ffb0d4'][i]}]}>{s}</Text>)}
             </View>
             <Bevel style={pf.close} inner={{paddingVertical:10,backgroundColor:'#ffe3f0'}} onPress={onBack}>
-              <Text style={pf.closeT}>◁  back</Text></Bevel>
+              <Text style={pf.closeT}>◁ BACK</Text></Bevel>
           </View>
         </HardShadow>
         </Pressable>
@@ -2040,12 +2040,14 @@ function Root() {
           <TB colors={['#ff8fbe','#ffb0d4']}>
             <Text style={tbT}>{invite?CHARS[invite.char].name:''}</Text></TB>
           <View style={{padding:18,alignItems:'center'}}>
-            <Text style={mo.txt}>{invite?invite.place:''}, 같이 갈래요?</Text>
+            <Text style={mo.txt}>{invite?invite.place:''}도 같이 GO?</Text>
+            {/* 얼굴은 픽셀 글꼴에 글자가 없어서 시스템 글꼴로 따로 그린다 */}
+            <Text style={mo.sub}>같이 갈 사람은 Who? <Text style={{fontFamily:undefined}}>ʢ˶ &gt; ₃ &lt; ˶ʡ ➳❤︎</Text></Text>
             <View style={{flexDirection:'row',gap:8,marginTop:18}}>
               <Bevel style={{height:38,minWidth:96}} inner={{paddingHorizontal:16,backgroundColor:'#ffe3f0'}}
-                onPress={()=>answerInvite(true)}><Text style={mo.btnT}>갈게요</Text></Bevel>
+                onPress={()=>answerInvite(true)}><Text style={mo.btnT}>같이 GO!</Text></Bevel>
               <Bevel style={{height:38,minWidth:96}} inner={{paddingHorizontal:16}}
-                onPress={()=>answerInvite(false)}><Text style={mo.btnT}>다음에요</Text></Bevel>
+                onPress={()=>answerInvite(false)}><Text style={mo.btnT}>LATER...</Text></Bevel>
             </View>
           </View>
         </View>
@@ -2136,6 +2138,7 @@ function Root() {
   </>;
 }
 const mo=StyleSheet.create({
+  sub:{...F,marginTop:9,fontSize:10,letterSpacing:.4,color:'#b09ad4',textAlign:'center'},
   /* etc. 팝업 — 웹의 .etc 계열. 분홍 그라데이션은 배경색 한 겹으로 대신한다 */
   etc:{alignItems:'center',paddingTop:4,paddingBottom:8},
   etcCd:{marginTop:14,marginBottom:12},

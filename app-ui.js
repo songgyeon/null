@@ -304,7 +304,7 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
         <div className="pfstickers">
           {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#c3b2f0","#b9a7e6","#a78fe0","#8fd8e8","#d5c8ff"][i]}}>{x}</span>)}
         </div>
-        <button className="pfclose bevel" onClick={onBack}>◁  back</button>
+        <button className="pfclose bevel" onClick={onBack}>◁ BACK</button>
       </div>
     </div>
     {full&&<div className="bgfull" style={{backgroundImage:`url("${bg}")`}} onClick={()=>setFull(false)}>
@@ -536,12 +536,26 @@ function Timetable({wend,onFillWend,onClose}){
              목요일은 내가 야자 감독 ミ✭<br/>
              에너지바가 NULL 지켜줄 거야 <span className="kao">(𓂂꜆◕⩊◕꜀𓂂)</span> 💗
            </div>
-          :<div className="ttsay">
+          :(()=>{
+             /* 하루의 양 끝은 시간표가 정해주는 것이 없다 — 켜지기 전, 일과가
+                끝난 뒤, 그리고 값이 비는 밤. 그 세 자리에는 말이 따로 있다.
+                가운데(출근·수업·점심·퇴근·야자)는 「지금은 ○○이에요」 그대로다. */
+             const L=wk?null:nowLabel(now);
+             const say=L==="등교전"?{t:"ON",
+                 s:<>오늘도 Loading... <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>}
+               :L==="저녁"?{t:"OFF",
+                 s:<>오늘도 Ending... <span className="kao">₍ ˵ • ꤮ ก ˵ ₎︎აᶻ 𝗓 𐰁</span></>}
+               :L==="NULL"?{t:"DAY OFF, NULL ON!",
+                 s:<>지금부터 NULL... <span className="kao">(ෆ`꒳´ෆ) ˡºᵛᵉ💗</span></>}
+               :null;
+             return <div className="ttsay">
              {/* 「등교전예요」가 그대로 찍혔다. 받침이 있으면 이에요, 없으면 예요다 —
-                 출근·수업·점심·퇴근·저녁·등교전은 이에요, 야자만 예요다 */}
-             <b>{wk?<>오늘은 학교가 없어요 <i>♡</i></>:<>지금은 {jos(nowLabel(now),"이에요/예요")} <i>♡</i></>}</b>
-             NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span>
-           </div>}
+                 출근·수업·점심·퇴근은 이에요, 야자만 예요다 */}
+             <b>{wk?<>오늘은 학교가 없어요 <i>♡</i></>
+                 :say?say.t
+                 :<>지금은 {jos(L,"이에요/예요")} <i>♡</i></>}</b>
+             {say?say.s:<>NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span></>}
+           </div>; })()}
         <div className="dlgbtns" style={{justifyContent:"center"}}>
           <button className="wbtn" onClick={onClose}>ok ♡</button>
         </div>
@@ -723,7 +737,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       <div className="csect">A NOTE (optional)</div>
       <textarea className="cmemo" value={memo} maxLength={60} placeholder="P.S. ♡"
         onChange={e=>setMemo(e.target.value)}/>
-      <button className="cback" onClick={back}>◁ back</button>
+      <button className="cback" onClick={back}>BACK...</button>
     </div>}
   </div></div>;
 }
@@ -855,7 +869,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         전광판이 원래 상태를 흘려보내는 자리라 그 말을 여기서 한다 */}
     <div className="marquee"><span>
       {autoLoading
-        ?<>✧ time passing... &nbsp; ♡ &nbsp; 두 사람이 뭘 하고 있는지 보는 중 &nbsp; ✧</>
+        ?<>✧ time passing... &nbsp; ♡ &nbsp; 두 사람을 Peeking... <span className="kao">|ૂ•ᴗ•⸝⸝)”♥</span> &nbsp; ✧</>
         :<>✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp;
           {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧</>}
     </span></div>

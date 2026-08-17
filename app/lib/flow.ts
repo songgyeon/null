@@ -24,7 +24,7 @@
 import {
   PLACE_BY, WAY, AUTO_AWAY, AT_WORK,
   placeOpen, placeHours, placeWhen, wendOnlyOk, goneToday,
-  presence, whoOut, isWend, canGreet, sceneOver, openingFor,
+  presence, whoOut, isWend, canGreet, sceneOver, openingFor, jos,
 } from './rules';
 
 /* 창이 읽는 모양. 창은 이 열넷만 보고 그린다 — PLACE_BY를 다시 뒤져
@@ -41,6 +41,7 @@ export type AskState = {
   klass: boolean;   // 수업 중의 교실 — 가는 게 아니라 문틈으로 보는 길
   no: boolean;      // 못 간다
   why: string;      // 왜 못 가는지 한 줄
+  kao: string;      // 그 줄에 붙는 얼굴 — 글꼴이 달라서 창이 따로 그린다
   title: string;    // 창 첫 줄
   canPick: boolean; // 동행 고르는 줄을 띄우나
   who: string[];    // 그 줄에 세울 사람들
@@ -90,26 +91,31 @@ export function askState(place, {scene, met, picked} = {}): AskState {
   const no = !klass && !mv && !!(away || locked || shut || wk || done || empty);
   /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
      심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
+  const done_ = `오늘치 ${jos(place, '은/는')} Complete...`;
   const why = away && !mv
-    ? (done ? '오늘은 벌써 다녀왔어요'
+    ? (done ? done_
       : shut && !locked ? placeWhen(p)
-        : `지금 ${scene.place}에 있어요`)
+        : `현재 위치는 ${scene.place}...`)
     : locked ? ''
-      : done ? '오늘은 벌써 다녀왔어요'
-        : wk ? '주말에만 갈 수 있어요'
-          : empty ? '지금은 아무도 밖에 없어요'
+      : done ? done_
+        : wk ? '여기는 Weekend only! ♡'
+          : empty ? '지금 밖은 Empty...'
             : shut ? placeWhen(p) : '';
+  /* 얼굴은 픽셀 글꼴에 글자가 없어서 창이 따로 그린다 — 웹의 .kao와 같은 몫 */
+  const kao = done ? '(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡'
+    : wk ? '٩(❛ัᴗ❛ั ๑)'
+      : empty ? '՞ ⸝⸝> ̫ <⸝⸝ ՞' : '';
   /* 잠긴 자리(locked && !away)는 이 줄 대신 「my bad ♡ / 아직은 못 가요」가
      뜬다 — 시간 탓이 아니라 아직 안 열린 자리라서 말투가 다르다. 그 갈림은
      창이 locked·away를 보고 정한다. 여기서 title에 섞으면 한 칸에 성격이
      다른 두 문장이 들어간다. */
-  const title = klass ? `${place}, 수업 중이에요`
-    : mv ? `${place}, 같이 갈까요?`
-      : no ? `${place}, 지금은 못 가요`
-        : `${place}, 갈까요?`;
+  const title = klass ? `${jos(place, '은/는')} CLASS 중!`
+    : mv ? `${place}도 같이 GO?`
+      : no ? `${jos(place, '은/는')} 잠깐 OFF!`
+        : `${jos(place, '으로/로')} GO?`;
   /* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져 있다 */
   const canPick = !no && !mv && !!p && !!p.pick;
-  return {away, locked, shut, wk, done, empty, need, mv, klass, no, why, title,
+  return {away, locked, shut, wk, done, empty, need, mv, klass, no, why, kao, title,
     canPick, who: (p && p.who) || []};
 }
 

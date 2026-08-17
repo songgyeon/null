@@ -997,10 +997,11 @@ function App(){
         <div className="tb">{CHARS[invite.char].name}<WinDots onClose={()=>answerInvite(false)}/></div>
         <div className="dlgbody">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0",fontSize:13,color:"#8a4f74"}}>
-            {invite.place}, 같이 갈래요?</div>
+            {invite.place}도 같이 GO?</div>
+          <div className="askrule">같이 갈 사람은 Who? <span className="kao">ʢ˶ &gt; ₃ &lt; ˶ʡ ➳❤︎</span></div>
           <div className="dlgbtns">
-            <button className="bevel pink" onClick={()=>answerInvite(true)}>갈게요</button>
-            <button className="bevel" onClick={()=>answerInvite(false)}>다음에요</button>
+            <button className="bevel pink" onClick={()=>answerInvite(true)}>같이 GO!</button>
+            <button className="bevel" onClick={()=>answerInvite(false)}>LATER...</button>
           </div>
         </div>
       </div>
@@ -1029,11 +1030,11 @@ function App(){
         <div className="tb">{leaving.place}<WinDots onClose={()=>answerLeave(false)}/></div>
         <div className="dlgbody">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
-            {leaving.place}에서 나갈까요?</div>
-          <div className="askrule">오늘은 못 와요 <span className="kao">Σ(°△° ꪱꪱꪱ)</span></div>
+            {jos(leaving.place,"은/는")} 여기까지...?</div>
+          <div className="askrule">지금 나가면 Ending... <span className="kao">{'.(๓´͈ ˘ `͈๓).'}</span></div>
           <div className="dlgbtns">
-            <button className="bevel pink" onClick={()=>answerLeave(true)}>나갈래요</button>
-            <button className="bevel" onClick={()=>answerLeave(false)}>더 있을래요</button>
+            <button className="bevel pink" onClick={()=>answerLeave(true)}>EXIT!</button>
+            <button className="bevel" onClick={()=>answerLeave(false)}>조금 더 STAY!</button>
           </div>
         </div>
       </div>
@@ -1087,15 +1088,20 @@ function App(){
       const no=!klass&&!mv&&(away||locked||shut||wk||done||empty);
       /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
          심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
+      const done_=`오늘치 ${jos(ask,"은/는")} Complete...`;
       const why=away&&!mv
-        ? (done?"오늘은 벌써 다녀왔어요"
+        ? (done?done_
            :shut&&!locked?placeWhen(p)
-           :`지금 ${scene.place}에 있어요`)
+           :`현재 위치는 ${scene.place}...`)
         :locked?""
-        :done?"오늘은 벌써 다녀왔어요"
-        :wk?"주말에만 갈 수 있어요"
-        :empty?"지금은 아무도 밖에 없어요"
+        :done?done_
+        :wk?"여기는 Weekend only! ♡"
+        :empty?"지금 밖은 Empty..."
         :shut?placeWhen(p):"";
+      /* 얼굴은 픽셀 글꼴에 글자가 없어서 .kao로 따로 그린다 */
+      const kao=done?"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡"
+        :wk?"٩(❛ัᴗ❛ั ๑)"
+        :empty?"՞ ⸝⸝> ̫ <⸝⸝ ՞":"";
       return <div className="dlgov" onClick={()=>answerAsk(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
         <div className="tb">{ask}<WinDots onClose={()=>answerAsk(false)}/></div>
@@ -1103,12 +1109,13 @@ function App(){
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
             {locked&&!away
               ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
-              :klass?`${ask}, 수업 중이에요`
-              :mv?`${ask}, 같이 갈까요?`
-              :no?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
+              :klass?`${jos(ask,"은/는")} CLASS 중!`
+              :mv?`${ask}도 같이 GO?`
+              :no?`${jos(ask,"은/는")} 잠깐 OFF!`:`${jos(ask,"으로/로")} GO?`}</div>
           {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
           {!no&&!klass&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
-          {no&&<div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>{why}</div>}
+          {no&&<div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>
+            {why}{kao&&<> <span className="kao">{kao}</span></>}</div>}
           {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져 있다 */}
           {!no&&!mv&&p&&p.pick&&<div className="askwho">
             {(p.who||[]).map(c=><button key={c}
@@ -1118,17 +1125,17 @@ function App(){
           </div>}
           <div className="dlgbtns">
             {no
-              ?<button className="bevel" onClick={()=>answerAsk(false)}>알겠어요</button>
+              ?<button className="bevel" onClick={()=>answerAsk(false)}>OK!</button>
               :klass
               /* 구경은 answerAsk를 안 탄다 — 도장도 자리도 대화도 없는 길이라서 */
               ?<><button className="bevel pink" onClick={()=>{setAsk(null);setAskWho(null);
-                   setLook({shot:["minhyun-window","minhyun-desk"][Math.floor(Math.random()*2)]+".webp"})}}>살짝 볼래요</button>
-                 <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>
+                   setLook({shot:["minhyun-window","minhyun-desk"][Math.floor(Math.random()*2)]+".webp"})}}>살짝 PEEK!</button>
+                 <button className="bevel" onClick={()=>answerAsk(false)}>LATER...</button></>
               :mv
-              ?<><button className="bevel pink" onClick={()=>answerMove(true)}>같이 갈래요</button>
-                 <button className="bevel" onClick={()=>answerMove(false)}>다음에요</button></>
-              :<><button className="bevel pink" disabled={need} onClick={()=>answerAsk(true)}>갈래요</button>
-                 <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>}
+              ?<><button className="bevel pink" onClick={()=>answerMove(true)}>같이 GO!</button>
+                 <button className="bevel" onClick={()=>answerMove(false)}>LATER...</button></>
+              :<><button className="bevel pink" disabled={need} onClick={()=>answerAsk(true)}>GO!</button>
+                 <button className="bevel" onClick={()=>answerAsk(false)}>LATER...</button></>}
           </div>
         </div>
       </div>
@@ -1138,7 +1145,7 @@ function App(){
     {look&&<div className="lookov" onClick={()=>setLook(null)}>
       <img className="lookbg" src="place-class.webp" alt=""/>
       <div className="lookshot"><img src={look.shot} alt="교실"/></div>
-      <div className="lookcap">수업 중이다. 말은 못 건다.</div>
+      <div className="lookcap">CLASS MODE ON!<br/>대화는 OFF, 살짝만 PEEK <span className="kao">(՞ ⸝⸝&gt; ̫ &lt;⸝⸝ ՞)</span></div>
     </div>}
     {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN}/>}
     {/* 단톡방이 생겼다. 유저는 초대를 받은 쪽이라 무슨 방인지 모른 채로 들어간다 */}

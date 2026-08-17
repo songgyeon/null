@@ -22,7 +22,7 @@
 import React, { useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CHARS, AV_V } from '../lib/rules';
+import { CHARS, AV_V, jos } from '../lib/rules';
 import { IMG } from '../lib/api';
 /* 값이 아니라 모양만 가져온다 — 판정은 저쪽 파일의 일이다.
    askState는 {away,locked,shut,wk,done,empty,need,mv,klass,no,why,
@@ -162,7 +162,7 @@ export function AskDialog({place, state, onGo, onMove, onLook, onClose, onPickWh
         순서를 알려주면 지도를 도는 게 심부름이 된다). 그럴 때 웹은 빈 칸을
         띄우지만 여기서는 아예 건다 — 그 자리에는 이미 「my bad ♡」 두 줄이
         서 있어서, 빈 칸까지 끼면 말과 단추 사이가 이유 있는 것처럼 벌어진다 */}
-    {!!s.no && !!s.why && <Text style={dl.why}>{s.why}</Text>}
+    {!!s.no && !!s.why && <Text style={dl.why}>{s.why}{!!s.kao && <Text style={KAO}> {s.kao}</Text>}</Text>}
     {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져
         있다. 그 갈림은 askState가 canPick에 넣어 준다 */}
     {!!s.canPick && <View style={dl.who}>
@@ -175,24 +175,24 @@ export function AskDialog({place, state, onGo, onMove, onLook, onClose, onPickWh
     </View>}
     <View style={dl.btns}>
       {s.no
-        ? <Btn label="알겠어요" onPress={onClose}/>
+        ? <Btn label="OK!" onPress={onClose}/>
         : s.klass
         /* 구경은 가는 길이 아니다 — 도장도 자리도 대화도 없어서 answerAsk를 안 탄다.
            어느 장을 볼지는 부르는 쪽(App.tsx)이 뽑는다. 웹은 단추 손잡이에서
            뽑지만 그 목록을 창에도 베껴 두면 두 벌이 된다 — 사진이 한 장 늘 때
            한쪽만 늘어난다. 창은 「눌렸다」만 알린다 */
         ? <>
-            <Btn pink label="살짝 볼래요" onPress={onLook}/>
-            <Btn label="다음에요" onPress={onClose}/>
+            <Btn pink label="살짝 PEEK!" onPress={onLook}/>
+            <Btn label="LATER..." onPress={onClose}/>
           </>
         : s.mv
         ? <>
-            <Btn pink label="같이 갈래요" onPress={onMove}/>
-            <Btn label="다음에요" onPress={onClose}/>
+            <Btn pink label="같이 GO!" onPress={onMove}/>
+            <Btn label="LATER..." onPress={onClose}/>
           </>
         : <>
-            <Btn pink disabled={!!s.need} label="갈래요" onPress={onGo}/>
-            <Btn label="다음에요" onPress={onClose}/>
+            <Btn pink disabled={!!s.need} label="GO!" onPress={onGo}/>
+            <Btn label="LATER..." onPress={onClose}/>
           </>}
     </View>
   </Dlg>;
@@ -206,12 +206,12 @@ export function LeaveDialog({place, onLeave, onStay}:{place:string; onLeave:()=>
   if (!place) return null;
   return <Dlg title={place} onClose={onStay} z={40}>
     <View style={dl.lineBox}>
-      <Text style={dl.line}>{place}에서 나갈까요?</Text>
+      <Text style={dl.line}>{jos(place, '은/는')} 여기까지...?</Text>
     </View>
-    <Text style={dl.rule}>오늘은 못 와요 <Text style={KAO}>Σ(°△° ꪱꪱꪱ)</Text></Text>
+    <Text style={dl.rule}>지금 나가면 Ending... <Text style={KAO}>.(๓´͈ ˘ `͈๓).</Text></Text>
     <View style={dl.btns}>
-      <Btn pink label="나갈래요" onPress={onLeave}/>
-      <Btn label="더 있을래요" onPress={onStay}/>
+      <Btn pink label="EXIT!" onPress={onLeave}/>
+      <Btn label="조금 더 STAY!" onPress={onStay}/>
     </View>
   </Dlg>;
 }
@@ -307,7 +307,7 @@ export function LookOverlay({shot, onClose}:{shot:string; onClose:()=>void}) {
           style={{width:'100%', aspectRatio:ratio, borderRadius:1}}/>
       </View>
     </View>
-    <Text style={[lk.cap, {bottom:height*0.13}]}>수업 중이다. 말은 못 건다.</Text>
+    <Text style={[lk.cap, {bottom:height*0.13}]}>CLASS MODE ON!{'\n'}대화는 OFF, 살짝만 PEEK <Text style={KAO}>(՞ ⸝⸝&gt; ̫ &lt;⸝⸝ ՞)</Text></Text>
   </Pressable>;
 }
 

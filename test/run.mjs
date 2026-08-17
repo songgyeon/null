@@ -2363,7 +2363,7 @@ eq('뒤로가기는 여전히 나가기다', /onClick=\{onLeaveScene\} title="�
 eq('자리에 있으면 딴 데로 못 간다',
   /const away=!!scene&&scene\.place!==ask;/.test(web)
   && /const no=!klass&&!mv&&\(away\|\|locked/.test(web)
-  && /`지금 \$\{scene\.place\}에 있어요`/.test(web), true);
+  && /`현재 위치는 \$\{scene\.place\}\.\.\.`/.test(web), true);
 
 /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
    X는 나가기가 아니라 접어두기인데 유효기간이 없었다. 낮에 보건실을
@@ -2521,8 +2521,8 @@ eq('선물도 몸이 있는 데를 본다', /withChar=\{scene\?scene\.room:null\
    들어올 때 물었으니 나갈 때도 묻는 게 짝이 맞다 */
 eq('나갈 때도 한 번 묻는다',
   /const leaveScene=\(\)=>\{ const sc=sceneRef\.current; if\(sc\)setLeaving\(sc\) \};/.test(web), true);
-eq('오늘은 못 온다고 말해준다',
-  /오늘은 못 와요 <span className="kao">Σ\(°△° ꪱꪱꪱ\)<\/span>/.test(web), true);
+eq('나가면 끝난다고 말해준다',
+  /지금 나가면 Ending\.\.\./.test(web), true);
 /* 문을 열어주고 등을 보이는 사람은 없다. 지문 한 줄을 남기고 그걸 보고 인사한다 —
    새 프롬프트를 안 붙인다. 「보건실에서 나왔다」면 할 말이 정해져 있다 */
 eq('나오면 지문이 남는다',
@@ -2585,7 +2585,8 @@ eq('지문에는 말한 사람을 안 붙인다',
 /* 「등교전예요」가 시간표에 그대로 찍혔다. 서술격 조사도 받침을 본다 —
    출근·수업·점심·퇴근·저녁·등교전은 이에요, 야자만 예요다 */
 eq('이에요와 예요도 받침을 본다',
-  /지금은 \{jos\(nowLabel\(now\),"이에요\/예요"\)\}/.test(web), true);
+  /지금은 \{jos\(L,"이에요\/예요"\)\}/.test(web)
+  && /const L=wk\?null:nowLabel\(now\);/.test(web), true);
 eq('굳은 예요가 안 남아 있다', /\}예요/.test(web), false);
 /* 한글이 아닌 말은 읽는 소리로 정한다. LP·CD는 「엘피」「씨디」라 받침이 없고
    NULL은 「널」이라 받침이 있다 — 시간표 마지막 칸이 「NULL예요」로 나왔다 */
@@ -2709,8 +2710,28 @@ eq('묻는 창이 규칙을 알려준다',
   /앗! 하루에 1번만 갈 수 있어요 <span className="kao">\(υl\|l◔ㅅ◔\)՞՞<\/span>/.test(web), true);
 /* 못 가는 이유가 셋이라 이유를 각각 말해야 한다 — 눌렀는데 아무 일도 없는 게 제일 나쁘다 */
 eq('못 가는 이유를 셋 다 말한다',
-  /done\?"오늘은 벌써 다녀왔어요"/.test(web) && /wk\?"주말에만 갈 수 있어요"/.test(web)
-  && /empty\?"지금은 아무도 밖에 없어요"/.test(web), true);
+  /done\?done_/.test(web) && /wk\?"여기는 Weekend only! ♡"/.test(web)
+  && /empty\?"지금 밖은 Empty\.\.\."/.test(web), true);
+/* ── 화면 글월은 웹과 앱이 같아야 한다 ──
+   한쪽만 고치면 두 화면이 다른 말을 한다. 지도 창은 판정이 flow.ts(앱)와
+   app.js(웹) 두 군데서 도므로 특히 갈라지기 쉽다. */
+{
+  const flow = readFileSync(join(ROOT, 'app/lib/flow.ts'), 'utf8');
+  const dlg = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
+  eq('제목이 웹·앱 같다',
+    ['CLASS 중!', '도 같이 GO?', '잠깐 OFF!', ' GO?'].filter(t => !(web.includes(t) && flow.includes(t))), []);
+  eq('이유가 웹·앱 같다',
+    ['Complete...', 'Weekend only! ♡', '밖은 Empty...', '현재 위치는'].filter(t =>
+      !(web.includes(t) && flow.includes(t))), []);
+  eq('단추가 웹·앱 같다',
+    ['OK!', 'GO!', 'LATER...', '같이 GO!', '살짝 PEEK!'].filter(t =>
+      !(web.includes(t) && dlg.includes(t))), []);
+  eq('나가기·문틈이 웹·앱 같다',
+    ['여기까지...?', '지금 나가면 Ending...', 'EXIT!', '조금 더 STAY!',
+     'CLASS MODE ON!', '살짝만 PEEK'].filter(t => !(web.includes(t) && dlg.includes(t))), []);
+  /* 얼굴은 픽셀 글꼴에 글자가 없다 — 웹은 .kao, 앱은 KAO로 따로 그린다 */
+  eq('얼굴을 따로 그린다', /className="kao"/.test(web) && /style={KAO}/.test(dlg), true);
+}
 
 /* ── 주말에만 · 누구랑 갈지 ──
    도서관과 레코드샵은 들르는 데가 아니라 시간을 내서 가는 데다.
