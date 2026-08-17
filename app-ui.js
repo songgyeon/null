@@ -912,7 +912,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
                onClick={()=>setLevel("town")}
                onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setLevel("town")}}}>
                ◁ <i className="rh">♡</i> SCHOOL</span>
-            :<span className="rt"><i className="rh">♡</i> NULL ROAD MAP</span>}
+            :<span className="rt"><i className="rh">♡</i> NULL NOCKER</span>}
           <span className="rbar"><i style={{width:(visitedN/SPOTS.length*100)+"%"}}/></span>
           <span className="rn">{visitedN} / {SPOTS.length}</span>
         </div>

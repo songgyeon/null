@@ -2341,6 +2341,10 @@ eq('못 가는 이유를 셋 다 말한다',
   eq('주말 낮엔 둘 다 있다', F(new Date(2026, 0, 10, 13)), ['jaeeon', 'minhyun']);
 }
 
+/* 길이 없어졌는데 머리글에 ROAD가 남아 있었다. 사물함이라 NOCKER다 */
+eq('머리글이 사물함을 말한다',
+  /<i className="rh">♡<\/i> NULL NOCKER<\/span>/.test(web) && !/NULL ROAD MAP/.test(web), true);
+
 /* ── 캐비닛 지도 ──
    길이던 지도를 사물함으로 바꿨다. 이 앱은 가짜 OS인데 지도만 혼자 야외
    일러스트였다. 창이 있고 메뉴바가 있고 .exe가 뜨는 화면에서는 서랍이
