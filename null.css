@@ -774,7 +774,11 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    사진을 깔고 말풍선을 걷는다. 그라데이션은 안 깐다 — 장소 사진들이 아래쪽
    밝기 17~32라 흰 글씨가 그냥 읽힌다. 그림자는 나중에 밝은 사진이 들어와도
    안 깨지라고 걸어두는 보험이다. */
-.scenewrap{position:relative;display:flex;flex-direction:column;background-size:cover;background-position:center;background-color:#14121c}
+/* position은 여기서 안 적는다. .screen이 이미 position:absolute·inset:4px인데
+   여기서 relative로 덮으면 그 자리를 빠져나와 흐름으로 돌아간다 — 화면이
+   말풍선 높이만큼만 서고 아래가 통째로 빈다. 자리에 들어가면 화면 절반이
+   연보라로 남던 것이 이것이다. ::before의 기준은 absolute도 똑같이 해준다. */
+.scenewrap{display:flex;flex-direction:column;background-size:cover;background-position:center;background-color:#14121c}
 /* 아래 절반에 어둠막. 지금까지는 자리 사진들이 우연히 아래가 어두워서 버텼는데,
    인물 사진은 그 보장이 없다 — minhyun-window는 아래가 흰 프린트다.
    말풍선(z 1)보다 뒤에 깔린다 */

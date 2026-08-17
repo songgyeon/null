@@ -333,7 +333,9 @@ function presence(id, now){
   if(id==="minhyun"){
     if(h>=8&&h<16)  return {s:"away",t:"수업 중"};
     if(h>=16&&h<22) return {s:"on",  t:"야자"};
-    if(h>=22||h<2)  return {s:"on",  t:"안 자는 중"};
+    /* 세 시까지 깨 있다. 두 시로 잡아놨더니 새벽에 그가 먼저 말을 거는데
+       목록의 점은 「꺼짐」이었다 — 재언 쪽을 여섯 시로 맞춘 것과 같은 이유다 */
+    if(h>=22||h<3)  return {s:"on",  t:"안 자는 중"};
     return {s:"off", t:"꺼짐"};
   }
   return null;

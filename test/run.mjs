@@ -612,6 +612,33 @@ eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter
     ['귀갓길', '후문 골목', '버스정류장'].filter(p => !/"photo"를 쓰지 않는다/
       .test(buildPlace(p, true, 'minhyun'))), []);
 }
+/* ── 자리 화면이 내용만큼만 서던 것 ──
+   .screen은 position:absolute·inset:4px인데 .scenewrap이 뒤에서 relative로
+   덮었다. 같은 힘이면 뒤가 이긴다 — 화면이 흐름으로 돌아가 말풍선 높이만큼만
+   서고 아래 절반이 연보라로 남았다. 자리에 들어갈 때마다 그랬다 */
+eq('자리 화면은 화면 자리를 안 벗어난다', /\.scenewrap\{position:/.test(web), false);
+eq('그래도 어둠막의 기준은 있다', /\.screen\{position:absolute;inset:4px/.test(web), true);
+/* 민현은 세 시까지 깨 있다. 두 시로 잡아놨더니 새벽에 그가 먼저 말을 거는데
+   목록의 점은 「꺼짐」이었다 — 재언 쪽을 여섯 시로 맞춘 것과 같은 이유다 */
+eq('민현은 세 시까지 깨 있다', /if\(h>=22\|\|h<3\)  return \{s:"on",  t:"안 자는 중"\}/.test(web), true);
+{
+  /* 글자 수로 자르면 문자열 한가운데서 끊긴다. 함수 끝(줄 맨 앞의 })까지 가져온다 */
+  const src = web.slice(web.indexOf('function presence'));
+  const body = src.slice(0, src.indexOf('\n}\n') + 3);
+  const P = new Function(body + '\nreturn presence;')();
+  eq('새벽 두 시 반에도 켜져 있다', P('minhyun', new Date(2026, 0, 6, 2, 30)).s, 'on');
+  eq('세 시 넘으면 꺼진다', P('minhyun', new Date(2026, 0, 6, 3, 10)).s, 'off');
+  /* 말을 거는 시각과 점이 어긋나면 안 된다 — 재언은 여섯 시다 */
+  eq('재언은 여섯 시에 깬다', [P('jaeeon', new Date(2026, 0, 6, 5, 30)).s,
+    P('jaeeon', new Date(2026, 0, 6, 6, 30)).s], ['off', 'away']);
+}
+/* 「첫날」이 아니라 「첫 주」다. 주말 저녁에 처음 켜는 사람이 있는데
+   그날은 첫날이 아니고 애들도 없었다 */
+eq('저녁 첫인사는 첫 주라고 한다',
+  /첫 주인데 고생하셨어요/.test(readFileSync(join(ROOT, 'docs/dialogue-corpus.md'), 'utf8')), true);
+eq('첫날이라고 우기지 않는다',
+  /첫날인데 고생하셨어요/.test(readFileSync(join(ROOT, 'demo-lines.js'), 'utf8')), false);
+
 /* 저녁에 처음 켜면 재언의 첫인사는 하루가 끝난 뒤에 온다 — 시제가 바뀐다 */
 eq('저녁 첫인사는 지난 일을 묻는다', demo.demoGreetWhen(-1, 'jaeeon', new Date(2026, 0, 6, 19)), '하루 끝 인사');
 eq('낮에는 앞일을 짐작한다', demo.demoGreetWhen(-1, 'jaeeon', new Date(2026, 0, 6, 9)), '첫 만남');
@@ -1677,7 +1704,7 @@ eq('웹·앱 둘 다 실측을 찍는다',
   eq('문구집의 재언은 첫 마디에서만 -ㅂ니다를 쓴다',
     J.filter(t => /(습니다|습니까|입니다|됩니다)/.test(t)),
     ['새로 오셨죠. / 애들 때문에 정신 없으시겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.',
-     '첫날인데 고생하셨어요. / 애들 때문에 정신 없으셨겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.']);
+     '첫 주인데 고생하셨어요. / 애들 때문에 정신 없으셨겠네요. / 저한테는 편하게 메세지 주셔도 됩니다.']);
   eq('프롬프트도 그 예외를 적어뒀다', /첫 인사처럼 아직 모르는 사이에서는/.test(workerSrc), true);
   /* 그러니 프롬프트 예문에도 없어야 한다. 이름 밝히는 자리 하나만 예외 */
   /* 규칙 문장 자체는 세지 않는다 — 따옴표 안의 예문만 본다 */
