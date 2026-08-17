@@ -848,10 +848,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* 다른 방에서는 나가기가 위 줄(.chatbar)에 있다. 자리에서는 위가 사진이라
    입력줄로 내려왔는데, 30×27 모난 상자가 40짜리 둥근 보내기 옆에 앉으니
    혼자 다른 창에서 굴러온 부품처럼 보였다. 같은 크기 같은 모양으로 */
-.scenebar .backbtn{width:37px;height:37px;border-radius:999px}
-/* 선물은 만나서만 준다. 그러니 단추도 만난 자리에 있어야 한다 */
-.scenebar .giftbtn{flex:none;width:37px;height:37px;border-radius:999px;
- display:flex;align-items:center;justify-content:center}
+/* 크기·모양은 .rbtn이 들고 있다. 여기서 또 적으면 두 군데를 고쳐야 한다 */
 
 /* 괄호 지문 — 말풍선이 아니라 채팅창에 쳐진 한 줄 */
 .narr{align-self:center;max-width:82%;margin:7px 0;padding:0 6px;text-align:center;
@@ -903,18 +900,25 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    혼자 딱딱했다. 창들과 같은 9px로 맞춘다 */
 .inputbar input{flex:1;min-width:0;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;outline:none;border-radius:9px}
 .inputbar input::placeholder{color:#b0a6d8}
-/* 보내기 — 방 색을 그대로 쓰되 유리 단추로 */
-/* 40x37이라 원이 아니라 옆으로 퍼진 타원이었다. 뒤로가기·선물과 같은 37로 맞춘다 */
-.sendbtn{position:relative;overflow:hidden;width:37px;height:37px;display:flex;align-items:center;justify-content:center;
- flex:none;color:#fff;border-radius:999px;border:1.5px solid rgba(93,84,144,.35);
- text-shadow:0 1px 0 rgba(93,84,144,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.72),0 3px 0 rgba(93,84,144,.26)}
-/* 광택은 남기되 힘을 뺀다. .85로 두면 방 색 위에 흰 뚜껑을 덮는 꼴이다 */
-.sendbtn::after{content:"";position:absolute;left:8%;right:8%;top:2px;height:34%;border-radius:999px;
- background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,0));pointer-events:none}
-/* 눌리는지 아닌지가 안 보였다. 빈 칸일 때와 보낼 수 있을 때가 똑같았다 */
-.sendbtn[disabled]{opacity:.42;box-shadow:inset 0 1px 0 rgba(255,255,255,.7);cursor:default}
-.sendbtn[disabled]:active{transform:none}
-.sendbtn:active{transform:translateY(3px);box-shadow:inset 0 2px 4px rgba(93,84,144,.3)}
+/* ── 입력줄의 동그란 단추 셋 ──
+   이 앱에서 제일 예쁜 단추는 창 머리의 ─ ▭ ✕다. 흰 테, 아래쪽 안그림자,
+   왼쪽 위 하이라이트. 그 문법을 그대로 37px로 키운다.
+   전에는 반투명 보랏빛 테에 위쪽만 흰 뚜껑이라 납작했다. */
+.rbtn{position:relative;overflow:hidden;flex:none;width:37px;height:37px;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;
+ border:1.5px solid rgba(255,255,255,.92);
+ box-shadow:inset 0 -3px 5px rgba(93,84,144,.28),0 2px 0 rgba(93,84,144,.28)}
+.rbtn::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+ background:radial-gradient(circle at 33% 26%,rgba(255,255,255,.92),rgba(255,255,255,.3) 40%,rgba(255,255,255,0) 66%)}
+/* 하이라이트가 위에 깔리므로 그림은 z-index로 그 앞에 세운다 */
+.rbtn>svg{position:relative;z-index:1}
+.rbtn:active{transform:translateY(2px);box-shadow:inset 0 3px 6px rgba(93,84,144,.34)}
+.rbtn[disabled]{opacity:.42;cursor:default}
+.rbtn[disabled]:active{transform:none}
+/* 뒤로·선물은 줄과 같은 라벤더. 방 색은 보내기 하나만 쓴다 —
+   셋 다 색이 있으면 어느 게 보내기인지 모른다 */
+.backbtn,.giftbtn{color:#5d5490;background:linear-gradient(180deg,#f6f2ff 0%,#e4dcfa 46%,#c9bdec 100%)}
+.sendbtn{color:#fff;text-shadow:0 1px 0 rgba(93,84,144,.42)}
 .watchbar{flex:none;display:flex;align-items:center;justify-content:center;gap:8px;
  padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:11px;letter-spacing:.08em;color:#2f9e5a;
  background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}

@@ -2061,26 +2061,38 @@ eq('가운데가 방 색이다',
 /* 연한색·짙은색은 CHARS에 있고 방 목록(ROOMS)에는 색 하나뿐이다.
    room을 그대로 보면 폴백만 먹어서 예전과 똑같이 나온다 — 한 번 그랬다 */
 eq('색은 CHARS에서 가져온다', /const c=CHARS\[room\.id\]\|\|\{\};/.test(web), true);
-/* 광택은 남기되 힘을 뺀다. .85면 방 색 위에 흰 뚜껑을 덮는 꼴이다 */
-eq('광택이 색을 안 덮는다',
-  /background:linear-gradient\(180deg,rgba\(255,255,255,\.62\),rgba\(255,255,255,0\)\)/.test(web), true);
+/* 위쪽만 흰 뚜껑을 덮으면 납작해진다. 창 머리 단추처럼 왼쪽 위에서
+   비스듬히 오는 하이라이트라야 공으로 보인다 */
+eq('하이라이트가 왼쪽 위에서 온다',
+  /\.rbtn::after\{[\s\S]{0,160}radial-gradient\(circle at 33% 26%/.test(web), true);
 /* 빈 칸일 때와 보낼 수 있을 때가 똑같아서 눌리는지가 안 보였다 */
-eq('못 보내는 상태가 보인다', /\.sendbtn\[disabled\]\{opacity:\.42/.test(web), true);
+eq('못 보내는 상태가 보인다', /\.rbtn\[disabled\]\{opacity:\.42/.test(web), true);
 
 /* 앱에서 입력칸만 각졌었다 — 카드·창·단추가 다 둥근데 혼자 border-radius:0.
    보내기는 40x37이라 원이 아니라 옆으로 퍼진 타원이었다 */
 eq('입력칸도 둥글다', /\.inputbar input\{[^}]*border-radius:9px\}/.test(web), true);
-eq('보내기는 진짜 원이다',
-  /\.sendbtn\{position:relative;overflow:hidden;width:37px;height:37px/.test(web), true);
-/* 뒤로가기·선물과 같은 지름이라야 한 줄에서 셋이 같은 단추로 읽힌다 */
-eq('자리의 단추 셋이 같은 크기다',
-  /\.scenebar \.backbtn\{width:37px;height:37px/.test(web)
-  && /\.scenebar \.giftbtn\{flex:none;width:37px;height:37px/.test(web), true);
+/* 크기·모양은 한 군데서만 들고 있어야 한다. 세 군데 적으면 세 군데를 고친다 */
+eq('단추 셋이 한 규칙을 쓴다',
+  /\.rbtn\{position:relative;overflow:hidden;flex:none;width:37px;height:37px;border-radius:50%/.test(web)
+  && (web.match(/className="(backbtn|giftbtn|sendbtn) rbtn"/g) || []).length === 4, true);
+/* 셋 다 색이 있으면 어느 게 보내기인지 모른다 */
+eq('방 색은 보내기만 쓴다',
+  /\.backbtn,\.giftbtn\{color:#5d5490;background:linear-gradient/.test(web)
+  && /\.sendbtn\{color:#fff;text-shadow/.test(web), true);
+/* 하이라이트가 위에 깔리므로 그림은 그 앞에 세워야 한다 */
+eq('그림이 하이라이트 앞에 선다', /\.rbtn>svg\{position:relative;z-index:1\}/.test(web), true);
 
 /* 어둠막(::before, z-index:0)이 입력줄 위에 얹혀서 자리에 들어가면
    입력창만 까맸다. 위치 없는 요소는 z-index:0인 형제보다 아래에 깔린다 */
 eq('어둠막이 입력줄을 안 덮는다',
   /\.scenewrap \.scenebody,\.scenewrap \.tb,\.scenewrap \.scenebar\{position:relative;z-index:1\}/.test(web), true);
+/* 창의 X는 창을 닫는다. 그림만 그려놓고 안 눌리면 창이 아니라 그림이다.
+   채팅방 머리글만 남아 있었다 — 창 셋, 자리, 그리고 여기까지 같은 실수였다 */
+eq('채팅방 X가 목록으로 보낸다',
+  /\{room\.name\}\{watch\?"\.cam":"\.chat"\}<WinDots onClose=\{onBack\}\/>/.test(web), true);
+/* 안 눌려도 되는 것은 오프닝의 가짜 오류창 넷과 등록 화면, 그리고 앱 창틀뿐이다 */
+eq('안 눌리는 X는 여섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 6);
+
 /* X는 나가기가 아니라 접기다. 자리는 그대로 두고 메신저로 돌아간다 —
    교실에 앉아서 삼촌한테 카톡하는 건 되는 일이다.
    자리를 뜨는 건 뒤로가기 쪽이고, 그쪽은 한 번 묻는다 */

@@ -1130,12 +1130,12 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         </div>
       </div>
       <div className="inputbar scenebar">
-        <button className="backbtn bevel" onClick={onLeaveScene} title="돌아가기"><BackIcon/></button>
+        <button className="backbtn rbtn" onClick={onLeaveScene} title="돌아가기"><BackIcon/></button>
         {/* 선물은 만나서만 준다. 그러니 단추도 만난 자리에 있어야 한다 —
             메뉴바에만 두면 자리에서는 열 수가 없다 */}
-        <button className="giftbtn bevel" onClick={onCart} title="give something"><GiftIcon.cart size={15}/></button>
+        <button className="giftbtn rbtn" onClick={onCart} title="give something"><GiftIcon.cart size={15}/></button>
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send0()}/>
-        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send0}
+        <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send0}
           style={{background:sendBg(room)}}><SendIcon/></button>
       </div>
       {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
@@ -1145,7 +1145,8 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
   const senderMeta=s=>s==="user"?null:(CHARS[s]||{name:s,color:"#9aa3d8",pale:"#e2e6f5",dk:"#6b5fa8"});
   return <div className={"screen"+(watch?" watchbg":"")}>
     <div className="tb" style={{background:watch?"linear-gradient(90deg,#aab3d6,#c9c0ee)":`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
-      {room.name}{watch?".cam":".chat"}<WinDots/>
+      {/* 창의 X는 창을 닫는다. 그림만 그려놓고 안 눌리면 창이 아니라 그림이다 */}
+      {room.name}{watch?".cam":".chat"}<WinDots onClose={onBack}/>
     </div>
     <div className="chatbar">
       <button className="backbtn bevel" onClick={onBack}><BackIcon/></button>
@@ -1207,7 +1208,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       <div className="watchbar"><span className="rec"/>u can't join this one</div>
       :<div className="inputbar">
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
-        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
+        <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
       </div>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
