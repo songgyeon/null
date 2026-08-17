@@ -323,7 +323,9 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
                 <Text style={[en.modeT,mode===k&&en.modeTOn]}>{k}</Text>
               </TouchableOpacity>)}
           </View>
-          <Text style={en.modeH}>{mode==='speed'?'대화가 쌓이면 하루가 간다':'하루가 진짜 하루다'}</Text>
+          <Text style={en.modeH}>{mode==='speed'
+            ?'하루가 4배로 Speed up! ˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙'
+            :'현실 하루 = NULL 하루! ♡ ٩(❛ัᴗ❛ั ๑)'}</Text>
         </Animated.View>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <Animated.View style={[en.row,anim(rows[5])]}>
@@ -365,14 +367,20 @@ const en=StyleSheet.create({
          borderStyle:'dashed',borderRadius:3},
   blankOn:{color:'#4a4276',borderStyle:'solid'},
   nullv:{...F,fontSize:12,letterSpacing:.7,color:'#b0a6d8'},
-  /* 웹의 .emode와 같은 색·같은 모양 — 고른 쪽만 실선에 분홍이다 */
-  mode:{flexDirection:'row',gap:4},
-  modeB:{paddingVertical:2,paddingHorizontal:7,borderRadius:999,backgroundColor:'#fff',
-         borderWidth:1.5,borderColor:'#c9bdea',borderStyle:'dashed'},
-  modeBOn:{borderStyle:'solid',borderColor:'#ff8fbe',backgroundColor:'#fff3f8'},
-  modeT:{...F,fontSize:10,letterSpacing:1,color:'#a897dd'},
-  modeTOn:{color:'#ff4d9e'},
-  modeH:{...F,fontSize:9,color:'#a897dd',flexShrink:1},
+  /* 웹의 .emode와 같은 가족. 고른 쪽은 Click! 단추와 같은 분홍에 2px 턱이고,
+     안 고른 쪽은 위의 빈칸들과 같은 점선이라 「아직 안 정한 칸」으로 읽힌다.
+     RN에는 그라데이션이 없어서 단색 분홍으로 대신한다 — 턱과 광이 모양을 낸다. */
+  mode:{flexDirection:'row',gap:6},
+  modeB:{paddingVertical:4,paddingHorizontal:13,borderRadius:999,backgroundColor:'#fff',
+         borderWidth:1.5,borderColor:'#d9cbf3',borderStyle:'dashed'},
+  modeBOn:{borderStyle:'solid',borderColor:'#fff',backgroundColor:'#ffd9ec',
+           shadowColor:'#edbcd6',shadowOpacity:1,shadowRadius:0,
+           shadowOffset:{width:0,height:2},elevation:2},
+  modeT:{...F,fontSize:11,letterSpacing:1.7,color:'#a897dd'},
+  modeTOn:{color:'#6b5fa8'},
+  /* 설명은 알약 밑으로 내린다 — 라벨 밑에 붙으면 어느 알약 얘기인지 안 보인다.
+     66(라벨) + 5(gap) 만큼 들여써서 알약과 왼쪽을 맞춘다 */
+  modeH:{...F,width:'100%',paddingLeft:71,fontSize:9,color:'#a897dd'},
   bar:{marginTop:15,height:6,borderRadius:999,backgroundColor:'#eae1fb',borderWidth:1,borderColor:'#d9cbf3',overflow:'hidden'},
   fill:{height:'100%',backgroundColor:'#ff8fbe'},
   msg:{...F,marginTop:8,fontSize:8.5,letterSpacing:1.8,color:'#a290d4'},

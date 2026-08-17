@@ -485,6 +485,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .enr .eline:nth-of-type(3){animation-delay:.80s}
 .enr .eline:nth-of-type(4){animation-delay:1.05s}
 .enr .eline:nth-of-type(5){animation-delay:1.30s}
+/* MODE 줄이 끼면서 여섯 줄이 됐다. 여기가 다섯까지면 DAYS LEFT만 지연 0이라
+   순서를 안 지키고 먼저 튀어나온다 — 한 줄씩 찍히는 게 이 화면의 전부인데 */
+.enr .eline:nth-of-type(6){animation-delay:1.55s}
 .enr .eline .lab{font-size:8.5px;letter-spacing:.2em;color:#a290d4;min-width:66px}
 /* 빈칸은 you.txt(밝은 창)의 것을 그대로 쓴다 — 이제 같은 가족이다 */
 .enr .nullv{font-size:12px;color:#b0a6d8;letter-spacing:.06em}
@@ -790,12 +793,28 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .ttrow.next .ln{border-top-color:#c9bdea}
 /* 주말 칸. 기존 빈칸(.blank)과 이름이 부딪히면 줄 전체가 점선 상자가 된다 */
 .ttrow.mine .n{width:auto;min-width:54px}
-/* ── 등록 화면의 모드 고르기 ── 칸을 채우는 자리와 같은 줄에 선다 */
-.emode{display:inline-flex;gap:4px;flex:none}
-.emode b{font-weight:400;cursor:pointer;padding:1px 7px;border-radius:999px;
-  border:1.5px dashed #c9bdea;color:#a897dd;background:#fff;letter-spacing:.1em}
-.emode b.on{border-style:solid;border-color:#ff8fbe;color:#ff4d9e;background:#fff3f8}
-.emhint{color:#a897dd}
+/* ── 등록 화면의 모드 고르기 ──
+   고른 쪽은 Click! 단추와 같은 가족이다(같은 분홍 그라데이션·같은 2px 턱·
+   같은 윗면 광). 안 고른 쪽은 위의 빈칸들과 같은 점선이라, 「아직 안 정한 칸」
+   으로 읽힌다. 처음엔 둘 다 납작한 알약이라 눌리는 것처럼 안 보였다. */
+.emode{display:inline-flex;gap:6px;flex:none}
+.emode b{position:relative;overflow:hidden;font-weight:400;cursor:pointer;
+  padding:4px 13px 5px;font-size:11px;letter-spacing:.16em;text-indent:.16em;
+  border-radius:999px;color:#a897dd;background:#fff;border:1.5px dashed #d9cbf3}
+.emode b.on{color:#6b5fa8;border:1.5px solid #fff;
+  background:linear-gradient(180deg,#fff0f7 0%,#ffd9ec 48%,#ffc2dd 52%,#ffe4f1 100%);
+  box-shadow:inset 0 1px 0 #fff,0 2px 0 #edbcd6}
+.emode b.on::after{content:"";position:absolute;left:8%;right:8%;top:2px;height:38%;
+  border-radius:999px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,0))}
+.emode b:active{transform:translateY(1px)}
+.emode b.on:active{box-shadow:inset 0 2px 4px rgba(190,120,160,.3)}
+/* 설명은 알약 밑으로 내린다. 라벨 밑에 붙으면 어느 알약 얘기인지 안 보인다 —
+   66px(라벨) + 5px(gap) 만큼 들여써서 알약과 왼쪽을 맞춘다 */
+.emhint{flex:0 0 100%;padding-left:71px;font-size:10px;letter-spacing:.02em;color:#a897dd}
+/* 얼굴은 통째로 한 덩어리다. 안 묶으면 「˙˚ଘo(∗ ❛ั ᵕ ❛ั 」에서 끊겨
+   다음 줄에 「)੭່˙」만 남는다 — 얼굴이 아니라 부스러기가 된다 */
+.emhint .kao{white-space:nowrap}
 .ttsay{margin-top:11px;text-align:center;font-size:9px;line-height:1.95;color:#6b5fa8}
 .ttsay b{display:block;font-weight:400}
 .ttsay b i{font-style:normal;color:#ff4d9e}

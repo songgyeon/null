@@ -1619,11 +1619,25 @@ for (const [label, src] of [['웹', web], ['앱', appSrc]])
 /* 두 모드의 글월이 같아야 한다 — 같은 것을 고르는데 설명이 다르면 다른 기능이다 */
 for (const [label, src] of [['웹', web], ['앱', appSrc]])
   eq(`${label}의 모드 설명이 같다`,
-    /대화가 쌓이면 하루가 간다/.test(src) && /하루가 진짜 하루다/.test(src), true);
+    /현실 하루 = NULL 하루! ♡/.test(src) && /하루가 4배로 Speed up!/.test(src), true);
+/* 설명은 알약 밑으로 내린다 — 라벨 밑에 붙으면 어느 알약 얘기인지 안 보인다.
+   66(라벨) + 5(gap) 만큼 들여써야 알약과 왼쪽이 맞는다 */
+eq('웹 설명이 알약 밑에 선다', /\.emhint\{flex:0 0 100%;padding-left:71px/.test(web), true);
+eq('앱 설명이 알약 밑에 선다', /modeH:\{\.\.\.F,width:'100%',paddingLeft:71/.test(appSrc), true);
+/* 얼굴은 통째로 한 덩어리다 — 안 묶으면 다음 줄에 「)੭່˙」만 남는다 */
+eq('얼굴이 쪼개지지 않는다', /\.emhint \.kao\{white-space:nowrap\}/.test(web), true);
+/* 고른 쪽은 Click! 단추와 같은 가족이다 — 눌리는 것으로 보여야 한다 */
+eq('고른 알약이 눌리는 모양이다',
+  /\.emode b\.on\{[\s\S]{0,220}box-shadow:inset 0 1px 0 #fff,0 2px 0 #edbcd6\}/.test(web)
+  && /\.emode b:active\{transform:translateY\(1px\)\}/.test(web), true);
 /* 줄이 하나 늘었다 — 애니메이션 칸을 안 늘리면 DAYS LEFT가 영영 안 뜬다 */
 eq('앱이 줄 수를 맞춘다',
   /Array\.from\(\{length:ENR_FIELDS\.length\+2\}/.test(appSrc)
   && /anim\(rows\[5\]\)/.test(appSrc), true);
+/* 웹은 CSS가 줄마다 지연을 준다. 다섯까지만 있으면 DAYS LEFT만 지연 0이라
+   순서를 안 지키고 먼저 튀어나온다 — 한 줄씩 찍히는 게 이 화면의 전부인데 */
+eq('웹도 줄 수를 맞춘다',
+  /\.enr \.eline:nth-of-type\(6\)\{animation-delay:1\.55s\}/.test(web), true);
 /* 바뀌는 것은 「실습이 얼마나 진행됐나」뿐이다. 「지금 몇 시인가」는 안 바뀐다 */
 eq('잠과 시간표는 두 모드가 같다',
   /function presence\(id, now\)\{[\s\S]{0,400}?speedOn/.test(web), false);

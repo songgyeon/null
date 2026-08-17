@@ -445,7 +445,9 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
             {[["real","real"],["speed","speed"]].map(([k,t])=>
               <b key={k} className={mode===k?"on":""} onClick={()=>onMode(k)}>{t}</b>)}
           </span>
-          <span className="emhint">{mode==="speed"?"대화가 쌓이면 하루가 간다":"하루가 진짜 하루다"}</span>
+          <span className="emhint">{mode==="speed"
+            ?<>하루가 4배로 Speed up! <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>
+            :<>현실 하루 = NULL 하루! ♡ <span className="kao">٩(❛ัᴗ❛ั ๑)</span></>}</span>
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
