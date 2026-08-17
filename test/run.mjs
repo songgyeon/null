@@ -575,8 +575,7 @@ eq('자리 몫과 선물 몫을 둘 다 쓴다',
 /* 워커에게 자리와 선물을 같이 보낸다 — 마주 앉아 있고 방금 이걸 받았다 */
 eq('자리와 선물을 같이 보낸다',
   /place,bag:bagRef\.current\.map\(b=>b\.key\),gift:\{name:gift\.name,key:gift\.key,note\}\}\);/.test(web), true);
-eq('지금 만난 사람을 창에 알려준다',
-  /withChar=\{scene&&scene\.room===view\?scene\.room:null\}/.test(web), true);
+
 
 /* ── 첫 자리 ──
    전에는 앱을 켜면 둘이 인사를 보내는 걸로 시작했다. 그건 알림이지 만남이 아니다.
@@ -2025,8 +2024,20 @@ eq('비운 시간과 상한은 그대로다',
    입력창만 까맸다. 위치 없는 요소는 z-index:0인 형제보다 아래에 깔린다 */
 eq('어둠막이 입력줄을 안 덮는다',
   /\.scenewrap \.scenebody,\.scenewrap \.tb,\.scenewrap \.scenebar\{position:relative;z-index:1\}/.test(web), true);
-/* 자리 머리글의 X도 눌려야 한다. 창들과 같은 실수였다 */
-eq('자리 X도 눌린다', /\{scene\.place\}<WinDots onClose=\{onLeaveScene\}\/>/.test(web), true);
+/* X는 나가기가 아니라 접기다. 자리는 그대로 두고 메신저로 돌아간다 —
+   교실에 앉아서 삼촌한테 카톡하는 건 되는 일이다.
+   자리를 뜨는 건 뒤로가기 쪽이고, 그쪽은 한 번 묻는다 */
+eq('X는 접기다', /\{scene\.place\}<WinDots onClose=\{onMinimize\}\/>/.test(web), true);
+eq('접으면 목록으로 간다', /onMinimize=\{\(\)=>setView\("list"\)\}/.test(web), true);
+eq('뒤로가기는 여전히 나가기다', /onClick=\{onLeaveScene\} title="돌아가기"/.test(web), true);
+/* 자리에 있는 동안엔 딴 데로 못 간다. 몸은 하나다 */
+eq('자리에 있으면 딴 데로 못 간다',
+  /const away=!!scene&&scene\.place!==ask;/.test(web)
+  && /const no=away\|\|locked/.test(web)
+  && /const why=away\?`지금 \$\{scene\.place\}에 있어요`/.test(web), true);
+/* 선물도 마찬가지다. 보고 있는 화면이 아니라 몸이 어디 있는지를 본다 —
+   교실에 앉은 채로 목록에 나와 있어도 몸은 교실에 있다 */
+eq('선물도 몸이 있는 데를 본다', /withChar=\{scene\?scene\.room:null\}/.test(web), true);
 
 /* ── 나가기도 한 번 묻는다 ──
    하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면 실수로 닫힌다.

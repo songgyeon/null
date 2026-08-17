@@ -1071,7 +1071,7 @@ function DayBar({left}){
 /* 장면 모드에서 보여줄 줄 수. 한 턴에 말풍선이 두셋 나오니 대여섯이면
    방금 오간 말이 다 보이고, 그 위는 사진에 자리를 내준다. */
 const SCENE_LINES=6;
-function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onCart}){
+function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart}){
   const [v,setV]=useState("");
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
   const boxRef=useRef(null);
@@ -1095,7 +1095,10 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
     const tail=msgs.filter(m=>!m.sys&&(m.text||"").trim()&&m.ts>=(scene.since||0)).slice(-SCENE_LINES);
     return <div className="screen scenewrap" style={bg?{backgroundImage:`url("${bg}")`}:null}>
       <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
-        {scene.place}<WinDots onClose={onLeaveScene}/>
+        {/* X는 나가기가 아니라 접기다. 자리는 그대로 두고 메신저로 돌아간다 —
+            교실에 앉아서 삼촌한테 카톡하는 건 되는 일이다.
+            자리를 뜨는 건 뒤로가기 쪽이고, 그쪽은 한 번 묻는다 */}
+        {scene.place}<WinDots onClose={onMinimize}/>
       </div>
       <div className="scenebody">
         <div className="scenelines">

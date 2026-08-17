@@ -793,7 +793,8 @@ function App(){
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
-       scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene} onCart={()=>setCart(true)}
+       scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
+       onMinimize={()=>setView("list")} onCart={()=>setCart(true)}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
     {invite&&<div className="dlgov" onClick={()=>answerInvite(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
@@ -809,7 +810,9 @@ function App(){
       </div>
     </div>}
     {cart&&<Cart gifts={gifts||{}} hearts={heartsOf(store,gifts)} met={met}
-      withChar={scene&&scene.room===view?scene.room:null}
+      /* 보고 있는 화면이 아니라 몸이 어디 있는지를 본다. 교실에 앉은 채로
+         목록에 나와 있어도 몸은 교실에 있다 */
+      withChar={scene?scene.room:null}
       onSend={giveGift} onSendAt={giveGiftAt} onClose={()=>setCart(false)}/>}
     {/* 사물함 명패. 눌러도 아무 일이 없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다 */}
     {plate&&<div className="dlgov" onClick={()=>setPlate(null)}>
@@ -859,6 +862,9 @@ function App(){
       const p=PLACE_BY[ask];
       /* 아직 안 열린 자리. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
          왜 안 되는지는 말해줘야 한다. 무엇을 먼저 가야 하는지도 같이 */
+      /* 자리에 있는 동안엔 딴 데로 못 간다. 몸은 하나다 —
+         X로 접어두고 메신저를 쓸 수는 있어도 옮겨 다닐 수는 없다 */
+      const away=!!scene&&scene.place!==ask;
       const locked=!!p&&!placeOpen(p,met);
       const shut=!!p&&!placeHours(p);            // 지금은 문 닫은 시각
       const wk=!!p&&!wendOnlyOk(p);              // 평일엔 못 가는 자리
@@ -866,10 +872,11 @@ function App(){
       const out=p&&p.meet==="out"?whoOut():null; // 마주치는 자리 — 지금 밖에 누가 있나
       const empty=!!out&&!out.length;
       const need=!!p&&p.pick&&!askWho;           // 동행을 아직 안 골랐다
-      const no=locked||shut||wk||done||empty;
+      const no=away||locked||shut||wk||done||empty;
       /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
          심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
-      const why=locked?""
+      const why=away?`지금 ${scene.place}에 있어요`
+        :locked?""
         :done?"오늘은 벌써 다녀왔어요"
         :wk?"주말에만 갈 수 있어요"
         :empty?"지금은 아무도 밖에 없어요"
@@ -879,7 +886,7 @@ function App(){
         <div className="tb">{ask}<WinDots onClose={()=>answerAsk(false)}/></div>
         <div className="dlgbody">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
-            {locked
+            {locked&&!away
               ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
               :no?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
           {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
