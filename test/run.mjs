@@ -532,6 +532,35 @@ eq('자는 쪽은 후보에서 먼저 뺀다',
    0은 1970년이고 그 해의 시각은 UTC 기준이라 어느 쪽으로 튈지 모른다 */
 eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter\(canGreet\)/.test(web), false);
 
+/* ── 단톡방은 나중에 생긴다 ──
+   민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
+   유저는 초대를 받는다 — 왜 초대됐는지는 모른 채로. 그게 이 앱의 모양이다.
+   알게 되는 근거는 새로 만들지 않는다. 이미 민현에게 보내고 있는 신호가 그거다 */
+{
+  const G = new Function(
+    'const ROOMS=[{id:"jaeeon"},{id:"minhyun"},{id:"group"},{id:"health"}];'
+    + web.slice(web.indexOf('const GROUP_AT=12;'), web.indexOf('/* ── 선물을 어디서 줄까 ──'))
+        .replace(/const load\w+=[\s\S]*?;\n/g, '').replace(/const save\w+=[\s\S]*?;\n/g, '')
+    + '\nreturn {groupReady,roomsOn};')();
+  eq('양쪽에 쌓여야 열린다',
+    [G.groupReady({jaeeon:new Array(12), minhyun:new Array(11)}),
+     G.groupReady({jaeeon:new Array(12), minhyun:new Array(12)})], [false, true]);
+  /* 이미 말이 오간 방은 도로 못 닫는다. 하던 사람의 기록이 사라지면 안 된다 */
+  eq('이미 오간 방은 안 닫힌다', G.groupReady({group:new Array(3)}), true);
+  eq('열리기 전에는 없는 방이다',
+    [G.roomsOn(false).length, G.roomsOn(true).length], [3, 4]);
+  eq('방 수도 같이 센다', /rooms \(\{roomsOn\(groupOn\)\.length\}\)/.test(web), true);
+  /* 초대는 시스템창으로 온다. 유저는 왜 불렸는지 모른 채로 들어간다 */
+  eq('초대는 시스템창이다',
+    /\{groupNew&&<Dialog title="null\.exe"/.test(web)
+    && /이민현이 방을 만들고 당신을 넣었어요/.test(web), true);
+  eq('왜 불렀는지는 안 알려준다',
+    /<span className="k2">이 유<\/span><span className="dot"\/><span className="v hush">비밀<\/span>/.test(web), true);
+  /* 하던 사람에게는 창을 안 띄운다 — 놀랄 일이 아니다 */
+  eq('하던 사람에게는 안 띄운다',
+    /if\(!\(store\.msgs\.group\|\|\[\]\)\.length\)setGroupNew\(true\);/.test(web), true);
+}
+
 /* ── 선물은 만나서만 ──
    물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말한 적이 있다.
    「말로 주는 CD가 어딨어요. 지금 손에 든 거예요?」

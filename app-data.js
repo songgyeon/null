@@ -653,6 +653,26 @@ const freeOut=(id,now)=>{
   return isWend(d)||!AT_WORK.includes(pr.t);
 };
 const whoOut=(now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));
+/* ── 단톡방은 나중에 생긴다 ──
+   민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
+   유저는 초대를 받는다 — 왜 초대됐는지는 모른 채로. 그게 이 앱의 모양이다.
+
+   알게 되는 근거는 새로 만들지 않는다. 이미 민현에게 보내고 있는 신호가
+   그거다 — 재언 방에 오늘 대화가 몇 번 있었고 마지막이 몇 분 전인가.
+   「요즘 삼촌 폰 오래 붙잡고 있길래」가 그 신호를 보고 나온 말이다.
+   여기서는 그 신호가 양쪽에 충분히 쌓였는지만 센다.
+
+   이미 말이 오간 방은 도로 못 닫는다. 하던 사람의 기록이 사라지면 안 된다. */
+const GROUP_AT=12;
+const loadGroupOn=()=>{try{return localStorage.getItem("null_group")==="1"}catch(e){return false}};
+const saveGroupOn=()=>{try{localStorage.setItem("null_group","1")}catch(e){}};
+const groupReady=msgs=>{
+  const n=r=>((msgs||{})[r]||[]).length;
+  return n("group")>0||(n("jaeeon")>=GROUP_AT&&n("minhyun")>=GROUP_AT);
+};
+/* 방 목록. 단톡방은 열리기 전까지 없는 방이다 */
+const roomsOn=on=>ROOMS.filter(r=>r.id!=="group"||on);
+
 /* ── 선물을 어디서 줄까 ──
    물건은 손에서 손으로 간다. 그래서 선물은 만나러 가는 이유가 된다 —
    지도를 도는 이유가 아이템 하나뿐이었는데 하나 늘었다.

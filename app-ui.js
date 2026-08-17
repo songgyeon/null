@@ -742,7 +742,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -847,7 +847,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onCart,onPlate,onOpen,on
           {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧</>}
     </span></div>
     <div className="tabs">
-      <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms (4)</span>
+      <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms ({roomsOn(groupOn).length})</span>
       <span className={"tab"+(tab==="map"?" on":"")} onClick={()=>setTab("map")}>map</span>
       <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
       <span className={"tab hid"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
@@ -858,7 +858,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onCart,onPlate,onOpen,on
         style={{left:b[0]+"%",width:b[1],height:b[1],animationDuration:b[2]+"s",animationDelay:b[3]+"s"}}/>)}
       {tab==="rooms"
       ?<div className="rooms">
-        {ROOMS.map((r,i)=>{
+        {roomsOn(groupOn).map((r,i)=>{
           const ms=store.msgs[r.id]||[], last=ms[ms.length-1], un=store.unread[r.id]||0;
           const watch=r.type==="watch";
           const pr=presence(r.id,new Date(now));

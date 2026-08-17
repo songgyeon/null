@@ -193,6 +193,9 @@ function App(){
   const [plate,setPlate]=useState(null);
   /* 장바구니는 자리 안에서도 열려야 한다. 선물은 만나서만 주니까 */
   const [cart,setCart]=useState(false);
+  /* 단톡방은 민현이 판다. 그전까지는 없는 방이다 */
+  const [groupOn,setGroupOn]=useState(loadGroupOn);
+  const [groupNew,setGroupNew]=useState(false);
   const leaveScene=()=>{ const sc=sceneRef.current; if(sc)setLeaving(sc) };
   /* 나가면 인사를 받는다. 문을 열어주고 등을 보이는 사람은 없다 —
      지문 한 줄을 남기고, 그 줄을 보고 상대가 알아서 인사한다.
@@ -514,6 +517,15 @@ function App(){
     if(DDAY_MARKS.includes(d))mark("dday:"+d,{kind:"dday",name:String(d)});
   },[name,view,store.msgs]);
 
+  /* 민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
+     그가 방을 파고 유저를 부른다. 왜 불렀는지는 말해주지 않는다. */
+  useEffect(()=>{
+    if(!name||groupOn||!groupReady(store.msgs))return;
+    saveGroupOn(); setGroupOn(true);
+    /* 이미 말이 오간 방이면 하던 사람이라 놀랄 일이 아니다 — 창은 안 띄운다 */
+    if(!(store.msgs.group||[]).length)setGroupNew(true);
+  },[name,groupOn,store.msgs]);
+
   const autoBusy=useRef(false);
   useEffect(()=>{
     /* 목록에서도 돌고 관전방을 열 때도 돈다. 방을 열었는데 늘 같은 화면이면
@@ -788,7 +800,7 @@ function App(){
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
-       onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
+       groupOn={groupOn} onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar}/>
@@ -909,6 +921,24 @@ function App(){
       </div>
     </div>; })()}
     {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN}/>}
+    {/* 단톡방이 생겼다. 유저는 초대를 받은 쪽이라 무슨 방인지 모른 채로 들어간다 */}
+    {groupNew&&<Dialog title="null.exe" onClose={()=>setGroupNew(false)}>
+      <div className="ddq">
+        <div className="k">［ 새 방 ］♡</div>
+        <div className="ddrows">
+          <div className="r"><span className="k2">이 름</span><span className="dot"/><span className="v">단톡방</span></div>
+          <div className="r"><span className="k2">초 대</span><span className="dot"/><span className="v">이민현</span></div>
+          <div className="r"><span className="k2">이 유</span><span className="dot"/><span className="v hush">비밀</span></div>
+        </div>
+        <div className="s" style={{marginTop:14}}>
+          이민현이 방을 만들고 당신을 넣었어요<br/>
+          <span className="kao">( ˶˘ ᵕ ˘˶ )</span> ♡
+        </div>
+        <div className="dlgbtns" style={{justifyContent:"center"}}>
+          <button className="wbtn" onClick={()=>setGroupNew(false)}>ok ♡</button>
+        </div>
+      </div>
+    </Dialog>}
     {sys1&&<Dialog title="null.exe" onClose={()=>setSys1(false)}>
       <div className="ddq">
         <div className="k">［ N U L L ］♡</div>
