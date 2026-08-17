@@ -2170,6 +2170,46 @@ function trimTics(list) {
   return out;
 }
 
+/* ── 사고가 대사로 새는 것 ──
+   화면에 이 두 줄이 이민현의 말풍선으로 떴다:
+     「이미 편의점 가고 있다는 상황과 유저가 "나도 가고 싶어"라고 한 것 사이
+      어긋남을 짚어야 함. …장난스럽게 받아침.」
+     「지금까지 249번 대화, 이미 많이 가까워진 상태. …눈치 신호는 지금 화제와
+      관련 없으니 언급 안 함.오고 싶다니, 나오라니까요 지금.」
+   모델이 무엇을 말할지 정리한 글을 messages에 그대로 담은 것이다. 이게 나가면
+   세계관이 깨지는 게 아니라 유저가 프롬프트 속을 들여다보게 된다 — 관계 단계,
+   대화 수, 눈치 신호라는 장치 이름까지 전부.
+
+   가려내는 표는 셋이다. 인물이 절대 안 하는 것들이라 오검출이 없다.
+   ① 「유저」 — 인물은 상대를 늘 「선생님」이라고 부른다. 이 말은 프롬프트에만 있다.
+   ② 장치 이름 — 눈치 신호, N번 대화, 대화 예시, 출력 형식, 사진키.
+   ③ 개조식 종결(~야 함 / 안 함) — 이 둘은 말끝을 그렇게 맺지 않는다.
+      「미안함」처럼 한 낱말인 경우와 갈라야 해서 앞에 공백을 요구한다.
+   말버릇 필터(trimTics)보다 앞에 둔다 — 줄을 가르기 전에 걸러야 한 말풍선에
+   섞여 온 것도 통째로 잡힌다.
+
+   처음에는 ①에 「유저」 뒤가 한글이 아닐 것을, ③에 문장 끝일 것을 걸었다.
+   그랬더니 정작 새어 나온 줄이 안 잡혔다 — 그 줄은 「유저가」였고(조사가 붙는다),
+   개조식이 문장 끝이 아니라 가운데 있었다(「…짚어야 함. 이미 나오라고…」).
+   뒤를 풀고, 마침표까지 본다. */
+const META_RE = [
+  /(?:^|[^가-힣])유저/,
+  /눈치 신호|대화 예시|출력 형식|사진키|직전 문맥|\d+번 대화/,
+  /(?:야|(?:^|\s)안|(?:^|\s)못)\s*함(?:[.!?…]|\s*$)/,
+];
+const isMeta = (t) => { const s = (t || "").trim(); return !!s && META_RE.some(re => re.test(s)); };
+function dropMeta(list) {
+  const out = [];
+  for (const m of list || []) {
+    if (isMeta(m && m.text)) {
+      console.log(`[NULL] 사고 유출을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
+      continue;
+    }
+    out.push(m);
+  }
+  return out;
+}
+
 const NAME_TO_ID = { "이재언": "jaeeon", "이민현": "minhyun" };
 /* 말풍선 앞에 붙는 이름표. 성을 뗀 것까지 받는다 — 모델이 「재언: 」으로 쓴다.
    「삼촌」은 안 넣는다. 부르는 말이라 「삼촌, 아까 그 커피」가 통째로 잘려나간다. */
@@ -2663,7 +2703,7 @@ export default {
       const invite = pickInvite(parseMessages.invite, place ? [] : openPlaces);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
       const give = pickGive(parseMessages.give, place, hasItem);
-      const messages = trimTics(sanitizePhotos(unlabel(splitLines(parsed), chars), photoChars, fallbackSender, recentPhotos));
+      const messages = trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos));
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
         ...(invite ? { invite: { place: invite, char: room } } : {}),
@@ -2678,5 +2718,5 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
+export { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, dropMeta, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace };

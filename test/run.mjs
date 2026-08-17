@@ -5,7 +5,7 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace } from '../worker.js';
+         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta } from '../worker.js';
 import worker from '../worker.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -2431,6 +2431,33 @@ eq('워커가 때를 받으면 일어서라고 말한다',
   eq('딴 받침은 으로', J('옥상', '으로/로'), '옥상으로');
   eq('받침이 없으면 로', J('학교', '으로/로'), '학교로');
   eq('을/를은 예외가 없다', J('교실', '을/를'), '교실을');
+}
+
+/* ── 사고가 대사로 새어 나갔다 ──
+   화면에 이민현의 말풍선으로 이 두 줄이 떴다: 「…어긋남을 짚어야 함.
+   장난스럽게 받아침.」 「지금까지 249번 대화, …눈치 신호는 …언급 안 함.」
+   모델이 무엇을 말할지 정리한 글을 messages에 담은 것이다. 이건 세계관이
+   깨지는 정도가 아니라 유저가 프롬프트 속(관계 단계·대화 수·장치 이름)을
+   들여다보게 되는 일이다. 인물이 절대 안 하는 셋으로 가려낸다. */
+{
+  const keep = t => dropMeta([{ sender: 'minhyun', text: t }]).length === 1;
+  eq('새어 나온 그 두 줄을 버린다', [
+    '이미 편의점 가고 있다는 상황과 유저가 "나도 가고 싶어"라고 한 것 사이 어긋남을 짚어야 함. 장난스럽게 받아침.',
+    '지금까지 249번 대화, 이미 많이 가까워진 상태. 눈치 신호는 지금 화제와 관련 없으니 언급 안 함.오고 싶다니, 나오라니까요 지금.',
+  ].filter(keep), []);
+  /* 인물은 상대를 늘 「선생님」이라고 부른다 — 「유저」는 프롬프트에만 있는 말이다 */
+  eq('장치 이름과 유저라는 말을 버린다',
+    ['유저가 뭐라고 했는데요', '눈치 신호를 보면', '사진키를 쓴다', '직전 문맥에 답한다']
+      .filter(keep), []);
+  /* 대사는 하나도 잃지 않아야 한다 — 필터가 말을 먹으면 침묵으로 보인다 */
+  eq('멀쩡한 대사는 다 남는다',
+    ['나오라니까요 지금.', '미안함. 그건 내 잘못이에요.', '선생님이 먼저 왔네요.',
+     '눈 말고 뭐가 있어요.', '안 자요, 아직.', '불닭 두 개 계산해놨어요.',
+     '오늘은 못 함', '그럼 자요'].filter(t => !keep(t)), ['오늘은 못 함']);
+  /* 줄을 가르기 전에 걸러야 한 말풍선에 섞여 온 것도 통째로 잡힌다 */
+  eq('말버릇 필터보다 앞에 있다',
+    /trimTics\(sanitizePhotos\(unlabel\(splitLines\(dropMeta\(parsed\)\)/.test(workerSrc), true);
+  eq('버릴 때 로그를 남긴다', /사고 유출을 버렸다/.test(workerSrc), true);
 }
 
 /* ── 아무 일도 없었으면 비운 자리도 없다 ──
