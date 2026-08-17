@@ -14,7 +14,13 @@ function App(){
   const [failed,setFailed]=useState({});            // 방별 실패 payload (재시도용)
   const [autoLoading,setAutoLoading]=useState(false);
   const viewRef=useRef(view); viewRef.current=view;
+  /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 */
+  const [mode,setMode]=useState(loadMode);
   const storeRef=useRef(store); storeRef.current=store;
+  /* 스피드 모드의 「오늘」을 dayKey가 볼 수 있게 넣어둔다. dayKey는 시각만
+     받는 순수 함수라 대화 수를 스스로 못 본다 — 여기가 store가 바뀔 때마다
+     지나가는 자리라 여기서 넣는다. 리얼 모드면 dayKey가 이 값을 안 본다. */
+  setSpeedDay(speedDaysOf(store));
   const profileRef=useRef(profile); profileRef.current=profile;
   const unlockedRef=useRef(unlocked); unlockedRef.current=unlocked;
   const giftsRef=useRef(gifts); giftsRef.current=gifts;
@@ -1027,6 +1033,7 @@ function App(){
 
   return <div className="phone">
     {enrolling&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling(false)}
+      mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}

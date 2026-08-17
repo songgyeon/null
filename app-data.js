@@ -18,6 +18,37 @@ const CHARS = {
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;
+/* ── 두 시계 ──
+   리얼 모드는 진짜 달력을 본다. 하루가 진짜 하루고, 30일을 실제로 살아야
+   끝이 난다 — 「당신이 말하지 않아도 세계는 돌아갑니다」를 진짜로 만드는 게
+   이 시계다. 대신 링크를 받고 십 분 놀다 가는 사람은 D-30·hidden 0/18에서
+   멈춘다. 제일 공들인 것이 제일 안 보인다.
+
+   스피드 모드는 쌓인 대화를 날로 센다. 사다리를 새로 놓을 필요가 없었다 —
+   원래 숫자가 이미 「하루에 네 마디」로 놓여 있었다:
+     at   12  26  44  64  90  116
+     day   3   7  11  15  20   26      ≒ at ÷ 4
+   그 전제를 그대로 공식으로 쓴다. 리얼 모드에서 30일 걸려 닿는 자리에
+   같은 대화량으로 닿는다.
+
+   바뀌는 것은 「실습이 얼마나 진행됐나」뿐이다. 「지금 몇 시인가」는 안 바뀐다 —
+   잠도 시간표도 자리 여는 시각도 진짜 시계 그대로다. 세계는 계속 진짜 시간에
+   산다. 모드는 판마다 하나고 등록 화면에서 한 번 고른다. 중간에 바꾸면
+   D-N이 튄다. */
+const SPEED_PER_DAY=4;
+const loadMode=()=>{try{return localStorage.getItem("null_mode")==="speed"?"speed":"real"}catch(e){return"real"}};
+const saveMode=v=>{try{localStorage.setItem("null_mode",v==="speed"?"speed":"real")}catch(e){}};
+const speedOn=()=>loadMode()==="speed";
+/* 두 방 중 많이 나눈 쪽으로 센다. 해금은 방마다 at을 따로 보므로, 한쪽만
+   파도 다른 방 것은 그 방 대화 수가 막는다 — 날짜만 앞서가도 안 열린다 */
+const speedDaysOf=store=>{
+  const m=(store&&store.msgs)||{};
+  return Math.floor(Math.max((m.jaeeon||[]).length,(m.minhyun||[]).length)/SPEED_PER_DAY);
+};
+/* 스피드 모드의 「오늘」. dayKey는 시각만 받는 순수 함수라 대화 수를 스스로
+   볼 수 없다 — 앱이 store가 바뀔 때마다 넣어준다 */
+let SPEED_DAY=0;
+const setSpeedDay=n=>{SPEED_DAY=Math.max(0,Math.floor(Number(n)||0))};
 /* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
 const loadExtend=()=>{try{return +localStorage.getItem("null_extend")||0}catch(e){return 0}};
 /* 첫날의 통보. 하루가 끝나기 전에 판돈을 알려준다 — 방법은 빼고.
@@ -28,12 +59,14 @@ const loadSys1=()=>{try{return localStorage.getItem("null_sys1")==="1"}catch(e){
 const saveSys1=()=>{try{localStorage.setItem("null_sys1","1")}catch(e){}};
 const daysLeft=store=>{
   const span=ENROLL_DAYS+loadExtend();
+  if(speedOn())return Math.max(0,span-speedDaysOf(store));
   const all=Object.values((store&&store.msgs)||{}).flat();
   const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
   return first?Math.max(0,span-Math.floor((Date.now()-first)/864e5)):span;
 };
 /* 첫 대화로부터 며칠 지났나. 단계와 해금이 이걸 같이 본다 */
 const daysSince=store=>{
+  if(speedOn())return speedDaysOf(store);
   const all=Object.values((store&&store.msgs)||{}).flat();
   const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
   return first?Math.floor((Date.now()-first)/864e5):0;
@@ -630,7 +663,13 @@ const nowLabel=(now)=>{
 };
 /* 하루의 경계는 자정이 아니라 새벽 다섯 시다. 새벽 두 시에 여는 건 어제의
    연장이지 새 하루가 아니다 — 대화 도중에 날짜가 넘어가면 그게 제일 이상하다 */
-const dayKey=now=>{const d=new Date(now||Date.now()); if(d.getHours()<5)d.setDate(d.getDate()-1);
+/* 「하루 한 번」 도장이 다 이걸 본다 — 선물·자리·귀갓길·관전 몫.
+   스피드 모드에서 진짜 달력을 그대로 보면, 대화로 날을 넘겨도 선물은 진짜
+   내일까지 못 준다. 그러면 빠른 게 빠른 게 아니다. 스피드 모드의 하루는
+   네 마디라, 네 마디 나누면 도장도 같이 넘어간다. */
+const dayKey=now=>{
+  if(speedOn())return "s"+SPEED_DAY;
+  const d=new Date(now||Date.now()); if(d.getHours()<5)d.setDate(d.getDate()-1);
   return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
 const loadDaySeen=()=>{try{return localStorage.getItem("null_dayseen")||""}catch(e){return""}};
 const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};

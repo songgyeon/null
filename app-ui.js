@@ -407,7 +407,7 @@ const ENR_FIELDS=[
   {k:"likes",    lab:"LIKES",   tail:"를 좋아하고"},
   {k:"dislikes", lab:"HATES",   tail:"를 싫어한다"},
 ];
-function Enroll({name,profile,onSaveField,onRename,onDone}){
+function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
   const [out,setOut]=useState(false);
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 방 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
@@ -437,6 +437,16 @@ function Enroll({name,profile,onSaveField,onRename,onDone}){
               onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/>
             <span>{f.tail}</span>
           </div>)}
+        {/* ── 이 판을 어떻게 살 것인가 ──
+            등록 화면이 이미 「이 판을 어떻게 살지」 정하는 자리라 여기 둔다.
+            중간에 바꾸면 D-N이 튀므로 판마다 한 번이다. */}
+        <div className="eline"><span className="lab">MODE</span>
+          <span className="emode">
+            {[["real","real"],["speed","speed"]].map(([k,t])=>
+              <b key={k} className={mode===k?"on":""} onClick={()=>onMode(k)}>{t}</b>)}
+          </span>
+          <span className="emhint">{mode==="speed"?"대화가 쌓이면 하루가 간다":"하루가 진짜 하루다"}</span>
+        </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
         <div className="ebar"><i style={{width:(filled/ENR_FIELDS.length*100)+"%"}}/></div>

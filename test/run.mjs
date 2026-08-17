@@ -1577,6 +1577,45 @@ eq('둘 다 넘으면 오른다', [stageOf(200, 10).name, stageOf(200, 18).name]
 const unlockedKeys = new Function(workerSrc.slice(workerSrc.indexOf('const UNLOCKS = ['),
   workerSrc.indexOf('// 유저가 \'당신.txt\'')) + ';return unlockedKeys')();
 const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
+/* ── 두 시계 ──
+   리얼 모드는 진짜 달력을 본다. 스피드 모드는 쌓인 대화를 날로 센다.
+   사다리를 새로 놓을 필요가 없었다 — 원래 숫자가 「하루에 네 마디」로
+   놓여 있었다(at 12·26·44·64·90·116 ↔ day 3·7·11·15·20·26 ≒ at÷4). */
+{
+  const D = new Function(
+    'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
+    + web.slice(web.indexOf('const SPEED_PER_DAY='), web.indexOf('const setSpeedDay='))
+    + 'return {saveMode,speedOn,speedDaysOf};')();
+  eq('네 마디가 하루다',
+    [D.speedDaysOf({ msgs: { jaeeon: Array(11) } }), D.speedDaysOf({ msgs: { jaeeon: Array(12) } })],
+    [2, 3]);
+  /* 많이 나눈 쪽으로 센다 — 한쪽만 파도 다른 방 것은 그 방 대화 수가 막는다 */
+  eq('많이 나눈 쪽으로 센다',
+    D.speedDaysOf({ msgs: { jaeeon: Array(116), minhyun: Array(0) } }), 29);
+  /* 116마디면 마지막 칸(day 26)에 닿는다 — 리얼 모드의 26일과 같은 자리다 */
+  eq('마지막 칸에 대화로 닿는다', D.speedDaysOf({ msgs: { jaeeon: Array(116) } }) >= 26, true);
+  eq('기본은 리얼이다', D.speedOn(), false);
+}
+/* 하루 한 번 도장이 다 dayKey를 본다 — 스피드 모드에서 진짜 달력을 그대로
+   보면 대화로 날을 넘겨도 선물은 진짜 내일까지 못 준다 */
+eq('스피드 모드의 하루는 대화가 정한다',
+  /if\(speedOn\(\)\)return "s"\+SPEED_DAY;/.test(web), true);
+eq('남은 날도 두 시계를 본다',
+  /if\(speedOn\(\)\)return Math\.max\(0,span-speedDaysOf\(store\)\);/.test(web)
+  && /if\(speedOn\(\)\)return speedDaysOf\(store\);/.test(web), true);
+/* dayKey는 시각만 받는 순수 함수라 대화 수를 스스로 못 본다 — 앱이 넣어준다.
+   안 넣으면 「s0」에 얼어붙어 선물도 자리도 영영 하루치로 잠긴다 */
+for (const [label, src] of [['웹', web], ['앱', appSrc]])
+  eq(`${label}이 오늘을 넣어준다`, /setSpeedDay\(speedDaysOf\(/.test(src), true);
+/* 모드는 판마다 하나고 등록 화면에서 고른다 — 중간에 바꾸면 D-N이 튄다 */
+eq('등록 화면에서 고른다',
+  /<span className="lab">MODE<\/span>/.test(web)
+  && /onMode\(k\)/.test(web), true);
+eq('고른 것이 저장된다', /onMode=\{m=>\{setMode\(m\);saveMode\(m\)\}\}/.test(web), true);
+/* 바뀌는 것은 「실습이 얼마나 진행됐나」뿐이다. 「지금 몇 시인가」는 안 바뀐다 */
+eq('잠과 시간표는 두 모드가 같다',
+  /function presence\(id, now\)\{[\s\S]{0,400}?speedOn/.test(web), false);
+
 /* ── 첫 칸은 첫날에, 뒤는 사흘에 하나씩 ──
    전에는 첫 칸이 사흘째에야 열렸다. 그때까지 이 탭은 잠긴 상자 열여덟 개고,
    무엇을 모으는 탭인지 알 길이 없다. 그리고 뒤쪽 넷이 23·24·25·26일에

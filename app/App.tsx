@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  openingFor, canGreet, asleep, allAsleep, bothAwake, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, setSpeedDay, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
 
@@ -1406,7 +1406,11 @@ function Root() {
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
   const firstTs=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0);
   const dLeft=firstTs?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5)):ENROLL_DAYS;
-  const dayN=firstTs?Math.floor((Date.now()-firstTs)/864e5):0;
+  /* 웹과 같은 두 시계. 앱에는 아직 모드를 고르는 자리가 없어서 늘 real이지만,
+     배선은 같이 해둔다 — speedOn만 켜지고 setSpeedDay를 안 부르면 dayKey가
+     「s0」에 얼어붙어 선물도 자리도 영영 하루치로 잠긴다. */
+  const dayN=speedOn()?speedDaysOf({msgs}):(firstTs?Math.floor((Date.now()-firstTs)/864e5):0);
+  setSpeedDay(speedDaysOf({msgs}));
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
      그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다.
      웹의 cameBack과 같은 식이다. */
