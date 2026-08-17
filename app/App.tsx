@@ -616,6 +616,10 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
       </View>
       <View style={ct.sect}><View style={ct.sline}/>
         <Text style={ct.sectT}>WHO GETS THIS</Text><View style={ct.sline}/></View>
+      {/* 물건은 손에서 손으로 간다 — 그래서 선물이 만나러 가는 이유가 된다.
+          웹의 .cshut과 같은 글월이다. 상자는 안 두른다: 창 안에 창이 하나 더
+          생기고, 이 창은 이미 테두리가 많다. */}
+      <Text style={ct.shut}>선물은 What? 주인공은 Who? 장소는 Where?{'\n'}만나서 전해봐요! ˚₊·ଘ(っ≧∀≦)っ˚₊·♡</Text>
       {['jaeeon','minhyun'].map(c=>{
         const done=(gifts[c]||[]).includes(pick.key), sel=to===c;
         return <View key={c}>
@@ -695,6 +699,8 @@ const ct=StyleSheet.create({
     borderWidth:1,borderColor:'#d5cbee'},
   sentT:{...F,fontSize:10.5,letterSpacing:1,color:'#a99bd0'},
   hint:{...F,marginTop:5,marginLeft:64,fontSize:9,color:'#b4a7d6'},
+  shut:{...F,marginBottom:10,paddingHorizontal:10,textAlign:'center',fontSize:9.5,
+    letterSpacing:.6,lineHeight:18,color:'#b09ad4'},
   memo:{...F,minHeight:76,padding:13,fontSize:11,lineHeight:22,color:'#8a4f74',
     textAlignVertical:'top',backgroundColor:'#fffdf6',borderWidth:1,borderColor:'#ecd9c8',borderRadius:8},
   backT:{...F,fontSize:11,letterSpacing:3,color:P.ink},

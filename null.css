@@ -315,8 +315,10 @@ input.csearch::placeholder{color:#b9addc}
 .cspot.off .cswhy{color:#a99bd0}
 /* 오늘 몫은 나갔다는 한 줄. 자리가 닫혔을 때 여는 시각을 적어주는 줄과
    같은 자리·같은 톤이다 — 막는 것과 왜 막는지는 같이 와야 한다 */
-.cshut{margin:0 0 9px;padding:7px 10px;text-align:center;font-size:9.5px;letter-spacing:.14em;
- color:#a99bd0;border-radius:8px;background:#f4f0fc;box-shadow:0 0 0 1px #e4dbf8}
+/* 상자를 두르면 창 안에 창이 하나 더 생긴다. 글자만 남기고 색으로 말한다 —
+   창마다 테두리가 겹치던 것을 걷어낸 것과 같은 이유다 */
+.cshut{margin:0 0 10px;padding:2px 10px;text-align:center;font-size:9.5px;letter-spacing:.12em;
+ line-height:1.9;color:#b09ad4}
 /* 누런 종이는 이 창에서 혼자 다른 시대에서 온 물건이었다. 흰 종이에 줄만 */
 textarea.cmemo{padding:13px 14px;min-height:74px;font-family:inherit;font-size:11px;line-height:26px;color:#8a4f74;
  resize:none;outline:none;border:1px solid #e6ddf7;border-radius:8px;

@@ -596,8 +596,17 @@ eq('자리에 있으면 딴 사람은 못 고른다',
   && /\(withChar&&!here\(c\)\)\?"NOT HERE"/.test(web), true);
 eq('아니면 어디서 줄지 고른다',
   /\(sel\?\(poor\?`NEED ♡\$\{pick\.cost-hearts\}`:\(here\(c\)\?"SEND ♡":"WHERE ♡"\)\):"WRAP ♡"\)/.test(web), true);
+/* 물건은 손에서 손으로 간다 — 그래서 선물이 만나러 가는 이유가 된다.
+   상자는 안 두른다: 창 안에 창이 하나 더 생기고 이 창은 이미 테두리가 많다.
+   웹과 앱이 같은 글월을 쓴다 — 한쪽만 고치면 두 화면의 말이 갈린다. */
 eq('아무도 안 만났으면 그렇게 말한다',
-  /<div className="cshut">만나서 줘요 ♡ 어디서 줄지 고르면 그리로 가요<\/div>/.test(web), true);
+  /선물은 What\? 주인공은 Who\? 장소는 Where\?/.test(web)
+  && /만나서 전해봐요!/.test(web), true);
+eq('그 줄에 상자를 두르지 않는다',
+  /\.cshut\{[^}]*\}/.exec(web)[0].includes('box-shadow'), false);
+eq('앱도 같은 글월을 쓴다',
+  /선물은 What\? 주인공은 Who\? 장소는 Where\?/.test(appSrc)
+  && /만나서 전해봐요!/.test(appSrc), true);
 /* 주는 길이 둘이면 둘 다 잠가야 한다 */
 eq('보내는 쪽에서도 막는다',
   /if\(!sc\|\|sc\.room!==char\)\{ setToast\("만나서 줘요 ♡"\); return \}/.test(web), true);

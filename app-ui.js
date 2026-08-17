@@ -680,7 +680,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           안 되는지 적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
       {!withChar
-        ?<div className="cshut">만나서 줘요 ♡ 어디서 줄지 고르면 그리로 가요</div>
+        ?<div className="cshut">선물은 What? 주인공은 Who? 장소는 Where?<br/>
+          만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
         :(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
       {["jaeeon","minhyun"].map(c=>{
         /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
