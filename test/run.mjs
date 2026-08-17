@@ -2260,26 +2260,13 @@ eq('워커가 때를 받으면 일어서라고 말한다',
   eq('을/를은 예외가 없다', J('교실', '을/를'), '교실을');
 }
 
-/* ── 선톡은 매일 오지 않는다 ──
-   3시간 넘게 비웠으면 무조건 인사가 왔다 — 사실상 접속할 때마다다.
-   그건 사람이 아니라 알림이다. 첫인사(기록 없음)만 늘 오고, 그 뒤로는
-   사람마다 하루 한 번에 그날의 제비뽑기까지 통과해야 온다. */
-{
-  eq('선톡은 하루에 한 번이다', /loadGreetDay\(\)\[id\]===dayKey\(\)/.test(web), true);
-  eq('실제로 건 날만 도장이 찍힌다', /if\(gapMin>=0\)saveGreetDay/.test(web), true);
-  /* 들어올 때마다 다시 굴리면 여러 번 굴려져 결국 매일 걸게 된다.
-     날짜+이름으로 정해두면 그날의 답이 하나다 */
-  const s = web.slice(web.indexOf('const greetLot='));
-  const L = new Function('const dayKey=now=>{const d=new Date(now||Date.now());if(d.getHours()<5)d.setDate(d.getDate()-1);return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};'
-    + s.slice(0, s.indexOf('};') + 2) + '\nreturn greetLot;')();
-  eq('제비는 그날 안에서 한결같다',
-    L('jaeeon', new Date(2026, 0, 6, 10)) === L('jaeeon', new Date(2026, 0, 6, 22)), true);
-  eq('안 거는 날이 실제로 있다', (() => {
-    const days = Array.from({ length: 30 }, (_, i) => new Date(2026, 0, 6 + i, 12));
-    const on = days.filter(d => L('jaeeon', d) || L('minhyun', d)).length;
-    return on > 0 && on < 30;   // 매일 걸지도, 영영 안 걸지도 않는다
-  })(), true);
-}
+/* ── 선톡의 상한은 간격뿐이다 ──
+   하루 한 번 + 제비뽑기도 둬 봤다가 걷어냈다. 올 때마다 같은 말이 오는 게
+   문제였지 오는 것 자체가 문제가 아니었다 — 시간마다 다른 말이 오면 그건
+   알림이 아니라 안부다. 세 시간 간격만 남는다. */
+eq('하루 상한과 제비뽑기는 걷어냈다',
+  /greetLot|loadGreetDay|null_greetday/.test(web), false);
+eq('세 시간 간격은 그대로다', /if\(gapMin>=0&&gapMin<180\)return;/.test(web), true);
 
 /* ── 시간표를 아는 선톡 ──
    각본 스무 개는 아침이든 새벽이든 같은 스무 개였다. 때와 자기 상태는

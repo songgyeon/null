@@ -571,15 +571,6 @@ const stampGift=(char,now)=>saveGiftDay({...loadGiftDay(),[char]:dayKey(now)});
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
 const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};
-/* ── 선톡은 매일 오지 않는다 ──
-   3시간 넘게 비웠으면 무조건 인사가 왔다 — 사실상 접속할 때마다다. 그건
-   사람이 아니라 알림이다. 어떤 날은 먼저 연락하고 어떤 날은 안 하는 게
-   사람이라, 사람마다 하루 한 번 + 그날의 제비뽑기로 줄인다.
-   제비는 날짜+이름으로 정해둔다 — 들어올 때마다 다시 굴리면 여러 번
-   굴려져 결국 매일 걸게 된다. 그날의 답은 하나여야 한다. */
-const loadGreetDay=()=>{try{return JSON.parse(localStorage.getItem("null_greetday"))||{}}catch(e){return{}}};
-const saveGreetDay=v=>{try{localStorage.setItem("null_greetday",JSON.stringify(v))}catch(e){}};
-const greetLot=(id,now)=>{let n=0;for(const c of dayKey(now)+id)n=(n*31+c.charCodeAt(0))>>>0;return n%10<4};
 
 /* ── 조사 ──
    「밴드을(를) 받았다」가 화면에 그대로 찍혔다. 괄호로 둘 다 적어두는 건

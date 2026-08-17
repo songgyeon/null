@@ -725,7 +725,10 @@ function App(){
      새벽이든 같은 스무 개였다 — 낮에는 「수업 중이겠네요」, 저녁에는 「퇴근
      잘했어요?」, 새벽에는 「아직 안 자나 봐요」가 나와야 한다. 때와 자기
      상태는 가변부의 [지금]이 이미 알고 있으니, 먼저 걸라는 지시 한 줄만
-     얹으면 모델이 알아서 한다. 하루 한 번뿐이라 비용도 하루 두 통이 상한이다.
+     얹으면 모델이 알아서 한다.
+     하루 상한이나 제비뽑기는 안 둔다 — 두어 봤는데, 올 때마다 같은 말이
+     오는 게 문제였지 오는 것 자체가 문제가 아니었다. 시간마다 다른 말이
+     오면 그건 알림이 아니라 안부다. 세 시간 간격은 그대로다.
      데모는 각본을 그대로 쓴다 — 부를 모델이 없다. */
   /* 「왔어요」는 금지다. 유저가 방금 접속한 것을 인물은 모른다 — 알면
      인사가 아니라 감시 카메라다. 이 선톡은 조용한 방에 대고 보내는 말이다. */
@@ -740,18 +743,10 @@ function App(){
     const list=storeRef.current.msgs[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
-    /* 올 때마다 인사가 오면 사람이 아니라 알림이다. 첫인사(기록 없음)는
-       각본의 시작이라 늘 오고, 그 뒤로는 사람마다 하루 한 번에 그날의
-       제비뽑기까지 통과해야 온다 — 안 오는 날이 있어야 오는 날이 사건이 된다 */
-    if(gapMin>=0){
-      if(loadGreetDay()[id]===dayKey())return;
-      if(!greetLot(id))return;
-    }
     /* 시간표를 아는 선톡 — 모델이 쓴다. 지시는 이력 끝에만 얹고 저장은
        안 한다. 답장만 남는 게 맞다 — 지시가 기록에 남으면 다음 턴부터
        그 지시까지 대화가 된다. */
     if(gapMin>=0&&!demoOn()){
-      saveGreetDay({...loadGreetDay(),[id]:dayKey()});
       const ms=storeRef.current.msgs[id]||[];
       request(id,{mode:"chat",room:id,user_name:name,
         history:[...buildHistory(sinceSum(id,ms)),{role:"user",content:GREET_ASK}],
@@ -761,10 +756,7 @@ function App(){
     setTimeout(()=>{
       try{
         const lines=demoProactive(id,demoGreetWhen(gapMin,id),name);
-        if(lines.length){
-          enqueue(id,lines);
-          if(gapMin>=0)saveGreetDay({...loadGreetDay(),[id]:dayKey()});
-        }
+        if(lines.length)enqueue(id,lines);
       }catch(e){ console.error("%c[NULL] 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
     },delay||0);
   };
