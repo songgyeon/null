@@ -181,20 +181,23 @@ function App(){
     if(sc&&talkedEnough(sc)){ const p=PLACE_BY[sc.place]; if(p&&p.item)takeItem(p.item,sc.room,sc.place); }
     setScene(null); saveScene(null);
   };
-  /* ── 자리는 하루를 못 넘긴다 ──
-     밤에 자리에서 앱을 그냥 끄면 scene이 저장소에 남아, 사흘 뒤에 열어도
-     아직 그 자리에 앉아 있었다. 자리에 있는 동안은 이동이 막히니(몸은 하나)
-     왜 지도가 안 되는지 모른 채 갇힌 것처럼 보인다.
-     하루 경계(새벽 다섯 시)를 넘기고 말도 끊긴 자리는 닫는다. 말이 이어지는
-     중이면 안 닫는다 — 새벽 다섯 시 정각에 대화 도중 쫓아내면 그게 더 이상하다.
+  /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
+     X는 나가기가 아니라 접어두기다. 그런데 유효기간이 없어서, 낮에 보건실을
+     접어두고 저녁에 열어도 아직 보건실에 앉아 있었다 — 재언은 다섯 시에
+     퇴근하는 사람인데. 이 앱의 전제는 유저가 없어도 세계가 돌아간다는 거다.
+     그 방에서 말이 끊긴 지 한 시간이 지났으면 그 모임은 끝난 걸로 친다.
+     한 시간은 새 숫자가 아니다 — 「자리를 비웠다」의 기준(AUTO_AWAY, 관전방과
+     같은 자)이다. 처음에는 하루 경계(새벽 다섯 시)로 닫았는데, 그러면 낮에
+     접어둔 자리가 밤까지 살아 있었다. 이 규칙이 그 규칙을 통째로 품는다.
+     대화가 이어지는 중이면 한 시간이 안 됐으니 안 닫힌다 — 따로 봐줄 게 없다.
      나갈 때와 같은 규칙으로 닫는다: 말을 나눴으면 두고 온 것도 챙기고(closeScene),
-     기록에 한 줄 남긴다. 작별 인사는 안 부른다 — 밤이 이미 끝낸 자리다. */
+     기록에 한 줄 남긴다. 작별 인사는 안 부른다 — 시간이 이미 끝낸 자리다. */
   useEffect(()=>{
     const sc=sceneRef.current;
-    if(!sc||dayKey(sc.since)===dayKey())return;
+    if(!sc)return;
     const ms=storeRef.current.msgs[sc.room]||[];
     const last=ms.length?ms[ms.length-1].ts:sc.since;
-    if(Date.now()-last<3*60*60*1000)return;
+    if(Date.now()-last<AUTO_AWAY)return;
     closeScene();
     appendMsg(sc.room,{id:Date.now()+Math.random(),sender:"user",sys:true,
       text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
