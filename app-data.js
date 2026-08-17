@@ -202,6 +202,17 @@ const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"
    만들어진다 — 대사를 고칠 때는 문구집을 고치고 node tools/build-demo.mjs를 돌린다.
    앱도 같은 파일을 쓴다(app/lib/demoLines.ts). 한쪽만 고쳐질 일이 없다. */
 const DEMO={on:new URLSearchParams(location.search).has("demo"),auto:false};
+/* ── 지금은 깨어 있는 걸로 친다 ──
+   자는 시간에 붙잡고 고쳐볼 일이 있다. ?awake면 둘 다, ?awake=jaeeon이면
+   그 사람만 자는 시간을 건너뛴다. 주소에 붙였을 때만 돌아서 평소에는 없다.
+   점에는 「깨워둠」이라고 적는다 — 이게 진짜 시계가 아니라는 걸 보이게. */
+const AWAKE=(()=>{
+  const q=new URLSearchParams(location.search);
+  if(!q.has("awake"))return null;
+  const w=(q.get("awake")||"").trim();
+  return w?w.split(",").map(x=>x.trim()).filter(Boolean):"all";
+})();
+const forcedAwake=id=>AWAKE==="all"||(Array.isArray(AWAKE)&&AWAKE.includes(id));
 const demoOn=()=>DEMO.on||DEMO.auto;
 /* 가까워졌는지. 셀카를 줄지 말지가 여기서 갈린다 — 처음부터 주면
    그건 셀카가 아니라 프로필 사진이다. 균열 단계(40마디)를 기준으로 삼는다. */
@@ -366,13 +377,20 @@ const openingFor=now=>{
    시간표가 사람을 놓아주는 날이라 「주말」이 뜬다. 잠은 주말에도 잔다.
    isWend를 안 부르고 요일을 직접 본다 — 테스트가 이 함수만 떼어 돌린다. */
 function presence(id, now){
-  const d=now||new Date(), h=d.getHours();
+  const d=now||new Date(), h=d.getHours(), mm=h*60+d.getMinutes();
   const wend=d.getDay()===0||d.getDay()===6;
+  /* ?awake로 깨워둔 사람은 자는 자리를 건너뛴다. 시험이 이 함수만 떼어
+     돌리므로 그쪽에는 forcedAwake가 없다 — 없으면 없는 대로 잔다 */
+  const up=typeof forcedAwake==="function"&&forcedAwake(id);
+  const off=t=>up?{s:"away",t:"깨워둠"}:{s:"off",t};
   if(id==="jaeeon"){
-    /* 여섯 시에 일어난다. 선톡(canGreet)이 이 창의 끝을 그대로 본다 —
+    /* 네 시 반에 일어난다. 선톡(canGreet)이 이 창의 끝을 그대로 본다 —
        점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
-       출근은 여덟 시라 두 시간은 집에 깨어 있다 */
-    if(h>=1&&h<6)   return {s:"off", t:"자는 중"};
+       여섯 시였다. 그때는 세 시부터 여섯 시까지 둘 다 자는 세 시간이 있었고,
+       그 시간에는 유저가 말 걸 사람이 아무도 없었다. 민현이 자러 가는 시각과
+       맞물려 놓으면 한쪽이 자는 동안 다른 쪽이 깨 있다 — 이 세계에는 아무도
+       없는 시간이 없어진다. 출근은 여덟 시라 세 시간 반은 집에 깨어 있다. */
+    if(mm>=60&&mm<270) return off("자는 중");
     if(wend)        return {s:"on",  t:"주말"};
     if(h>=8&&h<17)  return {s:"on",  t:"보건실"};
     if(h>=17&&h<23) return {s:"away",t:"퇴근"};
@@ -380,18 +398,19 @@ function presence(id, now){
     return {s:"away",t:"집"};
   }
   if(id==="minhyun"){
-    /* 세 시까지 깨 있다. 두 시로 잡아놨더니 새벽에 그가 먼저 말을 거는데
-       목록의 점은 「꺼짐」이었다 — 재언 쪽을 여섯 시로 맞춘 것과 같은 이유다 */
-    if(h>=22||h<3)  return {s:"on",  t:"안 자는 중"};
-    if(h>=3&&h<8)   return {s:"off", t:"꺼짐"};
+    /* 네 시 반까지 깨 있다. 두 시로 잡아놨더니 새벽에 그가 먼저 말을 거는데
+       목록의 점은 「꺼짐」이었다 — 재언 쪽을 맞춘 것과 같은 이유다.
+       세 시였던 것을 재언이 일어나는 시각에 붙였다. 이 애가 자러 가는 순간
+       삼촌이 일어난다 — 둘이 같이 자는 시간이 없다. */
+    if(mm>=22*60||mm<270) return {s:"on",  t:"안 자는 중"};
+    if(mm>=270&&mm<480)   return off("꺼짐");
     if(wend)        return {s:"on",  t:"주말"};
     /* 시간표(PERIODS)와 같은 시계를 본다. 12시 40분에 상태 버튼은 「점심」인데
        여기가 「수업 중」이면 교실이 점심에도 문틈으로 잠긴다 — 점심에 교실에서
        만나 옥상으로 가는 게 이 지도의 그림이다. 7교시(16:00~16:20)가 야자로
        새던 것도 분으로 세면 같이 잡힌다. */
-    const m=h*60+d.getMinutes();
-    if(m>=750&&m<810) return {s:"away",t:"점심"};
-    if(m<980)       return {s:"away",t:"수업 중"};
+    if(mm>=750&&mm<810) return {s:"away",t:"점심"};
+    if(mm<980)       return {s:"away",t:"수업 중"};
     return {s:"on",  t:"야자"};
   }
   return null;

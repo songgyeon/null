@@ -523,22 +523,50 @@ eq('웹·앱 둘 다 선물 열쇠를 넘긴다',
    새벽 세 시에 처음 켜면 둘 다 몇 초 안에 인사를 보냈다. 목록에는 「자는 중」
    이라고 떠 있는데 그 사람 말풍선이 왔다. 그리고 유저가 없어도 세계가
    돌아간다는 앱인데, 켜자마자 둘이 인사하면 기다리고 있던 게 된다. */
-/* 시계를 둘 두지 않는다 — 목록의 점을 정하는 presence가 선톡도 정한다.
-   재언은 1~6시 off라 예전 그대로 여섯 시부터고, 민현도 꺼진 시간(3~8시)이
-   생겼다 — 점은 「꺼짐」인데 말풍선이 오면 처음 고치려던 그림이다 */
-eq('재언은 여섯 시부터 말을 건다', (() => {
+/* ── 둘이 같이 자는 시간이 없다 ──
+   재언 1~6시, 민현 3~8시였다. 세 시부터 여섯 시까지 셋이 겹쳐서, 그 세 시간은
+   유저가 말 걸 사람이 아무도 없었다. 민현이 자러 가는 시각과 재언이 일어나는
+   시각을 네 시 반에 맞물려 놓는다 — 한쪽이 자는 동안 다른 쪽이 깨 있다. */
+const PRESENCE = (() => {
+  const src = web.slice(web.indexOf('function presence'));
+  return new Function(src.slice(0, src.indexOf('\n}\n') + 3)
+    + '\nreturn presence;')();
+})();
+const AWAKE_AT = (id, h, mi = 0) => {
+  const pr = PRESENCE(id, new Date(2026, 0, 6, h, mi));
+  return !pr || pr.s !== "off";
+};
+eq('재언은 네 시 반에 일어난다',
+  [AWAKE_AT('jaeeon', 4, 29), AWAKE_AT('jaeeon', 4, 30)], [false, true]);
+eq('민현은 네 시 반에 잠든다',
+  [AWAKE_AT('minhyun', 4, 29), AWAKE_AT('minhyun', 4, 30)], [true, false]);
+/* 이게 이 수정의 전부다 — 아무도 없는 시간이 없다 */
+eq('둘 다 자는 시각이 없다',
+  Array.from({ length: 24 * 4 }, (_, i) => [Math.floor(i / 4), (i % 4) * 15])
+    .filter(([h, mi]) => !AWAKE_AT('jaeeon', h, mi) && !AWAKE_AT('minhyun', h, mi)), []);
+/* 점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
+   일어나는 시각과 말 거는 시각이 같아야 한다 — 시계가 하나라 저절로 같다 */
+eq('선톡도 같은 시계를 본다', (() => {
   const src = web.slice(web.indexOf('function presence'));
   const P = new Function(src.slice(0, src.indexOf('\n}\n') + 3)
     + 'const canGreet=(id,now)=>{const pr=presence(id,now);return !pr||pr.s!=="off"};'
     + '\nreturn canGreet;')();
-  return !P('jaeeon', new Date(2026, 0, 6, 5, 30)) && P('jaeeon', new Date(2026, 0, 6, 6, 30))
-    && !P('minhyun', new Date(2026, 0, 6, 4)) && P('minhyun', new Date(2026, 0, 6, 23));
+  return !P('jaeeon', new Date(2026, 0, 6, 3, 0)) && P('jaeeon', new Date(2026, 0, 6, 5, 0))
+    && !P('minhyun', new Date(2026, 0, 6, 6)) && P('minhyun', new Date(2026, 0, 6, 23));
 })(), true);
-/* 점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
-   일어나는 시각과 말 거는 시각이 같아야 한다 */
-/* 자는 창(1~6시)의 끝이 곧 일어나는 시각이다 — GREET_FROM.jaeeon=6과 같아야 한다 */
-eq('일어나는 시각과 말 거는 시각이 같다',
-  /if\(h>=1&&h<6\)   return \{s:"off", t:"자는 중"\}/.test(web), true);
+eq('자는 창이 분으로 적혀 있다',
+  /if\(mm>=60&&mm<270\) return off\("자는 중"\)/.test(web)
+  && /if\(mm>=270&&mm<480\)   return off\("꺼짐"\)/.test(web), true);
+/* ── ?awake ── 자는 시간에 붙잡고 볼 일이 있을 때만. 주소에 붙였을 때만 돈다 */
+eq('깨워두는 스위치가 있다',
+  /const AWAKE=\(\(\)=>\{[\s\S]{0,260}q\.has\("awake"\)/.test(web)
+  && /const forcedAwake=id=>AWAKE==="all"\|\|\(Array\.isArray\(AWAKE\)&&AWAKE\.includes\(id\)\)/.test(web), true);
+/* 점에 「깨워둠」이라고 적는다 — 이게 진짜 시계가 아니라는 걸 보이게 */
+eq('깨워둔 것이 점에 보인다',
+  /const off=t=>up\?\{s:"away",t:"깨워둠"\}:\{s:"off",t\};/.test(web), true);
+/* 시험은 presence만 떼어 돌린다 — 거기엔 forcedAwake가 없다 */
+eq('스위치가 없어도 presence가 돈다',
+  /typeof forcedAwake==="function"&&forcedAwake\(id\)/.test(web), true);
 /* 시각 상수(GREET_FROM)는 걷어냈다 — presence와 시계가 둘이면 어긋난다 */
 eq('선톡 시계는 목록의 점과 같은 것 하나다', /GREET_FROM/.test(web), false);
 eq('점이 꺼진 사람은 안 건다',
@@ -557,9 +585,14 @@ eq('점이 꺼진 사람은 안 건다',
   const at = (h, m) => new Date(2026, 0, 6, h, m || 0);
   eq('자는 시간에는 안 부른다', A('jaeeon', at(2)), true);
   eq('깨어 있으면 부른다', A('jaeeon', at(23)), false);
-  /* 단톡방은 한 사람만 깨 있어도 답이 온다 — 새벽 두 시의 민현이 그렇다 */
-  eq('단톡방은 둘 다 자야 조용하다',
-    [A('group', at(2)), A('group', at(5)), A('group', at(23))], [false, true, false]);
+  /* 단톡방은 한 사람만 깨 있어도 답이 온다 — 새벽 두 시의 민현이 그렇다.
+     그리고 이제 둘이 같이 자는 시각이 없으므로(재언 1~4:30, 민현 4:30~8)
+     단톡방은 어느 시각에도 조용해지지 않는다. 자는 쪽 말풍선은 워커가
+     states를 보고 지운다 — 새벽 다섯 시의 단톡은 재언만 답한다. */
+  eq('단톡방은 언제나 한 명은 답한다',
+    [A('group', at(2)), A('group', at(5)), A('group', at(23))], [false, false, false]);
+  eq('자는 쪽만 조용하다',
+    [A('jaeeon', at(5)), A('minhyun', at(5))], [false, true]);
   /* 마주 앉아 있으면 안 본다 — 눈앞의 사람이 자는 건 자리가 닫힐 일이다 */
   eq('자리에서는 이 규칙을 안 본다', /mode==="chat"&&!payload\.place&&allAsleep\(/.test(web), true);
   /* 아무것도 안 뜨면 보낸 사람은 고장으로 읽는다 */
@@ -895,19 +928,25 @@ eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.k
    서고 아래 절반이 연보라로 남았다. 자리에 들어갈 때마다 그랬다 */
 eq('자리 화면은 화면 자리를 안 벗어난다', /\.scenewrap\{position:/.test(web), false);
 eq('그래도 어둠막의 기준은 있다', /\.screen\{position:absolute;inset:4px/.test(web), true);
-/* 민현은 세 시까지 깨 있다. 두 시로 잡아놨더니 새벽에 그가 먼저 말을 거는데
-   목록의 점은 「꺼짐」이었다 — 재언 쪽을 여섯 시로 맞춘 것과 같은 이유다 */
-eq('민현은 세 시까지 깨 있다', /if\(h>=22\|\|h<3\)  return \{s:"on",  t:"안 자는 중"\}/.test(web), true);
+/* 민현은 네 시 반까지 깨 있다. 두 시로 잡아놨더니 새벽에 그가 먼저 말을 거는데
+   목록의 점은 「꺼짐」이었다 — 재언 쪽을 맞춘 것과 같은 이유다.
+   세 시였던 것을 재언이 일어나는 시각에 붙였다 */
+eq('민현은 네 시 반까지 깨 있다',
+  /if\(mm>=22\*60\|\|mm<270\) return \{s:"on",  t:"안 자는 중"\}/.test(web), true);
 {
   /* 글자 수로 자르면 문자열 한가운데서 끊긴다. 함수 끝(줄 맨 앞의 })까지 가져온다 */
   const src = web.slice(web.indexOf('function presence'));
   const body = src.slice(0, src.indexOf('\n}\n') + 3);
   const P = new Function(body + '\nreturn presence;')();
-  eq('새벽 두 시 반에도 켜져 있다', P('minhyun', new Date(2026, 0, 6, 2, 30)).s, 'on');
-  eq('세 시 넘으면 꺼진다', P('minhyun', new Date(2026, 0, 6, 3, 10)).s, 'off');
-  /* 말을 거는 시각과 점이 어긋나면 안 된다 — 재언은 여섯 시다 */
-  eq('재언은 여섯 시에 깬다', [P('jaeeon', new Date(2026, 0, 6, 5, 30)).s,
-    P('jaeeon', new Date(2026, 0, 6, 6, 30)).s], ['off', 'away']);
+  eq('새벽 세 시에도 켜져 있다', P('minhyun', new Date(2026, 0, 6, 3, 10)).s, 'on');
+  eq('네 시 반 넘으면 꺼진다', P('minhyun', new Date(2026, 0, 6, 4, 40)).s, 'off');
+  /* 말을 거는 시각과 점이 어긋나면 안 된다 — 재언은 네 시 반이다 */
+  eq('재언은 네 시 반에 깬다', [P('jaeeon', new Date(2026, 0, 6, 4, 20)).s,
+    P('jaeeon', new Date(2026, 0, 6, 4, 40)).s], ['off', 'away']);
+  /* 맞물린 자리. 한쪽이 자러 가는 그 시각에 다른 쪽이 일어난다 */
+  eq('네 시 반에 자리를 바꾼다',
+    [P('jaeeon', new Date(2026, 0, 6, 4, 30)).s, P('minhyun', new Date(2026, 0, 6, 4, 30)).s],
+    ['away', 'off']);
   /* ── 주말의 접속 상태 ──
      토요일 낮에 「보건실」「수업 중」이 떠 있었다. 근무도 수업도 없는 날이다.
      이 값은 이제 워커에도 실리므로(states) 틀리면 화면만이 아니라 인물이 틀린다.
