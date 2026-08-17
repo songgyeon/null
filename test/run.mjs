@@ -211,6 +211,8 @@ section('웹·앱 대조 — 클라이언트 둘이 같은 세계를 봐야 한�
 /* 앱은 이제 한 파일이 아니다 — index.html은 뼈대만 들고 있고 살은 넷으로 갈렸다.
    시험은 「앱 전체에 이 문장이 있나」를 묻지 어느 파일에 있는지는 안 묻는다.
    그래서 여기서 다시 한 덩어리로 붙인다. 파일이 또 갈라져도 여기만 고치면 된다. */
+const SPOTS_WEB = () => [...readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+  .matchAll(/\{name:"([^"]+)",\s*map:"town"(?!, into)/g)].map(m => m[1]);
 const PLACE_BY_WEB = p => {
   const m = new RegExp(`\\{name:"${p}",[\\s\\S]{0,400}?\\n`).exec(
     readFileSync(join(ROOT, 'app-data.js'), 'utf8'));
@@ -2112,221 +2114,72 @@ eq('쪽지가 흰 종이다',
 eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
 
-/* ── 지도 ──
-   장소와 마지막 입력창이 도로 아래에 묻히면 바닥이 잘린다. 배경 위에 온전히 둔다. */
-eq('장소 아이콘이 도로 위에서 잘리지 않는다',
-  !/className="roadfront"/.test(web)
-  && /\.roadmap::after\{content:"";position:absolute;inset:0;pointer-events:none;z-index:1/.test(web)
-  && /\.roadicon\{position:absolute;z-index:6;width:29%/.test(web), true);
-eq('하트와 장소 아이콘이 모바일에서도 읽을 크기다',
-  /\.roadpin\{position:absolute;z-index:8;width:9\.6%;transform:translate\(-50%,-100%\)/.test(web)
-  && /\.roadfinishpanel\{position:absolute;left:[\d.]+%;top:[\d.]+%;z-index:5;width:17%;height:[\d.]+%/.test(web), true);
-/* 빛나는 창은 문 뒤에 선다 — 문이 옮겨지면 같이 옮겨야 둘이 안 갈라진다 */
-eq('빛나는 창이 문 뒤에 붙어 있다', (() => {
-  const home = +(web.match(/"집":\s*\{x:([\d.]+)/) || [])[1];
-  const pane = +(web.match(/\.roadfinishpanel\{position:absolute;left:([\d.]+)%/) || [])[1];
-  return Math.abs(home - pane) <= 1;
-})(), true);
-/* 길 위에 얹으면 도로가 흔들리는 폭만큼밖에 못 벌어진다. 건물은 길 밖에 세운다 */
+/* ── 캐비닛 지도 ──
+   길이던 지도를 사물함으로 바꿨다. 이 앱은 가짜 OS인데 지도만 혼자 야외
+   일러스트였다. 창이 있고 메뉴바가 있고 .exe가 뜨는 화면에서는 서랍이
+   길보다 자연스럽고, 잠긴 자리도 자물쇠 딱지가 아니라 안 열리는 문이 된다. */
 {
-  /* 표가 둘이다 — 건물 자리(ROAD_ICON_POS)와 길 위 핀 자리(ROAD_PIN_POS).
-     건물 쪽만 센다 */
-  const tbl = web.slice(web.indexOf('const ROAD_ICON_POS={'));
-  const xs = [...tbl.slice(0, tbl.indexOf('};')).matchAll(/\{x:(\d+(?:\.\d+)?), y:/g)].map(m => +m[1]);
-  /* 마을 길 여섯 · 학교 안 넷. 축척이 다른 걸 한 길에 세우던 걸 갈랐다 */
-  eq('마을 여섯 · 학교 넷', [xs.length, (() => {
-    const t = web.slice(web.indexOf('const SCHOOL_ICON_POS={'));
-    return [...t.slice(0, t.indexOf('};')).matchAll(/\{x:/g)].length;
-  })()], [6, 4]);
-  eq('아이콘이 넓게 벌어진다', Math.max(...xs) - Math.min(...xs) >= 30, true);
-  /* 좌우로 번갈아야 지그재그가 된다 — 한쪽에 몰리면 다시 한 줄이다 */
-  eq('좌우가 갈린다',
-    [xs.filter(x => x < 50).length, xs.filter(x => x >= 50).length].every(n => n >= 3), true);
+  const SLOT = [...web.slice(web.indexOf('const CAB_SLOT=['), web.indexOf('const CAB_COL='))
+    .matchAll(/\{(kind|place):"([^"]+)"\}/g)].map(m => m[2]);
+  eq('칸이 여덟이다', SLOT.length, 8);
+  /* 차례는 need를 그대로 따라간다 — 학교에서 시작해 편의점·도서관으로 갈라지고,
+     레코드샵·빨래방을 지나 둘 다 걸어야 집이 열린다. 왼쪽 줄과 오른쪽 줄이 한 갈래씩 */
+  eq('차례가 열리는 차례다', SLOT,
+    ['start', '학교', '편의점', '도서관', '레코드샵', '빨래방', '집', 'null']);
+  /* 마을 여섯이 다 문짝을 가져야 한다. 하나라도 빠지면 그 칸이 빈다 */
+  eq('마을 여섯이 다 칸에 있다',
+    SPOTS_WEB().filter(n => !SLOT.includes(n)), []);
+  /* 문짝 그림. 열림과 잠김이 짝으로 있어야 한다 — 집만 잠긴 그림이 있고
+     열린 그림이 없어서 한 번 비었다 */
+  const ICONS = ['school', 'conv', 'library', 'record', 'laundry', 'home'];
+  eq('문짝이 열림·잠김 짝으로 다 있다',
+    ICONS.flatMap(k => [`cab-icons/${k}-open.webp`, `cab-icons/${k}-lock.webp`])
+      .filter(f => !exists(f)), []);
+  eq('프레임·명패·TV가 있다',
+    ['frame', 'start', 'null', 'tv'].map(k => `cab-icons/${k}.webp`).filter(f => !exists(f)), []);
+  /* 칸 좌표는 프레임 그림에서 칸 안쪽을 재서 넣은 값이다. 4행 2열 */
+  eq('칸 좌표가 4행 2열이다',
+    /const CAB_COL=\[27\.50,72\.39\];/.test(web)
+    && /const CAB_ROW=\[13\.36,35\.88,58\.48,81\.19\];/.test(web), true);
+  /* 문짝은 구멍(40.73%)보다 넓어야 경첩이 프레임에 얹히고, 칸 간격(22.5%)보다
+     좁아야 위아래가 안 겹친다. 그림이 정사각이라 폭이 곧 높이다 */
+  eq('문짝이 구멍보다 넓고 칸 간격보다 좁다', /const CAB_DOOR_W=43;/.test(web), true);
+  /* START와 NULL은 자리가 아니다. 눌러도 아무 일이 없어야 한다 */
+  eq('명패는 안 눌린다', /if\(s\.kind\)return <span key=\{s\.kind\} className="cabdoor plate"/.test(web), true);
+  /* 안 열린 자리는 눌려도 안 된다 — role도 tabIndex도 안 붙는다 */
+  eq('안 열린 문은 눌러도 아무 일이 없다',
+    /role=\{open\?"button":null\} tabIndex=\{open\?0:null\}\s*\n\s*onClick=\{open\?go:null\}/.test(web), true);
+  /* 열렸어도 지금 갈 시간이 아닐 수 있다. 문은 멀쩡하고 시간이 아니라서 색만 죽인다 */
+  eq('못 가는 시간이면 문이 흐려진다',
+    /\+\(open&&!nowOk&&!p\.into\?" shut":""\)/.test(web)
+    && /\.cabdoor\.shut\{/.test(web), true);
+  eq('다녀온 문은 빛난다', /\.cabdoor\.been img\{filter:drop-shadow\(0 0 9px/.test(web), true);
+
+  /* ── 학교 문을 열면 TV가 뿅 ── */
+  eq('학교를 누르면 안으로 들어간다',
+    /const go=p\.into\?\(\)=>setLevel\(p\.into\)/.test(web)
+    && /const \[level,setLevel\]=useState\("town"\)/.test(web), true);
+  eq('TV가 뿅 나온다',
+    /animation:tvpop \.42s/.test(web) && /@keyframes tvpop\{/.test(web), true);
+  /* 움직임을 줄여달라는 사람에게는 안 튀게 한다 */
+  eq('덜 움직이게 해달라면 안 튄다',
+    /@media\(prefers-reduced-motion:reduce\)\{\.cabtv\{animation:none\}\}/.test(web), true);
+  /* TV 안 네 칸이 학교 안 네 자리다. 좌표는 TV 그림에서 화면 안쪽을 재서 넣었다 */
+  const Q = [...web.slice(web.indexOf('const TV_QUAD={'), web.indexOf('const TV_QUAD_W='))
+    .matchAll(/"([^"]+)":\s*\{x:/g)].map(m => m[1]);
+  eq('TV에 학교 안 넷이 다 있다', Q, ['교실', '보건실', '옥상', '체육관']);
+  /* TV 화면은 그림이라 잠금을 얹어서 말해야 한다 — 문짝처럼 그림을 갈 수 없다 */
+  eq('잠긴 칸은 덮어서 알려준다',
+    /\.tvq\.lock\{background:rgba\(64,52,112,\.52\)/.test(web), true);
+  /* 길에 쓰던 것들은 걷었다. 안 쓰는 그림과 CSS는 팔레트만 흐린다 */
+  eq('길은 걷었다', /roadmap|roadicon|roadpin|roadstart|roadfinishpanel/.test(web), false);
+  eq('길 그림도 걷었다',
+    ['null-roadmap-road.webp', 'school-roadmap-bg.webp', 'map-icons/heart-sign.png']
+      .filter(f => exists(f)), []);
+  /* 머리글은 남는다 — 진도 막대와 뒤로가기가 거기 있다 */
+  eq('머리글은 그대로다', /className="roadhead"/.test(web), true);
 }
 
-/* 건물은 길 밖에 있으니 어느 자리인지 길 위에서도 보여야 한다 */
-eq('길 위에 PNG 하트 표지판이 있다',
-  /const ROAD_PIN_POS=\{/.test(web) && /className=\{"roadpin "\+state\}/.test(web)
-  && /\.roadpin\{position:absolute;z-index:8/.test(web)
-  && /src="map-icons\/heart-sign\.png"/.test(web)
-  && exists('map-icons/heart-sign.png'), true);
-/* 눌러서 갈 수는 있되 건너뛰지는 않는다 — 누르면 한 번 묻고, 답을 해야 간다.
-   초대창과 같은 창(.dlgov/.dlg/.bevel)을 쓴다 */
-eq('지도는 눌러도 바로 안 가고 한 번 묻는다',
-  /const go=p\.into\?\(\)=>setLevel\(p\.into\):\(\)=>onGoPlace\(p\.name\);/.test(web)
-  && /const \[ask,setAsk\]=useState\(null\)/.test(web)
-  && /\{ask&&\(\(\)=>\{ const p=PLACE_BY\[ask\], shut=!!p&&!placeHours\(p\);/.test(web)
-  && /`\$\{ask\}, 갈까요\?`/.test(web), true);
-/* 새벽 세 시에 교실 문이 열려 있으면 안 된다. 자리마다 시간을 적어두고,
-   안 적힌 데(편의점·빨래방)는 24시간이다. 자정을 넘기는 집 17~2시도 된다 */
-{
-  // 수요일(3) 기본, 토요일(6)은 주말
-  const at = (p, h, wd = 3) => new Function('p', 'h', 'wd',
-    workerlessPlaceHours + '; return placeHours(p, {getHours:()=>h, getDay:()=>wd})')(p, h, wd);
-  eq('학교는 새벽에 못 간다', [at({hours:[8,22]}, 3), at({hours:[8,22]}, 10)], [false, true]);
-  eq('보건실은 퇴근하면 닫는다', [at({hours:[8,17]}, 18), at({hours:[8,17]}, 12)], [false, true]);
-  eq('집은 자정을 넘겨서도 열린다',
-    [at({hours:[17,2]}, 1), at({hours:[17,2]}, 20), at({hours:[17,2]}, 12)], [true, true, false]);
-  eq('시간 안 적힌 데는 24시간이다', [at({}, 3), at({}, 15)], [true, true]);
-  /* 주말엔 재언이 출근을 안 하고 민현은 야자가 없다 — 학교가 통째로 닫힌다.
-     그래서 주말은 학교 밖에서 일부러 만나야만 하는 날이 된다 */
-  const 학교 = {hours:[8,22], wend:false};
-  eq('주말엔 학교가 통째로 닫힌다',
-    [at(학교, 10, 6), at(학교, 10, 0), at(학교, 10, 3)], [false, false, true]);
-  eq('집은 주말 낮에도 열린다',
-    [at({hours:[17,2], wend:[11,2]}, 13, 6), at({hours:[17,2], wend:[11,2]}, 13, 3)], [true, false]);
-  eq('주말 표시가 없는 데는 평일과 같다',
-    [at({hours:[9,22]}, 10, 6), at({hours:[9,22]}, 3, 6), at({}, 3, 0)], [true, false, true]);
-  /* 주말의 학교는 시간이 아니라 날이 문제다. 여덟 시가 돼도 안 열린다 */
-  const when = (p, wd) => new Function('p', 'wd',
-    web.slice(web.indexOf('const placeWhen='), web.indexOf('};', web.indexOf('const placeWhen=')) + 2)
-    + '; return placeWhen(p, {getHours:()=>10, getDay:()=>wd})')(p, wd);
-  eq('주말엔 시각 대신 요일을 말한다',
-    [when(학교, 6), when(학교, 3)], ['weekdays only', 'open 08:00 – 22:00']);
-}
-/* 시간이 아닌 자리는 눌리되 이유를 말한다 — 눌렀는데 아무 일도 안 일어나는
-   것보다 「몇 시부터」를 알려주는 편이 낫다 */
-eq('못 가는 시간이면 이유를 말한다',
-  /지금은 못 가요/.test(web) && /\{shut\?placeWhen\(p\):""\}/.test(web)
-  && /\.roadicon\.shut\{opacity:\.5/.test(web), true);
-/* 승낙을 눌러도 시간이 아니면 안 간다 — 창만 믿지 않는다 */
-eq('시간이 아니면 승낙해도 안 간다',
-  /if\(!p\|\|!placeHours\(p\)\)return;/.test(web), true);
-/* 지금 문 닫은 자리는 인물도 가자고 안 한다 */
-eq('닫힌 자리는 인물도 안 부른다', (() => {
-  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  return /payload\.closed=PLACES\.filter\(p=>!placeHours\(p\)\)\.map\(p=>p\.name\)/.test(web)
-    && /function invitesFor\(mode, room, counts, done, refused, closed\)/.test(wk)
-    && /\.\.\.\(closed \|\| \[\]\)/.test(wk);
-})(), true);
-/* 아직 못 가는 자리는 눌러도 반응이 없어야 「아직 아니구나」가 읽힌다 */
-eq('안 열린 자리는 눌러도 아무 일이 없다',
-  /role=\{open\?"button":null\}/.test(web)
-  && /\.roadicon\{[^}]*pointer-events:none/.test(web)
-  && /\.roadicon\[role\]\{pointer-events:auto/.test(web), true);
-/* 인물이 부른 자리를 물리면 그 자리는 닫힌다(두 번 조르지 않는다).
-   내가 고른 자리를 물리는 건 마음이 바뀐 것뿐이라 닫히면 안 된다 */
-eq('지도에서 물러나도 그 자리가 닫히지 않는다', (() => {
-  const t = web.slice(web.indexOf('const answerAsk='));
-  return /saveRefused/.test(t.slice(0, t.indexOf('\n  };')));
-})(), false);
-/* 지도 위에 얹혀 있던 흰 제목은 걷었다. 머리글이 이미 같은 말을 하고 있어서
-   길 위에 한 번 더 적을 이유가 없다 — 그림은 길만 보이는 게 낫다 */
-eq('지도 위에 제목을 안 얹는다',
-  /roadtitle/.test(web) || (web.match(/NULL ROAD MAP/g) || []).length !== 1, false);
-eq('머리글이 NULL ROAD MAP이다',
-  /<span className="rt"><i className="rh">♡<\/i> NULL ROAD MAP<\/span>/.test(web), true);
-/* 구석에 떠 있으면 지도의 일부가 아니라 화면 위에 얹힌 버튼처럼 보인다 */
-/* 길이 시작하는 자리(아래 끝 x51)에 딱 붙어야 한다 — 떨어지면 길과 남남이다 */
-eq('START가 길 시작에 붙는다', /\.roadstart\{position:absolute;left:50%;bottom:\.6%/.test(web), true);
-/* 문은 길이 끝나는 자리(위 끝 y11 · x64.6)를 받침이 덮어야 한다 */
-eq('문이 길 끝에 붙는다', /"집":\s*\{x:64, y:10\}/.test(web), true);
-/* 빛나는 창이 문 받침보다 아래로 내려오면 창만 삐져나온다.
-   문은 29%폭 → 높이 16.3%, y10 가운데라 바닥이 18.15% */
-eq('빛나는 창이 문 아래로 안 내려온다', (() => {
-  const m = web.match(/\.roadfinishpanel\{position:absolute;left:[\d.]+%;top:([\d.]+)%;z-index:5;width:17%;height:([\d.]+)%/);
-  return m ? +m[1] + +m[2] : 99;
-})() <= 18.1, true);
-
-/* 사각형으로 재면 아이콘이 29%라 표지판이 전부 겹친다고 나온다.
-   실제 그림의 안 비치는 픽셀끼리 겹쳐보고 파묻히는 것만 골랐다 */
-eq('파묻히는 표지판만 뺀다', /const PIN_BURIED=\["도서관","집"\]/.test(web), true);
-eq('배경만 연보라로 띄운다',
-  /\.roadmap::after\{[^}]*rgba\(242,236,255,\.36\)/.test(web), true);
-eq('D-0은 없앴다', /roadend|JOURNEY END/.test(web), false);
-
-eq('하트가 장소 아이콘보다 위에 있다',
-  /\.roadpin\{position:absolute;z-index:8/.test(web)
-  && /\.roadicon\{position:absolute;z-index:6/.test(web), true);
-eq('문 뒤에 입력창만 남고 YOU 표시는 없다',
-  /className="roadfinishpanel"/.test(web)
-  && /src="map-icons\/final-input-window\.png"/.test(web)
-  && exists('map-icons/final-input-window.png')
-  && !/className="roadyou"/.test(web), true);
-/* 창이 문 벽 밖으로 나가면 창만 허공에 뜬 것처럼 보인다. 창 그림은 제 상자의
-   18.7~82.1%만 안 비치고, 문 그림의 벽 기둥은 제 상자의 33.4~70.3%다.
-   두 상자 다 left가 가운데다 */
-eq('빛나는 창이 문 벽 밖으로 안 삐져나온다', (() => {
-  const m = web.match(/\.roadfinishpanel\{position:absolute;left:([\d.]+)%;top:[\d.]+%;z-index:5;width:([\d.]+)%/);
-  const d = web.match(/"집":\s*\{x:([\d.]+), y:[\d.]+\}/);
-  if (!m || !d) return 'CSS를 못 읽음';
-  const pl = +m[1] - +m[2] / 2, pw = +m[2], dl = +d[1] - 29 / 2;
-  return [pl + pw * .187 >= dl + 29 * .334 - .1, pl + pw * .821 <= dl + 29 * .703 + .1];
-})(), [true, true]);
-
-/* 잠긴 자리에 자물쇠를 얹으니 그 자리가 무엇인지가 안 보였다. 이제 잠긴 것은
-   색이 죽은 그림 자체로 말한다 — 다만 열린 그림과 다른 그림이긴 해야 한다 */
-eq('잠긴 자리마다 제 그림이 따로 있다', (() => {
-  const icons = [...web.matchAll(/icon:"(\w+)"/g)].map(m => m[1]);
-  return icons.filter(k => {
-    const a = `map-icons/place-${k}-lock.png`, b = `map-icons/place-${k}-open.png`;
-    return !exists(a) || !exists(b)
-      || readFileSync(join(ROOT, a)).equals(readFileSync(join(ROOT, b)));
-  });
-})(), []);
-
-/* 자리마다 핀이 하나씩 있어야 한다 — 없으면 길에서 그 자리가 사라진다 */
-eq('자리마다 핀이 있다', (() => {
-  const g = n => { const t = web.slice(web.indexOf('const ' + n + '={'));
-    return [...t.slice(0, t.indexOf('};')).matchAll(/"([^"]+)":/g)].map(m => m[1]); };
-  const a = g('ROAD_ICON_POS'), b = g('ROAD_PIN_POS');
-  return a.filter(n => !b.includes(n));
-})(), []);
-
-/* 물건 설명을 지웠다. 그림이 들어오면서 설명은 그림이 하는 말을 글로 또
-   하는 것이 됐다. 웹·앱·데이터 세 군데에서 같이 빠져야 한다 */
-eq('물건 설명이 남아 있지 않다',
-  [web, appSrc, readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8')]
-    .filter(t => /\bdesc:/.test(t) || /\.desc\b/.test(t)).length, 0);
-eq('설명 자리 CSS도 걷었다', /\.cgdesc\{/.test(web) || /gdesc:/.test(appSrc), false);
-
-/* ─ ▭ ✕ 단추가 납작하면 창틀에 그려 넣은 그림처럼 보인다. 위에서 빛을 받는
-   구슬로 세운다 — 왼쪽 위 흰 점, 아래 안쪽 그늘, 바깥에 얕은 그림자 */
-/* 지금이 언제인지는 프론트가 재서 보낸다 — 워커는 UTC로 돌고 어느 엣지에
-   뜨는지도 그때그때라 거기서 재면 엉뚱한 때가 나온다 */
-eq('때는 프론트가 재서 보낸다', (() => {
-  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  return /const timeWord=now=>\{const h=\(now\|\|new Date\(\)\)\.getHours\(\)/.test(web)
-    && /if\(payload\.now==null\)payload\.now=timeWord\(\)/.test(web)
-    && /const now = TIME_WORDS\.includes\(body\.now\) \? body\.now : null/.test(wk)
-    && !/getHours\(\)/.test(wk);
-})(), true);
-/* 요일은 때보다 세다 — 주말이면 이 셋을 묶고 있던 건물이 통째로 사라진다 */
-eq('요일도 같이 보낸다', (() => {
-  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  return /const dayWord=now=>"일월화수목금토"/.test(web)
-    && /if\(payload\.day==null\)payload\.day=dayWord\(\)/.test(web)
-    && /const day = DAY_WORDS\.includes\(body\.day\) \? body\.day : null/.test(wk)
-    && !/getDay\(\)/.test(wk);
-})(), true);
-eq('요일과 때를 한 줄로 적는다', (() => {
-  const t = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 },
-    null, null, null, 0, null, false, '저녁', '토요일');
-  const only = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 },
-    null, null, null, 0, null, false, '저녁', '토욜');
-  return t.includes('## [지금] 토요일 저녁') && only.includes('## [지금] 저녁');
-})(), true);
-/* 윤이 양옆에서 9px씩 모자라 창틀 위에 짧은 막대 하나가 얹힌 꼴이었다 */
-eq('제목줄의 윤이 양옆 끝까지 간다',
-  /\.tb::after\{content:"";position:absolute;left:0;right:0;top:3px/.test(web), true);
-
-eq('창 단추가 볼록하다',
-  /\.dots>span\{[^}]*box-shadow:inset 0 -2px 3px rgba\(93,84,144,\.34\),0 1px 1\.5px/.test(web)
-  && /\.dots>span::after\{[^}]*radial-gradient\(circle at 33% 26%/.test(web), true);
-/* ─ □ ✕를 글자로 찍으면 글꼴마다 em 상자 안에 앉는 높이가 달라 기기마다
-   다른 데로 쏠린다. 상자로 그려서 가운데를 못박고, 글자는 한 개도 안 남긴다 */
-eq('창 단추의 표시가 글자가 아니다',
-  /\.dots>span>i\{position:relative;z-index:1;display:block/.test(web)
-  && /\.dots \.d3>i\{width:9px;height:1\.8px;transform:rotate\(45deg\)\}/.test(web)
-  && !/className="d1">─/.test(web) && !/className="d3">✕/.test(web), true);
-
-/* 리스타트가 지울 것을 하나씩 적어놨었다. 저장소에서 읽어오는 상태가 열 개인데
-   여섯 개만 적혀 있어서 가방·다녀온 자리·있던 자리가 화면에 남았다. 목록을
-   고치면 다음에 상태가 늘 때 또 빠진다 — 목록을 없애고 다시 연다 */
-eq('리스타트가 상태를 하나씩 안 지운다', (() => {
-  const t = web.slice(web.indexOf('const reset=()=>'));
-  return (t.slice(0, t.indexOf('\n')).match(/set[A-Z]\w*\(|setStore|setProfile/g) || []).length;
-})(), 1);   // setItem("null_wipe") 하나뿐
 /* 지우고 바로 다시 여는 것으로는 모자랐다 — 다시 열리기 전 몇 밀리초 사이에
    아직 살아 있는 화면이 상태를 도로 저장한다. 지운 이름이 살아남아 오프닝이
    안 뜬 적도 있다. 표식만 남기고 열어서, 다음 판 맨 앞에서 비운다 */
@@ -2393,18 +2246,17 @@ eq('진도는 갈 수 있는 자리로만 센다',
 eq('학교를 누르면 안으로 들어간다',
   /const go=p\.into\?\(\)=>setLevel\(p\.into\)/.test(web)
   && /const \[level,setLevel\]=useState\("town"\)/.test(web), true);
-/* 학교 안은 길이 아니라 건물이라 START도 문도 표지판도 없다 */
-eq('학교 안에는 표지판을 안 세운다',
-  /\{level==="town"&&PLACES\.filter\(p=>p\.map==="town"\)\.map/.test(web)
-  && /\{level==="town"&&<>/.test(web), true);
-eq('학교 안은 배경이 다르다',
-  /\.roadmap\.inside\{background-image:url\("school-roadmap-bg\.webp"\)\}/.test(web)
-  && exists('school-roadmap-bg.webp'), true);
+/* 학교 안은 길이 아니라 건물이다. 마을은 사물함이고 학교 안은 TV라
+   화면부터 다르다 — 같은 그림에 표지판만 다르게 세우던 때와 다르다 */
+eq('마을과 학교 안은 화면이 다르다',
+  /\{level==="town"\s*\n?\s*\?<div className="cab">/.test(web)
+  && /:<div className="cabtv">/.test(web), true);
 /* 나가기는 단추를 더 놓지 않고 제목 자리가 대신한다 */
 eq('머리글이 뒤로가기다', /className="rt rback" role="button"/.test(web), true);
-eq('학교·체육관 그림이 저장소에 있다',
-  ['school','gym'].flatMap(k => [`map-icons/place-${k}-open.png`, `map-icons/place-${k}-lock.png`])
-    .filter(f => !exists(f)), []);
+/* 체육관은 TV 안에, 학교는 사물함 문짝에 있다 */
+eq('학교·체육관이 각자 자리에 있다',
+  /"체육관":\{x:50\.5, y:45\.6\}/.test(web)
+  && ['cab-icons/school-open.webp','cab-icons/school-lock.webp'].filter(f => !exists(f)).length === 0, true);
 /* peek은 메뉴바 맨 끝, LIVE는 「두 사람」 방 위의 딱지 — 원래 자리다.
    시간표 단추가 들어오면서 한 번 자리를 옮겼다가 되돌렸다. 390에서 여덟이
    한 줄에 앉는다(재봤다: peek 오른쪽 끝 385, 여백 5) */

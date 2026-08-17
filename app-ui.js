@@ -879,42 +879,45 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           <span className="rbar"><i style={{width:(visitedN/SPOTS.length*100)+"%"}}/></span>
           <span className="rn">{visitedN} / {SPOTS.length}</span>
         </div>
-        <div className={"roadmap"+(level==="school"?" inside":"")}>
-          {level==="town"&&<>
-            <div className="roadstart"><b>START</b><span>♡ D-30 ♡</span></div>
-            <img className="roadfinishpanel" src="map-icons/final-input-window.png" alt="" aria-hidden="true"/>
-          </>}
-          {PLACES.filter(p=>p.map===level).map(p=>{
-            const open=placeOpen(p,met);
-            const nowOk=placeHours(p);           // 열렸어도 지금 갈 시간이 아닐 수 있다
+        {/* ── 마을: 사물함 여덟 칸 ── */}
+        {level==="town"
+        ?<div className="cab">
+          <img className="cabframe" src="cab-icons/frame.webp" alt="" aria-hidden="true"/>
+          {CAB_SLOT.map((s,i)=>{
+            const style={left:CAB_COL[i%2]+"%",top:CAB_ROW[i>>1]+"%",width:CAB_DOOR_W+"%"};
+            /* START와 NULL은 자리가 아니다. 열 것도 잠글 것도 없다 */
+            if(s.kind)return <span key={s.kind} className="cabdoor plate" style={style} aria-hidden="true">
+              <img src={`cab-icons/${s.kind}.webp`} alt=""/></span>;
+            const p=PLACE_BY[s.place], open=placeOpen(p,met), nowOk=placeHours(p);
             const been=p.into?false:met.includes(p.name);
-            const pos=(level==="school"?SCHOOL_ICON_POS:ROAD_ICON_POS)[p.name]||{x:50,y:50};
-            /* 열린 자리는 눌러서 갈 수 있다. 다만 누르자마자 옮겨지지는 않는다 —
-               한 번 묻고 간다. 안 열린 자리는 눌러도 아무 일이 없다.
-               학교는 자리가 아니라 문이라 물어보지 않고 바로 안으로 들어간다. */
+            /* 학교는 자리가 아니라 문이다. 물어보지 않고 바로 안으로 들어간다 */
             const go=p.into?()=>setLevel(p.into):()=>onGoPlace(p.name);
             return <span key={p.name}
-                className={"roadicon"+(open?"":" lock")+(open&&!nowOk&&!p.into?" shut":"")+(been?" been":"")}
-                style={{left:pos.x+"%",top:pos.y+"%"}}
-                role={open?"button":null} tabIndex={open?0:null}
-                onClick={open?go:null}
-                onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}:null}
-                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
-                <img src={`map-icons/place-${p.icon}-${open?"open":"lock"}.png`} alt=""/>
-              </span>;
-          })}
-          {/* 길 위의 하트 표지판. 학교 안은 길이 아니라 건물이라 안 세운다 */}
-          {level==="town"&&PLACES.filter(p=>p.map==="town").map(p=>{
-            /* 장소 그림에 걸리는 표지판은 뺀다 — 겹치면 둘 다 안 읽힌다 */
-            const pin=ROAD_PIN_POS[p.name]; if(!pin||PIN_BURIED.includes(p.name))return null;
-            const open=placeOpen(p,met), been=met.includes(p.name);
-            const state=been?"been":open?"open":"lock";
-            return <span key={"pin"+p.name} className={"roadpin "+state}
-              style={{left:pin.x+"%",top:pin.y+"%"}} aria-hidden="true">
-              <img src="map-icons/heart-sign.png" alt=""/>
-            </span>;
+              className={"cabdoor"+(open?"":" lock")+(open&&!nowOk&&!p.into?" shut":"")+(been?" been":"")}
+              style={style}
+              role={open?"button":null} tabIndex={open?0:null}
+              onClick={open?go:null}
+              onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}:null}
+              aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
+              <img src={`cab-icons/${p.icon}-${open?"open":"lock"}.webp`} alt=""/></span>;
           })}
         </div>
+        /* ── 학교 안: 문이 열리면 TV가 뿅 ── */
+        :<div className="cabtv">
+          <img src="cab-icons/tv.webp" alt="" aria-hidden="true"/>
+          {PLACES.filter(p=>p.map==="school").map(p=>{
+            const q=TV_QUAD[p.name]; if(!q)return null;
+            const open=placeOpen(p,met), nowOk=placeHours(p), been=met.includes(p.name);
+            const go=()=>onGoPlace(p.name);
+            return <span key={p.name}
+              className={"tvq"+(open?"":" lock")+(open&&!nowOk?" shut":"")+(been?" been":"")}
+              style={{left:q.x+"%",top:q.y+"%",width:TV_QUAD_W+"%",height:TV_QUAD_H+"%"}}
+              role={open?"button":null} tabIndex={open?0:null}
+              onClick={open?go:null}
+              onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}:null}
+              aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}/>;
+          })}
+        </div>}
       </div>
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
