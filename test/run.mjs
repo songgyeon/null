@@ -1962,6 +1962,25 @@ eq('자리에 없으면 갈 자리는 그대로 나온다',
 eq('자리에서 나올 때 못 받았으면 채워준다',
   /const closeScene=\(\)=>\{[\s\S]{0,300}takeItem\(p\.item,sc\.room,sc\.place\)/.test(web), true);
 
+/* ── 나가기도 한 번 묻는다 ──
+   하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면 실수로 닫힌다.
+   들어올 때 물었으니 나갈 때도 묻는 게 짝이 맞다 */
+eq('나갈 때도 한 번 묻는다',
+  /const leaveScene=\(\)=>\{ const sc=sceneRef\.current; if\(sc\)setLeaving\(sc\) \};/.test(web), true);
+eq('오늘은 못 온다고 말해준다',
+  /오늘은 못 와요 <span className="kao">Σ\(°△° ꪱꪱꪱ\)<\/span>/.test(web), true);
+/* 문을 열어주고 등을 보이는 사람은 없다. 지문 한 줄을 남기고 그걸 보고 인사한다 —
+   새 프롬프트를 안 붙인다. 「보건실에서 나왔다」면 할 말이 정해져 있다 */
+eq('나오면 지문이 남는다',
+  /`\$\{sc\.place\}에서 나왔다`/.test(web), true);
+eq('그 지문을 보고 인사한다',
+  /appendMsg\(sc\.room,sys\);\s*\n\s*const next=\[\.\.\.\(storeRef\.current\.msgs\[sc\.room\]\|\|\[\]\),sys\];\s*\n\s*request\(sc\.room,/.test(web), true);
+/* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 */
+eq('귀갓길은 도착이다', /sc\.place===WAY\?"집에 도착했다"/.test(web), true);
+/* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
+eq('나온 뒤에 데려다주기를 묻는다',
+  /if\(sc\.place!==WAY&&talkedEnough\(sc\)&&wayOK\(\)&&loadWay\(\)!==dayKey\(\)\)setWay\(sc\);/.test(web), true);
+
 /* ── 귀갓길 ──
    유저 집은 지도에 없다. 갈 곳이 아니라 헤어지는 자리라서, 자리가 끝나고
    붙는 한 다리가 그 일을 한다. 재언은 태워다 주고 민현은 같이 버스를 탄다. */

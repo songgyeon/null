@@ -186,10 +186,26 @@ function App(){
      여기 붙는 한 다리가 그 일을 한다. 하루에 한 번이면 충분하다.
      매번 나올 때마다 물으면 데려다주는 게 아니라 절차가 된다. */
   const [way,setWay]=useState(null);
-  const leaveScene=()=>{
-    const sc=sceneRef.current;
-    if(sc&&sc.place!==WAY&&talkedEnough(sc)&&wayOK()&&loadWay()!==dayKey()){ setWay(sc); return; }
+  /* 나가기도 한 번 묻는다. 하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면
+     실수로 닫힌다 — 들어올 때 물었으니 나갈 때도 묻는 게 짝이 맞다. */
+  const [leaving,setLeaving]=useState(null);
+  const leaveScene=()=>{ const sc=sceneRef.current; if(sc)setLeaving(sc) };
+  /* 나가면 인사를 받는다. 문을 열어주고 등을 보이는 사람은 없다 —
+     지문 한 줄을 남기고, 그 줄을 보고 상대가 알아서 인사한다.
+     새 프롬프트를 안 붙인다. 「보건실에서 나왔다」면 할 말이 정해져 있다. */
+  const answerLeave=ok=>{
+    const sc=leaving; setLeaving(null); if(!sc||!ok)return;
     closeScene();
+    /* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 */
+    const line=sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`;
+    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
+    appendMsg(sc.room,sys);
+    const next=[...(storeRef.current.msgs[sc.room]||[]),sys];
+    request(sc.room,{mode:"chat",room:sc.room,user_name:name,
+      history:buildHistory(sinceSum(sc.room,next)),signals:buildSignals(sc.room),
+      recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length})});
+    /* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
+    if(sc.place!==WAY&&talkedEnough(sc)&&wayOK()&&loadWay()!==dayKey())setWay(sc);
   };
   const answerWay=ok=>{
     const sc=way; setWay(null); if(!sc)return;
@@ -744,6 +760,21 @@ function App(){
           <div className="dlgbtns">
             <button className="bevel pink" onClick={()=>answerInvite(true)}>갈게요</button>
             <button className="bevel" onClick={()=>answerInvite(false)}>다음에요</button>
+          </div>
+        </div>
+      </div>
+    </div>}
+    {/* 나가기도 한 번 묻는다. 하루에 한 번뿐인 자리라 실수로 닫히면 그날이 끝난다 */}
+    {leaving&&<div className="dlgov" onClick={()=>answerLeave(false)}>
+      <div className="dlg" onClick={e=>e.stopPropagation()}>
+        <div className="tb">{leaving.place}<WinDots onClose={()=>answerLeave(false)}/></div>
+        <div className="dlgbody">
+          <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
+            {leaving.place}에서 나갈까요?</div>
+          <div className="askrule">오늘은 못 와요 <span className="kao">Σ(°△° ꪱꪱꪱ)</span></div>
+          <div className="dlgbtns">
+            <button className="bevel pink" onClick={()=>answerLeave(true)}>나갈래요</button>
+            <button className="bevel" onClick={()=>answerLeave(false)}>더 있을래요</button>
           </div>
         </div>
       </div>
