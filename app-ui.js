@@ -1095,7 +1095,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
     const tail=msgs.filter(m=>!m.sys&&(m.text||"").trim()&&m.ts>=(scene.since||0)).slice(-SCENE_LINES);
     return <div className="screen scenewrap" style={bg?{backgroundImage:`url("${bg}")`}:null}>
       <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
-        {scene.place}<WinDots/>
+        {scene.place}<WinDots onClose={onLeaveScene}/>
       </div>
       <div className="scenebody">
         <div className="scenelines">

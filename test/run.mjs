@@ -2021,6 +2021,13 @@ eq('관전방을 열 때도 돈다',
 eq('비운 시간과 상한은 그대로다',
   /if\(now-lastAny<AUTO_AWAY\)return;/.test(web) && /if\(used>=AUTO_MAX_DAY\)/.test(web), true);
 
+/* 어둠막(::before, z-index:0)이 입력줄 위에 얹혀서 자리에 들어가면
+   입력창만 까맸다. 위치 없는 요소는 z-index:0인 형제보다 아래에 깔린다 */
+eq('어둠막이 입력줄을 안 덮는다',
+  /\.scenewrap \.scenebody,\.scenewrap \.tb,\.scenewrap \.scenebar\{position:relative;z-index:1\}/.test(web), true);
+/* 자리 머리글의 X도 눌려야 한다. 창들과 같은 실수였다 */
+eq('자리 X도 눌린다', /\{scene\.place\}<WinDots onClose=\{onLeaveScene\}\/>/.test(web), true);
+
 /* ── 나가기도 한 번 묻는다 ──
    하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면 실수로 닫힌다.
    들어올 때 물었으니 나갈 때도 묻는 게 짝이 맞다 */

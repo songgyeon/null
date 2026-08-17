@@ -826,7 +826,10 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    말풍선(z 1)보다 뒤에 깔린다 */
 .scenewrap::before{content:"";position:absolute;left:0;right:0;bottom:0;height:58%;z-index:0;pointer-events:none;
  background:linear-gradient(180deg,rgba(14,11,26,0) 0%,rgba(14,11,26,.34) 38%,rgba(14,11,26,.72) 100%)}
-.scenewrap .scenebody,.scenewrap .tb{position:relative;z-index:1}
+/* 입력줄도 여기 들어가야 한다. 빼놨더니 어둠막(::before, z-index:0)이
+   입력줄 위에 얹혔다 — 자리에 들어가면 입력창만 까맸다.
+   위치 없는 요소는 z-index:0인 형제보다 아래에 깔린다. */
+.scenewrap .scenebody,.scenewrap .tb,.scenewrap .scenebar{position:relative;z-index:1}
 .scenewrap .scenebody{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;padding:0 16px 12px}
 .scenewrap .scenelines{display:flex;flex-direction:column;gap:9px}
 .scenewrap .sline{max-width:88%}
