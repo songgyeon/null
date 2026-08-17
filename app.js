@@ -287,6 +287,32 @@ function App(){
      같고 규칙은 다르다 — 여기서 물러나도 그 자리가 닫히지는 않는다.
      마음이 바뀐 것뿐이지 거절한 게 아니니까. */
   const [ask,setAsk]=useState(null);
+  /* ── 같이 자리를 옮긴다 ──
+     전에는 자리에 있으면 무조건 못 갔다. 점심의 보건실에서 옥상으로,
+     퇴근한 재언과 편의점으로 — 같이 있다가 발길 닿는 이동은 되는 게 맞다.
+     answerAsk와 다른 점 셋: 상대가 이미 정해져 있고(같이 있던 사람),
+     주말 전용(wendOnly)을 안 보고 — 그건 약속 잡고 가는 날의 규칙이지
+     이미 같이 있는 사람과 흘러가는 저녁의 규칙이 아니다 —, 떠나는 자리를
+     먼저 정리한다(두고 온 것 챙기기 포함). 이동도 방문이라 도장은 찍는다. */
+  const answerMove=ok=>{
+    const place=ask; setAsk(null); setAskWho(null);
+    const sc=sceneRef.current;
+    if(!ok||!place||!sc||sc.place===WAY)return;
+    const p=PLACE_BY[place]; if(!p)return;
+    if(!placeHours(p)||goneToday(place)||!placeOpen(p,loadMet())||!(p.who||[]).includes(sc.room))return;
+    const who=sc.room;
+    closeScene();
+    stampGone(place); goneTo(place); markEvent({kind:"met",to:who,name:place});
+    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
+      text:`${jos(place,"으로/로")} 같이 자리를 옮겼다`,ts:Date.now()};
+    appendMsg(who,sys);
+    const nsc={room:who,place,since:Date.now()}; setScene(nsc); saveScene(nsc); setView(who);
+    const next=[...(storeRef.current.msgs[who]||[]),sys];
+    request(who,{mode:"chat",room:who,user_name:name,
+      history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
+      recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
+      place,bag:bagRef.current.map(b=>b.key)});
+  };
   /* 동행을 고르는 자리에서 고른 사람. 창을 닫으면 같이 비운다 */
   const [askWho,setAskWho]=useState(null);
   const openAsk=place=>{setAskWho(null);setAsk(place)};
@@ -710,10 +736,20 @@ function App(){
     const list=storeRef.current.msgs[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
+    /* 올 때마다 인사가 오면 사람이 아니라 알림이다. 첫인사(기록 없음)는
+       각본의 시작이라 늘 오고, 그 뒤로는 사람마다 하루 한 번에 그날의
+       제비뽑기까지 통과해야 온다 — 안 오는 날이 있어야 오는 날이 사건이 된다 */
+    if(gapMin>=0){
+      if(loadGreetDay()[id]===dayKey())return;
+      if(!greetLot(id))return;
+    }
     setTimeout(()=>{
       try{
         const lines=demoProactive(id,demoGreetWhen(gapMin,id),name);
-        if(lines.length)enqueue(id,lines);
+        if(lines.length){
+          enqueue(id,lines);
+          if(gapMin>=0)saveGreetDay({...loadGreetDay(),[id]:dayKey()});
+        }
       }catch(e){ console.error("%c[NULL] 선톡 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
     },delay||0);
   };
@@ -943,20 +979,29 @@ function App(){
       const away=!!scene&&scene.place!==ask;
       const locked=!!p&&!placeOpen(p,met);
       const shut=!!p&&!placeHours(p);            // 지금은 문 닫은 시각
-      const wk=!!p&&!wendOnlyOk(p);              // 평일엔 못 가는 자리
+      const wk=!away&&!!p&&!wendOnlyOk(p);       // 평일엔 못 가는 자리 — 같이 이동엔 안 본다
       const done=goneToday(ask);                 // 오늘 이미 다녀왔다
-      const out=p&&p.meet==="out"?whoOut():null; // 마주치는 자리 — 지금 밖에 누가 있나
+      const out=!away&&p&&p.meet==="out"?whoOut():null; // 마주치는 자리 — 이동이면 상대가 정해져 있다
       const empty=!!out&&!out.length;
-      const need=!!p&&p.pick&&!askWho;           // 동행을 아직 안 골랐다
+      const need=!away&&!!p&&p.pick&&!askWho;    // 동행을 아직 안 골랐다 — 이동이면 이미 정해져 있다
+      /* 같이 있다가 발길 닿는 이동. 그 사람이 갈 수 있는 자리(who)여야 하고,
+         열려 있어야 하고, 오늘 안 간 데여야 한다. 귀갓길에서는 못 옮긴다 — 곧 내린다 */
+      const mv=away&&scene.place!==WAY&&!!p&&(p.who||[]).includes(scene.room)
+             &&!locked&&!shut&&!done;
       /* 수업 중의 교실은 가는 데가 아니라 들여다보는 데다. 앉아서 대화하던
          것이 이상했다 — 수업 중인 애랑 마주 앉아 떠들 수는 없다.
          구경은 방문이 아니라 도장(goneToday)을 안 본다 — 오늘 다녀왔어도 본다.
+         자리에 있는 동안은 구경이 아니라 이동의 영역이다(!scene).
          주말은 위의 shut이 먼저 막는다(교실은 wend:false). */
-      const klass=ask==="교실"&&!away&&!locked&&!shut&&presence("minhyun").t==="수업 중";
-      const no=!klass&&(away||locked||shut||wk||done||empty);
+      const klass=ask==="교실"&&!scene&&!locked&&!shut&&presence("minhyun").t==="수업 중";
+      const no=!klass&&!mv&&(away||locked||shut||wk||done||empty);
       /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
          심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
-      const why=away?`지금 ${scene.place}에 있어요`
+      const why=away&&!mv
+        ? (done?"오늘은 벌써 다녀왔어요"
+           :shut&&!locked?placeWhen(p)
+           :locked?""
+           :`지금 ${scene.place}에 있어요`)
         :locked?""
         :done?"오늘은 벌써 다녀왔어요"
         :wk?"주말에만 갈 수 있어요"
@@ -970,12 +1015,13 @@ function App(){
             {locked&&!away
               ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
               :klass?`${ask}, 수업 중이에요`
+              :mv?`${ask}, 같이 갈까요?`
               :no?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
           {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
           {!no&&!klass&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
           {no&&<div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>{why}</div>}
-          {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 */}
-          {!no&&p&&p.pick&&<div className="askwho">
+          {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져 있다 */}
+          {!no&&!mv&&p&&p.pick&&<div className="askwho">
             {(p.who||[]).map(c=><button key={c}
               className={"whobtn bevel"+(askWho===c?" on":"")}
               onClick={()=>setAskWho(c)}>
@@ -989,6 +1035,9 @@ function App(){
               ?<><button className="bevel pink" onClick={()=>{setAsk(null);setAskWho(null);
                    setLook({shot:["minhyun-window","minhyun-desk"][Math.floor(Math.random()*2)]+".webp"})}}>살짝 볼래요</button>
                  <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>
+              :mv
+              ?<><button className="bevel pink" onClick={()=>answerMove(true)}>같이 갈래요</button>
+                 <button className="bevel" onClick={()=>answerMove(false)}>다음에요</button></>
               :<><button className="bevel pink" disabled={need} onClick={()=>answerAsk(true)}>갈래요</button>
                  <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>}
           </div>

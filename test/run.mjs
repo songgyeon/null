@@ -2016,8 +2016,9 @@ eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.te
    어느 쪽이든 들어간 시각을 찍어야 앞의 대화가 배경 위로 안 새어 나온다 */
 /* 다섯 — 첫 자리로, 초대를 받아서, 지도에서 골라서, 선물을 들고 가서,
    그리고 귀갓길로 이어져서 */
+/* 여섯 번째는 같이 자리를 옮길 때다(answerMove) */
 eq('자리에 들어갈 때 시각을 찍는다',
-  (web.match(/since:Date\.now\(\)/g) || []).length, 5);
+  (web.match(/since:Date\.now\(\)/g) || []).length, 6);
 
 /* ── 이름표가 말풍선 안으로 새는 것 ──
    누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을
@@ -2190,10 +2191,11 @@ eq('X는 접기다', /\{scene\.place\}<WinDots onClose=\{onMinimize\}\/>/.test(w
 eq('접으면 목록으로 간다', /onMinimize=\{\(\)=>setView\("list"\)\}/.test(web), true);
 eq('뒤로가기는 여전히 나가기다', /onClick=\{onLeaveScene\} title="돌아가기"/.test(web), true);
 /* 자리에 있는 동안엔 딴 데로 못 간다. 몸은 하나다 */
+/* 같이 이동(mv)이 열린 뒤에도, 이동이 안 되는 자리면 여전히 몸이 묶인다 */
 eq('자리에 있으면 딴 데로 못 간다',
   /const away=!!scene&&scene\.place!==ask;/.test(web)
-  && /const no=!klass&&\(away\|\|locked/.test(web)
-  && /const why=away\?`지금 \$\{scene\.place\}에 있어요`/.test(web), true);
+  && /const no=!klass&&!mv&&\(away\|\|locked/.test(web)
+  && /`지금 \$\{scene\.place\}에 있어요`/.test(web), true);
 
 /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
    X는 나가기가 아니라 접어두기인데 유효기간이 없었다. 낮에 보건실을
@@ -2232,6 +2234,52 @@ eq('접어두고 떠난 자리도 때가 지나면 닫힌다',
 eq('워커가 때를 받으면 일어서라고 말한다',
   buildPlace('보건실', true, 'jaeeon', true).includes('이 자리는 여기까지다')
   && !buildPlace('보건실', true, 'jaeeon').includes('이 자리는 여기까지다'), true);
+
+/* ── 같이 자리를 옮긴다 ──
+   자리에 있으면 무조건 못 갔다. 점심의 보건실에서 옥상으로, 퇴근한 재언과
+   편의점으로 — 같이 있다가 발길 닿는 이동은 되는 게 맞다. */
+{
+  eq('같이 있으면 옮길 수 있다',
+    /const mv=away&&scene\.place!==WAY&&!!p&&\(p\.who\|\|\[\]\)\.includes\(scene\.room\)/.test(web)
+    && /answerMove/.test(web), true);
+  const i = web.indexOf('const answerMove');
+  const t = web.slice(i, i + 1600);
+  eq('이동도 방문이다 — 도장을 찍는다', t.includes('stampGone(place); goneTo(place);'), true);
+  /* wendOnly는 약속 잡고 가는 날의 규칙이다. 이미 같이 있는 사람과
+     흘러가는 저녁은 평일에도 있다 — 그래서 퇴근한 재언과 도서관·레코드샵이 된다 */
+  eq('주말 전용은 이동에선 안 본다', t.includes('wendOnlyOk'), false);
+  eq('그 사람이 갈 수 있는 자리만 간다', t.includes('(p.who||[]).includes(sc.room)'), true);
+  eq('떠나는 자리를 먼저 정리한다 — 두고 온 것도 챙긴다', t.includes('closeScene();'), true);
+  eq('귀갓길에서는 못 옮긴다 — 곧 내린다', t.includes('sc.place===WAY)return'), true);
+  /* 「교실으로」가 아니라 「교실로」다 — (으)로만 ㄹ받침 예외가 있다 */
+  const s = web.slice(web.indexOf('const jos=(w,pair)'));
+  const J = new Function(s.slice(0, s.indexOf('\n};') + 3) + '\nreturn jos;')();
+  eq('ㄹ받침은 로', J('교실', '으로/로'), '교실로');
+  eq('딴 받침은 으로', J('옥상', '으로/로'), '옥상으로');
+  eq('받침이 없으면 로', J('학교', '으로/로'), '학교로');
+  eq('을/를은 예외가 없다', J('교실', '을/를'), '교실을');
+}
+
+/* ── 선톡은 매일 오지 않는다 ──
+   3시간 넘게 비웠으면 무조건 인사가 왔다 — 사실상 접속할 때마다다.
+   그건 사람이 아니라 알림이다. 첫인사(기록 없음)만 늘 오고, 그 뒤로는
+   사람마다 하루 한 번에 그날의 제비뽑기까지 통과해야 온다. */
+{
+  eq('선톡은 하루에 한 번이다', /loadGreetDay\(\)\[id\]===dayKey\(\)/.test(web), true);
+  eq('실제로 건 날만 도장이 찍힌다', /if\(gapMin>=0\)saveGreetDay/.test(web), true);
+  /* 들어올 때마다 다시 굴리면 여러 번 굴려져 결국 매일 걸게 된다.
+     날짜+이름으로 정해두면 그날의 답이 하나다 */
+  const s = web.slice(web.indexOf('const greetLot='));
+  const L = new Function('const dayKey=now=>{const d=new Date(now||Date.now());if(d.getHours()<5)d.setDate(d.getDate()-1);return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};'
+    + s.slice(0, s.indexOf('};') + 2) + '\nreturn greetLot;')();
+  eq('제비는 그날 안에서 한결같다',
+    L('jaeeon', new Date(2026, 0, 6, 10)) === L('jaeeon', new Date(2026, 0, 6, 22)), true);
+  eq('안 거는 날이 실제로 있다', (() => {
+    const days = Array.from({ length: 30 }, (_, i) => new Date(2026, 0, 6 + i, 12));
+    const on = days.filter(d => L('jaeeon', d) || L('minhyun', d)).length;
+    return on > 0 && on < 30;   // 매일 걸지도, 영영 안 걸지도 않는다
+  })(), true);
+}
 eq('가변부까지 실려 나간다', buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 5 },
   null, null, [], 1, '보건실', true, '저녁', '화요일', null, true).includes('이 자리는 여기까지다'), true);
 
@@ -2240,7 +2288,7 @@ eq('가변부까지 실려 나간다', buildVolatile('chat', 'jaeeon', 'R', null
    가는 게 아니라 들여다본다. 배경에 그 애 사진 한 장, 말풍선도 도장도 없고
    아무 데나 누르면 돌아간다. */
 eq('수업 중의 교실은 구경이 된다',
-  /const klass=ask==="교실"&&!away&&!locked&&!shut&&presence\("minhyun"\)\.t==="수업 중"/.test(web), true);
+  /const klass=ask==="교실"&&!scene&&!locked&&!shut&&presence\("minhyun"\)\.t==="수업 중"/.test(web), true);
 /* 구경은 방문이 아니다 — 도장(goneToday)을 안 보고 안 찍는다 */
 eq('구경은 answerAsk를 안 탄다', /구경은 answerAsk를 안 탄다/.test(web)
   && /setLook\(\{shot:\["minhyun-window","minhyun-desk"\]/.test(web), true);
@@ -2459,7 +2507,7 @@ eq('못 가는 이유를 셋 다 말한다',
   /* 고를 수 있으려면 둘 다 후보여야 한다 */
   eq('고를 상대가 둘이다',
     ['도서관', '레코드샵'].filter(p => !/who:\["jaeeon","minhyun"\]/.test(PLACE_BY_WEB(p) || '')), []);
-  eq('안 고르면 못 간다', /disabled=\{need\}/.test(web) && /const need=!!p&&p\.pick&&!askWho;/.test(web), true);
+  eq('안 고르면 못 간다', /disabled=\{need\}/.test(web) && /const need=!away&&!!p&&p\.pick&&!askWho;/.test(web), true);
   eq('고른 사람이 그 자리에 온다', /if\(p\.pick\)return picked\|\|null;/.test(web), true);
 }
 
