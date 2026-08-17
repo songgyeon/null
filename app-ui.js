@@ -611,7 +611,7 @@ function FindPanel({store,name,onOpen}){
 /* 장바구니 — 목록에서 고르고, 누구에게 보낼지와 쪽지를 그 자리에서 정한다.
    작은 다이얼로그가 아니라 창 하나를 통째로 쓴다. 목록 + 쪽지까지 들어가면
    290px 상자로는 스크롤만 생긴다. */
-function Cart({gifts,hearts,onSend,onClose}){
+function Cart({gifts,hearts,withChar,onSend,onClose}){
   const [q,setQ]=useState("");
   const [cat,setCat]=useState("전체");
   const [pick,setPick]=useState(null);
@@ -626,6 +626,9 @@ function Cart({gifts,hearts,onSend,onClose}){
   const given=c=>(gifts[c]||[]).includes(pick&&pick.key);
   const poor=pick&&hearts<pick.cost;
   const today=c=>giftedToday(c);   // 이 사람 오늘 몫은 이미 나갔다
+  /* 물건은 손에서 손으로 간다. 문자로는 못 준다 —
+     재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
+  const here=c=>withChar===c;
 
   return <div className="cartscreen"><div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
@@ -664,9 +667,11 @@ function Cart({gifts,hearts,onSend,onClose}){
       {/* 한 사람에게 하루에 하나. 눌렀는데 아무 일도 안 일어나는 것보다 왜
           안 되는지 적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
-      {(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
+      {!withChar
+        ?<div className="cshut">만나서 줘요 ♡ meet them first</div>
+        :(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
       {["jaeeon","minhyun"].map(c=>{
-        const done=given(c), shut=done||today(c), sel=to===c;
+        const done=given(c), shut=done||today(c)||!here(c), sel=to===c;
         return <div key={c}>
           <button className={"cto"+(sel?" sel":"")} disabled={shut}
             onClick={()=>{ if(shut)return;
@@ -677,7 +682,7 @@ function Cart({gifts,hearts,onSend,onClose}){
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
             <span className={shut?"csent":"csend"}>
-              {done?"SENT ♡":today(c)?"TOMORROW ♡":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
+              {done?"SENT ♡":today(c)?"TOMORROW ♡":!here(c)?"NOT HERE":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
           </button>
           {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
@@ -717,7 +722,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
+function RoomList({store,name,unlocked,counts,seenStage,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -791,7 +796,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onPlate,onOpen,onProfile
       {/* 🎁 선물은 메뉴 항목이다 — 버튼은 peek 하나뿐이어야 그게 특별한
           동작으로 보인다. 메뉴바는 조용해야 한다. */}
       <span className="mbtn ico" style={{marginLeft:"auto"}} title="give something"
-        onClick={()=>{setMenu(null);setDlg("cart")}}><GiftIcon.cart size={14}/>gift</span>
+        onClick={()=>{setMenu(null);onCart()}}><GiftIcon.cart size={14}/>gift</span>
       {/* gift는 준 것, bag은 받은 것. 나란히 둔다 — 한쪽만 있으면 주기만 하는 앱이 된다 */}
       {/* 알약은 안 붙인다. 가방은 알림함이 아니라 서랍이다 — 새로 들어온 게
           있다고 숫자가 뜨면 그걸 없애려고 여는 창이 된다 */}
@@ -984,7 +989,6 @@ function RoomList({store,name,unlocked,counts,seenStage,onPlate,onOpen,onProfile
       </div>}
     </div>
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
-    {dlg==="cart"&&<Cart gifts={gifts||{}} hearts={hearts} onSend={onGift} onClose={()=>setDlg(null)}/>}
     {dlg==="bag"&&<Bag bag={bag||[]} firstTs={firstTs} onClose={()=>setDlg(null)}/>}
     {dlg==="timetable"&&<Timetable wend={wend} onFillWend={fillWend} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
@@ -1047,7 +1051,7 @@ function DayBar({left}){
 /* 장면 모드에서 보여줄 줄 수. 한 턴에 말풍선이 두셋 나오니 대여섯이면
    방금 오간 말이 다 보이고, 그 위는 사진에 자리를 내준다. */
 const SCENE_LINES=6;
-function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene}){
+function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onCart}){
   const [v,setV]=useState("");
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
   const boxRef=useRef(null);
@@ -1092,6 +1096,9 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       </div>
       <div className="inputbar scenebar">
         <button className="backbtn bevel" onClick={onLeaveScene} title="돌아가기"><BackIcon/></button>
+        {/* 선물은 만나서만 준다. 그러니 단추도 만난 자리에 있어야 한다 —
+            메뉴바에만 두면 자리에서는 열 수가 없다 */}
+        <button className="giftbtn bevel" onClick={onCart} title="give something"><GiftIcon.cart size={15}/></button>
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send0()}/>
         <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send0}
           style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>

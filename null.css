@@ -837,6 +837,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    입력줄로 내려왔는데, 30×27 모난 상자가 40짜리 둥근 보내기 옆에 앉으니
    혼자 다른 창에서 굴러온 부품처럼 보였다. 같은 크기 같은 모양으로 */
 .scenebar .backbtn{width:37px;height:37px;border-radius:999px}
+/* 선물은 만나서만 준다. 그러니 단추도 만난 자리에 있어야 한다 */
+.scenebar .giftbtn{flex:none;width:37px;height:37px;border-radius:999px;
+ display:flex;align-items:center;justify-content:center}
 
 /* 괄호 지문 — 말풍선이 아니라 채팅창에 쳐진 한 줄 */
 .narr{align-self:center;max-width:82%;margin:7px 0;padding:0 6px;text-align:center;

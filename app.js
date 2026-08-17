@@ -191,6 +191,8 @@ function App(){
   const [leaving,setLeaving]=useState(null);
   /* 사물함 명패 둘. 갈 자리는 아니지만 누르면 한 마디 한다 */
   const [plate,setPlate]=useState(null);
+  /* 장바구니는 자리 안에서도 열려야 한다. 선물은 만나서만 주니까 */
+  const [cart,setCart]=useState(false);
   const leaveScene=()=>{ const sc=sceneRef.current; if(sc)setLeaving(sc) };
   /* 나가면 인사를 받는다. 문을 열어주고 등을 보이는 사람은 없다 —
      지문 한 줄을 남기고, 그 줄을 보고 상대가 알아서 인사한다.
@@ -430,6 +432,11 @@ function App(){
     if(have.includes(gift.key))return;              // 같은 걸 두 번 주지 않는다
     /* 한 사람에게 하루에 하나. 창에서 이미 막고 있지만 여기서도 막는다 —
        주는 길이 둘이면 한쪽만 잠그는 자물쇠는 자물쇠가 아니다 */
+    /* 물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말했다.
+       「말로 주는 CD가 어딨어요. 지금 손에 든 거예요?」
+       주는 길이 둘이면 둘 다 잠가야 한다. 창에서 이미 막고 있지만 여기서도 */
+    const sc=sceneRef.current;
+    if(!sc||sc.room!==char){ setToast("만나서 줘요 ♡"); return }
     if(giftedToday(char)){ setToast(`${CHARS[char].name} — one a day ♡`); return }
     stampGift(char);
     const next={...giftsRef.current,[char]:[...have,gift.key]};
@@ -754,12 +761,12 @@ function App(){
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
-       onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
+       onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
-       scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
+       scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene} onCart={()=>setCart(true)}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
     {invite&&<div className="dlgov" onClick={()=>answerInvite(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
@@ -774,6 +781,9 @@ function App(){
         </div>
       </div>
     </div>}
+    {cart&&<Cart gifts={gifts||{}} hearts={heartsOf(store,gifts)}
+      withChar={scene&&scene.room===view?scene.room:null}
+      onSend={giveGift} onClose={()=>setCart(false)}/>}
     {/* 사물함 명패. 눌러도 아무 일이 없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다 */}
     {plate&&<div className="dlgov" onClick={()=>setPlate(null)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>

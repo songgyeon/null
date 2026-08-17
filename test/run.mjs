@@ -532,6 +532,28 @@ eq('자는 쪽은 후보에서 먼저 뺀다',
    0은 1970년이고 그 해의 시각은 UTC 기준이라 어느 쪽으로 튈지 모른다 */
 eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter\(canGreet\)/.test(web), false);
 
+/* ── 선물은 만나서만 ──
+   물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말한 적이 있다.
+   「말로 주는 CD가 어딨어요. 지금 손에 든 거예요?」
+   모델이 스스로 막고 있던 것을 규칙으로 내린다 */
+eq('만난 사람에게만 보낸다',
+  /const here=c=>withChar===c;/.test(web) && /shut=done\|\|today\(c\)\|\|!here\(c\)/.test(web), true);
+eq('아무도 안 만났으면 그렇게 말한다',
+  /<div className="cshut">만나서 줘요 ♡ meet them first<\/div>/.test(web), true);
+eq('그 자리에 없는 사람은 NOT HERE다', /!here\(c\)\?"NOT HERE"/.test(web), true);
+/* 주는 길이 둘이면 둘 다 잠가야 한다 */
+eq('보내는 쪽에서도 막는다',
+  /if\(!sc\|\|sc\.room!==char\)\{ setToast\("만나서 줘요 ♡"\); return \}/.test(web), true);
+/* 선물 단추가 메뉴바에만 있으면 자리에서는 열 수가 없다 —
+   만나야 줄 수 있는데 만난 자리에 단추가 없는 꼴이 된다 */
+eq('자리에도 선물 단추가 있다',
+  /<button className="giftbtn bevel" onClick=\{onCart\}/.test(web)
+  && /\.scenebar \.giftbtn\{/.test(web), true);
+eq('장바구니는 어느 화면에서나 열린다',
+  /\{cart&&<Cart gifts=\{gifts\|\|\{\}\} hearts=\{heartsOf\(store,gifts\)\}/.test(web), true);
+eq('지금 만난 사람을 창에 알려준다',
+  /withChar=\{scene&&scene\.room===view\?scene\.room:null\}/.test(web), true);
+
 /* ── 첫 자리 ──
    전에는 앱을 켜면 둘이 인사를 보내는 걸로 시작했다. 그건 알림이지 만남이 아니다.
    지금은 시작한 시각이 첫 자리를 정한다. 거기서 한 사람을 만나고, 다른 한 사람은
@@ -672,8 +694,7 @@ eq('창에서도 막는다', /shut=done\|\|today\(c\)/.test(web), true);
 /* 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지 적어주는 편이 낫다.
    한쪽만 잠긴 날에도 규칙은 알려준다 */
 eq('왜 안 되는지 적어준다',
-  /\{\(today\("jaeeon"\)\|\|today\("minhyun"\)\)&&<div className="cshut">one a day ♡ each<\/div>\}/.test(web)
-  && /\.cshut\{/.test(web), true);
+    /className="cshut">one a day ♡ each</.test(web) && /\.cshut\{/.test(web), true);
 /* 이미 준 물건과 오늘 몫이 나간 것은 다른 이유다. 같은 회색 단추를 쓰되
    글자는 달라야 한다 — 「SENT」는 이 물건 얘기고 「TOMORROW」는 오늘 얘기다 */
 eq('이미 준 것과 오늘 몫은 다른 말이다',
