@@ -794,8 +794,14 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .bagwho{position:relative;width:38px;height:38px;flex:none;align-self:flex-start;border-radius:50%;
  border:1.5px solid #fff;background:#ece4fb center/150% no-repeat;
  box-shadow:0 0 0 1px #ddd2f4,0 2px 0 rgba(150,135,210,.22)}
-.bagwho i{position:absolute;right:-5px;top:-5px;font-style:normal;font-size:11px;color:#ff7fae;
- text-shadow:0 1px 0 #fff,0 0 3px rgba(255,127,174,.6)}
+/* 하트가 얼굴 위에 얹혀 있었다. 글자 상자는 원 밖으로 밀어놨는데 ♡의 먹이
+   상자 아래쪽에 앉는 글자라, 정작 그림은 원 안으로 들어와 사진과 겹쳤다.
+   line-height를 1로 못박아 상자와 먹을 맞추고, 흰 딱지를 깔아 사진에서 뗀다.
+   카드는 overflow:hidden이라 딱지가 padding(14px) 안에 들어와야 한다 —
+   -6px에 15px 딱지면 카드 끝에서 8px이라 안 잘린다. */
+.bagwho i{position:absolute;right:-6px;top:-6px;display:flex;align-items:center;justify-content:center;
+ width:15px;height:15px;font-style:normal;font-size:10px;line-height:1;color:#ff7fae;
+ background:#fff;border-radius:50%;box-shadow:0 0 0 1px #f4c3d8,0 1px 2px rgba(150,135,210,.3)}
 .baglabel{display:inline-block;margin-top:6px;padding:3px 9px 4px;font-size:9px;letter-spacing:.06em;
  color:#c05f8c;background:#fff2f8;border:1px solid #f4c3d8;border-radius:999px}
 .bagmeta{margin-top:5px;font-size:10px;letter-spacing:.02em;color:#a99bd0}
