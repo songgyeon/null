@@ -430,7 +430,14 @@ function App(){
     if(payload.mode==="chat"){ payload.met=loadMet(); payload.refused=loadRefused();
       /* 지금 문 닫은 자리는 인물도 가자고 안 한다. 시간은 프론트만 안다 —
          워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때다 */
-      payload.closed=PLACES.filter(p=>!placeHours(p)).map(p=>p.name); }
+      payload.closed=PLACES.filter(p=>!placeHours(p)).map(p=>p.name);
+      /* 유저가 먼저 「편의점 가자」고 했을 때 인물이 열 수 있는 자리.
+         지도 창이 「갈래요?」를 띄우는 조건 그대로다 — 조건은 프론트만 안다
+         (해금·시각·주말·오늘 도장·그 사람이 갈 수 있는 곳).
+         자리에 마주 앉아 있는 턴에는 안 보낸다. 워커도 place가 있으면 자리
+         목록을 통째로 빼는데, 여기서 보내면 검증만 열려 있는 꼴이 된다. */
+      if(payload.room&&payload.room!=="group"&&!payload.place)
+        payload.can_go=canGoWith(payload.room,loadMet()); }
     if(up)payload.user_profile=up; else delete payload.user_profile;
     if(!payload.counts)payload.counts=roomCounts();
     if(payload.days==null)payload.days=daysSince(storeRef.current);

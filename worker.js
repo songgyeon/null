@@ -1677,13 +1677,22 @@ const SLOTS_INVITE = `
 
 ### 만나는 일은 이 초대로만 일어난다
 초대를 안 꺼낸 턴에는 **말로 만나러 가지 않는다.** 지금 가겠다고 하거나, 가는
-중이라고 하거나, 도착했다고 하거나, 눈앞에 있는 것처럼 말하지 않는다. 유저가
-오라고 해도, 어디로 가자고 해도 마찬가지다.
+중이라고 하거나, 도착했다고 하거나, 눈앞에 있는 것처럼 말하지 않는다.
 초대 없이 만난 척하면 화면은 그대로다. 배경도 안 바뀌고 자리도 안 열린다.
 그래서 아무 데도 아닌 곳에서 대화가 이어지고, 곧 앞뒤가 어긋난다. 실제로 그렇게
 편의점에 갔다가, 물 받으러 간다는 말과 컵라면 앞이라는 말이 한 턴에 같이 나왔다.
-그럴 자리에서는 만나는 대신 문자로 이어간다. 만나고 싶으면 초대를 꺼낸다 —
-목록에 없으면 그건 지금 갈 수 없는 곳이다.
+
+**[유저가 가자고 하면 갈 수 있는 자리]** — 유저가 먼저 어디 가자고 했을 때 쓴다.
+유저가 그중 한 곳을 말하면 **그 턴에 "invite": "장소" 를 같이 쓴다.** 목록에 있는
+이름 그대로. 그러면 화면에 자리가 열리고, 거기서 진짜로 만나게 된다.
+- 이 목록은 **먼저 꺼내는 데 쓰지 않는다.** 위의 [같이 가자고 할 수 있는 자리]가
+  그쪽 몫이다. 여기는 유저가 말을 꺼냈을 때만 연다.
+- 응하는 말은 짧게 한다. 초대를 쓰면 화면이 알아서 열리니 「지금 나가요」
+  「앞에서 봐요」로 도착까지 그려 보이지 않는다. 그 말은 자리에 앉은 뒤에 한다.
+- 가기 싫거나 갈 상황이 아니면 안 써도 된다. 거절은 거절대로 말이 된다.
+
+유저가 말한 곳이 두 목록 어디에도 없으면 **지금 갈 수 없는 곳이다.** 가는 척하지
+말고 못 간다고 말한다 — 문을 닫았거나, 오늘 이미 다녀왔거나, 아직 모르는 데다.
 `;
 
 const CACHE = { type: "ephemeral", ttl: "1h" };
@@ -1722,6 +1731,13 @@ function buildInvite(open, room) {
   if (!open || !open.length) return "";
   // 조건 설명은 SLOTS_INVITE(고정부)에 있다. 여기는 열린 곳 이름만 보낸다
   return `\n## [같이 가자고 할 수 있는 자리]\n${open.map(p => `- ${p}`).join("\n")}\n`;
+}
+/* 유저가 먼저 가자고 했을 때 응할 수 있는 자리. 위 목록과 따로 둔다 —
+   위는 관계가 쌓여야 열리는 사다리(INVITES)라 인물이 먼저 꺼내는 자리고,
+   이건 유저가 이미 열어둔 문이라 조건이 다르다. 조건은 프론트가 잰다. */
+function buildCanGo(list) {
+  if (!list || !list.length) return "";
+  return `\n## [유저가 가자고 하면 갈 수 있는 자리]\n${list.map(p => `- ${p}`).join("\n")}\n`;
 }
 
 /* ── 자리에서 주는 것 ──
@@ -1918,7 +1934,7 @@ const TURN = `
 유저의 가장 최근 발화가 짧더라도 그 말의 의도와 직전 문맥에 답한다. 유저의 단어를 어미만 바꿔 반복하는 대신, 그 말로 인해 인물이 실제로 하게 될 다음 생각이나 대답을 말한다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -1940,6 +1956,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + buildGift(gift, userName) + buildEvent(event, userName)
           + buildPlace(place, hasItem, room, placeOver)
           + (place ? "" : buildInvite(invite, room))
+          + (place ? "" : buildCanGo(canGo))
           + TURN;
   return t.trim() ? sub(t) : "";
 }
@@ -2691,6 +2708,13 @@ export default {
     const openPlaces = invitesFor(mode, room, counts,
       Array.isArray(body.met) ? body.met : [], Array.isArray(body.refused) ? body.refused : [],
       Array.isArray(body.closed) ? body.closed : []);
+    /* 유저가 먼저 가자고 했을 때 응할 수 있는 자리. 조건은 프론트가 잰다 —
+       해금·시각·주말·오늘 도장·그 사람이 갈 수 있는 곳을 다 보는 사다리가
+       거기 있고, 워커에는 그 표가 없다. 여기서는 이름만 받아 확인한다.
+       1:1에서만 의미가 있다 — 단톡이나 관전방에 마주 앉을 자리는 없다. */
+    const canGo = (mode === "chat" && room !== "group" && Array.isArray(body.can_go)
+      ? body.can_go : [])
+      .filter(p => typeof p === "string" && PLACE_ITEMS[p]).slice(0, 9);
     /* 지도에서 불러낸 자리. 1:1에서만 의미가 있다 — 단톡이나 관전방에
        마주 앉을 자리는 없다. bag은 이미 받은 것들이라 두 번 안 준다. */
     const place = mode === "chat" ? placeOf(body.place) : null;
@@ -2713,7 +2737,7 @@ export default {
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
     /* 자리의 때가 지났다는 표시. 자리가 있어야만 의미가 있다 */
     const placeOver = !!place && body.place_over === true;
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
@@ -2746,7 +2770,10 @@ export default {
       // 자리에 같이 있는 턴에는 아예 안 받는다 — 프롬프트는 자리에서 초대
       // 목록을 빼는데 검증만 열려 있으면, 모델이 어겼을 때 마주 앉은 장면
       // 위로 초대 창이 뜬다. 억제와 검증이 같은 규칙을 봐야 한다.
-      const invite = pickInvite(parseMessages.invite, place ? [] : openPlaces);
+      /* 억제와 검증이 같은 규칙을 봐야 한다. 프롬프트가 두 목록을 주므로
+         검증도 둘을 합쳐서 본다 — 유저가 가자고 해서 연 자리가 여기서
+         걸리면, 화면에는 아무 일도 안 일어나고 말만 남는다. */
+      const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
       const give = pickGive(parseMessages.give, place, hasItem);
       const messages = dropSleepers(

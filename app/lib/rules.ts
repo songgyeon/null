@@ -753,6 +753,21 @@ const freeOut=(id,now)=>{
   return isWend(d)||!AT_WORK.includes(pr.t);
 };
 const whoOut=(now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));
+/* ── 유저가 먼저 가자고 하는 자리 ──
+   지금까지 자리를 여는 길은 둘뿐이었다. 지도에서 유저가 고르거나, 관계가
+   쌓여 인물이 먼저 꺼내거나(INVITES). 그래서 대화 중에 「편의점 가자」고
+   하면 인물에게는 그 자리를 열 수단이 없었다 — 열지도 못하면서 말로만
+   「지금 나가요」 「편의점 앞에서 봐요」를 되풀이하다 끝났다.
+   그건 규칙을 어긴 게 아니라 손이 없었던 것이다.
+
+   이 목록이 그 손이다. 새 조건은 만들지 않는다 — 지도 창이 「갈래요?」를
+   띄우는 조건 그대로다. 화면에서 갈 수 있는 데면 말로도 갈 수 있어야 한다.
+   인물이 먼저 꺼내는 자리(INVITES)는 이것과 별개로 둔다. 그쪽은 관계가
+   쌓여야 열리는 사다리고, 이쪽은 유저가 이미 열어둔 문이다. */
+const canGoWith=(id,met,now)=>PLACES.filter(p=>!p.into
+  &&(p.who||[]).includes(id)
+  &&placeOpen(p,met||[])&&placeHours(p,now)&&wendOnlyOk(p,now)&&!goneToday(p.name,now)
+  &&(p.meet!=="out"||whoOut(now).includes(id))).map(p=>p.name);
 /* ── 단톡방은 나중에 생긴다 ──
    민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
    유저는 초대를 받는다 — 왜 초대됐는지는 모른 채로. 그게 이 앱의 모양이다.
@@ -957,6 +972,7 @@ return {
   AT_WORK,
   freeOut,
   whoOut,
+  canGoWith,
   GROUP_AT,
   loadGroupOn,
   saveGroupOn,
@@ -1106,6 +1122,7 @@ export const {
   AT_WORK,
   freeOut,
   whoOut,
+  canGoWith,
   GROUP_AT,
   loadGroupOn,
   saveGroupOn,

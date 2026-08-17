@@ -1,7 +1,7 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
 /* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
-import { presence, timeWord, dayWord, PLACES, placeHours } from './rules';
+import { presence, timeWord, dayWord, PLACES, placeHours, canGoWith, loadMet } from './rules';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -179,6 +179,11 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     now: timeWord(),
     day: dayWord(),
     ...(Object.keys(states).length ? { states } : {}),
+    /* 유저가 먼저 「편의점 가자」고 했을 때 인물이 열 수 있는 자리.
+       지도 창이 「갈래요?」를 띄우는 조건 그대로다 — 조건은 여기(규칙 파일)만
+       안다. 자리에 마주 앉은 턴에는 안 보낸다: 워커가 place가 있으면 자리
+       목록을 통째로 빼는데, 여기서 보내면 검증만 열려 있는 꼴이 된다. */
+    ...(room !== 'group' && !place ? { can_go: canGoWith(room, loadMet()) } : {}),
     // 방금 장바구니에서 보낸 선물. 없으면 아예 안 보낸다
     ...(gift ? { gift } : {}),
     // 마주 앉은 자리. 이게 없으면 같은 자리에 앉아서 「지금 어디예요?」를 묻는다

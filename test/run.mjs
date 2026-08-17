@@ -582,6 +582,46 @@ eq('점이 꺼진 사람은 안 건다',
     /last\.sys\?"· ":last\.sender==="user"\?"나: ":""/.test(web)
     && /last\.sender==='sys'\?'· ':last\.sender==='user'\?'나: ':''/.test(appSrc), true);
 }
+/* ── 유저가 먼저 가자고 하는 자리 ──
+   자리를 여는 길이 둘뿐이었다. 지도에서 유저가 고르거나, 관계가 쌓여 인물이
+   먼저 꺼내거나. 그래서 대화 중에 「편의점 가자」고 하면 인물에게는 그 자리를
+   열 수단이 없었고, 열지도 못하면서 「지금 나가요」 「앞에서 봐요」를 되풀이하다
+   끝났다. 규칙을 어긴 게 아니라 손이 없었던 것이다.
+   새 조건은 안 만든다 — 지도 창이 「갈래요?」를 띄우는 조건 그대로다 */
+{
+  const src3 = web.slice(web.indexOf('const canGoWith='));
+  const wSrc = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  const aSrc = readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8');
+  eq('지도 창과 같은 조건을 본다',
+    /placeOpen\(p,met\|\|\[\]\)&&placeHours\(p,now\)&&wendOnlyOk\(p,now\)&&!goneToday\(p\.name,now\)/
+      .test(src3.slice(0, 400)), true);
+  /* 그 사람이 갈 수 있는 자리여야 하고, 마주치는 자리는 그 시각에 나와 있어야 한다 */
+  eq('그 사람이 갈 수 있는 데만 센다', /\(p\.who\|\|\[\]\)\.includes\(id\)/.test(src3.slice(0, 400)), true);
+  eq('마주치는 자리는 나와 있어야 한다',
+    /p\.meet!=="out"\|\|whoOut\(now\)\.includes\(id\)/.test(src3.slice(0, 400)), true);
+  /* 학교는 자리가 아니라 문이다 */
+  eq('문은 자리가 아니다', /!p\.into/.test(src3.slice(0, 400)), true);
+  /* 마주 앉은 턴에는 안 보낸다 — 워커도 place가 있으면 목록을 통째로 뺀다.
+     보내기만 하고 검증만 열려 있으면 마주 앉은 장면 위로 초대 창이 뜬다 */
+  eq('자리에서는 안 보낸다',
+    /payload\.room!=="group"&&!payload\.place\)\s*\n\s*payload\.can_go=canGoWith/.test(web)
+    && /room !== 'group' && !place \? \{ can_go: canGoWith/.test(aSrc), true);
+  /* 억제와 검증이 같은 규칙을 봐야 한다. 유저가 가자고 해서 연 자리가
+     검증에서 걸리면 화면에는 아무 일도 안 일어나고 말만 남는다 */
+  eq('검증도 두 목록을 같이 본다',
+    /pickInvite\(parseMessages\.invite, place \? \[\] : \[\.\.\.openPlaces, \.\.\.canGo\]\)/.test(wSrc), true);
+  /* 인물이 먼저 꺼내는 사다리(INVITES)와는 따로 둔다 — 그쪽은 관계가 쌓여야
+     열리고, 이쪽은 유저가 이미 열어둔 문이다 */
+  eq('두 목록은 따로 선다',
+    /## \[유저가 가자고 하면 갈 수 있는 자리\]/.test(wSrc)
+    && /이 목록은 \*\*먼저 꺼내는 데 쓰지 않는다/.test(wSrc), true);
+  /* 목록에 없는 데를 대면 못 간다고 말한다 — 가는 척이 이 문제의 시작이었다 */
+  eq('없는 곳은 못 간다고 말한다',
+    /두 목록 어디에도 없으면 \*\*지금 갈 수 없는 곳이다/.test(wSrc), true);
+  /* 워커는 PLACES 표가 없다. 이름만 받아 아는 자리인지만 본다 */
+  eq('워커는 이름만 받아 확인한다',
+    /body\.can_go\s*:\s*\[\]\)\s*\n\s*\.filter\(p => typeof p === "string" && PLACE_ITEMS\[p\]\)/.test(wSrc), true);
+}
 /* 관전방은 둘이 마주 앉은 자리다. 한 사람만 자도 그 대화는 없던 일이다 —
    재언이 자는데 「두 사람」방에서는 떠들고 있었다. 목록에 「자는 중」이 떠
    있는 사람이 옆방에서 말을 하면 그 점이 거짓말이 된다 */
@@ -1919,7 +1959,7 @@ eq('유저 말을 되받아 옮기지 말라고 적어뒀다',
   /유저의 단어를 어미만 바꿔 반복하는 대신/.test(workerSrc), true);
 eq('그 말은 가변부 맨 뒤에 있다',
   /const TURN = `\n## 이 턴\n유저의 가장 최근 발화가 짧더라도/.test(workerSrc)
-  && /\+ \(place \? "" : buildInvite\(invite, room\)\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
+  && /\+ \(place \? "" : buildCanGo\(canGo\)\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
 /* 세계관에 두고 왔으면 두 군데에 같은 말이 남는다 */
 eq('세계관에는 안 남겼다',
   (workerSrc.match(/유저의 단어를 어미만 바꿔 반복하는 대신/g) || []).length, 1);
