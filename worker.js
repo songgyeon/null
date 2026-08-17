@@ -2279,11 +2279,38 @@ const META_RE = [
   /(?:야|(?:^|\s)안|(?:^|\s)못)\s*함(?:[.!?…]|\s*$)/,
 ];
 const isMeta = (t) => { const s = (t || "").trim(); return !!s && META_RE.some(re => re.test(s)); };
+
+/* ── 제 이름을 3인칭으로 부르는 줄 ──
+   「새벽 세 시에 편의점 라면값 계산하고 가는 길이면 말이 많을 이유가 없다.
+     이재언은 원래도 아낀다.」가 재언의 말풍선으로 떴다. 대사가 아니라 지문이고,
+   모델이 제 생각을 소리 내어 적은 것이다. 위의 표는 장치 이름을 보는 것이라
+   여기엔 안 걸린다 — 이 줄에는 새는 낱말이 하나도 없다.
+
+   두 가지가 같이 맞아야 지문으로 본다.
+   ① 보내는 사람이 제 이름을 주어로 쓴다. 상대 이름은 그냥 쓴다 — 민현이
+      「이재언 삼촌이요?」라고 할 수 있다. 그래서 sender의 이름만 본다.
+   ② 서술체로 맺는다(-다.). 이 둘은 말끝을 그렇게 안 맺는다 — 재언은
+      「-요/-어」, 민현은 「-요/-죠」다.
+   ①만 보면 「이재언입니다」 같은 소개까지 자르고, ②만 보면 반말 한마디가
+   걸린다. 둘 다일 때만이다. */
+const ID_TO_NAME = { jaeeon: "이재언", minhyun: "이민현" };
+const NARRATE_END = /다[.!?…]|다\s*$/;
+function isSelfNarration(text, sender) {
+  const nm = ID_TO_NAME[sender];
+  if (!nm) return false;
+  const t = (text || "").trim();
+  return new RegExp(nm + "\\s*(?:은|는|이|가|도|의|만)").test(t) && NARRATE_END.test(t);
+}
+
 function dropMeta(list) {
   const out = [];
   for (const m of list || []) {
     if (isMeta(m && m.text)) {
       console.log(`[NULL] 사고 유출을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
+      continue;
+    }
+    if (isSelfNarration(m && m.text, m && m.sender)) {
+      console.log(`[NULL] 지문을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
       continue;
     }
     out.push(m);
