@@ -12,8 +12,13 @@
    무너진다 — 유저 오타를 자기 이름으로 받아들이고, 지금 어디에 있는지 놓치고,
    설명이 궁했을 때 「이건 그냥 텍스트니까요」로 빠져나갔다. 한 박자 생각하면
    안 할 실수들이라 켠다. Sonnet 5는 thinking을 안 적으면 알아서 조절한다. */
+/* effort — 프롬프트가 15,000자인데 그 중 대화 규칙은 몇 줄이다. 설정(외형·과거·
+   취향)은 medium에서도 잘 지켰는데, 「유저 낱말을 어미만 바꿔 되돌리지 않는다」
+   같은 미세한 줄에서 계속 미끄러졌다 — 같은 말 다시 하기, 정보 없는 턴으로
+   채우기, 금지한 -대요. 규칙이 없어서가 아니라 묻혀서다. high로 올린다.
+   보이는 출력은 여전히 짧으니 값은 생각 토큰만큼만 는다. */
 const MODELS = [
-  { id: "claude-sonnet-5", effort: "medium", noThinking: false },
+  { id: "claude-sonnet-5", effort: "high", noThinking: false },
   { id: "claude-sonnet-4-6", effort: "medium", noThinking: true },
   { id: "claude-sonnet-4-5", effort: null, noThinking: false },
 ];
