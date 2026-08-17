@@ -2049,6 +2049,24 @@ eq('관전방을 열 때도 돈다',
 eq('비운 시간과 상한은 그대로다',
   /if\(now-lastAny<AUTO_AWAY\)return;/.test(web) && /if\(used>=AUTO_MAX_DAY\)/.test(web), true);
 
+/* ── 보내기 단추가 허옇게 떴던 것 ──
+   흰색이 -30%에서 시작해 방 색을 95%까지 밀어놨다. 눈에 보이는 구간이 거의 다
+   흰색이라 단추가 허옇게 떴고, 그 위에 흰 광택(::after)이 한 번 더 얹혀서
+   방 색이 아예 안 읽혔다. 흰 화살표도 같이 묻혔다.
+   위에서 아래로 연한색 → 방 색 → 짙은색. 가운데가 방 색이라야 방 색으로 보인다 */
+eq('보내기 색은 함수가 만든다',
+  /const sendBg=room=>\{/.test(web) && !/#ffffff -30%/.test(web), true);
+eq('가운데가 방 색이다',
+  /\$\{c\.pale\|\|mid\} 0%, \$\{mid\} 46%, \$\{c\.dk\|\|mid\} 100%/.test(web), true);
+/* 연한색·짙은색은 CHARS에 있고 방 목록(ROOMS)에는 색 하나뿐이다.
+   room을 그대로 보면 폴백만 먹어서 예전과 똑같이 나온다 — 한 번 그랬다 */
+eq('색은 CHARS에서 가져온다', /const c=CHARS\[room\.id\]\|\|\{\};/.test(web), true);
+/* 광택은 남기되 힘을 뺀다. .85면 방 색 위에 흰 뚜껑을 덮는 꼴이다 */
+eq('광택이 색을 안 덮는다',
+  /background:linear-gradient\(180deg,rgba\(255,255,255,\.62\),rgba\(255,255,255,0\)\)/.test(web), true);
+/* 빈 칸일 때와 보낼 수 있을 때가 똑같아서 눌리는지가 안 보였다 */
+eq('못 보내는 상태가 보인다', /\.sendbtn\[disabled\]\{opacity:\.42/.test(web), true);
+
 /* 앱에서 입력칸만 각졌었다 — 카드·창·단추가 다 둥근데 혼자 border-radius:0.
    보내기는 40x37이라 원이 아니라 옆으로 퍼진 타원이었다 */
 eq('입력칸도 둥글다', /\.inputbar input\{[^}]*border-radius:9px\}/.test(web), true);

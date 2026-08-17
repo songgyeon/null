@@ -90,6 +90,18 @@ const WinDots=({onClose})=><div className="dots"><span className="d1"><i/></span
 /* 프로필 사진 줄맄 스타일 */
 /* 확대율·위치는 사진마다 다르다. 사진을 갈아끼우면 CHARS의 zoom/pos를 다시 잡을 것.
    너무 키우면 머리 위가 잘린다 — 150% 근처가 머리 전체가 들어오는 한계다. */
+/* 보내기 단추 색.
+   전에는 흰색이 -30%에서 시작해 방 색을 95%까지 밀어놨다. 눈에 보이는 구간이
+   거의 다 흰색이라 단추가 허옇게 떴고, 그 위에 흰 광택(::after)이 한 번 더
+   얹혀서 방 색이 아예 안 읽혔다. 흰 화살표도 같이 묻혔다.
+   위에서 아래로 연한색 → 방 색 → 짙은색. 가운데가 방 색이라야 방 색으로 보인다. */
+/* 연한색·짙은색은 CHARS에 있고 방 목록(ROOMS)에는 색 하나뿐이다.
+   단톡·관전방은 CHARS에 없으므로 그 방 색으로 셋을 다 만든다 */
+const sendBg=room=>{
+  const c=CHARS[room.id]||{};
+  const mid=c.color||room.color;
+  return `linear-gradient(180deg, ${c.pale||mid} 0%, ${mid} 46%, ${c.dk||mid} 100%)`;
+};
 const faceBg=ch=>({backgroundImage:`url("${ch.img+AV_V}")`,backgroundSize:ch.zoom||"150%",backgroundPosition:ch.pos,backgroundColor:ch.pale});
 function Avatar({room,size=42,onProfile,heat,nu}){
   const st={width:size,height:size,...(heat!=null?heatRing(CHARS[room.id],heat):null)};
@@ -1124,7 +1136,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         <button className="giftbtn bevel" onClick={onCart} title="give something"><GiftIcon.cart size={15}/></button>
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send0()}/>
         <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send0}
-          style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
+          style={{background:sendBg(room)}}><SendIcon/></button>
       </div>
       {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
     </div>;
@@ -1195,7 +1207,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       <div className="watchbar"><span className="rec"/>u can't join this one</div>
       :<div className="inputbar">
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
-        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:`linear-gradient(180deg, #ffffff -30%, ${room.color} 95%)`}}><SendIcon/></button>
+        <button className="sendbtn bevel" disabled={!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
       </div>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
   </div>;
