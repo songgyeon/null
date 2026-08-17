@@ -1475,7 +1475,10 @@ function Root() {
     openedRef.current=true;
     (async()=>{
       const o=openingNow();
-      if(PLACE_BY[o.place]){ const nm=met.includes(o.place)?met:[...met,o.place]; setMet(nm); saveMet(nm); }
+      /* 도장도 같이 찍는다 — 해금 목록에만 넣던 때는 오늘 도장이 안 찍혀서,
+         빨래방에서 시작한 날 지도의 빨래방이 그대로 열려 있었다. 시작한
+         자리도 다녀온 자리다. 하루에 한 번은 여기에도 걸린다. */
+      if(PLACE_BY[o.place]){ const nm=met.includes(o.place)?met:[...met,o.place]; setMet(nm); saveMet(nm); stampGone(o.place); }
       await sysLine(o.room,o.note);
       const shot=sceneShot(o.place,o.room);
       putScene({room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{}),...(shot?{shot}:{})});

@@ -2777,6 +2777,12 @@ eq('자리마다 다녀온 날을 찍는다',
   /const goneToday=\(place,now\)=>loadGone\(\)\[place\]===dayKey\(now\)/.test(web)
   && /const stampGone=\(place,now\)=>saveGone\(\{\.\.\.loadGone\(\),\[place\]:dayKey\(now\)\}\)/.test(web), true);
 eq('가기로 하면 그 날을 찍는다', /stampGone\(place\);/.test(web), true);
+/* 시작한 자리도 다녀온 자리다. goneTo만 부르던 때는 해금 목록에만 들어가고
+   오늘 도장이 안 찍혀서, 빨래방에서 시작한 날 지도의 빨래방이 그대로 열려
+   있었다 — 하루에 한 번인데 두 번 갈 수 있었다. 앱도 같이 본다 */
+eq('첫 자리도 그 날을 찍는다',
+  /if\(PLACE_BY\[o\.place\]\)\{ goneTo\(o\.place\); stampGone\(o\.place\) \}/.test(web)
+  && /setMet\(nm\); saveMet\(nm\); stampGone\(o\.place\);/.test(appSrc), true);
 /* 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */
 eq('묻는 창이 규칙을 알려준다',
   /앗! 하루에 1번만 갈 수 있어요 <span className="kao">\(υl\|l◔ㅅ◔\)՞՞<\/span>/.test(web), true);

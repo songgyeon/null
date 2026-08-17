@@ -956,7 +956,11 @@ function App(){
     const o=openingFor();
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:o.note,ts:Date.now()};
     appendMsg(o.room,sys);
-    if(PLACE_BY[o.place])goneTo(o.place);          // 지도 자리면 다녀온 걸로 친다
+    /* 지도 자리면 다녀온 걸로 친다. 도장도 같이 찍는다 — goneTo만 부르던
+       때는 해금 목록에만 들어가고 오늘 도장이 안 찍혔다. 빨래방에서 시작한
+       날 지도의 빨래방이 그대로 열려 있어서 같은 날 한 번 더 갈 수 있었다.
+       시작한 자리도 다녀온 자리다. 하루에 한 번은 여기에도 걸린다. */
+    if(PLACE_BY[o.place]){ goneTo(o.place); stampGone(o.place) }
     const sc={room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{})};
     setScene(sc); saveScene(sc); setView(o.room);
     const next=[...(storeRef.current.msgs[o.room]||[]),sys];
