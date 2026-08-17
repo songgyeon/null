@@ -183,8 +183,6 @@ NULL — 공통 세계관 프롬프트
 - 현재 기록에서 인물이 성장하거나 관계가 달라졌다면 초기 상태로 되돌리지 않는다.
 - 정확한 정보가 기록에 없을 때는 새로운 과거를 지어내지 않는다.
 
-유저의 가장 최근 발화가 짧더라도 그 말의 의도와 직전 문맥에 답한다. 유저의 단어를 어미만 바꿔 반복하는 대신, 그 말로 인해 인물이 실제로 하게 될 다음 생각이나 대답을 말한다.
-
 이름은 고정된 사실이다.
 
 - 이재언은 이재언이다.
@@ -1857,6 +1855,22 @@ function buildSummary(summary) {
 }
 
 /* 매 턴 달라지는 덩어리. 대화 이력보다 뒤에 놓여야 이력이 캐시된다 */
+/* ── 이 턴에 대한 말 ──
+   원래 세계관(WORLD) 맨 앞에 있던 문장이다. 거기 두면 답을 쓰기까지 15,000자가
+   남는다 — 인물 설정 8,349자와 규칙 5,109자가 그 뒤에 깔린다. 실제로 이 규칙만
+   계속 깨졌다: 「눈 말고 뭐가 있어요」 두 번, 「조는 중」 세 턴,
+   「반응 안 했는데 / 했는데」 네 턴.
+
+   문장은 그대로 두고 자리만 옮긴다. 가변부는 마지막 유저 발화 바로 뒤에 붙어서
+   프롬프트에서 제일 마지막에 읽히는 자리다. 캐시에 안 얹히지만 두 줄이라
+   턴당 백 토큰도 안 된다.
+
+   여기에 새 규칙을 더 쓰지 않는다. 옮긴 것뿐이다. */
+const TURN = `
+## 이 턴
+유저의 가장 최근 발화가 짧더라도 그 말의 의도와 직전 문맥에 답한다. 유저의 단어를 어미만 바꿔 반복하는 대신, 그 말로 인해 인물이 실제로 하게 될 다음 생각이나 대답을 말한다.
+`;
+
 function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
@@ -1869,7 +1883,8 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
           + buildPlace(place, hasItem, room)
-          + (place ? "" : buildInvite(invite, room));
+          + (place ? "" : buildInvite(invite, room))
+          + TURN;
   return t.trim() ? sub(t) : "";
 }
 
