@@ -508,9 +508,14 @@ function Timetable({wend,onFillWend,onClose}){
   const wk=isWend(now), slots=daySlots(now), i=slotNow(now);
   const key=dayKey(), mine=(wend||{})[key]||[];
   const yaja=isYajaWeek(now);
+  /* 하루의 양 끝은 시간표가 아니라 마개다. ON은 출근 위에 얹고, OFF는 원래
+     마지막 칸(21시)의 이름을 바꾼 것이다. 둘 다 지나감(♡)도 지금(얼굴)도
+     안 붙인다 — 시각이 아니라 표의 처음과 끝이라서. */
   const rows=wk
     ?Array.from({length:WEND_SLOTS},(_,n)=>({k:mine[n]||"",n,blank:true}))
-    :slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i}));
+    :[{k:"ON",n:-1,edge:"오늘도 Loading..."},
+      ...slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i,
+        ...(s.k==="OFF"?{edge:"오늘도 Ending..."}:{})}))];
   return <div className="dlgov" onClick={onClose}>
     <div className="dlg ttwin" onClick={e=>e.stopPropagation()}>
       <div className="tb">null.exe<WinDots onClose={onClose}/></div>
@@ -521,6 +526,11 @@ function Timetable({wend,onFillWend,onClose}){
             ?<div key={r.n} className="ttrow mine">
                <span className="n"><Blank value={r.k} width={54} onSave={v=>onFillWend(key,r.n,v)}/></span>
                <span className="ln"/><span className="mk">{r.k?"♡":""}</span>
+             </div>
+            :r.edge
+            ?<div key={r.n} className="ttrow edge">
+               <span className="n">{r.k}</span><span className="ln"/>
+               <span className="mk">{r.edge}</span>
              </div>
             :<div key={r.n} className={"ttrow"+(r.now?" now":r.past?" past":" next")}>
                <span className="n">{r.k}</span><span className="ln"/>
@@ -540,12 +550,14 @@ function Timetable({wend,onFillWend,onClose}){
              /* 하루의 양 끝은 시간표가 정해주는 것이 없다 — 켜지기 전, 일과가
                 끝난 뒤, 그리고 값이 비는 밤. 그 세 자리에는 말이 따로 있다.
                 가운데(출근·수업·점심·퇴근·야자)는 「지금은 ○○이에요」 그대로다. */
+             /* ON·OFF는 이제 표의 마개로 올라갔다. 여기 제목으로 또 쓰면
+                한 화면에 같은 말이 두 번이라, 하루가 시작하기 전과 끝난 뒤의
+                두 자리만 남긴다 — 그 두 때는 표에서 가리킬 칸이 없다.
+                21시 이후는 nowLabel이 「OFF」다(마지막 칸의 이름). */
              const L=wk?null:nowLabel(now);
              const say=L==="등교전"?{t:"ON",
                  s:<>오늘도 Loading... <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>}
-               :L==="저녁"?{t:"OFF",
-                 s:<>오늘도 Ending... <span className="kao">₍ ˵ • ꤮ ก ˵ ₎︎აᶻ 𝗓 𐰁</span></>}
-               :L==="NULL"?{t:"DAY OFF, NULL ON!",
+               :(L==="OFF"||L==="NULL")?{t:"DAY OFF, NULL ON!",
                  s:<>지금부터 NULL... <span className="kao">(ෆ`꒳´ෆ) ˡºᵛᵉ💗</span></>}
                :null;
              return <div className="ttsay">
