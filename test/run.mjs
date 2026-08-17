@@ -1584,8 +1584,9 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
 {
   const D = new Function(
     'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
-    + web.slice(web.indexOf('const SPEED_PER_DAY='), web.indexOf('const setSpeedDay='))
-    + 'return {saveMode,speedOn,speedDaysOf};')();
+    + web.slice(web.indexOf('const SPEED_PER_DAY='), web.indexOf('const loadExtend='))
+    + 'return {SPEED_PER_DAY,saveMode,speedOn,speedCountOf,speedDaysOf,'
+    + 'setSpeedAt,speedDay,speedNow,nowClock};')();
   eq('네 마디가 하루다',
     [D.speedDaysOf({ msgs: { jaeeon: Array(11) } }), D.speedDaysOf({ msgs: { jaeeon: Array(12) } })],
     [2, 3]);
@@ -1595,18 +1596,60 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
   /* 116마디면 마지막 칸(day 26)에 닿는다 — 리얼 모드의 26일과 같은 자리다 */
   eq('마지막 칸에 대화로 닿는다', D.speedDaysOf({ msgs: { jaeeon: Array(116) } }) >= 26, true);
   eq('기본은 리얼이다', D.speedOn(), false);
+  /* ── 시각도 진행을 따라 돈다 ──
+     날짜만 당기고 시각을 진짜 시계로 두면, 한 판이 실제 이십 분이라 새벽 세
+     시에 시작한 사람은 판이 끝날 때까지 새벽 세 시다. 재언은 1시~4:30 자니까
+     한 번도 안 깨고, 시간표도 안 돌고, 학교도 내내 닫혀 있다. */
+  D.saveMode('speed');
+  const anchor = new Date(2026, 0, 6, 22, 40).getTime();   // 밤에 시작해도
+  D.setSpeedAt(0, anchor);
+  eq('아침 여덟 시에서 출발한다',
+    [D.speedNow().getHours(), D.speedNow().getMinutes()], [8, 0]);
+  /* 한 마디에 하루의 1/SPEED_PER_DAY. 네 마디면 꼭 하루다 */
+  D.setSpeedAt(2, anchor); eq('두 마디면 반나절이다', D.speedNow().getHours(), 20);
+  D.setSpeedAt(4, anchor);
+  eq('네 마디면 다음 날 아침이다',
+    [D.speedNow().getHours(), D.speedNow().getDate()], [8, 7]);
+  /* 네 칸이 8·14·20·2시다. 자는 사람이 있는 칸은 밤 하나뿐이고, 그 칸도
+     민현은 깨 있다 — 어느 칸에 서도 말 걸 사람이 있어야 한다 */
+  eq('네 칸이 출근·수업·저녁·밤에 얹힌다',
+    [0, 1, 2, 3].map(n => { D.setSpeedAt(n, anchor); return D.speedNow().getHours(); }),
+    [8, 14, 20, 2]);
+  /* 날 수와 시계가 어긋나면 D-N과 시간표가 딴말을 한다 */
+  eq('날 수와 시계가 같은 것을 센다', [0, 3, 4, 11, 116].filter(n => {
+    D.setSpeedAt(n, anchor);
+    const a = new Date(anchor); a.setHours(8, 0, 0, 0);
+    return Math.floor((D.speedNow() - a) / 864e5) !== D.speedDay();
+  }), []);
+  /* 재언은 1시~4:30 잔다. 진행하다 보면 자는 자리도 지나가야 한다 —
+     한 판 내내 깨어 있거나 한 판 내내 자면 그건 시계가 아니다 */
+  const hours = Array.from({ length: 40 }, (_, n) => { D.setSpeedAt(n, anchor); return D.speedNow().getHours(); });
+  eq('하루가 실제로 돈다', new Set(hours).size >= 4, true);
+  D.saveMode('real');
+  eq('리얼 모드는 진짜 지금이다', Math.abs(D.nowClock() - Date.now()) < 4000, true);
 }
+/* 규칙이 시계를 둘 두지 않는다 — 하나라도 new Date()로 새면 그것만 진짜
+   시각을 보고, 스피드 모드에서 시간표와 잠이 딴말을 한다 */
+{
+  const rules = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  eq('규칙층에 진짜 시계가 안 샌다', /\|\|new Date\(\)/.test(rules), false);
+  /* 말풍선에 찍히는 시각은 진짜다. 그건 진짜로 일어난 일이다 */
+  eq('찍히는 시각은 진짜 그대로다', /const isToday=ts=>\{const d=new Date\(ts\),n=new Date\(\)/.test(rules), true);
+}
+eq('시간표도 세계 시계를 본다', /function Timetable\(\{wend,onFillWend,onClose\}\)\{[\s\S]{0,220}const now=nowClock\(\);/.test(web), true);
+/* 시계는 store가 바뀔 때마다 감는다 — 규칙들은 대화 수를 스스로 못 본다 */
+for (const [label, src] of [['웹', web], ['앱', appSrc]])
+  eq(`${label}이 시계를 감는다`, /setSpeedAt\(speedCountOf\(/.test(src), true);
 /* 하루 한 번 도장이 다 dayKey를 본다 — 스피드 모드에서 진짜 달력을 그대로
    보면 대화로 날을 넘겨도 선물은 진짜 내일까지 못 준다 */
 eq('스피드 모드의 하루는 대화가 정한다',
-  /if\(speedOn\(\)\)return "s"\+SPEED_DAY;/.test(web), true);
+  /if\(speedOn\(\)\)return "s"\+speedDay\(\);/.test(web), true);
 eq('남은 날도 두 시계를 본다',
   /if\(speedOn\(\)\)return Math\.max\(0,span-speedDaysOf\(store\)\);/.test(web)
   && /if\(speedOn\(\)\)return speedDaysOf\(store\);/.test(web), true);
 /* dayKey는 시각만 받는 순수 함수라 대화 수를 스스로 못 본다 — 앱이 넣어준다.
    안 넣으면 「s0」에 얼어붙어 선물도 자리도 영영 하루치로 잠긴다 */
-for (const [label, src] of [['웹', web], ['앱', appSrc]])
-  eq(`${label}이 오늘을 넣어준다`, /setSpeedDay\(speedDaysOf\(/.test(src), true);
+
 /* 모드는 판마다 하나고 등록 화면에서 고른다 — 중간에 바꾸면 D-N이 튄다 */
 for (const [label, src, re] of [
   ['웹', web, /<span className="lab">MODE<\/span>/],
@@ -2866,7 +2909,7 @@ eq('나온 뒤에 데려다주기를 묻는다',
   /* 지도 자리가 아니라 PLACE_BG에 없다. 자리가 자기 배경을 들고 와야 한다 */
   eq('지도에 없는 자리는 배경을 들고 온다', /scene\.shot\|\|scene\.bg\|\|PLACE_BG/.test(web), true);
   /* 낮에 보건실 나오면서 집까지 태워다 주는 건 데려다주는 게 아니라 조퇴다 */
-  eq('밤에만 데려다준다', /const wayOK=\(now\)=>\{const h=\(now\|\|new Date\(\)\)\.getHours\(\);return h>=20\|\|h<5\}/.test(web), true);
+  eq('밤에만 데려다준다', /const wayOK=\(now\)=>\{const h=\(now\|\|nowClock\(\)\)\.getHours\(\);return h>=20\|\|h<5\}/.test(web), true);
   /* 매번 나올 때마다 물으면 데려다주는 게 아니라 절차가 된다 */
   eq('하루에 한 번만 묻는다',
     /loadWay\(\)!==dayKey\(\)/.test(web) && /saveWay\(dayKey\(\)\)/.test(web), true);

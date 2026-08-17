@@ -516,7 +516,9 @@ function LogPanel({store,counts,unlocked,album}){
    몇 교시인지 들고 있고, 눌러서 다시 볼 수 있다.
    야자 감독인 주에는 경고가 하나 붙는다 — 그 주 아무 때나 들어와도 보이게. */
 function Timetable({wend,onFillWend,onClose}){
-  const now=new Date();
+  /* 세계가 보는 시계다. 스피드 모드면 진행을 따라 도는 시계라, 대화가
+     쌓이는 대로 이 표의 「지금」도 출근에서 저녁으로 내려간다 */
+  const now=nowClock();
   const wk=isWend(now), slots=daySlots(now), i=slotNow(now);
   const key=dayKey(), mine=(wend||{})[key]||[];
   const yaja=isYajaWeek(now);

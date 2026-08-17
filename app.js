@@ -17,10 +17,10 @@ function App(){
   /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 */
   const [mode,setMode]=useState(loadMode);
   const storeRef=useRef(store); storeRef.current=store;
-  /* 스피드 모드의 「오늘」을 dayKey가 볼 수 있게 넣어둔다. dayKey는 시각만
-     받는 순수 함수라 대화 수를 스스로 못 본다 — 여기가 store가 바뀔 때마다
-     지나가는 자리라 여기서 넣는다. 리얼 모드면 dayKey가 이 값을 안 본다. */
-  setSpeedDay(speedDaysOf(store));
+  /* 스피드 모드의 시계를 여기서 감는다. 규칙들은 시각만 받는 순수 함수라
+     대화 수를 스스로 못 본다 — 여기가 store가 바뀔 때마다 지나가는 자리다.
+     리얼 모드면 nowClock이 이 값을 안 본다. */
+  setSpeedAt(speedCountOf(store),firstTsOf(store));
   const profileRef=useRef(profile); profileRef.current=profile;
   const unlockedRef=useRef(unlocked); unlockedRef.current=unlocked;
   const giftsRef=useRef(gifts); giftsRef.current=gifts;

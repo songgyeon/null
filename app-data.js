@@ -41,14 +41,43 @@ const saveMode=v=>{try{localStorage.setItem("null_mode",v==="speed"?"speed":"rea
 const speedOn=()=>loadMode()==="speed";
 /* 두 방 중 많이 나눈 쪽으로 센다. 해금은 방마다 at을 따로 보므로, 한쪽만
    파도 다른 방 것은 그 방 대화 수가 막는다 — 날짜만 앞서가도 안 열린다 */
-const speedDaysOf=store=>{
-  const m=(store&&store.msgs)||{};
-  return Math.floor(Math.max((m.jaeeon||[]).length,(m.minhyun||[]).length)/SPEED_PER_DAY);
+const speedCountOf=store=>{const m=(store&&store.msgs)||{};
+  return Math.max((m.jaeeon||[]).length,(m.minhyun||[]).length)};
+const speedDaysOf=store=>Math.floor(speedCountOf(store)/SPEED_PER_DAY);
+/* 시계가 출발하는 자리. 첫 마디가 있던 날이다 */
+const firstTsOf=store=>Object.values((store&&store.msgs)||{}).flat()
+  .reduce((a,x)=>!a||(x&&x.ts<a)?(x&&x.ts)||a:a,0);
+/* ── 스피드 모드의 시계 ──
+   처음엔 날짜만 당기고 시각은 진짜 시계를 그대로 뒀다. 그런데 스피드 모드는
+   한 판이 실제 이십 분이다 — 새벽 세 시에 시작하면 판이 끝날 때까지 새벽
+   세 시고, 재언은 1시~4:30 자니까 한 번도 안 깬다. 시간표도 안 돌고 학교도
+   내내 닫혀 있다. 세계가 한 장면에 멈춘다.
+   그래서 시각도 진행을 따라 돈다. 첫 마디가 있던 날 아침 일곱 시에서
+   출발해서 한 마디에 (하루 ÷ SPEED_PER_DAY)씩 간다. 날 수가 speedDaysOf와
+   저절로 같아진다 — floor((지금-출발)/하루) = floor(n/SPEED_PER_DAY).
+   규칙들(잠·시간표·자리 여는 시각·주말)이 전부 이 시계 하나를 본다.
+   말풍선에 찍히는 시각은 진짜 시각 그대로다. 그건 진짜로 일어난 일이다.
+
+   앱이 store가 바뀔 때마다 넣어준다 — 이 함수들은 시각만 받는 순수 함수라
+   대화 수를 스스로 볼 수 없다. */
+/* 출발 시각이 네 칸의 자리를 정한다. 일곱 시로 두면 7·13·19·1시가 되는데
+   일곱 시엔 민현이 자고(4:30~8) 한 시엔 재언이 자서 네 칸 중 둘이 반쪽이다.
+   여덟 시면 8·14·20·2시다 — 출근·수업·저녁·밤에 얹히고, 자는 사람이 있는
+   칸은 밤 하나뿐이다. 그 한 칸도 민현은 깨 있다(22~4:30). */
+const SPEED_START_HOUR=8;
+let SPEED_N=0, SPEED_ANCHOR=0;
+const setSpeedAt=(n,firstTs)=>{
+  SPEED_N=Math.max(0,Math.floor(Number(n)||0));
+  SPEED_ANCHOR=Number(firstTs)||0;
 };
-/* 스피드 모드의 「오늘」. dayKey는 시각만 받는 순수 함수라 대화 수를 스스로
-   볼 수 없다 — 앱이 store가 바뀔 때마다 넣어준다 */
-let SPEED_DAY=0;
-const setSpeedDay=n=>{SPEED_DAY=Math.max(0,Math.floor(Number(n)||0))};
+const speedDay=()=>Math.floor(SPEED_N/SPEED_PER_DAY);
+const speedNow=()=>{
+  const a=new Date(SPEED_ANCHOR||Date.now());
+  a.setHours(SPEED_START_HOUR,0,0,0);
+  return new Date(a.getTime()+SPEED_N*(864e5/SPEED_PER_DAY));
+};
+/* 세계가 보는 지금. 리얼 모드면 진짜 지금이다 */
+const nowClock=()=>speedOn()?speedNow():new Date();
 /* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
 const loadExtend=()=>{try{return +localStorage.getItem("null_extend")||0}catch(e){return 0}};
 /* 첫날의 통보. 하루가 끝나기 전에 판돈을 알려준다 — 방법은 빼고.
@@ -295,11 +324,11 @@ const fmtDay=ts=>{const d=new Date(ts),y=d.getFullYear();
    때만 준다. presence와 같은 시계를 봐야 한다 — 방 목록에는 「야자」라고
    떠 있는데 인물은 아침인 줄 알고 말하면 그게 제일 이상하다.
    서버에서 재면 안 된다. 워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때다. */
-const timeWord=now=>{const h=(now||new Date()).getHours();
+const timeWord=now=>{const h=(now||nowClock()).getHours();
   return h<2?"밤":h<6?"새벽":h<11?"아침":h<17?"낮":h<21?"저녁":"밤"};
 /* 요일은 때보다 세다. 주말이면 학교가 통째로 없어지고, 그러면 이 셋을
    묶고 있던 건물이 사라진다 — 만나려면 학교 밖으로 나가야 한다 */
-const dayWord=now=>"일월화수목금토"[(now||new Date()).getDay()]+"요일";
+const dayWord=now=>"일월화수목금토"[(now||nowClock()).getDay()]+"요일";
 /* ── 자는 사람은 먼저 말을 안 건다 ──
    새벽 세 시에 앱을 처음 켜면 둘 다 몇 초 안에 인사를 보냈다. 목록에는
    「자는 중」이라고 떠 있는데 그 사람 말풍선이 왔다.
@@ -398,7 +427,7 @@ const WEND_OPEN=[
   {place:"버스정류장", room:"minhyun", bg:"minhyun-busstop.webp", note:"버스를 기다렸다."},
 ];
 const openingFor=now=>{
-  const d=now||new Date(), h=d.getHours();
+  const d=now||nowClock(), h=d.getHours();
   if(isWend(d)){
     /* 지도에 없는 자리(골목·정류장)는 여는 시각이 없다. 늘 후보다 */
     const open=WEND_OPEN.filter(o=>{const p=PLACE_BY[o.place];return !p||placeHours(p,d)});
@@ -418,7 +447,7 @@ const openingFor=now=>{
    시간표가 사람을 놓아주는 날이라 「주말」이 뜬다. 잠은 주말에도 잔다.
    isWend를 안 부르고 요일을 직접 본다 — 테스트가 이 함수만 떼어 돌린다. */
 function presence(id, now){
-  const d=now||new Date(), h=d.getHours(), mm=h*60+d.getMinutes();
+  const d=now||nowClock(), h=d.getHours(), mm=h*60+d.getMinutes();
   const wend=d.getDay()===0||d.getDay()===6;
   /* ?awake로 깨워둔 사람은 자는 자리를 건너뛴다. 시험이 이 함수만 떼어
      돌리므로 그쪽에는 forcedAwake가 없다 — 없으면 없는 대로 잔다 */
@@ -630,25 +659,25 @@ const DAY_SLOTS=[
 const WEND_SLOTS=4;      // 주말은 이름이 없다. 유저가 넷을 직접 채운다
 /* 격주. 어느 주부터인지는 유저 사정이 아니라 학교 사정이라 달력으로 센다 */
 const weekNo=d=>Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7);
-const isYajaWeek=(now)=>weekNo(now||new Date())%2===0;
-const isWend=d=>{const w=(d||new Date()).getDay();return w===0||w===6};
+const isYajaWeek=(now)=>weekNo(now||nowClock())%2===0;
+const isWend=d=>{const w=(d||nowClock()).getDay();return w===0||w===6};
 /* 오늘 시간표. 야자는 담당인 목요일에만 붙고, 주말은 아예 칸이 없다 —
    학교가 정해주는 하루가 아니라 유저가 적는 하루라서 */
 const daySlots=(now)=>{
-  const d=now||new Date();
+  const d=now||nowClock();
   if(isWend(d))return [];
   const yaja=isYajaWeek(d)&&d.getDay()===4;
   return DAY_SLOTS.filter(s=>s.k!=="야자"||yaja);
 };
 /* 지금 몇 번째 칸인가. 아직 출근 전이면 -1, 다 끝났으면 마지막 칸 */
 const slotNow=(now)=>{
-  const d=now||new Date(), m=d.getHours()*60+d.getMinutes(), list=daySlots(d);
+  const d=now||nowClock(), m=d.getHours()*60+d.getMinutes(), list=daySlots(d);
   let i=-1; list.forEach((s,n)=>{if(m>=s.at)i=n});
   return i;
 };
 /* 상태 버튼에 뜨는 말. 시간표는 「수업」 한 덩이지만 여기서는 교시를 센다 */
 const nowLabel=(now)=>{
-  const d=now||new Date();
+  const d=now||nowClock();
   if(isWend(d))return d.getDay()===6?"토요일":"일요일";
   const m=d.getHours()*60+d.getMinutes();
   for(const [a,b,n] of PERIODS){ if(m>=a&&m<b)return n+"교시"; }
@@ -668,7 +697,7 @@ const nowLabel=(now)=>{
    내일까지 못 준다. 그러면 빠른 게 빠른 게 아니다. 스피드 모드의 하루는
    네 마디라, 네 마디 나누면 도장도 같이 넘어간다. */
 const dayKey=now=>{
-  if(speedOn())return "s"+SPEED_DAY;
+  if(speedOn())return "s"+speedDay();
   const d=new Date(now||Date.now()); if(d.getHours()<5)d.setDate(d.getDate()-1);
   return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
 const loadDaySeen=()=>{try{return localStorage.getItem("null_dayseen")||""}catch(e){return""}};
@@ -726,7 +755,7 @@ const placeOpen=(p,been)=>been.includes(p.name)||(p.need||[]).every(n=>been.incl
    시계는 presence·timeWord와 같은 것을 본다. 방 목록에 「자는 중」이라고 떠
    있는데 그 사람 집에 갈 수 있으면 그게 제일 이상하다. */
 const placeHours=(p,now)=>{
-  const d=now||new Date(), wend=d.getDay()===0||d.getDay()===6;
+  const d=now||nowClock(), wend=d.getDay()===0||d.getDay()===6;
   /* 주말엔 학교가 없다. 재언은 출근을 안 하고 민현은 야자가 없다 —
      교실·보건실·옥상이 통째로 닫힌다(wend:false). 그래서 주말은 학교 밖에서
      일부러 만나야만 하는 날이 된다. 집은 낮에도 사람이 있다(wend:[11,2]).
@@ -768,13 +797,13 @@ const SCENE_SHOT={
 const WAY="귀갓길";
 const WAY_BG={jaeeon:"jaeeon-drive.webp", minhyun:"minhyun-bus.webp"};
 /* 밤에, 말을 나누고 나온 자리에서만. 그리고 하루에 한 번 */
-const wayOK=(now)=>{const h=(now||new Date()).getHours();return h>=20||h<5};
+const wayOK=(now)=>{const h=(now||nowClock()).getHours();return h>=20||h<5};
 const loadWay=()=>{try{return localStorage.getItem("null_way")||""}catch(e){return""}};
 const saveWay=v=>{try{localStorage.setItem("null_way",v)}catch(e){}};
 /* 그 자리·그 사람·그 시간에 맞는 사진 하나. 없으면 빈 방 그대로 */
 const sceneShot=(place,who,now)=>{
   const t=(SCENE_SHOT[place]||{})[who]; if(!t)return null;
-  const h=(now||new Date()).getHours();
+  const h=(now||nowClock()).getHours();
   const list=Array.isArray(t)?t:(h>=17?t.eve:t.day)||t.day||[];
   return list.length?list[Math.floor(Math.random()*list.length)]+".webp":null;
 };
@@ -816,7 +845,7 @@ const stampGone=(place,now)=>saveGone({...loadGone(),[place]:dayKey(now)});
    교실이 열리는 것(문틈 해제)과 학교 밖에 나오는 것은 다른 일이다. */
 const AT_WORK=["보건실","수업 중","점심","야자"];
 const freeOut=(id,now)=>{
-  const d=now||new Date(), pr=presence(id,d);
+  const d=now||nowClock(), pr=presence(id,d);
   if(!pr||pr.s==="off")return false;
   return isWend(d)||!AT_WORK.includes(pr.t);
 };
@@ -876,12 +905,12 @@ const giftSpots=(char,met,now)=>SPOTS.filter(p=>placeOpen(p,met)).map(p=>{
 });
 
 /* 주말에만 가는 자리 */
-const wendOnlyOk=(p,now)=>!p.wendOnly||isWend(now||new Date());
+const wendOnlyOk=(p,now)=>!p.wendOnly||isWend(now||nowClock());
 
 /* 왜 지금은 못 가는지 한 줄. 주말의 학교는 시간이 아니라 날이 문제라
    시각을 적어주면 거짓말이 된다 — 여덟 시가 돼도 안 열린다 */
 const placeWhen=(p,now)=>{
-  const d=now||new Date(), wend=d.getDay()===0||d.getDay()===6;
+  const d=now||nowClock(), wend=d.getDay()===0||d.getDay()===6;
   const w=wend&&("wend" in p)?p.wend:p.hours;
   if(w===false)return "weekdays only";
   if(!w)return "";
