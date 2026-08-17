@@ -970,25 +970,31 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
              한가운데에 뿅 나온다. 화면을 가득 채우지는 않는다 —
              여기는 사물함 안이지 다른 화면이 아니다 */
           /* 나갈 데가 머리글 하나뿐이면 못 찾는다. 뒤에 깔린 사물함을 누르면
-             돌아간다 — 열린 문 바깥은 전부 「닫기」다 */
+             돌아간다 — 열린 문 바깥은 전부 「닫기」다.
+             열린 문짝도 「닫기」다. 전에는 .cabpop이 통째로 클릭을 삼켜서
+             활짝 열린 그 문을 눌러도 아무 일이 없었다 — 문을 눌러 닫는 건
+             제일 먼저 해보는 손짓이다. 이제 삼키는 건 TV 화면 넷뿐이고,
+             문짝·테두리·바닥은 전부 닫힌다. */
           return <div className="cabin" role="button" tabIndex={0}
             onClick={()=>setLevel("town")}
             onKeyDown={e=>{if(e.key==="Escape"||e.key==="Enter"){e.preventDefault();setLevel("town")}}}>
             {cabinet(true)}
-            <div className="cabpop" onClick={e=>e.stopPropagation()}>
+            <div className="cabpop">
               <img src="cab-icons/open.webp" alt="" aria-hidden="true"/>
               {PLACES.filter(p=>p.map==="school").map(p=>{
                 const q=TV_QUAD[p.name]; if(!q)return null;
                 const open=placeOpen(p,met), nowOk=placeHours(p)&&!goneToday(p.name);
                 /* 다녀온 표시는 안 한다. TV 화면 위에 테두리를 두르면
                    그림 위에 그림이 하나 더 얹힌다 */
-                const go=()=>onGoPlace(p.name);
+                /* 여기서 클릭을 멈춘다. 안 멈추면 바깥의 「닫기」까지 굴러가서
+                   자리를 고르자마자 사물함이 닫히고 창만 덩그러니 남는다 */
+                const go=e=>{if(e)e.stopPropagation();onGoPlace(p.name)};
                 return <span key={p.name}
                   className={"tvq"+(open?"":" lock")+(open&&!nowOk?" shut":"")}
                   style={{left:q.x+"%",top:q.y+"%",width:TV_QUAD_W+"%",height:TV_QUAD_H+"%"}}
                   role="button" tabIndex={0}
                   onClick={go}
-                  onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}}
+                  onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go(e)}}}
                   aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}/>;
               })}
             </div>

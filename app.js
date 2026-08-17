@@ -453,6 +453,20 @@ function App(){
        호출부마다 붙이지 않고 여기서 한 번에 얹는다 — 한 군데만 빠뜨려도
        그 경로에서만 기억을 잃는데, 그건 눈으로 찾기 어렵다. */
     if(payload.mode==="chat"){ const t=loadSum(payload.room||bucket).text; if(t)payload.summary=t; }
+    /* 자는 사람은 답이 없다. 목록의 점과 같은 시계(presence)를 본다.
+       마주 앉아 있을 때(place)는 안 본다 — 눈앞에 있는 사람이 자고 있으면
+       그건 자리가 닫힐 일이지 답이 없을 일이 아니다.
+       지문을 한 줄 남긴다. 아무것도 안 뜨면 보낸 사람은 고장으로 읽는다.
+       같은 줄을 연달아 쌓지는 않는다 — 다섯 번 말 걸면 다섯 줄이 된다. */
+    if(payload.mode==="chat"&&!payload.place&&allAsleep(payload.room||bucket)){
+      const who=payload.room==="group"?null:CHARS[payload.room||bucket];
+      const line=who?`${jos(who.name,"은/는")} 자고 있다`:"둘 다 자고 있다";
+      const ms=storeRef.current.msgs[bucket]||[];
+      const last=ms[ms.length-1];
+      if(!last||!last.sys||last.text!==line)
+        appendMsg(bucket,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
+      return;
+    }
     inflightRef.current[bucket]=true;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));

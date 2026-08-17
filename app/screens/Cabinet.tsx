@@ -163,9 +163,12 @@ function TvPop({ met, now, onGoPlace }:
     opacity:a.interpolate({ inputRange:[0, .55, 1], outputRange:[0, 1, 1], extrapolate:'clamp' }),
     transform:[{ scale:a.interpolate({ inputRange:[0, 1], outputRange:[.16, 1] }) }],
   }]}>
-    {/* 열린 문 위에서는 안 닫힌다 — 웹의 stopPropagation 자리다. RN에서는
-        자식이 터치를 잡으면 부모의 onPress가 안 뜨므로 빈 Pressable이 그 일을 한다 */}
-    <Pressable onPress={() => {}} style={{ width:'100%' }}>
+    {/* 열린 문짝도 「닫기」다. 전에는 이 자리에 빈 Pressable이 있어서 그림
+        전체가 터치를 삼켰고, 활짝 열린 그 문을 눌러도 아무 일이 없었다 —
+        문을 눌러 닫는 건 제일 먼저 해보는 손짓이다. 이제 삼키는 것은 TV
+        화면 넷뿐이라, 문짝·테두리·바닥은 뒤의 사물함까지 터치가 내려가
+        닫힌다. 웹에서 .cabpop의 stopPropagation을 걷어낸 것과 같은 일이다 */}
+    <View style={{ width:'100%' }}>
       {/* .cabpop의 drop-shadow(0 10px 0 rgba(93,84,144,.22)). 문짝과 같은 수법이다 —
           같은 그림을 보라로 물들여 10만큼 내려 뒤에 깐다. 뷰에 그림자를 주면
           열린 문짝의 뚫린 자리까지 네모로 메워져서, 사물함 안에 선 TV가 아니라
@@ -188,7 +191,7 @@ function TvPop({ met, now, onGoPlace }:
             { left:pct(q.x), top:pct(q.y), width:pct(TV_QUAD_W), height:pct(TV_QUAD_H) },
             !open && T.qLock, open && !nowOk && T.qShut, pressed && T.qOn]}/>;
       })}
-    </Pressable>
+    </View>
   </Animated.View>;
 }
 const T = StyleSheet.create({

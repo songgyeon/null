@@ -1047,7 +1047,9 @@ We Are Lady Parts, Heartstopper, SKAM, Derry Girls, Reservation Dogs, My Mad Fat
 
 평범한 화제를 억지로 두 사람의 관계로 끌어오지 않는다. 라면 이야기는 라면으로, 음악 이야기는 음악으로 이어갈 수 있다. 감정은 그 대화 속에서 자연스럽게 샐 때만 나온다.
 
-삼촌 이야기는 실제로 관련 있을 때만 한다. 유저와 둘이 이야기하는 매 순간 이재언의 근황이나 마음을 꺼내지 않는다.
+삼촌은 신경 쓰이지만 유저와 둘이 이야기할 때는 꺼내지 않는 주제다. 유저가 먼저 꺼내지 않는 이상 이민현 쪽에서 이재언을 화제로 열지 않는다 — 근황도, 마음도, 방금 둘이 얘기했는지도 묻지 않는다. [눈치 신호]에 저쪽 방이 활발하다고 적혀 있어도 그건 알고만 있는 것이지 꺼낼 화제가 아니다. 유저가 꺼내면 그때는 평소대로 답한다.
+
+이재언이 같이 있는 자리는 다르다. 단톡방과 둘만 있는 자리에서는 눈앞의 사람이므로 평소대로 대한다.
 
 유저의 짧은 대답을 비웃거나 중계하지 않는다. 짧은 대답도 직전 맥락에서 동의, 망설임, 거절, 장난 중 무엇인지 읽고 자연스럽게 다음 말을 한다.
 
@@ -2236,6 +2238,24 @@ function dropMeta(list) {
   return out;
 }
 
+/* ── 자는 사람은 말이 없다 ──
+   1:1은 프론트가 아예 안 부른다(app.js의 allAsleep). 남는 건 단톡방이다 —
+   새벽 두 시면 재언은 자고 민현은 깨어 있어서 호출은 정상인데, 그 방에서
+   자는 쪽까지 대답해버리면 목록에는 「자는 중」이 떠 있는 사람이 말을 하는
+   그림이 된다. [지금] 줄로 이미 알려주지만 그건 부탁이고 이건 자물쇠다.
+   프론트가 보낸 states를 그대로 본다 — 화면과 같은 시계다.
+   자리에 같이 있는 턴에는 안 본다(states를 null로 받는다): 마주 앉은 자리에
+   상태를 안 싣는 것과 같은 이유고, 눈앞의 사람 말풍선을 지울 일은 없다.
+   다 지워서 빈 답이 되면 지우지 않는다 — 빈 화면은 고장으로 읽힌다. */
+const SLEEP_WORDS = ["자는 중", "꺼짐"];
+function dropSleepers(list, states) {
+  if (!states) return list;
+  const out = (list || []).filter(m => !SLEEP_WORDS.includes(states[m && m.sender]));
+  if (!out.length || out.length === (list || []).length) return list;
+  console.log(`[NULL] 자는 사람의 말을 버렸다 ▶ ${(list.length - out.length)}개`);
+  return out;
+}
+
 const NAME_TO_ID = { "이재언": "jaeeon", "이민현": "minhyun" };
 /* 말풍선 앞에 붙는 이름표. 성을 뗀 것까지 받는다 — 모델이 「재언: 」으로 쓴다.
    「삼촌」은 안 넣는다. 부르는 말이라 「삼촌, 아까 그 커피」가 통째로 잘려나간다. */
@@ -2729,7 +2749,9 @@ export default {
       const invite = pickInvite(parseMessages.invite, place ? [] : openPlaces);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
       const give = pickGive(parseMessages.give, place, hasItem);
-      const messages = trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos));
+      const messages = dropSleepers(
+        trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
+        place ? null : states);
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
         ...(invite ? { invite: { place: invite, char: room } } : {}),
@@ -2744,5 +2766,5 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, dropMeta, buildSystem, buildVolatile, budgetHistory,
+export { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace };

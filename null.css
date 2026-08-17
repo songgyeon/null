@@ -117,6 +117,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .menubar svg{flex:none}
 /* 관찰 버튼은 이 줄에서 제일 눌릴 것이다. 얘부터 줄이면 안 된다 */
 .moonbtn{flex:none}
+/* 폭을 픽셀로 맞춰놨더니 글꼴이 바뀔 때마다 다시 넘쳤다 — Galmuri가 안 실린
+   화면에서 재면 남고, 실린 화면에서는 peek이 창 밖으로 밀려 잘린다.
+   숫자로 맞추는 대신 줄어들 순서를 정한다: 글자 항목은 자리가 모자라면
+   줄고(min-width:0이라야 글자 폭 아래로도 준다), 오른쪽 두 알약은 안 준다.
+   그래서 무슨 글꼴이 실리든 넘치는 쪽은 늘 왼쪽 글자다. */
+.mbtn,.ddwrap{flex:0 1 auto;min-width:0;overflow:hidden}
 
 .mbtn.open{color:#4a4276;background:#fff;box-shadow:0 0 0 1px #cfc6ee}
 .bevel{font-family:inherit;color:#4a4276;background:#ece8fa;border:1px solid #5d5490;cursor:pointer;

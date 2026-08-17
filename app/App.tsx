@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  openingFor, canGreet, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  openingFor, canGreet, allAsleep, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
 
@@ -1639,6 +1639,20 @@ function Root() {
     const ls=lastSent.current;
     const said=ls&&ls.room===room?ls.text:undefined;   // 각본을 고를 때만 쓴다
     if(demoOn()){ setTyping(false); await enqueue(room,demoReply(room,said,name)); return; }
+    /* 자는 사람은 답이 없다 — 웹 app.js의 request와 같은 자리, 같은 시계다.
+       마주 앉아 있을 때는 안 본다: 눈앞의 사람이 자고 있으면 그건 자리가
+       닫힐 일이지 답이 없을 일이 아니다. 지문을 한 줄 남긴다 — 아무것도 안
+       뜨면 보낸 사람은 고장으로 읽는다. 같은 줄을 연달아 쌓지는 않는다. */
+    const sc0=sceneRef.current;
+    if(!(sc0&&sc0.room===room)&&allAsleep(room)){
+      setTyping(false);
+      const who=room==='group'?null:CHARS[room];
+      const line=who?`${jos(who.name,'은/는')} 자고 있다`:'둘 다 자고 있다';
+      const ms=await getMsgs(room);
+      const last=ms[ms.length-1];
+      if(!(last&&last.sender==='sys'&&last.text===line)) await sysLine(room,line);
+      return;
+    }
     try{
       const hist=await getMsgs(room);
       /* 마주 앉은 자리면 어디인지 같이 보낸다. 안 보내면 같은 자리에 앉아서

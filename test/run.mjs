@@ -5,7 +5,7 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta } from '../worker.js';
+         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers } from '../worker.js';
 import worker from '../worker.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -543,6 +543,45 @@ eq('일어나는 시각과 말 거는 시각이 같다',
 eq('선톡 시계는 목록의 점과 같은 것 하나다', /GREET_FROM/.test(web), false);
 eq('점이 꺼진 사람은 안 건다',
   /const canGreet=\(id,now\)=>\{\s*\n\s*const pr=presence\(id,now\);\s*\n\s*return !pr\|\|pr\.s!=="off";/.test(web), true);
+/* ── 자는 사람은 답도 없다 ──
+   먼저 안 거는 것만으로는 모자랐다. 밤에 말을 걸면 답은 꼬박꼬박 왔고,
+   대신 재언이 「자요, 이제」를 서른세 분에 열다섯 번 말했다 — 끝내려는
+   사람이 끝낼 수가 없었다. 무슨 말을 걸든 반드시 답이 오는 세계에는
+   「답하지 않는다」는 수가 없어서다. 같은 시계의 off를 반대쪽에서도 본다 */
+{
+  const src = web.slice(web.indexOf('function presence'));
+  const A = new Function(src.slice(0, src.indexOf('\n}\n') + 3)
+    + 'const asleep=(id,now)=>{const pr=presence(id,now);return !!pr&&pr.s==="off"};'
+    + 'const allAsleep=(room,now)=>(room==="group"?["jaeeon","minhyun"]:[room]).every(id=>asleep(id,now));'
+    + '\nreturn allAsleep;')();
+  const at = (h, m) => new Date(2026, 0, 6, h, m || 0);
+  eq('자는 시간에는 안 부른다', A('jaeeon', at(2)), true);
+  eq('깨어 있으면 부른다', A('jaeeon', at(23)), false);
+  /* 단톡방은 한 사람만 깨 있어도 답이 온다 — 새벽 두 시의 민현이 그렇다 */
+  eq('단톡방은 둘 다 자야 조용하다',
+    [A('group', at(2)), A('group', at(5)), A('group', at(23))], [false, true, false]);
+  /* 마주 앉아 있으면 안 본다 — 눈앞의 사람이 자는 건 자리가 닫힐 일이다 */
+  eq('자리에서는 이 규칙을 안 본다', /mode==="chat"&&!payload\.place&&allAsleep\(/.test(web), true);
+  /* 아무것도 안 뜨면 보낸 사람은 고장으로 읽는다 */
+  eq('지문을 한 줄 남긴다', /자고 있다`/.test(web), true);
+  /* 다섯 번 말 걸면 다섯 줄이 되면 안 된다 */
+  eq('같은 줄을 연달아 안 쌓는다', /!last\.sys\|\|last\.text!==line/.test(web), true);
+  /* 단톡방에서 자는 쪽의 말풍선은 워커가 지운다 — [지금] 줄은 부탁이고 이건 자물쇠다 */
+  const D = (list, states) => dropSleepers(list, states).map(m => m.sender);
+  const two = [{ sender:'jaeeon', text:'ㄱ' }, { sender:'minhyun', text:'ㄴ' }];
+  eq('자는 사람 말풍선을 지운다', D(two, { jaeeon:'자는 중', minhyun:'안 자는 중' }), ['minhyun']);
+  eq('민현의 꺼짐도 같이 본다', D(two, { jaeeon:'집', minhyun:'꺼짐' }), ['jaeeon']);
+  eq('깨어 있으면 안 건드린다', D(two, { jaeeon:'집', minhyun:'야자' }), ['jaeeon', 'minhyun']);
+  /* 다 지우면 빈 답이 된다 — 빈 화면은 고장으로 읽힌다 */
+  eq('다 자면 차라리 그대로 둔다', D(two, { jaeeon:'자는 중', minhyun:'꺼짐' }), ['jaeeon', 'minhyun']);
+  /* 앱도 같은 자리에서 같은 시계를 본다 — 한쪽만 고치면 두 화면이 갈린다 */
+  eq('앱도 자는 사람은 안 부른다',
+    /if\(!\(sc0&&sc0\.room===room\)&&allAsleep\(room\)\)\{/.test(appSrc)
+    && /자고 있다`/.test(appSrc), true);
+  /* 자리에 같이 있는 턴에는 states를 안 넘긴다 */
+  eq('자리에서는 워커도 안 지운다',
+    /place \? null : states\)/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), true);
+}
 /* 거는 길이 둘이다 — 목록에 앉아 있을 때, 그리고 방을 열 때 */
 eq('선톡 함수 안에서도 막는다', /if\(!canGreet\(id\)\)return;/.test(web), true);
 /* 뽑고 나서 막으면 그 판은 아무도 안 건다. 새벽에는 제일 오래 조용한 쪽이
@@ -3017,8 +3056,19 @@ eq('마을과 학교 안은 화면이 다르다',
   && /return <div className="cabin" role="button"/.test(web), true);
 /* 나갈 데가 머리글 하나뿐이면 못 찾는다. 열린 문 바깥은 전부 「닫기」다 */
 eq('뒤를 누르면 마을로 돌아온다',
-  /onClick=\{\(\)=>setLevel\("town"\)\}/.test(web)
-  && /<div className="cabpop" onClick=\{e=>e\.stopPropagation\(\)\}>/.test(web), true);
+  /onClick=\{\(\)=>setLevel\("town"\)\}/.test(web), true);
+/* 문짝도 「닫기」다. .cabpop이 통째로 클릭을 삼키던 때는 활짝 열린 그 문을
+   눌러도 아무 일이 없었다. 이제 삼키는 건 TV 화면 넷뿐이다 —
+   그래서 자리를 고를 때는 tvq가 클릭을 멈춰야 한다. 안 멈추면 자리를
+   고르자마자 사물함이 닫히고 창만 덩그러니 남는다. 앱도 같이 본다 */
+{
+  const cab = readFileSync(join(ROOT, 'app/screens/Cabinet.tsx'), 'utf8');
+  eq('문을 눌러도 닫힌다', /<div className="cabpop">/.test(web)
+    && !/cabpop" onClick/.test(web), true);
+  eq('앱도 문을 안 삼킨다', !/<Pressable onPress=\{\(\) => \{\}\}/.test(cab), true);
+  eq('자리를 고를 때는 안 닫힌다',
+    /const go=e=>\{if\(e\)e\.stopPropagation\(\);onGoPlace\(p\.name\)\}/.test(web), true);
+}
 /* TV 화면 위에 테두리를 두르면 그림 위에 그림이 하나 더 얹힌다 */
 eq('TV 칸에는 다녀온 테두리를 안 두른다', /\.tvq\.been\{/.test(web), false);
 /* 나가기는 단추를 더 놓지 않고 제목 자리가 대신한다 */
