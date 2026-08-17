@@ -529,9 +529,15 @@ const ITEM_CATS=["전체","간식","소품","기록"];
    민현이 그날 남는 것도 강제가 아니라서 성격이 된다. 갈 데가 없는 애다. */
 const PERIODS=[[520,570,1],[580,630,2],[640,690,3],[700,750,4],
                [810,860,5],[870,920,6],[930,980,7]];   // 분 단위 · 시작·끝·교시
+/* 마지막 칸이 NULL인 이유.
+   학교가 하루를 채워준다 — 출근·수업·점심·퇴근·저녁까지는 시간표가 이 사람이
+   어디서 뭘 하는지 정해준다. 그게 끝나면 정해주는 것이 없다. 교생의 하루는
+   학교 것이고, 그 밖에서 이 사람은 값이 비어 있다. 전에는 저녁 칸이 밤 열한
+   시까지 그대로 켜져 있었다 — 여섯 시간을 「저녁」이라고 우기고 있었던 셈이다.
+   스물한 시는 timeWord가 「밤」으로 넘어가는 경계다. 시계를 둘 두지 않는다. */
 const DAY_SLOTS=[
   {k:"출근",at:480},{k:"수업",at:520},{k:"점심",at:750},{k:"수업",at:810},
-  {k:"퇴근",at:990},{k:"저녁",at:1020},{k:"야자",at:1110},
+  {k:"퇴근",at:990},{k:"저녁",at:1020},{k:"야자",at:1110},{k:"NULL",at:1260},
 ];
 const WEND_SLOTS=4;      // 주말은 이름이 없다. 유저가 넷을 직접 채운다
 /* 격주. 어느 주부터인지는 유저 사정이 아니라 학교 사정이라 달력으로 센다 */
@@ -562,7 +568,10 @@ const nowLabel=(now)=>{
   if(m>=PERIODS[3][1]&&m<PERIODS[4][0])return "점심";
   if(m>=PERIODS[4][0]&&m<PERIODS[6][1])return "쉬는시간";
   const i=slotNow(d);
-  return i<0?"등교전":daySlots(d)[i].k;
+  /* 자정을 넘겨도 하루는 안 바뀐다 — 경계는 새벽 다섯 시다(dayKey와 같다).
+     그 시간의 교생에게 학교가 정해준 칸은 없다. 어제의 NULL이 그대로 이어진다.
+     다섯 시부터 출근 전까지가 등교전이다. */
+  return i<0?(d.getHours()<5?"NULL":"등교전"):daySlots(d)[i].k;
 };
 /* 하루의 경계는 자정이 아니라 새벽 다섯 시다. 새벽 두 시에 여는 건 어제의
    연장이지 새 하루가 아니다 — 대화 도중에 날짜가 넘어가면 그게 제일 이상하다 */
@@ -594,13 +603,20 @@ const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch
    받침 없는 쪽으로 읽는다 — 「엘피를」 「씨디를」이 자연스럽다. */
 const jos=(w,pair)=>{
   const [a,b]=pair.split("/");
-  const c=(w||"").trim().slice(-1).charCodeAt(0);
-  if(!(c>=0xac00&&c<=0xd7a3))return w+b;          // 한글 음절이 아니면 받침 없음으로
-  const f=(c-0xac00)%28;
+  const s=(w||"").trim();
+  const c=s.slice(-1).charCodeAt(0);
+  let batchim, rieul;
+  if(c>=0xac00&&c<=0xd7a3){ const f=(c-0xac00)%28; batchim=!!f; rieul=(f===8); }
+  else{
+    /* 한글이 아니면 읽는 소리로 정한다. LP·CD는 「엘피」「씨디」로 읽혀 받침이
+       없지만, NULL은 「널」이라 받침이 있다 — 「NULL예요」가 아니라 「NULL이에요」다.
+       ㄹ·ㅁ·ㄴ으로 끝나 읽히는 글자만 받침 쪽으로 본다. */
+    batchim=/[lmnr]$/i.test(s); rieul=/l$/i.test(s);
+  }
   /* 「~(으)로」만 예외가 하나 있다 — ㄹ받침은 받침 없는 쪽과 같다.
      「교실으로」가 아니라 「교실로」다. 다른 조사쌍에는 없는 규칙이다 */
-  if(a==="으로"&&f===8)return w+b;
-  return w+(f?a:b);
+  if(a==="으로"&&rieul)return w+b;
+  return w+(batchim?a:b);
 };
 const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}catch(e){return[]}};
 const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a))}catch(e){}};
