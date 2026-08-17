@@ -2204,9 +2204,36 @@ eq('말이 끊긴 지 한 시간이면 자리가 끝난다', /Date\.now\(\)-last
 eq('한 시간은 자리 비움의 기준과 같은 자다', /AUTO_AWAY=60\*60\*1000/.test(web), true);
 eq('나갈 때와 같은 규칙으로 닫는다 — 두고 온 것도 챙기고 한 줄 남긴다', (() => {
   const i = web.indexOf('접어둔 자리는 시간에 맞춰 끝난다');
-  const t = web.slice(i, i + 1800);
+  const t = web.slice(i, i + 2400);
   return t.includes('closeScene();') && t.includes('에서 나왔다');
 })(), true);
+/* 말없이 끝나 있으면 세계가 돌아간 게 아니라 꺼져 있던 거다 */
+eq('닫고 나서 인사를 부른다 — 먼저 간 사람이 말을 남긴다', (() => {
+  const i = web.indexOf('접어둔 자리는 시간에 맞춰 끝난다');
+  return web.slice(i, i + 2400).includes('request(sc.room');
+})(), true);
+
+/* ── 대화 중에도 때는 온다 ──
+   말만 계속 걸면 침묵 한 시간이 영영 안 차서, 보건실에 새벽까지 앉아
+   있을 수 있었다 — 재언은 다섯 시에 퇴근하는 사람인데. 때는 있는 시계
+   둘로 잰다: 자리의 문 닫는 시간(placeHours)과 그 사람이 자는 시간
+   (presence off). 인물이 대답에서 마무리하고 일어서고, 말풍선이 다 뜨면
+   프론트가 자리를 닫는다 — 닫는 걸 모델에 맡기면 영영 안 닫힌다. */
+eq('자리의 때를 있는 시계 둘로 잰다', /const sceneOver=\(sc,now\)=>/.test(web)
+  && /if\(p&&!placeHours\(p,now\)\)return true;/.test(web)
+  && /return !!pr&&pr\.s==="off";/.test(web), true);
+eq('귀갓길은 안 본다 — 원래 곧 끝나는 자리다',
+  /if\(!sc\|\|sc\.place===WAY\)return false;/.test(web), true);
+eq('때가 지나면 보내는 말에 실린다', /sceneOver\(sc\)\?\{place_over:true\}/.test(web), true);
+eq('답이 다 뜬 뒤에 자리가 닫힌다 — 인사보다 「나왔다」가 먼저면 거꾸로다',
+  /if\(payload\.place_over\)\{/.test(web), true);
+eq('접어두고 떠난 자리도 때가 지나면 닫힌다',
+  /Date\.now\(\)-last<AUTO_AWAY&&!sceneOver\(sc\)/.test(web), true);
+eq('워커가 때를 받으면 일어서라고 말한다',
+  buildPlace('보건실', true, 'jaeeon', true).includes('이 자리는 여기까지다')
+  && !buildPlace('보건실', true, 'jaeeon').includes('이 자리는 여기까지다'), true);
+eq('가변부까지 실려 나간다', buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 5 },
+  null, null, [], 1, '보건실', true, '저녁', '화요일', null, true).includes('이 자리는 여기까지다'), true);
 
 /* ── 교실 문틈 ──
    수업 중의 교실에서 마주 앉아 떠들었다. 수업 중인 애랑 대화가 될 리 없다 —

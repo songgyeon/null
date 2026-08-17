@@ -646,6 +646,20 @@ const sceneShot=(place,who,now)=>{
   return list.length?list[Math.floor(Math.random()*list.length)]+".webp":null;
 };
 
+/* ── 이 자리가 끝날 때 ──
+   말만 계속 걸면 침묵 한 시간이 영영 안 차서, 보건실에 새벽까지 앉아 있을
+   수 있었다. 때는 새 시계가 아니라 있는 시계 둘로 정한다 — 자리의 문 닫는
+   시간(placeHours)과 그 사람이 자는 시간(presence off). 재언은 다섯 시
+   퇴근이고 문 닫는 데서는 나가야 한다.
+   귀갓길은 안 본다 — 원래 곧 끝나는 자리다. */
+const sceneOver=(sc,now)=>{
+  if(!sc||sc.place===WAY)return false;
+  const p=PLACE_BY[sc.place];
+  if(p&&!placeHours(p,now))return true;
+  const pr=presence(sc.room,now);
+  return !!pr&&pr.s==="off";
+};
+
 /* ── 하루에 한 자리는 한 번 ──
    같은 데를 하루에 세 번 가면 그건 다니는 게 아니라 새로고침이다.
    경계는 여기서도 새벽 다섯 시다. */

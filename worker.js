@@ -1748,7 +1748,7 @@ function placeOf(raw) {
 }
 /* 자리 블록. 문자가 아니라 마주 보고 하는 말이라는 것부터 알려준다 —
    이게 없으면 같은 자리에 앉아서 "지금 어디예요?"라고 묻는다. */
-function buildPlace(place, hasItem, room) {
+function buildPlace(place, hasItem, room, over) {
   if (!place) return "";
   /* 귀갓길은 방마다 그림이 다르다. 재언은 운전을 하고 있고 민현은 옆에 앉아 있다.
      그리고 이 자리는 곧 끝난다 — 여기서 새 얘기를 길게 벌이면 내리는 데서 잘린다. */
@@ -1770,6 +1770,13 @@ function buildPlace(place, hasItem, room) {
         + `문자가 아니라 마주 보고 하는 말이다. 어디냐고 묻지 않는다. 왔냐고도 이미 물었다.\n`
         + `여기서는 사진을 안 보낸다("photo"를 쓰지 않는다). 눈앞에 있는데 사진을 왜 보내나.\n`
         + `짧게 주고받는다. 한 번에 한두 마디다. 눈앞에 있는 것이 말에 섞인다.\n`;
+  /* 때가 지났다 — 문 닫는 시간이거나 잘 시간이다. 프론트가 재서 보낸다.
+     이 줄을 받으면 인물이 이번 대답에서 일어선다. 자리는 답이 뜬 뒤
+     프론트가 닫는다 — 언제 닫히는지를 모델에게 맡기면 영영 안 닫힌다. */
+  if (over) {
+    t += `\n이 자리는 여기까지다. 문 닫을 시간이거나 서로 가야 할 시간이 됐다.\n`
+       + `이번 대답에서 하던 말을 자연스럽게 매듭짓고 먼저 일어선다. 새 화제를 벌이지 않는다.\n`;
+  }
   if (!hasItem) {
     /* 「여기서 건넬 것」이라고 표제를 달아놓으니 첫 마디부터 건네줬다.
        자리에 앉자마자 물건을 내미는 사람은 없다. 표제부터 「언젠가」로 바꾸고,
@@ -1889,7 +1896,7 @@ const TURN = `
 유저의 가장 최근 발화가 짧더라도 그 말의 의도와 직전 문맥에 답한다. 유저의 단어를 어미만 바꿔 반복하는 대신, 그 말로 인해 인물이 실제로 하게 될 다음 생각이나 대답을 말한다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -1909,7 +1916,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
   const t = buildNow(now, day, st) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
-          + buildPlace(place, hasItem, room)
+          + buildPlace(place, hasItem, room, placeOver)
           + (place ? "" : buildInvite(invite, room))
           + TURN;
   return t.trim() ? sub(t) : "";
@@ -2618,7 +2625,9 @@ export default {
 
        지점은 요청당 넷까지다. 시스템이 셋을 쓰므로 여기 남은 하나를 쓴다.
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states);
+    /* 자리의 때가 지났다는 표시. 자리가 있어야만 의미가 있다 */
+    const placeOver = !!place && body.place_over === true;
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       const blocks = [{ type: "text", text: tail.content, cache_control: CACHE }];

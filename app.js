@@ -190,17 +190,25 @@ function App(){
      같은 자)이다. 처음에는 하루 경계(새벽 다섯 시)로 닫았는데, 그러면 낮에
      접어둔 자리가 밤까지 살아 있었다. 이 규칙이 그 규칙을 통째로 품는다.
      대화가 이어지는 중이면 한 시간이 안 됐으니 안 닫힌다 — 따로 봐줄 게 없다.
+     대화 중에 때가 되는 쪽은 send가 맡는다(place_over) — 인물이 대답에서
+     마무리하고 일어선다. 여기는 접어두고 자리를 뜬 사람 몫이다.
      나갈 때와 같은 규칙으로 닫는다: 말을 나눴으면 두고 온 것도 챙기고(closeScene),
-     기록에 한 줄 남긴다. 작별 인사는 안 부른다 — 시간이 이미 끝낸 자리다. */
+     기록에 한 줄 남긴다. 닫고 나서 인사를 한 번 부른다 — 말없이 끝나 있으면
+     세계가 돌아간 게 아니라 꺼져 있던 게 된다. 먼저 간 사람이 말을 남긴다. */
   useEffect(()=>{
     const sc=sceneRef.current;
     if(!sc)return;
     const ms=storeRef.current.msgs[sc.room]||[];
     const last=ms.length?ms[ms.length-1].ts:sc.since;
-    if(Date.now()-last<AUTO_AWAY)return;
+    if(Date.now()-last<AUTO_AWAY&&!sceneOver(sc))return;
     closeScene();
-    appendMsg(sc.room,{id:Date.now()+Math.random(),sender:"user",sys:true,
-      text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
+    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
+      text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()};
+    appendMsg(sc.room,sys);
+    const next=[...(storeRef.current.msgs[sc.room]||[]),sys];
+    request(sc.room,{mode:"chat",room:sc.room,user_name:name,
+      history:buildHistory(sinceSum(sc.room,next)),signals:buildSignals(sc.room),
+      recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length})});
   },[name,view]);
   /* 밤에 자리에서 나오면 그냥 사라지는 게 아니라 데려다준다.
      유저 집을 지도에 세우지 않은 건 그게 갈 곳이 아니라 헤어지는 자리라서다 —
@@ -436,6 +444,17 @@ function App(){
       if(data&&data.give&&data.give.item&&talkedEnough(sceneRef.current))
         setTimeout(()=>takeItem(data.give.item,data.give.char,data.give.place),
           Math.max(900,((data.messages||[]).length+1)*600));
+      /* 때가 지난 자리였다 — 방금 온 답이 마무리 인사다. 말풍선이 다 뜬 뒤에
+         자리를 닫는다. 인사보다 「나왔다」 줄이 먼저 뜨면 순서가 거꾸로다. */
+      if(payload.place_over){
+        setTimeout(()=>{
+          const sc=sceneRef.current;
+          if(!sc||sc.room!==bucket)return;
+          closeScene();
+          appendMsg(bucket,{id:Date.now()+Math.random(),sender:"user",sys:true,
+            text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
+        },Math.max(1500,((data.messages||[]).length+2)*600));
+      }
     }catch(e){
       inflightRef.current[bucket]=false;
       setBusy(b=>({...b,[bucket]:false}));
@@ -463,9 +482,12 @@ function App(){
        "지금 어디예요?"를 묻는다 — 화면만 바뀌고 사람은 안 바뀐 꼴이 된다. */
     const sc=sceneRef.current;
     const at=sc&&sc.room===room?sc.place:null;
+    /* 자리의 때가 지났으면(문 닫음·잘 시간) 그 사실을 같이 보낸다.
+       인물이 이번 대답에서 마무리하고 일어서고, 답이 다 뜨면 자리가 닫힌다 */
     request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),
       recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length}),
-      ...(at?{place:at,bag:bagRef.current.map(b=>b.key)}:{})});
+      ...(at?{place:at,bag:bagRef.current.map(b=>b.key),
+              ...(sceneOver(sc)?{place_over:true}:{})}:{})});
   };
   /* 선물 보내기.
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
