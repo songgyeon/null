@@ -213,8 +213,10 @@ section('웹·앱 대조 — 클라이언트 둘이 같은 세계를 봐야 한�
    그래서 여기서 다시 한 덩어리로 붙인다. 파일이 또 갈라져도 여기만 고치면 된다. */
 const SPOTS_WEB = () => [...readFileSync(join(ROOT, 'app-data.js'), 'utf8')
   .matchAll(/\{name:"([^"]+)",\s*map:"town"(?!, into)/g)].map(m => m[1]);
+/* PLACES 한 칸을 통째로 가져온다. 한 줄만 잘라오면 두 줄로 늘어난 칸에서
+   who:가 잘려 나간다 — 도서관·레코드샵이 그랬다 */
 const PLACE_BY_WEB = p => {
-  const m = new RegExp(`\\{name:"${p}",[\\s\\S]{0,400}?\\n`).exec(
+  const m = new RegExp(`\\{name:"${p}",[\\s\\S]{0,600}?\\},\\n`).exec(
     readFileSync(join(ROOT, 'app-data.js'), 'utf8'));
   return m ? m[0] : null;
 };
@@ -2114,6 +2116,66 @@ eq('쪽지가 흰 종이다',
 eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
 eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
 
+/* ── 하루에 한 자리는 한 번 ──
+   같은 데를 하루에 세 번 가면 그건 다니는 게 아니라 새로고침이다.
+   경계는 여기서도 새벽 다섯 시다 */
+eq('자리마다 다녀온 날을 찍는다',
+  /const goneToday=\(place,now\)=>loadGone\(\)\[place\]===dayKey\(now\)/.test(web)
+  && /const stampGone=\(place,now\)=>saveGone\(\{\.\.\.loadGone\(\),\[place\]:dayKey\(now\)\}\)/.test(web), true);
+eq('가기로 하면 그 날을 찍는다', /stampGone\(place\);/.test(web), true);
+/* 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */
+eq('묻는 창이 규칙을 알려준다',
+  /앗! 하루에 1번만 갈 수 있어요 <span className="kao">\(υl\|l◔ㅅ◔\)՞՞<\/span>/.test(web), true);
+/* 못 가는 이유가 셋이라 이유를 각각 말해야 한다 — 눌렀는데 아무 일도 없는 게 제일 나쁘다 */
+eq('못 가는 이유를 셋 다 말한다',
+  /done\?"오늘은 벌써 다녀왔어요"/.test(web) && /wk\?"주말에만 갈 수 있어요"/.test(web)
+  && /empty\?"지금은 아무도 밖에 없어요"/.test(web), true);
+
+/* ── 주말에만 · 누구랑 갈지 ──
+   도서관과 레코드샵은 들르는 데가 아니라 시간을 내서 가는 데다.
+   평일엔 둘 다 학교에 매여 있다 */
+{
+  const wend = [...web.matchAll(/\{name:"([^"]+)",[\s\S]{0,120}?wendOnly:true/g)].map(m => m[1]);
+  eq('주말에만 가는 자리가 둘이다', wend.sort(), ['도서관', '레코드샵']);
+  eq('그 둘은 동행을 고른다',
+    ['도서관', '레코드샵'].filter(p => !/pick:true/.test(PLACE_BY_WEB(p) || '')), []);
+  /* 고를 수 있으려면 둘 다 후보여야 한다 */
+  eq('고를 상대가 둘이다',
+    ['도서관', '레코드샵'].filter(p => !/who:\["jaeeon","minhyun"\]/.test(PLACE_BY_WEB(p) || '')), []);
+  eq('안 고르면 못 간다', /disabled=\{need\}/.test(web) && /const need=!!p&&p\.pick&&!askWho;/.test(web), true);
+  eq('고른 사람이 그 자리에 온다', /if\(p\.pick\)return picked\|\|null;/.test(web), true);
+}
+
+/* ── 마주치는 자리 ──
+   편의점·빨래방은 누가 있을지 정해두지 않는다. 누가 있을 수 있는지는
+   이미 있는 생활 리듬이 정한다 — 새 규칙을 만들지 않는다 */
+{
+  const out = [...web.matchAll(/\{name:"([^"]+)",[\s\S]{0,60}?meet:"out"/g)].map(m => m[1]);
+  eq('마주치는 자리가 둘이다', out.sort(), ['빨래방', '편의점']);
+  eq('생활 리듬으로 정한다',
+    /const AT_WORK=\["보건실","수업 중","야자"\];/.test(web)
+    && /pr=presence\(id,d\)/.test(web), true);
+  /* 주말엔 근무도 수업도 야자도 없다 */
+  eq('주말엔 낮에도 나온다', /return isWend\(d\)\|\|!AT_WORK\.includes\(pr\.t\);/.test(web), true);
+  const F = new Function('const isWend=d=>{const w=d.getDay();return w===0||w===6};'
+    + web.slice(web.indexOf('function presence'),
+        web.indexOf('function presence') + web.slice(web.indexOf('function presence')).indexOf('\n}\n') + 3)
+    + 'const AT_WORK=["보건실","수업 중","야자"];'
+    + 'const freeOut=(id,now)=>{const d=now,pr=presence(id,d);'
+    + 'if(!pr||pr.s==="off")return false;return isWend(d)||!AT_WORK.includes(pr.t)};'
+    + '\nreturn (now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));')();
+  /* 화요일 낮 — 하나는 근무 중이고 하나는 수업 중이라 아무도 없다 */
+  eq('평일 낮엔 아무도 밖에 없다', F(new Date(2026, 0, 6, 13)), []);
+  /* 화요일 저녁 일곱 시 — 재언은 퇴근했고 민현은 야자 중이다 */
+  eq('저녁엔 재언만 있다', F(new Date(2026, 0, 6, 19)), ['jaeeon']);
+  /* 화요일 밤 열한 시 — 둘 다 나와 있을 수 있다 */
+  eq('밤엔 둘 다 있을 수 있다', F(new Date(2026, 0, 6, 23)), ['jaeeon', 'minhyun']);
+  /* 새벽 두 시 — 재언은 자고 민현만 깨 있다 */
+  eq('새벽엔 민현만 있다', F(new Date(2026, 0, 7, 2)), ['minhyun']);
+  /* 토요일 낮 — 학교가 없으니 둘 다 나올 수 있다 */
+  eq('주말 낮엔 둘 다 있다', F(new Date(2026, 0, 10, 13)), ['jaeeon', 'minhyun']);
+}
+
 /* ── 캐비닛 지도 ──
    길이던 지도를 사물함으로 바꿨다. 이 앱은 가짜 OS인데 지도만 혼자 야외
    일러스트였다. 창이 있고 메뉴바가 있고 .exe가 뜨는 화면에서는 서랍이
@@ -2146,9 +2208,19 @@ eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.
   eq('문짝이 구멍보다 넓고 칸 간격보다 좁다', /const CAB_DOOR_W=43;/.test(web), true);
   /* START와 NULL은 자리가 아니다. 눌러도 아무 일이 없어야 한다 */
   eq('명패는 안 눌린다', /if\(s\.kind\)return <span key=\{s\.kind\} className="cabdoor plate"/.test(web), true);
-  /* 안 열린 자리는 눌려도 안 된다 — role도 tabIndex도 안 붙는다 */
-  eq('안 열린 문은 눌러도 아무 일이 없다',
-    /role=\{open\?"button":null\} tabIndex=\{open\?0:null\}\s*\n\s*onClick=\{open\?go:null\}/.test(web), true);
+  /* 잠긴 문도 눌린다. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
+     왜 안 되는지는 창이 말한다 */
+  eq('잠긴 문도 눌러진다', /const live=!dim;/.test(web), true);
+  eq('잠긴 문을 누르면 묻는 창이 뜬다',
+    /onClick=\{live\?\(open\?go:\(\)=>onGoPlace\(p\.name\)\):null\}/.test(web), true);
+  eq('잠겼다고 말해준다',
+    /my bad <i style=\{\{fontStyle:"normal",color:"#e66fa4"\}\}>♡<\/i> 아직은 못 가요/.test(web), true);
+  /* 무엇을 먼저 가야 하는지도 같이 알려준다 */
+  eq('무엇을 먼저 가야 하는지 알려준다',
+    /const left=locked\?placeNeed\(p,met\):\[\];/.test(web), true);
+  /* 창의 X가 그림만 있고 안 눌렸다. 셋 다 눌리게 한다 */
+  eq('묻는 창의 X가 눌린다',
+    (web.match(/<WinDots onClose=\{\(\)=>answer(Ask|Invite|Way)\(false\)\}\/>/g) || []).length, 3);
   /* 열렸어도 지금 갈 시간이 아닐 수 있다. 문은 멀쩡하고 시간이 아니라서 색만 죽인다 */
   eq('못 가는 시간이면 문이 흐려진다',
     /\+\(open&&!nowOk&&!p\.into\?" shut":""\)/.test(web)
@@ -2159,11 +2231,21 @@ eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.
   eq('학교를 누르면 안으로 들어간다',
     /const go=p\.into\?\(\)=>setLevel\(p\.into\)/.test(web)
     && /const \[level,setLevel\]=useState\("town"\)/.test(web), true);
-  eq('TV가 뿅 나온다',
-    /animation:tvpop \.42s/.test(web) && /@keyframes tvpop\{/.test(web), true);
+  /* 사물함이 뒤로 물러나고 열린 문이 한가운데에 뿅 나온다.
+     화면을 가득 채우지 않는다 — 여기는 사물함 안이지 다른 화면이 아니다 */
+  eq('TV가 한가운데에 뿅 나온다',
+    /\.cabpop\{position:absolute;left:50%;top:50%;width:88%/.test(web)
+    && /@keyframes tvpop\{/.test(web), true);
+  eq('뒤에 사물함이 희미하게 남는다',
+    /\.cab\.cabback\{opacity:\.34/.test(web) && /cabinet\(true\)/.test(web), true);
+  /* 열린 문 그림을 안 쓰면 그냥 TV만 뜬다. 여기는 사물함 안이다 */
+  eq('열린 문 그림을 쓴다',
+    /src="cab-icons\/open\.webp"/.test(web) && exists('cab-icons/open.webp'), true);
+  /* 뒤에 깔린 사물함은 눌리면 안 된다 — 안 보이는 문을 누르게 된다 */
+  eq('뒤에 깔린 문은 안 눌린다', /const live=!dim;/.test(web), true);
   /* 움직임을 줄여달라는 사람에게는 안 튀게 한다 */
   eq('덜 움직이게 해달라면 안 튄다',
-    /@media\(prefers-reduced-motion:reduce\)\{\.cabtv\{animation:none\}\}/.test(web), true);
+    /@media\(prefers-reduced-motion:reduce\)\{\.cabpop\{animation:none;transform:translate\(-50%,-50%\)\}\}/.test(web), true);
   /* TV 안 네 칸이 학교 안 네 자리다. 좌표는 TV 그림에서 화면 안쪽을 재서 넣었다 */
   const Q = [...web.slice(web.indexOf('const TV_QUAD={'), web.indexOf('const TV_QUAD_W='))
     .matchAll(/"([^"]+)":\s*\{x:/g)].map(m => m[1]);
@@ -2249,13 +2331,13 @@ eq('학교를 누르면 안으로 들어간다',
 /* 학교 안은 길이 아니라 건물이다. 마을은 사물함이고 학교 안은 TV라
    화면부터 다르다 — 같은 그림에 표지판만 다르게 세우던 때와 다르다 */
 eq('마을과 학교 안은 화면이 다르다',
-  /\{level==="town"\s*\n?\s*\?<div className="cab">/.test(web)
-  && /:<div className="cabtv">/.test(web), true);
+  /if\(level==="town"\)return cabinet\(false\);/.test(web)
+  && /return <div className="cabin">/.test(web), true);
 /* 나가기는 단추를 더 놓지 않고 제목 자리가 대신한다 */
 eq('머리글이 뒤로가기다', /className="rt rback" role="button"/.test(web), true);
 /* 체육관은 TV 안에, 학교는 사물함 문짝에 있다 */
 eq('학교·체육관이 각자 자리에 있다',
-  /"체육관":\{x:50\.5, y:45\.6\}/.test(web)
+  /"체육관":\{x:35\.4, y:45\.0\}/.test(web)
   && ['cab-icons/school-open.webp','cab-icons/school-lock.webp'].filter(f => !exists(f)).length === 0, true);
 /* peek은 메뉴바 맨 끝, LIVE는 「두 사람」 방 위의 딱지 — 원래 자리다.
    시간표 단추가 들어오면서 한 번 자리를 옮겼다가 되돌렸다. 390에서 여덟이

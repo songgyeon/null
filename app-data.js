@@ -399,13 +399,19 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
 const PLACES=[
   /* ── 마을 길 ── 여섯 정거장. 학교가 첫 정거장이고 유일하게 안이 있다 */
   {name:"학교",     map:"town", into:"school", hours:[8,22], wend:false, icon:"school", need:[]},
-  {name:"편의점",   map:"town", bg:"place-conv.webp",     icon:"conv",    need:["옥상"],              who:["minhyun"],          item:"haribo",
+  /* meet:"out" — 누가 있을지 정해두지 않는다. 그 시각에 밖에 나와 있을 수
+     있는 사람 중에서 뽑는다. 약속하고 가는 게 아니라 마주치는 자리라서. */
+  {name:"편의점",   map:"town", meet:"out", bg:"place-conv.webp",     icon:"conv",    need:["옥상"],              who:["jaeeon","minhyun"], item:"haribo",
    note:"학교 뒷문에서 이 분."},
-  {name:"도서관",   map:"town", hours:[9,22],  bg:"place-library.webp",  icon:"library", need:["옥상"],              who:["jaeeon"],           item:"book",
+  /* wendOnly — 평일엔 못 간다. 둘 다 학교에 매여 있고, 여기는 들르는 데가
+     아니라 시간을 내서 가는 데다. pick — 누구랑 갈지 고른다. */
+  {name:"도서관",   map:"town", hours:[9,22],  wendOnly:true, pick:true,
+   bg:"place-library.webp",  icon:"library", need:["옥상"],              who:["jaeeon","minhyun"], item:"book",
    note:"시립. 삼 층은 늘 비어 있다."},
-  {name:"레코드샵", map:"town", hours:[12,21], bg:"place-record.webp",   icon:"record",  need:["편의점"],            who:["minhyun"],          item:"lp",
+  {name:"레코드샵", map:"town", hours:[12,21], wendOnly:true, pick:true,
+   bg:"place-record.webp",   icon:"record",  need:["편의점"],            who:["jaeeon","minhyun"], item:"lp",
    note:"중고반 상자가 바닥에 있다."},
-  {name:"빨래방",   map:"town", bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],            who:["jaeeon"],           item:"coin",
+  {name:"빨래방",   map:"town", meet:"out", bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],            who:["jaeeon","minhyun"], item:"coin",
    note:"건조기 도는 사십 분."},
   /* 마지막. 양쪽을 다 걸어봐야 열린다 — 한쪽만 파서 남의 집에 갈 수는 없다 */
   {name:"집",       map:"town", hours:[17,2], wend:[11,2], bg:"place-home.webp", icon:"home", need:["빨래방","레코드샵"], who:["jaeeon"], item:"key",
@@ -450,13 +456,14 @@ const CAB_ROW=[13.36,35.88,58.48,81.19];   // 칸 가운데 (프레임 높이의
 const CAB_DOOR_W=43;
 /* 학교 문을 열면 TV가 나온다. 네 칸이 학교 안 네 자리다 —
    좌표는 TV 그림에서 화면 안쪽 네 칸을 재서 넣었다 */
+/* 좌표는 open.webp(열린 문 + 그 안의 TV) 기준이다. 사물함 안이라 TV가 작다 */
 const TV_QUAD={
-  "교실":  {x:11.5, y:10.7},
-  "보건실":{x:50.5, y:10.7},
-  "옥상":  {x:11.5, y:45.6},
-  "체육관":{x:50.5, y:45.6},
+  "교실":  {x:15.4, y:25.6},
+  "보건실":{x:35.4, y:25.6},
+  "옥상":  {x:15.4, y:45.0},
+  "체육관":{x:35.4, y:45.0},
 };
-const TV_QUAD_W=38, TV_QUAD_H=33.5;
+const TV_QUAD_W=19, TV_QUAD_H=18.5;
 
 /* 자리 이름 → 화면에 읽히는 이름. 캐비닛 문짝의 aria-label에 쓴다 */
 const ROAD_LABEL={
@@ -622,6 +629,29 @@ const sceneShot=(place,who,now)=>{
   const list=Array.isArray(t)?t:(h>=17?t.eve:t.day)||t.day||[];
   return list.length?list[Math.floor(Math.random()*list.length)]+".webp":null;
 };
+
+/* ── 하루에 한 자리는 한 번 ──
+   같은 데를 하루에 세 번 가면 그건 다니는 게 아니라 새로고침이다.
+   경계는 여기서도 새벽 다섯 시다. */
+const loadGone=()=>{try{return JSON.parse(localStorage.getItem("null_goneday"))||{}}catch(e){return{}}};
+const saveGone=v=>{try{localStorage.setItem("null_goneday",JSON.stringify(v))}catch(e){}};
+const goneToday=(place,now)=>loadGone()[place]===dayKey(now);
+const stampGone=(place,now)=>saveGone({...loadGone(),[place]:dayKey(now)});
+
+/* ── 지금 밖에 나와 있을 수 있나 ──
+   편의점·빨래방은 누가 있을지 정해두지 않는다. 마주치는 자리라서.
+   누가 있을 수 있는지는 이미 있는 생활 리듬(presence)이 정한다 — 새 규칙을
+   만들지 않는다. 근무 중이거나 수업 중이거나 야자 중이거나 자는 중이면
+   밖에 없다. 주말엔 학교가 없으니 낮에도 나올 수 있다. */
+const AT_WORK=["보건실","수업 중","야자"];
+const freeOut=(id,now)=>{
+  const d=now||new Date(), pr=presence(id,d);
+  if(!pr||pr.s==="off")return false;
+  return isWend(d)||!AT_WORK.includes(pr.t);
+};
+const whoOut=(now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));
+/* 주말에만 가는 자리 */
+const wendOnlyOk=(p,now)=>!p.wendOnly||isWend(now||new Date());
 
 /* 왜 지금은 못 가는지 한 줄. 주말의 학교는 시간이 아니라 날이 문제라
    시각을 적어주면 거짓말이 된다 — 여덟 시가 돼도 안 열린다 */

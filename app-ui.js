@@ -879,45 +879,59 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           <span className="rbar"><i style={{width:(visitedN/SPOTS.length*100)+"%"}}/></span>
           <span className="rn">{visitedN} / {SPOTS.length}</span>
         </div>
-        {/* ── 마을: 사물함 여덟 칸 ── */}
-        {level==="town"
-        ?<div className="cab">
-          <img className="cabframe" src="cab-icons/frame.webp" alt="" aria-hidden="true"/>
-          {CAB_SLOT.map((s,i)=>{
-            const style={left:CAB_COL[i%2]+"%",top:CAB_ROW[i>>1]+"%",width:CAB_DOOR_W+"%"};
-            /* START와 NULL은 자리가 아니다. 열 것도 잠글 것도 없다 */
-            if(s.kind)return <span key={s.kind} className="cabdoor plate" style={style} aria-hidden="true">
-              <img src={`cab-icons/${s.kind}.webp`} alt=""/></span>;
-            const p=PLACE_BY[s.place], open=placeOpen(p,met), nowOk=placeHours(p);
-            const been=p.into?false:met.includes(p.name);
-            /* 학교는 자리가 아니라 문이다. 물어보지 않고 바로 안으로 들어간다 */
-            const go=p.into?()=>setLevel(p.into):()=>onGoPlace(p.name);
-            return <span key={p.name}
-              className={"cabdoor"+(open?"":" lock")+(open&&!nowOk&&!p.into?" shut":"")+(been?" been":"")}
-              style={style}
-              role={open?"button":null} tabIndex={open?0:null}
-              onClick={open?go:null}
-              onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}:null}
-              aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
-              <img src={`cab-icons/${p.icon}-${open?"open":"lock"}.webp`} alt=""/></span>;
-          })}
-        </div>
-        /* ── 학교 안: 문이 열리면 TV가 뿅 ── */
-        :<div className="cabtv">
-          <img src="cab-icons/tv.webp" alt="" aria-hidden="true"/>
-          {PLACES.filter(p=>p.map==="school").map(p=>{
-            const q=TV_QUAD[p.name]; if(!q)return null;
-            const open=placeOpen(p,met), nowOk=placeHours(p), been=met.includes(p.name);
-            const go=()=>onGoPlace(p.name);
-            return <span key={p.name}
-              className={"tvq"+(open?"":" lock")+(open&&!nowOk?" shut":"")+(been?" been":"")}
-              style={{left:q.x+"%",top:q.y+"%",width:TV_QUAD_W+"%",height:TV_QUAD_H+"%"}}
-              role={open?"button":null} tabIndex={open?0:null}
-              onClick={open?go:null}
-              onKeyDown={open?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}:null}
-              aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}/>;
-          })}
-        </div>}
+        {/* ── 사물함 여덟 칸. 학교 안에서는 뒤에 희미하게 깔린다 ── */}
+        {(()=>{
+          const cabinet=dim=><div className={"cab"+(dim?" cabback":"")} aria-hidden={dim||null}>
+            <img className="cabframe" src="cab-icons/frame.webp" alt="" aria-hidden="true"/>
+            {CAB_SLOT.map((s,i)=>{
+              const style={left:CAB_COL[i%2]+"%",top:CAB_ROW[i>>1]+"%",width:CAB_DOOR_W+"%"};
+              /* START와 NULL은 자리가 아니다. 열 것도 잠글 것도 없다 */
+              if(s.kind)return <span key={s.kind} className="cabdoor plate" style={style} aria-hidden="true">
+                <img src={`cab-icons/${s.kind}.webp`} alt=""/></span>;
+              const p=PLACE_BY[s.place], open=placeOpen(p,met);
+              /* 못 가는 이유는 셋이다 — 시간, 주말 전용, 오늘 이미 다녀옴.
+                 문에는 흐리게만 알리고 왜인지는 눌렀을 때 창이 말한다 */
+              const nowOk=placeHours(p)&&wendOnlyOk(p)&&!goneToday(p.name);
+              const been=p.into?false:met.includes(p.name);
+              /* 잠긴 문도 눌린다. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
+                 왜 안 되는지는 창이 말한다. 다만 뒤에 깔린 사물함은 안 눌린다 */
+              const live=!dim;
+              /* 학교는 자리가 아니라 문이다. 물어보지 않고 바로 안으로 들어간다 */
+              const go=p.into?()=>setLevel(p.into):()=>onGoPlace(p.name);
+              return <span key={p.name}
+                className={"cabdoor"+(open?"":" lock")+(open&&!nowOk&&!p.into?" shut":"")+(been?" been":"")}
+                style={style}
+                role={live?"button":null} tabIndex={live?0:null}
+                onClick={live?(open?go:()=>onGoPlace(p.name)):null}
+                onKeyDown={live?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();
+                  open?go():onGoPlace(p.name)}}:null}
+                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
+                <img src={`cab-icons/${p.icon}-${open?"open":"lock"}.webp`} alt=""/></span>;
+            })}
+          </div>;
+          if(level==="town")return cabinet(false);
+          /* 학교 문을 누르면 사물함이 뒤로 물러나고, 열린 문 안의 TV가
+             한가운데에 뿅 나온다. 화면을 가득 채우지는 않는다 —
+             여기는 사물함 안이지 다른 화면이 아니다 */
+          return <div className="cabin">
+            {cabinet(true)}
+            <div className="cabpop">
+              <img src="cab-icons/open.webp" alt="" aria-hidden="true"/>
+              {PLACES.filter(p=>p.map==="school").map(p=>{
+                const q=TV_QUAD[p.name]; if(!q)return null;
+                const open=placeOpen(p,met), nowOk=placeHours(p)&&!goneToday(p.name);
+                const been=met.includes(p.name), go=()=>onGoPlace(p.name);
+                return <span key={p.name}
+                  className={"tvq"+(open?"":" lock")+(open&&!nowOk?" shut":"")+(been?" been":"")}
+                  style={{left:q.x+"%",top:q.y+"%",width:TV_QUAD_W+"%",height:TV_QUAD_H+"%"}}
+                  role="button" tabIndex={0}
+                  onClick={go}
+                  onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}}
+                  aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk?"":" · CLOSED NOW"):" · LOCKED")}/>;
+              })}
+            </div>
+          </div>;
+        })()}
       </div>
       :tab==="cam"
       ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}

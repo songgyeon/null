@@ -649,6 +649,19 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* 나가기. 제목 자리가 그대로 뒤로가기가 된다 — 단추를 하나 더 놓으면 창이 시끄럽다 */
 .roadhead .rback{cursor:pointer}
 .roadhead .rback:active{opacity:.7}
+/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */
+.askrule{margin:2px 12px 9px;padding:7px 10px;text-align:center;font-size:10px;line-height:1.5;
+ letter-spacing:.02em;color:#a06a90;border-radius:8px;background:#fff3fa;box-shadow:0 0 0 1px #f3d8e8}
+/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 */
+.askwho{display:flex;gap:7px;margin:0 12px 10px}
+.whobtn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+ padding:7px 6px;font-size:11px;border-radius:9px}
+.whobtn .cface{width:22px;height:22px;flex:none;border-radius:50%;border:1.5px solid #fff;
+ box-shadow:0 0 0 1px #ddd2f4}
+.whobtn.on{color:#fff;text-shadow:0 1px 0 rgba(170,80,140,.5);border-color:#fff;
+ background:linear-gradient(180deg,#ffc2e2,#f78fc6);box-shadow:0 2px 0 rgba(180,110,160,.3)}
+.dlgbtns .bevel[disabled]{opacity:.45;cursor:default}
+
 /* ── 캐비닛 지도 ──
    길이던 지도를 사물함으로 바꿨다. 이 앱은 가짜 OS인데 지도만 혼자 야외
    일러스트였다. 문짝은 구멍보다 조금 커야 경첩이 프레임에 얹혀 문으로 보인다. */
@@ -668,13 +681,18 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .cabdoor.been img{filter:drop-shadow(0 0 9px rgba(255,142,201,.92))}
 .cabdoor.plate{filter:drop-shadow(0 3px 0 rgba(93,84,144,.18))}
 
-/* 학교 문을 열면 TV가 뿅 나온다 */
-.cabtv{position:relative;width:100%;margin:0 auto;transform-origin:50% 62%;
- animation:tvpop .42s cubic-bezier(.18,1.5,.42,1)}
+/* 학교 문을 열면 사물함이 뒤로 물러나고 열린 문이 한가운데에 뿅 나온다.
+   화면을 가득 채우지 않는다 — 여기는 사물함 안이지 다른 화면이 아니다 */
+.cabin{position:relative;width:100%}
+.cab.cabback{opacity:.34;filter:saturate(.55)}
+.cabpop{position:absolute;left:50%;top:50%;width:88%;
+ animation:tvpop .42s cubic-bezier(.18,1.5,.42,1);
+ filter:drop-shadow(0 10px 0 rgba(93,84,144,.22))}
+.cabpop>img{display:block;width:100%;height:auto}
 @keyframes tvpop{
-  0%  {transform:scale(.18) translateY(34%);opacity:0}
+  0%  {transform:translate(-50%,-50%) scale(.16);opacity:0}
   55% {opacity:1}
-  100%{transform:scale(1) translateY(0);opacity:1}}
+  100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
 .cabtv>img{display:block;width:100%;height:auto}
 .tvq{position:absolute;z-index:2;border-radius:5px;pointer-events:none}
 .tvq[role]{pointer-events:auto;cursor:pointer}
@@ -684,7 +702,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .tvq.lock{background:rgba(64,52,112,.52);box-shadow:inset 0 0 0 2px rgba(255,255,255,.28)}
 .tvq.shut{background:rgba(64,52,112,.26)}
 .tvq.been{box-shadow:inset 0 0 0 2px rgba(255,142,201,.85),0 0 10px rgba(255,142,201,.5)}
-@media(prefers-reduced-motion:reduce){.cabtv{animation:none}}
+@media(prefers-reduced-motion:reduce){.cabpop{animation:none;transform:translate(-50%,-50%)}}
 /* 열린 자리만 손이 닿는다. 아직 못 가는 자리는 눌러도 반응이 없어야
    눌러본 사람이 「아직 아니구나」를 알게 된다 */
 /* 열려 있지만 지금 갈 시간이 아닌 자리. 잠긴 것과 달라 보여야 한다 —

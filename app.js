@@ -232,16 +232,26 @@ function App(){
      같고 규칙은 다르다 — 여기서 물러나도 그 자리가 닫히지는 않는다.
      마음이 바뀐 것뿐이지 거절한 게 아니니까. */
   const [ask,setAsk]=useState(null);
-  /* 둘 다 있는 자리는 더 많이 말을 나눈 쪽을 부른다 */
-  const whoAt=p=>{
+  /* 동행을 고르는 자리에서 고른 사람. 창을 닫으면 같이 비운다 */
+  const [askWho,setAskWho]=useState(null);
+  const openAsk=place=>{setAskWho(null);setAsk(place)};
+  /* 누구를 만나나.
+     pick — 유저가 고른다(도서관·레코드샵). 시간을 내서 가는 자리라서.
+     out  — 그 시각에 밖에 나와 있을 수 있는 사람 중에서 뽑는다. 마주치는 자리라서.
+     그 밖 — 자리 임자가 정해져 있다. 둘 다면 더 많이 말을 나눈 쪽. */
+  const whoAt=(p,picked)=>{
+    if(p.pick)return picked||null;
+    if(p.meet==="out"){ const out=whoOut(); return out.length?out[Math.floor(Math.random()*out.length)]:null }
     const list=p.who||[]; if(list.length<2)return p.own||list[0];
     const n=id=>(storeRef.current.msgs[id]||[]).length;
     return list.slice().sort((a,b)=>n(b)-n(a))[0];
   };
   const answerAsk=ok=>{
-    const place=ask; setAsk(null);
+    const place=ask, picked=askWho; setAsk(null); setAskWho(null);
     const p=ok&&place&&PLACE_BY[place]; if(!p||!placeHours(p))return;
-    const who=whoAt(p); if(!who)return;
+    if(!wendOnlyOk(p)||goneToday(place))return;
+    const who=whoAt(p,picked); if(!who)return;
+    stampGone(place);
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:`${place}에 갔다`,ts:Date.now()};
     appendMsg(who,sys);
     goneTo(place); markEvent({kind:"met",to:who,name:place});
@@ -721,13 +731,13 @@ function App(){
        onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
-       bag={bag} met={met} onGoPlace={setAsk} onEnergyBar={giveEnergyBar}/>
+       bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
     {invite&&<div className="dlgov" onClick={()=>answerInvite(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
-        <div className="tb">{CHARS[invite.char].name}<div className="dots"><span className="d3"/></div></div>
+        <div className="tb">{CHARS[invite.char].name}<WinDots onClose={()=>answerInvite(false)}/></div>
         <div className="dlgbody">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0",fontSize:13,color:"#8a4f74"}}>
             {invite.place}, 같이 갈래요?</div>
@@ -741,7 +751,7 @@ function App(){
     {/* 밤에 자리에서 나올 때. 묻는 쪽이 상대라서 초대 창과 같은 모양이다 */}
     {way&&<div className="dlgov" onClick={()=>answerWay(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
-        <div className="tb">{CHARS[way.room].name}<div className="dots"><span className="d3"/></div></div>
+        <div className="tb">{CHARS[way.room].name}<WinDots onClose={()=>answerWay(false)}/></div>
         <div className="dlgbody">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0",fontSize:13,color:"#8a4f74"}}>
             {way.room==="jaeeon"?"늦었어요. 태워다 줄게요":"저도 그쪽 방향인데, 같이 갈래요?"}</div>
@@ -754,19 +764,46 @@ function App(){
     </div>}
     {/* 지금 갈 시간이 아니면 묻지 않고 이유를 말한다. 눌렀는데 아무 일도
         안 일어나는 것보다 「몇 시부터」를 알려주는 편이 낫다 */}
-    {ask&&(()=>{ const p=PLACE_BY[ask], shut=!!p&&!placeHours(p);
+    {ask&&(()=>{
+      const p=PLACE_BY[ask];
+      /* 아직 안 열린 자리. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
+         왜 안 되는지는 말해줘야 한다. 무엇을 먼저 가야 하는지도 같이 */
+      const locked=!!p&&!placeOpen(p,met);
+      const shut=!!p&&!placeHours(p);            // 지금은 문 닫은 시각
+      const wk=!!p&&!wendOnlyOk(p);              // 평일엔 못 가는 자리
+      const done=goneToday(ask);                 // 오늘 이미 다녀왔다
+      const out=p&&p.meet==="out"?whoOut():null; // 마주치는 자리 — 지금 밖에 누가 있나
+      const empty=!!out&&!out.length;
+      const need=!!p&&p.pick&&!askWho;           // 동행을 아직 안 골랐다
+      const no=locked||shut||wk||done||empty;
+      const left=locked?placeNeed(p,met):[];
+      const why=locked?(left.length?left.join(" · ")+" 먼저":"")
+        :done?"오늘은 벌써 다녀왔어요"
+        :wk?"주말에만 갈 수 있어요"
+        :empty?"지금은 아무도 밖에 없어요"
+        :shut?placeWhen(p):"";
       return <div className="dlgov" onClick={()=>answerAsk(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
-        <div className="tb">{ask}<div className="dots"><span className="d3"/></div></div>
+        <div className="tb">{ask}<WinDots onClose={()=>answerAsk(false)}/></div>
         <div className="dlgbody">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
-            {shut?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
-          <div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>
-            {shut?placeWhen(p):""}</div>
+            {locked
+              ?<>my bad <i style={{fontStyle:"normal",color:"#e66fa4"}}>♡</i> 아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></>
+              :no?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
+          {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
+          {!no&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
+          {no&&<div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>{why}</div>}
+          {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 */}
+          {!no&&p&&p.pick&&<div className="askwho">
+            {(p.who||[]).map(c=><button key={c}
+              className={"whobtn bevel"+(askWho===c?" on":"")}
+              onClick={()=>setAskWho(c)}>
+              <span className="cface" style={faceBg(CHARS[c])}/>{CHARS[c].name}</button>)}
+          </div>}
           <div className="dlgbtns">
-            {shut
+            {no
               ?<button className="bevel" onClick={()=>answerAsk(false)}>알겠어요</button>
-              :<><button className="bevel pink" onClick={()=>answerAsk(true)}>갈래요</button>
+              :<><button className="bevel pink" disabled={need} onClick={()=>answerAsk(true)}>갈래요</button>
                  <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>}
           </div>
         </div>
