@@ -680,6 +680,14 @@ function App(){
       const all=Object.values(m).flat();
       const lastAny=all.reduce((a,x)=>x.ts>a?x.ts:a,(ev&&ev.at)||0);
       const now=Date.now();
+      /* 아직 아무 일도 없었으면 비운 자리도 없다. 이걸 안 막으면 lastAny가
+         0이라 「한 시간 뒤」가 1970년 1월 1일 한 시간 뒤가 된다 — 실제로
+         첫 실행에서 관전 대화가 1970년으로 찍혔고, 그게 이 판의 첫 대화가
+         돼서 D-0 종료 화면이 첫날에 떴다. 오프닝은 방이 다 비어야 열리는데
+         그 방이 차 있으니 첫 자리도 안 열렸다.
+         (파일을 가를 때 죽은 setAutoAt이 이 효과를 통째로 막고 있어서
+         그동안 안 보였다. 그게 고쳐지자 드러났다.) */
+      if(!lastAny)return;
       if(now-lastAny<AUTO_AWAY)return;
       /* 하루 경계는 여기서도 새벽 다섯 시다. UTC 날짜로 세면 아침 아홉 시에
          상한이 리셋돼 한 하루에 네 번이 돈다 — 제일 비싼 호출인데 */
@@ -689,7 +697,14 @@ function App(){
       if(used>=AUTO_MAX_DAY){ saveAutoEvent(null); return; }
       autoBusy.current=true;
       saveAutoEvent(null); saveAutoDay(`${day}|${used+1}`);
-      saveAutoAt(now); setAutoAt(now);
+      /* setAutoAt은 여기 없다 — 방 목록 안의 상태다. 한 파일이던 앱을 넷으로
+         가를 때(f35bcf6) 이 줄만 따라오지 못했고, 그 뒤로 이 효과는 매번
+         ReferenceError로 죽었다. 조용히 죽었다 — async 안이라 화면에는
+         아무 일도 안 일어나고, autoBusy가 참인 채로 굳어 그 세션 내내 관전방이
+         멈췄다. 게다가 죽기 전에 사건(선물)과 하루 몫을 이미 지워서, 없던
+         일이 되는 쪽은 유저가 한 일이었다.
+         쿨타임 표시는 저장값으로 충분하다 — 목록은 열 때 loadAutoAt으로 읽는다. */
+      saveAutoAt(now);
       // 유저가 나가고 한 시간쯤 뒤의 일로 찍는다
       const at=Math.min(lastAny+AUTO_AWAY+Math.floor(Math.random()*30*60*1000),now-5*60*1000);
       let list=null;

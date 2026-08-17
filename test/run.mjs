@@ -2279,6 +2279,35 @@ eq('워커가 때를 받으면 일어서라고 말한다',
   eq('을/를은 예외가 없다', J('교실', '을/를'), '교실을');
 }
 
+/* ── 아무 일도 없었으면 비운 자리도 없다 ──
+   lastAny가 0이면 「자리를 비운 지 한 시간 뒤」가 1970년 1월 1일 한 시간
+   뒤가 된다. 실제로 첫 실행에서 관전 대화가 1970년으로 찍혔고, 그게 이 판의
+   첫 대화가 돼서 D-0 종료 화면이 첫날에 떴다 — 오프닝은 네 방이 다 비어야
+   열리는데 그 방이 차 있으니 첫 자리도 안 열렸다. */
+eq('기록이 하나도 없으면 관전방을 안 만든다', /if\(!lastAny\)return;/.test(web), true);
+
+/* ── 갈라진 파일 사이로 새는 참조 ──
+   한 파일이던 앱을 넷으로 가를 때 setAutoAt(방 목록의 상태) 호출만 app.js에
+   남았다. 그 줄은 관전방 자동 생성 한가운데 있었고, async 안이라 조용히
+   ReferenceError로 죽었다 — 화면에는 아무 일도 안 일어나고, autoBusy가 참인
+   채 굳어 그 세션 내내 관전방이 멈췄다. 죽기 전에 사건과 하루 몫은 이미
+   지운 뒤였다. 정적으로 잡는다: app.js가 부르는 setter는 app.js가 스스로
+   들고 있거나 전역이어야 한다. */
+eq('app.js가 남의 상태를 부르지 않는다', (() => {
+  const appSrc2 = readFileSync(join(ROOT, 'app.js'), 'utf8');
+  const uiSrc2 = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
+  const dataSrc2 = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  const mine = new Set(['setTimeout', 'setInterval', 'setItem', 'setHours', 'setDate',
+    'setMinutes', 'setSeconds', 'setMonth', 'setFullYear', 'setTime']);
+  for (const m of appSrc2.matchAll(/const\s*\[\s*\w+\s*,\s*(\w+)\s*\]\s*=\s*useState/g)) mine.add(m[1]);
+  for (const m of appSrc2.matchAll(/(?:const|let|function)\s+(\w+)/g)) mine.add(m[1]);
+  /* 전역 — app-data와 app-ui의 최상위 선언 */
+  for (const m of dataSrc2.matchAll(/^(?:const|let|function)\s+(\w+)/gm)) mine.add(m[1]);
+  for (const m of uiSrc2.matchAll(/^(?:const|function)\s+(\w+)/gm)) mine.add(m[1]);
+  return [...new Set([...appSrc2.matchAll(/\b(set[A-Z]\w*)\s*\(/g)].map(m => m[1]))]
+    .filter(id => !mine.has(id));
+})(), []);
+
 /* ── 선톡의 상한은 간격뿐이다 ──
    하루 한 번 + 제비뽑기도 둬 봤다가 걷어냈다. 올 때마다 같은 말이 오는 게
    문제였지 오는 것 자체가 문제가 아니었다 — 시간마다 다른 말이 오면 그건
