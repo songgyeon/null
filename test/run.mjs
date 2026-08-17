@@ -2280,6 +2280,25 @@ eq('워커가 때를 받으면 일어서라고 말한다',
     return on > 0 && on < 30;   // 매일 걸지도, 영영 안 걸지도 않는다
   })(), true);
 }
+
+/* ── 시간표를 아는 선톡 ──
+   각본 스무 개는 아침이든 새벽이든 같은 스무 개였다. 때와 자기 상태는
+   가변부의 [지금]이 이미 아니까, 먼저 걸라는 지시 한 줄만 얹으면 모델이
+   알아서 쓴다 — 낮에는 「수업 중이겠네요」, 저녁에는 「퇴근 잘했어요?」,
+   새벽에는 「아직 안 자나 봐요」. 워커에 선톡 모드는 여전히 없다 —
+   지시가 이력의 마지막 유저 턴으로 실려 간다(관전방과 같은 길). */
+eq('평소 선톡은 모델이 쓴다', /const GREET_ASK=/.test(web)
+  && /history:\[\.\.\.buildHistory\(sinceSum\(id,ms\)\),\{role:"user",content:GREET_ASK\}\]/.test(web), true);
+/* 유저가 방금 접속한 걸 인물이 알면 인사가 아니라 감시 카메라다 */
+eq('유저가 온 걸 모른다 — 「왔어요」 금지',
+  /상대가 온 걸 아는 말은 하지 않는다/.test(web), true);
+eq('첫인사는 여전히 각본이다 — 세계관이 열리는 자리라 문장을 고정한다',
+  /demoProactive\(id,demoGreetWhen\(gapMin,id\),name\)/.test(web), true);
+eq('같이 있는 사람은 선톡을 안 한다',
+  /sceneRef\.current&&sceneRef\.current\.room===id\)return/.test(web), true);
+/* 지시가 기록에 남으면 다음 턴부터 그 지시까지 대화가 된다 — 정의와
+   이력에 얹는 자리, 딱 두 번만 나와야 한다 */
+eq('지시는 저장하지 않는다', (web.match(/GREET_ASK/g) || []).length, 2);
 eq('가변부까지 실려 나간다', buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 5 },
   null, null, [], 1, '보건실', true, '저녁', '화요일', null, true).includes('이 자리는 여기까지다'), true);
 

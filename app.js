@@ -720,19 +720,23 @@ function App(){
      빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만 한 번 — 들어올 때마다
      말을 걸면 사람이 아니라 알림이 된다.
 
-     전에는 이게 데모 전용이었다. 키가 살아 있으면 아무도 먼저 말을 걸지
-     않았다는 뜻이다. 지금은 항상 온다.
-
-     문장은 문구집의 「도착 선톡」에서 고른다. 모델에게 첫 마디를 시켜도
-     봤는데, 첫인사는 매번 같은 자리에서 같은 목적으로 나오는 말이라
-     쓰여 있는 스무 개를 도는 편이 낫다. 대신 공백에 따라 갈래가 다르다 —
-     처음이면 고른 다섯 개, 평소면 스무 개, 하루를 넘겼으면 늦었다는 말이
-     들어 있는 여섯 개다. 십 분 만에 들어온 사람한테 「이제 와요?」는 안 한다. */
+     첫인사(기록 없는 방)는 문구집 각본이다 — 세계관이 열리는 자리라 문장을
+     고정한다. 그 뒤의 선톡은 모델이 쓴다. 각본 스무 개를 돌 때는 아침이든
+     새벽이든 같은 스무 개였다 — 낮에는 「수업 중이겠네요」, 저녁에는 「퇴근
+     잘했어요?」, 새벽에는 「아직 안 자나 봐요」가 나와야 한다. 때와 자기
+     상태는 가변부의 [지금]이 이미 알고 있으니, 먼저 걸라는 지시 한 줄만
+     얹으면 모델이 알아서 한다. 하루 한 번뿐이라 비용도 하루 두 통이 상한이다.
+     데모는 각본을 그대로 쓴다 — 부를 모델이 없다. */
+  /* 「왔어요」는 금지다. 유저가 방금 접속한 것을 인물은 모른다 — 알면
+     인사가 아니라 감시 카메라다. 이 선톡은 조용한 방에 대고 보내는 말이다. */
+  const GREET_ASK="(유저는 한동안 말이 없다. 지금이 언제인지와 네 상황에 맞춰 네가 먼저 한두 마디를 건다 — 안부든, 지금 하고 있는 것이든. 유저가 방금 접속했는지 너는 모른다. 「왔어요」처럼 상대가 온 걸 아는 말은 하지 않는다.)";
   const greet=(id,delay)=>{
     if(id==="health"||id==="group")return;
     /* 거는 길이 둘이다 — 목록에 앉아 있을 때, 그리고 방을 열 때.
        한쪽만 잠그면 새벽에 재언 방을 열었을 때 그가 깨어난다 */
     if(!canGreet(id))return;
+    /* 같이 있는 사람은 선톡을 안 한다 — 눈앞에 있는데 문자가 오면 이상하다 */
+    if(sceneRef.current&&sceneRef.current.room===id)return;
     const list=storeRef.current.msgs[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
@@ -742,6 +746,17 @@ function App(){
     if(gapMin>=0){
       if(loadGreetDay()[id]===dayKey())return;
       if(!greetLot(id))return;
+    }
+    /* 시간표를 아는 선톡 — 모델이 쓴다. 지시는 이력 끝에만 얹고 저장은
+       안 한다. 답장만 남는 게 맞다 — 지시가 기록에 남으면 다음 턴부터
+       그 지시까지 대화가 된다. */
+    if(gapMin>=0&&!demoOn()){
+      saveGreetDay({...loadGreetDay(),[id]:dayKey()});
+      const ms=storeRef.current.msgs[id]||[];
+      request(id,{mode:"chat",room:id,user_name:name,
+        history:[...buildHistory(sinceSum(id,ms)),{role:"user",content:GREET_ASK}],
+        signals:buildSignals(id),recent_photos:recentPhotos(id),counts:roomCounts()});
+      return;
     }
     setTimeout(()=>{
       try{
