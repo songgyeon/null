@@ -2737,8 +2737,19 @@ eq('묻는 창이 규칙을 알려준다',
   /앗! 하루에 1번만 갈 수 있어요 <span className="kao">\(υl\|l◔ㅅ◔\)՞՞<\/span>/.test(web), true);
 /* 못 가는 이유가 셋이라 이유를 각각 말해야 한다 — 눌렀는데 아무 일도 없는 게 제일 나쁘다 */
 eq('못 가는 이유를 셋 다 말한다',
-  /done\?done_/.test(web) && /wk\?"여기는 Weekend only! ♡"/.test(web)
-  && /empty\?"지금 밖은 Empty\.\.\."/.test(web), true);
+  /done\?R\(done_/.test(web) && /wk\?R\("여기는 Weekend only! ♡"/.test(web)
+  && /empty\?R\("지금 밖은 Empty\.\.\."/.test(web), true);
+/* 이유와 얼굴을 따로 고르면 갈래가 어긋난다 — 잠긴 데다 오늘 다녀온 자리에서
+   이유는 빈 줄인데 우는 얼굴만 남아, 「아직은 못 가요」 밑에 얼굴이 혼자 떴다.
+   한 갈래에서 짝으로 고르는지 보고, 앱도 같이 본다 */
+{
+  const flow2 = readFileSync(join(ROOT, 'app/lib/flow.ts'), 'utf8');
+  const paired = s => !/const kao\s*=\s*done\s*\?/.test(s)
+    && /\{\s*t:\s*why,\s*k:\s*kao\s*\}/.test(s);
+  eq('이유와 얼굴을 한 갈래에서 짝으로 고른다', [web, flow2].filter(paired).length, 2);
+  const lockedBare = s => /locked\s*\?\s*R\(\s*(''|"")\s*\)/.test(s);
+  eq('잠긴 자리에는 얼굴도 안 붙는다', [web, flow2].filter(lockedBare).length, 2);
+}
 /* ── 화면 글월은 웹과 앱이 같아야 한다 ──
    한쪽만 고치면 두 화면이 다른 말을 한다. 지도 창은 판정이 flow.ts(앱)와
    app.js(웹) 두 군데서 도므로 특히 갈라지기 쉽다. */

@@ -1089,19 +1089,20 @@ function App(){
       /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
          심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
       const done_=`오늘치 ${jos(ask,"은/는")} Complete...`;
-      const why=away&&!mv
-        ? (done?done_
-           :shut&&!locked?placeWhen(p)
-           :`현재 위치는 ${scene.place}...`)
-        :locked?""
-        :done?done_
-        :wk?"여기는 Weekend only! ♡"
-        :empty?"지금 밖은 Empty..."
-        :shut?placeWhen(p):"";
-      /* 얼굴은 픽셀 글꼴에 글자가 없어서 .kao로 따로 그린다 */
-      const kao=done?"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡"
-        :wk?"٩(❛ัᴗ❛ั ๑)"
-        :empty?"՞ ⸝⸝> ̫ <⸝⸝ ՞":"";
+      /* 얼굴은 픽셀 글꼴에 글자가 없어서 .kao로 따로 그린다.
+         이유와 얼굴은 한 갈래로 고른다. 따로 고르던 때는 갈래가 어긋났다 —
+         잠겼고 오늘 다녀온 자리에서 이유는 빈 줄인데 우는 얼굴만 남아서,
+         「아직은 못 가요」 밑에 얼굴 하나가 혼자 떠 있었다. */
+      const R=(t,k)=>({t,k:k||""});
+      const {t:why,k:kao}=away&&!mv
+        ? (done?R(done_,"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡")
+           :shut&&!locked?R(placeWhen(p))
+           :R(`현재 위치는 ${scene.place}...`))
+        :locked?R("")
+        :done?R(done_,"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡")
+        :wk?R("여기는 Weekend only! ♡","٩(❛ัᴗ❛ั ๑)")
+        :empty?R("지금 밖은 Empty...","՞ ⸝⸝> ̫ <⸝⸝ ՞")
+        :shut?R(placeWhen(p)):R("");
       return <div className="dlgov" onClick={()=>answerAsk(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
         <div className="tb">{ask}<WinDots onClose={()=>answerAsk(false)}/></div>
