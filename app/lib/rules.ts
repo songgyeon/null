@@ -294,6 +294,14 @@ const asleep=(id,now)=>{
    그 방에서 자는 쪽의 말풍선은 워커가 지운다(states를 보고). */
 const allAsleep=(room,now)=>(room==="group"?["jaeeon","minhyun"]:[room])
   .every(id=>asleep(id,now));
+/* 관전방은 둘이 마주 앉은 자리다. 한 사람만 자도 그 대화는 없던 일이므로
+   여기는 allAsleep(둘 다)이 아니라 어느 한쪽이라도 자면 막는다.
+   재언이 자는데 「두 사람」방에서는 떠들고 있었다 — 목록에는 「자는 중」이
+   떠 있는 사람이 옆방에서 말을 하고 있으면 그 점이 거짓말이 된다.
+   재는 시각은 지금이 아니라 그 대화가 찍힐 시각이다. 관전 대화는 유저가
+   자리를 비운 한 시간쯤 뒤로 거슬러 찍히므로, 지금 깨어 있는지가 아니라
+   그때 깨어 있었는지를 봐야 한다. */
+const bothAwake=now=>!asleep("jaeeon",now)&&!asleep("minhyun",now);
 
 /* ── 첫 자리 ──
    전에는 앱을 켜면 둘이 인사를 보내는 걸로 시작했다. 그건 알림이지 만남이 아니다.
@@ -885,6 +893,7 @@ return {
   canGreet,
   asleep,
   allAsleep,
+  bothAwake,
   OPENINGS,
   WEND_OPEN,
   openingFor,
@@ -1033,6 +1042,7 @@ export const {
   canGreet,
   asleep,
   allAsleep,
+  bothAwake,
   OPENINGS,
   WEND_OPEN,
   openingFor,

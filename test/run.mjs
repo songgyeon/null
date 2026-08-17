@@ -582,6 +582,33 @@ eq('점이 꺼진 사람은 안 건다',
     /last\.sys\?"· ":last\.sender==="user"\?"나: ":""/.test(web)
     && /last\.sender==='sys'\?'· ':last\.sender==='user'\?'나: ':''/.test(appSrc), true);
 }
+/* 관전방은 둘이 마주 앉은 자리다. 한 사람만 자도 그 대화는 없던 일이다 —
+   재언이 자는데 「두 사람」방에서는 떠들고 있었다. 목록에 「자는 중」이 떠
+   있는 사람이 옆방에서 말을 하면 그 점이 거짓말이 된다 */
+{
+  const src2 = web.slice(web.indexOf('function presence'));
+  const B = new Function(src2.slice(0, src2.indexOf('\n}\n') + 3)
+    + 'const asleep=(id,now)=>{const pr=presence(id,now);return !!pr&&pr.s==="off"};'
+    + 'const bothAwake=now=>!asleep("jaeeon",now)&&!asleep("minhyun",now);'
+    + '\nreturn bothAwake;')();
+  const at2 = h => new Date(2026, 0, 6, h);
+  /* 재언 1~6시, 민현 3~8시 — 둘을 합치면 1~8시가 조용하다 */
+  eq('한쪽만 자도 관전은 안 만든다',
+    [0, 2, 5, 7, 9, 23].map(h => B(at2(h))), [true, false, false, false, true, true]);
+  /* 지금이 아니라 그 대화가 찍힐 시각으로 잰다 — 관전은 한 시간쯤 거슬러 찍힌다 */
+  eq('찍힐 시각으로 잰다', /if\(!bothAwake\(new Date\(at\)\)\)return;/.test(web), true);
+  /* 하루 몫을 깎기 전에 본다. 순서가 반대면 만들지도 못한 대화에 몫만 나가고
+     적어둔 사건(선물)까지 같이 지워진다 */
+  eq('몫을 깎기 전에 본다',
+    web.indexOf('if(!bothAwake(new Date(at)))return;') < web.indexOf('saveAutoDay(`${day}|'), true);
+  /* peek 단추는 지금 벌어지는 일이라 지금으로 잰다 */
+  eq('peek도 자면 안 부른다', /if\(!bothAwake\(\)\)\{ setToast\(/.test(web), true);
+  eq('앱도 관전을 막는다',
+    /if\(!bothAwake\(new Date\(at\)\)\) return;/.test(appSrc)
+    && /if\(!bothAwake\(\)\)\{ setToast\(/.test(appSrc), true);
+  eq('앱도 몫을 깎기 전에 본다',
+    appSrc.indexOf('if(!bothAwake(new Date(at))) return;') < appSrc.indexOf("null_auto_day',`${day}|"), true);
+}
 /* 앱도 같은 자리에서 같은 시계를 본다 — 한쪽만 고치면 두 화면이 갈린다 */
   eq('앱도 자는 사람은 안 부른다',
     /if\(!\(sc0&&sc0\.room===room\)&&allAsleep\(room\)\)\{/.test(appSrc)

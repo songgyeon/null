@@ -703,6 +703,14 @@ function App(){
          그동안 안 보였다. 그게 고쳐지자 드러났다.) */
       if(!lastAny)return;
       if(now-lastAny<AUTO_AWAY)return;
+      // 유저가 나가고 한 시간쯤 뒤의 일로 찍는다
+      const at=Math.min(lastAny+AUTO_AWAY+Math.floor(Math.random()*30*60*1000),now-5*60*1000);
+      /* 그 시각에 둘 다 깨어 있었어야 한다. 재언이 자는데 「두 사람」방에서는
+         떠들고 있었다 — 목록에 「자는 중」이 떠 있는 사람이 옆방에서 말을 하면
+         그 점이 거짓말이 된다. 지금이 아니라 찍힐 시각(at)으로 잰다.
+         하루 몫을 깎기 전에 본다 — 순서가 반대면 만들지도 못한 대화에 몫만
+         나가고, 적어둔 사건(선물)까지 같이 지워진다. 전에 그렇게 잃었다. */
+      if(!bothAwake(new Date(at)))return;
       /* 하루 경계는 여기서도 새벽 다섯 시다. UTC 날짜로 세면 아침 아홉 시에
          상한이 리셋돼 한 하루에 네 번이 돈다 — 제일 비싼 호출인데 */
       const day=dayKey();
@@ -719,8 +727,6 @@ function App(){
          일이 되는 쪽은 유저가 한 일이었다.
          쿨타임 표시는 저장값으로 충분하다 — 목록은 열 때 loadAutoAt으로 읽는다. */
       saveAutoAt(now);
-      // 유저가 나가고 한 시간쯤 뒤의 일로 찍는다
-      const at=Math.min(lastAny+AUTO_AWAY+Math.floor(Math.random()*30*60*1000),now-5*60*1000);
       let list=null;
       /* 명시적 데모만 각본이다. demoOn()으로 보면 실패 래치(DEMO.auto)가
          여기 전염돼서, 429 한 번 뒤의 관전 생성이 진짜를 시도조차 않고
@@ -754,6 +760,9 @@ function App(){
 
   const doAuto=async()=>{
     if(autoLoading)return;
+    /* 이쪽은 지금 벌어지는 일로 찍힌다. 한 사람이라도 자고 있으면 만들 대화가
+       없다 — 부르지도 않는다. 눌렀는데 아무 일이 없으면 고장으로 보이니 한 줄 띄운다 */
+    if(!bothAwake()){ setToast("지금은 둘 다 자요 ♡"); return }
     setAutoLoading(true);
     await request("health",{mode:"auto",user_name:name,
       history:buildHistory(storeRef.current.msgs.health||[]),signals:buildSignals(null),recent_photos:recentPhotos("health")});
