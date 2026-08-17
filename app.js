@@ -453,6 +453,33 @@ function App(){
       counts:roomCounts({[char]:nextMsgs.length}),gift:{name:gift.name,key:gift.key,note}});
   };
 
+  /* ── 만나러 가서 준다 ──
+     물건은 손에서 손으로 간다. 그래서 선물이 만나러 가는 이유가 된다.
+     자리로 가는 것과 주는 것을 한 번에 한다 — 가서 다시 눌러 줘야 하면
+     두 번 일이고, 선물을 들고 간 사람이 빈손으로 앉는 그림이 된다.
+     자리 몫과 선물 몫을 둘 다 쓴다. 그만큼 값이 나가는 것이 맞다. */
+  const giveGiftAt=(char,gift,memo,place)=>{
+    const p=PLACE_BY[place]; if(!char||!gift||!p)return;
+    if((giftsRef.current[char]||[]).includes(gift.key))return;
+    if(giftedToday(char)||goneToday(place))return;
+    stampGift(char); stampGone(place);
+    const next={...giftsRef.current,[char]:[...(giftsRef.current[char]||[]),gift.key]};
+    setGifts(next); saveGifts(next);
+    const note=(memo||"").trim().slice(0,60);
+    const at={id:Date.now()+Math.random(),sender:"user",sys:true,text:`${place}에 갔다`,ts:Date.now()};
+    const got={id:Date.now()+Math.random(),sender:"user",sys:true,
+      text:`${jos(CHARS[char].name,"이/가")} ${jos(gift.name,"을/를")} 받았다`+(note?` — “${note}”`:""),ts:Date.now()+1};
+    appendMsg(char,at); appendMsg(char,got);
+    goneTo(place); markEvent({kind:"gift",to:char,name:gift.name});
+    setToast(`${CHARS[char].name} — ${gift.name}`);
+    const sc={room:char,place,since:Date.now()}; setScene(sc); saveScene(sc); setView(char);
+    const ms=[...(storeRef.current.msgs[char]||[]),at,got];
+    request(char,{mode:"chat",room:char,user_name:name,
+      history:buildHistory(sinceSum(char,ms)),signals:buildSignals(char),
+      recent_photos:recentPhotos(char),counts:roomCounts({[char]:ms.length}),
+      place,bag:bagRef.current.map(b=>b.key),gift:{name:gift.name,key:gift.key,note}});
+  };
+
   /* 재시도: 저장해둔 payload를 최신 history로 갱신해 다시 전송 */
   const retry=room=>{
     const p=failed[room]&&failed[room].payload;if(!p)return;
@@ -781,9 +808,9 @@ function App(){
         </div>
       </div>
     </div>}
-    {cart&&<Cart gifts={gifts||{}} hearts={heartsOf(store,gifts)}
+    {cart&&<Cart gifts={gifts||{}} hearts={heartsOf(store,gifts)} met={met}
       withChar={scene&&scene.room===view?scene.room:null}
-      onSend={giveGift} onClose={()=>setCart(false)}/>}
+      onSend={giveGift} onSendAt={giveGiftAt} onClose={()=>setCart(false)}/>}
     {/* 사물함 명패. 눌러도 아무 일이 없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다 */}
     {plate&&<div className="dlgov" onClick={()=>setPlate(null)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>

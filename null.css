@@ -304,6 +304,15 @@ input.csearch::placeholder{color:#b9addc}
 .csent{flex:none;padding:8px 16px;font-size:10.5px;letter-spacing:.12em;color:#a99bd0;border-radius:999px;
  background:#f4f0fc;border:1.5px solid #fff;box-shadow:0 0 0 1px #e4dbf8}
 .chint{margin:5px 0 0 64px;font-size:9px;color:#b4a7d6}
+/* 어디서 줄까요 — 갈 수 있는 자리와 못 가는 이유를 같이 놓는다.
+   못 가는 자리를 아예 빼면 왜 없는지를 모른다 */
+.cwhere{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 12px 10px}
+.cspot{display:flex;align-items:center;justify-content:space-between;gap:6px;
+ padding:9px 11px;font-size:11px;border-radius:9px;text-align:left}
+.cspot .csname{flex:none;color:#4a4276}
+.cspot .cswhy{flex:1;text-align:right;font-size:8.5px;letter-spacing:.02em;color:#e089b4}
+.cspot.off{opacity:.5;cursor:default}
+.cspot.off .cswhy{color:#a99bd0}
 /* 오늘 몫은 나갔다는 한 줄. 자리가 닫혔을 때 여는 시각을 적어주는 줄과
    같은 자리·같은 톤이다 — 막는 것과 왜 막는지는 같이 와야 한다 */
 .cshut{margin:0 0 9px;padding:7px 10px;text-align:center;font-size:9.5px;letter-spacing:.14em;

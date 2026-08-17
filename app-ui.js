@@ -611,7 +611,7 @@ function FindPanel({store,name,onOpen}){
 /* 장바구니 — 목록에서 고르고, 누구에게 보낼지와 쪽지를 그 자리에서 정한다.
    작은 다이얼로그가 아니라 창 하나를 통째로 쓴다. 목록 + 쪽지까지 들어가면
    290px 상자로는 스크롤만 생긴다. */
-function Cart({gifts,hearts,withChar,onSend,onClose}){
+function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
   const [q,setQ]=useState("");
   const [cat,setCat]=useState("전체");
   const [pick,setPick]=useState(null);
@@ -668,25 +668,45 @@ function Cart({gifts,hearts,withChar,onSend,onClose}){
           안 되는지 적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
       {!withChar
-        ?<div className="cshut">만나서 줘요 ♡ meet them first</div>
+        ?<div className="cshut">만나서 줘요 ♡ 어디서 줄지 고르면 그리로 가요</div>
         :(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
       {["jaeeon","minhyun"].map(c=>{
-        const done=given(c), shut=done||today(c)||!here(c), sel=to===c;
+        /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
+           지금 자리를 말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
+        const done=given(c), shut=done||today(c)||(!!withChar&&!here(c)), sel=to===c;
         return <div key={c}>
           <button className={"cto"+(sel?" sel":"")} disabled={shut}
             onClick={()=>{ if(shut)return;
               if(!sel){setTo(c);return}
               if(poor)return;
+              /* 이미 마주 앉아 있으면 바로 준다. 아니면 아래에서 자리를 고른다 */
+              if(!here(c))return;
               onSend(c,pick,memo); onClose(); }}>
             <span className="cradio"/>
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
             <span className={shut?"csent":"csend"}>
-              {done?"SENT ♡":today(c)?"TOMORROW ♡":!here(c)?"NOT HERE":(sel?(poor?`NEED ♡${pick.cost-hearts}`:"SEND ♡"):"WRAP ♡")}</span>
+              {done?"SENT ♡":today(c)?"TOMORROW ♡":(withChar&&!here(c))?"NOT HERE"
+                :(sel?(poor?`NEED ♡${pick.cost-hearts}`:(here(c)?"SEND ♡":"WHERE ♡")):"WRAP ♡")}</span>
           </button>
           {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
       })}
+      {/* 만나고 있지 않으면 만나러 간다. 선물이 지도를 도는 이유가 된다 —
+          자리 규칙은 하나도 안 봐준다. 여는 시간, 오늘 갔는지, 주말 전용,
+          그리고 그 사람이 거기 있을 수 있는지까지 다 본다 */}
+      {to&&!here(to)&&!given(to)&&!today(to)&&<React.Fragment>
+        <div className="csect">어디서 줄까요?</div>
+        <div className="cwhere">
+          {giftSpots(to,met).map(g=>
+            <button key={g.place} className={"cspot bevel"+(g.ok?"":" off")}
+              disabled={!g.ok||poor}
+              onClick={()=>{ if(!g.ok||poor)return; onSendAt(to,pick,memo,g.place); onClose(); }}>
+              <span className="csname">{g.place}</span>
+              <span className="cswhy">{g.ok?"♡":g.why}</span>
+            </button>)}
+        </div>
+      </React.Fragment>}
       <div className="csect">A NOTE (optional)</div>
       <textarea className="cmemo" value={memo} maxLength={60} placeholder="P.S. ♡"
         onChange={e=>setMemo(e.target.value)}/>

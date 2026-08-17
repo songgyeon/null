@@ -536,21 +536,45 @@ eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter
    물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말한 적이 있다.
    「말로 주는 CD가 어딨어요. 지금 손에 든 거예요?」
    모델이 스스로 막고 있던 것을 규칙으로 내린다 */
-eq('만난 사람에게만 보낸다',
-  /const here=c=>withChar===c;/.test(web) && /shut=done\|\|today\(c\)\|\|!here\(c\)/.test(web), true);
+eq('만나고 있으면 바로 준다',
+  /const here=c=>withChar===c;/.test(web)
+  && /if\(!here\(c\)\)return;\s*\n\s*onSend\(c,pick,memo\); onClose\(\);/.test(web), true);
+/* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면 지금 자리를
+   말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
+eq('자리에 있으면 딴 사람은 못 고른다',
+  /shut=done\|\|today\(c\)\|\|\(!!withChar&&!here\(c\)\)/.test(web)
+  && /\(withChar&&!here\(c\)\)\?"NOT HERE"/.test(web), true);
+eq('아니면 어디서 줄지 고른다',
+  /\(sel\?\(poor\?`NEED ♡\$\{pick\.cost-hearts\}`:\(here\(c\)\?"SEND ♡":"WHERE ♡"\)\):"WRAP ♡"\)/.test(web), true);
 eq('아무도 안 만났으면 그렇게 말한다',
-  /<div className="cshut">만나서 줘요 ♡ meet them first<\/div>/.test(web), true);
-eq('그 자리에 없는 사람은 NOT HERE다', /!here\(c\)\?"NOT HERE"/.test(web), true);
+  /<div className="cshut">만나서 줘요 ♡ 어디서 줄지 고르면 그리로 가요<\/div>/.test(web), true);
 /* 주는 길이 둘이면 둘 다 잠가야 한다 */
 eq('보내는 쪽에서도 막는다',
   /if\(!sc\|\|sc\.room!==char\)\{ setToast\("만나서 줘요 ♡"\); return \}/.test(web), true);
-/* 선물 단추가 메뉴바에만 있으면 자리에서는 열 수가 없다 —
-   만나야 줄 수 있는데 만난 자리에 단추가 없는 꼴이 된다 */
-eq('자리에도 선물 단추가 있다',
-  /<button className="giftbtn bevel" onClick=\{onCart\}/.test(web)
-  && /\.scenebar \.giftbtn\{/.test(web), true);
-eq('장바구니는 어느 화면에서나 열린다',
-  /\{cart&&<Cart gifts=\{gifts\|\|\{\}\} hearts=\{heartsOf\(store,gifts\)\}/.test(web), true);
+
+/* ── 어디서 줄까요 ──
+   물건은 손에서 손으로 간다. 그래서 선물이 만나러 가는 이유가 된다 —
+   지도를 도는 이유가 아이템 하나뿐이었는데 하나 늘었다 */
+eq('자리 규칙을 하나도 안 봐준다',
+  /const canMeet=p\.meet==="out" \? whoOut\(now\)\.includes\(char\)/.test(web)
+  && /goneToday\(p\.name,now\) \? "오늘은 벌써 다녀왔어요"/.test(web)
+  && /!wendOnlyOk\(p,now\)\s*\? "주말에만"/.test(web)
+  && /!placeHours\(p,now\)\s*\? placeWhen\(p,now\)/.test(web), true);
+/* 아직 안 열린 자리는 아예 안 보인다. 모르는 자리는 없는 자리다 */
+eq('안 열린 자리는 목록에 없다',
+  /SPOTS\.filter\(p=>placeOpen\(p,met\)\)\.map/.test(web), true);
+/* 못 가는 자리를 아예 빼면 왜 없는지를 모른다 — 흐리게 남겨 이유를 적는다 */
+eq('못 가는 이유를 남긴다',
+  /\{g\.ok\?"♡":g\.why\}/.test(web) && /\.cspot\.off\{opacity:\.5/.test(web), true);
+/* 가서 다시 눌러 줘야 하면 두 번 일이고, 선물을 들고 간 사람이 빈손으로 앉는다 */
+eq('가는 것과 주는 것을 한 번에 한다',
+  /const giveGiftAt=\(char,gift,memo,place\)=>\{/.test(web)
+  && /stampGift\(char\); stampGone\(place\);/.test(web), true);
+eq('자리 몫과 선물 몫을 둘 다 쓴다',
+  /if\(giftedToday\(char\)\|\|goneToday\(place\)\)return;/.test(web), true);
+/* 워커에게 자리와 선물을 같이 보낸다 — 마주 앉아 있고 방금 이걸 받았다 */
+eq('자리와 선물을 같이 보낸다',
+  /place,bag:bagRef\.current\.map\(b=>b\.key\),gift:\{name:gift\.name,key:gift\.key,note\}\}\);/.test(web), true);
 eq('지금 만난 사람을 창에 알려준다',
   /withChar=\{scene&&scene\.room===view\?scene\.room:null\}/.test(web), true);
 
@@ -1872,9 +1896,10 @@ eq('새로고침해도 그 자리에 남는다', /const loadScene=/.test(web) &&
 eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.test(web), true);
 /* 자리로 들어가는 길은 둘이다 — 인물의 초대, 그리고 지도에서 내가 고르는 것.
    어느 쪽이든 들어간 시각을 찍어야 앞의 대화가 배경 위로 안 새어 나온다 */
-/* 넷 — 첫 자리로, 초대를 받아서, 지도에서 골라서, 그리고 귀갓길로 이어져서 */
+/* 다섯 — 첫 자리로, 초대를 받아서, 지도에서 골라서, 선물을 들고 가서,
+   그리고 귀갓길로 이어져서 */
 eq('자리에 들어갈 때 시각을 찍는다',
-  (web.match(/since:Date\.now\(\)/g) || []).length, 4);
+  (web.match(/since:Date\.now\(\)/g) || []).length, 5);
 
 /* ── 이름표가 말풍선 안으로 새는 것 ──
    누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을

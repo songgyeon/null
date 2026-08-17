@@ -653,6 +653,25 @@ const freeOut=(id,now)=>{
   return isWend(d)||!AT_WORK.includes(pr.t);
 };
 const whoOut=(now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));
+/* ── 선물을 어디서 줄까 ──
+   물건은 손에서 손으로 간다. 그래서 선물은 만나러 가는 이유가 된다 —
+   지도를 도는 이유가 아이템 하나뿐이었는데 하나 늘었다.
+   자리 규칙은 하나도 안 봐준다. 여는 시간, 오늘 갔는지, 주말 전용,
+   그리고 그 사람이 거기 있을 수 있는지까지 다 통과해야 목록에 뜬다.
+   왜 안 되는지는 흐리게 남겨서 알려준다 — 아예 빼면 왜 없는지를 모른다.
+   아직 안 열린 자리는 아예 안 보인다. 모르는 자리는 없는 자리다. */
+const giftSpots=(char,met,now)=>SPOTS.filter(p=>placeOpen(p,met)).map(p=>{
+  const canMeet=p.meet==="out" ? whoOut(now).includes(char)
+              : p.pick ? true
+              : (p.who||[]).includes(char);
+  const why=!canMeet ? (p.meet==="out"?"지금은 아무도 없어요":"여기엔 안 와요")
+    : goneToday(p.name,now) ? "오늘은 벌써 다녀왔어요"
+    : !wendOnlyOk(p,now)    ? "주말에만"
+    : !placeHours(p,now)    ? placeWhen(p,now)
+    : "";
+  return {place:p.name, icon:p.icon, ok:!why, why};
+});
+
 /* 주말에만 가는 자리 */
 const wendOnlyOk=(p,now)=>!p.wendOnly||isWend(now||new Date());
 
