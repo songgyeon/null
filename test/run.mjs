@@ -574,7 +574,15 @@ eq('점이 꺼진 사람은 안 건다',
   eq('깨어 있으면 안 건드린다', D(two, { jaeeon:'집', minhyun:'야자' }), ['jaeeon', 'minhyun']);
   /* 다 지우면 빈 답이 된다 — 빈 화면은 고장으로 읽힌다 */
   eq('다 자면 차라리 그대로 둔다', D(two, { jaeeon:'자는 중', minhyun:'꺼짐' }), ['jaeeon', 'minhyun']);
-  /* 앱도 같은 자리에서 같은 시계를 본다 — 한쪽만 고치면 두 화면이 갈린다 */
+  /* 지문에는 말한 사람이 없다. sender는 자리를 채운 값이지 유저가 한 말이
+   아닌데 목록 미리보기가 「나: 이재언은 자고 있다」로 찍었다 — 내보내기에서
+   한 번 고친 것과 같은 일이 목록에서 또 났다. 웹·앱 둘 다 본다 */
+{
+  eq('목록의 지문에는 「나:」를 안 붙인다',
+    /last\.sys\?"· ":last\.sender==="user"\?"나: ":""/.test(web)
+    && /last\.sender==='sys'\?'· ':last\.sender==='user'\?'나: ':''/.test(appSrc), true);
+}
+/* 앱도 같은 자리에서 같은 시계를 본다 — 한쪽만 고치면 두 화면이 갈린다 */
   eq('앱도 자는 사람은 안 부른다',
     /if\(!\(sc0&&sc0\.room===room\)&&allAsleep\(room\)\)\{/.test(appSrc)
     && /자고 있다`/.test(appSrc), true);

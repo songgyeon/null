@@ -901,7 +901,14 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
                   {pr&&<span className={"pres "+pr.s}><i/>{pr.t}</span>}
                   {last&&<span className="rtime">{fmtListTime(last.ts)}</span>}
                 </div>
-                <div className="rprev">{last?(last.sender==="user"?"나: ":"")+(last.photo?"[사진] "+(last.text||""):last.text) : r.empty.split("\n")[0]}</div>
+                {/* 지문에는 말한 사람이 없다. sender는 user로 저장하지만 그건
+                    자리를 채운 값이지 유저가 한 말이 아니다 — 「나: 이재언은
+                    자고 있다」로 찍혔다. 내보내기에서 한 번 고친 것과 같은 일이
+                    목록에서 또 났다. 지문은 채팅방에서 그러듯 가운뎃점을 앞에 둔다 */}
+                <div className={"rprev"+(last&&last.sys?" sys":"")}>{last
+                  ?(last.sys?"· ":last.sender==="user"?"나: ":"")
+                    +(last.photo?"[사진] "+(last.text||""):last.text)
+                  : r.empty.split("\n")[0]}</div>
               </div>
               {un>0&&<span className="rbadge">{un}</span>}
             </div>

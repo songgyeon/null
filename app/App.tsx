@@ -1021,7 +1021,9 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                 {last&&<Text style={rl.tm}>{fmtTime(last.created_at)}</Text>}
               </View>
               <Text style={rl.pv} numberOfLines={1}>
-                {last?`${last.sender==='user'?'나: ':''}${last.photo?'[사진] ':''}${last.text}`:room.empty}
+                {/* 지문에는 말한 사람이 없다 — 웹 목록에서 「나: 이재언은 자고
+                    있다」로 찍힌 것과 같은 자리다. 앱은 sender가 sys라 갈래만 하나 더 둔다 */}
+                {last?`${last.sender==='sys'?'· ':last.sender==='user'?'나: ':''}${last.photo?'[사진] ':''}${last.text}`:room.empty}
               </Text>
             </View>
             {un>0&&<View style={rl.bd}>

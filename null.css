@@ -584,6 +584,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .rtag{font-size:9px;padding:2px 6px;border:1px solid currentColor;border-radius:8px;letter-spacing:.05em;white-space:nowrap;flex:none}
 .rtime{margin-left:auto;font-size:9.5px;color:#b0a6d8;flex:none}
 .rprev{margin-top:5px;font-size:11px;color:#9a8fc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 지문은 누가 한 말이 아니다. 채팅방에서 옅게 그리듯 목록에서도 한 톤 물린다 */
+.rprev.sys{color:#b0a6d8;font-style:normal;letter-spacing:.02em}
 .watch .rprev{color:#8a90b8}
 .watch .rtime{color:#6d74a3}
 .rbadge{position:relative;flex:none;min-width:20px;height:20px;padding:0 6px;font-size:10px;color:#fff;border-radius:10px;
