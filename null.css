@@ -899,10 +899,13 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
 /* min-width:0이 없으면 input은 제 min-content(기본 size=20자) 아래로 안 줄어든다.
    폭이 좁은 화면에서 입력칸이 버티는 바람에 보내기 단추가 화면 밖으로 밀렸다 */
-.inputbar input{flex:1;min-width:0;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;outline:none;border-radius:0}
+/* 앱에서 여기만 각졌었다. 카드·창·단추가 다 둥근데 입력칸만 border-radius:0이라
+   혼자 딱딱했다. 창들과 같은 9px로 맞춘다 */
+.inputbar input{flex:1;min-width:0;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;outline:none;border-radius:9px}
 .inputbar input::placeholder{color:#b0a6d8}
 /* 보내기 — 방 색을 그대로 쓰되 유리 단추로 */
-.sendbtn{position:relative;overflow:hidden;width:40px;height:37px;display:flex;align-items:center;justify-content:center;
+/* 40x37이라 원이 아니라 옆으로 퍼진 타원이었다. 뒤로가기·선물과 같은 37로 맞춘다 */
+.sendbtn{position:relative;overflow:hidden;width:37px;height:37px;display:flex;align-items:center;justify-content:center;
  flex:none;color:#fff;border-radius:999px;border:1.5px solid rgba(93,84,144,.35);
  text-shadow:0 1px 0 rgba(93,84,144,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 3px 0 rgba(93,84,144,.22)}
 .sendbtn::after{content:"";position:absolute;left:7%;right:7%;top:2px;height:36%;border-radius:999px;

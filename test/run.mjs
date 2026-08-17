@@ -2049,6 +2049,16 @@ eq('관전방을 열 때도 돈다',
 eq('비운 시간과 상한은 그대로다',
   /if\(now-lastAny<AUTO_AWAY\)return;/.test(web) && /if\(used>=AUTO_MAX_DAY\)/.test(web), true);
 
+/* 앱에서 입력칸만 각졌었다 — 카드·창·단추가 다 둥근데 혼자 border-radius:0.
+   보내기는 40x37이라 원이 아니라 옆으로 퍼진 타원이었다 */
+eq('입력칸도 둥글다', /\.inputbar input\{[^}]*border-radius:9px\}/.test(web), true);
+eq('보내기는 진짜 원이다',
+  /\.sendbtn\{position:relative;overflow:hidden;width:37px;height:37px/.test(web), true);
+/* 뒤로가기·선물과 같은 지름이라야 한 줄에서 셋이 같은 단추로 읽힌다 */
+eq('자리의 단추 셋이 같은 크기다',
+  /\.scenebar \.backbtn\{width:37px;height:37px/.test(web)
+  && /\.scenebar \.giftbtn\{flex:none;width:37px;height:37px/.test(web), true);
+
 /* 어둠막(::before, z-index:0)이 입력줄 위에 얹혀서 자리에 들어가면
    입력창만 까맸다. 위치 없는 요소는 z-index:0인 형제보다 아래에 깔린다 */
 eq('어둠막이 입력줄을 안 덮는다',
