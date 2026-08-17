@@ -1962,6 +1962,19 @@ eq('자리에 없으면 갈 자리는 그대로 나온다',
 eq('자리에서 나올 때 못 받았으면 채워준다',
   /const closeScene=\(\)=>\{[\s\S]{0,300}takeItem\(p\.item,sc\.room,sc\.place\)/.test(web), true);
 
+/* ── 관전방도 저절로 쌓인다 ──
+   선물도 안 주고 자리도 안 간 사람에게는 그 방이 영영 첫 장면 그대로였다.
+   유저 없이도 돌아간다는 게 전제인데 정작 그 방만 유저가 뭘 해야 움직였다.
+   자리를 비운 시간(한 시간)과 하루 상한(둘)은 그대로다 — 제일 비싼 호출이다 */
+eq('사건이 없어도 만든다', /const ev=loadAutoEvent\(\)\|\|null;/.test(web), true);
+eq('사건이 있으면 그 일을 얹는다',
+  /\.\.\.\(ev&&ev\.kind\?\{event:\{kind:ev\.kind,to:ev\.to,name:ev\.name\}\}:\{\}\)/.test(web), true);
+eq('관전방을 열 때도 돈다',
+  /if\(!name\|\|\(view!=="list"&&view!=="health"\)\|\|autoBusy\.current\)return;/.test(web), true);
+/* 비운 시간과 상한을 지우면 한 시간에 스물두 번씩 이만 이천 자를 보낸다 */
+eq('비운 시간과 상한은 그대로다',
+  /if\(now-lastAny<AUTO_AWAY\)return;/.test(web) && /if\(used>=AUTO_MAX_DAY\)/.test(web), true);
+
 /* ── 나가기도 한 번 묻는다 ──
    하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면 실수로 닫힌다.
    들어올 때 물었으니 나갈 때도 묻는 게 짝이 맞다 */
@@ -2201,7 +2214,7 @@ eq('못 가는 이유를 셋 다 말한다',
    길보다 자연스럽고, 잠긴 자리도 자물쇠 딱지가 아니라 안 열리는 문이 된다. */
 {
   const SLOT = [...web.slice(web.indexOf('const CAB_SLOT=['), web.indexOf('const CAB_COL='))
-    .matchAll(/\{(kind|place):"([^"]+)"\}/g)].map(m => m[2]);
+    .matchAll(/\{(?:kind|place):"([^"]+)"/g)].map(m => m[1]);
   eq('칸이 여덟이다', SLOT.length, 8);
   /* 차례는 need를 그대로 따라간다 — 학교에서 시작해 편의점·도서관으로 갈라지고,
      레코드샵·빨래방을 지나 둘 다 걸어야 집이 열린다. 왼쪽 줄과 오른쪽 줄이 한 갈래씩 */
@@ -2225,18 +2238,20 @@ eq('못 가는 이유를 셋 다 말한다',
   /* 문짝은 구멍(40.73%)보다 넓어야 경첩이 프레임에 얹히고, 칸 간격(22.5%)보다
      좁아야 위아래가 안 겹친다. 그림이 정사각이라 폭이 곧 높이다 */
   eq('문짝이 구멍보다 넓고 칸 간격보다 좁다', /const CAB_DOOR_W=43;/.test(web), true);
-  /* START와 NULL은 자리가 아니다. 눌러도 아무 일이 없어야 한다 */
-  eq('명패는 안 눌린다', /if\(s\.kind\)return <span key=\{s\.kind\} className="cabdoor plate"/.test(web), true);
+  /* START와 NULL은 갈 자리가 아니다. 창은 뜨되 자리로 안 간다 */
+  eq('명패는 자리가 아니다', /if\(s\.kind\)return <span key=\{s\.kind\} className="cabdoor plate"/.test(web), true);
   /* 잠긴 문도 눌린다. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
      왜 안 되는지는 창이 말한다 */
   eq('잠긴 문도 눌러진다', /const live=!dim;/.test(web), true);
   eq('잠긴 문을 누르면 묻는 창이 뜬다',
     /onClick=\{live\?\(open\?go:\(\)=>onGoPlace\(p\.name\)\):null\}/.test(web), true);
+  /* 두 줄로 끊고 글자를 줄인다 — 한 줄로 늘어놓으면 창이 옆으로 벌어지고
+     얼굴이 잘린다 */
   eq('잠겼다고 말해준다',
-    /my bad <i style=\{\{fontStyle:"normal",color:"#e66fa4"\}\}>♡<\/i> 아직은 못 가요/.test(web), true);
-  /* 무엇을 먼저 가야 하는지도 같이 알려준다 */
-  eq('무엇을 먼저 가야 하는지 알려준다',
-    /const left=locked\?placeNeed\(p,met\):\[\];/.test(web), true);
+    /<span className="asklock">my bad <i>♡<\/i><br\/>아직은 못 가요/.test(web), true);
+  /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
+     심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
+  eq('먼저 갈 데를 안 적는다', /먼저":""/.test(web) || /placeNeed\(p,met\)/.test(web), false);
   /* 창의 X가 그림만 있고 안 눌렸다. 셋 다 눌리게 한다 */
   eq('묻는 창의 X가 눌린다',
     (web.match(/<WinDots onClose=\{\(\)=>answer(Ask|Invite|Way)\(false\)\}\/>/g) || []).length, 3);
@@ -2252,19 +2267,37 @@ eq('못 가는 이유를 셋 다 말한다',
     && /const \[level,setLevel\]=useState\("town"\)/.test(web), true);
   /* 사물함이 뒤로 물러나고 열린 문이 한가운데에 뿅 나온다.
      화면을 가득 채우지 않는다 — 여기는 사물함 안이지 다른 화면이 아니다 */
-  eq('TV가 한가운데에 뿅 나온다',
-    /\.cabpop\{position:absolute;left:50%;top:50%;width:88%/.test(web)
-    && /@keyframes tvpop\{/.test(web), true);
+  /* 사물함은 화면보다 훨씬 길다. 그 한가운데를 잡으면 열린 문이 화면 밖
+     저 아래에 뜬다 — 실제로 그랬다. 보이는 자리 안에서 가운데를 잡는다 */
+  eq('TV가 보이는 자리 한가운데에 뜬다',
+    /\.cabin\{position:relative;width:100%;height:100%;min-height:340px;overflow:hidden;cursor:pointer;/.test(web)
+    && /\.cabpop\{position:relative;z-index:2;width:88%/.test(web), true);
+  eq('학교 안은 스크롤이 없다',
+    /\.mapscroll\.inside\{display:flex;flex-direction:column;overflow:hidden\}/.test(web)
+    && /level==="school"\?" inside":""/.test(web), true);
   eq('뒤에 사물함이 희미하게 남는다',
-    /\.cab\.cabback\{opacity:\.34/.test(web) && /cabinet\(true\)/.test(web), true);
+    /\.cab\.cabback\{position:absolute;left:0;top:0;width:100%;opacity:\.3/.test(web)
+    && /cabinet\(true\)/.test(web), true);
+  /* 상자를 두르면 창 안에 창이 하나 더 생긴다. 글자색만 달리한다 */
+  eq('규칙 줄에 상자를 안 두른다',
+    /\.askrule\{margin:0 14px 11px;text-align:center;font-size:10\.5px/.test(web)
+    && !/\.askrule\{[^}]*background:/.test(web), true);
   /* 열린 문 그림을 안 쓰면 그냥 TV만 뜬다. 여기는 사물함 안이다 */
   eq('열린 문 그림을 쓴다',
     /src="cab-icons\/open\.webp"/.test(web) && exists('cab-icons/open.webp'), true);
   /* 뒤에 깔린 사물함은 눌리면 안 된다 — 안 보이는 문을 누르게 된다 */
   eq('뒤에 깔린 문은 안 눌린다', /const live=!dim;/.test(web), true);
+  /* 명패 둘은 갈 자리가 아니지만 누르면 한 마디 한다. 눌러도 아무 일이
+     없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다 */
+  eq('명패도 눌린다', /onClick=\{dim\?null:\(\)=>onPlate\(s\)\}/.test(web), true);
+  eq('명패가 할 말이 있다',
+    /say:"NULL에게 닿기를"/.test(web) && /say:"NULL 기다릴게"/.test(web), true);
+  /* 얼굴은 .kao로 따로 뺀다 — 픽셀 글꼴에 저 글자들이 없다 */
+  eq('명패 얼굴은 kao로 뺀다',
+    /\{plate\.say\} <span className="kao">\{plate\.kao\}<\/span>/.test(web), true);
   /* 움직임을 줄여달라는 사람에게는 안 튀게 한다 */
   eq('덜 움직이게 해달라면 안 튄다',
-    /@media\(prefers-reduced-motion:reduce\)\{\.cabpop\{animation:none;transform:translate\(-50%,-50%\)\}\}/.test(web), true);
+    /@media\(prefers-reduced-motion:reduce\)\{\.cabpop\{animation:none\}\}/.test(web), true);
   /* TV 안 네 칸이 학교 안 네 자리다. 좌표는 TV 그림에서 화면 안쪽을 재서 넣었다 */
   const Q = [...web.slice(web.indexOf('const TV_QUAD={'), web.indexOf('const TV_QUAD_W='))
     .matchAll(/"([^"]+)":\s*\{x:/g)].map(m => m[1]);
@@ -2351,7 +2384,13 @@ eq('학교를 누르면 안으로 들어간다',
    화면부터 다르다 — 같은 그림에 표지판만 다르게 세우던 때와 다르다 */
 eq('마을과 학교 안은 화면이 다르다',
   /if\(level==="town"\)return cabinet\(false\);/.test(web)
-  && /return <div className="cabin">/.test(web), true);
+  && /return <div className="cabin" role="button"/.test(web), true);
+/* 나갈 데가 머리글 하나뿐이면 못 찾는다. 열린 문 바깥은 전부 「닫기」다 */
+eq('뒤를 누르면 마을로 돌아온다',
+  /onClick=\{\(\)=>setLevel\("town"\)\}/.test(web)
+  && /<div className="cabpop" onClick=\{e=>e\.stopPropagation\(\)\}>/.test(web), true);
+/* TV 화면 위에 테두리를 두르면 그림 위에 그림이 하나 더 얹힌다 */
+eq('TV 칸에는 다녀온 테두리를 안 두른다', /\.tvq\.been\{/.test(web), false);
 /* 나가기는 단추를 더 놓지 않고 제목 자리가 대신한다 */
 eq('머리글이 뒤로가기다', /className="rt rback" role="button"/.test(web), true);
 /* 체육관은 TV 안에, 학교는 사물함 문짝에 있다 */

@@ -441,11 +441,14 @@ const PLACE_BY={};PLACES.forEach(p=>{PLACE_BY[p.name]=p});
    레코드샵·빨래방을 지나 둘 다 걸어야 집이 열린다. 왼쪽 줄과 오른쪽 줄이
    각각 한 갈래다. 마지막 칸은 NULL 명패다. 유저가 채워야 하는 빈칸이라
    여기는 열고 닫을 것이 없다. */
+/* 명패 둘은 갈 자리가 아니지만 누르면 한 마디 한다. 눌러도 아무 일이
+   없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다.
+   얼굴은 .kao로 따로 뺀다 — 픽셀 글꼴에 저 글자들이 없다 */
 const CAB_SLOT=[
-  {kind:"start"}, {place:"학교"},
+  {kind:"start", say:"NULL에게 닿기를", kao:"( ⸝⸝◡  ̫◡⸝⸝) 💕"}, {place:"학교"},
   {place:"편의점"}, {place:"도서관"},
   {place:"레코드샵"}, {place:"빨래방"},
-  {place:"집"},   {kind:"null"},
+  {place:"집"},   {kind:"null", say:"NULL 기다릴게", kao:"ʢ˶ > ₃ < ˶ʡ 💗"},
 ];
 const CAB_COL=[27.50,72.39];               // 칸 가운데 (프레임 폭의 %)
 const CAB_ROW=[13.36,35.88,58.48,81.19];   // 칸 가운데 (프레임 높이의 %)

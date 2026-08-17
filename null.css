@@ -623,6 +623,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    길은 배경 한 장, 장소는 open/lock 투명 PNG, 카드·제목·START는 실제 HTML UI다.
    좌표는 퍼센트라 창 폭이 달라져도 길 위 제자리를 지킨다. */
 .mapscroll{padding:7px 7px 14px;scrollbar-width:thin;scrollbar-color:#b29be9 transparent}
+/* 학교 안은 스크롤할 게 없다. 머리글을 빼고 남는 만큼을 .cabin이 쓴다 */
+.mapscroll.inside{display:flex;flex-direction:column;overflow:hidden}
+.mapscroll.inside .cabin{flex:1;min-height:0}
 .roadhead{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:8px;margin:0 0 7px;padding:7px 9px;
  border:1px solid rgba(255,255,255,.92);border-radius:8px;
  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(238,231,253,.88));
@@ -650,8 +653,13 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .roadhead .rback{cursor:pointer}
 .roadhead .rback:active{opacity:.7}
 /* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */
-.askrule{margin:2px 12px 9px;padding:7px 10px;text-align:center;font-size:10px;line-height:1.5;
- letter-spacing:.02em;color:#a06a90;border-radius:8px;background:#fff3fa;box-shadow:0 0 0 1px #f3d8e8}
+/* 아직 못 가는 자리. 두 줄로 끊고 글자를 줄인다 — 한 줄로 길게 늘어놓으면
+   창이 옆으로 벌어지고 얼굴이 잘린다 */
+.asklock{display:block;font-size:11.5px;line-height:1.9;color:#a06a90}
+.asklock i{font-style:normal;color:#e66fa4}
+/* 상자를 두르면 창 안에 창이 하나 더 생긴다. 글자색만 달리한다 */
+.askrule{margin:0 14px 11px;text-align:center;font-size:10.5px;line-height:1.5;
+ letter-spacing:.02em;color:#d47aa8}
 /* 시간을 내서 가는 자리는 누구랑 갈지 고른다 */
 .askwho{display:flex;gap:7px;margin:0 12px 10px}
 .whobtn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
@@ -683,16 +691,21 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 
 /* 학교 문을 열면 사물함이 뒤로 물러나고 열린 문이 한가운데에 뿅 나온다.
    화면을 가득 채우지 않는다 — 여기는 사물함 안이지 다른 화면이 아니다 */
-.cabin{position:relative;width:100%}
-.cab.cabback{opacity:.34;filter:saturate(.55)}
-.cabpop{position:absolute;left:50%;top:50%;width:88%;
+/* 사물함은 화면보다 훨씬 길다. 그 한가운데를 잡으면 열린 문이 화면 밖
+   저 아래에 뜬다 — 실제로 그랬다. 보이는 자리 안에서 가운데를 잡는다.
+   .gal이 flex:1에 min-height:0이라 높이가 정해져 있어서 100%가 먹는다. */
+.cabin{position:relative;width:100%;height:100%;min-height:340px;overflow:hidden;cursor:pointer;
+ display:flex;align-items:center;justify-content:center}
+/* 뒤에 깔리는 사물함은 위에서부터 잘린다. 어차피 희미한 배경이다 */
+.cab.cabback{position:absolute;left:0;top:0;width:100%;opacity:.3;filter:saturate(.5)}
+.cabpop{position:relative;z-index:2;width:88%;
  animation:tvpop .42s cubic-bezier(.18,1.5,.42,1);
  filter:drop-shadow(0 10px 0 rgba(93,84,144,.22))}
 .cabpop>img{display:block;width:100%;height:auto}
 @keyframes tvpop{
-  0%  {transform:translate(-50%,-50%) scale(.16);opacity:0}
+  0%  {transform:scale(.16);opacity:0}
   55% {opacity:1}
-  100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+  100%{transform:scale(1);opacity:1}}
 .cabtv>img{display:block;width:100%;height:auto}
 .tvq{position:absolute;z-index:2;border-radius:5px;pointer-events:none}
 .tvq[role]{pointer-events:auto;cursor:pointer}
@@ -701,8 +714,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* TV 화면은 그림이라 잠금을 얹어서 말해야 한다 */
 .tvq.lock{background:rgba(64,52,112,.52);box-shadow:inset 0 0 0 2px rgba(255,255,255,.28)}
 .tvq.shut{background:rgba(64,52,112,.26)}
-.tvq.been{box-shadow:inset 0 0 0 2px rgba(255,142,201,.85),0 0 10px rgba(255,142,201,.5)}
-@media(prefers-reduced-motion:reduce){.cabpop{animation:none;transform:translate(-50%,-50%)}}
+
+@media(prefers-reduced-motion:reduce){.cabpop{animation:none}}
 /* 열린 자리만 손이 닿는다. 아직 못 가는 자리는 눌러도 반응이 없어야
    눌러본 사람이 「아직 아니구나」를 알게 된다 */
 /* 열려 있지만 지금 갈 시간이 아닌 자리. 잠긴 것과 달라 보여야 한다 —

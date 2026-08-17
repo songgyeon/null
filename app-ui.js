@@ -717,7 +717,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
+function RoomList({store,name,unlocked,counts,seenStage,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -868,7 +868,7 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
         </div>
       </div>
       :tab==="map"
-      ?<div className="gal mapscroll">{/* 그림은 길, 버튼은 실제 장소 상태다 */}
+      ?<div className={"gal mapscroll"+(level==="school"?" inside":"")}>{/* 그림은 길, 버튼은 실제 장소 상태다 */}
         <div className="roadhead">
           {level==="school"
             ?<span className="rt rback" role="button" tabIndex={0}
@@ -886,7 +886,11 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
             {CAB_SLOT.map((s,i)=>{
               const style={left:CAB_COL[i%2]+"%",top:CAB_ROW[i>>1]+"%",width:CAB_DOOR_W+"%"};
               /* START와 NULL은 자리가 아니다. 열 것도 잠글 것도 없다 */
-              if(s.kind)return <span key={s.kind} className="cabdoor plate" style={style} aria-hidden="true">
+              if(s.kind)return <span key={s.kind} className="cabdoor plate" style={style}
+                role={dim?null:"button"} tabIndex={dim?null:0}
+                onClick={dim?null:()=>onPlate(s)}
+                onKeyDown={dim?null:e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onPlate(s)}}}
+                aria-label={s.say}>
                 <img src={`cab-icons/${s.kind}.webp`} alt=""/></span>;
               const p=PLACE_BY[s.place], open=placeOpen(p,met);
               /* 못 가는 이유는 셋이다 — 시간, 주말 전용, 오늘 이미 다녀옴.
@@ -913,16 +917,22 @@ function RoomList({store,name,unlocked,counts,seenStage,onOpen,onProfile,onAuto,
           /* 학교 문을 누르면 사물함이 뒤로 물러나고, 열린 문 안의 TV가
              한가운데에 뿅 나온다. 화면을 가득 채우지는 않는다 —
              여기는 사물함 안이지 다른 화면이 아니다 */
-          return <div className="cabin">
+          /* 나갈 데가 머리글 하나뿐이면 못 찾는다. 뒤에 깔린 사물함을 누르면
+             돌아간다 — 열린 문 바깥은 전부 「닫기」다 */
+          return <div className="cabin" role="button" tabIndex={0}
+            onClick={()=>setLevel("town")}
+            onKeyDown={e=>{if(e.key==="Escape"||e.key==="Enter"){e.preventDefault();setLevel("town")}}}>
             {cabinet(true)}
-            <div className="cabpop">
+            <div className="cabpop" onClick={e=>e.stopPropagation()}>
               <img src="cab-icons/open.webp" alt="" aria-hidden="true"/>
               {PLACES.filter(p=>p.map==="school").map(p=>{
                 const q=TV_QUAD[p.name]; if(!q)return null;
                 const open=placeOpen(p,met), nowOk=placeHours(p)&&!goneToday(p.name);
-                const been=met.includes(p.name), go=()=>onGoPlace(p.name);
+                /* 다녀온 표시는 안 한다. TV 화면 위에 테두리를 두르면
+                   그림 위에 그림이 하나 더 얹힌다 */
+                const go=()=>onGoPlace(p.name);
                 return <span key={p.name}
-                  className={"tvq"+(open?"":" lock")+(open&&!nowOk?" shut":"")+(been?" been":"")}
+                  className={"tvq"+(open?"":" lock")+(open&&!nowOk?" shut":"")}
                   style={{left:q.x+"%",top:q.y+"%",width:TV_QUAD_W+"%",height:TV_QUAD_H+"%"}}
                   role="button" tabIndex={0}
                   onClick={go}

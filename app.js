@@ -189,6 +189,8 @@ function App(){
   /* 나가기도 한 번 묻는다. 하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면
      실수로 닫힌다 — 들어올 때 물었으니 나갈 때도 묻는 게 짝이 맞다. */
   const [leaving,setLeaving]=useState(null);
+  /* 사물함 명패 둘. 갈 자리는 아니지만 누르면 한 마디 한다 */
+  const [plate,setPlate]=useState(null);
   const leaveScene=()=>{ const sc=sceneRef.current; if(sc)setLeaving(sc) };
   /* 나가면 인사를 받는다. 문을 열어주고 등을 보이는 사람은 없다 —
      지문 한 줄을 남기고, 그 줄을 보고 상대가 알아서 인사한다.
@@ -480,12 +482,19 @@ function App(){
 
   const autoBusy=useRef(false);
   useEffect(()=>{
-    if(!name||view!=="list"||autoBusy.current)return;
+    /* 목록에서도 돌고 관전방을 열 때도 돈다. 방을 열었는데 늘 같은 화면이면
+       그 방은 죽은 방이다 — 유저 없이도 돌아간다는 게 이 앱의 전제인데
+       정작 그 방만 유저가 뭘 해야 움직이고 있었다. */
+    if(!name||(view!=="list"&&view!=="health")||autoBusy.current)return;
     (async()=>{
-      const ev=loadAutoEvent(); if(!ev||!ev.kind)return;
+      /* 사건이 있으면 그 일을 두고 얘기하고, 없으면 그냥 둘이 떠든다.
+         전에는 사건이 없으면 아무것도 안 만들었다 — 선물도 안 주고 자리도
+         안 간 사람에게는 관전방이 영영 첫 장면 그대로였다.
+         자리를 비운 시간과 하루 상한은 그대로다. 여기가 제일 비싼 호출이다. */
+      const ev=loadAutoEvent()||null;
       const m=storeRef.current.msgs||{};
       const all=Object.values(m).flat();
-      const lastAny=all.reduce((a,x)=>x.ts>a?x.ts:a,ev.at||0);
+      const lastAny=all.reduce((a,x)=>x.ts>a?x.ts:a,(ev&&ev.at)||0);
       const now=Date.now();
       if(now-lastAny<AUTO_AWAY)return;
       const day=new Date().toISOString().slice(0,10);
@@ -504,7 +513,8 @@ function App(){
           const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
             body:JSON.stringify({mode:"auto",user_name:name,counts:roomCounts(),
               history:buildHistory(storeRef.current.msgs.health||[]),
-              signals:buildSignals(null),event:{kind:ev.kind,to:ev.to,name:ev.name}})});
+              signals:buildSignals(null),
+              ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
           const data=await res.json().catch(()=>null);
           if(res.ok&&data) list=data.messages;
         }catch(e){ /* 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
@@ -744,7 +754,7 @@ function App(){
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
-       onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
+       onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar}/>
@@ -760,6 +770,19 @@ function App(){
           <div className="dlgbtns">
             <button className="bevel pink" onClick={()=>answerInvite(true)}>갈게요</button>
             <button className="bevel" onClick={()=>answerInvite(false)}>다음에요</button>
+          </div>
+        </div>
+      </div>
+    </div>}
+    {/* 사물함 명패. 눌러도 아무 일이 없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다 */}
+    {plate&&<div className="dlgov" onClick={()=>setPlate(null)}>
+      <div className="dlg" onClick={e=>e.stopPropagation()}>
+        <div className="tb">{plate.kind==="start"?"START":"NULL"}<WinDots onClose={()=>setPlate(null)}/></div>
+        <div className="dlgbody">
+          <div className="dlgline" style={{textAlign:"center",padding:"14px 0 12px",fontSize:13,color:"#8a4f74"}}>
+            {plate.say} <span className="kao">{plate.kao}</span></div>
+          <div className="dlgbtns" style={{justifyContent:"center"}}>
+            <button className="bevel pink" onClick={()=>setPlate(null)}>ok ♡</button>
           </div>
         </div>
       </div>
@@ -807,8 +830,9 @@ function App(){
       const empty=!!out&&!out.length;
       const need=!!p&&p.pick&&!askWho;           // 동행을 아직 안 골랐다
       const no=locked||shut||wk||done||empty;
-      const left=locked?placeNeed(p,met):[];
-      const why=locked?(left.length?left.join(" · ")+" 먼저":"")
+      /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
+         심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
+      const why=locked?""
         :done?"오늘은 벌써 다녀왔어요"
         :wk?"주말에만 갈 수 있어요"
         :empty?"지금은 아무도 밖에 없어요"
@@ -819,7 +843,7 @@ function App(){
         <div className="dlgbody">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
             {locked
-              ?<>my bad <i style={{fontStyle:"normal",color:"#e66fa4"}}>♡</i> 아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></>
+              ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
               :no?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
           {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
           {!no&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
