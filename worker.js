@@ -1492,11 +1492,20 @@ function stageOf(count, days) {
 // 화제로 삼는 것은 다르다 — 시간은 배경이지 인사말이 아니다.
 const TIME_WORDS = ["새벽", "아침", "낮", "저녁", "밤"];
 const DAY_WORDS = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
-function buildNow(now, day) {
+/* 접속 상태. 방 목록에는 「수업 중」이 떠 있는데 본인은 한가한 사람처럼
+   즉답했다 — 화면이 아는 걸 프롬프트가 몰랐다. 프론트가 목록에 쓰는 것과
+   같은 값(presence)을 보내주면 여기서 [지금] 줄에 얹는다.
+   아는 낱말이 아니면 안 싣는다 — 틀린 상태보다 없는 편이 낫다.
+   「주말」은 프론트가 아예 안 보낸다. 요일이 이미 실려 있다. */
+const STATE_WORDS = ["보건실", "퇴근", "집", "자는 중", "수업 중", "야자", "안 자는 중", "꺼짐"];
+function buildNow(now, day, states) {
   const head = [DAY_WORDS.includes(day) ? day : "", TIME_WORDS.includes(now) ? now : ""]
     .filter(Boolean).join(" ");
   if (!head) return "";
-  return `\n## [지금] ${head}\n먼저 꺼내는 화제로 쓰지 않는다. 이 시간에 있을 만한 곳에 있고 이 시간에 할 만한 말을 하면 그걸로 족하다.\n`;
+  const st = Object.entries(states || {})
+    .filter(([k, v]) => CHAR_LABEL[k] && STATE_WORDS.includes(v))
+    .map(([k, v]) => `${CHAR_LABEL[k]}: ${v}`).join(" · ");
+  return `\n## [지금] ${head}${st ? ` · ${st}` : ""}\n먼저 꺼내는 화제로 쓰지 않는다. 이 시간에 있을 만한 곳에 있고 이 시간에 할 만한 말을 하면 그걸로 족하다.\n`;
 }
 
 function buildStage(mode, room, counts, days) {
@@ -1880,15 +1889,24 @@ const TURN = `
 유저의 가장 최근 발화가 짧더라도 그 말의 의도와 직전 문맥에 답한다. 유저의 단어를 어미만 바꿔 반복하는 대신, 그 말로 인해 인물이 실제로 하게 될 다음 생각이나 대답을 말한다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
     ? `\n## [지금 쓰지 않는 사진]\n${recent.map(k => `"${k}"`).join(", ")}\n`
     : "";
   /* 자리에 있는 동안에는 갈 자리를 안 꺼낸다 — 같이 앉아서 어디 가자고 하면
-     지금 여기가 어디가 되는지 알 수가 없다 */
-  const t = buildNow(now, day) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
+     지금 여기가 어디가 되는지 알 수가 없다.
+     상태도 자리에서는 뺀다 — 마주 앉아 있는데 「수업 중」이 붙으면 화면과
+     딴말이 된다. 그 방에 나오는 사람 것만 남긴다. 관전방은 안 받는다 —
+     그 방은 「집이거나 보건실」로 못박혀 있어서 시간표와 어긋날 수 있다. */
+  const st = {};
+  if (!place && mode !== "auto" && states) {
+    for (const c of room === "group" ? ["jaeeon", "minhyun"] : [room]) {
+      if (STATE_WORDS.includes(states[c])) st[c] = states[c];
+    }
+  }
+  const t = buildNow(now, day, st) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
           + buildPlace(place, hasItem, room)
@@ -2511,6 +2529,9 @@ export default {
        아는 낱말이 아니면 그냥 안 준다. 틀린 때보다 없는 편이 낫다. */
     const now = TIME_WORDS.includes(body.now) ? body.now : null;
     const day = DAY_WORDS.includes(body.day) ? body.day : null;
+    /* 그 방 사람의 접속 상태({jaeeon:"보건실",...}). 프론트가 목록에 쓰는
+       값과 같다. 아는 낱말만 통과한다 — 검증은 buildVolatile이 한다. */
+    const states = body.states && typeof body.states === "object" ? body.states : null;
     // 장바구니에서 방금 보낸 선물 (1:1 방에서만 의미가 있다)
     const gift = (mode !== "auto" && body.gift && body.gift.name) ? body.gift : null;
     // 「두 사람」방을 열게 만든 사건 — 선물이나 해금. auto에서만 의미가 있다
@@ -2597,7 +2618,7 @@ export default {
 
        지점은 요청당 넷까지다. 시스템이 셋을 쓰므로 여기 남은 하나를 쓴다.
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       const blocks = [{ type: "text", text: tail.content, cache_control: CACHE }];

@@ -190,7 +190,11 @@ const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"
 /* 시간 포맷 */
 /* ── 데모 모드 ──
    키가 없거나 API가 죽어도 빈 화면을 보여주지 않는다. 각본이라도 움직이는 편이 낫다.
-   ?demo=1 로 켜지고, 그게 아니어도 API가 실패하면 자동으로 넘어간다(그 뒤로는 계속 데모).
+   ?demo=1 로 켜지면 계속 데모다. 그게 아니면 실패한 턴만 각본으로 메우고
+   다음 전송에서 진짜를 다시 시도한다 — 전에는 한 번 실패하면 세션 내내
+   데모였다. 429 한 번에 그 뒤의 모든 대화가 조용히 각본이 됐고, 며칠 쌓인
+   세이브를 가진 사람에게 그건 구조가 아니라 사고다. auto는 「지난 호출이
+   실패했다」는 표시일 뿐이고 성공하면 꺼진다.
    실패 원인은 콘솔에 그대로 남기고 하단 바에 demo 표시가 뜬다 — 조용히 가짜로
    바뀌면 진짜 장애를 못 알아채기 때문이다.
 
@@ -317,26 +321,35 @@ const openingFor=now=>{
 
 /* ── 접속 상태 ──
    시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다.
-   재언은 근무 시간에 보건실에 있고, 민현은 학교에 매여 있다. */
+   재언은 근무 시간에 보건실에 있고, 민현은 학교에 매여 있다.
+   이 값은 이제 워커에도 실린다(states) — 목록에는 「수업 중」이 떠 있는데
+   본인은 한가한 사람처럼 즉답하던 것이 여기서 고쳐진다. 화면과 프롬프트가
+   같은 함수를 봐야 둘이 딴말을 안 한다.
+   주말엔 근무도 수업도 없다. 토요일 낮에 「보건실」「수업 중」이 떠 있었다 —
+   시간표가 사람을 놓아주는 날이라 「주말」이 뜬다. 잠은 주말에도 잔다.
+   isWend를 안 부르고 요일을 직접 본다 — 테스트가 이 함수만 떼어 돌린다. */
 function presence(id, now){
-  const h=(now||new Date()).getHours();
+  const d=now||new Date(), h=d.getHours();
+  const wend=d.getDay()===0||d.getDay()===6;
   if(id==="jaeeon"){
-    if(h>=8&&h<17)  return {s:"on",  t:"보건실"};
-    if(h>=17&&h<23) return {s:"away",t:"퇴근"};
-    if(h>=23||h<1)  return {s:"away",t:"집"};
     /* 여섯 시에 일어난다. 여기가 GREET_FROM.jaeeon과 같아야 한다 —
        점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
        출근은 여덟 시라 두 시간은 집에 깨어 있다 */
-    if(h>=6&&h<8)   return {s:"away",t:"집"};
-    return {s:"off", t:"자는 중"};
+    if(h>=1&&h<6)   return {s:"off", t:"자는 중"};
+    if(wend)        return {s:"on",  t:"주말"};
+    if(h>=8&&h<17)  return {s:"on",  t:"보건실"};
+    if(h>=17&&h<23) return {s:"away",t:"퇴근"};
+    if(h>=23||h<1)  return {s:"away",t:"집"};
+    return {s:"away",t:"집"};
   }
   if(id==="minhyun"){
-    if(h>=8&&h<16)  return {s:"away",t:"수업 중"};
-    if(h>=16&&h<22) return {s:"on",  t:"야자"};
     /* 세 시까지 깨 있다. 두 시로 잡아놨더니 새벽에 그가 먼저 말을 거는데
        목록의 점은 「꺼짐」이었다 — 재언 쪽을 여섯 시로 맞춘 것과 같은 이유다 */
     if(h>=22||h<3)  return {s:"on",  t:"안 자는 중"};
-    return {s:"off", t:"꺼짐"};
+    if(h>=3&&h<8)   return {s:"off", t:"꺼짐"};
+    if(wend)        return {s:"on",  t:"주말"};
+    if(h>=8&&h<16)  return {s:"away",t:"수업 중"};
+    return {s:"on",  t:"야자"};
   }
   return null;
 }

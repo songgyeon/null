@@ -678,6 +678,20 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .whobtn.on{color:#fff;text-shadow:0 1px 0 rgba(170,80,140,.5);border-color:#fff;
  background:linear-gradient(180deg,#ffc2e2,#f78fc6);box-shadow:0 2px 0 rgba(180,110,160,.3)}
 .dlgbtns .bevel[disabled]{opacity:.45;cursor:default}
+/* ── 교실 문틈 ──
+   수업 중엔 대화가 아니라 구경이다. 교실 배경을 어둡게 깔고 그 애 사진
+   한 장을 폴라로이드처럼 얹는다. 캐비닛 TV처럼 아무 데나 누르면 돌아간다.
+   z는 대화창(40)보다 위, 토스트(45)보다 아래 — 구경 중에도 알림은 보인다 */
+.lookov{position:absolute;inset:0;z-index:42;overflow:hidden;cursor:pointer;
+ background:#1a1424;animation:fade .25s ease}
+.lookov .lookbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+ filter:brightness(.5) saturate(.85)}
+.lookshot{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%) rotate(-2deg);
+ width:66%;max-width:240px;padding:7px 7px 24px;background:#fdf9f2;border-radius:2px;
+ box-shadow:0 8px 22px rgba(10,4,20,.55)}
+.lookshot img{display:block;width:100%;border-radius:1px}
+.lookcap{position:absolute;left:0;right:0;bottom:13%;text-align:center;
+ font-size:11px;letter-spacing:.14em;color:#fff;text-shadow:0 1px 7px rgba(10,4,20,.9)}
 
 /* ── 캐비닛 지도 ──
    길이던 지도를 사물함으로 바꿨다. 이 앱은 가짜 OS인데 지도만 혼자 야외

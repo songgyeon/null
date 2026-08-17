@@ -516,8 +516,9 @@ eq('웹·앱 둘 다 선물 열쇠를 넘긴다',
 eq('재언은 여섯 시부터 말을 건다', /const GREET_FROM=\{jaeeon:6\}/.test(web), true);
 /* 점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
    일어나는 시각과 말 거는 시각이 같아야 한다 */
+/* 자는 창(1~6시)의 끝이 곧 일어나는 시각이다 — GREET_FROM.jaeeon=6과 같아야 한다 */
 eq('일어나는 시각과 말 거는 시각이 같다',
-  /if\(h>=6&&h<8\)   return \{s:"away",t:"집"\}/.test(web), true);
+  /if\(h>=1&&h<6\)   return \{s:"off", t:"자는 중"\}/.test(web), true);
 /* 민현은 시각을 안 본다 — 새벽까지 깨 있는 게 그 애다 */
 eq('민현은 시각을 안 본다', /GREET_FROM=\{jaeeon:6\}/.test(web) && !/minhyun:\d/.test(web), true);
 eq('시각을 안 정한 사람은 언제든 건다',
@@ -709,6 +710,38 @@ eq('민현은 세 시까지 깨 있다', /if\(h>=22\|\|h<3\)  return \{s:"on",  
   /* 말을 거는 시각과 점이 어긋나면 안 된다 — 재언은 여섯 시다 */
   eq('재언은 여섯 시에 깬다', [P('jaeeon', new Date(2026, 0, 6, 5, 30)).s,
     P('jaeeon', new Date(2026, 0, 6, 6, 30)).s], ['off', 'away']);
+  /* ── 주말의 접속 상태 ──
+     토요일 낮에 「보건실」「수업 중」이 떠 있었다. 근무도 수업도 없는 날이다.
+     이 값은 이제 워커에도 실리므로(states) 틀리면 화면만이 아니라 인물이 틀린다.
+     잠은 주말에도 잔다 — 자는 창은 평일과 같다. 2026-01-10은 토요일이다. */
+  eq('주말 낮엔 자리 이름이 없다', [P('jaeeon', new Date(2026, 0, 10, 13)).t,
+    P('minhyun', new Date(2026, 0, 10, 13)).t], ['주말', '주말']);
+  eq('주말에도 잠은 잔다', [P('jaeeon', new Date(2026, 0, 10, 3)).s,
+    P('minhyun', new Date(2026, 0, 10, 5)).s], ['off', 'off']);
+  eq('주말 밤에도 민현은 깨 있다', P('minhyun', new Date(2026, 0, 10, 23)).t, '안 자는 중');
+}
+
+/* ── 인물이 자기 상태를 안다 ──
+   목록에는 「수업 중」이 떠 있는데 본인은 한가한 사람처럼 즉답했다. 새벽
+   세 시의 재언도 멀쩡히 깨어 있는 답을 했다 — 화면이 아는 걸 프롬프트가
+   몰랐다. 목록과 같은 함수(presence)의 값을 워커로 보내 [지금] 줄에 얹는다. */
+eq('앱이 접속 상태를 보낸다', /payload\.states=st/.test(web), true);
+eq('주말은 안 보낸다 — 요일이 이미 실려 있다', /pr\.t!=="주말"/.test(web), true);
+{
+  const v = (states, place) => buildVolatile('chat', 'minhyun', 'R', null, [], null, { minhyun: 5 },
+    null, null, [], 1, place || null, false, '낮', '화요일', states);
+  eq('상태가 [지금] 줄에 실린다', v({ minhyun: '수업 중' }).includes('낮 · 이민현: 수업 중'), true);
+  eq('모르는 낱말은 안 싣는다 — 틀린 상태보다 없는 편이 낫다',
+    v({ minhyun: '게임 중' }).includes('게임 중'), false);
+  eq('그 방 사람 것만 싣는다', v({ jaeeon: '보건실', minhyun: '수업 중' }).includes('보건실'), false);
+  eq('자리에 같이 있으면 뺀다 — 마주 앉았는데 수업 중이라니',
+    v({ minhyun: '수업 중' }, '교실').includes('수업 중'), false);
+  eq('단톡방은 둘 다 싣는다', buildVolatile('chat', 'group', 'R', null, [], null, { group: 5 },
+    null, null, [], 1, null, false, '낮', '화요일', { jaeeon: '보건실', minhyun: '수업 중' })
+    .includes('이재언: 보건실 · 이민현: 수업 중'), true);
+  eq('관전방은 안 받는다 — 집이거나 보건실로 못박힌 방이다',
+    buildVolatile('auto', 'jaeeon', 'R', null, [], null, null,
+      null, null, [], 1, null, false, '낮', '화요일', { minhyun: '수업 중' }).includes('수업 중'), false);
 }
 /* 「첫날」이 아니라 「첫 주」다. 주말 저녁에 처음 켜는 사람이 있는데
    그날은 첫날이 아니고 애들도 없었다 */
@@ -2159,8 +2192,43 @@ eq('뒤로가기는 여전히 나가기다', /onClick=\{onLeaveScene\} title="�
 /* 자리에 있는 동안엔 딴 데로 못 간다. 몸은 하나다 */
 eq('자리에 있으면 딴 데로 못 간다',
   /const away=!!scene&&scene\.place!==ask;/.test(web)
-  && /const no=away\|\|locked/.test(web)
+  && /const no=!klass&&\(away\|\|locked/.test(web)
   && /const why=away\?`지금 \$\{scene\.place\}에 있어요`/.test(web), true);
+
+/* ── 자리는 하루를 못 넘긴다 ──
+   밤에 자리에서 앱을 그냥 끄면 scene이 저장소에 남아 사흘 뒤에도 그 자리에
+   앉아 있었다 — 이동은 막혀 있는데(몸은 하나) 이유는 화면 어디에도 없다.
+   하루 경계(새벽 다섯 시)를 넘기고 말도 끊긴 자리는 닫는다. */
+eq('하루 지난 자리는 닫는다', /dayKey\(sc\.since\)===dayKey\(\)/.test(web), true);
+/* 새벽 다섯 시 정각에 대화 도중 쫓아내면 그게 더 이상하다 */
+eq('말이 이어지는 중이면 안 닫는다', /Date\.now\(\)-last<3\*60\*60\*1000/.test(web), true);
+eq('나갈 때와 같은 규칙으로 닫는다 — 두고 온 것도 챙기고 한 줄 남긴다', (() => {
+  const i = web.indexOf('자리는 하루를 못 넘긴다');
+  const t = web.slice(i, i + 1600);
+  return t.includes('closeScene();') && t.includes('에서 나왔다');
+})(), true);
+
+/* ── 교실 문틈 ──
+   수업 중의 교실에서 마주 앉아 떠들었다. 수업 중인 애랑 대화가 될 리 없다 —
+   가는 게 아니라 들여다본다. 배경에 그 애 사진 한 장, 말풍선도 도장도 없고
+   아무 데나 누르면 돌아간다. */
+eq('수업 중의 교실은 구경이 된다',
+  /const klass=ask==="교실"&&!away&&!locked&&!shut&&presence\("minhyun"\)\.t==="수업 중"/.test(web), true);
+/* 구경은 방문이 아니다 — 도장(goneToday)을 안 보고 안 찍는다 */
+eq('구경은 answerAsk를 안 탄다', /구경은 answerAsk를 안 탄다/.test(web)
+  && /setLook\(\{shot:\["minhyun-window","minhyun-desk"\]/.test(web), true);
+eq('문틈 화면은 누르면 돌아간다',
+  /className="lookov" onClick=\{\(\)=>setLook\(null\)\}/.test(web)
+  && /\.lookov\{position:absolute;inset:0/.test(web), true);
+/* 주말은 shut이 먼저 막고(wend:false), presence도 주말엔 「수업 중」이 아니다 */
+
+/* ── 실패해도 세션이 각본으로 굳지 않는다 ──
+   한 번 실패하면 DEMO.auto가 켜진 채 안 풀렸다. 429 한 번에 그 뒤의 모든
+   대화가 조용히 각본이 됐다 — 며칠 쌓인 세이브에는 구조가 아니라 사고다.
+   실패한 턴만 각본으로 메우고, 다음 전송이 진짜를 다시 시도한다. */
+eq('명시적 데모(?demo=1)만 네트워크를 안 탄다', /if\(DEMO\.on\)\{\s*\n\s*inflightRef/.test(web), true);
+eq('성공하면 데모 표시가 꺼진다', /DEMO\.auto=false/.test(web), true);
+eq('실패하면 그 턴만 데모로 메운다', /DEMO\.auto=true/.test(web), true);
 /* 선물도 마찬가지다. 보고 있는 화면이 아니라 몸이 어디 있는지를 본다 —
    교실에 앉은 채로 목록에 나와 있어도 몸은 교실에 있다 */
 eq('선물도 몸이 있는 데를 본다', /withChar=\{scene\?scene\.room:null\}/.test(web), true);

@@ -181,6 +181,24 @@ function App(){
     if(sc&&talkedEnough(sc)){ const p=PLACE_BY[sc.place]; if(p&&p.item)takeItem(p.item,sc.room,sc.place); }
     setScene(null); saveScene(null);
   };
+  /* ── 자리는 하루를 못 넘긴다 ──
+     밤에 자리에서 앱을 그냥 끄면 scene이 저장소에 남아, 사흘 뒤에 열어도
+     아직 그 자리에 앉아 있었다. 자리에 있는 동안은 이동이 막히니(몸은 하나)
+     왜 지도가 안 되는지 모른 채 갇힌 것처럼 보인다.
+     하루 경계(새벽 다섯 시)를 넘기고 말도 끊긴 자리는 닫는다. 말이 이어지는
+     중이면 안 닫는다 — 새벽 다섯 시 정각에 대화 도중 쫓아내면 그게 더 이상하다.
+     나갈 때와 같은 규칙으로 닫는다: 말을 나눴으면 두고 온 것도 챙기고(closeScene),
+     기록에 한 줄 남긴다. 작별 인사는 안 부른다 — 밤이 이미 끝낸 자리다. */
+  useEffect(()=>{
+    const sc=sceneRef.current;
+    if(!sc||dayKey(sc.since)===dayKey())return;
+    const ms=storeRef.current.msgs[sc.room]||[];
+    const last=ms.length?ms[ms.length-1].ts:sc.since;
+    if(Date.now()-last<3*60*60*1000)return;
+    closeScene();
+    appendMsg(sc.room,{id:Date.now()+Math.random(),sender:"user",sys:true,
+      text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
+  },[name,view]);
   /* 밤에 자리에서 나오면 그냥 사라지는 게 아니라 데려다준다.
      유저 집을 지도에 세우지 않은 건 그게 갈 곳이 아니라 헤어지는 자리라서다 —
      여기 붙는 한 다리가 그 일을 한다. 하루에 한 번이면 충분하다.
@@ -191,6 +209,9 @@ function App(){
   const [leaving,setLeaving]=useState(null);
   /* 사물함 명패 둘. 갈 자리는 아니지만 누르면 한 마디 한다 */
   const [plate,setPlate]=useState(null);
+  /* 교실 문틈. 수업 중엔 대화가 아니라 구경이다 — 자리 도장도 대화도 없이
+     들여다보기만 한다. {shot} 하나가 전부라 저장할 것도 없다 */
+  const [look,setLook]=useState(null);
   /* 장바구니는 자리 안에서도 열려야 한다. 선물은 만나서만 주니까 */
   const [cart,setCart]=useState(false);
   /* 단톡방은 민현이 판다. 그전까지는 없는 방이다 */
@@ -354,6 +375,19 @@ function App(){
     if(payload.days==null)payload.days=daysSince(storeRef.current);
     if(payload.now==null)payload.now=timeWord();
     if(payload.day==null)payload.day=dayWord();
+    /* 그 방 사람의 접속 상태. 목록에는 「수업 중」이 떠 있는데 본인은 한가한
+       사람처럼 즉답했다 — 화면이 아는 걸 프롬프트가 몰랐다. 목록과 같은
+       함수(presence)를 그대로 실어 보낸다.
+       「주말」은 안 보낸다 — 요일이 이미 실려 있어서 같은 말이 두 번 된다.
+       자리(place)에 같이 있을 때는 워커가 알아서 뺀다 — 마주 앉아 있는데
+       「수업 중」이 붙으면 그게 더 이상하다. */
+    if(payload.mode==="chat"&&payload.states==null){
+      const st={};
+      (payload.room==="group"?["jaeeon","minhyun"]:[payload.room]).forEach(id=>{
+        const pr=presence(id); if(pr&&pr.t!=="주말")st[id]=pr.t;
+      });
+      if(Object.keys(st).length)payload.states=st;
+    }
     /* 이 방의 요약. 원문 창 밖으로 밀려난 얘기가 여기 들어 있다.
        호출부마다 붙이지 않고 여기서 한 번에 얹는다 — 한 군데만 빠뜨려도
        그 경로에서만 기억을 잃는데, 그건 눈으로 찾기 어렵다. */
@@ -361,8 +395,11 @@ function App(){
     inflightRef.current[bucket]=true;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
-    // 데모로 굳었으면 네트워크를 아예 타지 않는다
-    if(demoOn()){
+    /* ?demo=1로 켠 데모만 네트워크를 아예 안 탄다. 실패해서 넘어간 데모
+       (DEMO.auto)는 여기서 안 본다 — 매 전송이 진짜를 다시 시도하고,
+       성공하면 표시가 꺼진다. 전에는 auto도 여기서 걸러서, 429 한 번에
+       그 뒤의 모든 대화가 세션 내내 조용히 각본이 됐다. */
+    if(DEMO.on){
       inflightRef.current[bucket]=false;
       setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
       return;
@@ -377,6 +414,7 @@ function App(){
         throw err;
       }
       inflightRef.current[bucket]=false;
+      DEMO.auto=false;   // 진짜가 살아 있다 — 실패로 넘어갔던 데모 표시를 끈다
       const list=(data&&data.messages)||[];
       if(list.length)enqueue(bucket,list);
       else setBusy(b=>({...b,[bucket]:false}));
@@ -401,8 +439,9 @@ function App(){
       const detail=String(e.detail||e.message||e).slice(0,500);
       // 화면(재시도 버튼 아래)과 콘솔 양쪽에 남긴다 — 어느 쪽을 보든 원인이 보이게
       console.error("%c[NULL] 실패 원인 ▶ "+detail,"color:#c23b50;font-size:13px;font-weight:bold");
-      /* 처음 실패하면 데모로 넘어간다. 저장소 링크만 보고 들어온 사람이
+      /* 실패한 턴은 각본으로 메운다. 저장소 링크만 보고 들어온 사람이
          재시도 버튼만 마주하는 것보다 각본이라도 움직이는 편이 낫다.
+         다음 전송은 진짜를 다시 시도한다 — 성공하면 위에서 표시가 꺼진다.
          원인은 위 콘솔에 그대로 남고 하단 바에 demo가 뜬다 — 조용히 가짜로
          바뀌면 진짜 장애를 못 알아채기 때문이다. */
       DEMO.auto=true;
@@ -884,7 +923,12 @@ function App(){
       const out=p&&p.meet==="out"?whoOut():null; // 마주치는 자리 — 지금 밖에 누가 있나
       const empty=!!out&&!out.length;
       const need=!!p&&p.pick&&!askWho;           // 동행을 아직 안 골랐다
-      const no=away||locked||shut||wk||done||empty;
+      /* 수업 중의 교실은 가는 데가 아니라 들여다보는 데다. 앉아서 대화하던
+         것이 이상했다 — 수업 중인 애랑 마주 앉아 떠들 수는 없다.
+         구경은 방문이 아니라 도장(goneToday)을 안 본다 — 오늘 다녀왔어도 본다.
+         주말은 위의 shut이 먼저 막는다(교실은 wend:false). */
+      const klass=ask==="교실"&&!away&&!locked&&!shut&&presence("minhyun").t==="수업 중";
+      const no=!klass&&(away||locked||shut||wk||done||empty);
       /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
          심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
       const why=away?`지금 ${scene.place}에 있어요`
@@ -900,9 +944,10 @@ function App(){
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
             {locked&&!away
               ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
+              :klass?`${ask}, 수업 중이에요`
               :no?`${ask}, 지금은 못 가요`:`${ask}, 갈까요?`}</div>
           {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
-          {!no&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
+          {!no&&!klass&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
           {no&&<div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>{why}</div>}
           {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 */}
           {!no&&p&&p.pick&&<div className="askwho">
@@ -914,12 +959,24 @@ function App(){
           <div className="dlgbtns">
             {no
               ?<button className="bevel" onClick={()=>answerAsk(false)}>알겠어요</button>
+              :klass
+              /* 구경은 answerAsk를 안 탄다 — 도장도 자리도 대화도 없는 길이라서 */
+              ?<><button className="bevel pink" onClick={()=>{setAsk(null);setAskWho(null);
+                   setLook({shot:["minhyun-window","minhyun-desk"][Math.floor(Math.random()*2)]+".webp"})}}>살짝 볼래요</button>
+                 <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>
               :<><button className="bevel pink" disabled={need} onClick={()=>answerAsk(true)}>갈래요</button>
                  <button className="bevel" onClick={()=>answerAsk(false)}>다음에요</button></>}
           </div>
         </div>
       </div>
     </div>; })()}
+    {/* 교실 문틈. 배경 위에 그 애 사진 한 장 — 말풍선도 도장도 없다.
+        캐비닛 TV처럼 아무 데나 누르면 돌아간다 */}
+    {look&&<div className="lookov" onClick={()=>setLook(null)}>
+      <img className="lookbg" src="place-class.webp" alt=""/>
+      <div className="lookshot"><img src={look.shot} alt="교실"/></div>
+      <div className="lookcap">수업 중이다. 말은 못 건다.</div>
+    </div>}
     {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN}/>}
     {/* 단톡방이 생겼다. 유저는 초대를 받은 쪽이라 무슨 방인지 모른 채로 들어간다 */}
     {groupNew&&<Dialog title="null.exe" onClose={()=>setGroupNew(false)}>
