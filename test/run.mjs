@@ -1608,10 +1608,22 @@ eq('남은 날도 두 시계를 본다',
 for (const [label, src] of [['웹', web], ['앱', appSrc]])
   eq(`${label}이 오늘을 넣어준다`, /setSpeedDay\(speedDaysOf\(/.test(src), true);
 /* 모드는 판마다 하나고 등록 화면에서 고른다 — 중간에 바꾸면 D-N이 튄다 */
-eq('등록 화면에서 고른다',
-  /<span className="lab">MODE<\/span>/.test(web)
-  && /onMode\(k\)/.test(web), true);
-eq('고른 것이 저장된다', /onMode=\{m=>\{setMode\(m\);saveMode\(m\)\}\}/.test(web), true);
+for (const [label, src, re] of [
+  ['웹', web, /<span className="lab">MODE<\/span>/],
+  ['앱', appSrc, /<Text style=\{en\.rowL\}>MODE<\/Text>/],
+])
+  eq(`${label}은 등록 화면에서 고른다`, re.test(src) && /onMode\(k\)/.test(src), true);
+for (const [label, src] of [['웹', web], ['앱', appSrc]])
+  eq(`${label}이 고른 것을 저장한다`,
+    /onMode=\{m=>\{setMode\(m\);saveMode\(m\)\}\}/.test(src), true);
+/* 두 모드의 글월이 같아야 한다 — 같은 것을 고르는데 설명이 다르면 다른 기능이다 */
+for (const [label, src] of [['웹', web], ['앱', appSrc]])
+  eq(`${label}의 모드 설명이 같다`,
+    /대화가 쌓이면 하루가 간다/.test(src) && /하루가 진짜 하루다/.test(src), true);
+/* 줄이 하나 늘었다 — 애니메이션 칸을 안 늘리면 DAYS LEFT가 영영 안 뜬다 */
+eq('앱이 줄 수를 맞춘다',
+  /Array\.from\(\{length:ENR_FIELDS\.length\+2\}/.test(appSrc)
+  && /anim\(rows\[5\]\)/.test(appSrc), true);
 /* 바뀌는 것은 「실습이 얼마나 진행됐나」뿐이다. 「지금 몇 시인가」는 안 바뀐다 */
 eq('잠과 시간표는 두 모드가 같다',
   /function presence\(id, now\)\{[\s\S]{0,400}?speedOn/.test(web), false);

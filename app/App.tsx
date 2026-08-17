@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, setSpeedDay, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, setSpeedDay, loadMode, saveMode, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
 
@@ -267,9 +267,10 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
   {k:'likes',    lab:'LIKES',   tail:'를 좋아하고'},
   {k:'dislikes', lab:'HATES',   tail:'를 싫어한다'},
 ];
-function Enroll({name,profile,onSaveField,onRename,onDone}:{
+function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   name:string; profile:Record<string,string>;
   onSaveField:(k:string,v:string)=>void; onRename:(n:string)=>void; onDone:()=>void;
+  mode:string; onMode:(m:string)=>void;
 }) {
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
@@ -277,8 +278,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone}:{
   const [nv,setNv]=useState(name||'');
   useEffect(()=>setNv(name||''),[name,edit]);
   const saveName=()=>{setEdit(false);const t=nv.trim();if(t&&t!==name)onRename(t)};
-  // 빈칸 넷 + DAYS LEFT 한 줄
-  const rows = useRef(Array.from({length:ENR_FIELDS.length+1},()=>new Animated.Value(0))).current;
+  // 빈칸 넷 + MODE 한 줄 + DAYS LEFT 한 줄
+  const rows = useRef(Array.from({length:ENR_FIELDS.length+2},()=>new Animated.Value(0))).current;
   const fade = useRef(new Animated.Value(0)).current;
   const kb   = useKeyboardHeight();
   useEffect(()=>{
@@ -311,8 +312,21 @@ function Enroll({name,profile,onSaveField,onRename,onDone}:{
               onEndEditing={e=>onSaveField(f.k,e.nativeEvent.text.trim())}/>
             <Text style={en.rowT}>{f.tail}</Text>
           </Animated.View>)}
-        {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
+        {/* ── 이 판을 어떻게 살 것인가 ── 웹의 .emode와 같은 자리·같은 글월.
+            중간에 바꾸면 D-N이 튀므로 판마다 한 번이다. */}
         <Animated.View style={[en.row,anim(rows[4])]}>
+          <Text style={en.rowL}>MODE</Text>
+          <View style={en.mode}>
+            {['real','speed'].map(k=>
+              <TouchableOpacity key={k} activeOpacity={.8} onPress={()=>onMode(k)}
+                style={[en.modeB,mode===k&&en.modeBOn]}>
+                <Text style={[en.modeT,mode===k&&en.modeTOn]}>{k}</Text>
+              </TouchableOpacity>)}
+          </View>
+          <Text style={en.modeH}>{mode==='speed'?'대화가 쌓이면 하루가 간다':'하루가 진짜 하루다'}</Text>
+        </Animated.View>
+        {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
+        <Animated.View style={[en.row,anim(rows[5])]}>
           <Text style={en.rowL}>DAYS LEFT</Text><Text style={en.nullv}>null</Text>
         </Animated.View>
         <View style={en.bar}><View style={[en.fill,{width:pct(filled/ENR_FIELDS.length*100)}]}/></View>
@@ -351,6 +365,14 @@ const en=StyleSheet.create({
          borderStyle:'dashed',borderRadius:3},
   blankOn:{color:'#4a4276',borderStyle:'solid'},
   nullv:{...F,fontSize:12,letterSpacing:.7,color:'#b0a6d8'},
+  /* 웹의 .emode와 같은 색·같은 모양 — 고른 쪽만 실선에 분홍이다 */
+  mode:{flexDirection:'row',gap:4},
+  modeB:{paddingVertical:2,paddingHorizontal:7,borderRadius:999,backgroundColor:'#fff',
+         borderWidth:1.5,borderColor:'#c9bdea',borderStyle:'dashed'},
+  modeBOn:{borderStyle:'solid',borderColor:'#ff8fbe',backgroundColor:'#fff3f8'},
+  modeT:{...F,fontSize:10,letterSpacing:1,color:'#a897dd'},
+  modeTOn:{color:'#ff4d9e'},
+  modeH:{...F,fontSize:9,color:'#a897dd',flexShrink:1},
   bar:{marginTop:15,height:6,borderRadius:999,backgroundColor:'#eae1fb',borderWidth:1,borderColor:'#d9cbf3',overflow:'hidden'},
   fill:{height:'100%',backgroundColor:'#ff8fbe'},
   msg:{...F,marginTop:8,fontSize:8.5,letterSpacing:1.8,color:'#a290d4'},
@@ -1380,6 +1402,8 @@ function Root() {
   /* 등록 화면은 이름을 처음 넣은 사람에게만 지나간다 — 이미 이름이 있으면
      앱을 열 때마다 볼 이유가 없다. */
   const [enrolling,setEnrolling]=useState(false);
+  /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 — 웹과 같은 열쇠다 */
+  const [mode,setMode]=useState<string>(loadMode);
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
   const [invite,setInvite]=useState<any>(null);   // 같이 가자는 제안
   /* ── 자리 ──
@@ -2095,6 +2119,7 @@ function Root() {
       </View>
     </Modal>
     {enrolling&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
+      mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={doRename} onDone={()=>setEnrolling(false)}/>}
     {/* ── 지도와 자리의 창들 ── 판정은 flow.ts, 글월은 웹과 같다 */}
     {ask&&<AskDialog place={ask}
