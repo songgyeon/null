@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  openingFor, canGreet, allAsleep, bothAwake, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  openingFor, canGreet, asleep, allAsleep, bothAwake, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
 
@@ -1686,7 +1686,15 @@ function Root() {
     /* 이쪽은 지금 벌어지는 일로 찍힌다. 한 사람이라도 자고 있으면 만들 대화가
        없다 — 부르지도 않는다. 눌렀는데 아무 일이 없으면 고장으로 보이니 한 줄 띄운다.
        쿨타임을 깎기 전에 본다 — 누르지도 못한 관전에 시계가 돌면 안 된다 */
-    if(!bothAwake()){ setToast('지금은 둘 다 자요 ♡'); return; }
+    if(!bothAwake()){
+      /* 조건은 bothAwake — 한 명만 자도 막힌다. 그런데 말은 「둘 다 자요」였다.
+         새벽 두 시엔 재언만 자고 민현은 세 시까지 깨 있는데, 목록에 「안 자는
+         중」이라고 떠 있는 사람을 두고 둘 다 잔다고 하면 그 점이 거짓말이 된다. */
+      const zz=(['jaeeon','minhyun'] as const).filter(id=>asleep(id));
+      setToast(zz.length>1?'지금은 둘 다 자요 ♡'
+        :`지금은 ${jos(CHARS[zz[0]].name,'이/가')} 자요 ♡`);
+      return;
+    }
     const t=Date.now(); setAutoAt(t); setMeta('null_auto_at',String(t));
     setAutoLoading(true);
     if(demoOn()){ await enqueue('health',demoReply('health')); setAutoLoading(false); return; }

@@ -145,6 +145,10 @@ function App(){
     const next=[...m,place]; saveMet(next); return next; });
   const [bag,setBag]=useState(loadBag);
   const bagRef=useRef(bag); bagRef.current=bag;
+  /* 가방은 키만 보내고 있었다. 그런데 가방은 준 사람(from)도 들고 있다 —
+     그걸 버리니 워커에서 방향이 없어졌고, 민현이 제가 준 젤리를 두고
+     "사람 아까 핫팩 주더니 이제 젤리까지"라고 했다. 준 사람을 같이 보낸다. */
+  const bagOut=()=>bagRef.current.map(b=>({k:b.key,from:b.from||""}));
   const sceneRef=useRef(scene); sceneRef.current=scene;
   /* 받은 것을 가방에 넣는다. 같은 것은 두 번 안 들어간다.
      채팅에는 지문 한 줄로 남긴다 — 유저의 말이 아니라 일어난 일이니까. */
@@ -275,7 +279,7 @@ function App(){
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
-      place:WAY,bag:bagRef.current.map(b=>b.key)});
+      place:WAY,bag:bagOut()});
   };
   const answerInvite=ok=>{
     const iv=invite; setInvite(null); if(!iv)return;
@@ -296,7 +300,7 @@ function App(){
     request(iv.char,{mode:"chat",room:iv.char,user_name:name,
       history:buildHistory(sinceSum(iv.char,next)),signals:buildSignals(iv.char),
       recent_photos:recentPhotos(iv.char),counts:roomCounts({[iv.char]:next.length}),
-      ...(ok&&PLACE_BY[iv.place]?{place:iv.place,bag:bagRef.current.map(b=>b.key)}:{})});
+      ...(ok&&PLACE_BY[iv.place]?{place:iv.place,bag:bagOut()}:{})});
   };
 
   /* 지도에서 내가 고른 자리. 인물이 부른 게 아니라 내 발로 가는 거라 창만
@@ -331,7 +335,7 @@ function App(){
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
-      place,bag:bagRef.current.map(b=>b.key)});
+      place,bag:bagOut()});
   };
   /* 동행을 고르는 자리에서 고른 사람. 창을 닫으면 같이 비운다 */
   const [askWho,setAskWho]=useState(null);
@@ -366,7 +370,7 @@ function App(){
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
-      place,bag:bagRef.current.map(b=>b.key)});
+      place,bag:bagOut()});
   };
 
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
@@ -580,7 +584,7 @@ function App(){
        인물이 이번 대답에서 마무리하고 일어서고, 답이 다 뜨면 자리가 닫힌다 */
     request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),
       recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length}),
-      ...(at?{place:at,bag:bagRef.current.map(b=>b.key),
+      ...(at?{place:at,bag:bagOut(),
               ...(sceneOver(sc)?{place_over:true}:{})}:{})});
   };
   /* 선물 보내기.
@@ -639,7 +643,7 @@ function App(){
     request(char,{mode:"chat",room:char,user_name:name,
       history:buildHistory(sinceSum(char,ms)),signals:buildSignals(char),
       recent_photos:recentPhotos(char),counts:roomCounts({[char]:ms.length}),
-      place,bag:bagRef.current.map(b=>b.key),gift:{name:gift.name,key:gift.key,note}});
+      place,bag:bagOut(),gift:{name:gift.name,key:gift.key,note}});
   };
 
   /* 재시도: 저장해둔 payload를 최신 history로 갱신해 다시 전송 */
@@ -769,7 +773,15 @@ function App(){
     if(autoLoading)return;
     /* 이쪽은 지금 벌어지는 일로 찍힌다. 한 사람이라도 자고 있으면 만들 대화가
        없다 — 부르지도 않는다. 눌렀는데 아무 일이 없으면 고장으로 보이니 한 줄 띄운다 */
-    if(!bothAwake()){ setToast("지금은 둘 다 자요 ♡"); return }
+    if(!bothAwake()){
+      /* 조건은 bothAwake — 한 명만 자도 막힌다. 그런데 말은 「둘 다 자요」였다.
+         새벽 두 시엔 재언만 자고 민현은 세 시까지 깨 있는데, 목록에 「안 자는
+         중」이라고 떠 있는 사람을 두고 둘 다 잔다고 하면 그 점이 거짓말이 된다.
+         누가 자는지 그대로 말한다. */
+      const zz=["jaeeon","minhyun"].filter(id=>asleep(id));
+      setToast(zz.length>1?"지금은 둘 다 자요 ♡"
+        :`지금은 ${jos(CHARS[zz[0]].name,"이/가")} 자요 ♡`);
+      return }
     setAutoLoading(true);
     await request("health",{mode:"auto",user_name:name,
       history:buildHistory(storeRef.current.msgs.health||[]),signals:buildSignals(null),recent_photos:recentPhotos("health")});
@@ -983,7 +995,7 @@ function App(){
     request(o.room,{mode:"chat",room:o.room,user_name:name,
       history:buildHistory(sinceSum(o.room,next)),signals:buildSignals(o.room),
       recent_photos:recentPhotos(o.room),counts:roomCounts({[o.room]:next.length}),
-      place:o.place,bag:bagRef.current.map(b=>b.key)});
+      place:o.place,bag:bagOut()});
     /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 아래 선톡 추첨에
        맡기면 자리 쪽 상태가 아직 화면에 안 앉아서 두 방이 다 비어 보이고,
        자리에서 만난 사람이 뽑혀 조용히 삼켜진다. 게다가 그 추첨은 view가

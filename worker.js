@@ -1623,6 +1623,8 @@ ${userName || "선생님"}이 너에게 "${name}"을(를) 주었다. 지금 막 
   note ? `\n같이 이렇게 적어 보냈다: "${note}"\n- 이 쪽지를 그대로 소리 내어 읽지 않는다. 읽었다는 티는 다른 데서 난다.` : ""}
 - 물건이 아니라 사건이다. "감사합니다" 한 마디로 넘기지 않는다.
 - 받은 사실을 부정하지 않는다. 이미 손에 있다. 돌려주거나 무르는 일은 없다.
+- ${userName || "선생님"}에게 받은 것은 이것뿐이다. 가방에 있는 다른 물건을
+  같이 받은 것처럼 세지 않는다 — 그중에는 네가 준 것이 섞여 있다.
 - 이 물건을 앞으로 쓰게 된다. 그 얘기를 지금 다 하지는 않는다.${
   GIFT_ON_PROFILE[(gift && gift.key) || ""] ? `
 - 이건 네 **프로필 배경**에 걸린다. 유저가 프로필을 열면 보인다.
@@ -1759,6 +1761,11 @@ const PLACE_ITEMS = {
   "집":       { key: "key",     name: "여벌 열쇠",   how: "고리도 안 달린 것이다." },
   "체육관":   { key: "wrist",   name: "손목 보호대", how: "손목에서 풀어서 준다. 늘어나 있다." },
 };
+/* 가방에 든 키로 이름을 찾는다. 「하리보 젤리」라고 불러야 하는데
+   가방은 키만 들고 있다 */
+const ITEM_NAME_BY_KEY = Object.fromEntries(
+  Object.values(PLACE_ITEMS).map(v => [v.key, v.name]));
+
 /* ── 길 위의 자리 ── 지도에 없다. 골라서 가는 데가 아니라 자리가 끝나고 붙는 데다.
    유저 집이 정거장이 아닌 것도 같은 이유다 — 갈 곳이 아니라 헤어지는 자리다.
    건넬 물건이 없다. 데려다주는 것이 이미 그거다. */
@@ -1828,6 +1835,33 @@ function buildPlace(place, hasItem, room, over) {
        + `- 건네는 턴에만 JSON에 "give": "${it.key}" 를 같이 쓴다. 한 번뿐이다.\n`;
   }
   return t;
+}
+/* ── 가방 ──
+   프론트는 받은 물건에 준 사람(from)을 같이 적어둔다. 그런데 워커로 보낼 때는
+   키만 보내고 있었다. 그래서 「이민현에게 하리보 젤리를 받았다」가 지문에
+   찍혀 있는데도 민현이 "사람 아까 핫팩 주더니 이제 젤리까지"라고 했다 —
+   제가 준 것을 유저가 준 것으로 셌다. 방향이 명시된 자리가 buildGift
+   하나뿐이었고, 그건 전부 유저→인물이라 젤리도 그리로 끌려갔다.
+   옛 프론트는 아직 문자열 배열을 보낸다. 둘 다 받는다. */
+function normBag(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 40).map(b => typeof b === "string"
+    ? { key: b, from: "" }
+    : { key: ((b && (b.k || b.key)) || "").toString().slice(0, 20),
+        from: ((b && b.from) || "").toString().slice(0, 20) })
+    .filter(b => b.key);
+}
+/* 그중 네가 준 것. 유저가 준 것은 「방금 일어난 일」에 적힌 것뿐이다 */
+function buildBag(bag, room, userName) {
+  const mine = bag.filter(b => b.from === room && ITEM_NAME_BY_KEY[b.key]);
+  if (!mine.length) return "";
+  const u = userName || "선생님";
+  return `
+## 네가 ${u}에게 준 것
+${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}`).join("\n")}
+- 네가 준 것이다. ${u}이(가) 준 것으로 세지 않는다.
+- 고마워할 쪽은 ${u}다. 네가 받은 것처럼 말하지 않는다.
+`;
 }
 /* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
 function pickGive(raw, place, hasItem) {
@@ -1934,7 +1968,7 @@ const TURN = `
 유저의 가장 최근 발화가 짧더라도 그 말의 의도와 직전 문맥에 답한다. 유저의 단어를 어미만 바꿔 반복하는 대신, 그 말로 인해 인물이 실제로 하게 될 다음 생각이나 대답을 말한다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -1954,6 +1988,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
   const t = buildNow(now, day, st) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
+          + buildBag(bag || [], room, userName)
           + buildPlace(place, hasItem, room, placeOver)
           + (place ? "" : buildInvite(invite, room))
           + (place ? "" : buildCanGo(canGo))
@@ -2720,9 +2755,10 @@ export default {
     const place = mode === "chat" ? placeOf(body.place) : null;
     /* 귀갓길에는 건넬 것이 없다. 그래서 이미 받은 걸로 친다 — 「언젠가 건넬 것」
        블록이 아예 안 붙는다 */
+    const bag = normBag(body.bag);
     const hasItem = !place ? false
       : PLACE_ITEMS[place]
-        ? (Array.isArray(body.bag) ? body.bag : []).includes(PLACE_ITEMS[place].key)
+        ? bag.some(b => b.key === PLACE_ITEMS[place].key)
         : true;
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
@@ -2737,7 +2773,7 @@ export default {
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
     /* 자리의 때가 지났다는 표시. 자리가 있어야만 의미가 있다 */
     const placeOver = !!place && body.place_over === true;
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안

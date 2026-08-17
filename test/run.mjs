@@ -652,10 +652,19 @@ eq('점이 꺼진 사람은 안 건다',
   eq('몫을 깎기 전에 본다',
     web.indexOf('if(!bothAwake(new Date(at)))return;') < web.indexOf('saveAutoDay(`${day}|'), true);
   /* peek 단추는 지금 벌어지는 일이라 지금으로 잰다 */
-  eq('peek도 자면 안 부른다', /if\(!bothAwake\(\)\)\{ setToast\(/.test(web), true);
+  eq('peek도 자면 안 부른다', /if\(!bothAwake\(\)\)\{/.test(web), true);
   eq('앱도 관전을 막는다',
     /if\(!bothAwake\(new Date\(at\)\)\) return;/.test(appSrc)
-    && /if\(!bothAwake\(\)\)\{ setToast\(/.test(appSrc), true);
+    && /if\(!bothAwake\(\)\)\{/.test(appSrc), true);
+  /* ── 자는 사람을 셋으로 세지 않는다 ──
+     조건은 bothAwake라 한 명만 자도 막히는데 말은 「둘 다 자요」였다.
+     새벽 두 시엔 재언만 자고 민현은 세 시까지 깨 있다 — 목록에 「안 자는 중」이
+     떠 있는 사람을 두고 둘 다 잔다고 하면 그 점이 거짓말이 된다 */
+  for (const [label, src] of [['웹', web], ['앱', appSrc]])
+    eq(`${label}은 자는 사람만 세어 말한다`,
+      /zz\.length>1\?['"]지금은 둘 다 자요 ♡['"]/.test(src)
+      && /지금은 \$\{jos\(CHARS\[zz\[0\]\]\.name,\s*['"]이\/가['"]\)\} 자요 ♡/.test(src), true);
+  eq('앱이 asleep을 들여온다', /openingFor, canGreet, asleep, allAsleep, bothAwake,/.test(appSrc), true);
   eq('앱도 몫을 깎기 전에 본다',
     appSrc.indexOf('if(!bothAwake(new Date(at))) return;') < appSrc.indexOf("null_auto_day',`${day}|"), true);
 }
@@ -757,7 +766,26 @@ eq('자리 몫과 선물 몫을 둘 다 쓴다',
   /if\(giftedToday\(char\)\|\|goneToday\(place\)\)return;/.test(web), true);
 /* 워커에게 자리와 선물을 같이 보낸다 — 마주 앉아 있고 방금 이걸 받았다 */
 eq('자리와 선물을 같이 보낸다',
-  /place,bag:bagRef\.current\.map\(b=>b\.key\),gift:\{name:gift\.name,key:gift\.key,note\}\}\);/.test(web), true);
+  /place,bag:bagOut\(\),gift:\{name:gift\.name,key:gift\.key,note\}\}\);/.test(web), true);
+/* ── 가방은 준 사람을 같이 들고 간다 ──
+   키만 보내니 워커에서 수수 방향이 사라졌다. 방향이 적힌 자리가 buildGift
+   하나뿐이었고 그건 전부 유저→인물이라, 민현이 제가 준 젤리를 두고
+   "사람 아까 핫팩 주더니 이제 젤리까지"라고 했다 */
+eq('가방에 준 사람을 실어 보낸다',
+  /const bagOut=\(\)=>bagRef\.current\.map\(b=>\(\{k:b\.key,from:b\.from\|\|""\}\)\);/.test(web), true);
+eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.key\)/.test(web), false);
+{
+  const w = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  /* 옛 프론트는 아직 문자열 배열을 보낸다. 둘 다 받아야 배포 순서가 안 엮인다 */
+  eq('워커가 옛 가방도 받는다', /typeof b === "string"\s*\n\s*\? \{ key: b, from: "" \}/.test(w), true);
+  eq('네가 준 것을 따로 적는다',
+    /## 네가\s*\$\{u\}에게 준 것/.test(w)
+    && /b\.from === room/.test(w), true);
+  /* 그 줄은 매 턴 달라진다 — 고정부에 넣으면 캐시가 통째로 깨진다 */
+  eq('가방은 가변부에 실린다',
+    /\+ buildBag\(bag \|\| \[\], room, userName\)/.test(w)
+    && w.indexOf('buildBag(bag || []') > w.indexOf('function buildVolatile'), true);
+}
 
 
 /* ── 첫 자리 ──
@@ -767,10 +795,27 @@ eq('자리와 선물을 같이 보낸다',
 {
   const O = [...web.slice(web.indexOf('const OPENINGS=['), web.indexOf('const openingFor='))
     .matchAll(/\{from:(\d+),\s*place:"([^"]+)",\s*room:"(\w+)"/g)].map(m => [+m[1], m[2], m[3]]);
-  eq('첫 자리가 다섯 띠다', O.length, 5);
-  eq('시간 경계가 timeWord와 같다', O.map(o => o[0]), [2, 6, 11, 17, 21]);
+  eq('첫 자리가 여섯 띠다', O.length, 6);
+  /* 19시만 timeWord에 없는 경계다 — 저녁 띠를 둘로 갈랐다. 퇴근하고 바로
+     잡히는 자리와 한 번 들렀다 가는 자리는 같은 「저녁」이라도 시각이 다르다 */
+  eq('시간 경계가 timeWord와 같다(19시만 뺀다)',
+    O.map(o => o[0]).filter(h => h !== 19), [2, 6, 11, 17, 21]);
   eq('자리와 사람이 시각을 따라간다', O.map(o => o[1] + ':' + o[2]),
-    ['편의점:minhyun', '후문 골목:minhyun', '보건실:jaeeon', '버스정류장:minhyun', '빨래방:jaeeon']);
+    ['편의점:minhyun', '후문 골목:minhyun', '보건실:jaeeon',
+     '버스정류장:minhyun', '도서관:jaeeon', '빨래방:jaeeon']);
+  /* 띠가 순서대로 늘어서 있어야 reverse().find()가 맞는 자리를 집는다 */
+  eq('띠가 시각 순이다', O.map(o => o[0]), [...O.map(o => o[0])].sort((a, b) => a - b));
+  /* 도서관은 9~22시라 19~21시가 통째로 열려 있는 시간 안에 든다 */
+  eq('도서관은 그 시각에 열려 있다',
+    /\{name:"도서관",\s+map:"town", hours:\[9,22\]/.test(web), true);
+  /* 도서관은 wendOnly다 — 유저가 지도에서 골라 가는 것에 대한 규칙이라
+     첫 자리에는 안 걸린다. 첫 자리를 여는 길이 wendOnlyOk를 안 봐야 한다 */
+  eq('첫 자리는 wendOnly를 안 본다',
+    /const o=openingFor\(\);[\s\S]{0,600}?setView\(o\.room\);/.test(web)
+    && !/const o=openingFor\(\);[\s\S]{0,600}?wendOnlyOk/.test(web), true);
+  /* 첫 자리도 다녀온 자리다 — 도장을 안 찍으면 같은 날 한 번 더 갈 수 있다 */
+  eq('첫 자리도 도장을 찍는다',
+    /if\(PLACE_BY\[o\.place\]\)\{ goneTo\(o\.place\); stampGone\(o\.place\) \}/.test(web), true);
   /* 21시부터 다음날 2시까지가 밤이다. 자정을 넘어가는 띠라 표에서 못 찾는다 —
      못 찾으면 마지막 것으로 떨어져야 새벽 한 시가 빨래방이 된다 */
   eq('자정을 넘는 띠는 마지막으로 떨어진다',
