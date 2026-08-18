@@ -2690,9 +2690,10 @@ eq('관전은 저장 발화에 지점을 찍는다',
 eq('stop_reason이 usage에 실린다',
   /usage: data\.usage \? \{ \.\.\.data\.usage, stop_reason: data\.stop_reason \|\| null \} : null/.test(workerSrc), true);
 eq('웹 콘솔이 멈춤 사유를 찍는다', /멈춤 "\+\(data\.usage\.stop_reason\|\|"\?"\)/.test(web), true);
-/* 채팅은 사고를 medium으로 — 관전은 제일 복잡한 생성이라 high 그대로 */
-eq('채팅만 사고를 내린다',
-  /askClaude\(env, system, msgs, mode === "auto" \? 2200 : 900,\s*\n\s*mode === "auto" \? null : "medium"\)/.test(workerSrc), true);
+/* 채팅도 high다 — medium은 이미 해본 실험이고 결과(00d2221: 어미만 바꿔
+   되돌리기·같은 말 반복·-대요)가 있다. 실측 없이 되돌리지 않는다 */
+eq('채팅 사고는 high 그대로다',
+  /const raw = await askClaude\(env, system, msgs, mode === "auto" \? 2200 : 900\);/.test(workerSrc), true);
 /* effort를 아예 안 받는 모델(4.5)에는 파라미터가 와도 안 보낸다 */
 eq('모델이 거부하면 안 보낸다',
   /const eff = m\.effort \? \(effort \|\| m\.effort\) : null;/.test(workerSrc), true);
