@@ -2232,7 +2232,32 @@ eq('세계관에는 안 남겼다',
   const v = buildVolatile('chat', 'minhyun', '선생님', null, [], null, { minhyun: 20 }, null, null, [], 2, null, false);
   eq('그 말이 가변부의 마지막 줄이다',
     v.trimEnd().endsWith('했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.'), true);
-  /* ── 관전 대화는 한 덩이로 서야 한다 ──
+  /* ── 단톡의 지난 대화가 요약도 없이 사라지던 것 ──
+   원문 창 밖으로 밀려난 대화는 요약이 들고 있다. 그런데 요약을 만드는 쪽에
+   `!CHARS[room]` 가드가 있어서 1:1 둘만 요약됐고, 단톡은 들고 있는 게 없었다.
+   창(HISTORY_CHARS)을 넘는 순간 그 앞은 없던 일이 된다 — 두 사람이 앞서 한
+   말을 잊고, 정해둔 것을 다시 정하고, 시간 순서가 어긋난 소리를 한다.
+   워커는 진작부터 감당하고 있었다. 프론트 가드 한 줄이 막고 있었을 뿐이다. */
+{
+  eq('웹이 단톡도 요약한다',
+    /if\(!\(CHARS\[room\]\|\|room==="group"\)\|\|demoOn\(\)\|\|summingRef\.current\[room\]\)return;/.test(web), true);
+  eq('CHARS만 보던 가드가 없다', /if\(!CHARS\[room\]\|\|demoOn\(\)/.test(web), false);
+  /* 앱은 원래 방을 안 가렸다 — 웹만 막혀 있었다 */
+  eq('앱은 방을 안 가린다',
+    /const rollLater=\(room:string\)=>\{\s*\n\s*if\(demoOn\(\)\|\|summingRef\.current\[room\]\)return;/.test(appSrc), true);
+  /* 요약을 만들어도 실어 보내지 않으면 소용없다 */
+  eq('채팅 요청에 요약이 실린다',
+    /if\(payload\.mode==="chat"\)\{ const t=loadSum\(payload\.room\|\|bucket\)\.text; if\(t\)payload\.summary=t; \}/.test(web), true);
+  /* 워커가 단톡 요약을 받는다 — room 검증에 group이 있어야 엉뚱한 방이 안 된다 */
+  const w = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  eq('워커가 단톡을 아는 방으로 받는다',
+    /const room = \["jaeeon", "minhyun", "group"\]\.includes\(body\.room\)/.test(w), true);
+  /* 관전은 아직 아니다 — 워커의 room이 세 방만 받아 health로 부르면
+     minhyun으로 떨어진다. 왜 안 하는지 적어둔다 */
+  eq('관전을 왜 안 하는지 적었다', web.includes('관전(health)은 아직 안 한다'), true);
+}
+
+/* ── 관전 대화는 한 덩이로 서야 한다 ──
    유저가 보는 것은 이 몇 마디뿐인데 모델이 긴 대화의 한 토막처럼 썼다.
    첫 줄이 「몰라요. 배고프면 먹겠죠.」로 물음 없는 대답이었고, 재언이
    「매점 가라며.」라고 민현이 하지도 않은 말을 인용했다. 그 앞은 영영 없다. */

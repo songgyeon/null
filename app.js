@@ -412,7 +412,16 @@ function App(){
      다음 턴에 다시 시도된다. */
   const summingRef=useRef({});
   const rollSummary=async room=>{
-    if(!CHARS[room]||demoOn()||summingRef.current[room])return;
+    /* 단톡도 한다. 전에는 CHARS에 있는 방(1:1 둘)만 했다. 그러면 단톡의
+       오래된 대화는 요약도 없이 창 밖으로 밀려 그냥 사라진다 — 1:1은 밀려난
+       것을 요약이 들고 있는데 단톡은 들고 있는 게 없어서, 창을 넘는 순간
+       그 앞이 없던 일이 된다. 두 사람이 앞서 한 말을 잊고, 정해둔 것을 다시
+       정하고, 시간 순서가 어긋난 소리를 한다.
+       워커는 진작부터 감당하고 있었다 — room 검증에 group이 있고 SUMMARIZE도
+       두 사람을 같이 적게 돼 있다. 프론트 가드 한 줄이 막고 있었을 뿐이다.
+       관전(health)은 아직 안 한다. 워커의 room이 세 방만 받아서 health로
+       부르면 minhyun으로 떨어진다 — 엉뚱한 방 요약이 된다. */
+    if(!(CHARS[room]||room==="group")||demoOn()||summingRef.current[room])return;
     const all=sinceSum(room,storeRef.current.msgs[room]||[]);
     const total=all.reduce((n,m)=>n+((m.text||"").length),0);
     if(total<SUM_AT)return;
