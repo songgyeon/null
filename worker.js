@@ -2238,8 +2238,13 @@ async function callModel(env, m, system, messages, maxTokens, effort) {
   /* stop_reason이 max_tokens면 사고가 예산을 먹고 답이 잘린 것이다. 사고
      토큰은 화면에서 버려져도 출력으로 청구되므로, 이 값 없이는 비용도 품질
      저하도 원인을 못 본다. usage에 실어 프론트 콘솔까지 보낸다. */
+  /* 어느 모델이 답했는지도 싣는다. MODELS는 400/404면 조용히 다음으로 넘어가고
+     workingModel로 굳는다 — 1순위가 파라미터 하나 때문에 거절당해도 화면은
+     멀쩡하다. 그러면 4.6을 쓴다고 믿으면서 5를 쓰고 있게 된다. 응답이 말한
+     model을 그대로 쓰고, 없으면 부른 이름을 쓴다. */
   return { ok: true, text: (data.content || []).map(b => b.text || "").join("").trim(),
-           usage: data.usage ? { ...data.usage, stop_reason: data.stop_reason || null } : null };
+           usage: data.usage ? { ...data.usage, model: data.model || m.id,
+                                 stop_reason: data.stop_reason || null } : null };
 }
 
 /* 캐시가 실제로 맞았는지는 응답의 usage에만 나온다. 안 맞아도 오류가 안 나고

@@ -2688,7 +2688,13 @@ eq('관전은 저장 발화에 지점을 찍는다',
    사고가 900 예산을 먹고 답까지 잘린 것 — 이 값 없이는 비용도 품질 저하도
    원인을 못 본다. */
 eq('stop_reason이 usage에 실린다',
-  /usage: data\.usage \? \{ \.\.\.data\.usage, stop_reason: data\.stop_reason \|\| null \} : null/.test(workerSrc), true);
+  /usage: data\.usage \? \{ \.\.\.data\.usage, model: data\.model \|\| m\.id,\s*stop_reason: data\.stop_reason \|\| null \} : null/.test(workerSrc), true);
+/* MODELS는 400·404면 조용히 다음 모델로 넘어가 workingModel로 굳는다.
+   1순위가 파라미터 하나 때문에 거절당해도 화면은 멀쩡해서, 4.6을 쓴다고
+   믿으면서 5를 쓰고 있게 된다. 어느 쪽이 답했는지는 usage로만 보인다 */
+eq('어느 모델이 답했는지 usage에 실린다',
+  /model: data\.model \|\| m\.id/.test(workerSrc)
+  && /\[NULL\] "\+\(data\.usage\.model\|\|"\?"\)/.test(web), true);
 eq('웹 콘솔이 멈춤 사유를 찍는다', /멈춤 "\+\(data\.usage\.stop_reason\|\|"\?"\)/.test(web), true);
 /* ── 사고 500 · 답 500 ──
    max_tokens 900은 사고가 꺼져 있던 때 정한 숫자다. 900 전부가 답 몫이었다.

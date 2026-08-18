@@ -541,7 +541,8 @@ function App(){
          안 맞고 있다는 뜻인데, 그건 오류를 안 내고 조용히 정가를 문다 */
       /* 멈춤이 max_tokens면 사고가 예산을 먹고 답이 잘린 것 — 출력 숫자가
          크고 화면 글자가 짧으면 그 차이가 전부 사고 토큰이다 */
-      if(data&&data.usage)console.log("%c[NULL] 토큰 — 새로 "+(data.usage.input_tokens||0)+
+      if(data&&data.usage)console.log("%c[NULL] "+(data.usage.model||"?")+
+        " — 새로 "+(data.usage.input_tokens||0)+
         " · 캐시 씀 "+(data.usage.cache_creation_input_tokens||0)+
         " · 캐시 읽음 "+(data.usage.cache_read_input_tokens||0)+
         " · 출력 "+(data.usage.output_tokens||0)+
