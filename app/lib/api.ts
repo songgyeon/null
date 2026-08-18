@@ -128,7 +128,12 @@ export async function buildUserProfile() {
 }
 
 export async function callApi(payload: any) {
-  const res = await fetch(API, {
+  /* 자물쇠 열쇠. 웹과 같은 자리(null_apikey)를 본다 — 앱에서는 아직 넣는
+     화면이 없어서, 워커에 ACCESS_KEY를 켜기 전에 넣는 길부터 만들어야 한다.
+     비어 있으면 오늘까지와 똑같다. */
+  let lockKey = '';
+  try { lockKey = (globalThis as any).localStorage?.getItem('null_apikey') || ''; } catch {}
+  const res = await fetch(lockKey ? API + '?k=' + encodeURIComponent(lockKey) : API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

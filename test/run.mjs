@@ -2671,9 +2671,43 @@ eq('지점은 가변부 앞에 찍는다',
   /: \[\{ type: "text", text: tail\.content, cache_control: CACHE \}\];/.test(workerSrc)
   && /if \(volatile\) blocks\.push\(\{ type: "text", text: volatile \}\);/.test(workerSrc), true);
 /* 선톡 턴은 예외다 — 마지막 턴이 저장 안 되는 지시문이라 접두가 재현될 수
-   없고, 찍어봐야 2배 요금으로 쓰고 영영 못 읽는 항목이 된다 */
-eq('선톡 턴에는 이력 지점을 안 찍는다',
-  /body\.greet === true\s*\n\s*\? \[\{ type: "text", text: tail\.content \}\]/.test(workerSrc), true);
+   없고, 찍어봐야 2배 요금으로 쓰고 영영 못 읽는 항목이 된다.
+   관전(auto)도 같은 병이었다. 꼬리가 「(유저 부재…)」 합성 발화인데 그건
+   기록에 저장되지 않아서, 매 관전마다 이력 전체를 2배 요금으로 쓰고 한 번도
+   못 읽었다 — 같은 실수를 선톡 갈래만 막고 있었다. */
+eq('선톡·관전 꼬리에는 이력 지점을 안 찍는다',
+  /const noPoint = body\.greet === true \|\| mode === "auto";/.test(workerSrc)
+  && /noPoint\s*\n\s*\? \[\{ type: "text", text: tail\.content \}\]/.test(workerSrc), true);
+/* 관전은 지점을 마지막 저장 발화(합성 앞)에 찍는다 — 그 접두는 다음 관전
+   요청에도 그대로 있으므로 이번에 쓴 캐시를 다음에 읽는다 */
+eq('관전은 저장 발화에 지점을 찍는다',
+  /if \(mode === "auto" && msgs\.length >= 2\) \{\s*\n\s*const prev = msgs\[msgs\.length - 2\];\s*\n\s*prev\.content = \[\{ type: "text", text: prev\.content, cache_control: CACHE \}\];/.test(workerSrc), true);
+
+/* ── 돈이 새던 곳들 ──
+   사고 토큰은 화면에서 버려져도 출력으로 청구된다. stop_reason이 max_tokens면
+   사고가 900 예산을 먹고 답까지 잘린 것 — 이 값 없이는 비용도 품질 저하도
+   원인을 못 본다. */
+eq('stop_reason이 usage에 실린다',
+  /usage: data\.usage \? \{ \.\.\.data\.usage, stop_reason: data\.stop_reason \|\| null \} : null/.test(workerSrc), true);
+eq('웹 콘솔이 멈춤 사유를 찍는다', /멈춤 "\+\(data\.usage\.stop_reason\|\|"\?"\)/.test(web), true);
+/* 채팅은 사고를 medium으로 — 관전은 제일 복잡한 생성이라 high 그대로 */
+eq('채팅만 사고를 내린다',
+  /askClaude\(env, system, msgs, mode === "auto" \? 2200 : 900,\s*\n\s*mode === "auto" \? null : "medium"\)/.test(workerSrc), true);
+/* effort를 아예 안 받는 모델(4.5)에는 파라미터가 와도 안 보낸다 */
+eq('모델이 거부하면 안 보낸다',
+  /const eff = m\.effort \? \(effort \|\| m\.effort\) : null;/.test(workerSrc), true);
+
+/* ── 자물쇠 ──
+   대시보드에 ACCESS_KEY를 넣으면 그때부터 ?k 없는 호출을 거절한다.
+   안 넣으면 이 블록은 없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다. */
+eq('비밀값이 있을 때만 잠긴다',
+  /const LOCK = \(\(env && env\.ACCESS_KEY\) \|\| ""\)\.toString\(\)\.trim\(\);\s*\n\s*if \(LOCK\)/.test(workerSrc), true);
+eq('웹이 열쇠를 저장하고 실어 보낸다',
+  /localStorage\.setItem\("null_apikey",k\.trim\(\)\)/.test(web)
+  && (web.match(/fetch\(apiUrl\(\),/g) || []).length === 3
+  && !/fetch\(API,/.test(web), true);
+eq('앱도 같은 열쇠 자리를 본다',
+  /getItem\('null_apikey'\)/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8')), true);
 /* 앱은 최근 것부터 가져와야 한다. ASC LIMIT이면 200개가 넘는 순간
    제일 오래된 200개가 돌아온다 — 화면에도 프롬프트에도 옛날 것만 남는다 */
 {

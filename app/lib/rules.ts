@@ -13,6 +13,15 @@ function __build(): any {
    그리고 그것들을 재는 자. 화면은 이 파일을 안 본다. 화면이 이 파일을 본다. */
 /* (훅을 꺼내 쓰던 줄은 앱에서 뺀다 — 여기는 규칙만 산다) */
 const API = "https://null-api.re-moonroom.workers.dev/";
+/* ── 자물쇠 열쇠 ──
+   워커 대시보드에 ACCESS_KEY를 넣으면 그때부터 열쇠 없는 호출이 거절된다.
+   주소에 ?k=<값>을 한 번 붙여 들어오면 저장해 두고 그 뒤로는 늘 실어 보낸다
+   — 링크를 다시 뿌릴 때 열쇠 붙은 주소 하나만 주면 된다.
+   워커에 비밀값이 없으면 이 열쇠는 있어도 없어도 아무 일도 없다. */
+const loadKey=()=>{try{return localStorage.getItem("null_apikey")||""}catch(e){return""}};
+(()=>{try{const k=new URLSearchParams(location.search).get("k");
+  if(k&&k.trim())localStorage.setItem("null_apikey",k.trim())}catch(e){}})();
+const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API};
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
@@ -986,6 +995,8 @@ function seenPhotos(msgs){
 
 
 return {
+  loadKey,
+  apiUrl,
   AV_V,
   CHARS,
   ENROLL_DAYS,
@@ -1155,6 +1166,8 @@ return {
 
 const __rules: any = __build();
 export const {
+  loadKey,
+  apiUrl,
   AV_V,
   CHARS,
   ENROLL_DAYS,

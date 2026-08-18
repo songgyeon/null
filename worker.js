@@ -2168,7 +2168,7 @@ function isEdgeBlock(status, headers) {
 }
 
 // 모델 하나로 한 번 호출한다. 성공하면 {ok:true, text}, 실패하면 {ok:false, status, body}.
-async function callModel(env, m, system, messages, maxTokens) {
+async function callModel(env, m, system, messages, maxTokens, effort) {
   const body = {
     model: m.id,
     max_tokens: maxTokens,
@@ -2177,7 +2177,10 @@ async function callModel(env, m, system, messages, maxTokens) {
     messages,
   };
   if (m.noThinking) body.thinking = { type: "disabled" };
-  if (m.effort) body.output_config = { effort: m.effort };
+  /* effort를 파라미터로도 받는다 — 방마다 다르게 주려고. 모델이 effort를
+     아예 안 받으면(4.5, effort:null) 파라미터가 와도 안 보낸다. */
+  const eff = m.effort ? (effort || m.effort) : null;
+  if (eff) body.output_config = { effort: eff };
 
   let r;
   for (let i = 0; i < EDGE_RETRIES; i++) {
@@ -2208,8 +2211,11 @@ async function callModel(env, m, system, messages, maxTokens) {
              body: `${(await r.text()).slice(0, 300)} [${from || "헤더없음"}]` };
   }
   const data = await r.json();
+  /* stop_reason이 max_tokens면 사고가 예산을 먹고 답이 잘린 것이다. 사고
+     토큰은 화면에서 버려져도 출력으로 청구되므로, 이 값 없이는 비용도 품질
+     저하도 원인을 못 본다. usage에 실어 프론트 콘솔까지 보낸다. */
   return { ok: true, text: (data.content || []).map(b => b.text || "").join("").trim(),
-           usage: data.usage || null };
+           usage: data.usage ? { ...data.usage, stop_reason: data.stop_reason || null } : null };
 }
 
 /* 캐시가 실제로 맞았는지는 응답의 usage에만 나온다. 안 맞아도 오류가 안 나고
@@ -2237,7 +2243,7 @@ async function askSummary(env, system, messages, maxTokens) {
   return await askClaude(env, system, messages, maxTokens);
 }
 
-async function askClaude(env, system, messages, maxTokens) {
+async function askClaude(env, system, messages, maxTokens, effort) {
   // 이미 되는 모델을 알면 그것부터, 아니면 목록 순서대로
   const order = workingModel
     ? [workingModel, ...MODELS.filter(m => m.id !== workingModel.id)]
@@ -2245,7 +2251,7 @@ async function askClaude(env, system, messages, maxTokens) {
 
   const failures = [];
   for (const m of order) {
-    const res = await callModel(env, m, system, messages, maxTokens);
+    const res = await callModel(env, m, system, messages, maxTokens, effort);
     if (res.ok) { workingModel = m; lastUsage = res.usage; return res.text; }
     failures.push(`${m.id} → ${res.status}`);
     // 400(파라미터 거부)/404(모델 없음)만 다음 모델로 넘어간다.
@@ -2830,6 +2836,20 @@ export default {
       return new Response(JSON.stringify({ error: "잠시 뒤에 다시 시도해 주세요", detail: "too many requests" }),
         { status: 429, headers: { ...CORS, "content-type": "application/json", "Retry-After": "60" } });
     }
+    /* ── 자물쇠 ──
+       워커 주소가 프론트 소스에 공개돼 있고, Origin 없는 직접 호출은 앱 때문에
+       막을 수 없다. 대시보드 Variables and Secrets에 ACCESS_KEY를 넣으면
+       그때부터 ?k=<그 값>이 없는 호출을 전부 거절한다. 안 넣으면 이 블록은
+       없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다.
+       값은 코드에 못 둔다. 저장소가 공개다. */
+    const LOCK = ((env && env.ACCESS_KEY) || "").toString().trim();
+    if (LOCK) {
+      const got = (new URL(request.url).searchParams.get("k") || "").trim();
+      if (got !== LOCK) {
+        return new Response(JSON.stringify({ error: "잠겨 있습니다", detail: "access key mismatch" }),
+          { status: 403, headers: { ...CORS, "content-type": "application/json" } });
+      }
+    }
 
     if (!resolveKey(env))
       return new Response(JSON.stringify({ error: "서버 설정 오류", detail: "ANTHROPIC_API_KEY 미설정 — 워커 주소를 브라우저로 열면 원인이 나옵니다" }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
@@ -2967,12 +2987,21 @@ export default {
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
          되는 지시문이라, 여기 찍은 캐시는 다음 요청과 접두가 갈라져 영영 안
-         읽힌다 — 2배 요금으로 쓰기만 하고 버리는 항목이 된다. */
-      const blocks = body.greet === true
+         읽힌다 — 2배 요금으로 쓰기만 하고 버리는 항목이 된다.
+         관전(auto)도 똑같다. 꼬리가 「(유저 부재…)」 합성 발화인데 그건 관전
+         기록에 저장되지 않는다 — 같은 실수를 한 갈래만 막고 있었다. 관전은
+         지점을 마지막 저장 발화(합성 앞)에 찍는다. 그 접두는 다음 관전 요청
+         에도 그대로 있으므로 이번에 쓴 캐시를 다음에 읽는다. */
+      const noPoint = body.greet === true || mode === "auto";
+      const blocks = noPoint
         ? [{ type: "text", text: tail.content }]
         : [{ type: "text", text: tail.content, cache_control: CACHE }];
       if (volatile) blocks.push({ type: "text", text: volatile });
       tail.content = blocks;
+      if (mode === "auto" && msgs.length >= 2) {
+        const prev = msgs[msgs.length - 2];
+        prev.content = [{ type: "text", text: prev.content, cache_control: CACHE }];
+      }
     }
     const fallbackSender = room === "jaeeon" ? "jaeeon" : "minhyun";
     const chars = allowedChars(mode, room);
@@ -2981,7 +3010,12 @@ export default {
 
     try {
       // Sonnet 5는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
-      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
+      /* 채팅은 사고를 medium으로 내린다. high 사고는 900 상한 안에서 예산을
+         먹고 답을 자를 수 있고, 사고 토큰이 출력 요금의 대부분일 수 있다.
+         관전은 high 그대로 둔다 — 제일 복잡한 생성이고 하루 상한이 있다.
+         되돌리려면 "medium"을 지우면 된다(모델 기본 high로 돌아간다). */
+      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900,
+        mode === "auto" ? null : "medium");
       /* ── 관찰용. 원인을 잡으면 뺀다 ──
          「api호출오류: litellm...」이 민현이 말풍선으로 나갔는데, 그게 어디서
          들어오는지 아직 못 밝혔다. 실패했을 때만 찍으면 실패가 안 나는 동안은

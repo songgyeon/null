@@ -436,7 +436,7 @@ function App(){
     summingRef.current[room]=true;
     try{
       const prev=loadSum(room);
-      const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
+      const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({mode:"summarize",room,user_name:name,summary:prev.text,
           history:buildHistory(chunk)})});
       const data=await res.json().catch(()=>null);
@@ -516,7 +516,7 @@ function App(){
       return;
     }
     try{
-      const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await res.json().catch(()=>null);
       if(!res.ok){
         // 서버가 알려준 실패 사유를 그대로 들고 올라간다
@@ -539,10 +539,15 @@ function App(){
       applyUnlocked(data&&data.unlocked);
       /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가
          안 맞고 있다는 뜻인데, 그건 오류를 안 내고 조용히 정가를 문다 */
+      /* 멈춤이 max_tokens면 사고가 예산을 먹고 답이 잘린 것 — 출력 숫자가
+         크고 화면 글자가 짧으면 그 차이가 전부 사고 토큰이다 */
       if(data&&data.usage)console.log("%c[NULL] 토큰 — 새로 "+(data.usage.input_tokens||0)+
         " · 캐시 씀 "+(data.usage.cache_creation_input_tokens||0)+
         " · 캐시 읽음 "+(data.usage.cache_read_input_tokens||0)+
-        " · 출력 "+(data.usage.output_tokens||0),"color:#7a6cc4");
+        " · 출력 "+(data.usage.output_tokens||0)+
+        " · 멈춤 "+(data.usage.stop_reason||"?")+
+        (data.usage.output_tokens_details?" · 상세 "+JSON.stringify(data.usage.output_tokens_details):""),
+        "color:#7a6cc4");
       setTimeout(()=>rollSummary(bucket),1200);
       if(data&&data.invite&&data.invite.place) setInvite(data.invite);
       /* 자리에서 뭘 건넸다. 말풍선이 다 뜬 뒤에 가방에 넣는다 —
@@ -771,7 +776,7 @@ function App(){
       if(DEMO.on){ list=demoReply("health",null,name,storeRef.current.msgs); }
       else{
         try{
-          const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
+          const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
             body:JSON.stringify({mode:"auto",user_name:name,counts:roomCounts(),
               /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
                  같은 얘기를 두 번 싣는다 */
