@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
 
@@ -1519,6 +1519,7 @@ function Root() {
       if(PLACE_BY[o.place]){ const nm=met.includes(o.place)?met:[...met,o.place]; setMet(nm); saveMet(nm); stampGone(o.place); }
       await sysLine(o.room,o.note);
       const shot=sceneShot(o.place,o.room);
+      if(shot)stampShot(shot);
       putScene({room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{}),...(shot?{shot}:{})});
       setView({type:'chat',id:o.room});
       await runTurn(o.room);
@@ -1887,8 +1888,9 @@ function Root() {
   /* 방별 누적 수와 받은 사진은 이미 들고 있는 msgs에서 뽑는다 — 따로 저장하지 않는다 */
   const counts:Record<string,number>={};
   ['jaeeon','minhyun','group','health'].forEach(r=>{counts[r]=(msgs[r]||[]).length});
-  const album=new Set<string>();
-  Object.values(msgs).forEach(list=>(list||[]).forEach(m=>{if(m.photo)album.add(m.photo)}));
+  /* 받은 사진 + 자리에서 본 사진. 웹과 같은 함수를 쓴다 — 손으로 두 판을
+     만들면 반드시 어긋난다 */
+  const album=seenPhotos(msgs);
 
   /* 캐릭터가 먼저 건다. 방을 열었는데 아무 말도 없으면 그건 메신저가 아니라
      빈 상자다. 처음 들어왔거나 한참 만에 들어왔을 때만 한 번.
@@ -2016,6 +2018,7 @@ function Root() {
     if(sceneRef.current) closeScene();
     await sysLine(who,note||`${place}에 갔다`);
     const shot=sceneShot(place,who);
+    if(shot)stampShot(shot);
     putScene({room:who,place,since:Date.now(),...(shot?{shot}:{})});
     setView({type:'chat',id:who}); setUnread(u=>({...u,[who]:0}));
     await runTurn(who);

@@ -72,6 +72,9 @@ function App(){
       const shot=sceneShot(sc.place,room);
       if(shot){
         const next={...sc,shot}; setScene(next); saveScene(next);
+        /* 본 것도 사진첩에 꽂는다. 이건 말풍선이 아니라 배경이라 대화
+           기록에 안 남는다 — 여기서 적어두지 않으면 영영 안 모인다 */
+        stampShot(shot);
       }
     }
     pump();

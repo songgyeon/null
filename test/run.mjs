@@ -2221,7 +2221,43 @@ eq('세계관에는 안 남겼다',
   const v = buildVolatile('chat', 'minhyun', '선생님', null, [], null, { minhyun: 20 }, null, null, [], 2, null, false);
   eq('그 말이 가변부의 마지막 줄이다',
     v.trimEnd().endsWith('했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.'), true);
-  /* ── 계절을 안 알려주면 지어낸다 ──
+  /* ── 자리에서 본 사진도 모은다 ──
+   gallery에는 jaeeon-laundry·minhyun-nap 같은 자리 사진(SCENE_SHOT)이 들어
+   있는데, 그건 말풍선이 아니라 화면 배경이라 대화 기록에 안 남는다. album이
+   기록만 훑으니 영영 안 열리는 칸이었다 — 빨래방에서 그 사람을 마주 보고
+   앉아 있었는데 사진첩에는 없는 것이다. */
+{
+  const F = new Function(
+    'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
+    + web.slice(web.indexOf('const loadShots='),
+        web.indexOf('}', web.indexOf('loadShots().forEach(k=>set.add(k));')) + 1)
+    + 'return {loadShots,stampShot,seenPhotos};')();
+  eq('처음엔 비어 있다', F.seenPhotos({}).size, 0);
+  F.stampShot('jaeeon-laundry');
+  eq('본 것이 사진첩에 꽂힌다', [...F.seenPhotos({})], ['jaeeon-laundry']);
+  /* 같은 자리에 여러 번 앉아도 한 장이다 */
+  F.stampShot('jaeeon-laundry');
+  eq('같은 사진이 두 번 안 꽂힌다', F.loadShots().length, 1);
+  /* 받은 사진과 본 사진이 한 앨범에 모인다 */
+  eq('받은 것과 본 것이 같이 모인다',
+    [...F.seenPhotos({ jaeeon: [{ photo: 'jaeeon-mug' }] })].sort(),
+    ['jaeeon-laundry', 'jaeeon-mug']);
+  F.stampShot('');
+  eq('빈 값은 안 꽂힌다', F.loadShots().length, 1);
+  /* 자리 사진이 gallery에 있어야 cam에 뜬다 — 없으면 모아도 안 보인다 */
+  const 자리사진 = [...web.slice(web.indexOf('const SCENE_SHOT={'), web.indexOf('const WAY="귀갓길"'))
+    .matchAll(/"([a-z]+-[a-z]+)"/g)].map(m => m[1]);
+  eq('자리 사진이 다 gallery에 있다',
+    자리사진.filter(k => !web.includes(`"${k}.webp"`)), []);
+  /* 배경을 켜는 그 자리에서 적어야 한다 — 웹·앱 둘 다 */
+  eq('웹이 본 것을 적어둔다', /if\(shot\)\{[\s\S]{0,200}stampShot\(shot\);/.test(web), true);
+  eq('앱이 본 것을 적어둔다',
+    (appSrc.match(/if\(shot\)stampShot\(shot\);/g) || []).length, 2);
+  /* 앱이 손으로 앨범을 다시 만들면 웹과 어긋난다 — 같은 함수를 쓴다 */
+  eq('앱도 같은 함수로 앨범을 만든다', /const album=seenPhotos\(msgs\);/.test(appSrc), true);
+}
+
+/* ── 계절을 안 알려주면 지어낸다 ──
    요일과 때만 보내고 계절을 안 보냈다. 그래서 팔월에 민현이 「눈이 그제보다
    덜 오네요」라고 했다. 날씨는 창밖을 보면 바로 나오는 말이라, 안 알려주면
    지어낸다. 달까지는 안 준다 — 날짜를 주면 날짜를 세기 시작한다. */

@@ -1035,7 +1035,9 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         })()}
       </div>
       :tab==="cam"
-      ?<div className="gal">{/* Cam: 인물이 보낸 사진만 여기 남는다. 안 받은 건 존재하지 않는다 */}
+      ?<div className="gal">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
+            자리 사진은 말풍선이 아니라 배경이라 대화 기록에 안 남는다 —
+            seenPhotos가 따로 적어둔 것을 같이 들고 온다 */}
         {Object.entries(CHARS).map(([id,ch])=>{
           const got=ch.gallery.filter(f=>album.has(f.replace(/\.webp$/,"")));
           if(!got.length)return null;

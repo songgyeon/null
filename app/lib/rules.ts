@@ -955,11 +955,23 @@ const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));
   return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
 
 /* ── 사진첩(Cam) ──
-   처음부터 다 보여주면 앨범이 아니라 목록이다.
-   실제로 받은 사진만 한 장씩 꽂힌다. 대화 기록에서 그대로 뽑으므로 별도 저장이 없다. */
+   처음부터 다 보여주면 앨범이 아니라 목록이다. 실제로 본 것만 한 장씩 꽂힌다.
+
+   받은 사진은 대화 기록에서 그대로 뽑는다 — 별도 저장이 없다.
+   그런데 자리 사진(SCENE_SHOT)은 말풍선이 아니라 화면 배경이라 기록에 안
+   남는다. gallery에는 들어 있으면서(jaeeon-laundry·minhyun-nap 같은 것들)
+   영영 안 열리는 칸이었다. 빨래방에서 그 사람을 마주 보고 앉아 있었는데
+   사진첩에는 없는 것이다. 본 것도 모은다 — 이건 기록에 없으니 따로 적어둔다. */
+const loadShots=()=>{try{return JSON.parse(localStorage.getItem("null_shots")||"[]")}catch(e){return[]}};
+const stampShot=key=>{try{
+  if(!key)return;
+  const a=loadShots(); if(a.includes(key))return;
+  localStorage.setItem("null_shots",JSON.stringify([...a,key]));
+}catch(e){}};
 function seenPhotos(msgs){
   const set=new Set();
   Object.values(msgs||{}).forEach(list=>(list||[]).forEach(m=>{if(m.photo)set.add(m.photo)}));
+  loadShots().forEach(k=>set.add(k));
   return set;
 }
 
@@ -1127,6 +1139,8 @@ return {
   loadAutoAt,
   saveAutoAt,
   mmss,
+  loadShots,
+  stampShot,
   seenPhotos,
 };
 }
@@ -1294,5 +1308,7 @@ export const {
   loadAutoAt,
   saveAutoAt,
   mmss,
+  loadShots,
+  stampShot,
   seenPhotos,
 } = __rules;
