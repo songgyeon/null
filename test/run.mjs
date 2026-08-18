@@ -2239,22 +2239,35 @@ eq('세계관에는 안 남겼다',
    말을 잊고, 정해둔 것을 다시 정하고, 시간 순서가 어긋난 소리를 한다.
    워커는 진작부터 감당하고 있었다. 프론트 가드 한 줄이 막고 있었을 뿐이다. */
 {
-  eq('웹이 단톡도 요약한다',
-    /if\(!\(CHARS\[room\]\|\|room==="group"\)\|\|demoOn\(\)\|\|summingRef\.current\[room\]\)return;/.test(web), true);
+  /* 이제 방을 아예 안 가린다 — 단톡도 관전도 요약한다 */
+  eq('웹이 방을 안 가린다',
+    /const rollSummary=async room=>\{[\s\S]{0,900}?if\(demoOn\(\)\|\|summingRef\.current\[room\]\)return;/.test(web), true);
   eq('CHARS만 보던 가드가 없다', /if\(!CHARS\[room\]\|\|demoOn\(\)/.test(web), false);
   /* 앱은 원래 방을 안 가렸다 — 웹만 막혀 있었다 */
   eq('앱은 방을 안 가린다',
     /const rollLater=\(room:string\)=>\{\s*\n\s*if\(demoOn\(\)\|\|summingRef\.current\[room\]\)return;/.test(appSrc), true);
   /* 요약을 만들어도 실어 보내지 않으면 소용없다 */
-  eq('채팅 요청에 요약이 실린다',
-    /if\(payload\.mode==="chat"\)\{ const t=loadSum\(payload\.room\|\|bucket\)\.text; if\(t\)payload\.summary=t; \}/.test(web), true);
+  eq('채팅·관전 요청에 요약이 실린다',
+    /if\(payload\.mode==="chat"\|\|payload\.mode==="auto"\)\{\s*\n\s*const t=loadSum\(payload\.room\|\|bucket\)\.text; if\(t\)payload\.summary=t; \}/.test(web), true);
+  /* 요약이 들고 있는 데까지는 빼고 보낸다 — 안 빼면 같은 얘기를 두 번 싣는다 */
+  eq('관전도 요약 뒤부터 보낸다',
+    (web.match(/buildHistory\(sinceSum\("health",storeRef\.current\.msgs\.health\|\|\[\]\)\)/g) || []).length, 2);
+  eq('관전 요약을 굴린다', /setTimeout\(\(\)=>rollSummary\("health"\),1200\);/.test(web), true);
   /* 워커가 단톡 요약을 받는다 — room 검증에 group이 있어야 엉뚱한 방이 안 된다 */
   const w = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  eq('워커가 단톡을 아는 방으로 받는다',
-    /const room = \["jaeeon", "minhyun", "group"\]\.includes\(body\.room\)/.test(w), true);
-  /* 관전은 아직 아니다 — 워커의 room이 세 방만 받아 health로 부르면
-     minhyun으로 떨어진다. 왜 안 하는지 적어둔다 */
-  eq('관전을 왜 안 하는지 적었다', web.includes('관전(health)은 아직 안 한다'), true);
+  /* ── 요약일 때만 넷을 받는다 ──
+     요약은 인물 블록도 형식도 안 쓰는 압축이라 방을 안 가려도 된다. 그런데
+     chat·auto에서 health를 방으로 받으면 buildSystem이 인물 블록을 못 골라
+     minhyun으로 떨어진다 — 엉뚱한 방 프롬프트가 된다. */
+  eq('요약은 네 방을 받는다',
+    /mode === "summarize"\s*\n\s*\? \["jaeeon", "minhyun", "group", "health"\]/.test(w), true);
+  eq('대화는 세 방만 받는다',
+    /: \["jaeeon", "minhyun", "group"\];\s*\n\s*const room = ROOMS_OK\.includes\(body\.room\)/.test(w), true);
+  /* 요약 갈래는 room을 안 쓴다 — 그래서 넷을 받아도 안전하다 */
+  {
+    const i = w.indexOf('if (mode === "summarize") {');
+    eq('요약 갈래가 room을 안 본다', w.slice(i, w.indexOf('\n    }', i)).includes('room'), false);
+  }
 }
 
 /* ── 관전 대화는 한 덩이로 서야 한다 ──
@@ -3027,6 +3040,19 @@ eq('워커가 때를 받으면 일어서라고 말한다',
   eq('말버릇 필터보다 앞에 있다',
     /trimTics\(sanitizePhotos\(unlabel\(splitLines\(dropMeta\(parsed\)\)/.test(workerSrc), true);
   eq('버릴 때 로그를 남긴다', /사고 유출을 버렸다/.test(workerSrc), true);
+
+  /* ── 없는 말 하나 ──
+     「약 갖다올게요」, 「약 갖다 왔어요」가 나왔다. 「갖다주다」는 맞지만
+     「갖다오다」는 없다 — 「갔다 왔어요」(다녀왔다)와 「가져왔어요」(들고 왔다)가
+     섞인 것이다. 물건을 들고 오는 자리이므로 「가지고」로 되돌린다. */
+  const 말 = t => trimTics([{ sender: 'jaeeon', text: t }])[0].text;
+  eq('없는 말을 되돌린다',
+    ['약 갖다올게요.', '약 갖다 왔어요.', '책 갖다와요.'].map(말),
+    ['약 가지고 올게요.', '약 가지고 왔어요.', '책 가지고 와요.']);
+  /* 맞는 말은 안 건드린다 — 짐작해서 바꾸면 더 이상해진다 */
+  eq('맞는 말은 그대로 둔다',
+    ['약 갖다줄게요.', '매점 갔다 왔어요.', '가지고 왔어요.'].map(말),
+    ['약 갖다줄게요.', '매점 갔다 왔어요.', '가지고 왔어요.']);
 
   /* ── 제 이름을 3인칭으로 부르는 줄 ──
      「새벽 세 시에 편의점 라면값 계산하고 가는 길이면 말이 많을 이유가 없다.

@@ -2324,6 +2324,17 @@ function stripHan(t) {
   if (!t || !HAN.test(t)) return t;
   return t.replace(HAN, "").replace(/^[\s,.·、。]+/, "").replace(/\s{2,}/g, " ").trim();
 }
+/* ── 없는 말 하나 ──
+   「약 갖다올게요」, 「약 갖다 왔어요」가 나왔다. 「갖다주다」는 맞는 말이지만
+   「갖다오다」는 없다. 「갔다 왔어요」(다녀왔다)와 「가져왔어요」(들고 왔다)가
+   섞인 것이고, 물건을 들고 오는 자리이므로 「가지고」가 맞다.
+   프롬프트로 부탁하면 또 샌다. 여기서 글자로 고친다 — 짐작해서 바꾸는 게
+   아니라 없는 말을 있는 말로 되돌리는 것뿐이다.
+   「갖다주다」는 안 건드린다(주가 목록에 없다). 「갔다 왔어요」도 안 건드린다
+   — 그건 갖다가 아니라 갔다이고, 다녀왔다는 뜻으로 맞는 말이다. */
+const NOT_A_WORD = /갖다\s*(왔|올|와|오)/g;
+const fixWords = t => (t && NOT_A_WORD.test(t) ? t.replace(NOT_A_WORD, "가지고 $1") : t);
+
 /* 한글이 한 자도 없는데 영문이 든 말풍선. 모델이 흘린 조각이다 —
    "Table of contents"가 민현의 말로 화면에 떨어진 적이 있다.
    한글이 섞인 줄은 안 건드린다. 노래 제목이나 상표를 말할 수 있어야 하니까.
@@ -2335,7 +2346,7 @@ function isStray(t) {
 const ONLY_PAREN = /^[（(][^()（）]*[)）]$/;
 
 function trimTics(list) {
-  list = list.map(m => (m.text ? { ...m, text: stripHan(m.text) } : m))
+  list = list.map(m => (m.text ? { ...m, text: fixWords(stripHan(m.text)) } : m))
              .filter(m => m.photo || (m.text || "").trim())
              .map(m => (m.photo && isStray(m.text) ? { ...m, text: "" } : m))
              .filter(m => m.photo || !isStray(m.text));
@@ -2810,7 +2821,14 @@ export default {
     try { body = await request.json(); } catch { body = {}; }
 
     const mode = body.mode === "auto" ? "auto" : body.mode === "summarize" ? "summarize" : "chat";
-    const room = ["jaeeon", "minhyun", "group"].includes(body.room) ? body.room : "minhyun";
+    /* 요약은 방을 안 가려도 된다 — 압축이라 인물 블록도 형식도 안 쓴다.
+       관전(health)도 요약해야 창 밖으로 밀려난 대화가 남는다. 다만 chat·auto
+       에서는 health를 방으로 받으면 안 된다 — buildSystem이 인물 블록을 못
+       골라 minhyun으로 떨어진다. 그래서 요약일 때만 넷을 받는다. */
+    const ROOMS_OK = mode === "summarize"
+      ? ["jaeeon", "minhyun", "group", "health"]
+      : ["jaeeon", "minhyun", "group"];
+    const room = ROOMS_OK.includes(body.room) ? body.room : "minhyun";
     const userName = (body.user_name || "").toString().slice(0, 20).trim() || "선생님";
     const signals = body.signals || null;
     const userProfile = body.user_profile || null;   // 당신.txt에서 채운 칸

@@ -419,9 +419,9 @@ function App(){
        정하고, 시간 순서가 어긋난 소리를 한다.
        워커는 진작부터 감당하고 있었다 — room 검증에 group이 있고 SUMMARIZE도
        두 사람을 같이 적게 돼 있다. 프론트 가드 한 줄이 막고 있었을 뿐이다.
-       관전(health)은 아직 안 한다. 워커의 room이 세 방만 받아서 health로
-       부르면 minhyun으로 떨어진다 — 엉뚱한 방 요약이 된다. */
-    if(!(CHARS[room]||room==="group")||demoOn()||summingRef.current[room])return;
+       관전(health)도 한다. 워커가 요약일 때만 네 방을 받게 열어뒀다 —
+       요약은 인물 블록도 형식도 안 쓰는 압축이라 방을 안 가려도 된다. */
+    if(demoOn()||summingRef.current[room])return;
     const all=sinceSum(room,storeRef.current.msgs[room]||[]);
     const total=all.reduce((n,m)=>n+((m.text||"").length),0);
     if(total<SUM_AT)return;
@@ -482,7 +482,9 @@ function App(){
     /* 이 방의 요약. 원문 창 밖으로 밀려난 얘기가 여기 들어 있다.
        호출부마다 붙이지 않고 여기서 한 번에 얹는다 — 한 군데만 빠뜨려도
        그 경로에서만 기억을 잃는데, 그건 눈으로 찾기 어렵다. */
-    if(payload.mode==="chat"){ const t=loadSum(payload.room||bucket).text; if(t)payload.summary=t; }
+    /* 관전에도 싣는다. 안 실으면 요약을 만들어놓고 안 보는 꼴이다 */
+    if(payload.mode==="chat"||payload.mode==="auto"){
+      const t=loadSum(payload.room||bucket).text; if(t)payload.summary=t; }
     /* 자는 사람은 답이 없다. 목록의 점과 같은 시계(presence)를 본다.
        마주 앉아 있을 때(place)는 안 본다 — 눈앞에 있는 사람이 자고 있으면
        그건 자리가 닫힐 일이지 답이 없을 일이 아니다.
@@ -767,7 +769,10 @@ function App(){
         try{
           const res=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
             body:JSON.stringify({mode:"auto",user_name:name,counts:roomCounts(),
-              history:buildHistory(storeRef.current.msgs.health||[]),
+              /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
+                 같은 얘기를 두 번 싣는다 */
+              history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
+              ...(loadSum("health").text?{summary:loadSum("health").text}:{}),
               signals:buildSignals(null),
               ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
           const data=await res.json().catch(()=>null);
@@ -785,6 +790,8 @@ function App(){
         appendMsg("health",{id:t+Math.random(),sender:x.sender||"health",text,photo,ts:t});
         t+=40000+Math.floor(Math.random()*80000);
       });
+      /* 관전도 창이 있다. 굴려두지 않으면 지난 관전 대화가 그냥 사라진다 */
+      setTimeout(()=>rollSummary("health"),1200);
     })();
   },[name,view]);
 
@@ -803,7 +810,8 @@ function App(){
       return }
     setAutoLoading(true);
     await request("health",{mode:"auto",user_name:name,
-      history:buildHistory(storeRef.current.msgs.health||[]),signals:buildSignals(null),recent_photos:recentPhotos("health")});
+      history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
+      signals:buildSignals(null),recent_photos:recentPhotos("health")});
     setAutoLoading(false);
   };
 
