@@ -2221,7 +2221,28 @@ eq('세계관에는 안 남겼다',
   const v = buildVolatile('chat', 'minhyun', '선생님', null, [], null, { minhyun: 20 }, null, null, [], 2, null, false);
   eq('그 말이 가변부의 마지막 줄이다',
     v.trimEnd().endsWith('했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.'), true);
-  /* ── 자리에서 본 사진도 모은다 ──
+  /* ── 관전 대화는 한 덩이로 서야 한다 ──
+   유저가 보는 것은 이 몇 마디뿐인데 모델이 긴 대화의 한 토막처럼 썼다.
+   첫 줄이 「몰라요. 배고프면 먹겠죠.」로 물음 없는 대답이었고, 재언이
+   「매점 가라며.」라고 민현이 하지도 않은 말을 인용했다. 그 앞은 영영 없다. */
+{
+  const 관전 = buildSystem('auto', 'jaeeon', 'R', null, [], null, null, null)
+    .map(b => b.text).join('');
+  eq('한 덩이로 쓰라고 한다', 관전.includes('**이 몇 마디만 보고도 읽혀야 한다.**'), true);
+  eq('첫 발화가 대답이면 안 된다고 한다',
+    /첫 발화는 말을 여는 말이다[\s\S]{0,80}대답으로\n?\s*시작하지 않는다/.test(관전), true);
+  eq('안 한 말을 인용하지 말라고 한다',
+    관전.includes('**서로 안 한 말을 인용하지 않는다**') && 관전.includes('매점 가라며'), true);
+  /* 지난 관전 대화는 이력으로 실려 간다 — 거기 있는 말까지 막으면 안 된다 */
+  eq('지난 대화는 인용해도 된다', 관전.includes('지난 대화에 있는 말은 인용해도 된다'), true);
+  /* 1:1·단톡은 유저가 그 자리에 있어서 앞말이 실제로 있다. 거기엔 안 붙인다 */
+  for (const r of ['jaeeon', 'group'])
+    eq(`${r} 방에는 안 붙는다`,
+      buildSystem('chat', r, 'R', null, [], null, null, null).map(b => b.text).join('')
+        .includes('**이 몇 마디만 보고도 읽혀야 한다.**'), false);
+}
+
+/* ── 자리에서 본 사진도 모은다 ──
    gallery에는 jaeeon-laundry·minhyun-nap 같은 자리 사진(SCENE_SHOT)이 들어
    있는데, 그건 말풍선이 아니라 화면 배경이라 대화 기록에 안 남는다. album이
    기록만 훑으니 영영 안 열리는 칸이었다 — 빨래방에서 그 사람을 마주 보고
