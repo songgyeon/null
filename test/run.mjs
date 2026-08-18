@@ -2295,6 +2295,16 @@ eq('세계관에는 안 남겼다',
       && !/다크서클/.test(재언)
       && /낯빛이 흐리다/.test(민현) && !/핏기가 없다/.test(민현);
   })(), true);
+  /* ── 안경은 재언만 쓴다 ──
+     다시 뽑은 그림이 전부 얇은 은테를 쓰고 있어서 설정에 박았다. 그림과
+     설정이 갈리면 인물이 사진마다 다른 사람이 된다. 민현 쪽에 번지지
+     않았는지도 같이 본다 — 그쪽 얼굴 표지는 한쪽 이어폰이다. */
+  eq('안경은 재언 설정에만 있다', (() => {
+    const 재언 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null)[1].text;
+    const 민현 = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[1].text;
+    return /얇은 은테 안경을 쓴다/.test(재언) && !/안경/.test(민현)
+      && /한쪽 이어폰을 자주 낀다/.test(민현);
+  })(), true);
   /* 작품 규칙이 세계관 원칙과 FACTS에 두 판으로 적혀 있었다 — FACTS가 다 말한다 */
   eq('작품 규칙은 FACTS에만 있다',
     !/실존 작품은 각 인물의 취향 목록/.test(workerSrc)
