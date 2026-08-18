@@ -3016,20 +3016,7 @@ export default {
          계속 미끄러졌다. 규칙이 없어서가 아니라 묻혀서다.
          effort 인자는 남겨둔다 — stop_reason 실측이 쌓인 뒤에 일부러 하는
          A/B에 쓴다. 추측으로 다시 내리지 않는다. */
-      /* ── 상한과 사고 ──
-         900은 사고가 없던 시절 숫자다. Sonnet 5부터 사고가 max_tokens 안에
-         포함되는데 상한은 그대로 뒀다 — high 사고가 900을 먹으면 답이 잘리거나
-         JSON이 부서진다. 사고 값은 다 내고 답은 못 받는, 제일 나쁜 지출이다.
-         사고를 줄이는 게 아니라 그릇을 키운다. 상한은 청구액이 아니라 한도라
-         안 쓰면 값도 안 는다 — 늘어나는 건 잘려서 버리던 턴이 살아나는 것뿐이다.
-         그래도 잘리면(stop_reason이 max_tokens) 두 배 그릇으로 한 번 더 —
-         잘린 답을 화면에 내보내는 것보다 다시 뽑는 쪽이 싸다. 잘린 턴도
-         청구는 됐는데 쓸 수 없으니까. */
-      let raw = await askClaude(env, system, msgs, mode === "auto" ? 4000 : 2400);
-      if (lastUsage && lastUsage.stop_reason === "max_tokens") {
-        console.log("[NULL] 상한에 잘렸다 — 두 배 그릇으로 한 번 더");
-        raw = await askClaude(env, system, msgs, mode === "auto" ? 8000 : 4800);
-      }
+      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
       /* ── 관찰용. 원인을 잡으면 뺀다 ──
          「api호출오류: litellm...」이 민현이 말풍선으로 나갔는데, 그게 어디서
          들어오는지 아직 못 밝혔다. 실패했을 때만 찍으면 실패가 안 나는 동안은
