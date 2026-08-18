@@ -15,17 +15,10 @@
 /* effort — 프롬프트가 15,000자인데 그 중 대화 규칙은 몇 줄이다. 설정(외형·과거·
    취향)은 medium에서도 잘 지켰는데, 「유저 낱말을 어미만 바꿔 되돌리지 않는다」
    같은 미세한 줄에서 계속 미끄러졌다 — 같은 말 다시 하기, 정보 없는 턴으로
-   채우기, 금지한 -대요. 규칙이 없어서가 아니라 묻혀서다. high로 올렸다.
-
-   그리고 xhigh로 한 칸 더 올린다. high에서도 힘이 규칙 지키는 데로 먼저 가고
-   정작 대사를 짓는 데는 남는 게 적었다 — 안 틀리기는 하는데 밋밋하다.
-   effort는 사고 깊이만이 아니라 답을 짓는 데 들이는 힘까지 같이 정한다.
-   이 프로덕트가 파는 것이 목소리라, 그 힘이 제일 값어치 있게 쓰이는 자리다.
-   위로 한 칸(max) 더 있다. 그건 값이 확 뛰므로 xhigh를 겪어보고 정한다.
-   max_tokens를 12,000으로 올려둔 것이 여기서 같이 산다 — 힘을 더 줘도
-   그릇이 작으면 그 힘이 사고에서 끝나고 답이 굶는다. */
+   채우기, 금지한 -대요. 규칙이 없어서가 아니라 묻혀서다. high로 올린다.
+   보이는 출력은 여전히 짧으니 값은 생각 토큰만큼만 는다. */
 const MODELS = [
-  { id: "claude-sonnet-5", effort: "xhigh", noThinking: false },
+  { id: "claude-sonnet-5", effort: "high", noThinking: false },
   { id: "claude-sonnet-4-6", effort: "medium", noThinking: true },
   { id: "claude-sonnet-4-5", effort: null, noThinking: false },
 ];

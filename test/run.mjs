@@ -2502,16 +2502,9 @@ eq('자기 이름은 고정이다',
 /* 생각을 꺼두면 판단이 필요한 자리에서 제일 먼저 무너진다.
    그리고 medium으로는 모자랐다 — 설정(외형·과거·취향)은 지키는데
    「유저 낱말을 어미만 바꿔 되돌리지 않는다」 같은 미세한 줄에서 계속
-   미끄러졌다. 15,000자 안에서 그 몇 줄이 묻힌다.
-   high도 모자랐다. 안 틀리기는 하는데 밋밋했다 — 힘이 규칙 지키는 데로 먼저
-   가고 대사를 짓는 데는 남는 게 적었다. effort는 사고 깊이만이 아니라 답을
-   짓는 데 들이는 힘까지 같이 정한다. 이 프로덕트가 파는 것이 목소리다. */
+   미끄러졌다. 15,000자 안에서 그 몇 줄이 묻힌다 */
 eq('대사 모델의 생각을 켜고 힘을 줬다',
-  /\{ id: "claude-sonnet-5", effort: "xhigh", noThinking: false \}/.test(workerSrc), true);
-/* 힘을 더 줘도 그릇이 작으면 그 힘이 사고에서 끝나고 답이 굶는다 —
-   effort와 max_tokens는 같이 올려야 한 쌍이다 */
-eq('그릇도 같이 컸다',
-  /mode === "auto" \? 16000 : 12000/.test(workerSrc), true);
+  /\{ id: "claude-sonnet-5", effort: "high", noThinking: false \}/.test(workerSrc), true);
 /* 아이콘이 없으면 브라우저가 /favicon.ico를 찾다가 404를 낸다 */
 eq('탭 아이콘이 있다', /<link rel="icon" href="data:image\/svg\+xml/.test(web), true);
 
