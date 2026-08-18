@@ -39,10 +39,18 @@ const SPEED_PER_DAY=4;
 const loadMode=()=>{try{return localStorage.getItem("null_mode")==="speed"?"speed":"real"}catch(e){return"real"}};
 const saveMode=v=>{try{localStorage.setItem("null_mode",v==="speed"?"speed":"real")}catch(e){}};
 const speedOn=()=>loadMode()==="speed";
-/* 두 방 중 많이 나눈 쪽으로 센다. 해금은 방마다 at을 따로 보므로, 한쪽만
-   파도 다른 방 것은 그 방 대화 수가 막는다 — 날짜만 앞서가도 안 열린다 */
+/* 제일 많이 나눈 방으로 센다. 해금은 방마다 at을 따로 보므로, 한쪽만 파도
+   다른 방 것은 그 방 대화 수가 막는다 — 날짜만 앞서가도 안 열린다.
+
+   단톡도 센다. 전에는 1:1 둘만 셌더니 스피드 모드에서 단톡에만 있으면
+   시계가 통째로 멈췄다 — 백스무 마디를 떠들어도 지난 날이 그대로고, 그러니
+   가상 시계도 안 돌아 같은 시각·같은 요일에 얼어붙는다. 그러다 1:1로 옮겨
+   몇 마디 하면 시간이 훅 뛴다. 유저가 말을 한 방은 다 세야 시계가 안 꼬인다.
+
+   관전(health)은 뺀다. 그건 유저가 말한 게 아니라 자리를 비운 사이에
+   자동으로 찍힌 것이라, 그걸로 날이 가면 안 켜고 둔 시간이 진도가 된다. */
 const speedCountOf=store=>{const m=(store&&store.msgs)||{};
-  return Math.max((m.jaeeon||[]).length,(m.minhyun||[]).length)};
+  return Math.max((m.jaeeon||[]).length,(m.minhyun||[]).length,(m.group||[]).length)};
 const speedDaysOf=store=>Math.floor(speedCountOf(store)/SPEED_PER_DAY);
 /* 시계가 출발하는 자리. 첫 마디가 있던 날이다 */
 const firstTsOf=store=>Object.values((store&&store.msgs)||{}).flat()

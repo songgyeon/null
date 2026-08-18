@@ -1593,6 +1593,17 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
   /* 많이 나눈 쪽으로 센다 — 한쪽만 파도 다른 방 것은 그 방 대화 수가 막는다 */
   eq('많이 나눈 쪽으로 센다',
     D.speedDaysOf({ msgs: { jaeeon: Array(116), minhyun: Array(0) } }), 29);
+  /* ── 단톡도 센다 ──
+     1:1 둘만 셌더니 스피드 모드에서 단톡에만 있으면 시계가 통째로 멈췄다.
+     백스무 마디를 떠들어도 지난 날이 그대로고, 가상 시계도 안 돌아 같은
+     시각·같은 요일에 얼어붙는다. 그러다 1:1로 옮기면 시간이 훅 뛴다 */
+  eq('단톡에서 떠들어도 날이 간다',
+    [0, 30, 120].map(n => D.speedDaysOf({ msgs: { jaeeon: Array(4), minhyun: Array(4), group: Array(n) } })),
+    [1, 7, 30]);
+  /* 관전은 유저가 말한 게 아니라 자리를 비운 사이에 찍힌 것이다 —
+     그걸로 날이 가면 안 켜고 둔 시간이 진도가 된다 */
+  eq('관전은 날을 못 민다',
+    D.speedDaysOf({ msgs: { jaeeon: Array(4), minhyun: Array(4), health: Array(120) } }), 1);
   /* 116마디면 마지막 칸(day 26)에 닿는다 — 리얼 모드의 26일과 같은 자리다 */
   eq('마지막 칸에 대화로 닿는다', D.speedDaysOf({ msgs: { jaeeon: Array(116) } }) >= 26, true);
   eq('기본은 리얼이다', D.speedOn(), false);
