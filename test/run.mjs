@@ -2693,15 +2693,15 @@ eq('웹 콘솔이 멈춤 사유를 찍는다', /멈춤 "\+\(data\.usage\.stop_re
 /* 채팅도 high다 — medium은 이미 해본 실험이고 결과(00d2221: 어미만 바꿔
    되돌리기·같은 말 반복·-대요)가 있다. 실측 없이 되돌리지 않는다 */
 eq('채팅 사고는 high 그대로다',
-  /let raw = await askClaude\(env, system, msgs, mode === "auto" \? 16000 : 12000\);/.test(workerSrc), true);
+  /let raw = await askClaude\(env, system, msgs, mode === "auto" \? 4000 : 2400\);/.test(workerSrc), true);
 /* ── 상한과 사고 ──
    900은 사고가 없던 시절 숫자다. Sonnet 5부터 사고가 max_tokens 안에
    포함되는데 상한은 그대로였다 — high 사고가 900을 먹으면 답이 잘리거나
    JSON이 부서진다. 사고 값은 다 내고 답은 못 받는, 제일 나쁜 지출이다. */
 eq('그릇이 사고 몫까지 잡는다',
-  /mode === "auto" \? 16000 : 12000/.test(workerSrc), true);
+  /mode === "auto" \? 4000 : 2400/.test(workerSrc), true);
 eq('그래도 잘리면 두 배로 한 번 더',
-  /if \(lastUsage && lastUsage\.stop_reason === "max_tokens"\) \{[\s\S]{0,200}mode === "auto" \? 24000 : 20000/.test(workerSrc), true);
+  /if \(lastUsage && lastUsage\.stop_reason === "max_tokens"\) \{[\s\S]{0,200}mode === "auto" \? 8000 : 4800/.test(workerSrc), true);
 /* effort를 아예 안 받는 모델(4.5)에는 파라미터가 와도 안 보낸다 */
 eq('모델이 거부하면 안 보낸다',
   /const eff = m\.effort \? \(effort \|\| m\.effort\) : null;/.test(workerSrc), true);
