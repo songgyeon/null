@@ -2232,7 +2232,32 @@ eq('세계관에는 안 남겼다',
   const v = buildVolatile('chat', 'minhyun', '선생님', null, [], null, { minhyun: 20 }, null, null, [], 2, null, false);
   eq('그 말이 가변부의 마지막 줄이다',
     v.trimEnd().endsWith('했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.'), true);
-  /* ── 단톡의 지난 대화가 요약도 없이 사라지던 것 ──
+  /* ── 방금 나간 사람에게 나가는 중이라고 하던 것 ──
+   자리에서 나오면 프론트가 자리를 먼저 닫고 부르므로 place가 안 실린다.
+   그러면 모델에게는 그냥 문자 대화로 보이고, 「보건실에서 나왔다」 지문 한 줄만
+   유저가 한 말처럼 들어간다. 그래서 이미 나간 사람을 두고 「오늘 벌써 두 번째
+   나가는 거예요」라고 진행형으로 말했다 — 나가는 중이 아니라 나간 뒤인데. */
+{
+  const 나감 = (place, room = 'jaeeon') => buildVolatile('chat', room, '리현', null, [], null,
+    { [room]: 20 }, null, null, [], 3, null, false, '낮', '화요일', null, false, null, [], '여름', place);
+  eq('나갔다고 알려준다',
+    나감('보건실').includes('리현이 보건실에서 나갔다. 눈앞에 없다 — 여기서부터 다시 문자다.'), true);
+  eq('진행형으로 말하지 말라고 한다',
+    나감('보건실').includes('이미 나간 뒤다. 나가는 중인 것처럼 말하지 않는다.'), true);
+  /* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 — 프론트 지문과 같다 */
+  eq('귀갓길은 도착이다', 나감('귀갓길').includes('리현이 집에 도착했다'), true);
+  /* 안 나간 턴에는 안 붙는다 — 가변부는 캐시가 안 걸린 정가 자리다 */
+  eq('평소에는 안 붙는다', 나감('').includes('## 방금 일어난 일'), false);
+  /* 자리에 앉아 있는 동안에는 나간 게 아니다 — place와 같이 오지 않는다 */
+  const w = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  eq('자리에 있으면 안 본다',
+    /const left = mode === "chat" && !place \? \(body\.left \|\| ""\)/.test(w), true);
+  /* 프론트가 나간 자리를 실어 보내야 한다 — 안 보내면 위가 다 소용없다 */
+  eq('프론트가 나간 자리를 보낸다',
+    /request\(sc\.room,\{mode:"chat",room:sc\.room,user_name:name,left:sc\.place,/.test(web), true);
+}
+
+/* ── 단톡의 지난 대화가 요약도 없이 사라지던 것 ──
    원문 창 밖으로 밀려난 대화는 요약이 들고 있다. 그런데 요약을 만드는 쪽에
    `!CHARS[room]` 가드가 있어서 1:1 둘만 요약됐고, 단톡은 들고 있는 게 없었다.
    창(HISTORY_CHARS)을 넘는 순간 그 앞은 없던 일이 된다 — 두 사람이 앞서 한

@@ -228,7 +228,11 @@ function App(){
     const pr=presence(sc.room);
     if(pr&&pr.s==="off")return;
     const next=[...(storeRef.current.msgs[sc.room]||[]),sys];
-    request(sc.room,{mode:"chat",room:sc.room,user_name:name,
+    /* 나갔다는 것을 같이 보낸다. 여기서는 closeScene을 이미 했으므로 place가
+       안 실리고, 그러면 모델에게는 그냥 문자 대화로 보인다 — 지문 한 줄만
+       유저가 한 말처럼 들어간다. 그래서 이미 나간 사람을 두고 「오늘 벌써
+       두 번째 나가는 거예요」라고 진행형으로 말했다. 나간 뒤라고 알려준다. */
+    request(sc.room,{mode:"chat",room:sc.room,user_name:name,left:sc.place,
       history:buildHistory(sinceSum(sc.room,next)),signals:buildSignals(sc.room),
       recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length})});
   };

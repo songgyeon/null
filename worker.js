@@ -1745,6 +1745,22 @@ ${userName || "선생님"}이 너에게 "${name}"을(를) 주었다. 지금 막 
 }
 
 
+/* ── 방금 나갔다 ──
+   자리에서 나오면 프론트가 자리를 먼저 닫으므로 place가 안 실린다. 그러면
+   모델에게는 그냥 문자 대화로 보이고, 「보건실에서 나왔다」 지문 한 줄만
+   유저가 한 말처럼 들어간다. 그래서 이미 나간 사람을 두고 「오늘 벌써 두 번째
+   나가는 거예요」라고 진행형으로 말했다 — 나가는 중이 아니라 나간 뒤인데.
+   짧게 둔다. 나가는 턴에만 붙고 가변부는 정가 자리다. */
+function buildLeft(left, userName) {
+  const p = (left || "").toString().slice(0, 20).trim();
+  if (!p) return "";
+  const u = userName || "선생님";
+  const home = p === "귀갓길";
+  return `\n## 방금 일어난 일\n${u}이 ${home ? "집에 도착했다" : `${p}에서 나갔다`}. 눈앞에 없다 — 여기서부터 다시 문자다.\n`
+       + `- 이미 나간 뒤다. 나가는 중인 것처럼 말하지 않는다.\n`
+       + `- 붙잡지 않는다. 보내고 나서 한 마디면 족하다.\n`;
+}
+
 /* ── 대화 뒤에 붙는 자리들의 설명 ──
    값은 매 턴 달라지지만 설명은 안 달라진다. 그런데 전에는 설명까지 가변부에
    같이 실려 있었다. 가변부는 캐시가 안 걸린 자리라 정가다 — 897자 중 680자가
@@ -2090,7 +2106,7 @@ const TURN = `
 지난 네 말이 아니라 「대화 예시」가 견본이다. 했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -2111,6 +2127,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
           + buildBag(bag || [], room, userName)
+          + buildLeft(left, userName)
           + buildPlace(place, hasItem, room, placeOver)
           + (place ? "" : buildInvite(invite, room))
           + (place ? "" : buildCanGo(canGo))
@@ -2943,7 +2960,9 @@ export default {
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
     /* 자리의 때가 지났다는 표시. 자리가 있어야만 의미가 있다 */
     const placeOver = !!place && body.place_over === true;
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag, season);
+    /* 방금 자리에서 나왔다. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다 */
+    const left = mode === "chat" && !place ? (body.left || "").toString().slice(0, 20).trim() : "";
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
