@@ -685,9 +685,13 @@ const PERIODS=[[520,570,1],[580,630,2],[640,690,3],[700,750,4],
    학교 것이고, 그 밖에서 이 사람은 값이 비어 있다. 전에는 저녁 칸이 밤 열한
    시까지 그대로 켜져 있었다 — 여섯 시간을 「저녁」이라고 우기고 있었던 셈이다.
    스물한 시는 timeWord가 「밤」으로 넘어가는 경계다. 시계를 둘 두지 않는다. */
+/* 퇴근은 17:00이다. 16:30(990)으로 두었더니 4시 58분에 표는 「퇴근」인데
+   방 목록의 재언은 아직 「보건실」이었다 — presence가 h>=17부터 퇴근이라
+   시계가 둘이었다. 재언 쪽에 맞춘다. 저녁은 한 시간 밀어 18:00으로. */
+const LEAVE_AT=1020;     // 퇴근 17:00 — presence의 재언과 같은 시각
 const DAY_SLOTS=[
   {k:"출근",at:480},{k:"수업",at:520},{k:"점심",at:750},{k:"수업",at:810},
-  {k:"퇴근",at:990},{k:"저녁",at:1020},{k:"야자",at:1110},{k:"OFF",at:1260},
+  {k:"퇴근",at:LEAVE_AT},{k:"저녁",at:1080},{k:"야자",at:1110},{k:"OFF",at:1260},
 ];
 const WEND_SLOTS=4;      // 주말은 이름이 없다. 유저가 넷을 직접 채운다
 /* 격주. 어느 주부터인지는 유저 사정이 아니라 학교 사정이라 달력으로 센다 */
@@ -716,7 +720,9 @@ const nowLabel=(now)=>{
   for(const [a,b,n] of PERIODS){ if(m>=a&&m<b)return n+"교시"; }
   if(m>=PERIODS[0][0]&&m<PERIODS[3][1])return "쉬는시간";
   if(m>=PERIODS[3][1]&&m<PERIODS[4][0])return "점심";
-  if(m>=PERIODS[4][0]&&m<PERIODS[6][1])return "쉬는시간";
+  /* 7교시가 끝나고 퇴근까지(16:20~17:00)는 종례·청소다. 표는 아직 「수업」
+     칸이지만 수업은 끝났으니, 교시 사이의 빈틈과 같은 이름으로 묶는다 */
+  if(m>=PERIODS[4][0]&&m<LEAVE_AT)return "쉬는시간";
   const i=slotNow(d);
   /* 자정을 넘겨도 하루는 안 바뀐다 — 경계는 새벽 다섯 시다(dayKey와 같다).
      그 시간의 교생에게 학교가 정해준 칸은 없다. 어제의 NULL이 그대로 이어진다.
@@ -1096,6 +1102,7 @@ return {
   ITEMS,
   ITEM_CATS,
   PERIODS,
+  LEAVE_AT,
   DAY_SLOTS,
   WEND_SLOTS,
   weekNo,
@@ -1267,6 +1274,7 @@ export const {
   ITEMS,
   ITEM_CATS,
   PERIODS,
+  LEAVE_AT,
   DAY_SLOTS,
   WEND_SLOTS,
   weekNo,

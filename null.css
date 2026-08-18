@@ -785,11 +785,6 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .ttrow.now  .ln{border-top-color:#ff8fbe}
 .ttrow.now  .mk{color:#ff4d9e}
 .ttrow.next .n{color:#7d6ab8}
-/* 하루의 양 끝. 시각이 아니라 표의 마개라 지나감도 지금도 안 붙는다 —
-   글자만 옅게 두고 오른쪽에 한 줄을 붙인다 */
-.ttrow.edge .n{color:#a897dd}
-.ttrow.edge .ln{border-top-style:dotted;border-top-color:#ddd3f5}
-.ttrow.edge .mk{letter-spacing:.02em;color:#b9a7e6}
 .ttrow.next .ln{border-top-color:#c9bdea}
 /* 주말 칸. 기존 빈칸(.blank)과 이름이 부딪히면 줄 전체가 점선 상자가 된다 */
 .ttrow.mine .n{width:auto;min-width:54px}

@@ -522,14 +522,14 @@ function Timetable({wend,onFillWend,onClose}){
   const wk=isWend(now), slots=daySlots(now), i=slotNow(now);
   const key=dayKey(), mine=(wend||{})[key]||[];
   const yaja=isYajaWeek(now);
-  /* 하루의 양 끝은 시간표가 아니라 마개다. ON은 출근 위에 얹고, OFF는 원래
-     마지막 칸(21시)의 이름을 바꾼 것이다. 둘 다 지나감(♡)도 지금(얼굴)도
-     안 붙인다 — 시각이 아니라 표의 처음과 끝이라서. */
+  /* ON은 출근 위에 얹고 OFF는 마지막 칸(21시)의 이름이다. 둘 다 다른 칸과
+     똑같이 그린다 — 같은 줄, 같은 표시. 전에는 오른쪽에 「오늘도 Loading...」을
+     글로 박았는데, 그러면 그 두 줄만 다른 종류로 보인다. 그 말은 아래 설명칸
+     몫이다. ON은 출근 전(i<0)이 제 시간이라 그때가 「지금」이다. */
   const rows=wk
     ?Array.from({length:WEND_SLOTS},(_,n)=>({k:mine[n]||"",n,blank:true}))
-    :[{k:"ON",n:-1,edge:"오늘도 Loading..."},
-      ...slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i,
-        ...(s.k==="OFF"?{edge:"오늘도 Ending..."}:{})}))];
+    :[{k:"ON",n:-1,now:i<0,past:i>=0},
+      ...slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i}))];
   return <div className="dlgov" onClick={onClose}>
     <div className="dlg ttwin" onClick={e=>e.stopPropagation()}>
       <div className="tb">null.exe<WinDots onClose={onClose}/></div>
@@ -540,11 +540,6 @@ function Timetable({wend,onFillWend,onClose}){
             ?<div key={r.n} className="ttrow mine">
                <span className="n"><Blank value={r.k} width={54} onSave={v=>onFillWend(key,r.n,v)}/></span>
                <span className="ln"/><span className="mk">{r.k?"♡":""}</span>
-             </div>
-            :r.edge
-            ?<div key={r.n} className="ttrow edge">
-               <span className="n">{r.k}</span><span className="ln"/>
-               <span className="mk">{r.edge}</span>
              </div>
             :<div key={r.n} className={"ttrow"+(r.now?" now":r.past?" past":" next")}>
                <span className="n">{r.k}</span><span className="ln"/>
@@ -564,23 +559,22 @@ function Timetable({wend,onFillWend,onClose}){
              /* 하루의 양 끝은 시간표가 정해주는 것이 없다 — 켜지기 전, 일과가
                 끝난 뒤, 그리고 값이 비는 밤. 그 세 자리에는 말이 따로 있다.
                 가운데(출근·수업·점심·퇴근·야자)는 「지금은 ○○이에요」 그대로다. */
-             /* ON·OFF는 이제 표의 마개로 올라갔다. 여기 제목으로 또 쓰면
-                한 화면에 같은 말이 두 번이라, 하루가 시작하기 전과 끝난 뒤의
-                두 자리만 남긴다 — 그 두 때는 표에서 가리킬 칸이 없다.
-                21시 이후는 nowLabel이 「OFF」다(마지막 칸의 이름). */
+             /* 첫 줄(「지금은 ○○이에요」)은 어느 때든 그대로다. 갈아끼우는 것은
+                아랫줄뿐이다 — 하루가 켜지기 전이면 Loading, 끝난 뒤면 Ending.
+                ON·OFF는 표에서 다른 칸과 똑같이 서 있고, 그 두 칸이 무엇인지는
+                여기 아랫줄이 말한다. 21시 이후는 nowLabel이 「OFF」다. */
              const L=wk?null:nowLabel(now);
-             const say=L==="등교전"?{t:"ON",
-                 s:<>오늘도 Loading... <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>}
-               :(L==="OFF"||L==="NULL")?{t:"DAY OFF, NULL ON!",
-                 s:<>지금부터 NULL... <span className="kao">(ෆ`꒳´ෆ) ˡºᵛᵉ💗</span></>}
-               :null;
+             const foot=L==="등교전"
+                 ?<>오늘도 Loading... <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>
+               :(L==="OFF"||L==="NULL")
+                 ?<>오늘도 Ending... <span className="kao">₍ ˵ • ꤮ ก ˵ ₎︎აᶻ 𝗓 𐰁</span></>
+               :<>NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span></>;
              return <div className="ttsay">
              {/* 「등교전예요」가 그대로 찍혔다. 받침이 있으면 이에요, 없으면 예요다 —
                  출근·수업·점심·퇴근은 이에요, 야자만 예요다 */}
              <b>{wk?<>오늘은 학교가 없어요 <i>♡</i></>
-                 :say?say.t
                  :<>지금은 {jos(L,"이에요/예요")} <i>♡</i></>}</b>
-             {say?say.s:<>NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span></>}
+             {wk?<>NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span></>:foot}
            </div>; })()}
         <div className="dlgbtns" style={{justifyContent:"center"}}>
           <button className="wbtn" onClick={onClose}>ok ♡</button>
