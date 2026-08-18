@@ -2690,13 +2690,27 @@ eq('관전은 저장 발화에 지점을 찍는다',
 eq('stop_reason이 usage에 실린다',
   /usage: data\.usage \? \{ \.\.\.data\.usage, stop_reason: data\.stop_reason \|\| null \} : null/.test(workerSrc), true);
 eq('웹 콘솔이 멈춤 사유를 찍는다', /멈춤 "\+\(data\.usage\.stop_reason\|\|"\?"\)/.test(web), true);
-/* 채팅도 high다 — medium은 이미 해본 실험이고 결과(00d2221: 어미만 바꿔
-   되돌리기·같은 말 반복·-대요)가 있다. 실측 없이 되돌리지 않는다 */
-eq('채팅 사고는 high 그대로다',
-  /const raw = await askClaude\(env, system, msgs, mode === "auto" \? 2200 : 900\);/.test(workerSrc), true);
-/* effort를 아예 안 받는 모델(4.5)에는 파라미터가 와도 안 보낸다 */
-eq('모델이 거부하면 안 보낸다',
-  /const eff = m\.effort \? \(effort \|\| m\.effort\) : null;/.test(workerSrc), true);
+/* ── 사고 500 · 답 500 ──
+   max_tokens 900은 사고가 꺼져 있던 때 정한 숫자다. 900 전부가 답 몫이었다.
+   그 뒤 사고를 켜고 effort를 올리는 동안 900은 안 건드렸고, Sonnet 5는
+   사고와 답이 같은 통을 쓰며 사고가 먼저 쓴다 — 사고가 600을 먹으면 답에
+   300이 남는다. 배분이 아니라 선착순이다.
+   Sonnet 5는 사고 상한(budget_tokens)을 400으로 거부한다. 4.6 세대에는
+   아직 있어서, 사고를 500에 못 박고 남는 500을 답이 가져간다. */
+eq('사고 상한이 있는 모델을 먼저 쓴다',
+  /\{ id: "claude-sonnet-4-6", effort: null, noThinking: false, budget: THINK_BUDGET \}/.test(workerSrc), true);
+eq('사고와 답을 반반으로 못 박았다',
+  /const THINK_BUDGET = 500;/.test(workerSrc) && /const ANSWER_BUDGET = 500;/.test(workerSrc), true);
+eq('상한이 그대로 통 크기가 된다',
+  /THINK_BUDGET \+ \(mode === "auto" \? 1700 : ANSWER_BUDGET\)/.test(workerSrc), true);
+/* 5 세대는 이 파라미터를 400으로 거부한다 — budget 없는 항목으로 둔다 */
+eq('상한 없는 모델에는 안 보낸다',
+  /else if \(m\.budget\) body\.thinking = \{ type: "enabled", budget_tokens: m\.budget \};/.test(workerSrc), true);
+/* effort를 아예 안 받는 모델(4.5)에는 파라미터가 와도 안 보낸다.
+   사고 상한을 쓰는 모델에도 안 보낸다 — 상한이 이미 깊이를 정하고,
+   4.6에서 둘을 같이 보내면 400이 난다 */
+eq('상한과 effort를 같이 안 보낸다',
+  /const eff = \(m\.budget \|\| !m\.effort\) \? null : \(effort \|\| m\.effort\);/.test(workerSrc), true);
 
 /* ── 자물쇠 ──
    대시보드에 ACCESS_KEY를 넣으면 그때부터 ?k 없는 호출을 거절한다.

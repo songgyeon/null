@@ -15,12 +15,31 @@
 /* effort — 프롬프트가 15,000자인데 그 중 대화 규칙은 몇 줄이다. 설정(외형·과거·
    취향)은 medium에서도 잘 지켰는데, 「유저 낱말을 어미만 바꿔 되돌리지 않는다」
    같은 미세한 줄에서 계속 미끄러졌다 — 같은 말 다시 하기, 정보 없는 턴으로
-   채우기, 금지한 -대요. 규칙이 없어서가 아니라 묻혀서다. high로 올린다.
-   보이는 출력은 여전히 짧으니 값은 생각 토큰만큼만 는다. */
+   채우기, 금지한 -대요. 규칙이 없어서가 아니라 묻혀서다. high로 올렸다. */
+
+/* ── 왜 4.6으로 내려왔나 ──
+   max_tokens 900은 사고가 꺼져 있던 8월 11일에 정한 숫자다. 900 전부가 답
+   몫이었고 말풍선 한둘에 넉넉했다. 그 뒤 사고를 켜고(noThinking false)
+   effort를 high로 올리는 동안 900은 한 번도 안 건드렸다.
+
+   그런데 Sonnet 5는 사고와 답이 같은 통을 쓰고, 사고가 먼저 쓴다. 사고가
+   600을 먹으면 답에 300이 남는다. 배분이 아니라 선착순이다. 그래서 값은
+   다 내면서 답은 쪼그라들었다 — 「비싼데 밋밋함」이 여기서 나왔다.
+
+   답 몫을 지키려면 사고에 상한을 걸어야 하는데, Sonnet 5는 그 파라미터
+   (budget_tokens)를 400으로 거부한다. 5 세대에서 없어졌다.
+   통을 키우는 길도 있지만 그건 값을 늘리는 쪽이다.
+
+   4.6 세대에는 그 상한이 아직 살아 있다. 사고 500 · 답 500으로 못 박는다.
+   값은 Sonnet 5와 같고(입력 $3 / 출력 $15), 사고가 500에서 끊기므로 오히려
+   덜 나갈 수 있다. 무엇보다 답 몫이 줄 수 없다 — 그게 이 교체의 전부다.
+   Opus 4.6에도 같은 상한이 있고 대사는 더 좋지만 값이 1.7~2.5배다. */
+const THINK_BUDGET = 500;      // 사고는 여기서 끊긴다
+const ANSWER_BUDGET = 500;     // 남는 몫. 사고가 못 건드린다
 const MODELS = [
+  { id: "claude-sonnet-4-6", effort: null, noThinking: false, budget: THINK_BUDGET },
   { id: "claude-sonnet-5", effort: "high", noThinking: false },
-  { id: "claude-sonnet-4-6", effort: "medium", noThinking: true },
-  { id: "claude-sonnet-4-5", effort: null, noThinking: false },
+  { id: "claude-sonnet-4-5", effort: null, noThinking: false, budget: THINK_BUDGET },
 ];
 /* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
    앞에서 자르지 않고 뒤에서 자르면 캐시된 앞부분이 매번 달라진다. */
@@ -2177,9 +2196,14 @@ async function callModel(env, m, system, messages, maxTokens, effort) {
     messages,
   };
   if (m.noThinking) body.thinking = { type: "disabled" };
+  /* 사고 상한. 4.6 세대에만 있다 — 이게 있어야 답 몫이 안 줄어든다.
+     5 세대는 이 파라미터를 400으로 거부하므로 budget이 없는 항목으로 둔다. */
+  else if (m.budget) body.thinking = { type: "enabled", budget_tokens: m.budget };
   /* effort를 파라미터로도 받는다 — 방마다 다르게 주려고. 모델이 effort를
-     아예 안 받으면(4.5, effort:null) 파라미터가 와도 안 보낸다. */
-  const eff = m.effort ? (effort || m.effort) : null;
+     아예 안 받으면(4.5, effort:null) 파라미터가 와도 안 보낸다.
+     사고 상한을 쓰는 모델에는 effort를 같이 안 보낸다 — 상한이 이미 깊이를
+     정하고, 4.6에서 둘을 같이 보내면 400이 난다. */
+  const eff = (m.budget || !m.effort) ? null : (effort || m.effort);
   if (eff) body.output_config = { effort: eff };
 
   let r;
@@ -3016,7 +3040,11 @@ export default {
          계속 미끄러졌다. 규칙이 없어서가 아니라 묻혀서다.
          effort 인자는 남겨둔다 — stop_reason 실측이 쌓인 뒤에 일부러 하는
          A/B에 쓴다. 추측으로 다시 내리지 않는다. */
-      const raw = await askClaude(env, system, msgs, mode === "auto" ? 2200 : 900);
+      /* 사고 상한 + 답 몫. 상한이 있는 모델에서는 사고가 THINK_BUDGET에서
+         끊기므로 남는 만큼이 고스란히 답 몫이 된다. 관전은 4~8발화라 답 몫을
+         더 준다 — 사고는 같은 500이다. */
+      const raw = await askClaude(env, system, msgs,
+        THINK_BUDGET + (mode === "auto" ? 1700 : ANSWER_BUDGET));
       /* ── 관찰용. 원인을 잡으면 뺀다 ──
          「api호출오류: litellm...」이 민현이 말풍선으로 나갔는데, 그게 어디서
          들어오는지 아직 못 밝혔다. 실패했을 때만 찍으면 실패가 안 나는 동안은
