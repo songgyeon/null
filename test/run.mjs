@@ -2282,6 +2282,19 @@ eq('세계관에는 안 남겼다',
     const 재언 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null)[1].text;
     return /29세/.test(재언) && /5년 차 보건교사/.test(재언) && !/10년 차/.test(재언);
   })(), true);
+  /* ── 두 사람의 낯빛은 갈려야 한다 ──
+     재언을 창백한 쪽으로 잡았다. 피곤함을 주름이 아니라 혈색으로 그리면
+     설정을 안 깎고 나이만 뺄 수 있어서다(docs/art-direction.md).
+     그런데 민현 설정에 이미 「낯빛이 흐리다 + 다크서클」이 있다. 둘 다
+     희멀게지면 두 사람이 같은 인상이 된다. 재언은 관리된 창백, 민현은
+     방치된 흐림 — 갈라놓은 것이 붙어버리지 않았는지 본다. */
+  eq('두 사람의 낯빛이 안 겹친다', (() => {
+    const 재언 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null)[1].text;
+    const 민현 = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[1].text;
+    return /낯빛이 희고 핏기가 없다/.test(재언) && /피부는 깨끗하다/.test(재언)
+      && !/다크서클/.test(재언)
+      && /낯빛이 흐리다/.test(민현) && !/핏기가 없다/.test(민현);
+  })(), true);
   /* 작품 규칙이 세계관 원칙과 FACTS에 두 판으로 적혀 있었다 — FACTS가 다 말한다 */
   eq('작품 규칙은 FACTS에만 있다',
     !/실존 작품은 각 인물의 취향 목록/.test(workerSrc)

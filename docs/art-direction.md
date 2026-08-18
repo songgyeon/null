@@ -21,6 +21,35 @@
 그래서 지시는 「젊게」가 아니라 **「민현과 같은 화풍으로」**다. 이게 제일 크고,
 아래 얼굴 항목들은 그다음이다.
 
+## 창백으로 간다
+
+피곤함을 무엇으로 그리느냐의 문제다. 지금 그림은 설정의 「표정의 기본값은
+피곤함이다」를 **주름과 볼 패임으로** 그리고 있고, 그게 곧 늙음이다.
+창백으로 옮기면 같은 피곤함을 **혈색으로** 그리게 된다 — 창백이 살려면
+피부가 오히려 매끈하고 고와야 하니 노화 신호와 방향이 정반대다. 피곤함을
+하나도 안 깎고 서른아홉만 뺄 수 있다.
+
+「눈매가 서늘하다」, 「기본 온도가 낮다」와도 붙는다. 실내에서 일하는
+보건교사이고 계절이 겨울이라 설정으로도 자연스럽다.
+
+대신 둘을 같이 박아야 한다.
+
+**하나 — 민현과 갈라야 한다.** 민현 설정에 이미 「이목구비보다 낯빛이
+흐리다는 인상이 먼저 온다. 다크서클이 있다」가 있다. 둘 다 희멀게지면 두
+사람이 같은 인상이 된다. 갈리는 자리는 이렇다.
+
+| | 낯빛 |
+|---|---|
+| 이재언 | **관리된 창백.** 고르고 깨끗한 흰 피부에 옅은 윤기, 혈색만 없다. 정돈이 이 사람의 갑옷이다 |
+| 이민현 | **방치된 흐림.** 고르지 않은 낯빛, 다크서클. 자기 몸 챙기는 회로가 꺼져 있던 쪽이다 |
+
+지금 그림은 이게 거꾸로다. 재언이 거칠고 민현이 말끔하다.
+
+**둘 — 창백이 병약으로 넘어가면 안 된다.** 회색이나 누런 기가 돌면 아픈
+사람이 되고, 입술 혈색까지 빼면 시체가 된다. 차고 깨끗한 흰색이어야 하고
+입술에는 옅게 남긴다. 다크서클도 여기서는 아주 옅게만 — 창백에 진한 눈
+밑을 얹으면 뺀 나이가 그대로 돌아온다.
+
 ## 얼굴에서 나이를 만들던 것들
 
 프로필과 교실 사진에서 실제로 확인한 것만 적는다.
@@ -51,8 +80,10 @@ eyes, single-fold lids, only a faint shadow beneath them — quiet
 tiredness, not age. Straight dark brows, neither thick nor low-set.
 Closed relaxed mouth with neutral corners.
 
-SKIN — smooth, even tone, light natural sheen. No visible pores, no dry
-matte texture.
+SKIN — pale. Fair, cool-toned, bloodless but clean and well-kept.
+Smooth, even, with a faint sheen, like porcelain. Lips keep a trace of
+natural colour. No sallow or grey cast, no visible pores, no dry matte
+texture.
 
 HANDS (when visible) — smooth backs, no raised veins or tendons.
 
@@ -81,8 +112,11 @@ lines, forehead wrinkles, crow's feet, hollow cheeks, sunken cheeks,
 gaunt, heavy jaw, jowls, stubble, five o'clock shadow, deep dark
 circles, harsh side lighting, dramatic chiaroscuro, high contrast
 shadows, matte dry skin, veiny hands, prominent tendons, middle-aged,
-40s, weathered, tired old man
+40s, weathered, tired old man, sallow skin, grey complexion, jaundiced,
+sickly, ashen, colourless lips, heavy dark circles, ill, gothic vampire
 ```
+
+창백을 넣으면 도구가 병약한 쪽으로 흐르기 쉽다. 뒷줄이 그걸 막는다.
 
 ## 갈아끼울 때 잊는 것 둘
 
