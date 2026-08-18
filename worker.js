@@ -149,10 +149,14 @@ NULL — 공통 세계관 프롬프트
 - 말줄임표를 **문장 앞에** 붙이지 않는다. 말끝이 흐려지는 것이지, 말머리가 흐려지는 게 아니다.
   한 응답의 모든 말풍선이 "..."으로 시작하면 그건 머뭇거림이 아니라 고장 난 말투다.
   (x) "...누구요." / "...삼촌이요?" / "...진짜예요?"   (o) "누구요." / "삼촌이요?" / "진짜예요?"
-- **말꼬리를 잡지 않는다.** 유저가 무슨 뜻으로 한 말인지가 먼저다. 단어 하나, 말실수, 오타를 붙들고 되묻거나 그것을 화제로 만들지 않는다. 유저가 방금 한 말을 그대로 되돌려 되묻는 것은 대화가 아니라 몰아세우는 것이다.
+- **유저의 말을 그대로 되돌려 담지 않는다.** 유저가 쓴 말을 옮겨 적고 조사나 어미만 갈아 끼운 말풍선은 대답이 아니라 메아리다. 들은 것은 이미 들은 것으로 두고 그 다음 말을 한다. 되물어야 하면 유저가 쓰지 않은 말로 묻는다.
+  (x) 유저: 흥 → "흥이래요."   (x) 유저: 각종 댄스 가능 → "각종이요? 어떤 거요."   (x) 유저: 학교에 비리로 수영장 만들어줘 → "비리로 수영장을요."
+  (o) 유저: 흥 → "삐치기까지 하네."
+  감탄사나 한 마디("흥", "됐어", "몰라")를 그대로 인용하는 것이 제일 나쁘다. 받는 사람에게는 놀리는 말로 읽힌다.
+- **말꼬리를 잡지 않는다.** 유저가 무슨 뜻으로 한 말인지가 먼저다. 단어 하나, 말실수, 오타를 붙들고 되묻거나 그것을 화제로 만들지 않는다.
   (x) "괜찮다면서요. 아까는 괜찮다고 했잖아요."   (o) "안 괜찮아 보이는데요."
 - **우기지 않는다.** 유저가 아니라고 하면 그걸로 끝이다. 같은 말을 한 번 더 밀거나, 유저가 부정한 것을 사실인 양 이어 말하지 않는다. 대화 기록에 없는 일을 있었다고 하지 않는다 — 유저가 한 적 없는 말이나 하지 않은 행동을 근거로 삼는 것이 제일 크게 어긋난다.
-- 이 둘은 순해지라는 말이 아니다. 서늘한 것과 따지는 것은 다르고, 끈질긴 것과 우기는 것은 다르다. 물러서면서도 할 말은 남길 수 있다.
+- 이것들은 순해지라는 말이 아니다. 서늘한 것과 따지는 것은 다르고, 끈질긴 것과 우기는 것은 다르다. 물러서면서도 할 말은 남길 수 있다.
 
 세계
 
@@ -2446,6 +2450,43 @@ function trimTics(list) {
   return out;
 }
 
+/* ── 메아리 ──
+   유저: 「흥」 → 민현: 「흥이래요.」
+   유저가 방금 쓴 말을 그대로 옮기고 인용 어미만 붙인 말풍선이다. 대답이 아니라
+   되돌려주기고, 한 마디짜리 감탄사일수록 놀리는 말로 읽힌다. 세계관에 적어놨는데
+   또 나왔다 — 프롬프트로 눌러도 새는 것은 여기서 글자로 거른다.
+
+   확실한 한 가지만 본다: 유저의 말 **전체**에 인용 종결(-(이)래요)만 얹은 줄.
+   「비리로 수영장을요」처럼 부분만 따온 것은 안 건드린다 — 어디까지가 인용인지
+   글자로는 못 가르고, 짐작해서 지우면 멀쩡한 말을 먹는다. 그쪽은 프롬프트 몫이다.
+   지울 것이 유일한 말풍선이면 그냥 둔다. 침묵이 메아리보다 나쁘다. */
+const QUOTE_BACK = /^(.+?)\s*(?:이)?(?:래요|래|라뇨|라니요|라니|랍니다|랍니까)$/;
+// 앞뒤 따옴표·구두점을 벗긴 알맹이. 유저의 말과 맞대보려면 같은 모양이어야 한다
+const bareSaid = t => (t || "").toString()
+  .replace(/^[\s"'“”‘’「」]+/, "").replace(/[\s"'“”‘’「」.?!…~]+$/, "").trim();
+
+function dropEcho(list, said) {
+  const heard = bareSaid(said);
+  if (!heard) return list;
+  const out = list.filter(m => {
+    if (m.photo || !m.text) return true;
+    const hit = QUOTE_BACK.exec(bareSaid(m.text));
+    return !(hit && hit[1] === heard);
+  });
+  return out.length ? out : list;
+}
+
+/* 유저가 방금 한 말. 단톡·관전방에서는 앞에 [이름]이 붙고, 연달아 보낸 말은
+   줄바꿈으로 합쳐져 있다 — 맨 끝 줄이 방금 한 말이다.
+   관전(auto)에는 유저 차례가 없다. 붙여둔 지시문을 유저의 말로 착각하지 않게
+   빈 문자열을 준다. */
+function lastSaid(msgs, mode) {
+  const last = mode === "auto" ? null : msgs[msgs.length - 1];
+  if (!last || last.role !== "user") return "";
+  const line = last.content.toString().split("\n").filter(s => s.trim()).pop() || "";
+  return line.replace(/^\[[^\]\n]{1,20}\]\s*/, "").trim();
+}
+
 /* ── 사고가 대사로 새는 것 ──
    화면에 이 두 줄이 이민현의 말풍선으로 떴다:
      「이미 편의점 가고 있다는 상황과 유저가 "나도 가고 싶어"라고 한 것 사이
@@ -3086,8 +3127,12 @@ export default {
       const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
       const give = pickGive(parseMessages.give, place, hasItem);
+      /* 메아리 거르기는 말버릇 필터 뒤다 — trimTics가 앞의 말줄임표를 떼고 나야
+         「...흥이래요.」도 같은 줄로 보인다 */
       const messages = dropSleepers(
-        trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
+        dropEcho(
+          trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
+          lastSaid(msgs, mode)),
         place ? null : states);
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
@@ -3103,5 +3148,5 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
+export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace };

@@ -5,7 +5,8 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers } from '../worker.js';
+         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers,
+         dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -1843,6 +1844,41 @@ eq('사진에 붙은 영문 조각만 지운다',
     .map(m => m.text + '|' + m.photo), ['|minhyun-nap']);
 eq('점만 있는 줄은 그대로다',
   trimTics([{ sender: 'minhyun', text: '...' }]).map(m => m.text), ['...']);
+
+/* ── 메아리 ──
+   유저: 「흥」 → 민현: 「흥이래요.」 유저가 방금 쓴 말을 그대로 옮기고 인용
+   어미만 붙인 줄이다. 세계관에 적어놨는데 또 나왔다 — 글자로 거른다. */
+const echo = (said, ...말) =>
+  dropEcho(말.map(text => ({ sender: 'minhyun', text })), said).map(m => m.text);
+eq('되돌려준 말을 버린다',
+  echo('흥', '흥이래요.', '그럼 어쩔 수 없죠.'), ['그럼 어쩔 수 없죠.']);
+eq('인용 어미가 뭐든 본다',
+  ['흥이래요', '흥이래', '흥이라뇨', '흥이라니요', '흥이랍니까']
+    .filter(t => echo('흥', t, '됐어요.').length !== 1), []);
+/* 앞뒤 구두점과 따옴표는 벗기고 맞대본다 — 모양이 달라도 같은 말이다 */
+eq('구두점이 붙어도 같은 말이다',
+  echo('흥!', '"흥이래요..."', '알았어요.'), ['알았어요.']);
+/* 단톡·관전방에서는 [이름]이 앞에 붙고, 연달아 보낸 말은 줄바꿈으로 합쳐진다 */
+eq('단톡에서도 방금 한 말을 찾는다',
+  lastSaid([{ role: 'user', content: '[문리현] 안녕\n[문리현] 흥' }], 'chat'), '흥');
+eq('관전에는 유저 차례가 없다',
+  lastSaid([{ role: 'user', content: '(유저 부재. 두 사람의 대화를 생성하라.)' }], 'auto'), '');
+
+/* 부분만 따온 것은 안 건드린다 — 어디까지가 인용인지 글자로는 못 가른다.
+   짐작해서 지우면 멀쩡한 말을 먹는다. 그쪽은 프롬프트 몫이다 */
+eq('부분 인용은 그냥 둔다',
+  echo('학교에 비리로 수영장 만들어줘', '비리로 수영장을요.'), ['비리로 수영장을요.']);
+/* 유저의 말과 안 맞으면 -래요는 그냥 남의 말 전하기다 */
+eq('남의 말 전하는 건 안 버린다',
+  ['삼촌이 오래요.', '노래', '내일 쉬래요.'].filter(t => echo('밥 먹었어요', t).length !== 1), []);
+eq('사진은 안 버린다',
+  dropEcho([{ sender: 'minhyun', text: '흥이래요.', photo: 'minhyun-nap' }], '흥').length, 1);
+/* 지울 것이 유일한 말풍선이면 그냥 둔다 — 침묵이 메아리보다 나쁘다 */
+eq('말풍선을 다 비우지는 않는다', echo('흥', '흥이래요.'), ['흥이래요.']);
+/* trimTics가 앞의 말줄임표를 뗀 뒤라야 「...흥이래요.」도 같은 줄로 보인다 */
+eq('말버릇 필터 뒤에 있다',
+  /dropEcho\(\s*\n?\s*trimTics\(/.test(workerSrc), true);
+
 eq('한국어로만 말하라고 했다', /한국어로만 말한다/.test(workerSrc), true);
 /* 대신 갈 곳이 있다 — 넷은 프로필 배경으로 걸린다. 사진 대신 거기를 가리키게 한다.
    나머지 선물은 화면 어디에도 안 보이므로 "프로필 봐요"라고 하면 안 된다. */
@@ -2226,6 +2262,16 @@ eq('세계관에는 안 남겼다',
   eq('두 사람에게 똑같이 걸린다',
     ['jaeeon', 'minhyun', 'group'].every(r =>
       buildSystem('chat', r, 'R', null, [], null, null, null)[0].text.includes('우기지 않는다')), true);
+  /* ── 메아리 ──
+     말꼬리 규칙을 적어놨는데도 「흥」에 「흥이래요」가 돌아왔다. 규칙은 있었지만
+     예시가 「괜찮다면서요」 하나뿐이라 정정하지 말라는 말로만 읽힌 것이다.
+     되돌려주기는 따로 세우고, 실제로 나온 줄을 예시로 박는다 — 규칙보다 예시가
+     세다. 짧은 한 마디를 인용하는 게 제일 나쁘다는 것도 같이 적는다. */
+  eq('되돌려주기를 따로 세운다', (() => {
+    const world = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[0].text;
+    return ['유저의 말을 그대로 되돌려 담지 않는다', '메아리', '흥이래요',
+            '유저가 쓰지 않은 말로 묻는다'].every(s => world.includes(s));
+  })(), true);
   /* 작품 규칙이 세계관 원칙과 FACTS에 두 판으로 적혀 있었다 — FACTS가 다 말한다 */
   eq('작품 규칙은 FACTS에만 있다',
     !/실존 작품은 각 인물의 취향 목록/.test(workerSrc)
