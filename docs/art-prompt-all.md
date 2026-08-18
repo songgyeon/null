@@ -12,6 +12,7 @@ ChatGPT에 **레퍼런스 이미지 한 장을 첨부하고 아래를 통째로 
 ```
 첨부한 이미지가 이 인물의 레퍼런스다. 아래 35장을 전부 이 사람, 이 화풍,
 이 색감으로 그려라. 얼굴·안경·머리·피부 톤은 매 장 동일해야 한다.
+STYLE LOCK이 A와 B 두 개 있으니 각 번호에 적힌 쪽을 쓴다.
 한 번에 한 장씩, 번호 순서대로 뽑고, 각 장 앞에 파일명을 적어라.
 내가 "다음"이라고 하면 다음 번호로 간다.
 
@@ -48,7 +49,7 @@ school he wears a lanyard ID card reading "이재언 / 보건교사". At home,
 the same shirt without the cardigan. Winter throughout.
 
 ═══════════════════════════════════════════
-STYLE LOCK — 35장 전부 동일
+STYLE LOCK A — 인물이 나오는 장
 ═══════════════════════════════════════════
 
 Semi-realistic Korean illustration, cinematic but softly painted.
@@ -58,6 +59,15 @@ violet, with one warm light source per frame. Low contrast on the face:
 light falls across the room, not across his cheek. Shallow depth of
 field, grounded everyday interiors with real clutter. Illustrative,
 not photographic.
+
+═══════════════════════════════════════════
+STYLE LOCK B — 인물이 없는 장
+═══════════════════════════════════════════
+
+Photograph, not illustration. Handheld phone snapshot, available light
+only, slight grain and soft focus falloff. Ordinary and unstyled — the
+frame of someone who took it without thinking. Cold muted colour.
+NO PERSON anywhere in frame.
 
 ═══════════════════════════════════════════
 NEGATIVE — 35장 전부 동일
@@ -81,9 +91,9 @@ Upper-body portrait, three-quarter view, eyes lowered slightly away
 from camera. Nurse's office behind, softly out of focus. Head and
 shoulders with headroom above the hair.
 
-── B. 프로필 배경 (5장) · 인물 없음 ──────────
-   CHARACTER LOCK은 빼고 STYLE LOCK만 적용한다. 다섯 장 다 사람이
-   한 명도 없다. 방금 나갔거나 곧 올 자리만 그린다.
+── B. 프로필 배경 (5장) · STYLE B · 인물 없음 ──
+   CHARACTER LOCK은 쓰지 않는다. 다섯 장 다 사람이 한 명도 없다.
+   방금 나갔거나 곧 올 자리만 찍는다.
 
 2. jaeeon-gallery — 3:4 세로
 Empty room of a quiet art museum, no person anywhere. Tall pale walls,
@@ -208,7 +218,7 @@ At home, turned away toward the window — his face is not visible. On
 the table beside him a mug has gone cold. Grey daylight.
 
 ── D. 히든 (5장) · 전부 1:1 ────────────────
-   29~32는 인물이 없다. STYLE LOCK만 적용한다.
+   29~32는 인물이 없다 · STYLE B.  33만 STYLE A다.
 
 29. jaeeon-bag — 인물 없음
 Still life. The contents of a man's shoulder bag laid out in a neat row
