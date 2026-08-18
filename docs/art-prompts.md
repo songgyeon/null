@@ -298,6 +298,74 @@ blank. Slight print grain and a faint paper sheen. Square 1:1.
 
 ---
 
+---
+
+# ⑤ 없어서 새로 만들어야 하는 것 — 3장
+
+위의 33장은 **이미 있는 파일을 다시 뽑는 것**이다. 이 셋은 파일 자체가 없다.
+
+자리 화면의 배경은 새 그림이 아니라 그 인물의 사진을 재활용한다
+(`app-data.js`의 `SCENE_SHOT`). 그런데 갈 수는 있는데 깔릴 사진이 없는 칸이
+셋 있다. 가면 `place-*.webp` 빈 방만 뜬다.
+
+| 자리 | 사람 | 지금 |
+|---|---|---|
+| 편의점 | 재언 | 없음 (민현만 `conv`·`ramen`) |
+| 도서관 | 민현 | 없음 (재언만 `shelf`) |
+| 레코드샵 | 재언 | 없음 (민현만 `mirror`) |
+
+### `jaeeon-conv` — 편의점 · 재언
+
+계산은 늘 이쪽이 한다. 봉투에 든 것이 자기 것이 아니라는 게 이 사진이다.
+
+```
+SCENE — convenience store at night, standing at the counter, holding a
+card out to pay. A small bag of snacks on the counter that is plainly
+not for him. Flat white store light, shelves and a dark window behind.
+He is not looking at the camera. Square 1:1.
+```
+
+### `jaeeon-record` — 레코드샵 · 재언
+
+몇 년째 안 바뀐 플레이리스트를 가진 사람이 중고반 상자 앞에 쭈그려 앉아 있다.
+
+```
+SCENE — second-hand record shop, crouched on the floor beside a crate of
+used LPs, flipping through the sleeves with one hand. Warm dim shop
+light, crowded shelves behind. Absorbed, unhurried. Square 1:1.
+```
+
+### `minhyun-library` — 도서관 · 민현
+
+**민현이라 BASE가 다르다.** 아래를 대신 쓴다 — 지금 민현 그림이 기준이고
+이 한 장만 거기에 맞추면 된다.
+
+```
+Korean boy, 20, high-school senior, tall and thin, muscle not fully back
+after a year of rehab. Dull uneven complexion, faint dark circles, light
+freckles. One earphone in. Thin winter uniform, worn loosely, too light
+for the season.
+
+STYLE — soft painterly semi-realistic Korean illustration, smooth
+gradient shading, minimal facial shadow modeling, softly painted edges,
+warm rim light against a cool ground, muted palette.
+
+SCENE — third floor of a city library, empty, weekend afternoon.
+Slouched low in a chair at a long table with a book unopened in front of
+him, looking off to one side. Tall windows, pale light, rows of empty
+seats. Square 1:1.
+```
+
+## 그다음 — 한 장뿐인 자리 8칸
+
+빈 방은 아니지만 갈 때마다 같은 그림이 나온다. 급하지는 않다.
+
+옥상·재언(`rooftop`) · 옥상·민현(`vending`) · 도서관·재언(`shelf`) ·
+레코드샵·민현(`mirror`) · 빨래방·재언(`laundry`) · 빨래방·민현(`laundry`) ·
+체육관·민현(`gym`) · 귀갓길·재언(`driveseat`).
+
+보건실은 재언이 6장, 집은 4장, 교실은 민현이 3장이라 여기는 넉넉하다.
+
 ## 다 뽑고 나서
 
 파일명을 그대로 두고 그림만 바꾸면 화면이 안 바뀐다. 둘 다 잊기 쉽다.
