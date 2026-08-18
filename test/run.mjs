@@ -2713,19 +2713,25 @@ eq('어느 모델이 답했는지 usage에 실린다',
   /model: data\.model \|\| m\.id/.test(workerSrc)
   && /\[NULL\] "\+\(data\.usage\.model\|\|"\?"\)/.test(web), true);
 eq('웹 콘솔이 멈춤 사유를 찍는다', /멈춤 "\+\(data\.usage\.stop_reason\|\|"\?"\)/.test(web), true);
-/* ── 사고 500 · 답 500 ──
+/* ── 사고를 끊는 대신 끈다 ──
    max_tokens 900은 사고가 꺼져 있던 때 정한 숫자다. 900 전부가 답 몫이었다.
    그 뒤 사고를 켜고 effort를 올리는 동안 900은 안 건드렸고, Sonnet 5는
    사고와 답이 같은 통을 쓰며 사고가 먼저 쓴다 — 사고가 600을 먹으면 답에
    300이 남는다. 배분이 아니라 선착순이다.
-   Sonnet 5는 사고 상한(budget_tokens)을 400으로 거부한다. 4.6 세대에는
-   아직 있어서, 사고를 500에 못 박고 남는 500을 답이 가져간다. */
-eq('사고 상한이 있는 모델을 먼저 쓴다',
-  /\{ id: "claude-sonnet-4-6", effort: null, noThinking: false, budget: THINK_BUDGET \}/.test(workerSrc), true);
-eq('사고와 답을 반반으로 못 박았다',
-  /const THINK_BUDGET = 500;/.test(workerSrc) && /const ANSWER_BUDGET = 500;/.test(workerSrc), true);
-eq('상한이 그대로 통 크기가 된다',
-  /THINK_BUDGET \+ \(mode === "auto" \? 1700 : ANSWER_BUDGET\)/.test(workerSrc), true);
+   그래서 4.6의 사고 상한(budget_tokens)에 500을 걸었는데, 그 파라미터의 API
+   최소가 1024다. 500은 미달이라 매번 400이었고, askClaude는 400을 「다음
+   모델」 신호로 읽어 조용히 sonnet-5로 넘어가 굳었다 — 4.6을 쓴다고 믿으면서
+   5를 쓰고 있었다. 1024로 올리면 사고에 답의 두 배를 주는 꼴이고, 실측은
+   반대쪽을 가리켰다(thinking_tokens가 전부 0). 상한을 걸지 말고 끈다. */
+eq('사고를 끈 모델을 먼저 쓴다',
+  /\{ id: "claude-sonnet-4-6", effort: null, noThinking: true \}/.test(workerSrc), true);
+/* budget_tokens는 1024 미만을 못 받는다. 그 숫자를 다시 넣으면 1순위가
+   또 조용히 죽는다 — 상수 자체를 없애 되살아날 자리를 지운다 */
+eq('못 넣는 상한은 아예 없앴다',
+  /THINK_BUDGET/.test(workerSrc), false);
+eq('통 전부가 답 몫이다',
+  /const ANSWER_BUDGET = 1000;/.test(workerSrc) && /const AUTO_BUDGET = 2200;/.test(workerSrc)
+  && /mode === "auto" \? AUTO_BUDGET : ANSWER_BUDGET/.test(workerSrc), true);
 /* 5 세대는 이 파라미터를 400으로 거부한다 — budget 없는 항목으로 둔다 */
 eq('상한 없는 모델에는 안 보낸다',
   /else if \(m\.budget\) body\.thinking = \{ type: "enabled", budget_tokens: m\.budget \};/.test(workerSrc), true);

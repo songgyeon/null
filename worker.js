@@ -34,12 +34,25 @@
    값은 Sonnet 5와 같고(입력 $3 / 출력 $15), 사고가 500에서 끊기므로 오히려
    덜 나갈 수 있다. 무엇보다 답 몫이 줄 수 없다 — 그게 이 교체의 전부다.
    Opus 4.6에도 같은 상한이 있고 대사는 더 좋지만 값이 1.7~2.5배다. */
-const THINK_BUDGET = 500;      // 사고는 여기서 끊긴다
-const ANSWER_BUDGET = 500;     // 남는 몫. 사고가 못 건드린다
+
+/* ── 그런데 500은 넣을 수 없는 숫자였다 ──
+   budget_tokens의 API 최소가 1024다. 500은 미달이라 4.6이 매번 400으로
+   거절당했고, askClaude는 400을 「다음 모델」 신호로 읽어 조용히 sonnet-5로
+   넘어가 workingModel로 굳었다. 화면은 멀쩡해서 아무도 몰랐다 —
+   콘솔에 모델 이름을 찍고 나서야 claude-sonnet-5가 답하고 있는 게 보였다.
+
+   1024로 올리는 길도 있지만 그건 사고에 답의 두 배를 주는 것이다. 실측은
+   반대쪽을 가리킨다 — sonnet-5가 effort high로 답한 턴들의 thinking_tokens가
+   전부 0이었다. 말풍선 한둘짜리 카톡 대화에 사고는 애초에 쓰이지 않는다.
+   그래서 상한을 거는 대신 끈다. 끄면 max_tokens 전부가 답 몫이고,
+   「사고가 답을 먹는다」는 구조 자체가 없어진다.
+   4.6이 404라면 여전히 5로 넘어간다 — 그때는 콘솔의 모델 이름이 말해준다. */
+const ANSWER_BUDGET = 1000;    // 1:1·단톡 한 턴. 실측 출력은 60~110이다
+const AUTO_BUDGET = 2200;      // 관전방은 한 번에 4~8발화라 더 준다
 const MODELS = [
-  { id: "claude-sonnet-4-6", effort: null, noThinking: false, budget: THINK_BUDGET },
+  { id: "claude-sonnet-4-6", effort: null, noThinking: true },
   { id: "claude-sonnet-5", effort: "high", noThinking: false },
-  { id: "claude-sonnet-4-5", effort: null, noThinking: false, budget: THINK_BUDGET },
+  { id: "claude-sonnet-4-5", effort: null, noThinking: true },
 ];
 /* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
    앞에서 자르지 않고 뒤에서 자르면 캐시된 앞부분이 매번 달라진다. */
@@ -3049,11 +3062,11 @@ export default {
          계속 미끄러졌다. 규칙이 없어서가 아니라 묻혀서다.
          effort 인자는 남겨둔다 — stop_reason 실측이 쌓인 뒤에 일부러 하는
          A/B에 쓴다. 추측으로 다시 내리지 않는다. */
-      /* 사고 상한 + 답 몫. 상한이 있는 모델에서는 사고가 THINK_BUDGET에서
-         끊기므로 남는 만큼이 고스란히 답 몫이 된다. 관전은 4~8발화라 답 몫을
-         더 준다 — 사고는 같은 500이다. */
+      /* 사고를 껐으니 이 숫자 전부가 답 몫이다. 나눠 갖는 통이 아니다.
+         천장이지 청구서가 아니라서, 열어둔다고 값이 오르지 않는다 —
+         실제로 뽑은 만큼만 낸다(실측 60~110). 관전은 4~8발화라 더 준다. */
       const raw = await askClaude(env, system, msgs,
-        THINK_BUDGET + (mode === "auto" ? 1700 : ANSWER_BUDGET));
+        mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET);
       /* ── 관찰용. 원인을 잡으면 뺀다 ──
          「api호출오류: litellm...」이 민현이 말풍선으로 나갔는데, 그게 어디서
          들어오는지 아직 못 밝혔다. 실패했을 때만 찍으면 실패가 안 나는 동안은
