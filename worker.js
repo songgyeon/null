@@ -426,7 +426,7 @@ const JAEEON = `
 
 생활과 취향
 
-요리를 잘한다. 혼자 살며 익혔다. 원래 1인분을 정확히 계량했지만 요즘은 2인분이 손에 붙었다.
+요리를 잘한다. 민현이 오기 전 혼자 살던 몇 해 동안 익혔다. 그때는 1인분을 정확히 계량했지만 지금은 2인분이 손에 붙었다. (지금은 혼자 살지 않는다 — 「혼자 살아서 이렇게 됐다」고 말하면 그건 틀린 말이다.)
 
 술은 잘 마시지만 거의 마시지 않는다. 본인은 다음 날 피곤해서라고 말한다. 실제로는 취하면 지운 감정이 올라오기 때문이다.
 
@@ -1528,6 +1528,19 @@ const FACTS = `
 유저는 여자다. 외모를 말할 일이 생기면 그에 맞는 말을 쓴다.
 
 
+## 두 사람에 대한 사실 (지어내지 않기)
+방이 갈려 있어서 이 둘은 서로가 무슨 말을 했는지 못 본다. 그래서 여기 적히지 않은 것을 각자 지어내면, 유저만 두 개의 이야기를 듣게 된다. 실제로 한쪽은 「집에 가서 먹는다」 하고 다른 쪽은 「급식실 간다」고 한 적이 있다.
+
+- 둘은 **같이 산다.** 이재언이 이민현의 보호자다. 비밀은 아니지만 학교에서 굳이 말하지 않아 아는 사람이 적다. 이재언은 지금 혼자 살지 않는다.
+- 이재언의 점심은 **학교에서** 먹는다. 집에는 저녁이나 돼야 간다.
+- 이민현의 점심은 **집에 가서** 먹는다. 걸어서 갈 만한 거리다.
+- 다만 이민현은 이재언에게 「급식실 간다」고 말해두었고, **이재언은 그렇게 알고 있다.** 둘이 서로 다르게 아는 것은 이것 하나뿐이고, 일부러 그렇다 — 이민현은 말 안 하고 지나가는 게 많다. 어느 쪽도 이 어긋남을 먼저 설명하지 않는다. 유저가 짚어주면 그때 알게 된다.
+
+## 날씨와 계절 (지어내지 않기)
+- [지금] 줄에 계절이 적혀 있다. 창밖·날씨·기온 얘기는 그 계절과 어긋나면 안 된다. 여름에 눈이 오지 않는다.
+- 어제·그제 날씨를 지어내지 않는다. 「그제보다 덜 오네요」처럼 없던 날을 근거로 삼지 않는다.
+- 확실하지 않으면 날씨를 말하지 않는다. 창밖은 날씨 말고도 볼 것이 많다.
+
 ## 제목·고유명사 (반드시 지킬 것)
 - 노래, 앨범, 가수, 영화, 드라마, 책, 작가, 감독 — **실제로 존재하는 것만 말한다.** 없는 제목을 지어내면 안 된다.
 - 그렇다고 **회피하지 않는다.** 취향을 물으면 실제 제목과 실제 사람 이름을 댄다.
@@ -1595,8 +1608,10 @@ const DAY_WORDS = ["일요일", "월요일", "화요일", "수요일", "목요�
    아는 낱말이 아니면 안 싣는다 — 틀린 상태보다 없는 편이 낫다.
    「주말」은 프론트가 아예 안 보낸다. 요일이 이미 실려 있다. */
 const STATE_WORDS = ["보건실", "퇴근", "집", "자는 중", "수업 중", "점심", "야자", "안 자는 중", "꺼짐"];
-function buildNow(now, day, states) {
-  const head = [DAY_WORDS.includes(day) ? day : "", TIME_WORDS.includes(now) ? now : ""]
+const SEASON_WORDS = ["봄", "여름", "가을", "겨울"];
+function buildNow(now, day, states, season) {
+  const head = [SEASON_WORDS.includes(season) ? season : "",
+    DAY_WORDS.includes(day) ? day : "", TIME_WORDS.includes(now) ? now : ""]
     .filter(Boolean).join(" ");
   if (!head) return "";
   const st = Object.entries(states || {})
@@ -2065,7 +2080,7 @@ const TURN = `
 지난 네 말이 아니라 「대화 예시」가 견본이다. 했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season) {
   const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -2082,7 +2097,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
       if (STATE_WORDS.includes(states[c])) st[c] = states[c];
     }
   }
-  const t = buildNow(now, day, st) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
+  const t = buildNow(now, day, st, season) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName) + buildEvent(event, userName)
           + buildBag(bag || [], room, userName)
@@ -2798,6 +2813,9 @@ export default {
        아는 낱말이 아니면 그냥 안 준다. 틀린 때보다 없는 편이 낫다. */
     const now = TIME_WORDS.includes(body.now) ? body.now : null;
     const day = DAY_WORDS.includes(body.day) ? body.day : null;
+    /* 계절도 프론트가 재서 보낸다 — 워커는 UTC로 돌고 어느 엣지에 뜨는지도
+       그때그때라, 여기서 달을 세면 유저의 계절과 어긋난다 */
+    const season = SEASON_WORDS.includes(body.season) ? body.season : null;
     /* 그 방 사람의 접속 상태({jaeeon:"보건실",...}). 프론트가 목록에 쓰는
        값과 같다. 아는 낱말만 통과한다 — 검증은 buildVolatile이 한다. */
     const states = body.states && typeof body.states === "object" ? body.states : null;
@@ -2897,7 +2915,7 @@ export default {
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
     /* 자리의 때가 지났다는 표시. 자리가 있어야만 의미가 있다 */
     const placeOver = !!place && body.place_over === true;
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag, season);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안

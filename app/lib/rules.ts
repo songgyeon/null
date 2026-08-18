@@ -338,6 +338,13 @@ const timeWord=now=>{const h=(now||nowClock()).getHours();
 /* 요일은 때보다 세다. 주말이면 학교가 통째로 없어지고, 그러면 이 셋을
    묶고 있던 건물이 사라진다 — 만나려면 학교 밖으로 나가야 한다 */
 const dayWord=now=>"일월화수목금토"[(now||nowClock()).getDay()]+"요일";
+/* ── 계절 ──
+   요일과 때만 보내고 계절을 안 보냈다. 그래서 팔월에 「눈이 그제보다 덜
+   오네요」가 나왔다. 날씨는 인물이 창밖을 보면 바로 나오는 말이라, 안
+   알려주면 지어낸다. 달까지는 안 준다 — 「8월 18일」을 주면 날짜를 세기
+   시작한다. 계절 하나면 창밖 얘기는 안 틀린다. */
+const seasonWord=now=>{const m=(now||nowClock()).getMonth()+1;
+  return m<3?"겨울":m<6?"봄":m<9?"여름":m<12?"가을":"겨울"};
 /* ── 자는 사람은 먼저 말을 안 건다 ──
    새벽 세 시에 앱을 처음 켜면 둘 다 몇 초 안에 인사를 보냈다. 목록에는
    「자는 중」이라고 떠 있는데 그 사람 말풍선이 왔다.
@@ -1027,6 +1034,7 @@ return {
   fmtDay,
   timeWord,
   dayWord,
+  seasonWord,
   canGreet,
   asleep,
   allAsleep,
@@ -1193,6 +1201,7 @@ export const {
   fmtDay,
   timeWord,
   dayWord,
+  seasonWord,
   canGreet,
   asleep,
   allAsleep,

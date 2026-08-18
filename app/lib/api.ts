@@ -1,7 +1,7 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
 /* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
-import { presence, timeWord, dayWord, PLACES, placeHours, canGoWith, loadMet } from './rules';
+import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet } from './rules';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -178,6 +178,8 @@ export async function sendChat(room: string, userName: string, history: Msg[],
        여기서 재서 보낸다 — 요일은 때보다 세다(주말이면 학교가 통째로 없다) */
     now: timeWord(),
     day: dayWord(),
+    /* 계절도 보낸다. 안 보내면 팔월에 「눈이 그제보다 덜 오네요」가 나온다 */
+    season: seasonWord(),
     ...(Object.keys(states).length ? { states } : {}),
     /* 유저가 먼저 「편의점 가자」고 했을 때 인물이 열 수 있는 자리.
        지도 창이 「갈래요?」를 띄우는 조건 그대로다 — 조건은 여기(규칙 파일)만

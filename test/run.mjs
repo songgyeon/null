@@ -2221,7 +2221,66 @@ eq('세계관에는 안 남겼다',
   const v = buildVolatile('chat', 'minhyun', '선생님', null, [], null, { minhyun: 20 }, null, null, [], 2, null, false);
   eq('그 말이 가변부의 마지막 줄이다',
     v.trimEnd().endsWith('했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.'), true);
-  /* ── 수위는 인물마다 다르다 ──
+  /* ── 계절을 안 알려주면 지어낸다 ──
+   요일과 때만 보내고 계절을 안 보냈다. 그래서 팔월에 민현이 「눈이 그제보다
+   덜 오네요」라고 했다. 날씨는 창밖을 보면 바로 나오는 말이라, 안 알려주면
+   지어낸다. 달까지는 안 준다 — 날짜를 주면 날짜를 세기 시작한다. */
+{
+  const 계절 = new Function(web.slice(web.indexOf('const seasonWord='),
+    web.indexOf('/* ── 자는 사람은 먼저 말을 안 건다 ──')) + 'return seasonWord;')();
+  eq('달을 계절로 옮긴다',
+    [1, 3, 5, 6, 8, 9, 11, 12].map(m => 계절(new Date(2026, m - 1, 15))),
+    ['겨울', '봄', '봄', '여름', '여름', '가을', '가을', '겨울']);
+  /* 워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때다 — 프론트가 재서 보낸다 */
+  for (const [label, src] of [['웹', web], ['앱', readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8')]])
+    eq(`${label}이 계절을 보낸다`, /season(:|=)\s*seasonWord\(\)/.test(src), true);
+  const w = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  eq('워커가 계절을 받는다',
+    /const season = SEASON_WORDS\.includes\(body\.season\) \? body\.season : null;/.test(w), true);
+  /* 아는 낱말만 받는다 — 모르는 값이 그대로 프롬프트에 박히면 안 된다 */
+  eq('아는 계절만 받는다', /const SEASON_WORDS = \["봄", "여름", "가을", "겨울"\];/.test(w), true);
+  const v = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [], 3,
+    null, false, '저녁', '화요일', null, false, null, [], '여름');
+  eq('지금 줄에 계절이 앞선다', v.includes('## [지금] 여름 화요일 저녁'), true);
+  /* 값은 가변부, 설명은 고정부 */
+  const 규칙 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text).join('');
+  eq('설명은 고정부에 있다', 규칙.includes('## 날씨와 계절 (지어내지 않기)'), true);
+  eq('여름에 눈이 안 온다고 적었다', 규칙.includes('여름에 눈이 오지 않는다'), true);
+  /* 「그제보다 덜 오네요」 — 없던 날을 근거로 삼는 것도 같이 막는다 */
+  eq('어제 날씨도 지어내지 않는다',
+    규칙.includes('어제·그제 날씨를 지어내지 않는다'), true);
+}
+
+/* ── 두 사람이 서로에 대해 같은 것을 알아야 한다 ──
+   방이 갈려 있어서 이 둘은 서로가 무슨 말을 했는지 못 본다(그게 이 프로덕트의
+   구조다). 그래서 안 박아두면 각 방에서 따로 지어내고, 유저만 두 개의 이야기를
+   듣는다. 실제로 재언은 「혼자 살면 이렇게 돼요」라고 해놓고 한 시간 뒤에
+   「같이 살아요」라고 했고, 점심은 민현이 「집에서 먹는다」 재언이 「급식실
+   간다」고 갈렸다. */
+{
+  const 방들 = ['jaeeon', 'minhyun', 'group'].map(r =>
+    buildSystem('chat', r, 'R', null, [], null, null, null).map(b => b.text).join(''));
+  const 관전 = buildSystem('auto', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text).join('');
+  /* 네 방이 같은 글자를 봐야 한다 — 한 방만 알면 그 방에서만 맞는 말이 된다 */
+  for (const [i, t] of [...방들, 관전].entries())
+    eq(`${i}번째 방이 공용 사실을 본다`, t.includes('## 두 사람에 대한 사실 (지어내지 않기)'), true);
+  for (const 사실 of ['둘은 **같이 산다.**', '이재언은 지금 혼자 살지 않는다',
+                      '이재언의 점심은 **학교에서** 먹는다',
+                      '이민현의 점심은 **집에 가서** 먹는다'])
+    eq(`「${사실}」이 네 방에 다 있다`,
+      [...방들, 관전].filter(t => !t.includes(사실)).length, 0);
+  /* 어긋남은 하나뿐이고 일부러다 — 사고가 아니라 설계라고 적어둬야 재현된다 */
+  eq('점심의 어긋남이 설계로 적혀 있다',
+    방들[0].includes('이재언은 그렇게 알고 있다') && 방들[0].includes('일부러 그렇다'), true);
+  /* 「혼자 살며 익혔다」가 현재로 읽혔다. 그 문장이 원인이다 */
+  const 재언블록 = 방들[0];
+  eq('혼자 살던 것은 과거로 적혀 있다',
+    /민현이 오기 전 혼자 살던 몇 해 동안 익혔다/.test(재언블록)
+    && /지금은 혼자 살지 않는다/.test(재언블록), true);
+  eq('혼자 살며라는 말이 안 남아 있다', /혼자 살며 익혔다/.test(재언블록), false);
+}
+
+/* ── 수위는 인물마다 다르다 ──
    공통 바닥(WORLD)은 네 방이 다 쓰는 조각이라 여기에 한 사람 기준을 적으면
    다른 사람에게도 걸린다. 재언은 스물아홉·스물여덟 성인 둘이고, 민현은 고3에
    유저는 그 학교 교생이다. 같은 줄일 수가 없다. 바닥만 공통으로 두고 범위는

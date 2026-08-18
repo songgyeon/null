@@ -453,6 +453,7 @@ function App(){
     if(payload.days==null)payload.days=daysSince(storeRef.current);
     if(payload.now==null)payload.now=timeWord();
     if(payload.day==null)payload.day=dayWord();
+    if(payload.season==null)payload.season=seasonWord();
     /* 그 방 사람의 접속 상태. 목록에는 「수업 중」이 떠 있는데 본인은 한가한
        사람처럼 즉답했다 — 화면이 아는 걸 프롬프트가 몰랐다. 목록과 같은
        함수(presence)를 그대로 실어 보낸다.
