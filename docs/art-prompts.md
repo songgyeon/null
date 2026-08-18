@@ -2,6 +2,23 @@
 
 방향과 이유는 `art-direction.md`에 있다. 여기는 뽑을 때 복사할 것만 둔다.
 
+## 얼굴이 나오는 건 22장뿐이다
+
+39장 중 얼굴이 화면에 있는 것은 22장이다. 나머지는 얼굴을 안 만든다 —
+BASE의 얼굴·피부 항목을 붙일 필요가 없다.
+
+| | 장수 | |
+|---|---|---|
+| 얼굴이 나온다 | **22** | 프로필 1 · 보내는 사진 20 · 졸업사진 1 |
+| 얼굴이 없다 | 11 | 프로필 배경 5(빈 공간) · 히든 4(사물) · `shelf`(뒷모습) · `back`(얼굴 안 보임) |
+| 안 쓰임 | 6 | 다시 뽑을 것 없다 |
+
+보내는 사진 22장 중 `shelf`와 `back` 둘만 얼굴이 없고, `curtain`은 옆모습이다.
+졸업사진은 얼굴이 나오지만 열아홉이라 나이가 다르다.
+
+즉 **스물아홉 얼굴을 새로 잡아야 하는 것은 21장**이고, 나머지 12장은 자리와
+사물이라 화풍만 맞추면 된다.
+
 쓰는 법: **BASE를 매번 앞에 붙이고**, 그 뒤에 그 장의 SCENE 한 덩이를 잇는다.
 네거티브는 33장 전부 같은 것을 쓴다.
 
@@ -62,45 +79,53 @@ Square 1:1, head and shoulders, headroom above the hair.
 # ② 프로필 배경 — 5장
 
 관계가 깊어질수록 이 순서로 바뀐다. 밝은 데서 어두운 데로 간다.
-전부 **세로 3:4**, 인물은 화면을 채우지 않고 자리 안에 서 있다.
+전부 **세로 3:4**.
+
+**다섯 장 다 사람이 안 나온다.** 방금 나갔거나 곧 올 자리만 있다 — 그게 이
+프로필 배경의 문법이다. BASE의 얼굴·피부 항목은 빼고 STYLE 덩이만 붙인다.
+사람을 넣으면 지금 있는 다섯 장과 완전히 다른 물건이 된다.
 
 ### `jaeeon-gallery` — 1단계
 ```
-SCENE — inside a quiet art museum, standing at a distance before a large
-canvas, seen from behind and slightly to the side. High diffuse hall
-light, pale walls, polished floor. He is small in the frame. Vertical 3:4.
+SCENE — empty room of a quiet art museum, no person. Tall pale walls, a
+band of daylight from a high clerestory window falling across one wall,
+three low plinths with small stone pieces, polished concrete floor, an
+open door to a back room. Still and cool. Vertical 3:4.
 ```
 
 ### `jaeeon-landing` — 2단계
 ```
-SCENE — apartment stairwell landing in the evening, leaning against the
-handrail, one hand in a pocket. Cool light from a frosted window, warm
-bulb above. Concrete and painted steel. Vertical 3:4.
+SCENE — apartment stairwell landing in the evening, no person. Concrete
+steps, painted steel handrail, a frosted window throwing cool light, one
+warm bulb above. Nobody there. Vertical 3:4.
 ```
 
 ### `jaeeon-lobby` — 3단계
 ```
-SCENE — building lobby at night, standing and waiting, glass walls with
-faint reflections, floor lit from overhead. Empty, quiet, no other
-people. Vertical 3:4.
+SCENE — building lobby at night, no person. Glass walls with faint
+reflections, floor lit from overhead, empty seating. Nobody there.
+Vertical 3:4.
 ```
 
 ### `jaeeon-drive` — 4단계
 ```
-SCENE — inside a parked car at night, rain beading on the glass,
-dashboard glow on his face from below, streetlights blurred outside.
-Seen from the passenger side. Vertical 3:4.
+SCENE — interior of a parked car at night seen from the passenger seat,
+no person. Rain beading on the windshield, red traffic light and
+apartment windows blurred beyond, dark dashboard, a paper cup of coffee
+in the console holder. Vertical 3:4.
 ```
 
 ### `jaeeon-kitchen` — 5단계 · 마지막
 ```
-SCENE — home kitchen late at night, standing at the sink. On the rack
-beside him, two washed bowls turned upside down to dry. Warm low kitchen
-light, dark window. He is not doing anything dramatic. Vertical 3:4.
+SCENE — home kitchen late at night, no person. On the table, two washed
+rice bowls turned upside down on a folded cloth to dry, and one dark mug
+with coffee still in it. Under-cabinet light warm, blinds cool blue with
+the city beyond. Vertical 3:4.
 ```
 
 > 마지막 장의 그릇 두 개가 이 사람의 결말이다. 1인분을 계량하던 사람한테
 > 2인분이 손에 붙었다는 게 그 사진이니, 그릇 둘이 반드시 보여야 한다.
+> 사람이 없어서 더 그렇다 — 두 사람 몫을 씻어놓고 자리를 비운 부엌이다.
 
 ---
 
