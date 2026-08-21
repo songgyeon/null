@@ -45,6 +45,26 @@ eq('이력 형식을 흉내 내면 화자별로 풀어준다',
   texts('[이민현] 뭐가 좋은데요ㅋㅋ\n[이민현] 저는 안 궁금하시죠\n[이재언] 좋으시면 다행이네요', 'minhyun', BOTH),
   ['minhyun|뭐가 좋은데요ㅋㅋ', 'minhyun|저는 안 궁금하시죠', 'jaeeon|좋으시면 다행이네요']);
 
+/* ── 안이 비치면 안 된다 ──
+   기록에서 JSON 원문이 13번, 모델의 영어 사고 과정이 1번 말풍선으로
+   나갔다(docs/playlog-review.md). 원인은 첫 「{」부터 문자열 끝까지
+   잘라 파싱한 것이다 — 뒤에 백틱 하나만 붙어도 JSON.parse가 터지고
+   폴백이 원문을 통째로 찍었다. 중괄호 짝을 세서 자른다. */
+eq('닫는 백틱이 붙어도 읽는다',
+  texts('{"messages":["들어가요."]}`', 'jaeeon', JE), ['jaeeon|들어가요.']);
+eq('JSON 뒤에 모델이 덧붙인 말이 있어도 읽는다',
+  texts('{"messages":["가요."]}\n잠깐, JSON 수정:', 'jaeeon', JE), ['jaeeon|가요.']);
+eq('코드펜스로 감싸도 읽는다',
+  texts('```json\n{"messages":["네."]}\n```', 'jaeeon', JE), ['jaeeon|네.']);
+/* 다 실패했을 때 원문을 내보내던 것이 누출 경로였다. 조용히 가짜를
+   내보내느니 빈 손으로 돌아가서 화면에 실패를 띄우는 편이 낫다. */
+eq('모델의 사고 과정은 안 내보낸다',
+  parseMessages('The instructions say "..." and the available place is 빨래방.', 'jaeeon', JE), []);
+eq('안 닫힌 JSON 조각도 안 내보낸다',
+  parseMessages('{"messages":["가요."', 'jaeeon', JE), []);
+eq('평범한 한 줄은 그대로 나간다',
+  texts('보리차 마셔요.', 'jaeeon', JE), ['jaeeon|보리차 마셔요.']);
+
 eq('정상 JSON은 그대로 통과',
   texts('{"messages":[{"sender":"jaeeon","text":"무슨 일 있으세요"}]}', 'minhyun', BOTH),
   ['jaeeon|무슨 일 있으세요']);
@@ -1832,6 +1852,15 @@ eq('모델이 고른 자리를 읽는다', parseMessages.invite, '옥상');
 parseMessages('{"messages":["아뇨."]}', 'jaeeon', ['jaeeon']);
 eq('안 고른 턴은 비어 있다', parseMessages.invite, '');
 
+/* ── 제 이름을 호칭 자리에 ──
+   「식사 맛있게 하세요」에 「이재언도요.」가 돌아왔다. 「선생님도요」가
+   나와야 할 자리다(docs/playlog-review.md). */
+eq('제 이름만 있는 말풍선은 버린다',
+  dropMeta([{ sender: 'jaeeon', text: '이재언도요.' }, { sender: 'jaeeon', text: '잘 가요.' }])
+    .map(m => m.text), ['잘 가요.']);
+eq('문장 안의 제 이름은 안 건드린다',
+  dropMeta([{ sender: 'jaeeon', text: '이재언이라고 불러도 돼요.' }]).length, 1);
+
 /* 모델이 가끔 한자를 흘린다 — "那, 도서관 갈래요." 스무 살과 스물아홉 살이
    메신저에서 한자를 칠 일이 없다. */
 eq('한자를 지우고 앞 구두점까지 정리한다',
@@ -1842,6 +1871,25 @@ eq('한자만 남은 말풍선은 버린다',
 eq('한글은 안 건드린다',
   trimTics([{ sender: 'jaeeon', text: '그럼 도서관 갈래요.' }]).map(m => m.text),
   ['그럼 도서관 갈래요.']);
+/* 한자가 한글에 붙어 있으면 단어 안에 낀 것이다. 지우면 「生수」가 「수」로,
+   「便의점」이 「의점」으로 남아 문장 가운데가 구멍 난다 — 기록에서 그렇게
+   깨진 말풍선이 셋 나왔다(docs/playlog-review.md). 한 줄 없어지는 것은
+   티가 안 나는데 깨진 단어는 티가 난다. */
+eq('단어에 낀 한자는 그 말풍선을 버린다',
+  trimTics([{ sender: 'jaeeon', text: '生수 사 먹는 게 편하죠.' },
+            { sender: 'jaeeon', text: '네.' }]).map(m => m.text), ['네.']);
+eq('뒤에 붙은 것도 버린다',
+  trimTics([{ sender: 'jaeeon', text: '편의店 가서 사요.' },
+            { sender: 'jaeeon', text: '네.' }]).map(m => m.text), ['네.']);
+
+/* ── 제 이름을 호칭 자리에 ──
+   「식사 맛있게 하세요」에 「이재언도요.」가 돌아왔다. 「선생님도요」가
+   나와야 할 자리다(docs/playlog-review.md). */
+eq('제 이름만 있는 말풍선은 버린다',
+  dropMeta([{ sender: 'jaeeon', text: '이재언도요.' }, { sender: 'jaeeon', text: '잘 가요.' }])
+    .map(m => m.text), ['잘 가요.']);
+eq('문장 안의 제 이름은 안 건드린다',
+  dropMeta([{ sender: 'jaeeon', text: '이재언이라고 불러도 돼요.' }]).length, 1);
 
 /* 한자만 흘리는 게 아니다. "Table of contents"가 민현의 말로 화면에 떨어졌다.
    한글이 한 자도 없는데 영문이 든 말풍선은 모델이 흘린 조각이다. */
