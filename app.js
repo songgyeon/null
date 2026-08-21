@@ -163,6 +163,10 @@ function App(){
   /* 가방은 키만 보내고 있었다. 그런데 가방은 준 사람(from)도 들고 있다 —
      그걸 버리니 워커에서 방향이 없어졌고, 민현이 제가 준 젤리를 두고
      "사람 아까 핫팩 주더니 이제 젤리까지"라고 했다. 준 사람을 같이 보낸다. */
+  /* 가방은 자리에 있을 때만 보내고 있었다. 그래서 체육관에서 손목 보호대를
+     받고 나오면, 그 다음 채팅에서 민현은 자기가 준 것을 몰랐다 — 준 사실은
+     그 자리에서 끝나는 일이 아니라 계속 남는 일이다. 늘 보낸다.
+     워커가 from으로 걸러서 제 것만 읽으므로 방마다 나눠 담을 것은 없다. */
   const bagOut=()=>bagRef.current.map(b=>({k:b.key,from:b.from||""}));
   const sceneRef=useRef(scene); sceneRef.current=scene;
   /* 받은 것을 가방에 넣는다. 같은 것은 두 번 안 들어간다.
@@ -240,7 +244,8 @@ function App(){
        두 번째 나가는 거예요」라고 진행형으로 말했다. 나간 뒤라고 알려준다. */
     request(sc.room,{mode:"chat",room:sc.room,user_name:name,left:sc.place,
       history:buildHistory(sinceSum(sc.room,next)),signals:buildSignals(sc.room),
-      recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length})});
+      recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length}),
+      bag:bagOut()});
   };
   useEffect(()=>{expireScene()},[name,view]);
   /* 밤에 자리에서 나오면 그냥 사라지는 게 아니라 데려다준다.
@@ -278,7 +283,8 @@ function App(){
     const next=[...(storeRef.current.msgs[sc.room]||[]),sys];
     request(sc.room,{mode:"chat",room:sc.room,user_name:name,
       history:buildHistory(sinceSum(sc.room,next)),signals:buildSignals(sc.room),
-      recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length})});
+      recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length}),
+      bag:bagOut()});
     /* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
     if(sc.place!==WAY&&talkedEnough(sc)&&wayOK()&&loadWay()!==dayKey())setWay(sc);
   };
@@ -319,7 +325,8 @@ function App(){
     request(iv.char,{mode:"chat",room:iv.char,user_name:name,
       history:buildHistory(sinceSum(iv.char,next)),signals:buildSignals(iv.char),
       recent_photos:recentPhotos(iv.char),counts:roomCounts({[iv.char]:next.length}),
-      ...(ok&&PLACE_BY[iv.place]?{place:iv.place,bag:bagOut()}:{})});
+      bag:bagOut(),
+      ...(ok&&PLACE_BY[iv.place]?{place:iv.place}:{})});
   };
 
   /* 지도에서 내가 고른 자리. 인물이 부른 게 아니라 내 발로 가는 거라 창만
@@ -603,8 +610,8 @@ function App(){
        인물이 이번 대답에서 마무리하고 일어서고, 답이 다 뜨면 자리가 닫힌다 */
     request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),
       recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length}),
-      ...(at?{place:at,bag:bagOut(),
-              ...(sceneOver(sc)?{place_over:true}:{})}:{})});
+      bag:bagOut(),
+      ...(at?{place:at,...(sceneOver(sc)?{place_over:true}:{})}:{})});
   };
   /* 선물 보내기.
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
@@ -634,7 +641,8 @@ function App(){
     const nextMsgs=[...(storeRef.current.msgs[char]||[]),sysMsg];
     request(char,{mode:"chat",room:char,user_name:name,history:buildHistory(sinceSum(char,nextMsgs)),
       signals:buildSignals(char),recent_photos:recentPhotos(char),
-      counts:roomCounts({[char]:nextMsgs.length}),gift:{name:gift.name,key:gift.key,note}});
+      counts:roomCounts({[char]:nextMsgs.length}),bag:bagOut(),
+      gift:{name:gift.name,key:gift.key,note}});
   };
 
   /* ── 만나러 가서 준다 ──
@@ -891,7 +899,8 @@ function App(){
       const ms=storeRef.current.msgs[id]||[];
       request(id,{mode:"chat",room:id,user_name:name,greet:true,
         history:[...buildHistory(sinceSum(id,ms)),{role:"user",content:GREET_ASK}],
-        signals:buildSignals(id),recent_photos:recentPhotos(id),counts:roomCounts()});
+        signals:buildSignals(id),recent_photos:recentPhotos(id),counts:roomCounts(),
+        bag:bagOut()});
       return;
     }
     setTimeout(()=>{

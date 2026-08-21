@@ -1422,6 +1422,11 @@ function Root() {
   const [scene,setScene]=useState<any>(null);
   const sceneRef=useRef<any>(null); sceneRef.current=scene;
   const putScene=(v:any)=>{ setScene(v); saveScene(v); };
+  /* 키만 보내면 워커가 from을 빈칸으로 채운다. buildBag은 from으로 제 것을
+     고르므로, 그 상태에서는 「네가 준 것」이 영영 비어 있었다 — 웹은 고쳐졌고
+     앱만 문자열 배열로 남아 있었다. 자리 밖에서도 보낸다: 준 사실은 그 자리에서
+     끝나는 일이 아니다. */
+  const bagOut=(bs:any[])=>(bs||[]).map((b:any)=>({k:b.key,from:b.from||""}));
   const [bag,setBag]=useState<any[]>([]);          // 자리에서 받은 것
   const bagRef=useRef<any[]>([]); bagRef.current=bag;
   const [met,setMet]=useState<string[]>([]);       // 다녀온 자리 — 지도가 열리는 근거
@@ -1638,8 +1643,9 @@ function Root() {
     try{
       const hist=await getMsgs(char);
       const data=await sendChat(char,name,hist,{gift:{key:gift.key,name:gift.name,note},
+        bag:bagOut(bag),
         ...(sceneRef.current&&sceneRef.current.room===char
-          ?{place:sceneRef.current.place,bag:bag.map((b:any)=>b.key)}:{})});
+          ?{place:sceneRef.current.place}:{})});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(char,data.messages);
@@ -1703,8 +1709,8 @@ function Root() {
          인물이 이번 대답에서 매듭짓고 일어선다. */
       const sc=sceneRef.current;
       const at=sc&&sc.room===room?sc.place:null;
-      const data=await sendChat(room,name,hist,at?{place:at,bag:bag.map((b:any)=>b.key),
-        ...(placeOverNow(sc)?{placeOver:true}:{})}:{});
+      const data=await sendChat(room,name,hist,{bag:bagOut(bag),
+        ...(at?{place:at,...(placeOverNow(sc)?{placeOver:true}:{})}:{})});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);

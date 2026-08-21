@@ -1252,7 +1252,10 @@ eq('생성된 파일이라고 적어둔다',
   eq('앱도 요일·때를 보낸다', /now: timeWord\(\)/.test(api) && /day: dayWord\(\)/.test(api), true);
   eq('앱도 접속 상태를 보낸다',
     /states/.test(api) && /presence\(id\)/.test(api) && /pr\.t !== '주말'/.test(api), true);
-  eq('앱도 마주 앉은 자리를 보낸다', /\{ place, bag: bag \|\| \[\] \}/.test(api), true);
+  /* 가방은 자리와 묶여 있었다. 풀었으므로 둘을 따로 본다 — place는 자리에
+     앉았을 때만, 가방은 늘. 묶여 있으면 자리 밖에서 제가 준 것을 모른다 */
+  eq('앱도 마주 앉은 자리를 보낸다',
+    /\.\.\.\(place \? \{ place \} : \{\}\)/.test(api) && /\n    bag: bag \|\| \[\],/.test(api), true);
   eq('앱도 자리의 때와 선톡 표시를 보낸다',
     /place_over: true/.test(api) && /greet: true/.test(api), true);
   eq('앱도 문 닫은 자리를 보낸다', /closed: PLACES\.filter/.test(api), true);
@@ -3471,7 +3474,8 @@ eq('영문도 읽는 소리로 조사를 고른다', (() => {
 })(), ['NULL이에요', 'NULL을', 'NULL로', '믹스 CD를', '중고 LP예요']);
 eq('같은 것은 가방에 두 번 안 들어간다',
   /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
-eq('자리에 있으면 place를 같이 보낸다', /\.\.\.\(at\?\{place:at,bag:/.test(web), true);
+eq('자리에 있으면 place를 같이 보낸다',
+  /\.\.\.\(at\?\{place:at,/.test(web) && /\n      bag:bagOut\(\),/.test(web), true);
 eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true);
 /* gift가 준 것이면 bag은 받은 것이다. 작은 대화상자에 흰 줄로 늘어놓으니
    이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
