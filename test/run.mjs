@@ -2824,7 +2824,21 @@ eq('상한과 effort를 같이 안 보낸다',
    대시보드에 ACCESS_KEY를 넣으면 그때부터 ?k 없는 호출을 거절한다.
    안 넣으면 이 블록은 없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다. */
 eq('비밀값이 있을 때만 잠긴다',
-  /const LOCK = \(\(env && env\.ACCESS_KEY\) \|\| ""\)\.toString\(\)\.trim\(\);\s*\n\s*if \(LOCK\)/.test(workerSrc), true);
+  /const LOCK = resolveLock\(env\)\?\.value \|\| "";\s*\n\s*if \(LOCK\)/.test(workerSrc), true);
+/* 대시보드에서 access_key나 ACCESS-KEY로 적으면 env.ACCESS_KEY가 undefined다.
+   그러면 자물쇠가 조용히 꺼진 채로 돌고, 잠근 줄 알고 링크를 뿌리게 된다.
+   API 키와 같은 방식으로 이름을 느슨하게 찾는다. */
+eq('자물쇠 이름도 느슨하게 찾는다',
+  /const resolveLock = \(env\) => resolveVar\(env, LOCK_NAME\);/.test(workerSrc)
+  && /const resolveKey = \(env\) => resolveVar\(env, KEY_NAME\);/.test(workerSrc), true);
+/* 진단 페이지가 자물쇠를 안 보면 켰는지 확인할 데가 없다. 브라우저에 열쇠가
+   저장돼 있는 것을(설계대로다) 잠금이 안 걸린 것으로 착각하게 된다. */
+eq('진단이 자물쇠 상태를 알려준다',
+  /🔒 자물쇠 켜짐/.test(workerSrc) && /🔓 자물쇠 꺼짐/.test(workerSrc)
+  && /null_apikey/.test(workerSrc), true);
+/* 이 페이지는 주소만 알면 열린다. 자물쇠 값이 찍히면 자물쇠가 없는 것과 같다. */
+eq('진단은 자물쇠 값을 안 찍는다',
+  !/lines\.push\([^)]*lock\.value(?!\.length)/.test(workerSrc), true);
 eq('웹이 열쇠를 저장하고 실어 보낸다',
   /localStorage\.setItem\("null_apikey",k\.trim\(\)\)/.test(web)
   && (web.match(/fetch\(apiUrl\(\),/g) || []).length === 3

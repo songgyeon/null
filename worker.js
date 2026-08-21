@@ -2738,19 +2738,25 @@ const clientIp = request =>
 // 정확한 이름을 먼저 찾고, 없으면 같은 이름으로 볼 수 있는 것을 찾는다.
 // 값은 어디에도 출력하지 않는다.
 const KEY_NAME = "ANTHROPIC_API_KEY";
+const LOCK_NAME = "ACCESS_KEY";
 const norm = (s) => String(s).trim().toUpperCase().replace(/[^A-Z]/g, "");
-function resolveKey(env) {
-  if (typeof env?.[KEY_NAME] === "string" && env[KEY_NAME].trim()) {
-    return { name: KEY_NAME, value: env[KEY_NAME].trim(), exact: true };
+function resolveVar(env, want) {
+  if (typeof env?.[want] === "string" && env[want].trim()) {
+    return { name: want, value: env[want].trim(), exact: true };
   }
   for (const k of Object.keys(env || {})) {
     const v = env[k];
-    if (typeof v === "string" && v.trim() && norm(k) === norm(KEY_NAME)) {
+    if (typeof v === "string" && v.trim() && norm(k) === norm(want)) {
       return { name: k, value: v.trim(), exact: false };
     }
   }
   return null;
 }
+const resolveKey = (env) => resolveVar(env, KEY_NAME);
+/* 자물쇠도 같은 방법으로 찾는다. env.ACCESS_KEY만 보면 대시보드에서
+   access_key나 ACCESS-KEY로 적었을 때 자물쇠가 조용히 꺼진 채로 돈다 —
+   막힌 줄 알고 링크를 뿌리게 되므로 제일 나쁜 실패다. */
+const resolveLock = (env) => resolveVar(env, LOCK_NAME);
 // 바인딩이 무엇이 붙어 있는지 이름만 나열한다 (값은 절대 안 찍는다).
 function bindingNames(env) {
   return Object.keys(env || {}).map(k => {
@@ -2843,6 +2849,21 @@ export default {
       lines.push(`✓ ANTHROPIC_API_KEY 설정됨 (${key.length}자)`);
       lines.push(`  종류: ${kind}`);
       if (raw !== key) lines.push("  ★ 앞뒤에 공백/줄바꿈이 있습니다 — 붙여넣을 때 딸려온 것입니다");
+      /* 자물쇠 상태. 이게 없으면 잠갔는지 아닌지 확인할 데가 없어서,
+         브라우저에 열쇠가 저장돼 있는 것을 잠금이 안 걸린 것으로 착각하게 된다.
+         값은 절대 안 찍는다 — 이 페이지는 주소만 알면 누구나 열 수 있다. */
+      lines.push("");
+      const lock = resolveLock(env);
+      if (!lock) {
+        lines.push("🔓 자물쇠 꺼짐 — 주소를 아는 누구나 쓸 수 있습니다");
+        lines.push(`   Variables and Secrets 에 ${LOCK_NAME}를 넣으면 켜집니다.`);
+      } else {
+        lines.push(`🔒 자물쇠 켜짐 (${LOCK_NAME}, ${lock.value.length}자)`);
+        if (!lock.exact) lines.push(`   ★ 이름이 ${JSON.stringify(lock.name)}입니다 — ${LOCK_NAME}로 고치세요`);
+        lines.push("   ?k=<값> 없는 호출은 403으로 거절됩니다.");
+        lines.push("   브라우저가 첫 방문 때 열쇠를 저장하므로(null_apikey),");
+        lines.push("   한 번 들어온 기기는 맨 주소로도 계속 됩니다 — 그게 정상입니다.");
+      }
       // 키 없이 되는 호출. 여기서도 막히면 키가 아니라 경로 자체가 막힌 것이다.
       lines.push("");
       lines.push("[1] api.anthropic.com 연결 (모델 목록 조회)");
@@ -2941,7 +2962,7 @@ export default {
        그때부터 ?k=<그 값>이 없는 호출을 전부 거절한다. 안 넣으면 이 블록은
        없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다.
        값은 코드에 못 둔다. 저장소가 공개다. */
-    const LOCK = ((env && env.ACCESS_KEY) || "").toString().trim();
+    const LOCK = resolveLock(env)?.value || "";
     if (LOCK) {
       const got = (new URL(request.url).searchParams.get("k") || "").trim();
       if (got !== LOCK) {
