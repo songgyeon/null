@@ -100,12 +100,12 @@ eq('없는 키는 버리고 말만 남긴다',
 
 eq('한 응답에 사진은 최대 한 장',
   sanitizePhotos(
-    [{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-treat' }, { sender: 'jaeeon', text: 'b', photo: 'jaeeon-care' }],
+    [{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-cook' }, { sender: 'jaeeon', text: 'b', photo: 'jaeeon-conv' }],
     BOTH, 'jaeeon', []).filter(m => m.photo).length, 1);
 
 eq('최근에 보낸 사진은 다시 안 보낸다',
-  sanitizePhotos([{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-treat' }],
-    BOTH, 'jaeeon', ['jaeeon-treat']).filter(m => m.photo).length, 0);
+  sanitizePhotos([{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-cook' }],
+    BOTH, 'jaeeon', ['jaeeon-cook']).filter(m => m.photo).length, 0);
 
 // ─────────────────────────────────────────────
 section('프롬프트 캐싱 — 고정부가 매 턴 같아야 캐시가 산다');
@@ -2360,8 +2360,8 @@ eq('세계관에는 안 남겼다',
   eq('같은 사진이 두 번 안 꽂힌다', F.loadShots().length, 1);
   /* 받은 사진과 본 사진이 한 앨범에 모인다 */
   eq('받은 것과 본 것이 같이 모인다',
-    [...F.seenPhotos({ jaeeon: [{ photo: 'jaeeon-mug' }] })].sort(),
-    ['jaeeon-laundry', 'jaeeon-mug']);
+    [...F.seenPhotos({ jaeeon: [{ photo: 'jaeeon-chart' }] })].sort(),
+    ['jaeeon-chart', 'jaeeon-laundry']);
   F.stampShot('');
   eq('빈 값은 안 꽂힌다', F.loadShots().length, 1);
   /* 자리 사진이 gallery에 있어야 cam에 뜬다 — 없으면 모아도 안 보인다 */
@@ -2591,7 +2591,7 @@ eq('뭉칠 때 끝은 남긴다',
 {
   const sig = { minhyun: { count: 12, minsAgo: 8, vibe: '들뜸' } };
   const prof = { subject: '국어', likes: '커피' };
-  const v = buildVolatile('chat', 'jaeeon', 'R', sig, ['jaeeon-mug'], prof, { jaeeon: 90 }, null, null, ['옥상'], 12);
+  const v = buildVolatile('chat', 'jaeeon', 'R', sig, ['jaeeon-chart'], prof, { jaeeon: 90 }, null, null, ['옥상'], 12);
   eq('가변부에 설명이 안 남아 있다',
     ['이 숫자를 보고 스스로 가늠한다', '목록을 읊지 말고', '눈치챈 것처럼만',
      '대부분의 턴에는 안 꺼낸다'].filter(t => v.includes(t)), []);
@@ -2600,7 +2600,7 @@ eq('뭉칠 때 끝은 남긴다',
      '대부분의 턴에는 안 꺼낸다'].filter(t =>
       !buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text).join('').includes(t)), []);
   eq('값은 가변부에 남아 있다',
-    ['옥상', '커피', '들뜸', 'jaeeon-mug'].filter(t => !v.includes(t)), []);
+    ['옥상', '커피', '들뜸', 'jaeeon-chart'].filter(t => !v.includes(t)), []);
   eq('가변부가 400자 밑이다 — 전에는 897자였다', v.length < 400, true);
 }
 /* 갈 자리가 애초에 안 열리는 방에 조건 설명만 실리면 그것도 낭비다 */
@@ -3823,16 +3823,17 @@ eq('시간표 단추는 peek보다 좁다',
     const t = wk.slice(wk.indexOf('const PHOTOS = {'));
     const body = t.slice(0, t.indexOf('\n};'));
     return [...body.matchAll(/"([\w-]+)":\s*\{\s*char:\s*"\w+", self: true,/g)].map(m => m[1]).sort();
-  })(), ['jaeeon-care', 'jaeeon-cook', 'jaeeon-market', 'jaeeon-treat',
+  })(), ['jaeeon-conv', 'jaeeon-cook', 'jaeeon-record',
          'minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
-  /* 재언은 자기 모습을 안 보낸다. 눈앞의 것만 찍는다 — 걱정을 말로 안 하는
-     사람이라 그게 이 사람의 문장이다. 민현은 셀카를 찍는다. 스무 살이라서 */
+  /* 재언이 보내는 건 일 밖에서 찍힌 자리뿐이다 — 걱정을 말로 안 하는 사람이라
+     그게 이 사람의 문장이다. 보건실 사진은 안 보낸다. 거기서는 일하는 중이고,
+     일하는 자기를 찍어 보내는 사람이 아니다. 민현은 셀카를 찍는다. 스무 살이라서 */
   eq('재언이 보내는 건 자기 모습이 아니다', (() => {
     const t = wk.slice(wk.indexOf('const PHOTOS = {'));
     const body = t.slice(0, t.indexOf('\n};'));
     return [...body.matchAll(/"jaeeon-([\w]+)":\s*\{\s*char:\s*"jaeeon", self: true,/g)]
       .map(m => m[1]).sort();
-  })(), ['care', 'cook', 'market', 'treat']);
+  })(), ['conv', 'cook', 'record']);
 }
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
