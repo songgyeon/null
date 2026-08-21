@@ -30,7 +30,7 @@ const AV_V = "?v=4";
 /* 캐릭터 / 방 정의 */
 const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["jaeeon-treat.webp","jaeeon-care.webp","jaeeon-cook.webp","jaeeon-work.webp","jaeeon-evening.webp","jaeeon-market.webp","jaeeon-laundry.webp","jaeeon-car.webp","jaeeon-classroom.webp","jaeeon-rooftop.webp","jaeeon-curtain.webp","jaeeon-shelf.webp","jaeeon-bandage.webp","jaeeon-cabinet.webp","jaeeon-bottle.webp","jaeeon-chart.webp","jaeeon-door.webp","jaeeon-mug.webp","jaeeon-back.webp","jaeeon-driveseat.webp","jaeeon-corridor.webp","jaeeon-sink.webp"]},
+    gallery:["jaeeon-work.webp","jaeeon-chart.webp","jaeeon-cook.webp","jaeeon-rooftop.webp","jaeeon-shelf.webp","jaeeon-laundry.webp","jaeeon-driveseat.webp","jaeeon-conv.webp","jaeeon-record.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp"]},
 };
@@ -812,19 +812,19 @@ const placeHours=(p,now)=>{
    낮/저녁이 갈리는 건 교실뿐이다. desk는 짝이 찍어준 것(수업 중이라 제 손이
    묶여 있다)이고 nap은 자기가 찍은 것(빈 교실이라 찍을 수 있다)이다. */
 const SCENE_SHOT={
-  "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]},
-               jaeeon:["jaeeon-classroom"]},
-  "보건실":   {jaeeon:["jaeeon-work","jaeeon-sink","jaeeon-cabinet","jaeeon-bottle","jaeeon-chart","jaeeon-mug"],
+  /* 교실은 민현 자리다 — PLACES의 who가 민현뿐이라 재언은 여기 오지 않는다 */
+  "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]}},
+  "보건실":   {jaeeon:["jaeeon-work","jaeeon-chart"],
                minhyun:["minhyun-candy"]},
   "옥상":     {jaeeon:["jaeeon-rooftop"], minhyun:["minhyun-vending"]},
-  "편의점":   {minhyun:["minhyun-conv","minhyun-ramen"]},
+  "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-conv","minhyun-ramen"]},
   "도서관":   {jaeeon:["jaeeon-shelf"]},
-  "레코드샵": {minhyun:["minhyun-mirror"]},
+  "레코드샵": {jaeeon:["jaeeon-record"], minhyun:["minhyun-mirror"]},
   /* 밤에 처음 켜면 여기서 재언을 만난다. 사진도 밤 코인세탁소다 —
      건조기 앞에 앉아 수건을 개고 있고 창밖에 비가 온다 */
   "빨래방":   {minhyun:["minhyun-laundry"], jaeeon:["jaeeon-laundry"]},
   "체육관":   {minhyun:["minhyun-gym"]},
-  "집":       {jaeeon:["jaeeon-cook","jaeeon-evening","jaeeon-curtain","jaeeon-back"]},
+  "집":       {jaeeon:["jaeeon-cook"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
      빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
   "귀갓길":   {jaeeon:["jaeeon-driveseat"], minhyun:["minhyun-busstop","minhyun-neon"]},
