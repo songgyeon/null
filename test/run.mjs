@@ -195,8 +195,8 @@ const hit = (o, env = { ACCESS_KEY: 'T' }) => worker.fetch(req(o), env);
 /* ── 잠겨 있는 것이 기본값 ──
    전에는 ACCESS_KEY가 없으면 자물쇠가 통째로 꺼졌다. 이름을 잘못 적거나
    배포를 빠뜨리면 잠갔다고 믿는 동안 주소만 아는 누구나 토큰을 태웠다. */
-eq('비밀값이 없으면 예전처럼 그냥 돈다',
-  (await worker.fetch(req({ ip: '2.0.0.9' }), {})).status !== 403, true);
+eq('비밀값이 없으면 열쇠를 들고 와도 403',
+  (await worker.fetch(req({ ip: '2.0.0.9' }), {})).status, 403);
 eq('열쇠가 없으면 403',
   (await worker.fetch(req({ url: 'https://x.dev/', ip: '2.0.0.8' }), { ACCESS_KEY: 'T' })).status, 403);
 eq('열쇠가 틀리면 403',
@@ -2840,10 +2840,10 @@ eq('상한과 effort를 같이 안 보낸다',
    안 넣으면 이 블록은 없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다. */
 /* 실패하는 쪽이 열림이면, 이름을 잘못 적거나 배포를 빠뜨렸을 때 잠갔다고
    믿는 동안 주소만 아는 누구나 토큰을 태운다. 실제로 그렇게 됐다. */
-eq('비밀값이 있을 때만 잠긴다',
-  /const LOCK = resolveLock\(env\)\?\.value \|\| "";\s*\n\s*if \(LOCK\) \{/.test(workerSrc), true);
+eq('열쇠 없는 호출은 무조건 거절한다',
+  /if \(!LOCK \|\| got !== LOCK\) \{/.test(workerSrc), true);
 eq('열쇠가 틀리면 거절한다',
-  /if \(got !== LOCK\) \{[\s\S]{0,200}?status: 403/.test(workerSrc), true);
+  /if \(!LOCK \|\| got !== LOCK\) \{[\s\S]{0,300}?status: 403/.test(workerSrc), true);
 /* 실패를 각본으로 메우면 잠긴 것도 키가 죽은 것도 한도가 바닥난 것도
    화면에서는 「잘 되는 중」으로 보인다. 그것 때문에 한참 헤맸다. */
 eq('실패를 각본으로 안 메운다',
@@ -2857,7 +2857,7 @@ eq('자물쇠 이름도 느슨하게 찾는다',
 /* 진단 페이지가 자물쇠를 안 보면 켰는지 확인할 데가 없다. 브라우저에 열쇠가
    저장돼 있는 것을(설계대로다) 잠금이 안 걸린 것으로 착각하게 된다. */
 eq('진단이 자물쇠 상태를 알려준다',
-  /🔒 자물쇠 켜짐/.test(workerSrc) && /🔓 자물쇠 꺼짐/.test(workerSrc)
+  /🔒 자물쇠 켜짐/.test(workerSrc) && /자물쇠 꺼짐/.test(workerSrc)
   && /null_apikey/.test(workerSrc), true);
 /* 이 페이지는 주소만 알면 열린다. 자물쇠 값이 찍히면 자물쇠가 없는 것과 같다. */
 eq('진단은 자물쇠 값을 안 찍는다',
