@@ -2962,17 +2962,17 @@ export default {
        그때부터 ?k=<그 값>이 없는 호출을 전부 거절한다. 안 넣으면 이 블록은
        없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다.
        값은 코드에 못 둔다. 저장소가 공개다. */
-    /* 비밀값이 있을 때만 잠근다. 없으면 예전처럼 그냥 돈다 —
-       설정을 빠뜨렸다고 앱까지 죽이면 그건 잠금이 아니라 고장이다.
-       대신 이름은 느슨하게 찾는다. 대시보드에 access_key로 적었을 때
-       자물쇠가 조용히 꺼진 채 도는 것이 이 구조에서 제일 나쁜 실패다. */
+    /* 잠겨 있는 것이 기본값이다.
+       비밀값이 없으면 자물쇠를 통째로 건너뛰던 때가 있었다. 그래서 이름을
+       잘못 적거나 배포를 빠뜨리면 「잠갔다」고 믿는 동안 주소만 아는 누구나
+       토큰을 태울 수 있었다. 열쇠 없는 호출은 무조건 거절한다. */
     const LOCK = resolveLock(env)?.value || "";
-    if (LOCK) {
-      const got = (new URL(request.url).searchParams.get("k") || "").trim();
-      if (got !== LOCK) {
-        return new Response(JSON.stringify({ error: "잠겨 있습니다", detail: "access key mismatch" }),
-          { status: 403, headers: { ...CORS, "content-type": "application/json" } });
-      }
+    const got = (new URL(request.url).searchParams.get("k") || "").trim();
+    if (!LOCK || got !== LOCK) {
+      return new Response(JSON.stringify({
+        error: "잠겨 있습니다",
+        detail: LOCK ? "access key mismatch" : `${LOCK_NAME} 미설정`,
+      }), { status: 403, headers: { ...CORS, "content-type": "application/json" } });
     }
 
     if (!resolveKey(env))
