@@ -98,9 +98,15 @@ function App(){
   /* 요약이 이미 삼킨 구간은 안 보낸다 — 같은 얘기를 원문과 요약으로 두 번
      보내면 값은 두 배인데 아는 건 그대로다 */
   const sinceSum=(room,ms)=>{const u=loadSum(room).upto||0;return ms.filter(m=>m.ts>u)};
+  /* 시스템 줄(「…를 받았다」「…에서 나왔다」)은 유저가 친 말이 아니라 일어난
+     일이다. 그대로 보내면 모델이 유저의 발화로 읽어서, 제가 준 물건을 두고
+     「그게 왜 선생님한테 있어요」라고 되묻는 일이 생긴다. 괄호로 감싸 지문으로
+     보낸다 — 화면에서 이미 지문으로 그리고 있고(isNarr), 선톡 지시문도 같은
+     꼴이라 모델이 아는 표기다. */
   const buildHistory=ms=>{
     const all=ms.map(m=>({role:m.sender==="user"?"user":"assistant",sender:m.sender,
-      content:m.photo?((m.text?m.text+" ":"")+"(사진을 보냈다)"):m.text}))
+      content:m.photo?((m.text?m.text+" ":"")+"(사진을 보냈다)")
+             :(m.sys?"("+(m.text||"").trim()+")":m.text)}))
       .filter(m=>m.content&&m.content.trim());
     const out=[];let used=0;
     for(let i=all.length-1;i>=0;i--){

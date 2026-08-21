@@ -75,7 +75,11 @@ export function buildHistory(msgs: Msg[]) {
   const all = msgs.map(m => ({
     role: (m.sender === 'user' || m.sender === 'sys') ? 'user' : 'assistant',
     sender: m.sender,
-    content: m.photo ? `${m.text ? m.text + ' ' : ''}(사진을 보냈다)` : (m.text || ''),
+    /* 시스템 줄은 유저가 친 말이 아니라 일어난 일이다. 그대로 보내면 모델이
+       유저의 발화로 읽어서, 제가 준 물건을 두고 「그게 왜 선생님한테 있어요」
+       라고 되묻는다. 괄호로 감싸 지문으로 보낸다 — 웹 app.js와 같아야 한다. */
+    content: m.photo ? `${m.text ? m.text + ' ' : ''}(사진을 보냈다)`
+           : (m.sender === 'sys' ? `(${(m.text || '').trim()})` : (m.text || '')),
   })).filter(m => m.content && m.content.trim());
   const out: typeof all = [];
   let used = 0;
