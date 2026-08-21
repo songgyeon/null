@@ -100,12 +100,17 @@ eq('없는 키는 버리고 말만 남긴다',
 
 eq('한 응답에 사진은 최대 한 장',
   sanitizePhotos(
-    [{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-cook' }, { sender: 'jaeeon', text: 'b', photo: 'jaeeon-conv' }],
-    BOTH, 'jaeeon', []).filter(m => m.photo).length, 1);
+    [{ sender: 'minhyun', text: 'a', photo: 'minhyun-nap' }, { sender: 'minhyun', text: 'b', photo: 'minhyun-mirror' }],
+    BOTH, 'minhyun', []).filter(m => m.photo).length, 1);
 
 eq('최근에 보낸 사진은 다시 안 보낸다',
+  sanitizePhotos([{ sender: 'minhyun', text: 'a', photo: 'minhyun-nap' }],
+    BOTH, 'minhyun', ['minhyun-nap']).filter(m => m.photo).length, 0);
+
+/* 재언 사진은 전부 남이 찍은 그림이라 self가 없다. 모델이 키를 흘려도 안 나간다 */
+eq('재언 사진은 키를 써도 안 나간다',
   sanitizePhotos([{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-cook' }],
-    BOTH, 'jaeeon', ['jaeeon-cook']).filter(m => m.photo).length, 0);
+    BOTH, 'jaeeon', []).filter(m => m.photo).length, 0);
 
 // ─────────────────────────────────────────────
 section('프롬프트 캐싱 — 고정부가 매 턴 같아야 캐시가 산다');
@@ -3823,17 +3828,15 @@ eq('시간표 단추는 peek보다 좁다',
     const t = wk.slice(wk.indexOf('const PHOTOS = {'));
     const body = t.slice(0, t.indexOf('\n};'));
     return [...body.matchAll(/"([\w-]+)":\s*\{\s*char:\s*"\w+", self: true,/g)].map(m => m[1]).sort();
-  })(), ['jaeeon-conv', 'jaeeon-cook', 'jaeeon-record',
-         'minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
-  /* 재언이 보내는 건 일 밖에서 찍힌 자리뿐이다 — 걱정을 말로 안 하는 사람이라
-     그게 이 사람의 문장이다. 보건실 사진은 안 보낸다. 거기서는 일하는 중이고,
-     일하는 자기를 찍어 보내는 사람이 아니다. 민현은 셀카를 찍는다. 스무 살이라서 */
+  })(), ['minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
+  /* 재언은 사진을 한 장도 안 보낸다. 있는 그림이 전부 본인이 프레임 안에 있고
+     그건 남이 찍어줘야 나온다. 이 사람 몫은 배경이 한다. 민현은 셀카를 찍는다 */
   eq('재언이 보내는 건 자기 모습이 아니다', (() => {
     const t = wk.slice(wk.indexOf('const PHOTOS = {'));
     const body = t.slice(0, t.indexOf('\n};'));
     return [...body.matchAll(/"jaeeon-([\w]+)":\s*\{\s*char:\s*"jaeeon", self: true,/g)]
       .map(m => m[1]).sort();
-  })(), ['conv', 'cook', 'record']);
+  })(), []);
 }
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);

@@ -1187,13 +1187,13 @@ We Are Lady Parts, Heartstopper, SKAM, Derry Girls, Reservation Dogs, My Mad Fat
 /* self — 자기가 찍어서 보낼 수 있는 사진. 이것만 채팅으로 나간다.
    나머지는 전부 남이 몇 미터 떨어져서 찍은 그림이라 본인이 보낼 수가 없다 —
    그건 자리(scene)에 깔리는 배경이 하는 일이다.
-   재언이 보낼 수 있는 것은 일 밖에서 찍힌 자리뿐이다 — 물을 따라 놓은 부엌,
-   밤 편의점 음료 칸, 판을 꺼내 보는 레코드샵. 걱정을 말로 안 하는 사람이라
-   그게 이 사람의 문장이다. 보건실 사진은 안 보낸다. 거기서는 일하는 중이고,
-   일하는 자기를 찍어 보내는 사람이 아니다. 민현은 셀카를 찍는다. 스무 살이라서. */
+   재언은 한 장도 안 보낸다. 지금 있는 그림은 전부 본인이 프레임 안에 있고,
+   그건 남이 찍어줘야 나오는 그림이다. 걱정을 말로 안 하는 사람이 자기 얼굴을
+   찍어 보내지도 않는다 — 이 사람 몫은 자리에 깔리는 배경이 한다.
+   민현은 셀카를 찍는다. 스무 살이라서. */
 const PHOTOS = {
   "jaeeon-cook": {
-    char: "jaeeon", self: true,
+    char: "jaeeon",
     when: "집에서 컵에 물을 따라 놓는 참. 밥/저녁 얘기가 나왔을 때. 설명은 안 붙인다.",
   },
   "jaeeon-driveseat": {
@@ -1201,11 +1201,11 @@ const PHOTOS = {
     when: "퇴근길 운전석. 창밖이 밤이다. 아직 집에 안 들어갔다는 말 대신 보낸다.",
   },
   "jaeeon-conv": {
-    char: "jaeeon", self: true,
+    char: "jaeeon",
     when: "밤 편의점 음료 칸 앞. 편의점/음료 얘기가 나왔을 때. 학교 뒷문에서 가까운 그 집이다.",
   },
   "jaeeon-record": {
-    char: "jaeeon", self: true,
+    char: "jaeeon",
     when: "레코드샵에서 판을 꺼내 보는 참. 노래/음악 얘기가 나왔을 때.",
   },
   "jaeeon-work": {
@@ -2132,7 +2132,9 @@ function sanitizePhotos(list, chars, fallbackSender, recent) {
   for (const m of list) {
     const sender = m.sender || fallbackSender;
     const p = m.photo ? PHOTOS[m.photo] : null;
-    const ok = p && !used && chars.includes(p.char) && p.char === sender && !recent.includes(m.photo);
+    /* self가 아닌 사진은 본인이 찍을 수 없는 그림이다. 프롬프트로만 막으면
+       모델이 흘릴 때 그대로 나간다. 여기서 한 번 더 막는다. */
+    const ok = p && !used && p.self && chars.includes(p.char) && p.char === sender && !recent.includes(m.photo);
     if (ok) used = true;
     const msg = { sender, text: (m.text || "").toString() };
     if (ok) msg.photo = m.photo;
