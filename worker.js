@@ -149,10 +149,14 @@ NULL — 공통 세계관 프롬프트
 - 말줄임표를 **문장 앞에** 붙이지 않는다. 말끝이 흐려지는 것이지, 말머리가 흐려지는 게 아니다.
   한 응답의 모든 말풍선이 "..."으로 시작하면 그건 머뭇거림이 아니라 고장 난 말투다.
   (x) "...누구요." / "...삼촌이요?" / "...진짜예요?"   (o) "누구요." / "삼촌이요?" / "진짜예요?"
-- **말꼬리를 잡지 않는다.** 유저가 무슨 뜻으로 한 말인지가 먼저다. 단어 하나, 말실수, 오타를 붙들고 되묻거나 그것을 화제로 만들지 않는다. 유저가 방금 한 말을 그대로 되돌려 되묻는 것은 대화가 아니라 몰아세우는 것이다.
+- **유저의 말을 그대로 되돌려 담지 않는다.** 유저가 쓴 말을 옮겨 적고 조사나 어미만 갈아 끼운 말풍선은 대답이 아니라 메아리다. 들은 것은 이미 들은 것으로 두고 그 다음 말을 한다. 되물어야 하면 유저가 쓰지 않은 말로 묻는다.
+  (x) 유저: 흥 → "흥이래요."   (x) 유저: 각종 댄스 가능 → "각종이요? 어떤 거요."   (x) 유저: 학교에 비리로 수영장 만들어줘 → "비리로 수영장을요."
+  (o) 유저: 흥 → "삐치기까지 하네."
+  감탄사나 한 마디("흥", "됐어", "몰라")를 그대로 인용하는 것이 제일 나쁘다. 받는 사람에게는 놀리는 말로 읽힌다.
+- **말꼬리를 잡지 않는다.** 유저가 무슨 뜻으로 한 말인지가 먼저다. 단어 하나, 말실수, 오타를 붙들고 되묻거나 그것을 화제로 만들지 않는다.
   (x) "괜찮다면서요. 아까는 괜찮다고 했잖아요."   (o) "안 괜찮아 보이는데요."
 - **우기지 않는다.** 유저가 아니라고 하면 그걸로 끝이다. 같은 말을 한 번 더 밀거나, 유저가 부정한 것을 사실인 양 이어 말하지 않는다. 대화 기록에 없는 일을 있었다고 하지 않는다 — 유저가 한 적 없는 말이나 하지 않은 행동을 근거로 삼는 것이 제일 크게 어긋난다.
-- 이 둘은 순해지라는 말이 아니다. 서늘한 것과 따지는 것은 다르고, 끈질긴 것과 우기는 것은 다르다. 물러서면서도 할 말은 남길 수 있다.
+- 이것들은 순해지라는 말이 아니다. 서늘한 것과 따지는 것은 다르고, 끈질긴 것과 우기는 것은 다르다. 물러서면서도 할 말은 남길 수 있다.
 
 세계
 
@@ -326,9 +330,13 @@ const JAEEON = `
 
 표정의 기본값은 무표정이 아니라 피곤함이다. 눈매가 서늘하지만 학생의 상처를 볼 때만 초점이 달라진다. 본인은 그 변화를 모른다.
 
+낯빛이 희고 핏기가 없다. 그런데 피부는 깨끗하다 — 아파 보이는 것이 아니라 차가워 보인다. 정돈이 갑옷인 사람의 낯빛이다.
+
+얇은 은테 안경을 쓴다. 벗는 일이 거의 없다. 피곤할 때 콧등을 누르는 버릇이 있는데 그때만 잠깐 벗는다.
+
 무채색 셔츠와 니트를 입는다. 옷의 다림질이 완벽하다. 정돈은 이재언의 갑옷이다.
 
-손이 크고 움직임에 군더더기가 없다. 소독하고, 연고를 바르고, 붕대를 감는 데 익숙한 10년 차 보건교사의 손이다. 치료할 때는 평소보다 더 말이 없어진다.
+손이 크고 움직임에 군더더기가 없다. 소독하고, 연고를 바르고, 붕대를 감는 데 익숙한 5년 차 보건교사의 손이다. 치료할 때는 평소보다 더 말이 없어진다.
 
 사람의 작동 방식
 
@@ -1311,7 +1319,15 @@ const PHOTOS = {
   },
   "minhyun-vending": {
     char: "minhyun",
-    when: "옥상 자판기 옆. 헤드폰은 목에 걸려 있다. 야자 째고 뭐 하냐는 물음에.",
+    when: "해질 무렵 옥상 난간에 기대 앉아 있는 참. 헤드폰은 목에 걸려 있다 — 듣고 있지 않다는 뜻이다. 야자 째고 뭐 하냐는 물음에.",
+  },
+  "minhyun-crate": {
+    char: "minhyun",
+    when: "교복 차림으로 레코드샵 중고반 상자를 넘겨 보는 중. 헤드폰은 목에. 학교 끝나고 바로 온 것이다. 뭐 하냐, 어디냐는 물음에.",
+  },
+  "minhyun-record": {
+    char: "minhyun",
+    when: "밤 레코드샵. 사복에 가방을 멘 채 판 한 장을 꺼내 들여다보는 중. 교복이 아닌 몇 안 되는 사진이다 — 학교와 상관없이 제 발로 온 자리다. 음악·주말·좋아하는 것 얘기에.",
   },
   "minhyun-laundry": {
     char: "minhyun",
@@ -1339,7 +1355,7 @@ const PHOTOS = {
   },
   "minhyun-mirror": {
     char: "minhyun", self: true,
-    when: "셀카다. 어디 왔다고 알릴 때, 그리고 떠볼 때 보낸다 — \"저 지금 여기 왔어요, 선생님은 어디예요?\" \"밥 먹었어요?\" \"영화 좋아해요?\" \"이런 음악 좋아해요?\" 장소를 보고하는 게 아니라 대답을 받아내려고 보내는 것이다. 얼굴은 폰으로 반쯤 가린다.",
+    when: "셀카다. 어디 왔다고 알릴 때, 그리고 떠볼 때 보낸다 — \"저 지금 여기 왔어요, 선생님은 어디예요?\" \"밥 먹었어요?\" \"영화 좋아해요?\" \"이런 음악 좋아해요?\" 장소를 보고하는 게 아니라 대답을 받아내려고 보내는 것이다. 얼굴은 폰으로 반쯤 가린다. 찍은 데는 레코드샵 벽거울이다 — 다른 자리에 있을 때는 안 보낸다.",
   },
   "minhyun-morning": {
     char: "minhyun", self: true,
@@ -2446,6 +2462,43 @@ function trimTics(list) {
   return out;
 }
 
+/* ── 메아리 ──
+   유저: 「흥」 → 민현: 「흥이래요.」
+   유저가 방금 쓴 말을 그대로 옮기고 인용 어미만 붙인 말풍선이다. 대답이 아니라
+   되돌려주기고, 한 마디짜리 감탄사일수록 놀리는 말로 읽힌다. 세계관에 적어놨는데
+   또 나왔다 — 프롬프트로 눌러도 새는 것은 여기서 글자로 거른다.
+
+   확실한 한 가지만 본다: 유저의 말 **전체**에 인용 종결(-(이)래요)만 얹은 줄.
+   「비리로 수영장을요」처럼 부분만 따온 것은 안 건드린다 — 어디까지가 인용인지
+   글자로는 못 가르고, 짐작해서 지우면 멀쩡한 말을 먹는다. 그쪽은 프롬프트 몫이다.
+   지울 것이 유일한 말풍선이면 그냥 둔다. 침묵이 메아리보다 나쁘다. */
+const QUOTE_BACK = /^(.+?)\s*(?:이)?(?:래요|래|라뇨|라니요|라니|랍니다|랍니까)$/;
+// 앞뒤 따옴표·구두점을 벗긴 알맹이. 유저의 말과 맞대보려면 같은 모양이어야 한다
+const bareSaid = t => (t || "").toString()
+  .replace(/^[\s"'“”‘’「」]+/, "").replace(/[\s"'“”‘’「」.?!…~]+$/, "").trim();
+
+function dropEcho(list, said) {
+  const heard = bareSaid(said);
+  if (!heard) return list;
+  const out = list.filter(m => {
+    if (m.photo || !m.text) return true;
+    const hit = QUOTE_BACK.exec(bareSaid(m.text));
+    return !(hit && hit[1] === heard);
+  });
+  return out.length ? out : list;
+}
+
+/* 유저가 방금 한 말. 단톡·관전방에서는 앞에 [이름]이 붙고, 연달아 보낸 말은
+   줄바꿈으로 합쳐져 있다 — 맨 끝 줄이 방금 한 말이다.
+   관전(auto)에는 유저 차례가 없다. 붙여둔 지시문을 유저의 말로 착각하지 않게
+   빈 문자열을 준다. */
+function lastSaid(msgs, mode) {
+  const last = mode === "auto" ? null : msgs[msgs.length - 1];
+  if (!last || last.role !== "user") return "";
+  const line = last.content.toString().split("\n").filter(s => s.trim()).pop() || "";
+  return line.replace(/^\[[^\]\n]{1,20}\]\s*/, "").trim();
+}
+
 /* ── 사고가 대사로 새는 것 ──
    화면에 이 두 줄이 이민현의 말풍선으로 떴다:
      「이미 편의점 가고 있다는 상황과 유저가 "나도 가고 싶어"라고 한 것 사이
@@ -2685,19 +2738,25 @@ const clientIp = request =>
 // 정확한 이름을 먼저 찾고, 없으면 같은 이름으로 볼 수 있는 것을 찾는다.
 // 값은 어디에도 출력하지 않는다.
 const KEY_NAME = "ANTHROPIC_API_KEY";
+const LOCK_NAME = "ACCESS_KEY";
 const norm = (s) => String(s).trim().toUpperCase().replace(/[^A-Z]/g, "");
-function resolveKey(env) {
-  if (typeof env?.[KEY_NAME] === "string" && env[KEY_NAME].trim()) {
-    return { name: KEY_NAME, value: env[KEY_NAME].trim(), exact: true };
+function resolveVar(env, want) {
+  if (typeof env?.[want] === "string" && env[want].trim()) {
+    return { name: want, value: env[want].trim(), exact: true };
   }
   for (const k of Object.keys(env || {})) {
     const v = env[k];
-    if (typeof v === "string" && v.trim() && norm(k) === norm(KEY_NAME)) {
+    if (typeof v === "string" && v.trim() && norm(k) === norm(want)) {
       return { name: k, value: v.trim(), exact: false };
     }
   }
   return null;
 }
+const resolveKey = (env) => resolveVar(env, KEY_NAME);
+/* 자물쇠도 같은 방법으로 찾는다. env.ACCESS_KEY만 보면 대시보드에서
+   access_key나 ACCESS-KEY로 적었을 때 자물쇠가 조용히 꺼진 채로 돈다 —
+   막힌 줄 알고 링크를 뿌리게 되므로 제일 나쁜 실패다. */
+const resolveLock = (env) => resolveVar(env, LOCK_NAME);
 // 바인딩이 무엇이 붙어 있는지 이름만 나열한다 (값은 절대 안 찍는다).
 function bindingNames(env) {
   return Object.keys(env || {}).map(k => {
@@ -2790,6 +2849,21 @@ export default {
       lines.push(`✓ ANTHROPIC_API_KEY 설정됨 (${key.length}자)`);
       lines.push(`  종류: ${kind}`);
       if (raw !== key) lines.push("  ★ 앞뒤에 공백/줄바꿈이 있습니다 — 붙여넣을 때 딸려온 것입니다");
+      /* 자물쇠 상태. 이게 없으면 잠갔는지 아닌지 확인할 데가 없어서,
+         브라우저에 열쇠가 저장돼 있는 것을 잠금이 안 걸린 것으로 착각하게 된다.
+         값은 절대 안 찍는다 — 이 페이지는 주소만 알면 누구나 열 수 있다. */
+      lines.push("");
+      const lock = resolveLock(env);
+      if (!lock) {
+        lines.push("🔓 자물쇠 꺼짐 — 주소를 아는 누구나 쓸 수 있습니다");
+        lines.push(`   Variables and Secrets 에 ${LOCK_NAME}를 넣고 배포하면 켜집니다.`);
+      } else {
+        lines.push(`🔒 자물쇠 켜짐 (${LOCK_NAME}, ${lock.value.length}자)`);
+        if (!lock.exact) lines.push(`   ★ 이름이 ${JSON.stringify(lock.name)}입니다 — ${LOCK_NAME}로 고치세요`);
+        lines.push("   ?k=<값> 없는 호출은 403으로 거절됩니다.");
+        lines.push("   브라우저가 첫 방문 때 열쇠를 저장하므로(null_apikey),");
+        lines.push("   한 번 들어온 기기는 맨 주소로도 계속 됩니다 — 그게 정상입니다.");
+      }
       // 키 없이 되는 호출. 여기서도 막히면 키가 아니라 경로 자체가 막힌 것이다.
       lines.push("");
       lines.push("[1] api.anthropic.com 연결 (모델 목록 조회)");
@@ -2888,7 +2962,11 @@ export default {
        그때부터 ?k=<그 값>이 없는 호출을 전부 거절한다. 안 넣으면 이 블록은
        없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다.
        값은 코드에 못 둔다. 저장소가 공개다. */
-    const LOCK = ((env && env.ACCESS_KEY) || "").toString().trim();
+    /* 비밀값이 있을 때만 잠근다. 없으면 예전처럼 그냥 돈다 —
+       설정을 빠뜨렸다고 앱까지 죽이면 그건 잠금이 아니라 고장이다.
+       대신 이름은 느슨하게 찾는다. 대시보드에 access_key로 적었을 때
+       자물쇠가 조용히 꺼진 채 도는 것이 이 구조에서 제일 나쁜 실패다. */
+    const LOCK = resolveLock(env)?.value || "";
     if (LOCK) {
       const got = (new URL(request.url).searchParams.get("k") || "").trim();
       if (got !== LOCK) {
@@ -3086,8 +3164,12 @@ export default {
       const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
       const give = pickGive(parseMessages.give, place, hasItem);
+      /* 메아리 거르기는 말버릇 필터 뒤다 — trimTics가 앞의 말줄임표를 떼고 나야
+         「...흥이래요.」도 같은 줄로 보인다 */
       const messages = dropSleepers(
-        trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
+        dropEcho(
+          trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
+          lastSaid(msgs, mode)),
         place ? null : states);
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
@@ -3103,5 +3185,5 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
-export { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
+export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace };

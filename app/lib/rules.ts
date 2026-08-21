@@ -32,7 +32,7 @@ const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["jaeeon-treat.webp","jaeeon-care.webp","jaeeon-cook.webp","jaeeon-work.webp","jaeeon-evening.webp","jaeeon-market.webp","jaeeon-laundry.webp","jaeeon-car.webp","jaeeon-classroom.webp","jaeeon-rooftop.webp","jaeeon-curtain.webp","jaeeon-shelf.webp","jaeeon-bandage.webp","jaeeon-cabinet.webp","jaeeon-bottle.webp","jaeeon-chart.webp","jaeeon-door.webp","jaeeon-mug.webp","jaeeon-back.webp","jaeeon-driveseat.webp","jaeeon-corridor.webp","jaeeon-sink.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp"]},
+    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp"]},
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;
@@ -297,7 +297,10 @@ const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"
    대사와 매칭은 demo-lines.js에 있다. 그 파일은 docs/dialogue-corpus.md에서
    만들어진다 — 대사를 고칠 때는 문구집을 고치고 node tools/build-demo.mjs를 돌린다.
    앱도 같은 파일을 쓴다(app/lib/demoLines.ts). 한쪽만 고쳐질 일이 없다. */
-const DEMO={on:new URLSearchParams(location.search).has("demo"),auto:false};
+/* 데모는 ?demo=1로 고른 것만이다. 실패해서 자동으로 넘어가는 길(auto)은 없앴다 —
+   실패를 각본으로 메우면 잠긴 것도 키가 죽은 것도 한도가 바닥난 것도
+   전부 「잘 되는 중」으로 보인다. */
+const DEMO={on:new URLSearchParams(location.search).has("demo")};
 /* ── 지금은 깨어 있는 걸로 친다 ──
    자는 시간에 붙잡고 고쳐볼 일이 있다. ?awake면 둘 다, ?awake=jaeeon이면
    그 사람만 자는 시간을 건너뛴다. 주소에 붙였을 때만 돌아서 평소에는 없다.
@@ -309,7 +312,7 @@ const AWAKE=(()=>{
   return w?w.split(",").map(x=>x.trim()).filter(Boolean):"all";
 })();
 const forcedAwake=id=>AWAKE==="all"||(Array.isArray(AWAKE)&&AWAKE.includes(id));
-const demoOn=()=>DEMO.on||DEMO.auto;
+const demoOn=()=>DEMO.on;
 /* 가까워졌는지. 셀카를 줄지 말지가 여기서 갈린다 — 처음부터 주면
    그건 셀카가 아니라 프로필 사진이다. 균열 단계(40마디)를 기준으로 삼는다. */
 /* 대화가 얼마나 쌓였는지는 App 안에만 있다. 여기서 바로 못 읽으므로 받아서 쓴다 —
@@ -819,7 +822,7 @@ const SCENE_SHOT={
   "옥상":     {jaeeon:["jaeeon-rooftop"], minhyun:["minhyun-vending"]},
   "편의점":   {minhyun:["minhyun-conv","minhyun-ramen"]},
   "도서관":   {jaeeon:["jaeeon-shelf"]},
-  "레코드샵": {minhyun:["minhyun-mirror"]},
+  "레코드샵": {minhyun:["minhyun-crate","minhyun-record","minhyun-mirror"]},
   /* 밤에 처음 켜면 여기서 재언을 만난다. 사진도 밤 코인세탁소다 —
      건조기 앞에 앉아 수건을 개고 있고 창밖에 비가 온다 */
   "빨래방":   {minhyun:["minhyun-laundry"], jaeeon:["jaeeon-laundry"]},

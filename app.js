@@ -506,10 +506,8 @@ function App(){
     inflightRef.current[bucket]=true;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
-    /* ?demo=1로 켠 데모만 네트워크를 아예 안 탄다. 실패해서 넘어간 데모
-       (DEMO.auto)는 여기서 안 본다 — 매 전송이 진짜를 다시 시도하고,
-       성공하면 표시가 꺼진다. 전에는 auto도 여기서 걸러서, 429 한 번에
-       그 뒤의 모든 대화가 세션 내내 조용히 각본이 됐다. */
+    /* 데모는 ?demo=1로 고른 것만 남았다. 실패해서 넘어가는 길은 없앴다 —
+       실패를 각본으로 메우면 화면에서 장애가 안 보인다. */
     if(DEMO.on){
       inflightRef.current[bucket]=false;
       setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
@@ -525,7 +523,6 @@ function App(){
         throw err;
       }
       inflightRef.current[bucket]=false;
-      DEMO.auto=false;   // 진짜가 살아 있다 — 실패로 넘어갔던 데모 표시를 끈다
       /* 선톡 답이 오는 사이 유저가 그 사람 자리에 들어갔을 수 있다.
          눈앞에 앉은 사람이 보낸 원격 안부 문자가 도착하면 버린다 — 발사 시점
          가드는 요청만 막지 도착은 못 막는다 */
@@ -577,27 +574,12 @@ function App(){
       const detail=String(e.detail||e.message||e).slice(0,500);
       // 화면(재시도 버튼 아래)과 콘솔 양쪽에 남긴다 — 어느 쪽을 보든 원인이 보이게
       console.error("%c[NULL] 실패 원인 ▶ "+detail,"color:#c23b50;font-size:13px;font-weight:bold");
-      /* 실패한 턴은 각본으로 메운다. 저장소 링크만 보고 들어온 사람이
-         재시도 버튼만 마주하는 것보다 각본이라도 움직이는 편이 낫다.
-         다음 전송은 진짜를 다시 시도한다 — 성공하면 위에서 표시가 꺼진다.
-         원인은 위 콘솔에 그대로 남고 하단 바에 demo가 뜬다 — 조용히 가짜로
-         바뀌면 진짜 장애를 못 알아채기 때문이다. */
-      DEMO.auto=true;
-      setBusy(b=>({...b,[bucket]:true}));
-      /* 선톡 실패는 각본 선톡으로 메운다. demoSay로 넘기면 demoAsk가
-         지시문을 유저의 말로 알아듣고 「다시 말해봐요」가 나간다 —
-         몇 시간 침묵의 첫 마디가 있지도 않은 말에 대한 되묻기가 된다 */
-      if(payload.greet){
-        setTimeout(()=>{
-          try{
-            const lines=demoProactive(bucket,demoGreetWhen(200,bucket),name);
-            if(lines.length)enqueue(bucket,lines);
-            else setBusy(b=>({...b,[bucket]:false}));
-          }catch(e2){ setBusy(b=>({...b,[bucket]:false})); }
-        },450);
-        return;
-      }
-      setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
+      /* 실패한 턴을 각본으로 메우지 않는다.
+         메우면 화면에는 대화가 그대로 뜬다 — 잠긴 것도, 키가 죽은 것도,
+         한도가 바닥난 것도 전부 「잘 되는 중」으로 보인다. 실제로 그것 때문에
+         자물쇠가 걸렸는지 아닌지를 한참 몰랐다. 안 되면 안 되는 게 보여야 한다.
+         명시적 데모(?demo=1)는 그대로 둔다 — 그건 고른 것이다. */
+      setFailed(f=>({...f,[bucket]:{payload,detail}}));
     }
   };
 
@@ -770,10 +752,7 @@ function App(){
          쿨타임 표시는 저장값으로 충분하다 — 목록은 열 때 loadAutoAt으로 읽는다. */
       saveAutoAt(now);
       let list=null;
-      /* 명시적 데모만 각본이다. demoOn()으로 보면 실패 래치(DEMO.auto)가
-         여기 전염돼서, 429 한 번 뒤의 관전 생성이 진짜를 시도조차 않고
-         적어둔 사건(선물)을 각본에 삼켰다 — 이 경로는 진짜 요청을 안 하니
-         래치가 풀릴 길도 없었다 */
+      /* 고른 데모(?demo=1)만 각본이다. 실패해서 넘어가는 길은 이제 없다. */
       if(DEMO.on){ list=demoReply("health",null,name,storeRef.current.msgs); }
       else{
         try{

@@ -5,7 +5,8 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers } from '../worker.js';
+         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers,
+         dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -182,12 +183,27 @@ eq('덩어리를 이으면 예전 고정부 그대로다', chunks('chat', 'jaeeo
 // ─────────────────────────────────────────────
 section('백엔드 잠금 — 공개 주소로 토큰이 새지 않는다');
 // ─────────────────────────────────────────────
-const req = (o = {}) => new Request(o.url || 'https://x.dev/', {
+const req = (o = {}) => new Request(o.url || 'https://x.dev/?k=T', {
   method: o.method || 'POST',
   headers: { 'CF-Connecting-IP': o.ip || '1.1.1.1', ...(o.origin ? { Origin: o.origin } : {}) },
   body: o.method === 'GET' ? undefined : '{}',
 });
-const hit = (o, env = {}) => worker.fetch(req(o), env);
+/* 자물쇠가 기본값이라, 출처·레이트리밋을 보려면 열쇠를 쥐고 들어가야 한다.
+   안 그러면 전부 403이 되어 무엇을 재는 시험인지 알 수 없게 된다. */
+const hit = (o, env = { ACCESS_KEY: 'T' }) => worker.fetch(req(o), env);
+
+/* ── 잠겨 있는 것이 기본값 ──
+   전에는 ACCESS_KEY가 없으면 자물쇠가 통째로 꺼졌다. 이름을 잘못 적거나
+   배포를 빠뜨리면 잠갔다고 믿는 동안 주소만 아는 누구나 토큰을 태웠다. */
+eq('비밀값이 없으면 예전처럼 그냥 돈다',
+  (await worker.fetch(req({ ip: '2.0.0.9' }), {})).status !== 403, true);
+eq('열쇠가 없으면 403',
+  (await worker.fetch(req({ url: 'https://x.dev/', ip: '2.0.0.8' }), { ACCESS_KEY: 'T' })).status, 403);
+eq('열쇠가 틀리면 403',
+  (await worker.fetch(req({ url: 'https://x.dev/?k=nope', ip: '2.0.0.7' }), { ACCESS_KEY: 'T' })).status, 403);
+/* 대시보드에서 access_key로 적어도 자물쇠는 켜져 있어야 한다 */
+eq('이름을 소문자로 적어도 잠긴다',
+  (await worker.fetch(req({ url: 'https://x.dev/', ip: '2.0.0.6' }), { access_key: 'T' })).status, 403);
 
 eq('배포 출처는 통과', (await hit({ origin: 'https://songgyeon.github.io', ip: '2.0.0.1' })).status !== 403, true);
 eq('남의 사이트는 403', (await hit({ origin: 'https://evil.example', ip: '2.0.0.2' })).status, 403);
@@ -1843,6 +1859,41 @@ eq('사진에 붙은 영문 조각만 지운다',
     .map(m => m.text + '|' + m.photo), ['|minhyun-nap']);
 eq('점만 있는 줄은 그대로다',
   trimTics([{ sender: 'minhyun', text: '...' }]).map(m => m.text), ['...']);
+
+/* ── 메아리 ──
+   유저: 「흥」 → 민현: 「흥이래요.」 유저가 방금 쓴 말을 그대로 옮기고 인용
+   어미만 붙인 줄이다. 세계관에 적어놨는데 또 나왔다 — 글자로 거른다. */
+const echo = (said, ...말) =>
+  dropEcho(말.map(text => ({ sender: 'minhyun', text })), said).map(m => m.text);
+eq('되돌려준 말을 버린다',
+  echo('흥', '흥이래요.', '그럼 어쩔 수 없죠.'), ['그럼 어쩔 수 없죠.']);
+eq('인용 어미가 뭐든 본다',
+  ['흥이래요', '흥이래', '흥이라뇨', '흥이라니요', '흥이랍니까']
+    .filter(t => echo('흥', t, '됐어요.').length !== 1), []);
+/* 앞뒤 구두점과 따옴표는 벗기고 맞대본다 — 모양이 달라도 같은 말이다 */
+eq('구두점이 붙어도 같은 말이다',
+  echo('흥!', '"흥이래요..."', '알았어요.'), ['알았어요.']);
+/* 단톡·관전방에서는 [이름]이 앞에 붙고, 연달아 보낸 말은 줄바꿈으로 합쳐진다 */
+eq('단톡에서도 방금 한 말을 찾는다',
+  lastSaid([{ role: 'user', content: '[문리현] 안녕\n[문리현] 흥' }], 'chat'), '흥');
+eq('관전에는 유저 차례가 없다',
+  lastSaid([{ role: 'user', content: '(유저 부재. 두 사람의 대화를 생성하라.)' }], 'auto'), '');
+
+/* 부분만 따온 것은 안 건드린다 — 어디까지가 인용인지 글자로는 못 가른다.
+   짐작해서 지우면 멀쩡한 말을 먹는다. 그쪽은 프롬프트 몫이다 */
+eq('부분 인용은 그냥 둔다',
+  echo('학교에 비리로 수영장 만들어줘', '비리로 수영장을요.'), ['비리로 수영장을요.']);
+/* 유저의 말과 안 맞으면 -래요는 그냥 남의 말 전하기다 */
+eq('남의 말 전하는 건 안 버린다',
+  ['삼촌이 오래요.', '노래', '내일 쉬래요.'].filter(t => echo('밥 먹었어요', t).length !== 1), []);
+eq('사진은 안 버린다',
+  dropEcho([{ sender: 'minhyun', text: '흥이래요.', photo: 'minhyun-nap' }], '흥').length, 1);
+/* 지울 것이 유일한 말풍선이면 그냥 둔다 — 침묵이 메아리보다 나쁘다 */
+eq('말풍선을 다 비우지는 않는다', echo('흥', '흥이래요.'), ['흥이래요.']);
+/* trimTics가 앞의 말줄임표를 뗀 뒤라야 「...흥이래요.」도 같은 줄로 보인다 */
+eq('말버릇 필터 뒤에 있다',
+  /dropEcho\(\s*\n?\s*trimTics\(/.test(workerSrc), true);
+
 eq('한국어로만 말하라고 했다', /한국어로만 말한다/.test(workerSrc), true);
 /* 대신 갈 곳이 있다 — 넷은 프로필 배경으로 걸린다. 사진 대신 거기를 가리키게 한다.
    나머지 선물은 화면 어디에도 안 보이므로 "프로필 봐요"라고 하면 안 된다. */
@@ -2226,6 +2277,49 @@ eq('세계관에는 안 남겼다',
   eq('두 사람에게 똑같이 걸린다',
     ['jaeeon', 'minhyun', 'group'].every(r =>
       buildSystem('chat', r, 'R', null, [], null, null, null)[0].text.includes('우기지 않는다')), true);
+  /* ── 메아리 ──
+     말꼬리 규칙을 적어놨는데도 「흥」에 「흥이래요」가 돌아왔다. 규칙은 있었지만
+     예시가 「괜찮다면서요」 하나뿐이라 정정하지 말라는 말로만 읽힌 것이다.
+     되돌려주기는 따로 세우고, 실제로 나온 줄을 예시로 박는다 — 규칙보다 예시가
+     세다. 짧은 한 마디를 인용하는 게 제일 나쁘다는 것도 같이 적는다. */
+  eq('되돌려주기를 따로 세운다', (() => {
+    const world = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[0].text;
+    return ['유저의 말을 그대로 되돌려 담지 않는다', '메아리', '흥이래요',
+            '유저가 쓰지 않은 말로 묻는다'].every(s => world.includes(s));
+  })(), true);
+  /* ── 스물아홉인데 10년 차였다 ──
+     「29세」와 「10년 차 보건교사의 손」이 같은 블록에 있었다. 보건교사는
+     간호학과 4년을 마쳐야 되니 아무리 빨라도 스물셋에 시작이고, 스물아홉이면
+     5~6년 차다. 열아홉에 취직한 사람이 아니면 안 맞는 숫자다.
+     숫자 하나지만 인물을 늙게 만든다 — 이 설정으로 뽑은 그림이 서른아홉
+     같다는 말을 들었다. 나이와 경력이 서로 딴말을 하면 안 된다. */
+  eq('나이와 경력이 안 싸운다', (() => {
+    const 재언 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null)[1].text;
+    return /29세/.test(재언) && /5년 차 보건교사/.test(재언) && !/10년 차/.test(재언);
+  })(), true);
+  /* ── 두 사람의 낯빛은 갈려야 한다 ──
+     재언을 창백한 쪽으로 잡았다. 피곤함을 주름이 아니라 혈색으로 그리면
+     설정을 안 깎고 나이만 뺄 수 있어서다(docs/art-direction.md).
+     그런데 민현 설정에 이미 「낯빛이 흐리다 + 다크서클」이 있다. 둘 다
+     희멀게지면 두 사람이 같은 인상이 된다. 재언은 관리된 창백, 민현은
+     방치된 흐림 — 갈라놓은 것이 붙어버리지 않았는지 본다. */
+  eq('두 사람의 낯빛이 안 겹친다', (() => {
+    const 재언 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null)[1].text;
+    const 민현 = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[1].text;
+    return /낯빛이 희고 핏기가 없다/.test(재언) && /피부는 깨끗하다/.test(재언)
+      && !/다크서클/.test(재언)
+      && /낯빛이 흐리다/.test(민현) && !/핏기가 없다/.test(민현);
+  })(), true);
+  /* ── 안경은 재언만 쓴다 ──
+     다시 뽑은 그림이 전부 얇은 은테를 쓰고 있어서 설정에 박았다. 그림과
+     설정이 갈리면 인물이 사진마다 다른 사람이 된다. 민현 쪽에 번지지
+     않았는지도 같이 본다 — 그쪽 얼굴 표지는 한쪽 이어폰이다. */
+  eq('안경은 재언 설정에만 있다', (() => {
+    const 재언 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null)[1].text;
+    const 민현 = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[1].text;
+    return /얇은 은테 안경을 쓴다/.test(재언) && !/안경/.test(민현)
+      && /한쪽 이어폰을 자주 낀다/.test(민현);
+  })(), true);
   /* 작품 규칙이 세계관 원칙과 FACTS에 두 판으로 적혀 있었다 — FACTS가 다 말한다 */
   eq('작품 규칙은 FACTS에만 있다',
     !/실존 작품은 각 인물의 취향 목록/.test(workerSrc)
@@ -2744,8 +2838,30 @@ eq('상한과 effort를 같이 안 보낸다',
 /* ── 자물쇠 ──
    대시보드에 ACCESS_KEY를 넣으면 그때부터 ?k 없는 호출을 거절한다.
    안 넣으면 이 블록은 없는 것과 같다 — 배포만으로는 아무것도 안 바뀐다. */
+/* 실패하는 쪽이 열림이면, 이름을 잘못 적거나 배포를 빠뜨렸을 때 잠갔다고
+   믿는 동안 주소만 아는 누구나 토큰을 태운다. 실제로 그렇게 됐다. */
 eq('비밀값이 있을 때만 잠긴다',
-  /const LOCK = \(\(env && env\.ACCESS_KEY\) \|\| ""\)\.toString\(\)\.trim\(\);\s*\n\s*if \(LOCK\)/.test(workerSrc), true);
+  /const LOCK = resolveLock\(env\)\?\.value \|\| "";\s*\n\s*if \(LOCK\) \{/.test(workerSrc), true);
+eq('열쇠가 틀리면 거절한다',
+  /if \(got !== LOCK\) \{[\s\S]{0,200}?status: 403/.test(workerSrc), true);
+/* 실패를 각본으로 메우면 잠긴 것도 키가 죽은 것도 한도가 바닥난 것도
+   화면에서는 「잘 되는 중」으로 보인다. 그것 때문에 한참 헤맸다. */
+eq('실패를 각본으로 안 메운다',
+  !/DEMO\.auto/.test(web) && /setFailed\(f=>\(\{\.\.\.f,\[bucket\]:\{payload,detail\}\}\)\)/.test(web), true);
+/* 대시보드에서 access_key나 ACCESS-KEY로 적으면 env.ACCESS_KEY가 undefined다.
+   그러면 자물쇠가 조용히 꺼진 채로 돌고, 잠근 줄 알고 링크를 뿌리게 된다.
+   API 키와 같은 방식으로 이름을 느슨하게 찾는다. */
+eq('자물쇠 이름도 느슨하게 찾는다',
+  /const resolveLock = \(env\) => resolveVar\(env, LOCK_NAME\);/.test(workerSrc)
+  && /const resolveKey = \(env\) => resolveVar\(env, KEY_NAME\);/.test(workerSrc), true);
+/* 진단 페이지가 자물쇠를 안 보면 켰는지 확인할 데가 없다. 브라우저에 열쇠가
+   저장돼 있는 것을(설계대로다) 잠금이 안 걸린 것으로 착각하게 된다. */
+eq('진단이 자물쇠 상태를 알려준다',
+  /🔒 자물쇠 켜짐/.test(workerSrc) && /🔓 자물쇠 꺼짐/.test(workerSrc)
+  && /null_apikey/.test(workerSrc), true);
+/* 이 페이지는 주소만 알면 열린다. 자물쇠 값이 찍히면 자물쇠가 없는 것과 같다. */
+eq('진단은 자물쇠 값을 안 찍는다',
+  !/lines\.push\([^)]*lock\.value(?!\.length)/.test(workerSrc), true);
 eq('웹이 열쇠를 저장하고 실어 보낸다',
   /localStorage\.setItem\("null_apikey",k\.trim\(\)\)/.test(web)
   && (web.match(/fetch\(apiUrl\(\),/g) || []).length === 3
@@ -3263,8 +3379,7 @@ eq('문틈 화면은 누르면 돌아간다',
    대화가 조용히 각본이 됐다 — 며칠 쌓인 세이브에는 구조가 아니라 사고다.
    실패한 턴만 각본으로 메우고, 다음 전송이 진짜를 다시 시도한다. */
 eq('명시적 데모(?demo=1)만 네트워크를 안 탄다', /if\(DEMO\.on\)\{\s*\n\s*inflightRef/.test(web), true);
-eq('성공하면 데모 표시가 꺼진다', /DEMO\.auto=false/.test(web), true);
-eq('실패하면 그 턴만 데모로 메운다', /DEMO\.auto=true/.test(web), true);
+eq('실패 래치가 아예 없다', !/DEMO\.auto/.test(web), true);
 /* 선물도 마찬가지다. 보고 있는 화면이 아니라 몸이 어디 있는지를 본다 —
    교실에 앉은 채로 목록에 나와 있어도 몸은 교실에 있다 */
 eq('선물도 몸이 있는 데를 본다', /withChar=\{scene\?scene\.room:null\}/.test(web), true);
