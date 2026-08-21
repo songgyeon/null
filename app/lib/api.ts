@@ -75,7 +75,11 @@ export function buildHistory(msgs: Msg[]) {
   const all = msgs.map(m => ({
     role: (m.sender === 'user' || m.sender === 'sys') ? 'user' : 'assistant',
     sender: m.sender,
-    content: m.photo ? `${m.text ? m.text + ' ' : ''}(사진을 보냈다)` : (m.text || ''),
+    /* 시스템 줄은 유저가 친 말이 아니라 일어난 일이다. 그대로 보내면 모델이
+       유저의 발화로 읽어서, 제가 준 물건을 두고 「그게 왜 선생님한테 있어요」
+       라고 되묻는다. 괄호로 감싸 지문으로 보낸다 — 웹 app.js와 같아야 한다. */
+    content: m.photo ? `${m.text ? m.text + ' ' : ''}(사진을 보냈다)`
+           : (m.sender === 'sys' ? `(${(m.text || '').trim()})` : (m.text || '')),
   })).filter(m => m.content && m.content.trim());
   const out: typeof all = [];
   let used = 0;
@@ -149,7 +153,7 @@ export async function callApi(payload: any) {
 export type ChatOpts = {
   gift?: { key: string; name: string; note?: string };
   place?: string | null;      // 지금 마주 앉은 자리
-  bag?: string[];             // 이미 받은 것 — 두 번 안 준다
+  bag?: any[];                // 받은 것 {k,from} — from이 있어야 제 것을 고른다
   placeOver?: boolean;        // 그 자리의 때가 지났다 — 이번 대답에서 일어선다
   greet?: boolean;            // 선톡 턴 — 워커가 이력 캐시 지점을 안 찍는다
   extra?: Record<string, any>;
@@ -194,7 +198,10 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     // 방금 장바구니에서 보낸 선물. 없으면 아예 안 보낸다
     ...(gift ? { gift } : {}),
     // 마주 앉은 자리. 이게 없으면 같은 자리에 앉아서 「지금 어디예요?」를 묻는다
-    ...(place ? { place, bag: bag || [] } : {}),
+    /* 가방은 자리와 묶여 있었다. 자리 밖에서는 제가 준 것을 몰라서, 방금 준
+       물건을 두고 「그게 왜 선생님한테 있어요」라고 되물었다. 늘 보낸다. */
+    bag: bag || [],
+    ...(place ? { place } : {}),
     ...(placeOver ? { place_over: true } : {}),
     ...(greet ? { greet: true } : {}),
     // 다녀온 자리·거절한 자리·지금 문 닫은 자리 — 서버가 다음 제안을 고르는 근거

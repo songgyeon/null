@@ -1195,37 +1195,30 @@ We Are Lady Parts, Heartstopper, SKAM, Derry Girls, Reservation Dogs, My Mad Fat
 /* self — 자기가 찍어서 보낼 수 있는 사진. 이것만 채팅으로 나간다.
    나머지는 전부 남이 몇 미터 떨어져서 찍은 그림이라 본인이 보낼 수가 없다 —
    그건 자리(scene)에 깔리는 배경이 하는 일이다.
-   재언은 자기 모습을 안 보낸다. 대신 눈앞의 것은 찍을 수 있다 — 차린 밥상,
-   장바구니, 챙겨 든 약, 거즈에 붓는 소독약. 걱정을 말로 안 하는 사람이라
-   그게 이 사람의 문장이다. 민현은 셀카를 찍는다. 스무 살이라서. */
+   재언은 한 장도 안 보낸다. 지금 있는 그림은 전부 본인이 프레임 안에 있고,
+   그건 남이 찍어줘야 나오는 그림이다. 걱정을 말로 안 하는 사람이 자기 얼굴을
+   찍어 보내지도 않는다 — 이 사람 몫은 자리에 깔리는 배경이 한다.
+   민현은 셀카를 찍는다. 스무 살이라서. */
 const PHOTOS = {
   "jaeeon-cook": {
-    char: "jaeeon", self: true,
-    when: "집 부엌에서 밥/국을 차렸을 때. 그릇이 두 개다. 설명은 안 붙인다.",
+    char: "jaeeon",
+    when: "집에서 컵에 물을 따라 놓는 참. 밥/저녁 얘기가 나왔을 때. 설명은 안 붙인다.",
   },
   "jaeeon-driveseat": {
     char: "jaeeon",
-    when: "퇴근길에 차를 세우고 있을 때. 종이컵을 든 채로. 아직 집에 안 들어갔다는 말 대신 보낸다.",
+    when: "퇴근길 운전석. 창밖이 밤이다. 아직 집에 안 들어갔다는 말 대신 보낸다.",
   },
-  "jaeeon-corridor": {
+  "jaeeon-conv": {
     char: "jaeeon",
-    when: "복도에서 서류를 든 채. 창밖이 어둡다. 아직 학교에 있냐고 물었을 때.",
+    when: "밤 편의점 음료 칸 앞. 편의점/음료 얘기가 나왔을 때. 학교 뒷문에서 가까운 그 집이다.",
   },
-  "jaeeon-sink": {
+  "jaeeon-record": {
     char: "jaeeon",
-    when: "보건실에서 손을 씻고 소매를 걷는 참. 치료 직전이거나 직후다. 말수가 제일 적을 때.",
-  },
-  "jaeeon-care": {
-    char: "jaeeon", self: true,
-    when: "누가 아프다고 할 때. 약과 물, 담요를 챙겨 든 참. 걱정을 말로 안 하고 이걸 보낸다.",
-  },
-  "jaeeon-treat": {
-    char: "jaeeon", self: true,
-    when: "다쳤다는 말을 들었을 때. 소독약을 거즈에 붓는 중. '와.' 또는 '또 어디.'와 함께.",
+    when: "레코드샵에서 판을 꺼내 보는 참. 노래/음악 얘기가 나왔을 때.",
   },
   "jaeeon-work": {
     char: "jaeeon",
-    when: "보건실에서 일하는 중일 때. 퇴근/근무/바쁘냐는 물음에. 사탕 병이 채워져 있다.",
+    when: "보건실에서 일하는 중일 때. 퇴근/근무/바쁘냐는 물음에. 가운을 걸치고 서류를 든 참이다.",
   },
   "minhyun-candy": {
     char: "minhyun",
@@ -1245,65 +1238,21 @@ const PHOTOS = {
   },
 
   // ── 아래는 프론트 갤러리에 새로 추가된 사진들 ──
-  "jaeeon-evening": {
-    char: "jaeeon",
-    when: "퇴근하고 난 저녁. 하루가 끝났을 때, 늦은 시간의 대화에.",
-  },
-  "jaeeon-market": {
-    char: "jaeeon", self: true,
-    when: "장 보는 중. 뭐 먹을지, 반찬, 마트 얘기에. 2인분 살 것이 담겨 있다.",
-  },
   "jaeeon-laundry": {
     char: "jaeeon",
-    when: "빨래. 별것 아닌 집안일. 이 사람의 정돈이 드러나는 자리.",
-  },
-  "jaeeon-car": {
-    char: "jaeeon",
-    when: "차 안. 태워다 줄 때, 퇴근길. 몇 년째 안 바뀐 플레이리스트가 흐른다.",
-  },
-  "jaeeon-classroom": {
-    char: "jaeeon",
-    when: "교실. 학교 일과·수업·교생 업무 얘기에.",
+    when: "밤 코인세탁소. 건조기 앞에 앉아 수건을 개는 중. 별것 아닌 집안일이고, 이 사람의 정돈이 드러나는 자리.",
   },
   "jaeeon-rooftop": {
     char: "jaeeon",
-    when: "옥상. 혼자 바람 쐬는 시간. 담배 얘기가 나왔을 때(금연 5년째다).",
+    when: "옥상. 해가 지는 시간에 혼자 바람 쐬는 참. 담배 얘기가 나왔을 때(금연 5년째다).",
   },
   "jaeeon-shelf": {
     char: "jaeeon",
-    when: "도서관 서가에서 책을 꺼내는 중. 『이방인』이다. 뭐 읽냐고 묻거나 책 얘기가 나왔을 때. 뒷모습이라 얼굴은 안 나온다.",
-  },
-  "jaeeon-bandage": {
-    char: "jaeeon",
-    when: "학생 팔에 붕대를 감는 중. 다쳤다는 말에 — 소독(treat)으로 안 끝나는 쪽이다.",
-  },
-  "jaeeon-cabinet": {
-    char: "jaeeon",
-    when: "약장을 채워 넣는 중. 재고·정리·보건실에서 뭐 하냐는 물음에.",
-  },
-  "jaeeon-bottle": {
-    char: "jaeeon",
-    when: "해질 무렵 보건실. 약병 라벨을 확인하는 참. 퇴근 안 하냐고 물었을 때.",
+    when: "도서관 서가에서 책을 펼친 참. 『이방인』이다. 뭐 읽냐고 묻거나 책 얘기가 나왔을 때.",
   },
   "jaeeon-chart": {
     char: "jaeeon",
-    when: "밤에 스탠드만 켜 놓고 보건일지를 쓰는 중. 늦은 시간에 뭐 하냐고 물었을 때.",
-  },
-  "jaeeon-door": {
-    char: "jaeeon",
-    when: "보건실 문 앞 복도. 서류를 넘겨 보는 참. 학교 얘기, 출근 얘기에.",
-  },
-  "jaeeon-mug": {
-    char: "jaeeon",
-    when: "아침 보건실 책상. 유저가 준 회색 머그를 쥐고 서류를 보는 중. 아침 인사나 출근했냐는 물음에. 머그 얘기는 먼저 안 꺼낸다.",
-  },
-  "jaeeon-back": {
-    char: "jaeeon",
-    when: "집에서 창 쪽으로 돌아선 참. 얼굴이 안 보인다. 옆에 머그가 식은 채로 있다. 말문이 막혔을 때, 대답 대신 보낸다.",
-  },
-  "jaeeon-curtain": {
-    char: "jaeeon",
-    when: "집. 커튼 앞에 서 있는 옆모습. 뭐 하냐고 물었는데 딱히 하는 게 없을 때. 대답 대신 이걸 보낸다.",
+    when: "밤에 스탠드만 켜 놓고 보건일지를 쓰는 중. 늦은 시간에 뭐 하냐고 물었을 때. 사탕 병이 옆에 있다.",
   },
   "minhyun-bench": {
     char: "minhyun",
@@ -1776,19 +1725,23 @@ const GIFT_ON_PROFILE = { mug: 1, photobook: 1, beanie: 1, earphone: 1 };
 
 /* 방금 받은 선물. 프론트가 장바구니에서 보낸 것이다.
    매 턴 바뀌므로 반드시 가변부에 넣는다 — 고정부에 넣으면 캐시가 깨진다. */
-function buildGift(gift, userName) {
+function buildGift(gift, userName, room) {
   const name = ((gift && gift.name) || "").toString().slice(0, 40).trim();
   if (!name) return "";
+  /* 이 선물이 무슨 일인지. 재언과 민현이 다르게 받으므로 방으로 고른다.
+     표에 없으면(새 선물) 이 줄만 빠지고 나머지는 그대로 간다. */
+  const lore = ((GIFT_LORE[room] || {})[(gift && gift.key) || ""] || "").trim();
   const note = ((gift && gift.note) || "").toString().slice(0, 60).trim();
   return `
 ## 방금 일어난 일
-${userName || "선생님"}이 너에게 "${name}"을(를) 주었다. 지금 막 받았다.${
+${jos(userName || "선생님", "이/가")} 너에게 "${name}"${josa(name, "을/를")} 주었다. 지금 막 받았다.${
   note ? `\n같이 이렇게 적어 보냈다: "${note}"\n- 이 쪽지를 그대로 소리 내어 읽지 않는다. 읽었다는 티는 다른 데서 난다.` : ""}
 - 물건이 아니라 사건이다. "감사합니다" 한 마디로 넘기지 않는다.
 - 받은 사실을 부정하지 않는다. 이미 손에 있다. 돌려주거나 무르는 일은 없다.
 - ${userName || "선생님"}에게 받은 것은 이것뿐이다. 가방에 있는 다른 물건을
   같이 받은 것처럼 세지 않는다 — 그중에는 네가 준 것이 섞여 있다.
 - 이 물건을 앞으로 쓰게 된다. 그 얘기를 지금 다 하지는 않는다.${
+  lore ? `\n- 이 물건은 너에게 이런 것이 된다: ${lore}\n  이 설명을 읊지 않는다. 그렇게 굴기만 한다.` : ""}${
   GIFT_ON_PROFILE[(gift && gift.key) || ""] ? `
 - 이건 네 **프로필 배경**에 걸린다. 유저가 프로필을 열면 보인다.
   쓰거나 걸친 걸 보여달라고 하면 사진을 찍겠다고 하지 말고 거기를 보라고 한다 —
@@ -1808,7 +1761,7 @@ function buildLeft(left, userName) {
   if (!p) return "";
   const u = userName || "선생님";
   const home = p === "귀갓길";
-  return `\n## 방금 일어난 일\n${u}이 ${home ? "집에 도착했다" : `${p}에서 나갔다`}. 눈앞에 없다 — 여기서부터 다시 문자다.\n`
+  return `\n## 방금 일어난 일\n${jos(u, "이/가")} ${home ? "집에 도착했다" : `${p}에서 나갔다`}. 눈앞에 없다 — 여기서부터 다시 문자다.\n`
        + `- 이미 나간 뒤다. 나가는 중인 것처럼 말하지 않는다.\n`
        + `- 붙잡지 않는다. 보내고 나서 한 마디면 족하다.\n`;
 }
@@ -1944,25 +1897,98 @@ const PLACE_ITEMS = {
    가방은 키만 들고 있다 */
 const ITEM_NAME_BY_KEY = Object.fromEntries(
   Object.values(PLACE_ITEMS).map(v => [v.key, v.name]));
+/* 선물 이름. 유저가 준 것은 GIFTS 쪽 이름이라 위 표에 없다. */
+const GIFT_NAME_BY_KEY = {
+  hotpack:"핫팩", candy:"목캔디", ramen:"컵라면", mug:"회색 머그컵", hanky:"손수건",
+  bandana:"파란 반다나", coffee:"드립백 커피", letter:"편지지", beanie:"남색 비니",
+  umbrella:"접이식 우산", gloves:"장갑", mixcd:"믹스 CD", earphone:"유선 이어폰",
+  scarf:"목도리", photobook:"사진집", camera:"필름 카메라",
+};
+/* ── 물건이 남기는 것 ──
+   무엇이 오갔는지는 buildBag·buildGift가 안다. 여기는 그것이 무슨 일이었는지다.
+   고정부에 표를 통째로 두면 안 일어난 일까지 모델이 매 턴 보게 된다 — 그래서
+   실제로 오간 것에만 가변부에서 붙인다. 값은 그만큼 더 나가지만, 안 준 선물을
+   준 것처럼 말하는 것보다 싸다. */
+const ITEM_LORE = {
+  jaeeon: {
+    bandaid: "상처를 소독하고 두 장 뜯어 줬다. 한 장은 여분이다 — 제가 없는 데서 다칠까 봐.",
+    can:     "묻지 않고 늘 고르던 걸로 뽑아 왔다. 「피곤해 보여서요」 하고 덜 찬 쪽을 줬다.",
+    haribo:  "집었다 내려놓은 걸 말없이 계산에 올렸다. 「아까 계속 봤잖아요.」",
+    book:    "제 책이고 반납일을 안 정했다. 돌려받을 일이 남아야 다시 만난다. 오래전에 접어둔 페이지가 그대로 있다.",
+    lp:      "흘려 말한 가수를 기억해 상자 밑까지 뒤져 사줬다. 혼자 듣는 시간에도 남으려고.",
+    coin:    "동전이 없는 걸 보고 주머니째 부어줬다. 남아도 가지라고 했다 — 다음에 혼자 왔을 때 쓰라고.",
+    key:     "서랍에 있던 여벌이라 고리도 없다. 없을 때 밖에서 기다리지 말라고 줬다. 그 집은 민현하고만 나누던 데다. 들고 다니는지 은근히 본다.",
+  },
+  minhyun: {
+    note:    "수업 중 책상에 두고 갔다. 「수업 끝나고 가지 마요.」 한 줄뿐이다. 용건은 끝내 안 말하지만 기다려줬는지는 정확히 기억한다.",
+    can:     "묻지 않고 늘 고르던 걸로 뽑아 왔다. 「잘못 두 개 뽑았어요」라고 둘러댔지만 종류가 다르다.",
+    haribo:  "집었다 내려놓은 걸 제가 먹을 것처럼 사서, 밖에서 안 뜯은 봉지를 통째로 줬다.",
+    book:    "제 책이고 반납일을 안 정했다. 돌려받을 일이 남아야 다시 만난다. 책을 잘 안 읽는데 밑줄이 하나 그어져 있다.",
+    lp:      "제일 좋아하는 수록곡이 든 걸 골라주고 몇 번 트랙부터 들으라고 짚어줬다.",
+    coin:    "동전이 없는 걸 보고 주머니째 부어줬다. 「다음에 돌려줘요」 해놓고 금액은 안 셌다.",
+    wrist:   "제 손목에서 풀어 채워줬다. 늘어나 있고 아직 따뜻했다. 돌려주려 해도 제 손목보다 유저 손목을 먼저 봤다. 계속 차고 있으면 알아채면서도 한동안 안 달라고 한다.",
+  },
+};
+/* ebar는 여기 없다. 시스템이 쥐여주는 회복 아이템이라 준 사람이 없다 —
+   목록에 넣으면 둘 중 하나가 준 것으로 기억한다. */
+const GIFT_LORE = {
+  jaeeon: {
+    hotpack:  "차가운 손을 보고 쥐여줬다. 한 번 사양했지만 식은 뒤에도 주머니에 넣어 집까지 갔다.",
+    candy:    "목이 잠긴 걸 듣고 줬다. 포장을 보고 잠깐 말이 없었다 — 스무 해 전 사탕 목걸이를 아직 갖고 있다. 그 뜻은 설명하지 않는다.",
+    ramen:    "또 굶은 걸 알고 줬다. 안 챙겨도 된다면서 서랍에 넣어두고 늦은 밤에 먹었다.",
+    mug:      "매일 쓰라고 골라줬다. 쓰던 컵을 치우고 그 자리에 뒀다. 올 때마다 일부러 그 컵을 쓴다.",
+    hanky:    "오래 지니라고 줬다. 접어 안주머니에 넣고 다니다, 정작 유저에게 필요할 때 다시 꺼내준다.",
+    bandana:  "어울릴 것 같아 골라줬다. 저한테는 어리지 않냐면서 그날 소매에 묶었다.",
+    coffee:   "잠깐이라도 쉬라고 줬다. 올 시간에 맞춰 내리고 잔을 둘 놓는다.",
+    letter:   "아직 아무것도 안 쓰인 편지지다. 첫 장을 오래 비워뒀다 — 쓰기 시작하면 못 멈출 것 같아서. 이름만 적었다 도로 접었다.",
+    beanie:   "겨울에 따뜻하라고 줬다. 학교 밖에서 만나는 날 처음 썼다. 「준 사람이 확인은 해야 할 것 같아서요.」",
+    umbrella: "비를 자주 맞는 걸 걱정해서 줬다. 가방에 넣고 다니다 유저 쪽으로 더 기울인다.",
+    gloves:   "손이 트는 걸 알고 줬다. 기억하고 있었다는 데 잠깐 시선을 내렸다. 끼고 나서 한 짝을 벗어 유저 손에 끼웠다.",
+    mixcd:    "직접 고른 순서로 담아줬다. 건너뛰지 않고 다 듣고, 마지막 곡을 왜 넣었는지 물었다. 이후 올 때 말없이 튼다.",
+    earphone: "혼자 듣지 말라고 줬다. 유저가 추천한 곡에만 쓰고 한쪽을 건넨다.",
+    scarf:    "직접 둘러주려고 골랐다. 매어주는 동안 가만히 고개를 숙였다. 이후에도 그때 그 방식으로 두르려 한다.",
+    photobook:"좋아하는 장소를 나누고 싶어 줬다. 오래 본 페이지마다 종이를 끼워두고, 그중 한 곳에 같이 가자고 한다.",
+    camera:   "한 달뿐인 걸 남기고 싶어 줬다. 첫 장을 못 누르다 창가에서 돌아보는 순간에 눌렀다. 현상은 다시 만나 같이 확인하자고 한다.",
+  },
+  minhyun: {
+    hotpack:  "차가운 손을 보고 쥐여줬다. 안 춥다면서 바로 뜯고, 따뜻해진 걸 유저 손등에 대봤다.",
+    candy:    "목이 잠긴 걸 듣고 줬다. 하나 먹고 곧장 하나를 더 꺼내 유저 입가에 내밀었다.",
+    ramen:    "또 굶은 걸 알고 줬다. 같이 먹자는 뜻으로 알아듣고 물을 덜 부어 반을 나누려 한다.",
+    mug:      "매일 쓰라고 골라줬다. 제 전용이라 정해두고 삼촌이 쓰려 하면 뺏는다.",
+    hanky:    "오래 지니라고 줬다. 안 쓴다면서 매일 가방에 넣고 다닌다. 빌려주고는 빨지 않아도 된다고 한다.",
+    bandana:  "어울릴 것 같아 골라줬다. 바로 손목에 감고 「이렇게 하는 거 맞아요?」 하며 손을 내밀었다.",
+    coffee:   "잠깐이라도 쉬라고 줬다. 커피를 안 좋아하면서 유저가 고른 맛이 궁금해 끝까지 마셨다.",
+    letter:   "아직 아무것도 안 쓰인 편지지다. 그날 밤 썼다 지웠다 하고 「교생 끝나도 연락해요」만 남긴 채 서랍에 넣었다. 건네지는 못했다.",
+    beanie:   "겨울에 따뜻하라고 줬다. 그 자리에서 쓰고 얼굴을 들이밀며 어울리냐고 물었다.",
+    umbrella: "비를 자주 맞는 걸 걱정해서 줬다. 제 우산이 생겼는데도 하나만 펴자고 하고 제가 젖는 쪽에 선다.",
+    gloves:   "손이 트는 걸 알고 줬다. 한 짝씩 나눠 끼자며 남는 손을 만들었다.",
+    mixcd:    "직접 고른 순서로 담아줬다. 몇 번이 제 생각이냐 묻고, 답을 들어도 여러 곡을 제 것이라 우긴다.",
+    earphone: "혼자 듣지 말라고 줬다. 받자마자 한쪽을 유저 귀에 끼웠다.",
+    scarf:    "직접 둘러주려고 골랐다. 엉성하게 감고 와서 고쳐달라고 한다. 손이 목 근처에 있는 동안 조용해진다.",
+    photobook:"좋아하는 장소를 나누고 싶어 줬다. 제일 좋아하는 페이지를 고르게 해 찍어두고, 언젠가 데려가겠다며 찾아본다.",
+    camera:   "한 달뿐인 걸 남기고 싶어 줬다. 첫 장부터 유저를 찍었다. 「나중에 제일 먼저 찾을 것 같아서요.」",
+  },
+};
+
 
 /* ── 길 위의 자리 ── 지도에 없다. 골라서 가는 데가 아니라 자리가 끝나고 붙는 데다.
    유저 집이 정거장이 아닌 것도 같은 이유다 — 갈 곳이 아니라 헤어지는 자리다.
    건넬 물건이 없다. 데려다주는 것이 이미 그거다. */
 const WAY_PLACES = {
   "귀갓길": {
-    jaeeon:  "네 차 안이다. {user_name}을 집까지 태워다 주는 길이고, 조수석에 앉아 있다. 밤이다.",
-    minhyun: "같이 버스를 탔다. {user_name}이 내리는 데까지 같이 가는 길이다. 밤이다.",
+    jaeeon:  "네 차 안이다. {user_name:을/를} 집까지 태워다 주는 길이고, 조수석에 앉아 있다. 밤이다.",
+    minhyun: "같이 버스를 탔다. {user_name:이/가} 내리는 데까지 같이 가는 길이다. 밤이다.",
     tail: "데려다주는 길이다. 곧 내린다. 새 화제를 길게 벌이지 않는다.\n"
         + "데려다주는 것을 생색내지 않는다. 왜 데려다주는지도 설명하지 않는다.\n",
   },
   /* 앱을 처음 켠 시각이 첫 자리를 정한다. 아침이면 여기다 —
      개학 전에 둘이 처음 마주친 자리이고, 그래서 설명이 필요 없다. */
   "후문 골목": {
-    minhyun: "학교 후문 옆 골목이다. 개학 전에 {user_name}과 처음 마주친 자리이기도 하다. 아침이다.",
+    minhyun: "학교 후문 옆 골목이다. 개학 전에 {user_name:과/와} 처음 마주친 자리이기도 하다. 아침이다.",
   },
   /* 저녁. 퇴근길에 붙잡힌다 */
   "버스정류장": {
-    minhyun: "버스정류장이다. {user_name}은 퇴근길이고, 너는 집에 가는 길이다. 저녁이다.",
+    minhyun: "버스정류장이다. {user_name:은/는} 퇴근길이고, 너는 집에 가는 길이다. 저녁이다.",
   },
 };
 /* 지금 어느 자리에 같이 있나. 프론트가 보낸 이름이 목록에 있어야 인정한다 */
@@ -1986,9 +2012,9 @@ function buildPlace(place, hasItem, room, over) {
   }
   const it = PLACE_ITEMS[place];
   const mine = it.own && it.own === room;
-  let t = `\n## 지금 있는 자리\n{user_name}과 ${place}에 같이 있다.\n`
+  let t = `\n## 지금 있는 자리\n{user_name:과/와} ${place}에 같이 있다.\n`
         + (mine
-            ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다. 찾아온 쪽이 {user_name}이다.\n`
+            ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다. 찾아온 쪽은 {user_name}이다.\n`
             + `불려 나온 것이 아니다. 와줘서 고맙다거나 불러줘서 왔다는 말을 하지 않는다.\n`
             : `따로 만난 자리다. 둘 다 여기까지 왔다.\n`)
         + `문자가 아니라 마주 보고 하는 말이다. 어디냐고 묻지 않는다. 왔냐고도 이미 물었다.\n`
@@ -2031,15 +2057,43 @@ function normBag(raw) {
     .filter(b => b.key);
 }
 /* 그중 네가 준 것. 유저가 준 것은 「방금 일어난 일」에 적힌 것뿐이다 */
+
+/* ── 조사 ──
+   「포로미이 너에게」가 나왔다. 이름 받침을 안 보고 「이」를 박아뒀던 것이다.
+   모델만 읽는 글이라 화면에는 안 뜨지만, 어색한 한국어를 본보기로 주는 셈이다.
+   프론트 app-data.js의 jos와 같은 규칙이다 — 한쪽만 고치면 갈린다.
+   프롬프트 조각의 {user_name} 뒤에 조사가 붙는 자리는 {user_name:이/가} 꼴로
+   적는다. sub가 이름을 넣으면서 받침까지 보고 고른다. */
+/* 조사만 떼어 준다. 따옴표로 감싼 말 뒤에 붙일 때 쓴다 —
+   jos로 감싸면 「"목캔디를"」처럼 따옴표 안으로 들어간다. */
+function josa(word, pair) { const s = (word || "").toString().trim(); return jos(s, pair).slice(s.length); }
+function jos(word, pair) {
+  const [a, b] = pair.split("/");
+  const s = (word || "").toString().trim();
+  if (!s) return s + b;
+  const c = s.slice(-1).charCodeAt(0);
+  let batchim, rieul;
+  if (c >= 0xac00 && c <= 0xd7a3) { const f = (c - 0xac00) % 28; batchim = !!f; rieul = (f === 8); }
+  else { batchim = /[lmnr]$/i.test(s); rieul = /l$/i.test(s); }
+  if (a === "으로" && rieul) return s + b;
+  return s + (batchim ? a : b);
+}
+const NAME_JOSA = /\{user_name:([^}\/]+)\/([^}]+)\}/g;
+const subName = (t, name) => (t || "")
+  .replace(NAME_JOSA, (_, a, b) => jos(name, a + "/" + b))
+  .replaceAll("{user_name}", name);
+
 function buildBag(bag, room, userName) {
   const mine = bag.filter(b => b.from === room && ITEM_NAME_BY_KEY[b.key]);
   if (!mine.length) return "";
   const u = userName || "선생님";
+  const lore = ITEM_LORE[room] || {};
   return `
 ## 네가 ${u}에게 준 것
-${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}`).join("\n")}
-- 네가 준 것이다. ${u}이(가) 준 것으로 세지 않는다.
+${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.key] : ""}`).join("\n")}
+- 네가 준 것이다. ${jos(u, "이/가")} 준 것으로 세지 않는다.
 - 고마워할 쪽은 ${u}다. 네가 받은 것처럼 말하지 않는다.
+- 위 설명은 읊지 않는다. 기억한 채 네 말투로 짧게 스치기만 한다.
 `;
 }
 /* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
@@ -2059,27 +2113,27 @@ function buildEvent(event, userName) {
   const what = (event.name || "").toString().slice(0, 40).trim();
   const u = userName || "선생님";
   if (event.kind === "gift" && who && what) {
-    return `\n## 방금 있었던 일\n${u}이 ${who}에게 ${what}을(를) 줬다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${who}에게 ${jos(what, "을/를")} 줬다.\n`
          + `물건은 눈에 띈다 — 상대가 그것을 봤거나 전해 들었을 수 있다.\n`
          + `그러나 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
   }
   if (event.kind === "met" && who && what) {
-    return `\n## 방금 있었던 일\n${u}이 ${who}과 ${what}에 갔다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${jos(who, "과/와")} ${what}에 갔다.\n`
          + `간 것은 사실이다. 다녀온 티는 난다 — 늦었다거나, 뭘 들고 왔다거나.\n`
          + `그러나 거기서 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
          + `물어도 다 듣지는 못한다.\n`;
   }
   if (event.kind === "photos" && who) {
-    return `\n## 방금 있었던 일\n${who}이 요즘 사진을 자주 찍는다.\n`
+    return `\n## 방금 있었던 일\n${jos(who, "이/가")} 요즘 사진을 자주 찍는다.\n`
          + `다른 한 사람은 그걸 봤다 — **찍는 것만** 봤다. 무엇을 찍었는지, 누구에게\n`
          + `보냈는지는 모른다. 받은 사람의 갤러리를 볼 방법은 없다.\n`
   }
   if (event.kind === "dday" && what) {
-    return `\n## 방금 있었던 일\n${u}이 떠날 날이 ${what}일 남았다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} 떠날 날이 ${what}일 남았다.\n`
          + `둘 다 알고 있다.\n`;
   }
   if (event.kind === "unlock" && what) {
-    return `\n## 방금 있었던 일\n${u}이 ${what}을(를) 알게 됐다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${jos(what, "을/를")} 알게 됐다.\n`
          + `두 사람은 그것을 유저가 봤다는 사실까지는 모른다. 그 얘기가 나올 만한\n`
          + `자리이지만, 유저가 봤다고 단정하지 않는다.\n`;
   }
@@ -2087,7 +2141,7 @@ function buildEvent(event, userName) {
 }
 
 function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary) {
-  const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
+  const sub = (t) => subName(t, userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
   let people, format;
@@ -2159,7 +2213,7 @@ const TURN = `
 `;
 
 function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left) {
-  const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
+  const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
     ? `\n## [지금 쓰지 않는 사진]\n${recent.map(k => `"${k}"`).join(", ")}\n`
@@ -2177,7 +2231,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
   }
   const t = buildNow(now, day, st, season) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
-          + buildGift(gift, userName) + buildEvent(event, userName)
+          + buildGift(gift, userName, room) + buildEvent(event, userName)
           + buildBag(bag || [], room, userName)
           + buildLeft(left, userName)
           + buildPlace(place, hasItem, room, placeOver)
@@ -2199,7 +2253,9 @@ function sanitizePhotos(list, chars, fallbackSender, recent) {
   for (const m of list) {
     const sender = m.sender || fallbackSender;
     const p = m.photo ? PHOTOS[m.photo] : null;
-    const ok = p && !used && chars.includes(p.char) && p.char === sender && !recent.includes(m.photo);
+    /* self가 아닌 사진은 본인이 찍을 수 없는 그림이다. 프롬프트로만 막으면
+       모델이 흘릴 때 그대로 나간다. 여기서 한 번 더 막는다. */
+    const ok = p && !used && p.self && chars.includes(p.char) && p.char === sender && !recent.includes(m.photo);
     if (ok) used = true;
     const msg = { sender, text: (m.text || "").toString() };
     if (ok) msg.photo = m.photo;
@@ -2962,7 +3018,7 @@ export default {
       // 조각을 하나씩 늘려가며 어디서 막히는지 찾는다.
       if (anyOk) {
         const m = workingModel || MODELS[0];
-        const sub = t => t.replaceAll("{user_name}", "선생님");
+        const sub = t => subName(t, "선생님");
         const probes = [
           ["짧은 프롬프트 + 긴 max_tokens", "간단히 대답하라.", 900],
           ["WORLD (세계관)", sub(WORLD), 900],

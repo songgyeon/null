@@ -121,12 +121,17 @@ eq('없는 키는 버리고 말만 남긴다',
 
 eq('한 응답에 사진은 최대 한 장',
   sanitizePhotos(
-    [{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-treat' }, { sender: 'jaeeon', text: 'b', photo: 'jaeeon-care' }],
-    BOTH, 'jaeeon', []).filter(m => m.photo).length, 1);
+    [{ sender: 'minhyun', text: 'a', photo: 'minhyun-nap' }, { sender: 'minhyun', text: 'b', photo: 'minhyun-mirror' }],
+    BOTH, 'minhyun', []).filter(m => m.photo).length, 1);
 
 eq('최근에 보낸 사진은 다시 안 보낸다',
-  sanitizePhotos([{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-treat' }],
-    BOTH, 'jaeeon', ['jaeeon-treat']).filter(m => m.photo).length, 0);
+  sanitizePhotos([{ sender: 'minhyun', text: 'a', photo: 'minhyun-nap' }],
+    BOTH, 'minhyun', ['minhyun-nap']).filter(m => m.photo).length, 0);
+
+/* 재언 사진은 전부 남이 찍은 그림이라 self가 없다. 모델이 키를 흘려도 안 나간다 */
+eq('재언 사진은 키를 써도 안 나간다',
+  sanitizePhotos([{ sender: 'jaeeon', text: 'a', photo: 'jaeeon-cook' }],
+    BOTH, 'jaeeon', []).filter(m => m.photo).length, 0);
 
 // ─────────────────────────────────────────────
 section('프롬프트 캐싱 — 고정부가 매 턴 같아야 캐시가 산다');
@@ -1267,7 +1272,10 @@ eq('생성된 파일이라고 적어둔다',
   eq('앱도 요일·때를 보낸다', /now: timeWord\(\)/.test(api) && /day: dayWord\(\)/.test(api), true);
   eq('앱도 접속 상태를 보낸다',
     /states/.test(api) && /presence\(id\)/.test(api) && /pr\.t !== '주말'/.test(api), true);
-  eq('앱도 마주 앉은 자리를 보낸다', /\{ place, bag: bag \|\| \[\] \}/.test(api), true);
+  /* 가방은 자리와 묶여 있었다. 풀었으므로 둘을 따로 본다 — place는 자리에
+     앉았을 때만, 가방은 늘. 묶여 있으면 자리 밖에서 제가 준 것을 모른다 */
+  eq('앱도 마주 앉은 자리를 보낸다',
+    /\.\.\.\(place \? \{ place \} : \{\}\)/.test(api) && /\n    bag: bag \|\| \[\],/.test(api), true);
   eq('앱도 자리의 때와 선톡 표시를 보낸다',
     /place_over: true/.test(api) && /greet: true/.test(api), true);
   eq('앱도 문 닫은 자리를 보낸다', /closed: PLACES\.filter/.test(api), true);
@@ -2502,8 +2510,8 @@ eq('세계관에는 안 남겼다',
   eq('같은 사진이 두 번 안 꽂힌다', F.loadShots().length, 1);
   /* 받은 사진과 본 사진이 한 앨범에 모인다 */
   eq('받은 것과 본 것이 같이 모인다',
-    [...F.seenPhotos({ jaeeon: [{ photo: 'jaeeon-mug' }] })].sort(),
-    ['jaeeon-laundry', 'jaeeon-mug']);
+    [...F.seenPhotos({ jaeeon: [{ photo: 'jaeeon-chart' }] })].sort(),
+    ['jaeeon-chart', 'jaeeon-laundry']);
   F.stampShot('');
   eq('빈 값은 안 꽂힌다', F.loadShots().length, 1);
   /* 자리 사진이 gallery에 있어야 cam에 뜬다 — 없으면 모아도 안 보인다 */
@@ -2733,7 +2741,7 @@ eq('뭉칠 때 끝은 남긴다',
 {
   const sig = { minhyun: { count: 12, minsAgo: 8, vibe: '들뜸' } };
   const prof = { subject: '국어', likes: '커피' };
-  const v = buildVolatile('chat', 'jaeeon', 'R', sig, ['jaeeon-mug'], prof, { jaeeon: 90 }, null, null, ['옥상'], 12);
+  const v = buildVolatile('chat', 'jaeeon', 'R', sig, ['jaeeon-chart'], prof, { jaeeon: 90 }, null, null, ['옥상'], 12);
   eq('가변부에 설명이 안 남아 있다',
     ['이 숫자를 보고 스스로 가늠한다', '목록을 읊지 말고', '눈치챈 것처럼만',
      '대부분의 턴에는 안 꺼낸다'].filter(t => v.includes(t)), []);
@@ -2742,7 +2750,7 @@ eq('뭉칠 때 끝은 남긴다',
      '대부분의 턴에는 안 꺼낸다'].filter(t =>
       !buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text).join('').includes(t)), []);
   eq('값은 가변부에 남아 있다',
-    ['옥상', '커피', '들뜸', 'jaeeon-mug'].filter(t => !v.includes(t)), []);
+    ['옥상', '커피', '들뜸', 'jaeeon-chart'].filter(t => !v.includes(t)), []);
   eq('가변부가 400자 밑이다 — 전에는 897자였다', v.length < 400, true);
 }
 /* 갈 자리가 애초에 안 열리는 방에 조건 설명만 실리면 그것도 낭비다 */
@@ -3118,7 +3126,7 @@ eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), 
      자기 교실에서 나오면 안 된다 — 찾아온 쪽은 유저다 */
   eq('자기 자리에 있는 사람은 불려 나온 게 아니다',
     /여기는 원래 네 자리다/.test(buildPlace('보건실', true, 'jaeeon'))
-    && /찾아온 쪽이 \{user_name\}이다/.test(buildPlace('교실', true, 'minhyun')), true);
+    && /찾아온 쪽은 \{user_name\}이다/.test(buildPlace('교실', true, 'minhyun')), true);
   eq('남의 자리에 가면 따로 만난 자리다',
     /따로 만난 자리다/.test(buildPlace('보건실', true, 'minhyun'))
     && !/여기는 원래 네 자리다/.test(buildPlace('옥상', true, 'jaeeon')), true);
@@ -3514,7 +3522,8 @@ eq('영문도 읽는 소리로 조사를 고른다', (() => {
 })(), ['NULL이에요', 'NULL을', 'NULL로', '믹스 CD를', '중고 LP예요']);
 eq('같은 것은 가방에 두 번 안 들어간다',
   /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
-eq('자리에 있으면 place를 같이 보낸다', /\.\.\.\(at\?\{place:at,bag:/.test(web), true);
+eq('자리에 있으면 place를 같이 보낸다',
+  /\.\.\.\(at\?\{place:at,/.test(web) && /\n      bag:bagOut\(\),/.test(web), true);
 eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true);
 /* gift가 준 것이면 bag은 받은 것이다. 작은 대화상자에 흰 줄로 늘어놓으니
    이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
@@ -3986,16 +3995,15 @@ eq('시간표 단추는 peek보다 좁다',
     const t = wk.slice(wk.indexOf('const PHOTOS = {'));
     const body = t.slice(0, t.indexOf('\n};'));
     return [...body.matchAll(/"([\w-]+)":\s*\{\s*char:\s*"\w+", self: true,/g)].map(m => m[1]).sort();
-  })(), ['jaeeon-care', 'jaeeon-cook', 'jaeeon-market', 'jaeeon-treat',
-         'minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
-  /* 재언은 자기 모습을 안 보낸다. 눈앞의 것만 찍는다 — 걱정을 말로 안 하는
-     사람이라 그게 이 사람의 문장이다. 민현은 셀카를 찍는다. 스무 살이라서 */
+  })(), ['minhyun-mirror', 'minhyun-morning', 'minhyun-nap']);
+  /* 재언은 사진을 한 장도 안 보낸다. 있는 그림이 전부 본인이 프레임 안에 있고
+     그건 남이 찍어줘야 나온다. 이 사람 몫은 배경이 한다. 민현은 셀카를 찍는다 */
   eq('재언이 보내는 건 자기 모습이 아니다', (() => {
     const t = wk.slice(wk.indexOf('const PHOTOS = {'));
     const body = t.slice(0, t.indexOf('\n};'));
     return [...body.matchAll(/"jaeeon-([\w]+)":\s*\{\s*char:\s*"jaeeon", self: true,/g)]
       .map(m => m[1]).sort();
-  })(), ['care', 'cook', 'market', 'treat']);
+  })(), []);
 }
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
