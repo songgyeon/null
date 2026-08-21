@@ -3078,7 +3078,7 @@ eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), 
      자기 교실에서 나오면 안 된다 — 찾아온 쪽은 유저다 */
   eq('자기 자리에 있는 사람은 불려 나온 게 아니다',
     /여기는 원래 네 자리다/.test(buildPlace('보건실', true, 'jaeeon'))
-    && /찾아온 쪽이 \{user_name\}이다/.test(buildPlace('교실', true, 'minhyun')), true);
+    && /찾아온 쪽은 \{user_name\}이다/.test(buildPlace('교실', true, 'minhyun')), true);
   eq('남의 자리에 가면 따로 만난 자리다',
     /따로 만난 자리다/.test(buildPlace('보건실', true, 'minhyun'))
     && !/여기는 원래 네 자리다/.test(buildPlace('옥상', true, 'jaeeon')), true);

@@ -1734,7 +1734,7 @@ function buildGift(gift, userName, room) {
   const note = ((gift && gift.note) || "").toString().slice(0, 60).trim();
   return `
 ## 방금 일어난 일
-${userName || "선생님"}이 너에게 "${name}"을(를) 주었다. 지금 막 받았다.${
+${jos(userName || "선생님", "이/가")} 너에게 "${name}"${josa(name, "을/를")} 주었다. 지금 막 받았다.${
   note ? `\n같이 이렇게 적어 보냈다: "${note}"\n- 이 쪽지를 그대로 소리 내어 읽지 않는다. 읽었다는 티는 다른 데서 난다.` : ""}
 - 물건이 아니라 사건이다. "감사합니다" 한 마디로 넘기지 않는다.
 - 받은 사실을 부정하지 않는다. 이미 손에 있다. 돌려주거나 무르는 일은 없다.
@@ -1761,7 +1761,7 @@ function buildLeft(left, userName) {
   if (!p) return "";
   const u = userName || "선생님";
   const home = p === "귀갓길";
-  return `\n## 방금 일어난 일\n${u}이 ${home ? "집에 도착했다" : `${p}에서 나갔다`}. 눈앞에 없다 — 여기서부터 다시 문자다.\n`
+  return `\n## 방금 일어난 일\n${jos(u, "이/가")} ${home ? "집에 도착했다" : `${p}에서 나갔다`}. 눈앞에 없다 — 여기서부터 다시 문자다.\n`
        + `- 이미 나간 뒤다. 나가는 중인 것처럼 말하지 않는다.\n`
        + `- 붙잡지 않는다. 보내고 나서 한 마디면 족하다.\n`;
 }
@@ -1976,19 +1976,19 @@ const GIFT_LORE = {
    건넬 물건이 없다. 데려다주는 것이 이미 그거다. */
 const WAY_PLACES = {
   "귀갓길": {
-    jaeeon:  "네 차 안이다. {user_name}을 집까지 태워다 주는 길이고, 조수석에 앉아 있다. 밤이다.",
-    minhyun: "같이 버스를 탔다. {user_name}이 내리는 데까지 같이 가는 길이다. 밤이다.",
+    jaeeon:  "네 차 안이다. {user_name:을/를} 집까지 태워다 주는 길이고, 조수석에 앉아 있다. 밤이다.",
+    minhyun: "같이 버스를 탔다. {user_name:이/가} 내리는 데까지 같이 가는 길이다. 밤이다.",
     tail: "데려다주는 길이다. 곧 내린다. 새 화제를 길게 벌이지 않는다.\n"
         + "데려다주는 것을 생색내지 않는다. 왜 데려다주는지도 설명하지 않는다.\n",
   },
   /* 앱을 처음 켠 시각이 첫 자리를 정한다. 아침이면 여기다 —
      개학 전에 둘이 처음 마주친 자리이고, 그래서 설명이 필요 없다. */
   "후문 골목": {
-    minhyun: "학교 후문 옆 골목이다. 개학 전에 {user_name}과 처음 마주친 자리이기도 하다. 아침이다.",
+    minhyun: "학교 후문 옆 골목이다. 개학 전에 {user_name:과/와} 처음 마주친 자리이기도 하다. 아침이다.",
   },
   /* 저녁. 퇴근길에 붙잡힌다 */
   "버스정류장": {
-    minhyun: "버스정류장이다. {user_name}은 퇴근길이고, 너는 집에 가는 길이다. 저녁이다.",
+    minhyun: "버스정류장이다. {user_name:은/는} 퇴근길이고, 너는 집에 가는 길이다. 저녁이다.",
   },
 };
 /* 지금 어느 자리에 같이 있나. 프론트가 보낸 이름이 목록에 있어야 인정한다 */
@@ -2012,9 +2012,9 @@ function buildPlace(place, hasItem, room, over) {
   }
   const it = PLACE_ITEMS[place];
   const mine = it.own && it.own === room;
-  let t = `\n## 지금 있는 자리\n{user_name}과 ${place}에 같이 있다.\n`
+  let t = `\n## 지금 있는 자리\n{user_name:과/와} ${place}에 같이 있다.\n`
         + (mine
-            ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다. 찾아온 쪽이 {user_name}이다.\n`
+            ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다. 찾아온 쪽은 {user_name}이다.\n`
             + `불려 나온 것이 아니다. 와줘서 고맙다거나 불러줘서 왔다는 말을 하지 않는다.\n`
             : `따로 만난 자리다. 둘 다 여기까지 왔다.\n`)
         + `문자가 아니라 마주 보고 하는 말이다. 어디냐고 묻지 않는다. 왔냐고도 이미 물었다.\n`
@@ -2057,6 +2057,32 @@ function normBag(raw) {
     .filter(b => b.key);
 }
 /* 그중 네가 준 것. 유저가 준 것은 「방금 일어난 일」에 적힌 것뿐이다 */
+
+/* ── 조사 ──
+   「포로미이 너에게」가 나왔다. 이름 받침을 안 보고 「이」를 박아뒀던 것이다.
+   모델만 읽는 글이라 화면에는 안 뜨지만, 어색한 한국어를 본보기로 주는 셈이다.
+   프론트 app-data.js의 jos와 같은 규칙이다 — 한쪽만 고치면 갈린다.
+   프롬프트 조각의 {user_name} 뒤에 조사가 붙는 자리는 {user_name:이/가} 꼴로
+   적는다. sub가 이름을 넣으면서 받침까지 보고 고른다. */
+/* 조사만 떼어 준다. 따옴표로 감싼 말 뒤에 붙일 때 쓴다 —
+   jos로 감싸면 「"목캔디를"」처럼 따옴표 안으로 들어간다. */
+function josa(word, pair) { const s = (word || "").toString().trim(); return jos(s, pair).slice(s.length); }
+function jos(word, pair) {
+  const [a, b] = pair.split("/");
+  const s = (word || "").toString().trim();
+  if (!s) return s + b;
+  const c = s.slice(-1).charCodeAt(0);
+  let batchim, rieul;
+  if (c >= 0xac00 && c <= 0xd7a3) { const f = (c - 0xac00) % 28; batchim = !!f; rieul = (f === 8); }
+  else { batchim = /[lmnr]$/i.test(s); rieul = /l$/i.test(s); }
+  if (a === "으로" && rieul) return s + b;
+  return s + (batchim ? a : b);
+}
+const NAME_JOSA = /\{user_name:([^}\/]+)\/([^}]+)\}/g;
+const subName = (t, name) => (t || "")
+  .replace(NAME_JOSA, (_, a, b) => jos(name, a + "/" + b))
+  .replaceAll("{user_name}", name);
+
 function buildBag(bag, room, userName) {
   const mine = bag.filter(b => b.from === room && ITEM_NAME_BY_KEY[b.key]);
   if (!mine.length) return "";
@@ -2065,7 +2091,7 @@ function buildBag(bag, room, userName) {
   return `
 ## 네가 ${u}에게 준 것
 ${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.key] : ""}`).join("\n")}
-- 네가 준 것이다. ${u}이(가) 준 것으로 세지 않는다.
+- 네가 준 것이다. ${jos(u, "이/가")} 준 것으로 세지 않는다.
 - 고마워할 쪽은 ${u}다. 네가 받은 것처럼 말하지 않는다.
 - 위 설명은 읊지 않는다. 기억한 채 네 말투로 짧게 스치기만 한다.
 `;
@@ -2087,27 +2113,27 @@ function buildEvent(event, userName) {
   const what = (event.name || "").toString().slice(0, 40).trim();
   const u = userName || "선생님";
   if (event.kind === "gift" && who && what) {
-    return `\n## 방금 있었던 일\n${u}이 ${who}에게 ${what}을(를) 줬다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${who}에게 ${jos(what, "을/를")} 줬다.\n`
          + `물건은 눈에 띈다 — 상대가 그것을 봤거나 전해 들었을 수 있다.\n`
          + `그러나 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
   }
   if (event.kind === "met" && who && what) {
-    return `\n## 방금 있었던 일\n${u}이 ${who}과 ${what}에 갔다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${jos(who, "과/와")} ${what}에 갔다.\n`
          + `간 것은 사실이다. 다녀온 티는 난다 — 늦었다거나, 뭘 들고 왔다거나.\n`
          + `그러나 거기서 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
          + `물어도 다 듣지는 못한다.\n`;
   }
   if (event.kind === "photos" && who) {
-    return `\n## 방금 있었던 일\n${who}이 요즘 사진을 자주 찍는다.\n`
+    return `\n## 방금 있었던 일\n${jos(who, "이/가")} 요즘 사진을 자주 찍는다.\n`
          + `다른 한 사람은 그걸 봤다 — **찍는 것만** 봤다. 무엇을 찍었는지, 누구에게\n`
          + `보냈는지는 모른다. 받은 사람의 갤러리를 볼 방법은 없다.\n`
   }
   if (event.kind === "dday" && what) {
-    return `\n## 방금 있었던 일\n${u}이 떠날 날이 ${what}일 남았다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} 떠날 날이 ${what}일 남았다.\n`
          + `둘 다 알고 있다.\n`;
   }
   if (event.kind === "unlock" && what) {
-    return `\n## 방금 있었던 일\n${u}이 ${what}을(를) 알게 됐다.\n`
+    return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${jos(what, "을/를")} 알게 됐다.\n`
          + `두 사람은 그것을 유저가 봤다는 사실까지는 모른다. 그 얘기가 나올 만한\n`
          + `자리이지만, 유저가 봤다고 단정하지 않는다.\n`;
   }
@@ -2115,7 +2141,7 @@ function buildEvent(event, userName) {
 }
 
 function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary) {
-  const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
+  const sub = (t) => subName(t, userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
   let people, format;
@@ -2187,7 +2213,7 @@ const TURN = `
 `;
 
 function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left) {
-  const sub = (t) => t.replaceAll("{user_name}", userName || "선생님");
+  const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
     ? `\n## [지금 쓰지 않는 사진]\n${recent.map(k => `"${k}"`).join(", ")}\n`
@@ -2931,7 +2957,7 @@ export default {
       // 조각을 하나씩 늘려가며 어디서 막히는지 찾는다.
       if (anyOk) {
         const m = workingModel || MODELS[0];
-        const sub = t => t.replaceAll("{user_name}", "선생님");
+        const sub = t => subName(t, "선생님");
         const probes = [
           ["짧은 프롬프트 + 긴 max_tokens", "간단히 대답하라.", 900],
           ["WORLD (세계관)", sub(WORLD), 900],
