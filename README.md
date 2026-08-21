@@ -9,7 +9,7 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs     # 1008개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/run.mjs     # 1003개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
 ```
 
 ```
@@ -39,7 +39,7 @@ tools/build-demo.mjs     # 문구집 → demo-lines.js + app/lib/demoLines.ts
 tools/build-rules.mjs    # app-data.js → app/lib/rules.ts (규칙은 손으로 안 베낀다)
 test/run.mjs          # 회귀 테스트
 cab-icons/            # 캐비닛 지도 — 프레임·문짝 열림/잠김·명패·TV
-*.webp                # 배경·사진·프로필 72장
+*.webp                # 배경·사진·프로필 108장
 null-logo.mp3         # 오프닝 로고곡
 ```
 
