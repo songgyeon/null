@@ -364,29 +364,29 @@ function demoGiftLines(room, key) {
    말에 걸리는 게 있으면 그 사진을, 없으면 가끔 아무거나 — 아무거나가 없으면
    사진첩이 영영 비고, 매번이면 사진첩이 아니라 슬라이드쇼가 된다. */
 var DEMO_PIC = [
-  [/아프|아파|다쳤|다쳐|상처|멍이|멍 /,  'jaeeon-treat',    'minhyun-corridor'],
+  [/아프|아파|다쳤|다쳐|상처|멍이|멍 /,  'jaeeon-work',     'minhyun-corridor'],
   /* "약"만 보면 약속·약간까지 걸린다. 바르고 붙이는 물건일 때만 잡는다 */
-  [/연고|밴드|소독|약 발|약을|약은|약 좀/, 'jaeeon-care',   ''],
+  [/연고|밴드|소독|약 발|약을|약은|약 좀/, 'jaeeon-chart',  ''],
   [/밥|먹었|먹을|점심|저녁|배고/,        'jaeeon-cook',     'minhyun-ramen'],
-  [/사탕|단 거|단거/,                    'jaeeon-cabinet',  'minhyun-candy'],
-  [/커피/,                               'jaeeon-mug',      ''],
-  [/비 |비가|비와|비 와|장마/,           'jaeeon-car',      'minhyun-rain'],
-  [/눈 |눈이|겨울|춥/,                   'jaeeon-evening',  'minhyun-snow'],
+  [/사탕|단 거|단거/,                    'jaeeon-chart',    'minhyun-candy'],
+  [/커피/,                               'jaeeon-cook',     ''],
+  [/비 |비가|비와|비 와|장마/,           'jaeeon-driveseat','minhyun-rain'],
+  [/눈 |눈이|겨울|춥/,                   '',                'minhyun-snow'],
   /* "자" 한 자는 감자·의자·혼자에까지 걸렸다. 자는 얘기일 때만 */
   [/자요|자니|잤|잘 거|졸려|졸음|잠 /,   '',                'minhyun-nap'],
   [/옥상/,                               'jaeeon-rooftop',  'minhyun-stair'],
-  [/편의점/,                             'jaeeon-market',   'minhyun-conv'],
+  [/편의점/,                             'jaeeon-conv',     'minhyun-conv'],
   [/빨래|세탁/,                          'jaeeon-laundry',  'minhyun-laundry'],
   [/버스|정류장/,                        '',                'minhyun-busstop'],
   [/담배|라이터|골목/,                   '',                'minhyun-alley'],
-  [/수업|교실|학교/,                     'jaeeon-classroom','minhyun-desk'],
+  [/수업|교실|학교/,                     'jaeeon-work',     'minhyun-desk'],
   [/운동|체육/,                          '',                'minhyun-gym'],
-  [/노래|음악|이어폰/,                   'jaeeon-shelf',    'minhyun-window'],
-  [/보건실/,                             'jaeeon-sink',     'minhyun-nap'],
+  [/노래|음악|이어폰/,                   'jaeeon-record',   'minhyun-window'],
+  [/보건실/,                             'jaeeon-work',     'minhyun-nap'],
 ];
 var DEMO_PIC_ANY = {
-  jaeeon: ['jaeeon-work','jaeeon-door','jaeeon-chart','jaeeon-bottle','jaeeon-curtain',
-           'jaeeon-bandage','jaeeon-driveseat','jaeeon-corridor','jaeeon-back'],
+  jaeeon: ['jaeeon-work','jaeeon-chart','jaeeon-cook','jaeeon-rooftop','jaeeon-shelf',
+           'jaeeon-laundry','jaeeon-driveseat','jaeeon-conv','jaeeon-record'],
   minhyun:['minhyun-gate','minhyun-conv','minhyun-vending','minhyun-neon','minhyun-bench',
            'minhyun-morning','minhyun-winter','minhyun-mirror'],
 };
