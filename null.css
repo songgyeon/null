@@ -1183,9 +1183,36 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 
 /* ── 세계 확정 화면 ── 등록 카드(.enr/.ecard)와 같은 껍데기를 쓴다.
    새 스타일을 만들지 않는다 — 이 넷은 글자 간격과 자리뿐이다 */
-/* 확정 창은 「[NULL] 상태」 창과 같은 자재다(.ddq/.ddrows/.q/.s/.wbtn).
-   .enr이 이미 가운데 세우고 .dlg가 제 모양과 등장까지 갖고 있어서
-   여기에 따로 적을 것이 없다. 규칙을 안 늘리는 것이 이 화면의 답이었다. */
+/* ── 세계 확정 창 ── 이 창만 어둡다.
+   물음이 NULL을 가운데 두고 갈라지고, 그 칸이 커서까지 깜빡이는 입력칸으로
+   서 있다. 채워야 할 빈칸이 곧 이 게임이라는 말을 화면이 스스로 한다.
+   바탕이 어두우니 분홍 YES가 유일한 빛이 된다.
+   창·커서·단추는 있는 자재다(.dlg / .cur / .etcdel). 여기서 주는 것은
+   어두운 바탕과 그 위에서 읽히도록 바꾼 색뿐이다. */
+.dlg.cwin{background:linear-gradient(180deg,#3d3170,#2b2352);border-color:rgba(255,255,255,.9)}
+.cwin .tb{border-bottom-color:#6a56a8}
+.cq{text-align:center;font-size:14px;line-height:1.6;letter-spacing:.02em;color:#f0eaff}
+/* NULL이 앉은 빈칸. 방금 타이핑된 것처럼 뒤에서 커서가 깜빡인다 */
+.cslot{display:flex;justify-content:center;margin-top:10px}
+.cslot+.cq{margin-top:10px}
+.cbox{display:flex;align-items:center;justify-content:center;gap:5px;
+  min-width:128px;height:44px;padding:0 16px;border-radius:7px;
+  border:2px dashed #ff8fbe;background:rgba(255,255,255,.06);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.cbox b{font-weight:400;font-size:16.5px;letter-spacing:.14em;color:#ff9ec6}
+.cbox .ccar{width:2px;height:20px;background:#ff5fa8;animation:blinkc 1s steps(2) infinite}
+/* 현실 □□ · 이세계 교생 · 대상 — 한 줄로 나란히. 그 대비가 곧 이야기다 */
+.cfacts{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;
+  margin-top:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,.12);
+  font-size:8.5px;letter-spacing:.08em;color:#8f82c8}
+.cfacts b{font-weight:400;letter-spacing:.14em}
+.cfacts em{font-style:normal;color:#e9e0ff}
+.cfacts em.cnull{color:#ff9ec6;letter-spacing:.2em}
+.cyes{align-self:center;margin-top:15px;min-width:118px;padding:13px 26px;
+  justify-content:center;font-size:12.5px;letter-spacing:.18em}
+/* 단추 아래로 내려오면 단추에 붙는 말이 된다 — 「YES밖에 없다」는 농담이 산다.
+   .chint은 다른 화면이 이미 쓴다(왼쪽 여백 64px). 여기 것은 이름을 따로 쓴다 */
+.cwhint{margin-top:10px;text-align:center;font-size:9.5px;letter-spacing:.06em;color:#a394d8}
 /* D-0 결과 카피 — 이름과 얼굴이 한 줄이다. 줄이 좁으면 얼굴만 내려간다 */
 .ddq .q .kao{color:#c86ea8;white-space:nowrap}
 

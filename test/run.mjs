@@ -2172,8 +2172,10 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
    서고, 상대는 한 명·한 번이다. 카피는 작가가 못박은 그대로 —
    「NULL을」로 고치지 않는다(NULL=널이라 조사가 없다). */
 {
+  /* 물음은 NULL을 가운데 두고 두 줄로 갈라져 있다. 이어 읽으면 한 문장이다 */
   eq('확정 카피가 정확하다',
-    web.includes('너는 이 세계에<br/>NULL 존재하게 할 수 있을까?')
+    web.includes('{name}, 너는 이 세계에')
+    && web.includes('존재하게 할 수 있을까?')
     && web.includes('거절은 거절해'), true);
   /* ── 현실의 나는 □□이다 ──
      그 칸은 안 채워진다. 채워지면 이 게임이 아니다 — 이 세계에서만 값이
@@ -2206,49 +2208,57 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   eq('이름만으로는 메신저에 못 들어간다',
     /localStorage\.getItem\("null_name"\)&&!loadWorld\(\)\?"enroll":false/.test(web), true);
   eq('YES 연타는 한 번이다', /if\(pressed\)return;setPressed\(true\);onYes\(\)/.test(web), true);
-  /* ── 이 창은 「[NULL] 상태」 창의 동생이다 ──
-     처음엔 등록 카드(.ecard) 안에 TIMETABLE의 흰 속카드(.ttpanel)를 넣었다.
-     두 창의 문법이 섞여 풍선처럼 부풀었다. 값을 읊는 창에는 속카드가 없다 —
-     줄이 창 바닥에 바로 앉고(.ddq/.ddrows), 창은 .dlg(290px)다. */
-  eq('확정 창이 상태 창과 같은 자재다', (() => {
+  /* ── 이 창만 어둡다 ──
+     앱은 전부 파스텔이라, 파스텔로 그린 이 창은 제일 무거운 물음인데
+     화면에서는 또 하나의 알림처럼 가벼웠다. 장식을 더하는 대신 값을 뒤집는다 —
+     어두운 판 한 장, 흰 글자, 분홍 단추. 그리고 물음이 NULL을 가운데 두고
+     갈라져서, 커서가 깜빡이는 그 빈칸이 곧 나라는 말을 화면이 스스로 한다. */
+  /* 주석에도 같은 말이 적혀 있다. 그림만 본다 — return부터가 그림이다 */
+  const cnfBox = () => {
     const i = web.indexOf('function Confirm({name,onYes,onBack})');
-    const box = web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i));
-    return ['className="dlg cwin"','className="ddq"','className="ddrows"',
-      'className="q"','className="s"','className="wbtn"'].filter(c => !box.includes(c));
-  })(), []);
+    const j = web.indexOf('return <div className="enr">', i);
+    return web.slice(j, web.indexOf('/* ── 마지막 빈칸 ──', j));
+  };
+  eq('확정 창은 어두운 판이다', ['className="dlg cwin"','className="cq"',
+    'className="cslot"','className="cbox"','className="ccar"','className="cfacts"',
+    'className="etcdel cyes"'].filter(c => !cnfBox().includes(c)), []);
+  /* 물음이 빈칸을 감싼다 — 위 반쪽, [NULL], 아래 반쪽 */
+  eq('물음이 NULL을 사이에 두고 갈라진다', (() => {
+    const b = cnfBox();
+    return b.indexOf('너는 이 세계에') < b.indexOf('className="cslot"')
+        && b.indexOf('className="cslot"') < b.indexOf('존재하게 할 수 있을까?');
+  })(), true);
   /* 속카드도 등록 카드도 여기 오면 안 된다 */
-  eq('확정 창에 속카드가 없다', (() => {
-    const i = web.indexOf('function Confirm({name,onYes,onBack})');
-    const box = web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i));
-    return /className="(ttpanel|tttag|ecard)/.test(box);   // 주석은 안 본다
-  })(), false);
+  eq('확정 창에 속카드가 없다', /className="(ttpanel|tttag|ecard)/.test(cnfBox()), false);
   /* .kill은 「정말 지울래?」 자리의 빨간 단추다. 여기 오면 경고처럼 읽힌다 */
-  eq('YES는 위험 단추가 아니다', (() => {
-    const i = web.indexOf('function Confirm({name,onYes,onBack})');
-    return /wbtn kill/.test(web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i)));
-  })(), false);
-  /* 규칙을 안 늘리는 것이 이 화면의 답이었다 — 자재가 이미 제 모양을 갖고 있다 */
-  eq('확정 창은 새 규칙을 안 만든다', /^\.cwin /m.test(web), false);
-  /* 현실 □□ / 이 세계 교생 — 점선 줄로 나란히 놓이면 그 대비가 곧 이야기다 */
-  eq('현실과 이세계가 나란히 있다',
-    web.includes('<span className="k2">현 실</span>')
-    && web.includes('<span className="v hush">□□</span>')
-    && web.includes('<span className="k2">이세계</span>')
-    && web.includes('<span className="v">교생 ♡</span>'), true);
-  /* 확정 창에는 back 위젯이 없다. 있던 시절 그 단추가 흉했던 까닭은 내가
-     지은 클래스 이름(.cback)이 이미 쓰이던 이름과 겹쳐서, 다른 화면의
-     BACK 단추 스타일을 통째로 뒤집어썼기 때문이다. 지금은 창의 X가 그 일을
-     한다 — 다른 화면의 .cback은 제자리에 그대로 있다 */
-  eq('확정 창에 back 위젯이 없다', (() => {
-    const i = web.indexOf('function Confirm({name,onYes,onBack})');
-    return /cback|cyes/.test(web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i)));
-  })(), false);
+  eq('YES는 위험 단추가 아니다', /wbtn kill/.test(cnfBox()), false);
+  /* 새 이름을 지을 때마다 남의 이름을 밟았다 — .cback은 다른 화면의 BACK 단추였고
+     .chint은 선물 화면의 힌트였다(왼쪽 여백 64px). 둘 다 스타일을 통째로
+     뒤집어썼다. 그래서 이 창이 지은 이름은 전부 이 구역 안에서만 산다 */
+  eq('확정 창이 남의 이름을 안 밟았다', (() => {
+    const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+    const mark = css.indexOf('/* ── 세계 확정 창 ──');
+    return ['cwin','cq','cslot','cbox','ccar','cfacts','cnull','cyes','cwhint']
+      .filter(n => [...css.matchAll(new RegExp(`(^|[^-\\w])\\.${n}\\b`, 'g'))]
+        .some(m => m.index < mark));
+  })(), []);
   eq('내가 덧댄 중복 규칙도 걷었다', (web.match(/^\.cback\{/gm) || []).length, 1);
+  /* 현실 □□ / 이 세계 교생 — 한 줄로 나란히 놓이면 그 대비가 곧 이야기다 */
+  eq('현실과 이세계가 나란히 있다',
+    web.includes('<b>현실</b> <em className="cnull">□□</em>')
+    && web.includes('<b>이세계</b> <em>교생 ♡</em>'), true);
+  /* 단추 아래라야 「YES밖에 없다」는 농담이 산다 */
+  eq('거절은 거절해가 단추 밑에 붙는다', (() => {
+    const b = cnfBox();
+    return b.indexOf('className="etcdel cyes"') < b.indexOf('거절은 거절해');
+  })(), true);
   eq('앱도 같은 그림이다',
-    /<Text style=\{cf\.k\}>［ N U L L ］♡<\/Text>/.test(appSrc)
-    && /row\('현 실','□□',true\)/.test(appSrc)
-    && /row\('이세계','교생 ♡'\)/.test(appSrc)
+    /backgroundColor:'#372a5c'/.test(appSrc)
+    && /<Text style=\{cf\.boxT\}>NULL/.test(appSrc)
+    && /<Text style=\{cf\.factK\}>이세계<\/Text> 교생 ♡/.test(appSrc)
     && /maxWidth:290/.test(appSrc), true);
+  /* 앱에도 깜빡임이 있어야 그 칸이 입력칸으로 읽힌다 */
+  eq('앱의 커서도 깜빡인다', /setInterval\(\(\)=>setOn\(v=>!v\),500\)/.test(appSrc), true);
   /* AGE 행은 남기고 입력만 잠근다. YES에 25가 프로필로 박힌다 */
   eq('나이는 세계 고정값 25다',
     /f\.k==="age"/.test(web)
@@ -2302,7 +2312,7 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   eq('앱도 확정 화면을 지난다',
     /function Confirm\(\{name,onYes,onBack\}/.test(appSrc)
     && appSrc.includes('너는 이 세계에')
-    && appSrc.includes('NULL 존재하게 할 수 있을까?')
+    && appSrc.includes('존재하게 할 수 있을까?')
     && appSrc.includes('거절은 거절해'), true);
   eq('앱도 이름만으로는 못 들어간다',
     /if\(!loadWorld\(\)\) setEnrolling\('enroll'\)/.test(appSrc), true);

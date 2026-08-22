@@ -361,55 +361,65 @@ function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void
   const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
   useEffect(()=>{Animated.timing(fade,{toValue:1,duration:400,useNativeDriver:true}).start()},[]);
   const yes=()=>{ if(pressed)return; setPressed(true); onYes() };
-  const row=(k:string,v:string,hush?:boolean)=>
-    <View style={cf.r} key={k}>
-      <Text style={cf.rk}>{k}</Text>
-      <View style={cf.rdot}/>
-      <Text style={[cf.rv,hush&&cf.rvHush]}>{v}</Text>
-    </View>;
+  /* 웹의 .cur — 1초에 한 번, 켰다 껐다. 빈칸이 아직 입력을 기다린다는 뜻이다 */
+  const [on,setOn]=useState(true);
+  useEffect(()=>{const t=setInterval(()=>setOn(v=>!v),500);return ()=>clearInterval(t)},[]);
   return <Animated.View style={[en.root,{opacity:fade}]}>
     <View style={cf.win}>
-      <View style={en.tb}>
+      <View style={cf.tb}>
         <Text style={en.tbT}>null.exe</Text>
         <TouchableOpacity style={cf.x} onPress={onBack}><Text style={cf.xT}>×</Text></TouchableOpacity>
       </View>
       <View style={cf.body}>
-        <Text style={cf.k}>［ N U L L ］♡</Text>
-        <View style={cf.rows}>
-          {row('현 실','□□',true)}
-          {row('이세계','교생 ♡')}
-          {row('대 상',name)}
+        <Text style={cf.q}>{name}, 너는 이 세계에</Text>
+        <View style={cf.box}>
+          <Text style={cf.boxT}>NULL<Text style={[cf.cur,!on&&cf.curOff]}>|</Text></Text>
         </View>
-        <Text style={cf.q}>{name}, 너는 이 세계에{'\n'}NULL 존재하게 할 수 있을까?</Text>
+        <Text style={cf.q}>존재하게 할 수 있을까?</Text>
+        <View style={cf.line}/>
+        <View style={cf.facts}>
+          <Text style={cf.fact}><Text style={cf.factK}>현실</Text> <Text style={cf.factNull}>□□</Text></Text>
+          <Text style={cf.fact}><Text style={cf.factK}>이세계</Text> 교생 ♡</Text>
+          <Text style={cf.fact}><Text style={cf.factK}>대상</Text> {name}</Text>
+        </View>
         <Text style={cf.s}>거절은 거절해 (´▽｀ ʃƪ)♡</Text>
-        <View style={cf.btns}>
-          <TouchableOpacity style={cf.yes} activeOpacity={.85} onPress={yes}>
-            <Text style={cf.yesT}>YES ♡</Text></TouchableOpacity>
-        </View>
+        <TouchableOpacity activeOpacity={.85} onPress={yes} style={cf.yesWrap}>
+          <LinearGradient colors={['#ffc4dd','#ff9ec6','#ff7fae','#ff96bf']}
+            locations={[0,.48,.52,1]} style={cf.yes}>
+            <Text style={cf.yesT}>YES ♡</Text></LinearGradient>
+        </TouchableOpacity>
       </View>
     </View>
   </Animated.View>;
 }
 const cf=StyleSheet.create({
-  /* 웹의 .dlg — 290px, 속카드 없음 */
+  /* 웹의 .dlg — 290px, 속카드 없음. 몸통만 어둡다 */
   win:{width:'100%',maxWidth:290,overflow:'hidden',borderRadius:16,borderWidth:2,borderColor:'#fff',
-    backgroundColor:'#f2ecfe'},
-  body:{paddingHorizontal:16,paddingTop:18,paddingBottom:16},
-  k:{...F,textAlign:'center',fontSize:8.5,letterSpacing:2.2,color:'#d0b3dd'},
-  /* 웹의 .ddrows — 줄이 창 바닥에 바로 앉는다 */
-  rows:{marginTop:12,alignSelf:'center',width:190,gap:6},
-  r:{flexDirection:'row',alignItems:'center',gap:7},
-  rk:{...F,width:42,fontSize:9.5,letterSpacing:1.6,color:'#d0b3dd'},
-  rdot:{flex:1,borderTopWidth:1,borderStyle:'dashed',borderColor:'#e0d5f7'},
-  rv:{...F,fontSize:9.5,letterSpacing:.8,color:'#6b5fa8'},
-  rvHush:{color:'#c98fb8'},
-  q:{...F,marginTop:16,textAlign:'center',fontSize:13,lineHeight:26,color:'#4a4276'},
-  s:{...F,marginTop:9,textAlign:'center',fontSize:9.5,lineHeight:19,color:'#b09ecf'},
-  /* 웹의 .wbtn 기본 — .kill(빨강)은 「정말 지울래?」 자리의 것이다 */
-  btns:{marginTop:10,alignItems:'center'},
-  yes:{width:112,paddingVertical:11,alignItems:'center',borderRadius:999,
-    backgroundColor:'#fff',borderWidth:1.5,borderColor:'#ded3f6'},
-  yesT:{...F,fontSize:11,letterSpacing:1.6,color:'#6b5fa8'},
+    backgroundColor:'#372a5c'},
+  tb:{backgroundColor:'#b79ceb',flexDirection:'row',alignItems:'center',
+    paddingVertical:6,paddingHorizontal:10,borderBottomWidth:1.5,borderBottomColor:'#6a56a8'},
+  body:{paddingHorizontal:18,paddingTop:22,paddingBottom:20},
+  q:{...F,textAlign:'center',fontSize:13,lineHeight:25,letterSpacing:.4,color:'#f3ecff'},
+  /* NULL이 앉은 빈칸. 등록 화면의 □□과 같은 점선이되 이 자리에서는 크다 */
+  box:{alignSelf:'center',marginVertical:13,paddingVertical:13,paddingHorizontal:10,width:210,
+    borderWidth:2,borderStyle:'dashed',borderColor:'#ff8fbe',borderRadius:11,
+    backgroundColor:'rgba(255,143,190,.07)'},
+  boxT:{...F,textAlign:'center',fontSize:18,letterSpacing:2.9,color:'#ff9ec6'},
+  cur:{color:'#ff9ec6'},
+  curOff:{opacity:0},
+  line:{marginTop:19,marginHorizontal:2,height:1,backgroundColor:'rgba(214,199,255,.22)'},
+  /* 현실 □□ · 이세계 교생 · 대상 — 한 줄로 나란히. 그 대비가 곧 이야기다 */
+  facts:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',
+    columnGap:13,rowGap:5,marginTop:15},
+  fact:{...F,fontSize:9.5,letterSpacing:.4,color:'#e7dcff'},
+  factK:{color:'#a58fd8'},
+  factNull:{color:'#ff9ec6',letterSpacing:1},
+  s:{...F,marginTop:15,textAlign:'center',fontSize:9.5,letterSpacing:.5,color:'#a996d6'},
+  /* 웹의 .etcdel — 리스타트의 분홍 알약. .kill(빨강)은 「정말 지울래?」 자리의 것이다 */
+  yesWrap:{alignSelf:'center',marginTop:18,borderRadius:999,overflow:'hidden',
+    borderWidth:1.5,borderColor:'#ff8fbe'},
+  yes:{width:150,paddingVertical:11,alignItems:'center'},
+  yesT:{...F,fontSize:11,letterSpacing:1.8,color:'#fff'},
   x:{marginLeft:'auto',width:17,height:17,borderRadius:999,alignItems:'center',
     justifyContent:'center',backgroundColor:'#ff8fbe'},
   xT:{...F,fontSize:10,lineHeight:12,color:'#fff'},

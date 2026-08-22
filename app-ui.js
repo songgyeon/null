@@ -477,33 +477,29 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
 function Confirm({name,onYes,onBack}){
   const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
   const yes=()=>{if(pressed)return;setPressed(true);onYes()};
-  /* ── 이 창은 「[NULL] 상태」 창의 동생이다 ──
-     앞서 등록 카드(.ecard) 안에 TIMETABLE의 흰 속카드(.ttpanel)를 넣었더니
-     두 창의 문법이 섞여 풍선처럼 부풀었다. 값을 읊는 창은 원래 속카드가
-     없다 — 줄이 창 바닥에 바로 앉는다(.ddq/.ddrows). 창도 .dlg(290px)다.
-     단추는 .wbtn 기본이다. .kill은 「정말 지울래?」 자리의 것이라 여기 오면
-     경고처럼 읽힌다. 되돌아가기는 창의 X다. */
+  /* ── 이 창만 어둡다 ──
+     작가가 그린 그림이다. 물음이 NULL을 가운데 두고 갈라진다 —
+     「너는 이 세계에 / [NULL] / 존재하게 할 수 있을까?」. 그 칸이 커서까지
+     깜빡이는 입력칸으로 서 있어서, 채워야 할 빈칸이 곧 이 게임이라는 말을
+     화면이 스스로 한다. 바탕이 어두우니 분홍 YES가 그제야 유일한 빛이 된다.
+     자재는 있는 것을 쓴다 — 창은 .dlg, 깜빡임은 오프닝 로고의 blinkc,
+     단추는 restart의 분홍 알약(.etcdel). 어두운 바탕만 여기서 준다. */
   return <div className="enr">
     <div className="dlg cwin">
       <div className="tb">null.exe<WinDots onClose={onBack}/></div>
       <div className="dlgbody">
-        <div className="ddq">
-          <div className="k">［ N U L L ］♡</div>
-          <div className="ddrows">
-            <div className="r"><span className="k2">현 실</span><span className="dot"/>
-              <span className="v hush">□□</span></div>
-            <div className="r"><span className="k2">이세계</span><span className="dot"/>
-              <span className="v">교생 ♡</span></div>
-            <div className="r"><span className="k2">대 상</span><span className="dot"/>
-              <span className="v">{name}</span></div>
-          </div>
-          <div className="q" style={{marginTop:16,fontSize:13}}>
-            {name}, 너는 이 세계에<br/>NULL 존재하게 할 수 있을까?</div>
-          <div className="s">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>
-          <div className="dlgbtns" style={{justifyContent:"center"}}>
-            <button className="wbtn" onClick={yes}>YES ♡</button>
-          </div>
+        <div className="cq">{name}, 너는 이 세계에</div>
+        <div className="cslot"><span className="cbox"><b>NULL</b><i className="ccar"/></span></div>
+        <div className="cq">존재하게 할 수 있을까?</div>
+        {/* 현실은 비어 있고 이 세계에서만 값이 생긴다. 한 줄로 나란히 둔다 */}
+        <div className="cfacts">
+          <span><b>현실</b> <em className="cnull">□□</em></span>
+          <span><b>이세계</b> <em>교생 ♡</em></span>
+          <span><b>대상</b> <em>{name}</em></span>
         </div>
+        <button className="etcdel cyes" onClick={yes}>YES ♡</button>
+        {/* 단추 아래라야 「YES밖에 없다」는 농담이 산다 */}
+        <div className="cwhint">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>
       </div>
     </div>
   </div>;
