@@ -1183,13 +1183,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 
 /* ── 세계 확정 화면 ── 등록 카드(.enr/.ecard)와 같은 껍데기를 쓴다.
    새 스타일을 만들지 않는다 — 이 넷은 글자 간격과 자리뿐이다 */
-/* 확정 창 — 다른 창들과 같은 자재를 쓴다(.ttpanel/.tttag/.ddrows/.wbtn).
-   여기 있는 것은 그 자재들 사이의 여백뿐이다. 되돌아가기는 창의 X다 */
-.cwin .ttpanel{margin:16px 6px 0}
-.cq{margin:17px 4px 0;text-align:center;font-size:13px;line-height:2.1;letter-spacing:.03em;color:#4a4276}
-.cwin .dlgbtns{margin-top:15px}
-.cwin .wbtn{max-width:132px}
-.chint{margin-top:12px;text-align:center;font-size:9.5px;letter-spacing:.06em;color:#b09ecf}
+/* 확정 창은 「[NULL] 상태」 창과 같은 자재다(.ddq/.ddrows/.q/.s/.wbtn).
+   .enr이 이미 가운데 세우고 .dlg가 제 모양과 등장까지 갖고 있어서
+   여기에 따로 적을 것이 없다. 규칙을 안 늘리는 것이 이 화면의 답이었다. */
 /* D-0 결과 카피 — 이름과 얼굴이 한 줄이다. 줄이 좁으면 얼굴만 내려간다 */
 .ddq .q .kao{color:#c86ea8;white-space:nowrap}
 

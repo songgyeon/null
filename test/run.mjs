@@ -2206,15 +2206,29 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   eq('이름만으로는 메신저에 못 들어간다',
     /localStorage\.getItem\("null_name"\)&&!loadWorld\(\)\?"enroll":false/.test(web), true);
   eq('YES 연타는 한 번이다', /if\(pressed\)return;setPressed\(true\);onYes\(\)/.test(web), true);
-  /* ── 이 창만 다른 앱처럼 보이면 안 된다 ──
-     맨 글자에 등록 화면의 큰 단추를 얹었더니 떼어온 화면 같았다. 다른 창들이
-     쓰는 자재로 짓는다 — 속카드(.ttpanel) + 알약 라벨(.tttag) + 점선 줄
-     (.ddrows) + 알약 단추(.wbtn). 새 자재를 만들지 않는다 */
-  eq('확정 창이 다른 창과 같은 자재다', (() => {
+  /* ── 이 창은 「[NULL] 상태」 창의 동생이다 ──
+     처음엔 등록 카드(.ecard) 안에 TIMETABLE의 흰 속카드(.ttpanel)를 넣었다.
+     두 창의 문법이 섞여 풍선처럼 부풀었다. 값을 읊는 창에는 속카드가 없다 —
+     줄이 창 바닥에 바로 앉고(.ddq/.ddrows), 창은 .dlg(290px)다. */
+  eq('확정 창이 상태 창과 같은 자재다', (() => {
     const i = web.indexOf('function Confirm({name,onYes,onBack})');
     const box = web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i));
-    return ['ttpanel','tttag','ddrows','wbtn'].filter(c => !box.includes(c));
+    return ['className="dlg cwin"','className="ddq"','className="ddrows"',
+      'className="q"','className="s"','className="wbtn"'].filter(c => !box.includes(c));
   })(), []);
+  /* 속카드도 등록 카드도 여기 오면 안 된다 */
+  eq('확정 창에 속카드가 없다', (() => {
+    const i = web.indexOf('function Confirm({name,onYes,onBack})');
+    const box = web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i));
+    return /className="(ttpanel|tttag|ecard)/.test(box);   // 주석은 안 본다
+  })(), false);
+  /* .kill은 「정말 지울래?」 자리의 빨간 단추다. 여기 오면 경고처럼 읽힌다 */
+  eq('YES는 위험 단추가 아니다', (() => {
+    const i = web.indexOf('function Confirm({name,onYes,onBack})');
+    return /wbtn kill/.test(web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i)));
+  })(), false);
+  /* 규칙을 안 늘리는 것이 이 화면의 답이었다 — 자재가 이미 제 모양을 갖고 있다 */
+  eq('확정 창은 새 규칙을 안 만든다', /^\.cwin /m.test(web), false);
   /* 현실 □□ / 이 세계 교생 — 점선 줄로 나란히 놓이면 그 대비가 곧 이야기다 */
   eq('현실과 이세계가 나란히 있다',
     web.includes('<span className="k2">현 실</span>')
@@ -2231,9 +2245,10 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   })(), false);
   eq('내가 덧댄 중복 규칙도 걷었다', (web.match(/^\.cback\{/gm) || []).length, 1);
   eq('앱도 같은 그림이다',
-    /<Text style=\{cf\.tagT\}>［ N U L L ］♡<\/Text>/.test(appSrc)
+    /<Text style=\{cf\.k\}>［ N U L L ］♡<\/Text>/.test(appSrc)
     && /row\('현 실','□□',true\)/.test(appSrc)
-    && /row\('이세계','교생 ♡'\)/.test(appSrc), true);
+    && /row\('이세계','교생 ♡'\)/.test(appSrc)
+    && /maxWidth:290/.test(appSrc), true);
   /* AGE 행은 남기고 입력만 잠근다. YES에 25가 프로필로 박힌다 */
   eq('나이는 세계 고정값 25다',
     /f\.k==="age"/.test(web)
@@ -3464,7 +3479,7 @@ eq('채팅방 X가 목록으로 보낸다',
    창틀이 그 일을 한다 */
 eq('안 눌리는 X는 여섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 6);
 eq('확정 창의 X가 등록으로 돌려보낸다',
-  /<div className="etb">null\.exe<WinDots onClose=\{onBack\}\/><\/div>/.test(web), true);
+  /<div className="tb">null\.exe<WinDots onClose=\{onBack\}\/><\/div>/.test(web), true);
 
 /* X는 나가기가 아니라 접기다. 자리는 그대로 두고 메신저로 돌아간다 —
    교실에 앉아서 삼촌한테 카톡하는 건 되는 일이다.

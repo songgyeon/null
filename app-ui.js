@@ -477,16 +477,18 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
 function Confirm({name,onYes,onBack}){
   const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
   const yes=()=>{if(pressed)return;setPressed(true);onYes()};
-  /* 다른 창들과 같은 자재로 짓는다 — 속카드(.ttpanel) + 알약 라벨(.tttag)
-     + 점선 줄(.ddrows) + 알약 단추(.wbtn). 이 창만 맨 글자에 큰 단추를
-     얹었더니 다른 앱에서 떼어온 화면처럼 보였다.
-     되돌아가기는 창의 X다 — 이 앱에 back 위젯은 어디에도 없다. */
+  /* ── 이 창은 「[NULL] 상태」 창의 동생이다 ──
+     앞서 등록 카드(.ecard) 안에 TIMETABLE의 흰 속카드(.ttpanel)를 넣었더니
+     두 창의 문법이 섞여 풍선처럼 부풀었다. 값을 읊는 창은 원래 속카드가
+     없다 — 줄이 창 바닥에 바로 앉는다(.ddq/.ddrows). 창도 .dlg(290px)다.
+     단추는 .wbtn 기본이다. .kill은 「정말 지울래?」 자리의 것이라 여기 오면
+     경고처럼 읽힌다. 되돌아가기는 창의 X다. */
   return <div className="enr">
-    <div className="ecard cwin">
-      <div className="etb">null.exe<WinDots onClose={onBack}/></div>
-      <div className="ebody">
-        <div className="ttpanel">
-          <div className="tttag">［ N U L L ］♡</div>
+    <div className="dlg cwin">
+      <div className="tb">null.exe<WinDots onClose={onBack}/></div>
+      <div className="dlgbody">
+        <div className="ddq">
+          <div className="k">［ N U L L ］♡</div>
           <div className="ddrows">
             <div className="r"><span className="k2">현 실</span><span className="dot"/>
               <span className="v hush">□□</span></div>
@@ -495,12 +497,13 @@ function Confirm({name,onYes,onBack}){
             <div className="r"><span className="k2">대 상</span><span className="dot"/>
               <span className="v">{name}</span></div>
           </div>
+          <div className="q" style={{marginTop:16,fontSize:13}}>
+            {name}, 너는 이 세계에<br/>NULL 존재하게 할 수 있을까?</div>
+          <div className="s">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>
+          <div className="dlgbtns" style={{justifyContent:"center"}}>
+            <button className="wbtn" onClick={yes}>YES ♡</button>
+          </div>
         </div>
-        <div className="cq">{name}, 너는 이 세계에<br/>NULL 존재하게 할 수 있을까?</div>
-        <div className="dlgbtns" style={{justifyContent:"center"}}>
-          <button className="wbtn kill" onClick={yes}>YES ♡</button>
-        </div>
-        <div className="chint">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>
       </div>
     </div>
   </div>;

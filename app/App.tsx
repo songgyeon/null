@@ -352,10 +352,9 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
     </View>
   </Animated.View>;
 }
-/* ── 세계 확정 ── 웹의 Confirm과 같은 그림이다.
-   속카드 + 알약 라벨 + 점선 줄 + 알약 단추. 맨 글자에 큰 단추를 얹으면
-   다른 앱에서 떼어온 화면처럼 보인다. 되돌아가기는 창의 X다 —
-   이 앱에 back 위젯은 어디에도 없다.
+/* ── 세계 확정 ── 웹의 Confirm과 같은 그림, 즉 「[NULL] 상태」 창의 동생이다.
+   값을 읊는 창에는 속카드가 없다 — 줄이 창 바닥에 바로 앉는다. 창은 좁고
+   (290) 단추는 작은 알약이다. 되돌아가기는 창의 X다.
    「NULL을」로 고치지 않는다 — NULL=널이라 조사가 없는 것이 의도다. */
 function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void}) {
   const fade = useRef(new Animated.Value(0)).current;
@@ -369,47 +368,48 @@ function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void
       <Text style={[cf.rv,hush&&cf.rvHush]}>{v}</Text>
     </View>;
   return <Animated.View style={[en.root,{opacity:fade}]}>
-    <View style={en.card}>
+    <View style={cf.win}>
       <View style={en.tb}>
         <Text style={en.tbT}>null.exe</Text>
         <TouchableOpacity style={cf.x} onPress={onBack}><Text style={cf.xT}>×</Text></TouchableOpacity>
       </View>
-      <View style={en.body}>
-        <View style={cf.panel}>
-          <View style={cf.tag}><Text style={cf.tagT}>［ N U L L ］♡</Text></View>
+      <View style={cf.body}>
+        <Text style={cf.k}>［ N U L L ］♡</Text>
+        <View style={cf.rows}>
           {row('현 실','□□',true)}
           {row('이세계','교생 ♡')}
           {row('대 상',name)}
         </View>
-        <Text style={en.cq}>{name}, 너는 이 세계에{'\n'}NULL 존재하게 할 수 있을까?</Text>
+        <Text style={cf.q}>{name}, 너는 이 세계에{'\n'}NULL 존재하게 할 수 있을까?</Text>
+        <Text style={cf.s}>거절은 거절해 (´▽｀ ʃƪ)♡</Text>
         <View style={cf.btns}>
           <TouchableOpacity style={cf.yes} activeOpacity={.85} onPress={yes}>
             <Text style={cf.yesT}>YES ♡</Text></TouchableOpacity>
         </View>
-        <Text style={en.chint}>거절은 거절해 (´▽｀ ʃƪ)♡</Text>
       </View>
     </View>
   </Animated.View>;
 }
 const cf=StyleSheet.create({
-  /* 속카드 — 웹의 .ttpanel. 라벨이 위 테두리를 물고 앉는다 */
-  panel:{marginTop:16,marginHorizontal:6,paddingTop:17,paddingHorizontal:13,paddingBottom:11,
-    borderRadius:11,backgroundColor:'#fff',borderWidth:1,borderColor:'#ece4fb'},
-  tag:{position:'absolute',alignSelf:'center',top:-10,paddingVertical:3,paddingHorizontal:13,
-    borderRadius:999,backgroundColor:'#efb8dd'},
-  tagT:{...F,fontSize:8.5,letterSpacing:1.6,color:'#fff'},
-  /* 점선 줄 — 웹의 .ddrows */
-  r:{flexDirection:'row',alignItems:'center',gap:7,paddingVertical:3},
-  rk:{...F,width:44,fontSize:9,letterSpacing:1.6,color:'#d0b3dd'},
+  /* 웹의 .dlg — 290px, 속카드 없음 */
+  win:{width:'100%',maxWidth:290,overflow:'hidden',borderRadius:16,borderWidth:2,borderColor:'#fff',
+    backgroundColor:'#f2ecfe'},
+  body:{paddingHorizontal:16,paddingTop:18,paddingBottom:16},
+  k:{...F,textAlign:'center',fontSize:8.5,letterSpacing:2.2,color:'#d0b3dd'},
+  /* 웹의 .ddrows — 줄이 창 바닥에 바로 앉는다 */
+  rows:{marginTop:12,alignSelf:'center',width:190,gap:6},
+  r:{flexDirection:'row',alignItems:'center',gap:7},
+  rk:{...F,width:42,fontSize:9.5,letterSpacing:1.6,color:'#d0b3dd'},
   rdot:{flex:1,borderTopWidth:1,borderStyle:'dashed',borderColor:'#e0d5f7'},
   rv:{...F,fontSize:9.5,letterSpacing:.8,color:'#6b5fa8'},
   rvHush:{color:'#c98fb8'},
-  /* 알약 단추 — 웹의 .wbtn.kill */
-  btns:{marginTop:15,alignItems:'center'},
-  yes:{minWidth:132,paddingVertical:11,alignItems:'center',borderRadius:999,
-    backgroundColor:'#ffb3d4',borderWidth:1.5,borderColor:'#ff8fbe'},
-  yesT:{...F,fontSize:11,letterSpacing:2.4,color:'#fff'},
-  /* 창의 X가 되돌아가기다 */
+  q:{...F,marginTop:16,textAlign:'center',fontSize:13,lineHeight:26,color:'#4a4276'},
+  s:{...F,marginTop:9,textAlign:'center',fontSize:9.5,lineHeight:19,color:'#b09ecf'},
+  /* 웹의 .wbtn 기본 — .kill(빨강)은 「정말 지울래?」 자리의 것이다 */
+  btns:{marginTop:10,alignItems:'center'},
+  yes:{width:112,paddingVertical:11,alignItems:'center',borderRadius:999,
+    backgroundColor:'#fff',borderWidth:1.5,borderColor:'#ded3f6'},
+  yesT:{...F,fontSize:11,letterSpacing:1.6,color:'#6b5fa8'},
   x:{marginLeft:'auto',width:17,height:17,borderRadius:999,alignItems:'center',
     justifyContent:'center',backgroundColor:'#ff8fbe'},
   xT:{...F,fontSize:10,lineHeight:12,color:'#fff'},
