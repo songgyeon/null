@@ -484,6 +484,27 @@ function Confirm({name,onYes,onBack}){
   </div>;
 }
 
+/* ── 마지막 빈칸 ── D-0의 「Stay with □□?」.
+   얼굴을 고르는 게 아니라 이름을 쓴다 — 이 제품은 처음부터 끝까지 빈칸을
+   채우는 이야기다. 이 세계에 있는 두 사람만 들어가고, 그 밖의 글자는 다
+   에러다. 성은 붙여도 되고 안 붙여도 된다 — 유저가 부르던 대로 쓰면 된다. */
+const WHO_NAMES={ "이재언":"jaeeon", "재언":"jaeeon", "이민현":"minhyun", "민현":"minhyun" };
+function WhoBlank({onPick}){
+  const [on,setOn]=useState(false);
+  const [v,setV]=useState("");
+  const [bad,setBad]=useState(false);
+  const done=()=>{
+    const id=WHO_NAMES[v.replace(/\s/g,"")];
+    if(id){onPick(id);return}
+    /* 에러는 칸에서 낸다. 창을 하나 더 띄우면 마지막 장면이 시끄러워진다 */
+    setBad(true); setTimeout(()=>setBad(false),620);
+  };
+  if(on)return <input className={"blankin sunken whoin"+(bad?" bad":"")} value={v} autoFocus maxLength={6}
+    onChange={e=>{setV(e.target.value);setBad(false)}}
+    onKeyDown={e=>e.key==="Enter"&&done()} onBlur={()=>{if(!v.trim())setOn(false)}}/>;
+  return <span className="blank whoblank" onClick={()=>setOn(true)}>□□</span>;
+}
+
 /* 레트로 다이얼로그 셸 */
 function Dialog({title,onClose,children,cls,win}){
   return <div className="dlgov" onClick={onClose}>

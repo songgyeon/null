@@ -1358,25 +1358,6 @@ function App(){
         </div>
       </div>
     </Dialog>}
-    {whoAsk&&<Dialog title="d-0.exe" onClose={()=>setWhoAsk(false)}>
-      <div className="ddq">
-        <div className="k">stay ♡ but</div>
-        <div className="q">WHO?</div>
-        <div className="s">한 명만 고를 수 있어 · 무를 수 없어</div>
-        <div className="askwho" style={{margin:"13px 4px 4px",justifyContent:"center"}}>
-          {["jaeeon","minhyun"].map(c=><button key={c} className="whobtn bevel"
-            onClick={()=>pickWho(c)}>
-            <span className="cface" style={faceBg(CHARS[c])}/>{CHARS[c].name}</button>)}
-        </div>
-      </div>
-    </Dialog>}
-    {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>
-      <div className="ddq">
-        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이민현이 NULL 기다리고 있어!"}
-          {' '}<span className="kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</span></div>
-        <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
-      </div>
-    </Dialog>}
     {askDday&&!ddayHide&&<Dialog title="d-0.exe" onClose={()=>setDdayHide(true)}>
       <div className="ddq">
         <div className="k">d-0 · last day</div>
@@ -1391,6 +1372,23 @@ function App(){
           <button className="no" onClick={()=>answerDday(false)}>
             <span className="g">✧</span>leave 4 real<span className="tail">bye bye</span></button>
         </div>
+      </div>
+    </Dialog>}
+    {whoAsk&&<Dialog title="d-0.exe" onClose={()=>setWhoAsk(false)}>
+      <div className="ddq">
+        <div className="k">stay ♡ but</div>
+        {/* 이 제품은 처음부터 끝까지 빈칸을 채우는 이야기다. 마지막 칸도 그래야
+            한다 — 얼굴을 고르는 게 아니라 이름을 쓴다. 아무 이름이나 되는 건
+            아니고, 이 세계에 있는 두 사람만 들어간다. */}
+        <div className="q">Stay with <WhoBlank onPick={pickWho}/>?</div>
+        <div className="s">선택은 NEVER EVER!</div>
+      </div>
+    </Dialog>}
+    {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>
+      <div className="ddq">
+        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이민현이 NULL 기다리고 있어!"}
+          {' '}<span className="kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</span></div>
+        <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
       </div>
     </Dialog>}
     {toast&&<div className="toast"><span>✧ {toast}</span></div>}

@@ -1189,3 +1189,11 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .cback{margin:10px auto 0;display:block;background:none;border:none;font:inherit;font-size:9px;letter-spacing:.14em;color:#c9bfe4;cursor:pointer}
 /* D-0 결과 카피 — 이름과 얼굴이 한 줄이다. 줄이 좁으면 얼굴만 내려간다 */
 .ddq .q .kao{color:#c86ea8;white-space:nowrap}
+
+/* ── 마지막 빈칸 ── D-0의 「Stay with □□?」. 등록 화면의 빈칸과 같은 칸이다.
+   여기만 글자가 크다(.ddq .q 안에 있어서) */
+.whoblank{min-width:52px;font-size:15px;vertical-align:baseline}
+.whoin{width:88px;font-size:15px;text-align:center;vertical-align:baseline}
+/* 이 세계에 없는 이름이면 칸이 흔들린다. 창을 하나 더 띄우지 않는다 */
+.whoin.bad{color:#ff5fa8;border-color:#ff9ec7;animation:whobad .18s 3}
+@keyframes whobad{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}

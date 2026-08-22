@@ -2187,6 +2187,29 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   eq('YES 뒤에는 프로필이 잠긴다',
     /const rename=n=>\{if\(loadWorld\(\)\)return;/.test(web)
     && /\(k,v\)=>\{if\(loadWorld\(\)\)return;setProfile/.test(web), true);
+  /* ── 마지막 빈칸 ──
+     얼굴을 고르는 게 아니라 이름을 쓴다. 이 제품은 처음부터 끝까지 빈칸을
+     채우는 이야기고, 마지막 칸도 그래야 한다. 이 세계에 있는 두 사람만
+     들어가고 그 밖의 글자는 에러다 — 창을 하나 더 띄우지 않고 칸에서 낸다. */
+  eq('마지막도 빈칸이다',
+    web.includes('Stay with <WhoBlank onPick={pickWho}/>?')
+    && web.includes('선택은 NEVER EVER!')
+    && /<span className="blank whoblank" onClick=\{\(\)=>setOn\(true\)\}>□□<\/span>/.test(web), true);
+  /* 얼굴 단추는 걷었다. 지도의 「같이 갈 사람은 Who?」와는 다른 화면이다 */
+  eq('D-0에는 얼굴 단추가 없다', (() => {
+    const i = web.indexOf('{whoAsk&&<Dialog');
+    return /whobtn/.test(web.slice(i, web.indexOf('</Dialog>}', i)));
+  })(), false);
+  eq('두 사람만 들어간다', (() => {
+    const W = new Function(web.slice(web.indexOf('const WHO_NAMES='),
+      web.indexOf('function WhoBlank')) + 'return WHO_NAMES;')();
+    return [['이재언', W['이재언']], ['재언', W['재언']], ['이민현', W['이민현']],
+      ['민현', W['민현']], ['수연', W['수연']], ['이재', W['이재']], ['', W['']]];
+  })(), [['이재언','jaeeon'],['재언','jaeeon'],['이민현','minhyun'],
+    ['민현','minhyun'],['수연',undefined],['이재',undefined],['',undefined]]);
+  eq('틀린 이름은 칸에서 튕긴다',
+    /setBad\(true\); setTimeout\(\(\)=>setBad\(false\),620\)/.test(web)
+    && /\.whoin\.bad\{/.test(web), true);
   /* null | jaeeon | minhyun 단일값. 처음 저장된 값이 이긴다 */
   eq('상대는 한 명, 한 번이다',
     /if\(id!=="jaeeon"&&id!=="minhyun"\)return null;/.test(web)
