@@ -2175,6 +2175,23 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   eq('확정 카피가 정확하다',
     web.includes('너는 이 세계에<br/>NULL 존재하게 할 수 있을까?')
     && web.includes('거절은 거절해'), true);
+  /* ── 현실의 나는 □□이다 ──
+     그 칸은 안 채워진다. 채워지면 이 게임이 아니다 — 이 세계에서만 값이
+     생긴다(교생). 게임 이름이 거기서 온다. 새 화면은 안 만들고 확정 카드
+     안에서 WARNING → 사실 → 물음 순서로 읽힌다 */
+  eq('빙의 경고가 확정 화면에 있다',
+    web.includes('!!!WARNING!!!')
+    && web.includes('현실에서 <span className="blank cnull">□□</span>이던 내가')
+    && web.includes('이 세계에서는 교생?')
+    && web.includes('(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'), true);
+  eq('현실의 칸은 안 눌린다', /\.cnull\{cursor:default;pointer-events:none/.test(web), true);
+  /* WARNING → 사실 → 물음. 순서가 뒤집히면 다른 이야기가 된다 */
+  eq('경고가 물음보다 먼저다',
+    web.indexOf('!!!WARNING!!!') < web.indexOf('너는 이 세계에<br/>'), true);
+  eq('앱에도 같은 경고가 있다',
+    appSrc.includes('!!!WARNING!!!')
+    && appSrc.includes('현실에서 □□이던 내가')
+    && appSrc.includes('이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ'), true);
   eq('NULL에 조사를 안 붙였다', /NULL을 존재/.test(web), false);
   eq('이름만으로는 메신저에 못 들어간다',
     /localStorage\.getItem\("null_name"\)&&!loadWorld\(\)\?"enroll":false/.test(web), true);

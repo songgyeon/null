@@ -475,6 +475,14 @@ function Confirm({name,onYes,onBack}){
     <div className="ecard">
       <div className="etb">null.exe<WinDots/></div>
       <div className="ebody">
+        {/* ── 이 세계에 들어온다는 것 ──
+            현실의 나는 □□이다. 그 칸은 안 채워진다 — 채워지면 이 게임이
+            아니다. 이 세계에서만 값이 생긴다(교생). 게임 이름이 거기서 온다.
+            새 화면을 만들지 않는다. 이 카드 안에서 WARNING → 사실 → 물음
+            순서로 읽히면 그걸로 족하다. */}
+        <div className="cwarn">!!!WARNING!!!</div>
+        <div className="cwho">현실에서 <span className="blank cnull">□□</span>이던 내가<br/>
+          이 세계에서는 교생? <span className="kao">{'(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'}</span></div>
         <div className="cq">{name}, 너는 이 세계에<br/>NULL 존재하게 할 수 있을까?</div>
         <button className="ego cyes" onClick={yes}>YES</button>
         <div className="chint">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>

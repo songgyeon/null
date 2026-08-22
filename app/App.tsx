@@ -358,6 +358,10 @@ function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void
     <View style={en.card}>
       <View style={en.tb}><Text style={en.tbT}>null.exe</Text></View>
       <View style={en.body}>
+        {/* 현실의 나는 □□이다. 그 칸은 안 채워진다 — 채워지면 이 게임이 아니다.
+            이 세계에서만 값이 생긴다(교생). 웹의 .cwarn/.cwho와 같은 자리다 */}
+        <Text style={en.cwarn}>!!!WARNING!!!</Text>
+        <Text style={en.cwho}>현실에서 □□이던 내가{'\n'}이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ</Text>
         <Text style={en.cq}>{name}, 너는 이 세계에{'\n'}NULL 존재하게 할 수 있을까?</Text>
         <TouchableOpacity style={[en.go,{marginTop:14}]} activeOpacity={.8} onPress={yes}>
           <Text style={en.goT}>YES</Text></TouchableOpacity>
@@ -415,7 +419,9 @@ const en=StyleSheet.create({
       borderWidth:1.5,borderColor:'#fff'},
   goT:{...F,fontSize:12,letterSpacing:3.6,color:'#6b5fa8'},
   /* 세계 확정 화면 — 등록 카드 안의 세 줄뿐이다. 새 껍데기를 만들지 않는다 */
-  cq:{...F,marginTop:18,textAlign:'center',fontSize:13,lineHeight:26,letterSpacing:.5,color:'#4a4276'},
+  cwarn:{...F,marginTop:14,textAlign:'center',fontSize:10.5,letterSpacing:2.4,color:'#ff5fa8'},
+  cwho:{...F,marginTop:11,textAlign:'center',fontSize:11,lineHeight:23,color:'#8a7fc0'},
+  cq:{...F,marginTop:15,textAlign:'center',fontSize:13,lineHeight:26,letterSpacing:.5,color:'#4a4276'},
   chint:{...F,marginTop:11,textAlign:'center',fontSize:9.5,letterSpacing:.8,color:'#b09ecf'},
   cback:{...F,marginTop:10,textAlign:'center',fontSize:8.5,letterSpacing:1.4,color:'#c9bfe4'},
 });
