@@ -583,6 +583,17 @@ function App(){
     const rid=payload.request_id
       ||((crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random());
     payload.request_id=rid;
+    /* 지금이 어떤 자리인지. 서버는 상태를 안 들고 있어서 여기서 말해줘야
+       하는데, 서버가 그대로 믿지는 않는다 — 허용된 사유인지와 지금 상태가
+       그 사유를 받쳐주는지를 둘 다 보고 승인한다. 그래서 partner도 같이 보낸다.
+       재시도면 이미 실려 있으니 다시 꺼내지 않는다 — 꺼내면서 지우기 때문에
+       한 번 더 꺼내면 빈 값이 되어 중요한 장면이 일반 턴으로 내려간다. */
+    if(!payload.scene_reason){
+      const why=takeScene(bucket);
+      if(why)payload.scene_reason=why;
+    }
+    const pid=loadPartner();
+    if(pid)payload.partner=pid;
     inflightRef.current[bucket]=rid;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
@@ -1109,6 +1120,8 @@ function App(){
     if(yes){ setWhoAsk(true); return }
     try{localStorage.setItem("null_dday_ans",String(dSpan))}catch(e){}
     setDdayAns(String(dSpan));
+    /* 떠나기로 한 것도 되돌릴 수 없는 자리다 */
+    markScene("jaeeon","dday_choice"); markScene("minhyun","dday_choice");
     setToast("left 4 real ✧");
   };
   const pickWho=id=>{
@@ -1117,6 +1130,13 @@ function App(){
     setDdayAns(String(dSpan));
     try{localStorage.setItem("null_extend",String(loadExtend()+ENROLL_DAYS))}catch(e){}
     const got=savePartner(id);
+    /* 두 사람 다 이 일을 안다. 고른 쪽에는 정해진 직후의 첫 반응이고,
+       안 고른 쪽에는 그 사실을 처음 아는 자리다 — 같은 사건이지만 다른
+       장면이라 사유도 다르다. 각자 방의 다음 한 마디에 한 번만 실린다. */
+    const other=(got||id)==="jaeeon"?"minhyun":"jaeeon";
+    markScene(got||id,"partner_confirm");
+    markScene(other,"partner_known");
+    markScene("health","partner_known");
     setWhoAsk(false); setWhoDone(got||id);
   };
 

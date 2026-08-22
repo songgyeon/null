@@ -1023,6 +1023,29 @@ const markOnce=id=>{const a=loadEvDone();if(a.indexOf(id)>=0)return false;
   a.push(id);saveEvDone(a);return true};
 const didOnce=id=>loadEvDone().indexOf(id)>=0;
 
+/* ── 중요한 장면을 예약해둔다 ──
+   서버는 상태를 안 들고 있으므로 「지금이 어떤 자리인지」는 여기서 말해줘야
+   한다. 다만 아무 말이나 보내면 안 된다 — 서버가 허용된 사유 목록과 지금
+   상태를 둘 다 보고 승인한다. 여기서는 방마다 한 번짜리로 적어두고,
+   그 방의 다음 한 마디에 실어 보낸 뒤 지운다. */
+const SCENE_REASONS = ["memory_reveal","null_identity","confession","irreversible",
+  "partner_confirm","dday_choice","partner_first_reaction","partner_known",
+  "parting","ending","conflict_result"];
+const loadScenePend=()=>{try{return JSON.parse(localStorage.getItem("null_scene_pend"))||{}}catch(e){return{}}};
+const saveScenePend=o=>{try{localStorage.setItem("null_scene_pend",JSON.stringify(o))}catch(e){}};
+const markScene=(room,reason)=>{
+  if(SCENE_REASONS.indexOf(reason)<0)return;
+  const o=loadScenePend(); o[room]=reason; saveScenePend(o);
+};
+/* 꺼내면서 지운다. 한 번짜리라 다음 턴에 또 실리면 안 된다 —
+   실리면 그 방의 모든 턴이 중요한 장면이 되고 값만 두 배가 된다. */
+const takeScene=room=>{
+  const o=loadScenePend(); const r=o[room];
+  if(!r)return "";
+  delete o[room]; saveScenePend(o);
+  return r;
+};
+
 /* ── 프로필 출처 ──
    YES를 누른 순간 등록값이 세계의 빈칸에 들어간다. 두 사람은 그 값을
    처음부터 알고 있다 — 등록 화면도 앱도 모르는 채로, 자기 기억으로는

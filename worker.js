@@ -3112,6 +3112,149 @@ function readDecision(raw, n) {
   };
 }
 
+/* ══════════════════════════════════════════════════════════════
+   중요 장면
+
+   ── 무엇이 중요한가는 코드가 정한다 ──
+   모델이 「이건 중요한 장면 같아요」라고 말하는 것만으로 올리지 않는다.
+   허용된 사유 목록에 있고, 지금 상태가 실제로 그 사유를 뒷받침할 때만
+   승인한다. 안 그러면 모든 턴이 중요해지고 값만 두 배가 된다.
+
+   단순한 질투, 가벼운 플러팅, 평범한 다툼, 선물, 장소 이동은 안 올린다.
+   평소의 설렘과 재미는 일반 경로에서도 나와야 한다 — 그게 안 나오면
+   경로를 올릴 게 아니라 쓰는 쪽 프롬프트를 고쳐야 하는 것이다. */
+const CRITICAL_REASONS = {
+  memory_reveal: "핵심 기억이 처음 공개된다",
+  null_identity: "NULL이라는 사실이 직접 작동한다",
+  confession: "고백을 받아들이거나 거절한다",
+  irreversible: "관계가 되돌릴 수 없게 바뀐다",
+  partner_confirm: "상대가 정해진다",
+  dday_choice: "남을지 떠날지를 고른다",
+  partner_first_reaction: "정해진 직후의 첫 반응이다",
+  partner_known: "다른 한 사람이 그 사실을 처음 안다",
+  parting: "헤어지거나 떠나거나 다시 만난다",
+  ending: "이야기가 갈린다",
+  conflict_result: "갈등이 되돌릴 수 없는 결과를 낳는다",
+};
+
+/* 프론트가 보낸 사유를 그대로 믿지 않는다. 목록에 있는 말인지 보고,
+   지금 상태가 그 말을 뒷받침하는지도 본다. 둘 다 맞아야 올라간다. */
+function sceneTier(reason, ctx) {
+  const r = String(reason || "").trim();
+  if (!r || !CRITICAL_REASONS[r]) return { tier: "normal", reason: "" };
+  const partner = ctx.partner === "jaeeon" || ctx.partner === "minhyun" ? ctx.partner : null;
+  const days = Math.max(0, Number(ctx.days) || 0);
+  const unlocked = Array.isArray(ctx.unlocked) ? ctx.unlocked : [];
+  const ok =
+    r === "partner_confirm" || r === "partner_first_reaction" || r === "partner_known"
+      ? !!partner
+    : r === "dday_choice" || r === "ending" || r === "parting"
+      ? days >= ENROLL_DAYS
+    : r === "memory_reveal" || r === "null_identity"
+      ? unlocked.length > 0
+    : true;
+  if (!ok) {
+    console.log(`[NULL] 중요 장면 사유를 상태가 안 받쳐준다 — ${r}, 승인 안 함`);
+    return { tier: "normal", reason: "" };
+  }
+  return { tier: "critical", reason: r };
+}
+
+/* ── 두 검사 ──
+   하나는 정사를 붙잡고, 하나는 관계 속도와 캐릭터 붕괴를 본다.
+   둘 다 짧게 답한다 — 길게 답하면 그 자체가 마무리하는 쪽의 프롬프트가 된다. */
+const CANON_CRITIC = `너는 이 세계의 사실만 본다. 아래 [사실]에 없는 것을 후보가 지어냈는지만 답한다.
+
+이런 것을 잡는다.
+- [사실]에 없는 사건·날짜·과거를 말한 것
+- 그 화자가 알 수 없는 것을 아는 것처럼 말한 것
+- 물건의 주인이나 소유가 뒤바뀐 것
+- 유저가 한 적 없는 행동을 했다고 말한 것
+
+문장이 좋은지 나쁜지는 보지 않는다. 사실만 본다.
+출력은 이 모양 하나뿐이다.
+{"problems":["짧게 무엇이 틀렸는지"]}
+잡을 것이 없으면 {"problems":[]}`;
+
+const CHAR_CRITIC = `너는 이 사람이 이 사람다운지만 본다. 사실 관계는 보지 않는다.
+
+이런 것을 잡는다.
+- 관계 단계보다 앞서 나간 말 (아직 그 사이가 아닌데 그 사이처럼 구는 것)
+- 그 사람 말투가 아닌 것 (두 사람이 같은 다정한 챗봇으로 수렴하는 것)
+- 상담사나 비서처럼 정리·공감·해결책을 세트로 주는 것
+- 유저의 감정이나 행동을 대신 써준 것
+- 세계관을 길게 설명하는 것
+
+출력은 이 모양 하나뿐이다.
+{"problems":["짧게 무엇이 어긋났는지"]}
+잡을 것이 없으면 {"problems":[]}`;
+
+const FINALIZER_RULES = `너는 이 장면의 마지막 손이다. 유저가 실제로 읽을 대사를 완성한다.
+
+이 자리에서는 정확한 것만으로 모자란다. 감정의 체온, 말하지 않고 남긴 것,
+머뭇거림, 미련이 여기서 갈린다. 그렇다고 새 사건을 만들지는 않는다.
+
+할 수 있는 것.
+- 후보 하나를 그대로 고른다
+- 후보 하나를 뼈대로 삼아 최소한만 고친다
+- 다 모자라면 같은 반응 의도를 유지한 채 새로 쓴다
+
+할 수 없는 것.
+- [사실]에 없는 사건·과거·유저 행동·유저 감정·관계 상태를 만드는 것
+- 검사가 잡은 문제를 그대로 두는 것
+- 세계관을 설명하는 것
+- 일반 챗봇처럼 친절하고 자세하게 마무리하는 것
+
+말풍선은 짧다. 이 앱에서 예순 자가 넘는 한 줄은 낭독이다.
+출력은 평소 형식 그대로다. 다른 말은 붙이지 않는다.`;
+
+/* 장면 머리. 검사도 마무리도 같은 것을 본다 — 둘이 다른 장면을 보면
+   검사가 잡은 것을 마무리가 이해할 수 없다. */
+function sceneHead(ctx) {
+  const L = [];
+  L.push(`[화자] ${ctx.who}`);
+  if (ctx.stage) L.push(`[관계] ${ctx.stage}`);
+  L.push(`[지금] ${ctx.when}${ctx.place ? ` · ${ctx.place}` : ""}`);
+  if (ctx.knows) L.push(`[아는 범위] ${ctx.knows}`);
+  L.push(`[사실] ${(ctx.facts || []).join(" · ") || "이 장면에 특별한 사실 없음"}`);
+  if (ctx.recent && ctx.recent.length) {
+    L.push(`[최근 대화]`);
+    for (const m of ctx.recent) L.push(`${m.role === "user" ? "유저" : ctx.who}: ${String(m.content).slice(0, 160)}`);
+  }
+  return L;
+}
+
+function criticPacket(ctx, c) {
+  const L = sceneHead(ctx);
+  L.push(``, `[후보]`);
+  c.kept.forEach(m => L.push(`  ${m.text}`));
+  return L.join("\n");
+}
+
+function readProblems(raw) {
+  const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
+  if (!body) return [];
+  try {
+    const j = JSON.parse(body);
+    return Array.isArray(j.problems) ? j.problems.map(x => String(x).slice(0, 120)).filter(Boolean) : [];
+  } catch (e) { return []; }
+}
+
+function finalizerPacket(ctx, cands, notes) {
+  const L = sceneHead(ctx);
+  L.push(``, `[후보]`);
+  cands.forEach((c, i) => {
+    L.push(cands.length === 1 ? `후보` : `후보 ${"AB"[i]}`);
+    c.kept.forEach(m => L.push(`  ${m.text}`));
+    if (c.signals.length) L.push(`  (코드 신호: ${c.signals.join(", ")})`);
+  });
+  if (notes && notes.length) {
+    L.push(``, `[검사가 잡은 것]`);
+    notes.forEach(n => L.push(`- ${n}`));
+  }
+  return L.join("\n");
+}
+
 /* 안이 비치는 모양. 대사에는 이런 것이 안 나온다 */
 const LEAKY_SHAPE = /^[[{]|"messages"\s*:|```/;
 
@@ -3641,7 +3784,14 @@ export default {
          않으므로, 이 장면을 판단할 만큼만 여기서 추린다.
          정사를 추측하게 만들 만큼 굶기지도 않는다 — 관계 단계와 아는 범위가
          없으면 「지금 이 사람」을 볼 수가 없다. */
-      const tier = "normal";
+      /* 중요한 장면인지는 코드가 정한다. 프론트가 보낸 사유를 그대로 믿지
+         않고, 허용된 목록에 있는지와 지금 상태가 그 사유를 받쳐주는지를
+         둘 다 본다. 안 그러면 모든 턴이 중요해지고 값만 두 배가 된다. */
+      const routed = mode === "auto" ? { tier: "normal", reason: "" }
+        : sceneTier(body.scene_reason, { partner: body.partner, days,
+                                         unlocked: unlockedKeys(counts, days) });
+      const tier = routed.tier;
+      if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);
       const relLabel = stageOf(Number((counts || {})[room]) || 0, days).name + ` · ${days}일째`;
       const knowsLabel = room === "jaeeon"
         ? "20년 전 공부방 아이를 안다. 유저가 그 아이라는 것은 자기만 안다"
@@ -3693,11 +3843,45 @@ export default {
            장면 전체가 다르고, 여기서 값을 두 배로 낼 자리가 아니다. */
         if (mode === "auto" || cands.length === 0) { picked = cands[0]; break; }
 
-        const packet = directorPacket({
+        const sceneCtx = {
           who: fallbackSender, when: now, place,
           stage: relLabel, knows: knowsLabel, facts: turnFacts,
           recent: recentForDirector,
-        }, cands);
+        };
+
+        /* ── 중요한 장면 ──
+           여기서는 고르는 단계를 따로 안 탄다. 검사 둘이 나란히 돌아 경계를
+           그어주고, 마무리하는 쪽이 그 안에서 후보 선택과 문장 완성을 함께
+           맡는다. 정확성만큼 감정의 체온과 말하지 않은 것이 중요한 자리라
+           고르기만 해서는 모자라기 때문이다. */
+        if (tier === "critical") {
+          const notes = (await Promise.all(cands.map(c =>
+            Promise.all([
+              callStage(env, "canon", CANON_CRITIC,
+                [{ role: "user", content: criticPacket(sceneCtx, c) }], 300, attempt, tier),
+              callStage(env, "character", CHAR_CRITIC,
+                [{ role: "user", content: criticPacket(sceneCtx, c) }], 300, attempt, tier),
+            ])))).flat().flatMap(readProblems);
+          console.log(`[NULL] 검사 ▶ ${notes.length}건 ${JSON.stringify(notes).slice(0, 300)}`);
+          const finRaw = await callStage(env, "finalizer",
+            system + "\n\n" + FINALIZER_RULES,
+            [{ role: "user", content: finalizerPacket(sceneCtx, cands, notes) }],
+            budget, attempt, tier);
+          /* 마무리한 것도 같은 검사줄을 다시 통과해야 한다 — 위를 썼다고
+             빠져나가면 여기가 유일하게 안 걸러지는 자리가 된다 */
+          const fp = parseMessages(finRaw, fallbackSender, chars);
+          const fInvite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
+          const fGive = pickGive(parseMessages.give, place, hasItem, room);
+          const fKept = dropEcho(
+            trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(fp)), chars), photoChars, fallbackSender, recentPhotos)),
+            lastSaid(msgs, mode));
+          const fCodes = hardFilter(fKept, chars);
+          if (fCodes.length) { lastCodes = fCodes; continue; }   // 다시 쓴다
+          picked = { kept: fKept, invite: fInvite, give: fGive, signals: [] };
+          break;
+        }
+
+        const packet = directorPacket(sceneCtx, cands);
         const decRaw = await callStage(env, "director", DIRECTOR_RULES,
           [{ role: "user", content: packet }], 300, attempt, tier);
         const dec = readDecision(decRaw, cands.length);
@@ -3752,4 +3936,6 @@ export default {
 export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
          ENGINE, CANDIDATES, RETRY_MAX, writerAsk, splitCandidates, hardFilter, softSignals,
-         directorPacket, readDecision, DIRECTOR_RULES };
+         directorPacket, readDecision, DIRECTOR_RULES,
+         CRITICAL_REASONS, sceneTier, sceneHead, criticPacket, finalizerPacket, readProblems,
+         CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES };

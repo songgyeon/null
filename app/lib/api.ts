@@ -1,7 +1,7 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
 /* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
-import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet } from './rules';
+import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner } from './rules';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -161,12 +161,16 @@ export type ChatOpts = {
   /* 한 논리 요청의 이름표. 재시도해도 같은 값이 온다 — 워커가 멱등 처리를
      붙일 자리이고, 지금은 답에 그대로 되비쳐서 늦게 온 답을 가리는 데 쓴다 */
   reqId?: string;
+  /* 지금이 어떤 자리인가. 워커는 상태를 안 들고 있어서 여기서 말해줘야
+     하는데, 그대로 믿지는 않는다 — 허용된 사유인지와 지금 상태가 그 사유를
+     받쳐주는지를 둘 다 보고 승인한다. 그래서 partner도 같이 간다. */
+  sceneReason?: string;
   extra?: Record<string, any>;
 };
 export async function sendChat(room: string, userName: string, history: Msg[],
                                opts: ChatOpts = {}) {
   const sum = await loadSum(room);
-  const { gift, place, bag, placeOver, greet, left, came, reqId, extra } = opts;
+  const { gift, place, bag, placeOver, greet, left, came, reqId, sceneReason, extra } = opts;
   /* 그 방 사람의 접속 상태. 목록에 뜨는 것과 같은 함수(presence)를 쓴다 —
      화면에는 「수업 중」인데 본인은 한가한 사람처럼 답하던 것이 이걸로 맞는다.
      「주말」은 안 보낸다 — 요일이 이미 실려 있어 같은 말이 두 번 된다. */
@@ -223,6 +227,8 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     refused: await loadList('null_refused'),
     closed: PLACES.filter((p: any) => !placeHours(p)).map((p: any) => p.name),
     ...(reqId ? { request_id: reqId } : {}),
+    ...(sceneReason ? { scene_reason: sceneReason } : {}),
+    ...(loadPartner() ? { partner: loadPartner() } : {}),
     ...(extra || {}),
   });
 }

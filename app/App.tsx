@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase,
+  loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, takeScene,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
@@ -1865,7 +1865,11 @@ function Root() {
       const at=sc&&sc.room===room?sc.place:null;
       /* left는 자리를 닫고 나서 부르는 턴에만 온다. place와 같이 오지 않는다 —
          워커도 place가 없을 때만 본다. */
-      const data=await sendChat(room,name,hist,{reqId:rid,bag:bagOut(bagRef.current),
+      /* 예약된 자리는 그 방의 다음 한 마디에 한 번만 실린다. 꺼내면서
+         지우므로 재시도에서는 안 실린다 — 재시도는 같은 요청이라 워커가
+         이미 그 사유를 봤다. */
+      const why=retry?'':takeScene(room);
+      const data=await sendChat(room,name,hist,{reqId:rid,...(why?{sceneReason:why}:{}),bag:bagOut(bagRef.current),
         ...(at?{place:at,...(sc.came?{came:sc.came}:{}),...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
       if(stale(room,rid))return;
       endTurn(room,rid); setTyping(false);

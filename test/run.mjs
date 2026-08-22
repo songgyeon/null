@@ -4555,8 +4555,8 @@ eq('시간표 단추는 peek보다 좁다',
     return /EMPTY/.test(f) && /LEAK/.test(f) && /SENDER/.test(f);
   })(), true);
   eq('신호는 자르지 않고 넘긴다', (() => {
-    const i = wk.indexOf('const packet = directorPacket(');
-    return wk.slice(i - 900, i).includes('signals: softSignals(kept, recentForDirector)');
+    const i = wk.indexOf('cands.push({ kept, invite, give, signals: softSignals(');
+    return i > 0 && !wk.slice(i, i + 200).includes('return');   // 신호로 후보를 버리지 않는다
   })(), true);
 
   /* ── 고르는 쪽에 큰 프롬프트를 다시 안 준다 ──
@@ -4615,6 +4615,119 @@ eq('시간표 단추는 peek보다 좁다',
   eq('꾸러미에 후보 둘이 들어간다', pk.includes('후보 A') && pk.includes('후보 B'), true);
   eq('꾸러미에 코드 신호가 실린다', pk.includes('코드 신호: TOO_EXPLANATORY'), true);
   eq('꾸러미가 짧다', pk.length < 900, true);
+}
+
+/* ══════════ 중요한 장면 ══════════
+   여기서는 고르는 단계를 따로 안 탄다. 검사 둘이 나란히 돌아 경계를
+   그어주고, 마무리하는 쪽이 그 안에서 후보 선택과 문장 완성을 함께 맡는다.
+   정확성만큼 감정의 체온과 말하지 않은 것이 중요한 자리라 고르기만 해서는
+   모자라기 때문이다. */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  const { sceneTier, CRITICAL_REASONS, criticPacket, finalizerPacket, readProblems, sceneHead } = ENG;
+
+  /* ── 무엇이 중요한지는 코드가 정한다 ──
+     모델이 「이건 중요해 보여요」라고 말하는 것만으로 올리지 않는다.
+     안 그러면 모든 턴이 중요해지고 값만 두 배가 된다. */
+  eq('사유가 목록에 있어야 올라간다',
+    sceneTier('그냥 중요해요', { partner: 'minhyun', days: 40, unlocked: ['x'] }).tier, 'normal');
+  eq('상태가 받쳐줘야 올라간다',
+    sceneTier('partner_confirm', { partner: null, days: 40, unlocked: ['x'] }).tier, 'normal');
+  eq('둘 다 맞으면 올라간다',
+    sceneTier('partner_confirm', { partner: 'minhyun', days: 40, unlocked: [] }).tier, 'critical');
+  eq('떠나는 날은 날짜가 받쳐줘야 한다',
+    sceneTier('dday_choice', { partner: null, days: 3, unlocked: [] }).tier, 'normal');
+  eq('해금이 없으면 기억 공개도 아니다',
+    sceneTier('memory_reveal', { partner: null, days: 40, unlocked: [] }).tier, 'normal');
+  eq('사유가 없으면 일반 턴이다', sceneTier('', {}).tier, 'normal');
+  /* 단순한 질투·플러팅·다툼·선물·장소 이동은 목록에 없다 — 평소의 설렘은
+     일반 경로에서도 나와야 한다 */
+  eq('평범한 일은 목록에 없다',
+    ['jealousy', 'flirt', 'fight', 'gift', 'move'].filter(k => CRITICAL_REASONS[k]), []);
+
+  /* ── 검사 둘은 다른 것을 본다 ──
+     하나는 정사만, 하나는 사람만. 같은 것을 보면 둘을 부를 이유가 없다. */
+  eq('한쪽은 사실만 본다',
+    /문장이 좋은지 나쁜지는 보지 않는다\. 사실만 본다\./.test(wk), true);
+  eq('한쪽은 사람만 본다',
+    /너는 이 사람이 이 사람다운지만 본다\. 사실 관계는 보지 않는다\./.test(wk), true);
+  eq('검사 둘이 나란히 돈다', /Promise\.all\(\[\s*\n\s*callStage\(env, "canon"/.test(wk), true);
+  /* 검사도 마무리도 같은 장면을 봐야 한다 — 다른 장면을 보면 검사가 잡은
+     것을 마무리가 이해할 수 없다 */
+  eq('검사와 마무리가 같은 머리를 쓴다', (() => {
+    const a = wk.slice(wk.indexOf('function criticPacket('), wk.indexOf('function readProblems('));
+    const b = wk.slice(wk.indexOf('function finalizerPacket('), wk.indexOf('/* 안이 비치는 모양'));
+    return a.includes('sceneHead(ctx)') && b.includes('sceneHead(ctx)');
+  })(), true);
+
+  /* ── 마무리는 경계 안에서만 쓴다 ── */
+  eq('마무리가 새 사건을 못 만든다',
+    /\[사실\]에 없는 사건·과거·유저 행동·유저 감정·관계 상태를 만드는 것/.test(wk), true);
+  eq('마무리도 같은 검사줄을 탄다', (() => {
+    const i = wk.indexOf('const fp = parseMessages(finRaw, fallbackSender, chars);');
+    const box = wk.slice(i, i + 700);
+    return box.includes('dropEcho(') && box.includes('sanitizePhotos(')
+        && box.includes('hardFilter(fKept, chars)');
+  })(), true);
+  /* 위를 썼다고 빠져나가면 여기가 유일하게 안 걸러지는 자리가 된다 */
+  eq('마무리가 걸리면 다시 쓴다', (() => {
+    const i = wk.indexOf('const fCodes = hardFilter(fKept, chars);');
+    return wk.slice(i, i + 120).includes('continue;');
+  })(), true);
+  eq('중요 장면은 고르는 단계를 안 탄다', (() => {
+    const i = wk.indexOf('if (tier === "critical") {');
+    const box = wk.slice(i, wk.indexOf('const packet = directorPacket(sceneCtx, cands);', i));
+    return !box.includes('"director"');
+  })(), true);
+
+  eq('검사 답을 읽는다', readProblems(JSON.stringify({ problems: ['앞서 나감'] })), ['앞서 나감']);
+  eq('못 읽으면 잡을 것이 없는 것으로 본다', readProblems('음 글쎄요'), []);
+
+  const ctx = { who: 'minhyun', when: '저녁', place: null, stage: '시한 · 30일째',
+    knows: '병원 옥상', facts: ['상대가 정해졌다'], recent: [{ role: 'user', content: '너로 할게' }] };
+  const cands = [{ kept: [{ text: '진짜요?' }], signals: [] },
+                 { kept: [{ text: '알았어요.' }], signals: ['TOO_EXPLANATORY'] }];
+  eq('꾸러미에 사실이 실린다', sceneHead(ctx).join('\n').includes('[사실] 상대가 정해졌다'), true);
+  eq('마무리 꾸러미에 검사 결과가 실린다',
+    finalizerPacket(ctx, cands, ['앞서 나감']).includes('[검사가 잡은 것]\n- 앞서 나감'), true);
+  eq('마무리 꾸러미도 짧다', finalizerPacket(ctx, cands, ['앞서 나감']).length < 900, true);
+
+  /* ── 예약은 한 번짜리다 ──
+     꺼내면서 지운다. 안 지우면 그 방의 모든 턴이 중요한 장면이 되고
+     값만 두 배가 된다. */
+  const S = (() => {
+    const store = {};
+    globalThis.localStorage = { getItem:k=>store[k]??null, setItem:(k,v)=>{store[k]=String(v)},
+      removeItem:k=>{delete store[k]}, get length(){return Object.keys(store).length},
+      key:i=>Object.keys(store)[i] };
+    globalThis.location = { search:'' };
+    globalThis.React = { useState:()=>[], useEffect:()=>{}, useRef:()=>({}) };
+    const src = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+    return new Function(src + ';return {markScene,takeScene,SCENE_REASONS}')();
+  })();
+  S.markScene('minhyun', 'partner_confirm');
+  eq('예약한 것이 나온다', S.takeScene('minhyun'), 'partner_confirm');
+  eq('한 번 꺼내면 없다', S.takeScene('minhyun'), '');
+  S.markScene('minhyun', '아무 말');
+  eq('목록에 없는 말은 예약이 안 된다', S.takeScene('minhyun'), '');
+  /* 웹과 앱이 같은 낱말을 쓴다 — 다르면 서버가 한쪽만 승인한다 */
+  eq('사유 낱말이 서버와 같다',
+    S.SCENE_REASONS.filter(r => !CRITICAL_REASONS[r]), []);
+
+  /* 고른 쪽과 안 고른 쪽은 같은 사건이지만 다른 장면이다 */
+  eq('두 사람 다 이 일을 안다', (() => {
+    const i = web.indexOf('const other=(got||id)==="jaeeon"?"minhyun":"jaeeon";');
+    const box = web.slice(i, i + 300);
+    return box.includes('markScene(got||id,"partner_confirm")')
+        && box.includes('markScene(other,"partner_known")');
+  })(), true);
+  /* 재시도는 같은 요청이라 워커가 이미 그 사유를 봤다 */
+  eq('재시도에는 다시 안 싣는다',
+    /if\(!payload\.scene_reason\)\{\s*\n\s*const why=takeScene\(bucket\);/.test(web)
+    && /const why=retry\?'':takeScene\(room\);/.test(appSrc), true);
+  eq('앱도 같은 이름으로 보낸다',
+    /sceneReason \? \{ scene_reason: sceneReason \} : \{\}/.test(apiSrc)
+    && /loadPartner\(\) \? \{ partner: loadPartner\(\) \} : \{\}/.test(apiSrc), true);
 }
 
 /* ══════════ 시그니처 문장과 한 번짜리 사건 ══════════
