@@ -4144,6 +4144,26 @@ eq('시간표 단추는 peek보다 좁다',
     && /goPlace=async\(place:string,who:string,note\?:string,came\?:string\)/.test(appSrc), true);
 }
 
+/* ── 견본이 규칙을 이긴다 ──
+   「유저 말을 "아니고요"로 받아치면서 열지 않는다」는 규칙을 박아뒀는데,
+   같은 블록의 대화 예시 두 줄이 정확히 그걸 하고 있었다 — 「안 붙었는데요」,
+   「기다리는 거 아니에요」. 프롬프트가 매 턴 「지난 네 말이 아니라 대화
+   예시가 견본이다」라고 못 박는 자리라, 산문 규칙과 견본이 싸우면 견본이
+   이긴다. 기록의 「아니고요」 53회는 규칙을 어긴 것이 아니라 견본을 따른
+   것이다. 규칙을 더 쓰는 대신 견본을 고쳤다(작가가 쓴 줄이다) */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  const ex = wk.slice(wk.indexOf('const MINHYUN'), wk.indexOf('const FORMAT_CHAT'));
+  eq('민현 견본은 부정으로 열지 않는다',
+    /민현: 알았어요\. 안 그럴게요\. \/ 그럼 어디까지 괜찮아요\?/.test(ex)
+    && /민현: 그럼 그냥 있을게요\. \/ 그냥 있는 건 괜찮잖아요\./.test(ex), true);
+  eq('되받아치던 두 줄은 없앴다',
+    /안 붙었는데요/.test(ex) || /기다리는 거 아니에요/.test(ex), false);
+  /* 규칙 쪽은 그대로 있어야 한다 — 견본만 고치고 규칙을 지우면 도로 열린다 */
+  eq('규칙도 같이 서 있다',
+    /유저 말을 "아니고요"로 받아치면서 열지 않는다/.test(wk), true);
+}
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 
