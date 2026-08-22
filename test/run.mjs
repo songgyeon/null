@@ -4685,9 +4685,12 @@ eq('시간표 단추는 peek보다 좁다',
   const sect = corpus.slice(corpus.indexOf('## 첫 자리'), corpus.indexOf('## 마감 체크'));
   eq('첫 자리에서 옥상을 설명하지 않는다', /병원 옥상에서 만났|담배|라이터/.test(
     sect.split('\n').filter(l => l.startsWith('　')).join('\n')), false);
+  /* 민현의 첫 마디는 늘 같은 수다 — 아는 걸 아는 채로 연다.
+     넷이 같은 말로 열려도 한 판에 하나만 나오므로 겹쳐 들리지 않는다.
+     「또」가 붙는 것이 정사다: 병원 옥상에서 이미 봤다. */
   eq('민현은 아는 채로 연다', (() => {
     const mine = sect.split('\n').filter(l => l.startsWith('　민현'));
-    return mine.length === 4 && mine.every(l => /알죠|맞죠|오시네요|아닌데/.test(l));
+    return mine.length === 4 && mine.every(l => l.includes('또 볼 줄은 몰랐는데. 저 알죠?'));
   })(), true);
   eq('재언은 용건부터 만든다', (() => {
     const mine = sect.split('\n').filter(l => l.startsWith('　재언'));
@@ -4708,7 +4711,7 @@ eq('시간표 단추는 peek보다 좁다',
      고르는 쪽이 indexOf라 낱말이 겹치면 엉뚱한 것이 나온다 */
   eq('평소 선톡이 자리 이름에 안 걸린다', (() => {
     const got = E.demoProactive('minhyun', '편의점', '리리');
-    return got.some(m => /이 시간에 볼 줄은/.test(m.text || m));
+    return got.some(m => /또 볼 줄은 몰랐는데/.test(m.text || m));
   })(), true);
 }
 
