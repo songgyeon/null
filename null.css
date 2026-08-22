@@ -1183,7 +1183,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 
 /* ── 세계 확정 화면 ── 등록 카드(.enr/.ecard)와 같은 껍데기를 쓴다.
    새 스타일을 만들지 않는다 — 이 넷은 글자 간격과 자리뿐이다 */
-.cq{margin:15px 4px 4px;text-align:center;font-size:14px;line-height:2;letter-spacing:.04em;color:#4a4276}
+.cq{margin:18px 4px 4px;text-align:center;font-size:14px;line-height:2;letter-spacing:.04em;color:#4a4276}
 .cyes{margin-top:14px}
 .chint{margin-top:11px;text-align:center;font-size:10px;letter-spacing:.08em;color:#b09ecf}
 .cback{margin:10px auto 0;display:block;background:none;border:none;font:inherit;font-size:9px;letter-spacing:.14em;color:#c9bfe4;cursor:pointer}
@@ -1198,9 +1198,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .whoin.bad{color:#ff5fa8;border-color:#ff9ec7;animation:whobad .18s 3}
 @keyframes whobad{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
-/* ── 확정 화면의 경고 ── 현실의 나는 □□이고, 이 세계에서만 값이 생긴다.
-   이 칸은 안 눌린다 — 채워지면 이 게임이 아니다 */
-.cwarn{margin-top:14px;text-align:center;font-size:11px;letter-spacing:.22em;color:#ff5fa8;
-  text-shadow:0 0 6px rgba(255,95,168,.35);animation:blinkc 1.1s steps(1) infinite}
-.cwho{margin:11px 4px 0;text-align:center;font-size:11.5px;line-height:2.1;letter-spacing:.03em;color:#8a7fc0}
-.cnull{cursor:default;pointer-events:none;min-width:30px;padding:1px 5px;font-size:11.5px}
+/* ── 등록 창의 제목줄이 흐른다 ──
+   현실의 나는 □□이고 이 세계에서만 값이 생긴다(교생). 창틀에 앉히느라
+   길어져서 흐르게 둔다 — 메신저 맨 위 띠와 같은 slide다. 점 셋은 오른쪽에
+   그대로 붙어 있어야 하므로 흐르는 쪽에만 flex를 준다. */
+.etbrun{flex:1;min-width:0;overflow:hidden;white-space:nowrap;contain:paint}
+.etbrun>i{display:inline-block;padding-left:100%;font-style:normal;animation:slide 17s linear infinite}

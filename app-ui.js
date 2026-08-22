@@ -422,7 +422,13 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr"+(out?" out":"")}>
     <div className="ecard">
-      <div className="etb">registering...<WinDots/></div>
+      {/* ── 제목줄이 말한다 ──
+          현실의 나는 □□이고 이 세계에서만 값이 생긴다(교생). 그게 이 게임의
+          이름이다. 배너를 하나 더 얹는 대신 이미 있는 창틀에 앉힌다 —
+          길어서 흐른다. 메신저 맨 위 띠와 같은 애니메이션(slide)이다. */}
+      <div className="etb"><span className="etbrun"><i>
+        현실에서 □□이던 내가 이 세계에서는 교생? {'(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'}
+      </i></span><WinDots/></div>
       <div className="ebody">
         {edit
           ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
@@ -475,14 +481,7 @@ function Confirm({name,onYes,onBack}){
     <div className="ecard">
       <div className="etb">null.exe<WinDots/></div>
       <div className="ebody">
-        {/* ── 이 세계에 들어온다는 것 ──
-            현실의 나는 □□이다. 그 칸은 안 채워진다 — 채워지면 이 게임이
-            아니다. 이 세계에서만 값이 생긴다(교생). 게임 이름이 거기서 온다.
-            새 화면을 만들지 않는다. 이 카드 안에서 WARNING → 사실 → 물음
-            순서로 읽히면 그걸로 족하다. */}
-        <div className="cwarn">!!!WARNING!!!</div>
-        <div className="cwho">현실에서 <span className="blank cnull">□□</span>이던 내가<br/>
-          이 세계에서는 교생? <span className="kao">{'(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'}</span></div>
+        {/* 그 한 줄은 앞 화면(등록)의 제목줄이 이미 말했다. 두 번 하지 않는다 */}
         <div className="cq">{name}, 너는 이 세계에<br/>NULL 존재하게 할 수 있을까?</div>
         <button className="ego cyes" onClick={yes}>YES</button>
         <div className="chint">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>

@@ -2177,21 +2177,31 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     && web.includes('거절은 거절해'), true);
   /* ── 현실의 나는 □□이다 ──
      그 칸은 안 채워진다. 채워지면 이 게임이 아니다 — 이 세계에서만 값이
-     생긴다(교생). 게임 이름이 거기서 온다. 새 화면은 안 만들고 확정 카드
-     안에서 WARNING → 사실 → 물음 순서로 읽힌다 */
-  eq('빙의 경고가 확정 화면에 있다',
-    web.includes('!!!WARNING!!!')
-    && web.includes('현실에서 <span className="blank cnull">□□</span>이던 내가')
-    && web.includes('이 세계에서는 교생?')
-    && web.includes('(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'), true);
-  eq('현실의 칸은 안 눌린다', /\.cnull\{cursor:default;pointer-events:none/.test(web), true);
-  /* WARNING → 사실 → 물음. 순서가 뒤집히면 다른 이야기가 된다 */
-  eq('경고가 물음보다 먼저다',
-    web.indexOf('!!!WARNING!!!') < web.indexOf('너는 이 세계에<br/>'), true);
-  eq('앱에도 같은 경고가 있다',
-    appSrc.includes('!!!WARNING!!!')
-    && appSrc.includes('현실에서 □□이던 내가')
-    && appSrc.includes('이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ'), true);
+     생긴다(교생). 게임 이름이 거기서 온다.
+     배너를 하나 더 얹는 대신 이미 있는 창틀(등록 창 제목줄)에 앉혔다.
+     길어서 흐른다 — 메신저 맨 위 띠와 같은 slide/Marquee다. */
+  eq('제목줄이 그 한 줄을 말한다',
+    web.includes('현실에서 □□이던 내가 이 세계에서는 교생?')
+    && web.includes('(,,◕ᗝ◕,,)♡.ᐟ.ᐟ')
+    && /<div className="etb"><span className="etbrun">/.test(web), true);
+  eq('제목줄이 흐른다',
+    /\.etbrun>i\{[^}]*animation:slide 17s linear infinite/.test(web), true);
+  /* 점 셋은 오른쪽에 그대로 붙어 있어야 한다 — 흐르는 쪽에만 flex를 준다 */
+  eq('점 셋은 제자리다', /\.etbrun\{flex:1;min-width:0;overflow:hidden/.test(web), true);
+  /* 같은 말을 두 번 하지 않는다 — 확정 화면에서는 걷었다.
+     「!!!WARNING!!!」은 첫날 통보 창이 원래 쓰던 말이라 전역으로 세면 안 된다 */
+  eq('확정 화면은 그 말을 다시 안 한다', (() => {
+    const i = web.indexOf('function Confirm({name,onYes,onBack})');
+    const box = web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i));
+    return /WARNING|현실에서|교생\?/.test(box);
+  })(), false);
+  eq('앱도 제목줄이 말한다',
+    appSrc.includes("const ENR_TITLE = '현실에서 □□이던 내가 이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ")
+    && /<View style=\{en\.tb\}><EnrTitle\/><\/View>/.test(appSrc), true);
+  /* 창틀이 이미 색을 갖고 있다 — 띠가 제 배경을 또 그리면 창 위에 뜬 것처럼 보인다 */
+  eq('제목줄 띠는 배경을 안 그린다',
+    /function Marquee\(\{text,bare\}/.test(appSrc)
+    && /\{!bare&&<LinearGradient/.test(appSrc), true);
   eq('NULL에 조사를 안 붙였다', /NULL을 존재/.test(web), false);
   eq('이름만으로는 메신저에 못 들어간다',
     /localStorage\.getItem\("null_name"\)&&!loadWorld\(\)\?"enroll":false/.test(web), true);

@@ -268,6 +268,9 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
   {k:'likes',    lab:'LIKES',   tail:'를 좋아하고'},
   {k:'dislikes', lab:'HATES',   tail:'를 싫어한다'},
 ];
+/* 등록 창의 제목줄. Marquee는 아래에 정의돼 있지만 함수 선언이라 끌어올려진다 */
+const ENR_TITLE = '현실에서 □□이던 내가 이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ    ';
+function EnrTitle(){ return <Marquee text={ENR_TITLE} bare/>; }
 function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   name:string; profile:Record<string,string>;
   onSaveField:(k:string,v:string)=>void; onRename:(n:string)=>void; onDone:()=>void;
@@ -295,7 +298,10 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   /* 키보드가 올라오면 카드를 그만큼 띄운다. 안 그러면 아래 두 칸이 가린다 */
   return <Animated.View style={[en.root,{opacity:fade,paddingBottom:26+kb}]}>
     <View style={en.card}>
-      <View style={en.tb}><Text style={en.tbT}>registering...</Text></View>
+      {/* ── 제목줄이 말한다 ── 현실의 나는 □□이고 이 세계에서만 값이 생긴다.
+          배너를 얹는 대신 창틀에 앉힌다. 길어서 흐른다 — 방 목록 맨 위 띠와
+          같은 Marquee다(웹의 .etbrun과 같은 자리) */}
+      <View style={en.tb}><EnrTitle/></View>
       <View style={en.body}>
         <View style={en.nameRow}>
           {edit
@@ -358,10 +364,7 @@ function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void
     <View style={en.card}>
       <View style={en.tb}><Text style={en.tbT}>null.exe</Text></View>
       <View style={en.body}>
-        {/* 현실의 나는 □□이다. 그 칸은 안 채워진다 — 채워지면 이 게임이 아니다.
-            이 세계에서만 값이 생긴다(교생). 웹의 .cwarn/.cwho와 같은 자리다 */}
-        <Text style={en.cwarn}>!!!WARNING!!!</Text>
-        <Text style={en.cwho}>현실에서 □□이던 내가{'\n'}이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ</Text>
+        {/* 그 한 줄은 앞 화면(등록)의 제목줄이 이미 말했다. 두 번 하지 않는다 */}
         <Text style={en.cq}>{name}, 너는 이 세계에{'\n'}NULL 존재하게 할 수 있을까?</Text>
         <TouchableOpacity style={[en.go,{marginTop:14}]} activeOpacity={.8} onPress={yes}>
           <Text style={en.goT}>YES</Text></TouchableOpacity>
@@ -419,9 +422,7 @@ const en=StyleSheet.create({
       borderWidth:1.5,borderColor:'#fff'},
   goT:{...F,fontSize:12,letterSpacing:3.6,color:'#6b5fa8'},
   /* 세계 확정 화면 — 등록 카드 안의 세 줄뿐이다. 새 껍데기를 만들지 않는다 */
-  cwarn:{...F,marginTop:14,textAlign:'center',fontSize:10.5,letterSpacing:2.4,color:'#ff5fa8'},
-  cwho:{...F,marginTop:11,textAlign:'center',fontSize:11,lineHeight:23,color:'#8a7fc0'},
-  cq:{...F,marginTop:15,textAlign:'center',fontSize:13,lineHeight:26,letterSpacing:.5,color:'#4a4276'},
+  cq:{...F,marginTop:18,textAlign:'center',fontSize:13,lineHeight:26,letterSpacing:.5,color:'#4a4276'},
   chint:{...F,marginTop:11,textAlign:'center',fontSize:9.5,letterSpacing:.8,color:'#b09ecf'},
   cback:{...F,marginTop:10,textAlign:'center',fontSize:8.5,letterSpacing:1.4,color:'#c9bfe4'},
 });
@@ -928,7 +929,9 @@ const pf=StyleSheet.create({
 
 /* 흐르는 띠 — 같은 글을 두 벌 이어 붙이고 한 벌 길이만큼 밀어 반복한다.
    한 벌만 쓰면 글이 다 지나간 뒤 빈 화면이 생긴다. */
-function Marquee({text}:{text:string}) {
+/* bare — 제목줄에 얹을 때는 제 배경(그라디언트)과 여백을 안 그린다.
+   창틀이 이미 색을 갖고 있어서 두 겹이 되면 띠가 창 위에 뜬 것처럼 보인다 */
+function Marquee({text,bare}:{text:string;bare?:boolean}) {
   const x=useRef(new Animated.Value(0)).current;
   const [w,setW]=useState(0);
   useEffect(()=>{
@@ -939,13 +942,13 @@ function Marquee({text}:{text:string}) {
     loop.start();
     return ()=>loop.stop();
   },[w]);
-  return <View style={rl.marquee}>
-    <LinearGradient colors={['#ffe6f2','#efe6ff','#e2f4ff']} start={{x:0,y:0}} end={{x:1,y:0}}
-      style={StyleSheet.absoluteFill} pointerEvents="none"/>
+  return <View style={[rl.marquee,bare&&{flex:1,paddingVertical:0,backgroundColor:'transparent'}]}>
+    {!bare&&<LinearGradient colors={['#ffe6f2','#efe6ff','#e2f4ff']} start={{x:0,y:0}} end={{x:1,y:0}}
+      style={StyleSheet.absoluteFill} pointerEvents="none"/>}
     <Animated.View style={{flexDirection:'row',transform:[{translateX:x}]}}>
-      <Text style={rl.marqueeT} numberOfLines={1}
+      <Text style={[rl.marqueeT,bare&&en.tbT]} numberOfLines={1}
         onLayout={e=>setW(Math.round(e.nativeEvent.layout.width))}>{text}</Text>
-      <Text style={rl.marqueeT} numberOfLines={1}>{text}</Text>
+      <Text style={[rl.marqueeT,bare&&en.tbT]} numberOfLines={1}>{text}</Text>
     </Animated.View>
   </View>;
 }
