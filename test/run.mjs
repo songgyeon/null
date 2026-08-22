@@ -4230,6 +4230,34 @@ eq('시간표 단추는 peek보다 좁다',
   eq('내 말풍선은 안 잡는다', /\{\.\.\.\(me\?\{\}:hold\(m\)\)\}/.test(web), true);
 }
 
+/* ── 고른 모델이 아닌 게 답하고 있었다 ──
+   budget_tokens 500이 API 최소(1024) 미달이라 4.6이 매번 400을 맞았고, 400은
+   「다음 모델」 신호라 조용히 sonnet-5로 넘어가 눌러앉았다. 화면은 멀쩡해서
+   아무도 몰랐다. 원인은 고쳤지만 구조가 그대로여서, 4.6이 무슨 이유로든 한 번
+   거절당하면 그 아이솔레이트가 죽을 때까지 5가 답한다. 시효와 경고를 건다. */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  /* 고른 모델은 목록 맨 앞이다 */
+  eq('4.6이 1순위다', (() => {
+    const t = wk.slice(wk.indexOf('const MODELS = ['));
+    return /^\s*\{ id: "claude-sonnet-4-6"/m.test(t.slice(0, t.indexOf('];')));
+  })(), true);
+  /* 500은 넣을 수 없는 숫자였다 — 최소가 1024다. 사고는 상한이 아니라 끈다 */
+  eq('4.6에 사고 상한을 안 건다', (() => {
+    const t = wk.slice(wk.indexOf('const MODELS = ['));
+    return /budget:/.test(t.slice(0, t.indexOf('];')));
+  })(), false);
+  eq('기억에 시효가 있다',
+    /const WORKING_TTL = 10 \* 60 \* 1000;/.test(wk)
+    && /const fresh = workingModel && \(Date\.now\(\) - workingAt\) < WORKING_TTL;/.test(wk), true);
+  /* 시효가 지나면 고른 모델부터 다시 부른다 — 한쪽으로만 굳지 않게 */
+  eq('시효가 지나면 고른 모델을 다시 부른다',
+    /fresh && workingModel\.id !== MODELS\[0\]\.id/.test(wk), true);
+  /* 조용히 넘어가는 것이 문제였다 */
+  eq('고른 모델이 아니면 콘솔에 적는다',
+    /고른 모델이 아니다 — \$\{MODELS\[0\]\.id\} 대신 \$\{m\.id\}가 답했다/.test(wk), true);
+}
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 

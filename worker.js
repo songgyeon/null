@@ -89,7 +89,19 @@ const SUMMARIZE = `
 - 요약만 출력한다. 앞뒤에 다른 말을 붙이지 않는다.
 `;
 
-let workingModel = null; // 한 번 성공하면 그 모델을 계속 쓴다
+/* ── 되는 모델을 기억하되, 영영 굳지는 않는다 ──
+   한 번 성공하면 그 모델을 계속 쓴다. 매 턴 1순위에 400을 맞아가며 버리는
+   왕복을 안 하려는 것이다. 그런데 그게 한쪽으로만 굳었다 —
+   budget_tokens 500이 API 최소(1024) 미달이라 4.6이 매번 400을 맞았고,
+   400은 「다음 모델」 신호라 조용히 sonnet-5로 넘어가 그대로 눌러앉았다.
+   화면은 멀쩡해서 아무도 몰랐다. 고른 모델이 아닌 게 답하고 있었다.
+   그 원인은 고쳤지만 구조는 그대로였다 — 4.6이 무슨 이유로든 **한 번**
+   거절당하면 그 아이솔레이트가 죽을 때까지 5가 답한다.
+   그래서 기억에 시효를 건다. 십 분이 지나면 고른 모델을 다시 불러본다.
+   실패가 계속되면 다시 굳고, 잠깐이었으면 제자리로 돌아온다. */
+let workingModel = null;
+let workingAt = 0;
+const WORKING_TTL = 10 * 60 * 1000;
 /* 대화 이력을 어디까지 실을 것인가.
    전에는 30개였다 — 말풍선이 한 턴에 두셋이니 실질 열 턴, 어제 한 얘기를
    못 기억했다. 첫 커밋에 적힌 숫자가 그대로 살아남은 것이지 정한 값이 아니다.
@@ -2448,14 +2460,25 @@ async function askSummary(env, system, messages, maxTokens) {
 
 async function askClaude(env, system, messages, maxTokens, effort) {
   // 이미 되는 모델을 알면 그것부터, 아니면 목록 순서대로
-  const order = workingModel
+  /* 고른 모델은 MODELS[0]이다. 최근에 그게 안 돼서 다른 걸 쓰고 있는 동안만
+     그 다른 걸 앞에 세운다. 시효가 지나면 고른 모델부터 다시 부른다. */
+  const fresh = workingModel && (Date.now() - workingAt) < WORKING_TTL;
+  const order = fresh && workingModel.id !== MODELS[0].id
     ? [workingModel, ...MODELS.filter(m => m.id !== workingModel.id)]
     : MODELS;
 
   const failures = [];
   for (const m of order) {
     const res = await callModel(env, m, system, messages, maxTokens, effort);
-    if (res.ok) { workingModel = m; lastUsage = res.usage; return res.text; }
+    if (res.ok) {
+      workingModel = m; workingAt = Date.now(); lastUsage = res.usage;
+      /* 조용히 넘어가는 것이 문제였다. 고른 모델이 아니면 콘솔에 적는다 */
+      if (m.id !== MODELS[0].id) {
+        console.log(`[NULL] ⚠ 고른 모델이 아니다 — ${MODELS[0].id} 대신 ${m.id}가 답했다`
+          + (failures.length ? ` (${failures.join(", ")})` : ""));
+      }
+      return res.text;
+    }
     failures.push(`${m.id} → ${res.status}`);
     // 400(파라미터 거부)/404(모델 없음)만 다음 모델로 넘어간다.
     // 401(키 문제)·429(한도)·5xx(장애)는 모델을 바꿔도 똑같으므로 즉시 중단한다.
