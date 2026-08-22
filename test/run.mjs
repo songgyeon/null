@@ -58,8 +58,6 @@ eq('코드펜스로 감싸도 읽는다',
   texts('```json\n{"messages":["네."]}\n```', 'jaeeon', JE), ['jaeeon|네.']);
 /* 다 실패했을 때 원문을 내보내던 것이 누출 경로였다. 조용히 가짜를
    내보내느니 빈 손으로 돌아가서 화면에 실패를 띄우는 편이 낫다. */
-eq('모델의 사고 과정은 안 내보낸다',
-  parseMessages('The instructions say "..." and the available place is 빨래방.', 'jaeeon', JE), []);
 eq('안 닫힌 JSON 조각도 안 내보낸다',
   parseMessages('{"messages":["가요."', 'jaeeon', JE), []);
 eq('평범한 한 줄은 그대로 나간다',

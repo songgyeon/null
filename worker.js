@@ -2637,6 +2637,11 @@ function isSelfNarration(text, sender) {
    「식사 맛있게 하세요」에 「이재언도요.」가 돌아왔다. 「선생님도요」가
    나와야 할 자리다. 유저가 「?」로 되물으니 같은 말을 한 번 더 하면서
    우겼다(docs/playlog-review.md).
+   처음에는 「유저 이름 치환이 제 이름을 집었다」고 적었는데 그건 틀렸다.
+   {user_name}은 body.user_name으로만 치환되고 인물 이름이 거기 들어갈
+   길이 없다. 치환 버그가 아니라 「선생님도요」 틀을 잘못 베낀 것이고,
+   뿌리는 메아리(②)다. 여기서 버리는 것은 증상을 덮는 것이라, 메아리를
+   제대로 잡으면 이 함수는 없어져야 한다.
    메신저에서 자기를 성까지 붙여 부르는 사람은 없다. 말풍선이 제 이름과
    짧은 조사뿐이면 호칭이 어긋난 것이므로 버린다. 문장 안에서 제 이름이
    나오는 것은 안 건드린다 — 「이재언이 그랬어요」처럼 남 얘기하듯 쓰는
@@ -2769,12 +2774,8 @@ function carveJson(s) {
   return "";   // 끝까지 안 닫혔다 — 잘린 응답이다
 }
 
-/* 파서가 다 실패했을 때 원문을 그대로 말풍선으로 내보내면 안 되는 것들.
-   기록에 모델의 영어 사고 과정이 그대로 찍힌 적이 있다 —
-   「The instructions say "..." and the available place is 빨래방.」
-   이런 줄은 한 줄만 나가도 세계가 무너진다. 조용히 가짜를 내보내느니
-   빈 손으로 돌아가서 화면에 실패를 띄우는 편이 낫다. */
-const LEAKY = /^[[{]|"messages"\s*:|```|\bThe instructions\b|\bI should\b|\bLet me\b|\bJSON\b/;
+/* 안이 비치는 모양. 대사에는 이런 것이 안 나온다 */
+const LEAKY_SHAPE = /^[[{]|"messages"\s*:|```/;
 
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
@@ -2806,11 +2807,17 @@ function parseMessages(text, fallbackSender, allowed) {
   // JSON이 아니다 — 이름표 형식이면 화자별로 풀어준다
   const tagged = parseTagged(text, ok);
   if (tagged) return tagged;
-  /* 그것도 아니면 원문을 한 덩어리로 내보냈었다. 그게 누출 경로였다.
-     안이 비치는 것(JSON 조각·코드펜스·모델의 자기 설명)이면 버린다.
-     빈 목록은 위에서 실패로 처리돼 화면에 재시도 버튼이 뜬다. */
+  /* 그것도 아니면 원문을 한 덩어리로 내보낸다. 평문 한 줄로 답하는 턴이
+     실제로 있어서 이 길은 열어둔다.
+
+     구조가 비치는 것만 본다 — 중괄호로 시작하거나, 코드펜스거나, "messages"가
+     들어 있으면 그건 파서가 못 읽은 JSON 부스러기다.
+     무슨 말로 쓰였는지는 안 본다. 한동안 영어 문구를 표로 막았다가 비율로도
+     재봤는데, 둘 다 대사를 잡아먹었다 — 「Wolf Alice 좋아해요?」가 사라진다.
+     이 둘은 노래 제목과 상표를 말할 수 있어야 한다.
+     버려서 빈 목록이 되면 handler가 502로 바꾼다. */
   const raw = String(text || "").trim();
-  if (!raw || LEAKY.test(raw)) return [];
+  if (!raw || LEAKY_SHAPE.test(raw)) return [];
   return [{ sender: fallbackSender, text: raw }];
 }
 
@@ -3296,11 +3303,21 @@ export default {
       const give = pickGive(parseMessages.give, place, hasItem, room);
       /* 메아리 거르기는 말버릇 필터 뒤다 — trimTics가 앞의 말줄임표를 떼고 나야
          「...흥이래요.」도 같은 줄로 보인다 */
-      const messages = dropSleepers(
-        dropEcho(
-          trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
-          lastSaid(msgs, mode)),
-        place ? null : states);
+      /* 걸러내고 나면 빌 수 있다. 두 가지가 섞여 있어서 갈라 본다.
+          - 자는 사람이라 지운 것: 그건 뜻이 있는 빈 손이다. 그대로 200.
+          - 그 앞에서 이미 빈 것: 모델 응답을 못 읽었거나(폴백을 닫았다)
+            한자에 깨졌거나 안이 비쳐서 다 버린 것이다. 200으로 돌려주면
+            프론트가 스피너만 끄고 아무 일도 안 일어난다 — 유저는 답이
+            안 온 줄도 모른다. 502로 바꿔서 재시도가 뜨게 한다. */
+      const kept = dropEcho(
+        trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
+        lastSaid(msgs, mode));
+      if (!kept.length) {
+        console.log("[NULL] 남은 말풍선이 없다 — 재시도로 돌린다");
+        return new Response(JSON.stringify({ error: "생성 실패", detail: "모델 응답을 읽지 못했습니다" }),
+          { status: 502, headers: { ...CORS, "content-type": "application/json" } });
+      }
+      const messages = dropSleepers(kept, place ? null : states);
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
         ...(invite ? { invite: { place: invite, char: room } } : {}),
