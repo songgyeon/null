@@ -636,6 +636,14 @@ function App(){
         " · 멈춤 "+(data.usage.stop_reason||"?")+
         (data.usage.output_tokens_details?" · 상세 "+JSON.stringify(data.usage.output_tokens_details):""),
         "color:#7a6cc4");
+      /* ── 한 턴이 몇 번을 탔나 ──
+         호출 수만 보고 비용을 짐작하지 않는다. 후보 재입력도, 캐시 쓰기·읽기도,
+         재생성도 여기 다 잡힌다. 한 턴이 두 줄이면 다시 쓴 것이다. */
+      if(data&&Array.isArray(data.stages)&&data.stages.length)
+        console.log("%c[NULL] 단계 "+data.stages.length+"회\n"+data.stages.map(t=>
+          `  ${t.stage} · ${t.model} · 새로 ${t.input_tokens} / 캐시읽음 ${t.cache_read_input_tokens}`
+          +` / 출력 ${t.output_tokens} · ${t.latency_ms}ms · ${t.attempt}회차`).join("\n"),
+          "color:#7a6cc4");
       setTimeout(()=>rollSummary(bucket),1200);
       if(data&&data.invite&&data.invite.place) setInvite(data.invite);
       /* 자리에서 뭘 건넸다. 말풍선이 다 뜬 뒤에 가방에 넣는다 —

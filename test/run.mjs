@@ -8,6 +8,7 @@ import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSyst
          PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
+import * as ENG from '../worker.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -4467,32 +4468,153 @@ eq('시간표 단추는 peek보다 좁다',
   eq('내 말풍선은 안 잡는다', /\{\.\.\.\(me\?\{\}:hold\(m\)\)\}/.test(web), true);
 }
 
-/* ── 고른 모델이 아닌 게 답하고 있었다 ──
-   budget_tokens 500이 API 최소(1024) 미달이라 4.6이 매번 400을 맞았고, 400은
-   「다음 모델」 신호라 조용히 sonnet-5로 넘어가 눌러앉았다. 화면은 멀쩡해서
-   아무도 몰랐다. 원인은 고쳤지만 구조가 그대로여서, 4.6이 무슨 이유로든 한 번
-   거절당하면 그 아이솔레이트가 죽을 때까지 5가 답한다. 시효와 경고를 건다. */
+/* ══════════ 생성 엔진 ══════════
+   ── 왜 목록 폴백을 걷었나 ──
+   전에는 모델 목록을 위에서부터 시도했다. budget_tokens 500이 API 최소(1024)
+   미달이라 1순위가 매번 400을 맞았고, 400은 「다음 모델」 신호라 조용히
+   다음 것으로 넘어가 눌러앉았다. 화면은 멀쩡해서 아무도 몰랐다.
+   모델이 바뀌면 캐릭터의 말맛이 바뀐다. 그래서 대사를 만드는 길에서는
+   폴백을 아예 없앤다 — 못 쓰면 진짜 오류를 돌려주고 화면에 재시도가 뜬다.
+   목록은 말맛과 무관한 뒷일(요약)에만 남는다. */
 {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  /* 고른 모델은 목록 맨 앞이다 */
-  eq('4.6이 1순위다', (() => {
-    const t = wk.slice(wk.indexOf('const MODELS = ['));
-    return /^\s*\{ id: "claude-sonnet-4-6"/m.test(t.slice(0, t.indexOf('];')));
+  const eng = wk.slice(wk.indexOf('const ENGINE = {'), wk.indexOf('const CANDIDATES'));
+
+  /* 모델 이름은 함수마다 흩지 않는다. 나중에 지금 세대가 종료돼도
+     이 표와 평가 자료만 갈아끼우면 되게 한다. */
+  eq('모델 배치가 한 곳에 있다',
+    ['writer', 'director', 'canon', 'character', 'finalizer'].filter(k =>
+      !new RegExp(`^\\s*${k}:\\s*\\{ id: "claude-`, 'm').test(eng)), []);
+  eq('쓰는 쪽과 검사는 같은 급이다', (() => {
+    const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
+    return id('writer') === id('canon') && id('writer') === id('character');
   })(), true);
-  /* 500은 넣을 수 없는 숫자였다 — 최소가 1024다. 사고는 상한이 아니라 끈다 */
-  eq('4.6에 사고 상한을 안 건다', (() => {
-    const t = wk.slice(wk.indexOf('const MODELS = ['));
-    return /budget:/.test(t.slice(0, t.indexOf('];')));
+  eq('고르는 쪽과 마무리는 같은 급이다', (() => {
+    const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
+    return id('director') === id('finalizer') && id('director') !== id('writer');
+  })(), true);
+  /* 이 엔진이 안 쓰기로 한 것들 */
+  eq('엔진에 안 쓰기로 한 급이 없다', /sonnet-4-6|sonnet-5|opus/.test(eng), false);
+
+  /* ── 폴백 금지 ──
+     실패하면 다른 모델로 넘어가지 않는다. 진짜 오류를 그대로 올린다. */
+  eq('단계 호출은 모델을 한 번만 부른다', (() => {
+    const f = wk.slice(wk.indexOf('async function callStage('), wk.indexOf('function cacheNote('));
+    return (f.match(/await callModel\(/g) || []).length === 1
+        && /throw new Error\(`\$\{stage\} 실패/.test(f);
+  })(), true);
+  /* 대사를 만드는 길이 목록을 안 본다 — 목록은 요약에만 남았다 */
+  eq('대사 길에는 목록 폴백이 없다',
+    (wk.match(/await askClaude\(/g) || []).length, 1);
+  eq('남은 한 번은 요약이다', (() => {
+    const i = wk.indexOf('await askClaude(');
+    return wk.slice(Math.max(0, i - 400), i).includes('askSummary');
+  })(), true);
+
+  /* ── 일반 턴은 고르는 쪽이 한 글자도 안 쓴다 ── */
+  eq('고르는 쪽은 대사를 안 쓴다',
+    /대사를 쓰지 않는다 — 고르기만 한다/.test(wk)
+    && /후보를 고치거나, 둘을 합치거나, 새로 쓰지 않는다/.test(wk), true);
+  eq('허용되는 판정만 받는다', (() => {
+    const f = wk.slice(wk.indexOf('function readDecision('), wk.indexOf('/* 안이 비치는 모양'));
+    return /n === 1 \? \["ACCEPT", "RETRY"\] : \["A", "B", "RETRY"\]/.test(f);
+  })(), true);
+  /* 재생성은 최대 한 번이다. 계속 실패하면 각본으로 덮지 않는다 */
+  eq('재생성은 한 번뿐이다', /const RETRY_MAX = 1;/.test(wk), true);
+  eq('실패는 재시도로 돌린다',
+    /쓸 만한 후보가 없다 — 재시도로 돌린다/.test(wk)
+    && /status: 502/.test(wk), true);
+
+  /* ── 캐시 세 블록은 그대로다 ──
+     후보를 몇 개 뽑을지는 턴마다 바뀔 수 있는 값이라 가변부 뒤에 붙인다.
+     앞을 고치면 매 턴 2배 요금으로 쓰기만 하고 버린다. */
+  eq('후보 지시는 캐시 뒤에 붙는다', (() => {
+    const i = wk.indexOf('const askText = writerAsk(nCand);');
+    const box = wk.slice(i, i + 320);
+    return box.includes('t.content.push({ type: "text", text: askText })');
+  })(), true);
+  eq('고정 블록은 그대로다', (wk.match(/cache_control: CACHE/g) || []).length >= 3, true);
+
+  /* ── 계측 ──
+     호출 수만 보고 비용을 추측하지 않는다. 원문과 프롬프트는 안 남긴다. */
+  eq('단계마다 실측을 남긴다',
+    ['stage', 'model', 'input_tokens', 'output_tokens', 'cache_read_input_tokens',
+     'cache_creation_input_tokens', 'latency_ms', 'attempt', 'scene_tier']
+      .filter(k => !new RegExp(`${k}[,:]`).test(wk.slice(wk.indexOf('function stageStamp('), wk.indexOf('/* 한 단계를 부른다')))), []);
+  eq('로그에 원문을 안 남긴다', (() => {
+    const f = wk.slice(wk.indexOf('function stageStamp('), wk.indexOf('/* 한 단계를 부른다'));
+    return /messages|system|history|content/.test(f);
   })(), false);
-  eq('기억에 시효가 있다',
-    /const WORKING_TTL = 10 \* 60 \* 1000;/.test(wk)
-    && /const fresh = workingModel && \(Date\.now\(\) - workingAt\) < WORKING_TTL;/.test(wk), true);
-  /* 시효가 지나면 고른 모델부터 다시 부른다 — 한쪽으로만 굳지 않게 */
-  eq('시효가 지나면 고른 모델을 다시 부른다',
-    /fresh && workingModel\.id !== MODELS\[0\]\.id/.test(wk), true);
-  /* 조용히 넘어가는 것이 문제였다 */
-  eq('고른 모델이 아니면 콘솔에 적는다',
-    /고른 모델이 아니다 — \$\{MODELS\[0\]\.id\} 대신 \$\{m\.id\}가 답했다/.test(wk), true);
+  /* 워커의 전역은 요청 사이에 살아남는다 — 안 비우면 앞 요청 것이 딸려 나간다 */
+  eq('요청마다 계측을 비운다', /stageLog = \[\];\n/.test(wk.slice(wk.indexOf('const reqId ='))), true);
+
+  /* ── 코드 검사는 명백한 것만 자른다 ──
+     자연어 뜻까지 코드가 판정한다고 가정하지 않는다. 애매한 것은 신호로 넘긴다. */
+  eq('명백한 것만 떨어뜨린다', (() => {
+    const f = wk.slice(wk.indexOf('function hardFilter('), wk.indexOf('/* ── Soft Signal ──'));
+    return /EMPTY/.test(f) && /LEAK/.test(f) && /SENDER/.test(f);
+  })(), true);
+  eq('신호는 자르지 않고 넘긴다', (() => {
+    const i = wk.indexOf('const packet = directorPacket(');
+    return wk.slice(i - 900, i).includes('signals: softSignals(kept, recentForDirector)');
+  })(), true);
+
+  /* ── 고르는 쪽에 큰 프롬프트를 다시 안 준다 ──
+     사진 전체 목록도, 장소 규칙도, 전체 세계관도, 전체 기록도 안 넣는다.
+     그걸 다시 주면 값만 두 배가 되고 판단은 안 좋아진다. */
+  eq('고르는 쪽 꾸러미가 작다', (() => {
+    const i = wk.indexOf('const decRaw = await callStage(env, "director"');
+    const box = wk.slice(i, i + 220);
+    return box.includes('DIRECTOR_RULES') && box.includes('content: packet')
+        && !box.includes('system,');
+  })(), true);
+  eq('최근 대화만 넘긴다', /msgs\.slice\(-6\)/.test(wk), true);
+  /* 실측이 화면 콘솔까지 와야 비용을 눈으로 본다 — 한 턴이 두 줄이면 다시 쓴 것이다 */
+  eq('실측이 화면까지 온다',
+    /Array\.isArray\(data\.stages\)&&data\.stages\.length/.test(web)
+    && /Array\.isArray\(d\.stages\)&&d\.stages\.length/.test(appSrc), true);
+}
+
+/* 파이프라인을 실제로 굴려 본다 — 조각이 다 맞아도 이어붙인 데서 새는 것은
+   여기서만 잡힌다 */
+{
+  const { writerAsk, splitCandidates, hardFilter, softSignals, readDecision, directorPacket } = ENG;
+
+  eq('후보 하나면 지시가 안 붙는다', writerAsk(1), '');
+  eq('후보 둘이면 모양을 못박는다',
+    writerAsk(2).includes('{"candidates":[{"messages":[...]},{"messages":[...]}]}'), true);
+  eq('후보 묶음을 뜯는다',
+    splitCandidates(JSON.stringify({ candidates: [{ messages: [{ text: 'ㄱ' }] }, { messages: [{ text: 'ㄴ' }] }] })).length, 2);
+  /* 모양이 어긋났다고 턴을 통째로 버리면 유저는 그냥 답이 안 온 것으로 본다 */
+  eq('옛 모양은 후보 하나로 본다',
+    splitCandidates(JSON.stringify({ messages: [{ text: 'ㄱ' }] })).length, 1);
+
+  eq('빈 후보는 떨어진다', hardFilter([], ['minhyun']), ['EMPTY']);
+  eq('남의 화자는 떨어진다', hardFilter([{ sender: 'x', text: 'ㄱ' }], ['minhyun']), ['SENDER']);
+  eq('안이 비치면 떨어진다', hardFilter([{ sender: 'minhyun', text: '{"messages":' }], ['minhyun']), ['LEAK']);
+  eq('멀쩡한 것은 안 떨어진다', hardFilter([{ sender: 'minhyun', text: '아직 학교예요.' }], ['minhyun']), []);
+
+  eq('매번 묻는 것은 신호다', softSignals([{ text: '밥 먹었어요?' }, { text: '어디예요?' }], []), ['ALL_QUESTIONS']);
+  eq('상담사 말투는 신호다',
+    softSignals([{ text: '정리하자면 이렇게 하시면 도움이 되실 거예요.' }], []).includes('COUNSELOR_TONE'), true);
+  eq('멀쩡한 말에는 신호가 없다', softSignals([{ text: '아직 학교예요.' }], []), []);
+  /* 신호지 판정이 아니다 — 여기서 자르지 않는다 */
+  eq('최근에 한 말과 겹치면 신호다',
+    softSignals([{ text: '오늘 학교 갔다 왔어요.' }], [{ role: 'assistant', content: '학교 갔다 왔어요' }])
+      .includes('REPEATS_RECENT'), true);
+
+  eq('판정을 읽는다', readDecision(JSON.stringify({ decision: 'B', reject_codes: {} }), 2).decision, 'B');
+  eq('못 읽으면 다시 쓴다', readDecision('어느 쪽이 좋을까요', 2).decision, 'RETRY');
+  eq('후보 하나에 A는 무효다', readDecision(JSON.stringify({ decision: 'A' }), 1).decision, 'RETRY');
+  eq('후보 하나면 ACCEPT다', readDecision(JSON.stringify({ decision: 'ACCEPT' }), 1).decision, 'ACCEPT');
+
+  /* 꾸러미에 세계관이 통째로 들어가면 안 된다 */
+  const pk = directorPacket({ who: 'minhyun', when: '저녁', place: '편의점', stage: '익숙 · 6일째',
+    knows: '병원 옥상', facts: [], recent: [{ role: 'user', content: '뭐 해?' }] },
+    [{ kept: [{ text: '골라요.' }], signals: [] }, { kept: [{ text: '아직요.' }], signals: ['TOO_EXPLANATORY'] }]);
+  eq('꾸러미에 후보 둘이 들어간다', pk.includes('후보 A') && pk.includes('후보 B'), true);
+  eq('꾸러미에 코드 신호가 실린다', pk.includes('코드 신호: TOO_EXPLANATORY'), true);
+  eq('꾸러미가 짧다', pk.length < 900, true);
 }
 
 /* ══════════ 시그니처 문장과 한 번짜리 사건 ══════════

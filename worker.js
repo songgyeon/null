@@ -54,6 +54,38 @@ const MODELS = [
   { id: "claude-sonnet-5", effort: "high", noThinking: false },
   { id: "claude-sonnet-4-5", effort: null, noThinking: true },
 ];
+
+/* ══════════════════════════════════════════════════════════════
+   생성 엔진 — 모델 배치는 여기 한 곳뿐이다
+
+   각 함수에 모델 이름을 직접 쓰지 않는다. 나중에 지금 세대가 종료돼도
+   이 표와 평가 자료만 갈아끼우면 되게 한다.
+
+   ── 왜 이렇게 나눴나 ──
+   대사를 쓰는 일과 고르는 일은 다른 일이다. 쓰는 쪽은 여러 갈래를 빨리
+   떠올려야 하고, 고르는 쪽은 그 중 어느 쪽이 이 사람다운지를 봐야 한다.
+   그래서 쓰는 쪽은 싸고 빠른 것으로 여러 후보를 뽑고, 고르는 쪽만 위를 쓴다.
+   일반 턴에서 고르는 쪽은 한 글자도 쓰지 않는다 — 고르기만 한다.
+   중요한 장면에서만 고르는 쪽이 직접 문장을 완성한다. 그 자리에서는
+   정확성만큼 감정의 체온·머뭇거림·말하지 않은 부분이 중요하기 때문이다.
+
+   ── 폴백은 없다 ──
+   모델이 바뀌면 캐릭터의 말맛이 바뀐다. 못 쓰면 다른 것으로 조용히
+   넘어가지 않고 실제 오류를 돌려준다. 화면에는 재시도가 뜬다.
+   MODELS의 순차 폴백은 이 엔진을 안 탄다 — 요약처럼 말맛과 무관한
+   뒷일에만 남는다. */
+const ENGINE = {
+  writer:    { id: "claude-haiku-4-5",            effort: null, noThinking: true },
+  director:  { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
+  canon:     { id: "claude-haiku-4-5",            effort: null, noThinking: true },
+  character: { id: "claude-haiku-4-5",            effort: null, noThinking: true },
+  finalizer: { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
+};
+/* 후보 두 개가 무조건 한 개보다 낫다고 가정하지 않는다. 바꿔 끼울 수 있게
+   둔다 — 1이면 고르는 쪽이 ACCEPT/RETRY를, 2면 A/B/RETRY를 판단한다.
+   후보가 늘면 쓰는 쪽 출력뿐 아니라 고르는 쪽 입력에도 다시 과금된다. */
+const CANDIDATES = 2;
+const RETRY_MAX = 1;           // 계속 실패하면 각본으로 덮지 않고 재시도 UI로 보낸다
 /* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
    앞에서 자르지 않고 뒤에서 자르면 캐시된 앞부분이 매번 달라진다. */
 function budgetHistory(list, budget) {
@@ -2441,6 +2473,49 @@ async function callModel(env, m, system, messages, maxTokens, effort) {
    오류가 안 나기 때문에, 이걸 안 보면 정가를 무는 줄 모른다. */
 let lastUsage = null;
 
+/* ══════════════════════════════════════════════════════════════
+   단계별 호출과 계측
+
+   이 하이브리드가 지금보다 싸다고 미리 단정하지 않는다. 호출 수만 보고
+   비용을 추측하는 것도 안 한다 — 후보 재입력, 캐시 쓰기·읽기, 재생성
+   비용이 다 들어간다. 그래서 단계마다 실측을 남긴다.
+   원문과 프롬프트는 안 남긴다. 남길 것은 숫자뿐이다. */
+let stageLog = [];
+
+function stageStamp(stage, model, usage, ms, attempt, tier) {
+  const u = usage || {};
+  const row = {
+    stage, model,
+    input_tokens: u.input_tokens || 0,
+    output_tokens: u.output_tokens || 0,
+    cache_read_input_tokens: u.cache_read_input_tokens || 0,
+    cache_creation_input_tokens: u.cache_creation_input_tokens || 0,
+    latency_ms: ms, attempt, scene_tier: tier,
+  };
+  stageLog.push(row);
+  console.log(`[NULL] 단계 ${stage} ▶ ${model} ▶ 새로 ${row.input_tokens}`
+    + ` · 캐시 씀 ${row.cache_creation_input_tokens} / 읽음 ${row.cache_read_input_tokens}`
+    + ` · 출력 ${row.output_tokens} · ${ms}ms · ${attempt}회차 · ${tier}`);
+  return row;
+}
+
+/* 한 단계를 부른다. 실패하면 다른 모델로 넘어가지 않는다 — 진짜 오류를
+   그대로 올린다. 말맛이 바뀌는 것보다 안 되는 게 보이는 편이 낫다. */
+async function callStage(env, stage, system, messages, maxTokens, attempt, tier) {
+  const m = ENGINE[stage];
+  if (!m) throw new Error(`모르는 단계: ${stage}`);
+  const t0 = Date.now();
+  const res = await callModel(env, m, system, messages, maxTokens);
+  const ms = Date.now() - t0;
+  if (!res.ok) {
+    stageStamp(stage, m.id, null, ms, attempt, tier);
+    throw new Error(`${stage} 실패 — ${m.id} → ${res.status}: ${String(res.body).slice(0, 200)}`);
+  }
+  stageStamp(stage, m.id, res.usage, ms, attempt, tier);
+  if (stage === "writer") lastUsage = res.usage;   // 화면 콘솔이 보던 자리
+  return res.text;
+}
+
 function cacheNote(u) {
   if (!u) return "";
   const w = u.cache_creation_input_tokens || 0;
@@ -2869,6 +2944,174 @@ function carveJson(s) {
   return "";   // 끝까지 안 닫혔다 — 잘린 응답이다
 }
 
+/* ══════════════════════════════════════════════════════════════
+   후보 · 코드 검사 · 고르기
+
+   ── 왜 후보를 여럿 뽑나 ──
+   고르는 엔진은 두 후보에 없는 설렘을 만들 수 없다. 그래서 쓰는 쪽에
+   규칙을 더 쌓는 대신 갈래를 더 준다 — 같은 상황에서 이 사람이 취할 수
+   있는 행동이 하나가 아니라는 것을 두 번 떠올리게 한다.
+
+   ── 지시는 캐시 뒤에 붙인다 ──
+   고정 세 블록(WORLD·인물·규칙)은 한 글자도 안 건드린다. 후보를 몇 개
+   뽑을지는 턴마다 바뀔 수 있는 값이라 가변부 뒤에 붙인다. 앞이 그대로여야
+   캐시를 읽는다 — 앞을 고치면 매 턴 2배 요금으로 쓰기만 하고 버린다. */
+function writerAsk(n) {
+  if (n <= 1) return "";
+  return `\n\n[이번 턴만]\n`
+    + `같은 상황에서 네가 할 수 있는 반응을 ${n}가지 내놓는다. 둘은 서로 달라야 한다 —\n`
+    + `말을 바꿔 쓴 같은 반응이 아니라, 실제로 다른 선택이어야 한다.\n`
+    + `길이가 다르거나, 하나는 묻고 하나는 안 묻거나, 하나는 다가가고 하나는 물러서거나.\n`
+    + `출력은 이 모양 하나뿐이다. 다른 말은 붙이지 않는다.\n`
+    + `{"candidates":[{"messages":[...]},{"messages":[...]}]}\n`
+    + `각 후보 안은 평소 형식 그대로다.`;
+}
+
+/* 후보 묶음을 하나씩 뜯는다. 옛 모양({"messages":…})이 오면 후보 하나로 본다 —
+   그 편이 안전하다: 모양이 어긋났다고 턴을 통째로 버리면 유저는 그냥 답이
+   안 온 것으로 본다. */
+function splitCandidates(raw) {
+  const cleaned = String(raw || "").replace(/```json|```/g, "").trim();
+  const body = carveJson(cleaned);
+  if (body) {
+    try {
+      const j = JSON.parse(body);
+      if (Array.isArray(j.candidates) && j.candidates.length) {
+        return j.candidates.slice(0, 4).map(c => JSON.stringify(c));
+      }
+    } catch (e) { /* 아래로 */ }
+  }
+  return [cleaned];
+}
+
+/* ── Hard Filter ──
+   코드가 정답을 명백히 아는 것만 자동 탈락시킨다. 여기서 애매한 것을
+   자르기 시작하면 코드가 자연어 뜻을 판정한다고 믿는 것이 된다.
+   말풍선이 하나도 안 남은 후보는 읽을 것이 없으니 탈락이다. */
+const HARD_CODES = {
+  EMPTY: "빈 응답",
+  LEAK: "안이 비침",
+  SENDER: "허용되지 않은 화자",
+};
+function hardFilter(kept, allowed) {
+  if (!kept || !kept.length) return ["EMPTY"];
+  const codes = [];
+  const ok = Array.isArray(allowed) && allowed.length ? allowed : [];
+  for (const m of kept) {
+    const t = (m && m.text) || "";
+    if (LEAKY_SHAPE.test(t.trim())) { codes.push("LEAK"); break; }
+  }
+  if (ok.length) {
+    for (const m of kept) {
+      if (m && m.sender && ok.indexOf(m.sender) < 0) { codes.push("SENDER"); break; }
+    }
+  }
+  return codes;
+}
+
+/* ── Soft Signal ──
+   문자열만으로 뜻을 확정하기 어려운 것들이다. 여기서 자르지 않고 고르는
+   쪽에 신호로 넘긴다 — n-gram과 물음표 비율이 자연어 뜻을 판정한다고
+   가정하지 않는다. 참고로만 쓴다. */
+const HELPER_WORDS = ["도움이 되", "정리해 드리", "정리하자면", "다음과 같", "말씀해 주시",
+  "괜찮으시다면", "어떠신가요", "제안드", "추천드", "함께 알아"];
+function softSignals(kept, recent) {
+  const sig = [];
+  const texts = (kept || []).map(m => (m && m.text) || "").filter(Boolean);
+  if (!texts.length) return sig;
+  const joined = texts.join(" ");
+  /* 매번 질문으로 끝나면 그건 대화가 아니라 설문이다 */
+  const qs = texts.filter(t => /[?？]\s*$/.test(t.trim())).length;
+  if (qs === texts.length) sig.push("ALL_QUESTIONS");
+  else if (qs / texts.length > 0.5) sig.push("MANY_QUESTIONS");
+  /* 상담사 말투 */
+  if (HELPER_WORDS.some(w => joined.indexOf(w) >= 0)) sig.push("COUNSELOR_TONE");
+  /* 최근에 한 말과 겹친다. 앞뒤 여섯 글자가 그대로 나오면 표현만 바꾼
+     같은 말일 가능성이 있다 — 확정이 아니라 신호다 */
+  const prev = (recent || []).map(m => (m && m.content) || "").join(" ");
+  if (prev) {
+    for (const t of texts) {
+      const s = t.replace(/\s+/g, "");
+      for (let i = 0; i + 6 <= s.length; i++) {
+        if (prev.replace(/\s+/g, "").indexOf(s.slice(i, i + 6)) >= 0) { sig.push("REPEATS_RECENT"); break; }
+      }
+      if (sig.indexOf("REPEATS_RECENT") >= 0) break;
+    }
+  }
+  /* 유저의 행동이나 감정을 대신 써준 자리. 「너는 …했다/…겠지」 꼴 */
+  if (/(?:당신|선생님|너)(?:은|는|이|가)?\s*[^.!?]{0,12}(?:했잖|했을 거|하고 싶|힘들|외로|슬프)/.test(joined))
+    sig.push("WRITES_USER");
+  /* 설명이 길다. 말풍선 하나가 예순 자를 넘으면 이 앱에서는 낭독이다 */
+  if (texts.some(t => t.length > 60)) sig.push("TOO_EXPLANATORY");
+  return sig;
+}
+
+/* ── 고르는 쪽에 주는 꾸러미 ──
+   쓰는 쪽 프롬프트 전체를 다시 주지 않는다. 사진 전체 목록도, 장소 규칙도,
+   전체 세계관도, 전체 기록도 안 넣는다 — 그걸 다시 주면 값만 두 배가 되고
+   판단은 안 좋아진다. 이 장면과 무관한 과거도 뺀다.
+   대신 정사를 추측하게 만들 만큼 굶기지도 않는다. */
+const DIRECTOR_RULES = `너는 두 사람이 사는 세계의 연출자다. 대사를 쓰지 않는다 — 고르기만 한다.
+
+후보 중 어느 쪽이 「지금 이 사람」에 가까운지 고른다. 친절한 쪽도, 자세한 쪽도,
+도움이 되는 쪽도 기준이 아니다. 일반 챗봇의 좋은 답이 여기서는 나쁜 답이다.
+
+이런 쪽을 고른다.
+- 유저가 방금 한 말에 실제로 답한 쪽
+- 그 사람의 평소 말 길이와 거리에 맞는 쪽
+- 안 물어도 되는 자리에서 안 묻는 쪽
+- 관계 단계보다 앞서 나가지 않는 쪽
+
+이런 쪽을 버린다.
+- 유저 문장을 어미만 바꿔 되돌린 쪽
+- 정리·공감·해결책을 세트로 주는 쪽
+- 유저의 행동이나 감정을 대신 써준 쪽
+- 최근에 한 말을 표현만 바꿔 다시 한 쪽
+- 세계관을 설명하는 쪽
+
+출력은 이 모양 하나뿐이다. 다른 말은 붙이지 않는다.
+{"decision":"A","reject_codes":{"A":[],"B":["TOO_EXPLANATORY"]}}
+
+decision은 A · B · RETRY 중 하나다. 후보가 하나면 ACCEPT · RETRY 중 하나다.
+둘 다 부족할 때만 RETRY다 — 더 나은 쪽이 있으면 그쪽을 고른다.
+후보를 고치거나, 둘을 합치거나, 새로 쓰지 않는다.`;
+
+function directorPacket(ctx, cands) {
+  const L = [];
+  L.push(`[화자] ${ctx.who}`);
+  if (ctx.stage) L.push(`[관계] ${ctx.stage}`);
+  L.push(`[지금] ${ctx.when}${ctx.place ? ` · ${ctx.place}` : ""}`);
+  if (ctx.knows) L.push(`[아는 범위] ${ctx.knows}`);
+  if (ctx.facts && ctx.facts.length) L.push(`[이번 턴 사실] ${ctx.facts.join(" · ")}`);
+  if (ctx.recent && ctx.recent.length) {
+    L.push(`[최근 대화]`);
+    for (const m of ctx.recent) L.push(`${m.role === "user" ? "유저" : ctx.who}: ${String(m.content).slice(0, 160)}`);
+  }
+  L.push(``);
+  cands.forEach((c, i) => {
+    const tag = cands.length === 1 ? "후보" : `후보 ${"AB"[i]}`;
+    L.push(`${tag}`);
+    c.kept.forEach(m => L.push(`  ${m.text}`));
+    if (c.signals.length) L.push(`  (코드 신호: ${c.signals.join(", ")})`);
+  });
+  return L.join("\n");
+}
+
+/* 고르는 쪽의 답을 읽는다. 못 읽으면 RETRY로 본다 — 모양이 어긋난 판정을
+   억지로 해석해서 엉뚱한 후보를 내보내느니 한 번 다시 쓰는 편이 낫다. */
+function readDecision(raw, n) {
+  const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
+  if (!body) return { decision: "RETRY", reject_codes: {} };
+  let j;
+  try { j = JSON.parse(body); } catch (e) { return { decision: "RETRY", reject_codes: {} }; }
+  const d = String(j && j.decision || "").toUpperCase();
+  const allowed = n === 1 ? ["ACCEPT", "RETRY"] : ["A", "B", "RETRY"];
+  return {
+    decision: allowed.indexOf(d) >= 0 ? d : "RETRY",
+    reject_codes: (j && j.reject_codes) || {},
+  };
+}
+
 /* 안이 비치는 모양. 대사에는 이런 것이 안 나온다 */
 const LEAKY_SHAPE = /^[[{]|"messages"\s*:|```/;
 
@@ -3215,6 +3458,9 @@ export default {
 
     /* 프론트가 붙인 요청 이름표. 워커는 판정하지 않고 그대로 비춰준다 */
     const reqId = typeof body.request_id === "string" ? body.request_id.slice(0, 64) : "";
+    /* 워커의 전역은 요청 사이에 살아남는다. 안 비우면 앞 요청의 단계가
+       이번 답에 딸려 나가고, 비용을 두 번 센 것처럼 보인다. */
+    stageLog = [];
     const mode = body.mode === "auto" ? "auto" : body.mode === "summarize" ? "summarize" : "chat";
     /* 요약은 방을 안 가려도 된다 — 압축이라 인물 블록도 형식도 안 쓴다.
        관전(health)도 요약해야 창 밖으로 밀려난 대화가 남는다. 다만 chat·auto
@@ -3382,43 +3628,97 @@ export default {
       /* 사고를 껐으니 이 숫자 전부가 답 몫이다. 나눠 갖는 통이 아니다.
          천장이지 청구서가 아니라서, 열어둔다고 값이 오르지 않는다 —
          실제로 뽑은 만큼만 낸다(실측 60~110). 관전은 4~8발화라 더 준다. */
-      const raw = await askClaude(env, system, msgs,
-        mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET);
-      /* ── 관찰용. 원인을 잡으면 뺀다 ──
-         「api호출오류: litellm...」이 민현이 말풍선으로 나갔는데, 그게 어디서
-         들어오는지 아직 못 밝혔다. 실패했을 때만 찍으면 실패가 안 나는 동안은
-         아무것도 안 남는다. 그래서 성공이든 아니든 모델이 보낸 원문을 남긴다.
+      /* ── 한 턴 ──
+         쓰는 쪽이 후보를 내고, 코드가 명백한 것만 떨어뜨리고, 고르는 쪽이
+         하나를 고른다. 고르는 쪽은 한 글자도 쓰지 않는다 — 고른 후보를
+         코드가 그대로 최종 검사한 뒤 화면에 낸다.
+
+         모델이 보낸 원문은 그대로 남긴다. 「api호출오류: litellm…」이 민현이
+         말풍선으로 나간 적이 있는데 어디서 들어오는지 아직 못 밝혔다.
+         실패했을 때만 찍으면 실패가 안 나는 동안은 아무것도 안 남는다.
          Cloudflare → Workers → null-api → Logs 에서 [NULL] 로 검색하면 된다. */
-      console.log(`[NULL] 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
-      // 사진은 모델이 맥락을 보고 고른 것만 나간다. 키워드로 억지로 붙이지 않는다
-      // ("음악 추천해줘" → 이어폰 낀 사진 같은 헛발질의 원인이었다).
-      const parsed = parseMessages(raw, fallbackSender, chars);
-      // 모델이 고른 자리. 열려 있는 것 중 하나여야 통과한다.
-      // 자리에 같이 있는 턴에는 아예 안 받는다 — 프롬프트는 자리에서 초대
-      // 목록을 빼는데 검증만 열려 있으면, 모델이 어겼을 때 마주 앉은 장면
-      // 위로 초대 창이 뜬다. 억제와 검증이 같은 규칙을 봐야 한다.
-      /* 억제와 검증이 같은 규칙을 봐야 한다. 프롬프트가 두 목록을 주므로
-         검증도 둘을 합쳐서 본다 — 유저가 가자고 해서 연 자리가 여기서
-         걸리면, 화면에는 아무 일도 안 일어나고 말만 남는다. */
-      const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
-      // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
-      const give = pickGive(parseMessages.give, place, hasItem, room);
-      /* 메아리 거르기는 말버릇 필터 뒤다 — trimTics가 앞의 말줄임표를 떼고 나야
-         「...흥이래요.」도 같은 줄로 보인다 */
-      /* 걸러내고 나면 빌 수 있다. 두 가지가 섞여 있어서 갈라 본다.
-          - 자는 사람이라 지운 것: 그건 뜻이 있는 빈 손이다. 그대로 200.
-          - 그 앞에서 이미 빈 것: 모델 응답을 못 읽었거나(폴백을 닫았다)
-            한자에 깨졌거나 안이 비쳐서 다 버린 것이다. 200으로 돌려주면
-            프론트가 스피너만 끄고 아무 일도 안 일어난다 — 유저는 답이
-            안 온 줄도 모른다. 502로 바꿔서 재시도가 뜨게 한다. */
-      const kept = dropEcho(
-        trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
-        lastSaid(msgs, mode));
-      if (!kept.length) {
-        console.log("[NULL] 남은 말풍선이 없다 — 재시도로 돌린다");
-        return new Response(JSON.stringify({ error: "생성 실패", detail: "모델 응답을 읽지 못했습니다" }),
+      /* 고르는 쪽에 줄 작은 꾸러미의 재료. 쓰는 쪽 프롬프트를 다시 주지
+         않으므로, 이 장면을 판단할 만큼만 여기서 추린다.
+         정사를 추측하게 만들 만큼 굶기지도 않는다 — 관계 단계와 아는 범위가
+         없으면 「지금 이 사람」을 볼 수가 없다. */
+      const tier = "normal";
+      const relLabel = stageOf(Number((counts || {})[room]) || 0, days).name + ` · ${days}일째`;
+      const knowsLabel = room === "jaeeon"
+        ? "20년 전 공부방 아이를 안다. 유저가 그 아이라는 것은 자기만 안다"
+        : room === "minhyun"
+          ? "병원 옥상에서 유저를 만났다. 삼촌과 유저의 과거는 모른다"
+          : "";
+      const turnFacts = [];
+      if (place) turnFacts.push(`자리: ${place}`);
+      if (hasItem) turnFacts.push("이 자리에 건넬 수 있는 물건이 있다");
+      const budget = mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET;
+      /* 후보를 담을 자리를 넉넉히 준다. 천장이지 청구서가 아니라서 열어둔다고
+         값이 오르지 않는다 — 실제로 뽑은 만큼만 낸다. */
+      const nCand = mode === "auto" ? 1 : CANDIDATES;
+      const askText = writerAsk(nCand);
+      if (askText) {
+        const t = msgs[msgs.length - 1];
+        if (Array.isArray(t.content)) t.content.push({ type: "text", text: askText });
+        else t.content = [{ type: "text", text: t.content }, { type: "text", text: askText }];
+      }
+      /* 고르는 쪽에 줄 최근 대화. 이 장면과 무관한 과거는 안 넣는다 */
+      const recentForDirector = msgs.slice(-6).map(m => ({
+        role: m.role,
+        content: Array.isArray(m.content) ? m.content.map(b => b.text || "").join(" ") : m.content,
+      }));
+
+      let picked = null, lastCodes = [];
+      for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked; attempt++) {
+        const raw = await callStage(env, "writer", system, msgs,
+          budget * (nCand > 1 ? nCand : 1), attempt, tier);
+        console.log(`[NULL] 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
+
+        /* 후보마다 지금까지 쓰던 검사줄을 그대로 태운다. 새 검사를 만들지
+           않는다 — 사진·초대·물건·메아리·말버릇은 이미 여기서 걸러진다. */
+        const cands = [];
+        for (const one of splitCandidates(raw)) {
+          const parsed = parseMessages(one, fallbackSender, chars);
+          const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
+          const give = pickGive(parseMessages.give, place, hasItem, room);
+          const kept = dropEcho(
+            trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
+            lastSaid(msgs, mode));
+          const codes = hardFilter(kept, chars);
+          if (codes.length) { lastCodes = codes; continue; }      // 명백한 것만 떨어뜨린다
+          cands.push({ kept, invite, give, signals: softSignals(kept, recentForDirector) });
+        }
+        if (!cands.length) { console.log(`[NULL] 후보가 다 떨어졌다 — ${lastCodes.join(",")}`); continue; }
+
+        /* 관전방은 고르는 단계를 안 탄다 — 한 번에 여러 발화라 A/B가 아니라
+           장면 전체가 다르고, 여기서 값을 두 배로 낼 자리가 아니다. */
+        if (mode === "auto" || cands.length === 0) { picked = cands[0]; break; }
+
+        const packet = directorPacket({
+          who: fallbackSender, when: now, place,
+          stage: relLabel, knows: knowsLabel, facts: turnFacts,
+          recent: recentForDirector,
+        }, cands);
+        const decRaw = await callStage(env, "director", DIRECTOR_RULES,
+          [{ role: "user", content: packet }], 300, attempt, tier);
+        const dec = readDecision(decRaw, cands.length);
+        console.log(`[NULL] 고름 ▶ ${dec.decision} ${JSON.stringify(dec.reject_codes).slice(0, 200)}`);
+        if (dec.decision === "RETRY") {
+          lastCodes = Object.values(dec.reject_codes || {}).flat().filter(Boolean);
+          continue;                                   // 실패 코드만 들고 한 번 더
+        }
+        picked = dec.decision === "B" ? (cands[1] || cands[0]) : cands[0];
+      }
+
+      /* 계속 실패하면 가짜 각본으로 덮지 않는다. 덮으면 화면에는 대화가
+         그대로 뜨고, 잠긴 것도 한도가 바닥난 것도 「잘 되는 중」으로 보인다. */
+      if (!picked) {
+        console.log("[NULL] 쓸 만한 후보가 없다 — 재시도로 돌린다");
+        return new Response(JSON.stringify({ error: "생성 실패",
+          detail: "쓸 만한 응답을 못 받았습니다" + (lastCodes.length ? ` (${lastCodes.join(", ")})` : ""),
+          stages: stageLog, ...(reqId ? { request_id: reqId } : {}) }),
           { status: 502, headers: { ...CORS, "content-type": "application/json" } });
       }
+      const { kept, invite, give } = picked;
       const messages = dropSleepers(kept, place ? null : states);
       /* ── 이름표를 되돌려준다 ──
          한 턴이 모델 여러 번을 타게 되면 답이 늦어지고, 그 사이 프론트에서
@@ -3427,12 +3727,21 @@ export default {
          있으므로 판정은 프론트 몫이고, 여기서는 그대로 비춰주기만 한다. */
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
+        /* 단계별 실측. 호출 수만 보고 비용을 추측하지 않으려면 이게 있어야
+           한다 — 후보 재입력도, 캐시 쓰기·읽기도, 재생성도 다 여기 잡힌다.
+           원문과 프롬프트는 안 싣는다. 숫자만이다. */
+        stages: stageLog,
         ...(reqId ? { request_id: reqId } : {}),
         ...(invite ? { invite: { place: invite, char: room } } : {}),
         ...(give ? { give: { item: give, place, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
-      return new Response(JSON.stringify({ error: "생성 실패", detail: String(e).slice(0, 200) }), { status: 502, headers: { ...CORS, "content-type": "application/json" } });
+      /* 이름표는 실패한 답에도 실어야 한다. 프론트가 「이게 지금 것이 맞나」를
+         가리는 기준이 이름표인데, 실패에만 없으면 늦게 터진 옛 실패가
+         지금 도는 요청 위에 재시도를 띄운다. */
+      return new Response(JSON.stringify({ error: "생성 실패", detail: String(e).slice(0, 200),
+        stages: stageLog, ...(reqId ? { request_id: reqId } : {}) }),
+        { status: 502, headers: { ...CORS, "content-type": "application/json" } });
     }
   },
 };
@@ -3441,4 +3750,6 @@ export default {
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
 export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace };
+         PLACE_ITEMS, placeOf, pickGive, buildPlace,
+         ENGINE, CANDIDATES, RETRY_MAX, writerAsk, splitCandidates, hardFilter, softSignals,
+         directorPacket, readDecision, DIRECTOR_RULES };

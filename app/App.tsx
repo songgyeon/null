@@ -1776,7 +1776,16 @@ function Root() {
 
   /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가 안 맞고
      있다는 뜻인데, 그건 오류를 안 내고 조용히 정가를 문다 */
-  const logUsage=(d:any)=>{ const u=d&&d.usage; if(!u)return;
+  const logUsage=(d:any)=>{
+    /* 한 턴이 몇 번을 탔나. 호출 수만 보고 비용을 짐작하지 않는다 —
+       후보 재입력도, 캐시 쓰기·읽기도, 재생성도 여기 다 잡힌다. */
+    if(d&&Array.isArray(d.stages)&&d.stages.length){
+      console.log(`[NULL] 단계 ${d.stages.length}회\n`+d.stages.map((t:any)=>
+        `  ${t.stage} · ${t.model} · 새로 ${t.input_tokens} / 캐시읽음 ${t.cache_read_input_tokens}`
+        +` / 출력 ${t.output_tokens} · ${t.latency_ms}ms · ${t.attempt}회차`).join('\n'));
+      return;
+    }
+    const u=d&&d.usage; if(!u)return;
     console.log(`[NULL] 토큰 — 새로 ${u.input_tokens||0} · 캐시 씀 ${u.cache_creation_input_tokens||0}`
       + ` · 캐시 읽음 ${u.cache_read_input_tokens||0} · 출력 ${u.output_tokens||0}`); };
   /* 요약 갱신은 답장이 다 뜬 뒤에 뒤에서 돈다. 한 번에 하나만 */
