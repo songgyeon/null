@@ -81,11 +81,39 @@ const ENGINE = {
   character: { id: "claude-haiku-4-5",            effort: null, noThinking: true },
   finalizer: { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
 };
-/* 후보 두 개가 무조건 한 개보다 낫다고 가정하지 않는다. 바꿔 끼울 수 있게
-   둔다 — 1이면 고르는 쪽이 ACCEPT/RETRY를, 2면 A/B/RETRY를 판단한다.
-   후보가 늘면 쓰는 쪽 출력뿐 아니라 고르는 쪽 입력에도 다시 과금된다. */
-const CANDIDATES = 2;
+/* ── 후보를 몇 개, 어떻게 뽑나 ──
+   후보 두 개가 무조건 한 개보다 낫다고 가정하지 않는다. 세 가지를 바꿔
+   끼울 수 있게 둔다. 값이 다르고 지연이 다르고 후보의 다양성이 다르다 —
+   어느 쪽이 나은지는 실제 대화와 usage로 판단할 일이지 여기서 정할 일이 아니다.
+
+     one       한 번 불러 후보 하나. 제일 싸고 제일 빠르다.
+               고르는 쪽은 ACCEPT/RETRY만 판단한다.
+     pair      한 번 불러 후보 둘. 입력을 한 번만 내므로 parallel보다 싸다.
+               대신 한 머리에서 나온 둘이라 서로 닮을 수 있다.
+     parallel  두 번 나란히 불러 각각 하나. 제일 다양하고 제일 비싸다 —
+               같은 입력을 두 번 내므로 입력 토큰이 두 배다.
+
+   후보가 늘면 쓰는 쪽 출력뿐 아니라 고르는 쪽 입력에도 다시 과금된다.
+   호출 수만 보고 비용을 추측하지 않는다 — 단계별 실측이 답한다. */
+const CANDIDATE_MODE = "pair";     // one | pair | parallel
+const CANDIDATE_N = { one: 1, pair: 2, parallel: 2 };
 const RETRY_MAX = 1;           // 계속 실패하면 각본으로 덮지 않고 재시도 UI로 보낸다
+
+/* ── 기준선을 지우지 않는다 ──
+   지금 경로가 옛 경로보다 낫다는 것은 재봐야 아는 것이다. 옛 경로(모델 하나가
+   한 번에 쓰는 길)를 지우지 말고 깃발 뒤에 남긴다. 대시보드에서
+   ENGINE_MODE=legacy로 두면 그 길로 돈다 — 같은 대화를 두 길로 굴려서
+   비용·지연·말맛을 나란히 볼 수 있다.
+   프론트가 고르게 하지는 않는다. 값을 두 배로 내는 길을 브라우저가
+   고를 수 있으면 그건 깃발이 아니라 구멍이다. */
+function engineMode(env) {
+  const v = String((env && (env.ENGINE_MODE || env.engine_mode)) || "").trim().toLowerCase();
+  return v === "legacy" ? "legacy" : "hybrid";
+}
+function candidateMode(env) {
+  const v = String((env && (env.CANDIDATE_MODE || env.candidate_mode)) || "").trim().toLowerCase();
+  return CANDIDATE_N[v] ? v : CANDIDATE_MODE;
+}
 /* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
    앞에서 자르지 않고 뒤에서 자르면 캐시된 앞부분이 매번 달라진다. */
 function budgetHistory(list, budget) {
@@ -2864,6 +2892,25 @@ const META_RE = [
 ];
 const isMeta = (t) => { const s = (t || "").trim(); return !!s && META_RE.some(re => re.test(s)); };
 
+/* ── 안이 통째로 비친 줄 ──
+   실제 기록에서 열네 줄이 이렇게 나갔다. 두 가지다.
+   ① 출력 형식이 그대로 말풍선이 된 것 — {"messages": ["집에 잘 가요."]}
+   ② 모델이 영어로 혼잣말한 것 — The instructions say "…" and the available place is 빨래방.
+
+   위의 META_RE는 장치 이름을 보는 자라 둘 다 안 걸렸다. ①은 새는 낱말이
+   하나도 없고, ②는 한글이 섞여 있어서다.
+
+   한글 비율로 자르려다 걷었다. 이 둘은 음악 얘기를 많이 하는데
+   「Don't Delete the Kisses」, 「I Don't Think That I Like Her」 같은 제목이
+   전부 걸린다. 제목은 대사고 혼잣말은 대사가 아니다 — 비율로는 그 둘이
+   구별되지 않는다. 그래서 모양과 문구를 콕 집는다.
+
+   ①의 여는 괄호 뒤에 따옴표나 괄호가 와야 본다. 그냥 「{」로만 보면
+   문구집의 자리표({이름} 선생님도요.)까지 걸린다. */
+const LEAK_TALK = /\b(?:The instructions?|The user|The conversation|I should|I need to|I'll|I'm going to|Let me|the available|natural segue|system prompt|output format|Based on the|According to the)\b/i;
+const LEAK_SHAPE = /^[[{]\s*["'[{]|"messages"\s*:|```/;
+const isLeak = (t) => { const s = (t || "").trim(); return !!s && (LEAK_SHAPE.test(s) || LEAK_TALK.test(s)); };
+
 /* ── 제 이름을 3인칭으로 부르는 줄 ──
    「새벽 세 시에 편의점 라면값 계산하고 가는 길이면 말이 많을 이유가 없다.
      이재언은 원래도 아낀다.」가 재언의 말풍선으로 떴다. 대사가 아니라 지문이고,
@@ -2912,6 +2959,10 @@ function dropMeta(list) {
   for (const m of list || []) {
     if (isMeta(m && m.text)) {
       console.log(`[NULL] 사고 유출을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
+      continue;
+    }
+    if (isLeak(m && m.text)) {
+      console.log(`[NULL] 안이 비친 줄을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
       continue;
     }
     if (isSelfNarration(m && m.text, m && m.sender)) {
@@ -3082,7 +3133,7 @@ function hardFilter(kept, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [];
   for (const m of kept) {
     const t = (m && m.text) || "";
-    if (LEAKY_SHAPE.test(t.trim())) { codes.push("LEAK"); break; }
+    if (isLeak(t)) { codes.push("LEAK"); break; }
   }
   if (ok.length) {
     for (const m of kept) {
@@ -3338,8 +3389,7 @@ function finalizerPacket(ctx, cands, notes) {
   return L.join("\n");
 }
 
-/* 안이 비치는 모양. 대사에는 이런 것이 안 나온다 */
-const LEAKY_SHAPE = /^[[{]|"messages"\s*:|```/;
+
 
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
@@ -3374,14 +3424,17 @@ function parseMessages(text, fallbackSender, allowed) {
   /* 그것도 아니면 원문을 한 덩어리로 내보낸다. 평문 한 줄로 답하는 턴이
      실제로 있어서 이 길은 열어둔다.
 
-     구조가 비치는 것만 본다 — 중괄호로 시작하거나, 코드펜스거나, "messages"가
-     들어 있으면 그건 파서가 못 읽은 JSON 부스러기다.
-     무슨 말로 쓰였는지는 안 본다. 한동안 영어 문구를 표로 막았다가 비율로도
-     재봤는데, 둘 다 대사를 잡아먹었다 — 「Wolf Alice 좋아해요?」가 사라진다.
-     이 둘은 노래 제목과 상표를 말할 수 있어야 한다.
+     여기서는 구조가 비치는 것만 본다 — 중괄호로 시작하거나, 코드펜스거나,
+     "messages"가 들어 있으면 그건 파서가 못 읽은 JSON 부스러기다.
+     무슨 말로 쓰였는지는 여기서 안 본다. 한동안 영어 문구를 표로 막았다가
+     비율로도 재봤는데, 둘 다 대사를 잡아먹었다 — 「Wolf Alice 좋아해요?」가
+     사라진다. 이 둘은 노래 제목과 상표를 말할 수 있어야 한다.
+     (혼잣말을 집는 좁은 표는 dropMeta의 LEAK_TALK에 따로 있다. 그건 영어
+      전반이 아니라 「The instructions say」류만 보고, 문구집 3,800줄에
+      오탐이 없는 것을 확인하고 넣었다.)
      버려서 빈 목록이 되면 handler가 502로 바꾼다. */
   const raw = String(text || "").trim();
-  if (!raw || LEAKY_SHAPE.test(raw)) return [];
+  if (!raw || LEAK_SHAPE.test(raw)) return [];
   return [{ sender: fallbackSender, text: raw }];
 }
 
@@ -3867,6 +3920,36 @@ export default {
          않으므로, 이 장면을 판단할 만큼만 여기서 추린다.
          정사를 추측하게 만들 만큼 굶기지도 않는다 — 관계 단계와 아는 범위가
          없으면 「지금 이 사람」을 볼 수가 없다. */
+      const budget0 = mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET;
+      /* ── 기준선 ──
+         옛 길: 모델 하나가 한 번에 쓴다. 지우지 않고 깃발 뒤에 남긴다 —
+         지금 길이 나은지는 같은 대화를 두 길로 굴려 봐야 아는 것이다.
+         이 길은 목록 폴백을 그대로 쓴다. 그게 옛 길의 모습이기 때문이다. */
+      if (engineMode(env) === "legacy") {
+        const t0 = Date.now();
+        const raw = await askClaude(env, system, msgs, budget0);
+        stageStamp("legacy", (lastUsage && lastUsage.model) || "?", lastUsage, Date.now() - t0, 1, "legacy");
+        console.log(`[NULL] 기준선 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
+        const p0 = parseMessages(raw, fallbackSender, chars);
+        const inv0 = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
+        const giv0 = pickGive(parseMessages.give, place, hasItem, room);
+        const kept0 = dropEcho(
+          trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(p0)), chars), photoChars, fallbackSender, recentPhotos)),
+          lastSaid(msgs, mode));
+        if (!kept0.length) {
+          return new Response(JSON.stringify({ error: "생성 실패", detail: "모델 응답을 읽지 못했습니다",
+            stages: stageLog, ...(reqId ? { request_id: reqId } : {}) }),
+            { status: 502, headers: { ...CORS, "content-type": "application/json" } });
+        }
+        return new Response(JSON.stringify({
+          messages: dropSleepers(kept0, place ? null : states),
+          unlocked: unlockedKeys(counts, days), usage: lastUsage, stages: stageLog,
+          ...(reqId ? { request_id: reqId } : {}),
+          ...(inv0 ? { invite: { place: inv0, char: room } } : {}),
+          ...(giv0 ? { give: { item: giv0, place, char: room } } : {}) }),
+          { headers: { ...CORS, "content-type": "application/json" } });
+      }
+
       /* 중요한 장면인지는 코드가 정한다. 프론트가 보낸 사유를 그대로 믿지
          않고, 허용된 목록에 있는지와 지금 상태가 그 사유를 받쳐주는지를
          둘 다 본다. 안 그러면 모든 턴이 중요해지고 값만 두 배가 된다. */
@@ -3887,8 +3970,11 @@ export default {
       const budget = mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET;
       /* 후보를 담을 자리를 넉넉히 준다. 천장이지 청구서가 아니라서 열어둔다고
          값이 오르지 않는다 — 실제로 뽑은 만큼만 낸다. */
-      const nCand = mode === "auto" ? 1 : CANDIDATES;
-      const askText = writerAsk(nCand);
+      const cMode = mode === "auto" ? "one" : candidateMode(env);
+      const nCand = CANDIDATE_N[cMode];
+      /* parallel은 같은 입력을 두 번 내고 각각 하나씩 받는다 — 지시를 안 붙인다.
+         pair는 한 번 내고 둘을 받으므로 그 모양을 못박아야 한다. */
+      const askText = cMode === "pair" ? writerAsk(nCand) : "";
       if (askText) {
         const t = msgs[msgs.length - 1];
         if (Array.isArray(t.content)) t.content.push({ type: "text", text: askText });
@@ -3902,14 +3988,20 @@ export default {
 
       let picked = null, lastCodes = [];
       for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked; attempt++) {
-        const raw = await callStage(env, "writer", system, msgs,
-          budget * (nCand > 1 ? nCand : 1), attempt, tier);
-        console.log(`[NULL] 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
+        /* parallel은 두 번 나란히 부른다. 한쪽이 실패하면 그건 진짜 실패다 —
+           남은 한쪽으로 조용히 때우면 두 배 값을 내고 한 개를 받은 것을
+           아무도 모른다. */
+        const raws = cMode === "parallel"
+          ? await Promise.all([1, 2].map(() =>
+              callStage(env, "writer", system, msgs, budget, attempt, tier)))
+          : [await callStage(env, "writer", system, msgs,
+              budget * (nCand > 1 ? nCand : 1), attempt, tier)];
+        console.log(`[NULL] 응답 ▶ ${mode}/${room}/${cMode} ▶ ${raws.join(" ⋯ ").slice(0, 600)}`);
 
         /* 후보마다 지금까지 쓰던 검사줄을 그대로 태운다. 새 검사를 만들지
            않는다 — 사진·초대·물건·메아리·말버릇은 이미 여기서 걸러진다. */
         const cands = [];
-        for (const one of splitCandidates(raw)) {
+        for (const one of raws.flatMap(splitCandidates)) {
           const parsed = parseMessages(one, fallbackSender, chars);
           const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
           const give = pickGive(parseMessages.give, place, hasItem, room);
@@ -4018,7 +4110,7 @@ export default {
    테스트가 네트워크나 키에 기대지 않게. */
 export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
-         ENGINE, CANDIDATES, RETRY_MAX, writerAsk, splitCandidates, hardFilter, softSignals,
+         ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          directorPacket, readDecision, DIRECTOR_RULES,
          CRITICAL_REASONS, sceneTier, sceneHead, criticPacket, finalizerPacket, readProblems,
          CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES };

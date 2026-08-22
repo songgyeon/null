@@ -9,7 +9,8 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs     # 1236개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/run.mjs     # 1242개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node tools/eval.mjs   # 대사 품질 자 — 내보낸 기록에서 명백한 것을 센다
 ```
 
 ```
@@ -41,6 +42,8 @@ docs/art-prompts.md      # 재언 재생성 프롬프트 33장 — BASE + 장별
 tools/demo-engine.js     # 매칭 엔진 — 웹·앱 결과물에 그대로 이어 붙는다
 tools/build-demo.mjs     # 문구집 → demo-lines.js + app/lib/demoLines.ts
 tools/build-rules.mjs    # app-data.js → app/lib/rules.ts (규칙은 손으로 안 베낀다)
+tools/eval.mjs           # 품질 자 — 상담사 말투·메아리·같은 말 반복·옛 정사를 센다
+docs/engine-plan.md      # 생성 엔진 — 모델 배치와 그 결정이 코드 어디에 사는지
 test/run.mjs          # 회귀 테스트
 cab-icons/            # 캐비닛 지도 — 프레임·문짝 열림/잠김·명패·TV
 *.webp                # 배경·사진·프로필 111장 — 인물 62, 자리·물건·선물 39, 히든 문서 8, 바탕화면 2

@@ -4478,7 +4478,7 @@ eq('시간표 단추는 peek보다 좁다',
    목록은 말맛과 무관한 뒷일(요약)에만 남는다. */
 {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  const eng = wk.slice(wk.indexOf('const ENGINE = {'), wk.indexOf('const CANDIDATES'));
+  const eng = wk.slice(wk.indexOf('const ENGINE = {'), wk.indexOf('/* ── 후보를 몇 개'));
 
   /* 모델 이름은 함수마다 흩지 않는다. 나중에 지금 세대가 종료돼도
      이 표와 평가 자료만 갈아끼우면 되게 한다. */
@@ -4503,13 +4503,40 @@ eq('시간표 단추는 peek보다 좁다',
     return (f.match(/await callModel\(/g) || []).length === 1
         && /throw new Error\(`\$\{stage\} 실패/.test(f);
   })(), true);
-  /* 대사를 만드는 길이 목록을 안 본다 — 목록은 요약에만 남았다 */
-  eq('대사 길에는 목록 폴백이 없다',
-    (wk.match(/await askClaude\(/g) || []).length, 1);
-  eq('남은 한 번은 요약이다', (() => {
+  /* 대사를 만드는 지금 길이 목록을 안 본다. 목록이 남은 데는 둘뿐이다 —
+     말맛과 무관한 뒷일(요약)과, 깃발 뒤의 기준선(옛 길). */
+  eq('목록을 보는 데가 둘뿐이다',
+    (wk.match(/await askClaude\(/g) || []).length, 2);
+  eq('하나는 요약이다', (() => {
     const i = wk.indexOf('await askClaude(');
     return wk.slice(Math.max(0, i - 400), i).includes('askSummary');
   })(), true);
+  eq('하나는 깃발 뒤의 기준선이다', (() => {
+    const i = wk.lastIndexOf('await askClaude(');
+    return wk.slice(Math.max(0, i - 400), i).includes('engineMode(env) === "legacy"');
+  })(), true);
+  /* ── 기준선을 지우지 않는다 ──
+     지금 길이 옛 길보다 낫다는 것은 재봐야 아는 것이다. 대신 브라우저가
+     고를 수 있게 두지는 않는다 — 값을 두 배로 내는 길을 프론트가 고를 수
+     있으면 그건 깃발이 아니라 구멍이다. */
+  eq('기준선은 서버만 고른다', (() => {
+    const f = wk.slice(wk.indexOf('function engineMode(env)'), wk.indexOf('function candidateMode('));
+    return f.includes('env.ENGINE_MODE') && !f.includes('body.');
+  })(), true);
+  eq('후보 방식도 서버만 고른다', (() => {
+    const f = wk.slice(wk.indexOf('function candidateMode(env)'), wk.indexOf('function candidateMode(env)') + 300);
+    return f.includes('env.CANDIDATE_MODE') && !f.includes('body.');
+  })(), true);
+  /* 세 가지를 바꿔 끼울 수 있게 둔다 — 값도 지연도 다양성도 다르다 */
+  eq('후보 방식이 셋이다',
+    ['one', 'pair', 'parallel'].filter(k => !new RegExp(`${k}: \\d`).test(wk)), []);
+  /* parallel은 같은 입력을 두 번 낸다 — 지시를 붙이면 각각 둘씩 받는다 */
+  eq('parallel에는 후보 지시를 안 붙인다',
+    /const askText = cMode === "pair" \? writerAsk\(nCand\) : "";/.test(wk), true);
+  /* 한쪽이 실패하면 그건 진짜 실패다 — 남은 한쪽으로 때우면 두 배 값을 내고
+     한 개를 받은 것을 아무도 모른다 */
+  eq('parallel은 한쪽이 죽으면 실패다',
+    /await Promise\.all\(\[1, 2\]\.map\(\(\) =>\s*\n\s*callStage\(env, "writer"/.test(wk), true);
 
   /* ── 일반 턴은 고르는 쪽이 한 글자도 안 쓴다 ── */
   eq('고르는 쪽은 대사를 안 쓴다',
@@ -4529,7 +4556,7 @@ eq('시간표 단추는 peek보다 좁다',
      후보를 몇 개 뽑을지는 턴마다 바뀔 수 있는 값이라 가변부 뒤에 붙인다.
      앞을 고치면 매 턴 2배 요금으로 쓰기만 하고 버린다. */
   eq('후보 지시는 캐시 뒤에 붙는다', (() => {
-    const i = wk.indexOf('const askText = writerAsk(nCand);');
+    const i = wk.indexOf('const askText = cMode === "pair"');
     const box = wk.slice(i, i + 320);
     return box.includes('t.content.push({ type: "text", text: askText })');
   })(), true);
