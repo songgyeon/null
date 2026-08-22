@@ -4644,6 +4644,74 @@ eq('시간표 단추는 peek보다 좁다',
   eq('꾸러미가 짧다', pk.length < 900, true);
 }
 
+/* ══════════ 첫 자리의 첫 마디 ══════════
+   앱을 처음 켠 시각에 따라 메신저가 아니라 자리에서 먼저 만나는 날이 있다.
+   전에는 그 첫 마디를 모델이 썼는데, 모델에게는 기록이 하나도 없으니
+   아무 날의 아무 말처럼 나왔다 — 서로 처음 보는 자리인 걸 모르는 채로.
+   게다가 그 방은 이제 비어 있지 않으니 「도착 선톡 · 첫 만남」의 정해진
+   첫 마디가 그날 영영 안 나온다. 자리가 그 사람의 첫 마디를 삼킨 것이다. */
+{
+  const corpus = readFileSync(join(ROOT, 'docs/dialogue-corpus.md'), 'utf8');
+  const demo = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
+
+  /* 여는 자리가 늘면 문구도 같이 늘어야 한다. 손으로 세지 않고 표에서 읽는다 —
+     자리를 하나 더 만들고 문구를 안 쓰면 그날 아침이 조용하다. */
+  const places = (() => {
+    const src = web.slice(web.indexOf('const OPENINGS=['), web.indexOf('const openingFor='));
+    return [...new Set([...src.matchAll(/place:"([^"]+)"/g)].map(m => m[1]))];
+  })();
+  eq('여는 자리가 일곱이다', places.length, 7);
+  eq('자리마다 첫 마디가 있다',
+    places.filter(p => !new RegExp(`"when":"${p}","sec":"첫 자리"`).test(demo)), []);
+  eq('문구집에도 자리마다 있다',
+    places.filter(p => !corpus.includes(`**상황. ${p}**`)), []);
+
+  /* 첫 마디는 모델을 안 부른다 — 정해진 말이라 부를 이유가 없고,
+     불러 봤자 기록이 없어서 아무 날의 아무 말이 나온다 */
+  eq('첫 자리는 모델을 안 부른다', (() => {
+    const i = web.indexOf('setScene(sc); saveScene(sc); setView(o.room);');
+    const box = web.slice(i, i + 900);
+    return box.includes('demoProactive(o.room,o.place,name)') && !box.includes('request(o.room,');
+  })(), true);
+  eq('앱도 첫 자리는 모델을 안 부른다',
+    /const first=demoProactive\(o\.room,o\.place,name\);/.test(appSrc), true);
+  /* 문구가 없으면 조용히 있느니 모델을 부른다 — 화면이 비는 것이 제일 나쁘다 */
+  eq('문구가 없으면 모델로 넘어간다',
+    /else await runTurn\(o\.room\);/.test(appSrc), true);
+
+  /* 자리에서 만나도 그 사람의 결은 같아야 한다. 재언은 용건부터 만들고,
+     민현은 아는 걸 아는 채로 연다. 옥상은 여기서 설명하지 않는다 —
+     마주 보고 서서 그 얘기부터 꺼내면 인사가 아니라 고발이다. */
+  const sect = corpus.slice(corpus.indexOf('## 첫 자리'), corpus.indexOf('## 마감 체크'));
+  eq('첫 자리에서 옥상을 설명하지 않는다', /병원 옥상에서 만났|담배|라이터/.test(
+    sect.split('\n').filter(l => l.startsWith('　')).join('\n')), false);
+  eq('민현은 아는 채로 연다', (() => {
+    const mine = sect.split('\n').filter(l => l.startsWith('　민현'));
+    return mine.length === 4 && mine.every(l => /알죠|맞죠|오시네요|아닌데/.test(l));
+  })(), true);
+  eq('재언은 용건부터 만든다', (() => {
+    const mine = sect.split('\n').filter(l => l.startsWith('　재언'));
+    return mine.length === 3 && mine.every(l => /새로 오/.test(l));
+  })(), true);
+
+  /* 실제로 뽑아 본다 — 표와 문구가 이어져 있어도 고르는 쪽이 못 찾으면 소용없다 */
+  const E = (() => {
+    const eng = readFileSync(join(ROOT, 'tools/demo-engine.js'), 'utf8');
+    const lines = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
+    return new Function(lines + ';' + eng + ';return {demoProactive}')();
+  })();
+  for (const p of ['편의점', '후문 골목', '버스정류장', '레코드샵', '보건실', '도서관', '빨래방']) {
+    const got = E.demoProactive(['보건실', '도서관', '빨래방'].includes(p) ? 'jaeeon' : 'minhyun', p, '리리');
+    eq(`${p}에서 첫 마디가 나온다`, got.length >= 2, true);
+  }
+  /* 자리 이름으로 뽑는데 다른 선톡이 딸려 나오면 안 된다 —
+     고르는 쪽이 indexOf라 낱말이 겹치면 엉뚱한 것이 나온다 */
+  eq('평소 선톡이 자리 이름에 안 걸린다', (() => {
+    const got = E.demoProactive('minhyun', '편의점', '리리');
+    return got.some(m => /이 시간에 볼 줄은/.test(m.text || m));
+  })(), true);
+}
+
 /* ══════════ 쓰는 쪽에 주는 행동 어휘 ══════════
    고르는 엔진은 두 후보에 없는 설렘을 만들 수 없다. 그래서 쓰는 쪽에
    규칙을 더 쌓는 대신 재료를 준다 — 이 사람이 지금 단계에서 할 수 있는

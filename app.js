@@ -1207,11 +1207,17 @@ function App(){
     if(PLACE_BY[o.place]){ goneTo(o.place); stampGone(o.place) }
     const sc={room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{})};
     setScene(sc); saveScene(sc); setView(o.room);
-    const next=[...(storeRef.current.msgs[o.room]||[]),sys];
-    request(o.room,{mode:"chat",room:o.room,user_name:name,
-      history:buildHistory(sinceSum(o.room,next)),signals:buildSignals(o.room),
-      recent_photos:recentPhotos(o.room),counts:roomCounts({[o.room]:next.length}),
-      place:o.place,bag:bagOut()});
+    /* ── 첫 마디는 정해져 있다 ──
+       전에는 여기서 모델을 불렀다. 그런데 모델에게는 기록이 하나도 없으니
+       아무 날의 아무 말처럼 나왔다 — 서로 처음 보는 자리인 걸 모르는 채로.
+       게다가 그 방은 이제 비어 있지 않으니, 「도착 선톡 · 첫 만남」의 정해진
+       첫 마디가 그날 영영 안 나온다. 그 사람의 첫 마디를 자리가 삼킨 것이다.
+       자리마다 첫 마디를 문구집에 따로 정해뒀다. 모델은 안 부른다 —
+       두 번째 말부터가 모델 몫이다. */
+    setBusy(b=>({...b,[o.room]:true}));
+    const first=demoProactive(o.room,o.place,name);
+    if(first.length)setTimeout(()=>enqueue(o.room,first),700);
+    else setBusy(b=>({...b,[o.room]:false}));
     /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 아래 선톡 추첨에
        맡기면 자리 쪽 상태가 아직 화면에 안 앉아서 두 방이 다 비어 보이고,
        자리에서 만난 사람이 뽑혀 조용히 삼켜진다. 게다가 그 추첨은 view가

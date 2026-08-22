@@ -14,7 +14,10 @@ const md = readFileSync(SRC, 'utf8').split(/\r?\n/);
 /* 여러 줄이 이어져 한 장면이 되는 절. 나머지 절은 한 줄이 곧 한 후보다 —
    단톡방에서 재언 줄과 민현 줄을 따로 뽑으면 주고받는 게 사라진다. */
 const isScript = s => /단체방|관전방|장기 대화|선톡 후/.test(s);
-const isProactive = s => /선톡|재접속|무응답 재호출|전날 대화 콜백/.test(s);
+/* 「첫 자리」도 선톡 통에 담는다 — 캐릭터가 먼저 거는 말이라는 점이 같고,
+   고르는 쪽(demoProactive)이 그 통을 본다. 이름에 「선톡」을 안 붙인 건
+   실제로 선톡이 아니기 때문이다: 문자가 아니라 마주 서서 하는 말이다. */
+const isProactive = s => /선톡|재접속|무응답 재호출|전날 대화 콜백|첫 자리/.test(s);
 
 const out = { intents:[], follow:[], danger:[], group:[], watch:[],
               proactive:{jaeeon:[],minhyun:[]}, multi:[], repeat:[],
