@@ -961,6 +961,22 @@ const placeWhen=(p,now)=>{
 const placeNeed=(p,been)=>(p.need||[]).filter(n=>!been.includes(n));
 const loadScene=()=>{try{return JSON.parse(localStorage.getItem("null_scene"))||null}catch(e){return null}};
 const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):localStorage.removeItem("null_scene")}catch(e){}};
+/* ── 고친 대사 ──
+   인물이 이상한 말을 하면 그 말풍선을 눌러 고쳐 쓴다. 이력은 대화 목록에서
+   다시 만들어지므로, 고치면 다음 턴부터 인물은 **자기가 그렇게 말한 걸로**
+   안다. 프롬프트를 안 건드리고 그 자리에서 바로잡는 길이다.
+
+   고친 것은 원문과 짝으로 따로 쌓아둔다. 배포 전에 프롬프트를 손볼 때
+   그대로 견본이 된다 — 「이렇게 말해야지」라는 설명이 아니라 실제 대사라서
+   대화 예시에 바로 옮길 수 있다. 이 프로덕트에서 안 지켜지는 규칙을 만나면
+   먼저 고칠 곳이 견본이라는 것을 두 번 겪었다(docs/playlog-review.md ②·⑦).
+
+   모델에게 시켜서 알아서 모으게 하는 길도 있는데 안 골랐다. ① 그 말이
+   인물에게도 보이므로 인물이 거기 답한다. ② 알아채는 게 확률이라 놓치는
+   날이 있다. 놓친 것은 없는 것이고, 그러면 모으는 뜻이 없다. */
+const EDIT_MAX=500;
+const loadEdits=()=>{try{return JSON.parse(localStorage.getItem("null_edits"))||[]}catch(e){return[]}};
+const saveEdits=a=>{try{localStorage.setItem("null_edits",JSON.stringify(a.slice(-EDIT_MAX)))}catch(e){}};
 const loadMet=()=>{try{return JSON.parse(localStorage.getItem("null_met"))||[]}catch(e){return[]}};
 const saveMet=a=>{try{localStorage.setItem("null_met",JSON.stringify(a))}catch(e){}};
 const loadRefused=()=>{try{return JSON.parse(localStorage.getItem("null_refused"))||[]}catch(e){return[]}};

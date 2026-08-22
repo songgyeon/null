@@ -4188,6 +4188,48 @@ eq('시간표 단추는 peek보다 좁다',
     !/bag:bagOut\(bag\)/.test(appSrc) && /bag:bagOut\(bagRef\.current\)/.test(appSrc), true);
 }
 
+/* ── 대사 고치기 ──
+   인물이 이상한 말을 하면 그 말풍선을 눌러 고쳐 쓴다. 이력은 대화 목록에서
+   만들어지므로, 고치면 다음 턴부터 인물은 자기가 그렇게 말한 걸로 안다 —
+   프롬프트를 안 건드리고 그 자리에서 바로잡는 길이다. 고친 것은 원문과 짝으로
+   쌓여서 배포 전에 대화 예시로 그대로 옮겨진다. 이 프로덕트에서 안 지켜지는
+   규칙을 만나면 먼저 고칠 곳이 견본이라는 것을 두 번 겪었다(②·⑦). */
+{
+  eq('고친 말을 따로 담아둔다',
+    /localStorage\.getItem\("null_edits"\)/.test(web)
+    && /localStorage\.setItem\("null_edits"/.test(web), true);
+  /* 화면만 바뀌면 인물은 여전히 옛말을 제 말로 안다. 대화 목록을 고쳐야 한다 */
+  eq('고치면 이력도 같이 바뀐다',
+    /\[room\]:\(st\.msgs\[room\]\|\|\[\]\)\.map\(m=>m\.id===mid\?\{\.\.\.m,text:t,fixed:true\}:m\)/.test(web), true);
+  /* 원문이 같이 남아야 대화 예시가 된다 — 고친 말만으로는 뭐가 틀렸는지 모른다 */
+  eq('원문과 짝으로 쌓는다', /who:ms\[at\]\.sender,was,now:t,before:nearby\(room,at\)/.test(web), true);
+  eq('내보내기가 짝으로 싣는다',
+    /──── 고친 말 \$\{es\.length\}개 ────/.test(web)
+    && /lines\.push\(`  ✕ \$\{e\.was\}`,`  ○ \$\{e\.now\}`\)/.test(web), true);
+  /* 고칠 말풍선이 딱 하나가 아닐 때 — 「//」는 대화가 아니라 적어두는 것이다.
+     그 줄에서 끝난다: 이력에도 안 남고 워커도 안 부른다 */
+  eq('두 빗금은 워커를 안 부른다', (() => {
+    const i = web.indexOf('const send=(room,text)=>{');
+    const head = web.slice(i, i + 500);
+    const cut = head.indexOf('addNote(room,text.replace');
+    return cut > 0 && /return \}/.test(head.slice(cut, cut + 60))
+        && !/request\(|appendMsg\(/.test(head.slice(0, cut));
+  })(), true);
+  /* 고친 말만 있으면 나중에 「이럴 때」가 뭐였는지 알 수가 없다 */
+  eq('그때 정황을 같이 담는다',
+    /const nearby=\(room,at\)=>/.test(web) && /\.slice\(Math\.max\(0,at-4\),at\)/.test(web), true);
+  eq('고친 말풍선에 표가 붙는다',
+    /fixed&&fixed\.has\(m\.id\)\?" fixed":""/.test(web)
+    && /\.bubble\.fixed::after,\.stext\.fixed::after\{content:"✎"/.test(web), true);
+  /* 자리(scene)에서 나온 말도 고칠 수 있어야 한다 — 거기가 제일 많이 틀린다 */
+  eq('자리에서도 고칠 수 있다', (() => {
+    const i = web.indexOf('const fixBox = fixing &&');
+    return i > 0 && (web.slice(i).match(/\{fixBox\}/g) || []).length === 2;
+  })(), true);
+  /* 제 말은 안 고친다 — 유저가 한 말은 유저가 한 말이다 */
+  eq('내 말풍선은 안 잡는다', /\{\.\.\.\(me\?\{\}:hold\(m\)\)\}/.test(web), true);
+}
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 

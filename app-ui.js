@@ -1141,10 +1141,51 @@ function DayBar({left}){
 /* 장면 모드에서 보여줄 줄 수. 한 턴에 말풍선이 두셋 나오니 대여섯이면
    방금 오간 말이 다 보이고, 그 위는 사진에 자리를 내준다. */
 const SCENE_LINES=6;
-function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart}){
+/* ── 대사 고치기 ──
+   인물이 이상한 말을 하면 그 말풍선을 눌러 고쳐 쓴다. 화면의 말이 바뀌고,
+   이력이 대화 목록에서 만들어지므로 다음 턴부터 인물은 자기가 그렇게 말한
+   걸로 안다. 고친 것은 원문과 짝으로 따로 쌓인다.
+   길게 누르기(600ms)와 우클릭 둘 다 연다 — 손가락과 마우스가 다 있어야 한다.
+   짧게 누르는 것은 원래 하던 일(사진 확대)이라 안 건드린다.
+   고친 말풍선에는 모서리에 ✎가 붙는다. 어디를 손봤는지 보이게. */
+function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart,fixed,onFix}){
   const [v,setV]=useState("");
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
+  /* 고칠 것 메모. 말풍선을 길게 누르거나(600ms) 우클릭하면 열린다 —
+     손가락과 마우스가 다 있어야 한다. 짧게 누르는 것은 원래 하던 일
+     (사진 확대)이라 안 건드린다. */
+  const [fixing,setFixing]=useState(null);
+  const [draft,setDraft]=useState("");
+  const holdRef=useRef(null);
+  /* 원문을 그대로 채워 연다. 한 낱말만 손보는 일이 대부분이라 빈 칸으로 열면
+     다시 타이핑하게 된다 */
+  const openFix=m=>{ setDraft(m.text||""); setFixing(m) };
+  const stopHold=()=>clearTimeout(holdRef.current);
+  const hold=m=>({
+    onContextMenu:e=>{e.preventDefault();openFix(m)},
+    onPointerDown:()=>{stopHold();holdRef.current=setTimeout(()=>openFix(m),600)},
+    onPointerUp:stopHold, onPointerLeave:stopHold, onPointerCancel:stopHold,
+  });
+  const saveFix=()=>{ if(onFix&&onFix(fixing.id,draft))setFixing(null) };
   const boxRef=useRef(null);
+  /* 자리(scene)와 메신저는 돌아가는 자리가 다르다. 창은 하나로 두고 둘 다에 건다 */
+  const fixBox = fixing && <div className="dlgov" onClick={()=>setFixing(null)}>
+    <div className="dlg" onClick={e=>e.stopPropagation()}>
+      <div className="tb">이렇게 말했어야지<WinDots onClose={()=>setFixing(null)}/></div>
+      <div className="dlgbody">
+        <div className="fixwas">{fixing.text||"(사진)"}</div>
+        <textarea className="fixin sunken" value={draft} autoFocus maxLength={400}
+          onChange={e=>setDraft(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))saveFix()}}/>
+        <div className="askrule">고치면 얘는 이렇게 말한 걸로 알아요 <span className="kao">✎</span></div>
+        <div className="dlgbtns">
+          <button className="bevel pink" disabled={!draft.trim()||draft.trim()===(fixing.text||"")}
+            onClick={saveFix}>이걸로</button>
+          <button className="bevel" onClick={()=>setFixing(null)}>됐어요</button>
+        </div>
+      </div>
+    </div>
+  </div>;
   const watch=room.type==="watch";
   /* 훅은 아래 자리 분기(early return)보다 위에 있어야 한다.
      분기 뒤에 두면 자리에 들어가고 나올 때 훅 개수가 달라져서 리액트가 터진다. */
@@ -1181,7 +1222,8 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
               {m.photo
                 ?<img className="sphoto" src={photoSrc(m.photo)} alt="" onClick={()=>setZoom(photoSrc(m.photo))}/>
                 :null}
-              {m.text&&<div className="stext">{m.text}</div>}
+              {m.text&&<div className={"stext"+(fixed&&fixed.has(m.id)?" fixed":"")}
+                            {...(me?{}:hold(m))}>{m.text}</div>}
             </div>;
           })}
           {busy&&<div className="sline"><div className="stext dim">…</div></div>}
@@ -1197,6 +1239,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
           style={{background:sendBg(room)}}><SendIcon/></button>
       </div>
       {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
+      {fixBox}
     </div>;
   }
   const send=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
@@ -1241,7 +1284,9 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
               :<div className="sp"/>)}
             <div className="mcol">
               {showName&&<span className="mname" style={{color:meta.dk}}>{meta.name}</span>}
-              <div className={"bubble"+(m.photo?" photo":"")} style={me?{background:`linear-gradient(135deg, ${rgba(room.color,.5)} 0%, #ffffff 135%)`}:null}>
+              <div className={"bubble"+(m.photo?" photo":"")+(fixed&&fixed.has(m.id)?" fixed":"")}
+                   {...(me?{}:hold(m))}
+                   style={me?{background:`linear-gradient(135deg, ${rgba(room.color,.5)} 0%, #ffffff 135%)`}:null}>
                 {m.photo
                   ?<React.Fragment>
                     <img src={photoSrc(m.photo)} alt="" loading="lazy" onClick={()=>setZoom(photoSrc(m.photo))}/>
@@ -1269,5 +1314,6 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
       </div>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
+    {fixBox}
   </div>;
 }

@@ -160,6 +160,47 @@ function App(){
     const next=[...m,place]; saveMet(next); return next; });
   const [bag,setBag]=useState(loadBag);
   const bagRef=useRef(bag); bagRef.current=bag;
+  /* ── 대사 고치기 ──
+     인물이 이상한 말을 하면 그 말풍선을 눌러 고쳐 쓴다. 화면의 말이 바뀌고,
+     이력은 이 목록(msgs)에서 다시 만들어지므로 **다음 턴부터 인물은 자기가
+     그렇게 말한 걸로 안다.** 프롬프트를 안 건드리고 그 자리에서 바로잡는 길이다.
+     고친 것은 원문과 짝으로 따로 쌓인다(app-data.js의 loadEdits 주석).
+     이미 요약에 삼켜진 줄을 고치면 화면과 기록만 바뀐다 — 요약 원문까지는
+     못 쫓아간다. 갓 나온 말을 그 자리에서 고치는 도구다. */
+  const [edits,setEdits]=useState(loadEdits);
+  const editsRef=useRef(edits); editsRef.current=edits;
+  /* 그때 정황을 같이 담는다. 고친 말만 있으면 나중에 「이럴 때」가 뭐였는지
+     알 수가 없다. 지문도 정황이라 같이 넣는다 — 「체육관에서 나왔다」가
+     빠지면 왜 그 말이 이상한지 안 보인다. */
+  const nearby=(room,at)=>(storeRef.current.msgs[room]||[])
+    .slice(Math.max(0,at-4),at).map(m=>({
+      who:m.sys?"·":(m.sender==="user"?"나":(CHARS[m.sender]?CHARS[m.sender].name:m.sender)),
+      text:m.text||(m.photo?"(사진)":"")}));
+  const keepEdit=e=>{
+    const next=[...editsRef.current,e];
+    editsRef.current=next; setEdits(next); saveEdits(next);
+    setToast(`고친 말 ${next.length}개째`);
+  };
+  const editLine=(room,mid,text)=>{
+    const t=(text||"").trim(); if(!t)return false;
+    const ms=storeRef.current.msgs[room]||[];
+    const at=ms.findIndex(m=>m.id===mid); if(at<0)return false;
+    const was=ms[at].text||"";
+    if(t===was)return false;
+    setStore(st=>({...st,msgs:{...st.msgs,
+      [room]:(st.msgs[room]||[]).map(m=>m.id===mid?{...m,text:t,fixed:true}:m)}}));
+    keepEdit({id:Date.now()+Math.random(),ts:Date.now(),room,mid,
+      who:ms[at].sender,was,now:t,before:nearby(room,at)});
+    return true;
+  };
+  /* 고칠 말풍선이 딱 하나가 아닐 때 — 상황 자체가 이상할 때 적어둔다.
+     「//」로 열면 대화가 아니라 이쪽으로 간다. 워커는 안 부른다. */
+  const addNote=(room,note)=>{
+    const t=(note||"").trim(); if(!t)return false;
+    keepEdit({id:Date.now()+Math.random(),ts:Date.now(),room,mid:null,
+      who:"",was:"",now:t,before:nearby(room,(storeRef.current.msgs[room]||[]).length)});
+    return true;
+  };
   /* 가방은 키만 보내고 있었다. 그런데 가방은 준 사람(from)도 들고 있다 —
      그걸 버리니 워커에서 방향이 없어졌고, 민현이 제가 준 젤리를 두고
      "사람 아까 핫팩 주더니 이제 젤리까지"라고 했다. 준 사람을 같이 보낸다. */
@@ -606,6 +647,9 @@ function App(){
 
   /* 일반 대화 전송 */
   const send=(room,text)=>{
+    /* 「//」로 열면 대화가 아니라 적어두는 것이다. 여기서 끊으므로 이력에도
+       안 남고 워커도 안 부른다 — 인물은 이 말을 모른다. */
+    if(/^\/\//.test(text)){ addNote(room,text.replace(/^\/\/\s*/,"")); return }
     const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};
     appendMsg(room,userMsg);
     const next=[...(storeRef.current.msgs[room]||[]),userMsg];
@@ -832,6 +876,22 @@ function App(){
   /* [편집] 대화 저장: 전체 방 → .txt 다운로드 */
   const exportTxt=()=>{
     const lines=["NULL — 대화 기록","내보낸 시각: "+new Date().toLocaleString("ko-KR"),""];
+    /* 고친 말을 맨 앞에 싣는다. 뒤에 붙이면 천 줄을 스크롤해야 보인다 —
+       이 파일을 여는 이유가 그것일 때가 많다. 원문(✕)과 고친 말(○)을
+       짝으로 적는다: 그 짝이 그대로 대화 예시가 된다. */
+    const es=editsRef.current;
+    if(es.length){
+      lines.push(`──── 고친 말 ${es.length}개 ────`,"");
+      es.forEach((e,i)=>{
+        const rm=(ROOMS.find(r=>r.id===e.room)||{}).name||e.room;
+        lines.push(`[${i+1}] ${rm} · ${fmtDivider(e.ts)}`);
+        (e.before||[]).forEach(b=>lines.push(`    ${b.who} ${b.text}`));
+        if(e.was){ lines.push(`  ✕ ${e.was}`,`  ○ ${e.now}`); }
+        else lines.push(`  → ${e.now}`);
+        lines.push("");
+      });
+      lines.push("");
+    }
     ROOMS.forEach(r=>{
       const ms=storeRef.current.msgs[r.id]||[];if(!ms.length)return;
       lines.push("──── "+r.name+" ────");
@@ -1080,7 +1140,9 @@ function App(){
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onMinimize={()=>setView("list")} onCart={()=>setCart(true)}
-       onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}/>}
+       onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}
+       fixed={new Set(edits.filter(e=>e.room===view&&e.mid).map(e=>e.mid))}
+       onFix={(mid,t)=>editLine(view,mid,t)}/>}
     {invite&&<div className="dlgov" onClick={()=>answerInvite(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
         <div className="tb">{CHARS[invite.char].name}<WinDots onClose={()=>answerInvite(false)}/></div>
