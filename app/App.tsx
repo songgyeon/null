@@ -352,28 +352,68 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
     </View>
   </Animated.View>;
 }
-/* ── 세계 확정 ── 웹의 Confirm과 같은 카피·같은 자재(en.card).
-   「NULL을」로 고치지 않는다 — NULL=널이라 조사가 없는 것이 의도다.
-   작품 안 선택지는 YES 하나고, back은 등록으로 돌아갈 뿐 세계를 만들지 않는다. */
+/* ── 세계 확정 ── 웹의 Confirm과 같은 그림이다.
+   속카드 + 알약 라벨 + 점선 줄 + 알약 단추. 맨 글자에 큰 단추를 얹으면
+   다른 앱에서 떼어온 화면처럼 보인다. 되돌아가기는 창의 X다 —
+   이 앱에 back 위젯은 어디에도 없다.
+   「NULL을」로 고치지 않는다 — NULL=널이라 조사가 없는 것이 의도다. */
 function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void}) {
   const fade = useRef(new Animated.Value(0)).current;
   const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
   useEffect(()=>{Animated.timing(fade,{toValue:1,duration:400,useNativeDriver:true}).start()},[]);
   const yes=()=>{ if(pressed)return; setPressed(true); onYes() };
+  const row=(k:string,v:string,hush?:boolean)=>
+    <View style={cf.r} key={k}>
+      <Text style={cf.rk}>{k}</Text>
+      <View style={cf.rdot}/>
+      <Text style={[cf.rv,hush&&cf.rvHush]}>{v}</Text>
+    </View>;
   return <Animated.View style={[en.root,{opacity:fade}]}>
     <View style={en.card}>
-      <View style={en.tb}><Text style={en.tbT}>null.exe</Text></View>
+      <View style={en.tb}>
+        <Text style={en.tbT}>null.exe</Text>
+        <TouchableOpacity style={cf.x} onPress={onBack}><Text style={cf.xT}>×</Text></TouchableOpacity>
+      </View>
       <View style={en.body}>
-        {/* 그 한 줄은 앞 화면(등록)의 제목줄이 이미 말했다. 두 번 하지 않는다 */}
+        <View style={cf.panel}>
+          <View style={cf.tag}><Text style={cf.tagT}>［ N U L L ］♡</Text></View>
+          {row('현 실','□□',true)}
+          {row('이세계','교생 ♡')}
+          {row('대 상',name)}
+        </View>
         <Text style={en.cq}>{name}, 너는 이 세계에{'\n'}NULL 존재하게 할 수 있을까?</Text>
-        <TouchableOpacity style={[en.go,{marginTop:14}]} activeOpacity={.8} onPress={yes}>
-          <Text style={en.goT}>YES</Text></TouchableOpacity>
+        <View style={cf.btns}>
+          <TouchableOpacity style={cf.yes} activeOpacity={.85} onPress={yes}>
+            <Text style={cf.yesT}>YES ♡</Text></TouchableOpacity>
+        </View>
         <Text style={en.chint}>거절은 거절해 (´▽｀ ʃƪ)♡</Text>
-        <TouchableOpacity onPress={onBack}><Text style={en.cback}>‹ back</Text></TouchableOpacity>
       </View>
     </View>
   </Animated.View>;
 }
+const cf=StyleSheet.create({
+  /* 속카드 — 웹의 .ttpanel. 라벨이 위 테두리를 물고 앉는다 */
+  panel:{marginTop:16,marginHorizontal:6,paddingTop:17,paddingHorizontal:13,paddingBottom:11,
+    borderRadius:11,backgroundColor:'#fff',borderWidth:1,borderColor:'#ece4fb'},
+  tag:{position:'absolute',alignSelf:'center',top:-10,paddingVertical:3,paddingHorizontal:13,
+    borderRadius:999,backgroundColor:'#efb8dd'},
+  tagT:{...F,fontSize:8.5,letterSpacing:1.6,color:'#fff'},
+  /* 점선 줄 — 웹의 .ddrows */
+  r:{flexDirection:'row',alignItems:'center',gap:7,paddingVertical:3},
+  rk:{...F,width:44,fontSize:9,letterSpacing:1.6,color:'#d0b3dd'},
+  rdot:{flex:1,borderTopWidth:1,borderStyle:'dashed',borderColor:'#e0d5f7'},
+  rv:{...F,fontSize:9.5,letterSpacing:.8,color:'#6b5fa8'},
+  rvHush:{color:'#c98fb8'},
+  /* 알약 단추 — 웹의 .wbtn.kill */
+  btns:{marginTop:15,alignItems:'center'},
+  yes:{minWidth:132,paddingVertical:11,alignItems:'center',borderRadius:999,
+    backgroundColor:'#ffb3d4',borderWidth:1.5,borderColor:'#ff8fbe'},
+  yesT:{...F,fontSize:11,letterSpacing:2.4,color:'#fff'},
+  /* 창의 X가 되돌아가기다 */
+  x:{marginLeft:'auto',width:17,height:17,borderRadius:999,alignItems:'center',
+    justifyContent:'center',backgroundColor:'#ff8fbe'},
+  xT:{...F,fontSize:10,lineHeight:12,color:'#fff'},
+});
 const en=StyleSheet.create({
   /* 이 화면만 진보라였다. 앞의 오프닝도 뒤의 방 목록도 파스텔이라 1.5초짜리
      어두운 화면 하나가 다른 앱처럼 끼어 있었다. 같은 가족으로 옮겼다. */

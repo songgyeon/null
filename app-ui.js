@@ -477,15 +477,30 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
 function Confirm({name,onYes,onBack}){
   const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
   const yes=()=>{if(pressed)return;setPressed(true);onYes()};
+  /* 다른 창들과 같은 자재로 짓는다 — 속카드(.ttpanel) + 알약 라벨(.tttag)
+     + 점선 줄(.ddrows) + 알약 단추(.wbtn). 이 창만 맨 글자에 큰 단추를
+     얹었더니 다른 앱에서 떼어온 화면처럼 보였다.
+     되돌아가기는 창의 X다 — 이 앱에 back 위젯은 어디에도 없다. */
   return <div className="enr">
-    <div className="ecard">
-      <div className="etb">null.exe<WinDots/></div>
+    <div className="ecard cwin">
+      <div className="etb">null.exe<WinDots onClose={onBack}/></div>
       <div className="ebody">
-        {/* 그 한 줄은 앞 화면(등록)의 제목줄이 이미 말했다. 두 번 하지 않는다 */}
+        <div className="ttpanel">
+          <div className="tttag">［ N U L L ］♡</div>
+          <div className="ddrows">
+            <div className="r"><span className="k2">현 실</span><span className="dot"/>
+              <span className="v hush">□□</span></div>
+            <div className="r"><span className="k2">이세계</span><span className="dot"/>
+              <span className="v">교생 ♡</span></div>
+            <div className="r"><span className="k2">대 상</span><span className="dot"/>
+              <span className="v">{name}</span></div>
+          </div>
+        </div>
         <div className="cq">{name}, 너는 이 세계에<br/>NULL 존재하게 할 수 있을까?</div>
-        <button className="ego cyes" onClick={yes}>YES</button>
+        <div className="dlgbtns" style={{justifyContent:"center"}}>
+          <button className="wbtn kill" onClick={yes}>YES ♡</button>
+        </div>
         <div className="chint">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>
-        <button className="cback" onClick={onBack}>‹ back</button>
       </div>
     </div>
   </div>;

@@ -2206,6 +2206,34 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   eq('이름만으로는 메신저에 못 들어간다',
     /localStorage\.getItem\("null_name"\)&&!loadWorld\(\)\?"enroll":false/.test(web), true);
   eq('YES 연타는 한 번이다', /if\(pressed\)return;setPressed\(true\);onYes\(\)/.test(web), true);
+  /* ── 이 창만 다른 앱처럼 보이면 안 된다 ──
+     맨 글자에 등록 화면의 큰 단추를 얹었더니 떼어온 화면 같았다. 다른 창들이
+     쓰는 자재로 짓는다 — 속카드(.ttpanel) + 알약 라벨(.tttag) + 점선 줄
+     (.ddrows) + 알약 단추(.wbtn). 새 자재를 만들지 않는다 */
+  eq('확정 창이 다른 창과 같은 자재다', (() => {
+    const i = web.indexOf('function Confirm({name,onYes,onBack})');
+    const box = web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i));
+    return ['ttpanel','tttag','ddrows','wbtn'].filter(c => !box.includes(c));
+  })(), []);
+  /* 현실 □□ / 이 세계 교생 — 점선 줄로 나란히 놓이면 그 대비가 곧 이야기다 */
+  eq('현실과 이세계가 나란히 있다',
+    web.includes('<span className="k2">현 실</span>')
+    && web.includes('<span className="v hush">□□</span>')
+    && web.includes('<span className="k2">이세계</span>')
+    && web.includes('<span className="v">교생 ♡</span>'), true);
+  /* 확정 창에는 back 위젯이 없다. 있던 시절 그 단추가 흉했던 까닭은 내가
+     지은 클래스 이름(.cback)이 이미 쓰이던 이름과 겹쳐서, 다른 화면의
+     BACK 단추 스타일을 통째로 뒤집어썼기 때문이다. 지금은 창의 X가 그 일을
+     한다 — 다른 화면의 .cback은 제자리에 그대로 있다 */
+  eq('확정 창에 back 위젯이 없다', (() => {
+    const i = web.indexOf('function Confirm({name,onYes,onBack})');
+    return /cback|cyes/.test(web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i)));
+  })(), false);
+  eq('내가 덧댄 중복 규칙도 걷었다', (web.match(/^\.cback\{/gm) || []).length, 1);
+  eq('앱도 같은 그림이다',
+    /<Text style=\{cf\.tagT\}>［ N U L L ］♡<\/Text>/.test(appSrc)
+    && /row\('현 실','□□',true\)/.test(appSrc)
+    && /row\('이세계','교생 ♡'\)/.test(appSrc), true);
   /* AGE 행은 남기고 입력만 잠근다. YES에 25가 프로필로 박힌다 */
   eq('나이는 세계 고정값 25다',
     /f\.k==="age"/.test(web)
@@ -3431,8 +3459,12 @@ eq('어둠막이 입력줄을 안 덮는다',
    채팅방 머리글만 남아 있었다 — 창 셋, 자리, 그리고 여기까지 같은 실수였다 */
 eq('채팅방 X가 목록으로 보낸다',
   /\{room\.name\}\{watch\?"\.cam":"\.chat"\}<WinDots onClose=\{onBack\}\/>/.test(web), true);
-/* 안 눌려도 되는 것은 오프닝의 가짜 오류창 넷과 등록·세계 확정 화면, 앱 창틀뿐이다 */
-eq('안 눌리는 X는 일곱뿐이다', (web.match(/<WinDots\/>/g) || []).length, 7);
+/* 안 눌려도 되는 것은 오프닝의 가짜 오류창 넷과 등록 화면, 앱 창틀뿐이다.
+   세계 확정 창의 X는 되돌아가기다 — 이 앱에 back 위젯은 어디에도 없으므로
+   창틀이 그 일을 한다 */
+eq('안 눌리는 X는 여섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 6);
+eq('확정 창의 X가 등록으로 돌려보낸다',
+  /<div className="etb">null\.exe<WinDots onClose=\{onBack\}\/><\/div>/.test(web), true);
 
 /* X는 나가기가 아니라 접기다. 자리는 그대로 두고 메신저로 돌아간다 —
    교실에 앉아서 삼촌한테 카톡하는 건 되는 일이다.
