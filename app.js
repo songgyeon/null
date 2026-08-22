@@ -1372,8 +1372,8 @@ function App(){
     </Dialog>}
     {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>
       <div className="ddq">
-        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이민현이 NULL 기다리고 있어!"}</div>
-        <div className="wkao kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</div>
+        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이민현이 NULL 기다리고 있어!"}
+          {' '}<span className="kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</span></div>
         <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
       </div>
     </Dialog>}

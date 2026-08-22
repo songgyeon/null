@@ -2192,10 +2192,17 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     /if\(id!=="jaeeon"&&id!=="minhyun"\)return null;/.test(web)
     && /if\(loadPartner\(\)\)return null;/.test(web)
     && /if\(loadPartner\(\)\)return;/.test(web), true);
+  /* 이름과 얼굴이 한 줄이다 — 「이재언이 NULL 기다리고 있어! ꒰ྀི⸝⸝> . <⸝⸝꒱ྀི」.
+     얼굴을 아래로 떨어뜨리면 다른 카피가 된다 */
   eq('기다리고 있어 카피가 정확하다',
     web.includes('이재언이 NULL 기다리고 있어!')
     && web.includes('이민현이 NULL 기다리고 있어!')
     && web.includes('꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'), true);
+  eq('이름과 얼굴이 한 줄이다', (() => {
+    const i = web.indexOf('기다리고 있어!":"이민현이');
+    const tail = web.slice(i, i + 220);
+    return /\{' '\}<span className="kao">/.test(tail) && !/<\/div>[\s\S]{0,40}kao/.test(tail);
+  })(), true);
   /* 연장은 한 번 — 추가 30일이 끝나면 WHO도 연장도 다시 안 묻는다 */
   eq('두 번째 D-0는 없다',
     /ddayAns!==String\(dSpan\)&&!loadExtend\(\)/.test(web), true);
