@@ -4067,6 +4067,21 @@ eq('시간표 단추는 peek보다 좁다',
   })(), []);
 }
 
+/* ── 삼촌이 조카에게 쓰는 말 ──
+   관전 48줄에서 「밥 먹어요」와 「차 조심해라」가 문장마다 갈렸다. 유저가 없는
+   자리라 존댓말을 쓸 상대가 아예 없는데도 1:1방의 해요체가 그대로 흘러왔다.
+   정돈이 갑옷인 사람이라 말투가 흔들리는 것 자체가 설정과 어긋난다 */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  eq('재언은 조카에게 반말로 고정이다',
+    /이민현에게는 반말을 쓴다\. 한 대화 안에서 존댓말과 섞지 않는다/.test(wk), true);
+  /* 관전방은 FORMAT_AUTO만 쓰므로 여기 적어도 다른 방 캐시는 안 깨진다 */
+  eq('관전방에는 존댓말 쓸 상대가 없다', (() => {
+    const t = wk.slice(wk.indexOf('const FORMAT_AUTO = `'));
+    return /이 방에는 존댓말을 쓸 상대가 없다/.test(t.slice(0, t.indexOf('`;')));
+  })(), true);
+}
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 
