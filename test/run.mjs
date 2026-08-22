@@ -8,7 +8,7 @@ import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSyst
          PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -3572,6 +3572,15 @@ eq('영문도 읽는 소리로 조사를 고른다', (() => {
   return [J('NULL', '이에요/예요'), J('NULL', '을/를'), J('NULL', '으로/로'),
     J('믹스 CD', '을/를'), J('중고 LP', '이에요/예요')];
 })(), ['NULL이에요', 'NULL을', 'NULL로', '믹스 CD를', '중고 LP예요']);
+/* ── 물건마다 그림이 있어야 한다 ──
+   가방은 열쇠로 파일명을 조립한다(item-${b.key}.webp). 체육관에서 주는 손목
+   보호대만 그림이 없어서, 받고 나면 가방에 깨진 아이콘이 떴다. ITEMS에 물건을
+   더할 때 그림을 같이 넣지 않으면 화면에서만 티가 난다 — 여기서 잡는다. */
+eq('물건마다 그림이 있다', (() => {
+  const keys = [...web.slice(web.indexOf('const ITEMS={'), web.indexOf('const ITEM_CATS'))
+    .matchAll(/^  (\w+):/gm)].map(m => m[1]);
+  return keys.filter(k => !existsSync(join(ROOT, `item-${k}.webp`)));
+})(), []);
 eq('같은 것은 가방에 두 번 안 들어간다',
   /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
 eq('자리에 있으면 place를 같이 보낸다',
