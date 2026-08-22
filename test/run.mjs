@@ -4473,12 +4473,27 @@ eq('시간표 단추는 peek보다 좁다',
   /* 늦게 온 답은 성공도 실패도 지금 화면을 안 건드린다 */
   eq('늦게 온 답은 버린다',
     (web.match(/if\(inflightRef\.current\[bucket\]!==rid\)return;/g) || []).length, 2);
-  /* 여러 단계를 타는 턴은 느리다. 넉넉히 주되 무한정 기다리지는 않는다 —
-     스피너가 영원히 도는 화면이 제일 나쁘다 */
+  /* ── 짧은 강제 타임아웃은 안 둔다 ──
+     한 턴이 Writer → Critic 둘 → Finalizer를 타면 90초는 짧다. 거기에 RETRY가
+     한 번 붙으면 멀쩡한 답을 스스로 끊는다 — 그건 고장이 아니라 느린 것이다.
+     그렇다고 무한정 기다리지도 않는다: 스피너가 영원히 도는 화면이 제일 나쁘다 */
   eq('오래 걸려도 안 깨지고 영영은 안 기다린다',
-    /const REQ_TIMEOUT=90000;/.test(web)
+    /const REQ_TIMEOUT=180000;/.test(web)
     && /new AbortController\(\)/.test(web)
     && /e&&e\.name==="AbortError"/.test(web), true);
+  /* 재시도는 새 요청이 아니라 같은 요청을 다시 부르는 것이다 — 이름표를
+     새로 뽑으면 워커가 멱등 처리를 붙일 때 같은 턴을 두 번 센다 */
+  eq('재시도는 같은 이름표를 쓴다', /const rid=payload\.request_id\s*\n?\s*\|\|/.test(web), true);
+  /* ── 오류와 사용자 취소를 가른다 ──
+     유저가 다음 말을 보내면 앞 요청은 밀려난다. 그건 고장이 아니므로 아무
+     말 없이 물러난다 — 재시도 단추도 원인 줄도 안 띄우고 스피너도 안 끈다
+     (그 스피너는 지금 도는 새 요청의 것이다). */
+  eq('밀려난 요청은 고장으로 안 뜬다', (() => {
+    const i = web.indexOf('}catch(e){\n      clearTimeout(killer);');
+    const box = web.slice(i, web.indexOf('setFailed(f=>({...f,[bucket]:{payload,detail}}))', i));
+    return box.indexOf('if(inflightRef.current[bucket]!==rid)return;')
+         < box.indexOf('setBusy(b=>({...b,[bucket]:false}));');
+  })(), true);
   /* 실패는 실패로 보인다 — 각본으로 메우지 않는다(?demo=1만 예외) */
   eq('실패를 각본으로 안 메운다',
     /setFailed\(f=>\(\{\.\.\.f,\[bucket\]:\{payload,detail\}\}\)\)/.test(web), true);

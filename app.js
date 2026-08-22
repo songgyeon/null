@@ -12,8 +12,12 @@ function App(){
   const [view,setView]=useState("list");            // 'list' | roomId
   const [busy,setBusy]=useState({});                // 방별 타이핑 인디케이터
   const [failed,setFailed]=useState({});            // 방별 실패 payload (재시도용)
-  /* 여러 단계를 타는 턴은 느리다. 넉넉히 주되 무한정 기다리지는 않는다 */
-  const REQ_TIMEOUT=90000;
+  /* ── 짧은 강제 타임아웃은 안 둔다 ──
+     한 턴이 Writer → Critic 둘 → Finalizer를 타면 90초는 짧다. 거기에
+     RETRY가 한 번 붙으면 멀쩡한 답을 스스로 끊게 된다 — 그건 고장이 아니라
+     느린 것이다. 넉넉히 주되 무한정 기다리지는 않는다: 스피너가 영원히
+     도는 화면이 제일 나쁘다. */
+  const REQ_TIMEOUT=180000;
   const [autoLoading,setAutoLoading]=useState(false);
   const viewRef=useRef(view); viewRef.current=view;
   /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 */
@@ -28,7 +32,7 @@ function App(){
   const giftsRef=useRef(gifts); giftsRef.current=gifts;
   const queueRef=useRef([]);                        // 순차 표시 대기열
   const runningRef=useRef(false);
-  const inflightRef=useRef({});
+  const inflightRef=useRef({});                     // 방별 지금 도는 요청 이름표
   useEffect(()=>{saveStore(store)},[store]);
 
   useEffect(()=>{try{localStorage.setItem("null_profile",JSON.stringify(profile))}catch(e){}},[profile]);
@@ -573,7 +577,11 @@ function App(){
        있다. 그때 먼저 보낸 요청의 답이 뒤늦게 도착하면 지금 화면과 어긋난
        말이 붙는다. 이름표를 달아두고, 지금 것이 아니면 버린다.
        화면에 안 보이는 값이지만 없으면 늦은 답이 조용히 섞인다. */
-    const rid=(crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();
+    /* 재시도는 새 요청이 아니라 같은 요청을 다시 부르는 것이다. retry가 들고
+       오는 payload에는 지난번 이름표가 그대로 붙어 있으니 그걸 쓴다 —
+       새로 뽑으면 워커가 나중에 멱등 처리를 붙일 때 같은 턴을 두 번 센다. */
+    const rid=payload.request_id
+      ||((crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random());
     payload.request_id=rid;
     inflightRef.current[bucket]=rid;
     setBusy(b=>({...b,[bucket]:true}));
@@ -652,8 +660,12 @@ function App(){
       }
     }catch(e){
       clearTimeout(killer);
-      /* 늦게 터진 옛 요청은 지금 화면을 안 건드린다 — 이미 새 요청이
-         돌고 있는데 옛것의 실패로 스피너를 끄면 답이 오는 중에 재시도가 뜬다 */
+      /* ── 오류와 사용자 취소를 가른다 ──
+         유저가 다음 말을 보내면 앞 요청은 그 자리에서 밀려난다. 그건 고장이
+         아니라 본인이 그만둔 것이므로 아무 말 없이 물러난다 — 재시도 단추도
+         원인 줄도 안 띄운다. 본인이 밀어놓고 화면에 빨간 줄이 뜨면 제가 뭘
+         망가뜨린 줄 안다. 스피너도 안 끈다: 지금 도는 새 요청의 것이다.
+         밀려나지 않은 실패만 아래로 내려가서 재시도가 된다. */
       if(inflightRef.current[bucket]!==rid)return;
       inflightRef.current[bucket]=null;
       setBusy(b=>({...b,[bucket]:false}));
