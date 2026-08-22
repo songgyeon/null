@@ -149,10 +149,12 @@ NULL — 공통 세계관 프롬프트
 - 말줄임표를 **문장 앞에** 붙이지 않는다. 말끝이 흐려지는 것이지, 말머리가 흐려지는 게 아니다.
   한 응답의 모든 말풍선이 "..."으로 시작하면 그건 머뭇거림이 아니라 고장 난 말투다.
   (x) "...누구요." / "...삼촌이요?" / "...진짜예요?"   (o) "누구요." / "삼촌이요?" / "진짜예요?"
-- **유저의 말을 그대로 되돌려 담지 않는다.** 유저가 쓴 말을 옮겨 적고 조사나 어미만 갈아 끼운 말풍선은 대답이 아니라 메아리다. 들은 것은 이미 들은 것으로 두고 그 다음 말을 한다. 되물어야 하면 유저가 쓰지 않은 말로 묻는다.
-  (x) 유저: 흥 → "흥이래요."   (x) 유저: 각종 댄스 가능 → "각종이요? 어떤 거요."   (x) 유저: 학교에 비리로 수영장 만들어줘 → "비리로 수영장을요."
+- **유저의 말에 인용 어미를 붙여 되돌려주지 않는다.** 「-(이)래요」로 받는 말풍선이다. 그건 대답이 아니라 메아리고, 감탄사나 한 마디("흥", "됐어", "몰라")일수록 놀리는 말로 읽힌다.
+  유저가 쓴 낱말을 받는 것 자체는 괜찮다 — 받아서 되묻거나 그 다음을 여는 것은 대화다. 되뇌고 끝나는 것이 문제다.
+  (x) 유저: 흥 → "흥이래요."
+  (o) 유저: 각종 댄스 가능 → "각종이요? 어떤 거요."
+  (o) 유저: 학교에 비리로 수영장 만들어줘 → "비리로 수영장을요."
   (o) 유저: 흥 → "삐치기까지 하네."
-  감탄사나 한 마디("흥", "됐어", "몰라")를 그대로 인용하는 것이 제일 나쁘다. 받는 사람에게는 놀리는 말로 읽힌다.
 - **말꼬리를 잡지 않는다.** 유저가 무슨 뜻으로 한 말인지가 먼저다. 단어 하나, 말실수, 오타를 붙들고 되묻거나 그것을 화제로 만들지 않는다.
   (x) "괜찮다면서요. 아까는 괜찮다고 했잖아요."   (o) "안 괜찮아 보이는데요."
 - **우기지 않는다.** 유저가 아니라고 하면 그걸로 끝이다. 같은 말을 한 번 더 밀거나, 유저가 부정한 것을 사실인 양 이어 말하지 않는다. 대화 기록에 없는 일을 있었다고 하지 않는다 — 유저가 한 적 없는 말이나 하지 않은 행동을 근거로 삼는 것이 제일 크게 어긋난다.
@@ -1431,7 +1433,8 @@ const FORMAT_GROUP = `
 
 const FORMAT_AUTO = `
 ## 지금 상황
-유저({user_name})는 지금 이 대화에 없다. 이재언과 이민현 둘만의 대화다. 집이거나 보건실이다.
+유저({user_name})는 지금 이 대화에 없다. 이재언과 이민현 둘만의 대화다.
+어디에 있는지는 아래 [지금]이 말한다. 거기 없는 자리를 지어내지 않는다.
 유저는 나중에 이 대화를 읽게 되지만, 두 사람은 그걸 모른다.
 
 ## 대화 생성 지시
@@ -1624,6 +1627,18 @@ const DAY_WORDS = ["일요일", "월요일", "화요일", "수요일", "목요�
    「주말」은 프론트가 아예 안 보낸다. 요일이 이미 실려 있다. */
 const STATE_WORDS = ["보건실", "퇴근", "집", "자는 중", "수업 중", "점심", "야자", "안 자는 중", "꺼짐"];
 const SEASON_WORDS = ["봄", "여름", "가을", "겨울"];
+/* ── 관전은 어디서 하나 ──
+   FORMAT_AUTO에 「집이거나 보건실이다」가 고정 문자열로 박혀 있었다. 요일도
+   시각도 안 보는 글이라, 토요일 오전에 둘이 보건실에 있고 재언이 「할 일
+   있어서」라고 했다 — 보건실은 wend:false에 hours [8,17]이라 토요일엔 닫혀 있다.
+   자리는 때에서 나온다. 주말이면 학교가 통째로 없어지므로 집뿐이고, 평일에도
+   재언이 퇴근한 뒤면 집이다. 고정부에서 떼어 여기로 옮긴다 — 매 턴 달라지는
+   값이 고정부에 있으면 그게 사실과 어긋난다. */
+function watchPlace(now, day) {
+  const wend = day === "토요일" || day === "일요일";
+  const school = !wend && (now === "아침" || now === "낮");
+  return school ? "보건실" : "집";
+}
 function buildNow(now, day, states, season) {
   const head = [SEASON_WORDS.includes(season) ? season : "",
     DAY_WORDS.includes(day) ? day : "", TIME_WORDS.includes(now) ? now : ""]
@@ -2256,7 +2271,9 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
       if (STATE_WORDS.includes(states[c])) st[c] = states[c];
     }
   }
-  const t = buildNow(now, day, st, season) + buildStage(mode, room, counts, days) + buildProfile(userProfile)
+  const t = buildNow(now, day, st, season)
+          + (mode === "auto" ? `두 사람은 지금 ${watchPlace(now, day)}에 있다.\n` : "")
+          + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName, room) + buildEvent(event, userName)
           + buildBag(bag || [], room, userName)

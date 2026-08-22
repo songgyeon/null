@@ -1032,20 +1032,28 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       ?<div className="gal">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
             자리 사진은 말풍선이 아니라 배경이라 대화 기록에 안 남는다 —
             seenPhotos가 따로 적어둔 것을 같이 들고 온다 */}
-        {Object.entries(CHARS).map(([id,ch])=>{
-          const got=ch.gallery.filter(f=>album.has(f.replace(/\.webp$/,"")));
-          if(!got.length)return null;
-          return <React.Fragment key={id}>
-            <div className="sect">✧ {ch.name} · {got.length} pics</div>
-            <div className="galgrid">
-              {got.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom({src:f})}/>)}
-            </div>
-          </React.Fragment>;
-        })}
-        {!album.size&&<div className="empty" style={{marginTop:60}}>
-          <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>
-          nothing here yet{"\n"}whatever they send lands here
-        </div>}
+        {(()=>{
+          /* 모은 것 중 지금 gallery에 있는 것만 그린다. 갤러리에서 빠진 사진은
+             파일도 같이 지워졌으므로 그려봐야 깨진 그림이 된다.
+             안내문은 album이 비었을 때가 아니라 그릴 것이 없을 때 띄운다 —
+             모은 것은 있는데 전부 옛 목록이면, 전에는 섹션도 안내문도 없이
+             백지가 됐다. 화풍을 갈면서 재언 갤러리를 스물둘에서 아홉으로
+             줄였더니 실제로 그렇게 됐다. */
+          const secs=Object.entries(CHARS).map(([id,ch])=>{
+            const got=ch.gallery.filter(f=>album.has(f.replace(/\.webp$/,"")));
+            if(!got.length)return null;
+            return <React.Fragment key={id}>
+              <div className="sect">✧ {ch.name} · {got.length} pics</div>
+              <div className="galgrid">
+                {got.map(f=><img key={f} src={f} alt="" loading="lazy" onClick={()=>setZoom({src:f})}/>)}
+              </div>
+            </React.Fragment>;
+          }).filter(Boolean);
+          return secs.length?secs:<div className="empty" style={{marginTop:60}}>
+            <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>
+            nothing here yet{"\n"}whatever they send lands here
+          </div>;
+        })()}
       </div>
       :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
         <div className="progline">
