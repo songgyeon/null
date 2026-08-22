@@ -43,7 +43,7 @@ tools/build-demo.mjs     # 문구집 → demo-lines.js + app/lib/demoLines.ts
 tools/build-rules.mjs    # app-data.js → app/lib/rules.ts (규칙은 손으로 안 베낀다)
 test/run.mjs          # 회귀 테스트
 cab-icons/            # 캐비닛 지도 — 프레임·문짝 열림/잠김·명패·TV
-*.webp                # 배경·사진·프로필 109장 — 인물 61, 자리·물건·선물 38, 히든 문서 8, 바탕화면 2
+*.webp                # 배경·사진·프로필 110장 — 인물 62, 자리·물건·선물 38, 히든 문서 8, 바탕화면 2
 null-logo.mp3         # 오프닝 로고곡
 ```
 
