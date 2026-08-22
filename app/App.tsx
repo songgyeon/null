@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  loadWorld, saveWorld, loadPartner, savePartner,
+  loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
@@ -1707,9 +1707,23 @@ function Root() {
 
   const handleSend = async(text:string)=>{
     const room=view.id!; if(!name) return;
+    const prevList:any[]=(msgs as any)[room]||[];
     await insertMsg({room,sender:'user',text,created_at:Date.now()});
     await reload(room);
     lastSent.current={room,text};
+    /* ── 「그거 어떻게 알아요?」 ──
+       등록값은 YES를 누른 순간 세계의 빈칸에 들어갔고, 두 사람은 그것을
+       처음부터 알고 있다. 캐물으면 인물마다 딱 한 번 두 마디가 나온다.
+       모델은 안 부른다 — 현이 문구를 못박은 자리이고, 모델에게 맡기면
+       매번 다르게 둘러대다가 결국 설명이 된다. 웹과 같은 판정 함수다. */
+    const lastSaid=[...prevList].reverse().find(m=>m.sender&&m.sender!=='user'&&m.sender!=='sys');
+    const gate=lastSaid&&originGate(text,lastSaid.text,lastSaid.sender,profile,name);
+    if(gate){
+      setOriginPhase(lastSaid.sender,gate.next);
+      setTyping(true);
+      await enqueue(room,[{sender:lastSaid.sender,text:gate.line}]);
+      return;
+    }
     await runTurn(room);
   };
 
@@ -2088,6 +2102,11 @@ function Root() {
     const list:any[]=(msgs as any)[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].created_at)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
+    /* ── 첫 연락은 딱 한 번 ──
+       빈 방의 첫인사는 각본이고 정해진 세 줄이다. 민현은 「선생님. / 저 알죠? /
+       선생님이 저 책임진다면서요.」로 연다. 방을 빨리 두 번 열면 두 번 나갔다 —
+       아직 저장되기 전이라 두 번째가 봐도 방이 비어 있다. 기다리기 전에 찍는다. */
+    if(gapMin<0&&!markOnce('first:'+id))return;
     if(delay) await new Promise(r=>setTimeout(r,delay));
     /* 첫인사(기록 없는 방)는 문구집 각본이다 — 세계관이 열리는 자리라 문장을
        고정한다. 그 뒤의 선톡은 모델이 쓴다. 각본 스무 개는 아침이든 새벽이든
@@ -2144,6 +2163,7 @@ function Root() {
      걸 한 번 보여준다. 첫 줄이 「삼촌,」으로 시작한다. */
   const seedWatch=async()=>{
     if(((msgs as any).health||[]).length)return;
+    if(!markOnce('watch:open'))return;   // 빨리 두 번 열면 두 번 깔렸다
     try{
       const lines=demoWatchOpen(name);
       if(lines.length){ await new Promise(r=>setTimeout(r,450)); await enqueue('health',lines); }

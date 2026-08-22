@@ -1022,6 +1022,65 @@ const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 민�
 const DDAY_MARKS=[7,3,1];    // 남은 날이 이 값이 되는 날
 const loadEvDone=()=>{try{return JSON.parse(localStorage.getItem("null_ev_done"))||[]}catch(e){return[]}};
 const saveEvDone=a=>{try{localStorage.setItem("null_ev_done",JSON.stringify(a))}catch(e){}};
+/* ── 한 번만 할 일에 이름표 ──
+   방을 빨리 두 번 열면 첫 연락이 두 번 나갔다. 다 하고 나서 「했다」를
+   찍으면 그 사이가 열린다 — 첫 번째가 아직 안 끝났을 때 두 번째가 들어와
+   보면 표가 아직 없다. 그래서 표는 하기 전에 찍는다.
+   대신 실패해도 그 일은 다시 안 온다. 정해진 줄을 그 자리에서 넣는 일에만
+   쓴다 — 서버를 타는 일에는 안 쓴다. */
+const markOnce=id=>{const a=loadEvDone();if(a.indexOf(id)>=0)return false;
+  a.push(id);saveEvDone(a);return true};
+const didOnce=id=>loadEvDone().indexOf(id)>=0;
+
+/* ── 프로필 출처 ──
+   YES를 누른 순간 등록값이 세계의 빈칸에 들어간다. 두 사람은 그 값을
+   처음부터 알고 있다 — 등록 화면도 앱도 모르는 채로, 자기 기억으로는
+   정말 처음부터 알던 것이다. 유저가 그걸 캐물으면 인물마다 딱 한 번
+   이 두 마디가 나온다. 모델은 안 부른다: 현이 문구를 못박은 자리다.
+
+   unasked → claimed_told → revealed_from_start
+
+   오발이 제일 무섭다. 「어떻게 알아?」는 아무 데서나 나오는 말이라,
+   인물이 방금 등록값을 입에 올린 바로 다음일 때만 연다. */
+const ORIGIN_ASK=/어떻게\s*(그걸\s*)?(알|아세|아셨|압니|안\s*거)|어떻게\s*알았|그건?\s*어떻게|어디서\s*들|누가\s*(그래|말해|알려)|내가\s*말했/;
+const ORIGIN_DENY=/내가\s*언제|말한\s*적\s*없|그런\s*적\s*없|언제\s*(알려줬|말했)|알려준\s*적\s*없|안\s*알려/;
+const ORIGIN_TOLD="선생님이 알려줬잖아요.";
+const ORIGIN_START="처음부터.";
+const loadOrigin=()=>{try{return JSON.parse(localStorage.getItem("null_origin"))||{}}catch(e){return{}}};
+const saveOrigin=o=>{try{localStorage.setItem("null_origin",JSON.stringify(o))}catch(e){}};
+const originPhase=who=>loadOrigin()[who]||"unasked";
+const setOriginPhase=(who,phase)=>{const o=loadOrigin();o[who]=phase;saveOrigin(o)};
+/* 등록값이 그 말에 실제로 들어 있나. 값이 짧으면(한 글자) 아무 문장에나
+   걸리므로 두 글자부터 본다 — 「나」가 취향이면 온 문장이 다 걸린다. */
+const mentionsProfile=(text,profile,name)=>{
+  const t=String(text||"");
+  if(!t)return false;
+  const vals=[];
+  if(name)vals.push(name);
+  ["subject","likes","dislikes"].forEach(k=>{
+    String((profile||{})[k]||"").split(/[,·\/]/).forEach(v=>{
+      const s=v.trim(); if(s.length>=2)vals.push(s);
+    });
+  });
+  return vals.some(v=>t.indexOf(v)>=0);
+};
+/* 이번 유저 말에 무엇이 열리나. 안 열리면 빈 값이고, 그때는 평소대로
+   모델이 답한다. prev는 그 방에서 인물이 방금 한 말이다. */
+const originGate=(said,prev,who,profile,name)=>{
+  if(!who||!prev)return null;
+  const phase=originPhase(who);
+  if(phase==="revealed_from_start")return null;
+  const t=String(said||"");
+  if(phase==="unasked"){
+    if(!ORIGIN_ASK.test(t))return null;
+    if(!mentionsProfile(prev,profile,name))return null;   // 방금 그 말이 아니면 안 연다
+    return{line:ORIGIN_TOLD,next:"claimed_told"};
+  }
+  /* 두 번째는 방금 제가 한 말을 유저가 물고 늘어질 때만이다 */
+  if(String(prev).indexOf(ORIGIN_TOLD)<0)return null;
+  if(!ORIGIN_DENY.test(t))return null;
+  return{line:ORIGIN_START,next:"revealed_from_start"};
+};
 const loadAutoEvent=()=>{try{return JSON.parse(localStorage.getItem("null_auto_event"))}catch(e){return null}};
 const saveAutoEvent=v=>{try{v?localStorage.setItem("null_auto_event",JSON.stringify(v)):localStorage.removeItem("null_auto_event")}catch(e){}};
 const loadAutoAt=()=>{const v=+localStorage.getItem("null_auto_at");return v||0};
@@ -1226,6 +1285,18 @@ return {
   DDAY_MARKS,
   loadEvDone,
   saveEvDone,
+  markOnce,
+  didOnce,
+  ORIGIN_ASK,
+  ORIGIN_DENY,
+  ORIGIN_TOLD,
+  ORIGIN_START,
+  loadOrigin,
+  saveOrigin,
+  originPhase,
+  setOriginPhase,
+  mentionsProfile,
+  originGate,
   loadAutoEvent,
   saveAutoEvent,
   loadAutoAt,
@@ -1406,6 +1477,18 @@ export const {
   DDAY_MARKS,
   loadEvDone,
   saveEvDone,
+  markOnce,
+  didOnce,
+  ORIGIN_ASK,
+  ORIGIN_DENY,
+  ORIGIN_TOLD,
+  ORIGIN_START,
+  loadOrigin,
+  saveOrigin,
+  originPhase,
+  setOriginPhase,
+  mentionsProfile,
+  originGate,
   loadAutoEvent,
   saveAutoEvent,
   loadAutoAt,

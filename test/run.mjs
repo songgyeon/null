@@ -4495,6 +4495,93 @@ eq('시간표 단추는 peek보다 좁다',
     /고른 모델이 아니다 — \$\{MODELS\[0\]\.id\} 대신 \$\{m\.id\}가 답했다/.test(wk), true);
 }
 
+/* ══════════ 시그니처 문장과 한 번짜리 사건 ══════════
+   고정 대사를 전부 없애는 것도 아니고, 중요한 장면을 통째로 고정하는 것도
+   아니다. 현이 문구 자체를 확정한 소수의 문장만 정확히 고정한다 — 그 밖의
+   캐릭터 대사를 새로 하드코딩하지 않는다. */
+{
+  const rules = readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8');
+  const corpus = readFileSync(join(ROOT, 'docs/dialogue-corpus.md'), 'utf8');
+  const demo = readFileSync(join(ROOT, 'demo-lines.js'), 'utf8');
+
+  /* ── 민현의 첫 연락 ──
+     정확히 세 말풍선이고 모델을 안 부른다. 병원 옥상을 여기서 설명하지
+     않는다 — 첫 화면에서 그 장면부터 꺼내면 안 물었는데 들이미는 고발이
+     된다. 유저가 한 말만 돌려주는 것이 이 세 줄이다. */
+  eq('민현의 첫 연락이 정확히 세 줄이다',
+    corpus.includes('민현 — 선생님. / 저 알죠? / 선생님이 저 책임진다면서요.'), true);
+  eq('그 세 줄이 생성물에도 그대로 있다',
+    demo.includes('["선생님.","저 알죠?","선생님이 저 책임진다면서요."]'), true);
+  /* 각본 자리라 모델을 안 탄다 — 빈 방은 greet의 모델 가지(gapMin>=0)에 안 걸린다 */
+  eq('빈 방의 첫인사는 모델을 안 부른다',
+    /if\(gapMin>=0&&!demoOn\(\)\)\{/.test(web) && /if\(gapMin>=0&&!DEMO\.auto\)\{/.test(appSrc), true);
+  /* ── 표는 하기 전에 찍는다 ──
+     방을 700밀리초 안에 두 번 열면 첫 연락이 두 번 나갔다. 아직 저장되기
+     전이라 두 번째가 봐도 방이 비어 있다. 하고 나서 찍으면 그 사이가 열린다. */
+  eq('첫 연락은 한 번만 나간다',
+    /if\(gapMin<0&&!markOnce\("first:"\+id\)\)return;/.test(web)
+    && /if\(gapMin<0&&!markOnce\('first:'\+id\)\)return;/.test(appSrc), true);
+  eq('관전방 첫 장면도 한 번만 깔린다',
+    /markOnce\("watch:open"\)/.test(web) && /markOnce\('watch:open'\)/.test(appSrc), true);
+  eq('표를 찍는 자리가 하는 자리보다 앞이다', (() => {
+    const i = web.indexOf('const greet=(id,delay)=>');
+    const box = web.slice(i, web.indexOf('const seedWatch=', i));
+    return box.indexOf('markOnce("first:"+id)') < box.indexOf('demoProactive(');
+  })(), true);
+  eq('표는 웹과 앱이 같은 함수다',
+    /const markOnce=id=>\{const a=loadEvDone\(\);if\(a\.indexOf\(id\)>=0\)return false;/.test(web)
+    && /const markOnce=id=>\{const a=loadEvDone\(\);if\(a\.indexOf\(id\)>=0\)return false;/.test(rules), true);
+
+  /* ── 프로필 출처 ──
+     YES를 누른 순간 등록값이 세계의 빈칸에 들어갔고, 두 사람은 처음부터
+     알고 있다 — 등록 화면도 앱도 모르는 채로. 캐물으면 인물마다 딱 한 번.
+     모델은 안 부른다: 맡기면 매번 다르게 둘러대다가 결국 설명이 된다. */
+  eq('두 마디가 현이 못박은 그대로다',
+    /const ORIGIN_TOLD="선생님이 알려줬잖아요\.";/.test(web)
+    && /const ORIGIN_START="처음부터\.";/.test(web), true);
+  eq('출처 문답은 모델을 안 부른다', (() => {
+    const i = web.indexOf('const gate=lastSaid&&originGate(');
+    const box = web.slice(i, web.indexOf('const giveGift=', i));
+    return box.includes('enqueue(room,[{sender:lastSaid.sender,text:gate.line}]);')
+        && box.indexOf('return;') < box.indexOf('request(');   // 열리면 그 자리에서 끝난다
+  })(), true);
+  eq('앱도 같은 판정 함수를 쓴다',
+    /const gate=lastSaid&&originGate\(text,lastSaid\.text,lastSaid\.sender,profile,name\)/.test(appSrc), true);
+
+  /* 판정은 코드가 한다 — 따로 모델을 불러 분류하지 않는다.
+     아래는 진짜로 굴려 본다: 오발이 이 기능의 유일한 실패 방식이다. */
+  const G = (() => {
+    const store = {};
+    globalThis.localStorage = { getItem:k=>store[k]??null, setItem:(k,v)=>{store[k]=String(v)},
+      removeItem:k=>{delete store[k]}, get length(){return Object.keys(store).length},
+      key:i=>Object.keys(store)[i] };
+    globalThis.location = { search:'' };
+    globalThis.React = { useState:()=>[], useEffect:()=>{}, useRef:()=>({}) };
+    const src = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+    return new Function(src + ';return {originGate,originPhase,setOriginPhase}')();
+  })();
+  const prof = { subject:'국어', likes:'고양이', dislikes:'비' };
+  const ask = (said, prev, who) => { const g = G.originGate(said, prev, who, prof, '리리'); return g && g.line; };
+
+  eq('방금 말한 등록값을 캐물으면 열린다', ask('그거 어떻게 알아요?', '선생님 국어 맡으셨죠?', 'minhyun'),
+    '선생님이 알려줬잖아요.');
+  /* 관계없는 「어떻게 알아?」에 열리면 그게 오발이다 */
+  eq('아무 데서나 열리지 않는다', ask('그거 어떻게 알아요?', '오늘 비 온대요.', 'jaeeon'), null);
+  eq('아무 질문에나 열리지 않는다', ask('밥 먹었어요?', '선생님 국어 맡으셨죠?', 'jaeeon'), null);
+  eq('취향을 말한 뒤에도 열린다', ask('어떻게 알았어요?', '고양이 좋아하시잖아요.', 'jaeeon'),
+    '선생님이 알려줬잖아요.');
+  /* 두 번째는 방금 제가 한 말을 물고 늘어질 때만이다 */
+  G.setOriginPhase('minhyun', 'claimed_told');
+  eq('두 번째는 그 말을 물고 늘어질 때만', ask('내가 언제 알려줬어', '선생님이 알려줬잖아요.', 'minhyun'),
+    '처음부터.');
+  G.setOriginPhase('jaeeon', 'claimed_told');
+  eq('직전이 딴말이면 두 번째도 안 열린다', ask('내가 언제', '그냥 알았어요.', 'jaeeon'), null);
+  /* 인물마다 한 번이고, 한 사람의 상태가 다른 사람을 안 건드린다 */
+  G.setOriginPhase('minhyun', 'revealed_from_start');
+  eq('끝난 인물에게는 다시 안 나온다', ask('그거 어떻게 알아요?', '선생님 국어 맡으셨죠?', 'minhyun'), null);
+  eq('상태는 인물마다 따로다', G.originPhase('jaeeon'), 'claimed_told');
+}
+
 /* ── 요청 하나에 이름표 하나 ──
    앞으로 한 턴이 모델 여러 번을 타게 된다. 그러면 답이 늦어지고, 그 사이
    유저가 다시 보내거나 방을 들락거릴 수 있다. 먼저 보낸 요청의 답이 뒤늦게

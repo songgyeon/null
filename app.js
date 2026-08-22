@@ -688,10 +688,28 @@ function App(){
     /* 「//」로 열면 대화가 아니라 적어두는 것이다. 여기서 끊으므로 이력에도
        안 남고 워커도 안 부른다 — 인물은 이 말을 모른다. */
     if(/^\/\//.test(text)){ addNote(room,text.replace(/^\/\/\s*/,"")); return }
+    const prevList=storeRef.current.msgs[room]||[];
     const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};
     appendMsg(room,userMsg);
-    const next=[...(storeRef.current.msgs[room]||[]),userMsg];
+    const next=[...prevList,userMsg];
     const history=buildHistory(sinceSum(room,next));
+    /* ── 「그거 어떻게 알아요?」 ──
+       등록값은 YES를 누른 순간 세계의 빈칸에 들어갔고, 두 사람은 그것을
+       처음부터 알고 있다. 캐물으면 인물마다 딱 한 번 두 마디가 나온다 —
+       「선생님이 알려줬잖아요.」, 그리고 「내가 언제?」에 「처음부터.」
+       모델은 안 부른다. 현이 문구를 못박은 자리이고, 모델에게 맡기면
+       매번 다르게 둘러대다가 결국 설명이 된다.
+       인물이 방금 등록값을 입에 올린 바로 다음일 때만 연다 — 아무 데서나
+       나오는 「어떻게 알아?」에 열리면 그게 오발이다.
+       단체방에서는 방금 말한 그 사람의 상태만 바뀐다. */
+    const lastSaid=[...prevList].reverse().find(m=>m.sender&&m.sender!=="user"&&!m.sys);
+    const gate=lastSaid&&originGate(text,lastSaid.text,lastSaid.sender,profileRef.current,name);
+    if(gate){
+      setOriginPhase(lastSaid.sender,gate.next);
+      setBusy(b=>({...b,[room]:true}));
+      enqueue(room,[{sender:lastSaid.sender,text:gate.line}]);
+      return;
+    }
     /* 자리에 있는 동안에는 어느 자리인지 같이 보낸다. 안 보내면 마주 앉아서
        "지금 어디예요?"를 묻는다 — 화면만 바뀌고 사람은 안 바뀐 꼴이 된다. */
     const sc=sceneRef.current;
@@ -993,6 +1011,12 @@ function App(){
     const list=storeRef.current.msgs[id]||[];
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
+    /* ── 첫 연락은 딱 한 번 ──
+       빈 방의 첫인사는 각본이고(모델을 안 부른다) 정해진 세 줄이다.
+       민현은 「선생님. / 저 알죠? / 선생님이 저 책임진다면서요.」로 연다.
+       방을 700밀리초 안에 두 번 열면 두 번 나갔다 — 아직 저장되기 전이라
+       두 번째가 봐도 방이 비어 있다. 보내기 전에 표를 찍는다. */
+    if(gapMin<0&&!markOnce("first:"+id))return;
     /* 시간표를 아는 선톡 — 모델이 쓴다. 지시는 이력 끝에만 얹고 저장은
        안 한다. 답장만 남는 게 맞다 — 지시가 기록에 남으면 다음 턴부터
        그 지시까지 대화가 된다.
@@ -1029,6 +1053,7 @@ function App(){
      일이고, 이건 방을 처음 여는 순간의 일이다. */
   const seedWatch=()=>{
     if((storeRef.current.msgs.health||[]).length)return;
+    if(!markOnce("watch:open"))return;   // 빨리 두 번 열면 두 번 깔렸다
     try{
       const lines=demoWatchOpen(name);
       if(lines.length)setTimeout(()=>enqueue("health",lines),450);
