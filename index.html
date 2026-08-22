@@ -16,30 +16,58 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 <!-- 데모 대사·매칭. 문구집에서 만들어진 파일이라 직접 고치지 않는다 -->
-<script src="demo-lines.js?v=72"></script>
+<script src="demo-lines.js?v=73"></script>
 <script>
 /* 리스타트의 뒷정리.
    지우고 바로 다시 여는 방식은 안 됐다 — 다시 열리기 전 몇 밀리초 사이에
    아직 살아 있는 화면이 상태를 도로 저장했다. 이름이 살아남아서 오프닝이
    안 뜬 적도 있다. 지우는 순간을 다음 판의 맨 앞으로 옮긴다.
-   여기는 리액트가 뜨기도 전이라 도로 저장할 화면이 없다. */
-try{ if(localStorage.getItem("null_wipe")){ localStorage.clear(); } }catch(e){}
+   여기는 리액트가 뜨기도 전이라 도로 저장할 화면이 없다.
+
+   ── clear()는 안 쓴다 ──
+   여기는 이 게임만의 저장소가 아니다. 같은 출처에 다른 것이 들어 있으면
+   그것까지 같이 날아간다. 열쇠(null_apikey)도 이야기가 아니라 접속 설정이라
+   리스타트로 지울 것이 아니었다 — 새로 시작할 때마다 열쇠를 다시 넣어야 했다.
+   그래서 이 게임이 쓴 이야기 key만 골라 지운다. 목록을 손으로 적지 않는
+   이유는 늘 빠뜨리기 때문이다: null_로 시작하는 것 중 남길 것만 적는다.
+
+   ── 판 갈이 ──
+   옛 세이브에는 옛 정사(첫 만남 자리·D-day)가 섞여 있다. 그걸 새 정사로
+   옮기는 변환은 안 만든다 — 어차피 맞출 수 없고, 반쯤 맞은 세계가 제일 나쁘다.
+   판 번호가 다르면 이야기만 한 번 비운다. 딱 한 번이다: 비운 뒤 번호를
+   찍으므로 다음 실행부터는 새로 쌓인 것이 그대로 남는다. */
+window.NULL_STORY_REV = "3";
+window.nullWipeStory = function(){
+  var KEEP = ["null_apikey"];   // 이야기가 아닌 것 — 접속 설정은 남긴다
+  var kill = [], i, k;
+  for(i=0;i<localStorage.length;i++){
+    k = localStorage.key(i);
+    if(k && k.indexOf("null_")===0 && KEEP.indexOf(k)<0) kill.push(k);
+  }
+  for(i=0;i<kill.length;i++) localStorage.removeItem(kill[i]);
+};
+try{
+  /* null_wipe도 null_로 시작하니 같이 지워진다 — 따로 치울 것이 없다 */
+  if(localStorage.getItem("null_wipe") || localStorage.getItem("null_rev")!==window.NULL_STORY_REV)
+    window.nullWipeStory();
+  localStorage.setItem("null_rev", window.NULL_STORY_REV);
+}catch(e){}
 </script>
 <!-- 갈라진 파일에는 전부 판 번호를 붙인다. 안 붙이면 브라우저가 옛 파일을
      계속 쓴다 — peek 넘치는 걸 고쳐 올렸는데 CSS만 캐시라 그대로 넘쳤다.
      고치고 올릴 때 네 개를 같이 올린다. 하나만 올리면 그 하나만 새것이 된다.
      ★ 이 넷 중 하나라도 고쳤으면 번호를 올린다. 안 올리면 배포는 됐는데
        사람은 안 고쳐졌다고 한다 — 두 번 겪었다. -->
-<link rel="stylesheet" href="null.css?v=72">
+<link rel="stylesheet" href="null.css?v=73">
 </head>
 <body>
 <div id="root"></div>
 <!-- 데이터·규칙. JSX가 없어서 바벨을 안 탄다 -->
-<script src="app-data.js?v=72"></script>
+<script src="app-data.js?v=73"></script>
 <!-- 화면 조각 — 아이콘·창·방 목록. JSX라 바벨을 탄다 -->
-<script type="text/babel" src="app-ui.js?v=72"></script>
+<script type="text/babel" src="app-ui.js?v=73"></script>
 <!-- 앱 — 상태를 들고 있는 곳 -->
-<script type="text/babel" src="app.js?v=72"></script>
+<script type="text/babel" src="app.js?v=73"></script>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#b8a5e3"/><text x="50" y="58" text-anchor="middle" font-family="monospace" font-size="26" letter-spacing="4" fill="#fff">NULL</text></svg></template>
 </body>
 </html>

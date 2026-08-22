@@ -317,6 +317,7 @@ eq('찾는 사진이 50장은 된다', wanted.size >= 50, true);   // 정규식�
 section('앱 레이아웃 — 헤드리스로 못 돌리는 것은 소스로 막는다');
 // ─────────────────────────────────────────────
 const appSrc = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+const dbSrcTop = readFileSync(join(ROOT, 'app/lib/db.ts'), 'utf8');
 
 /* React Native에서 padding을 ScrollView 자체 style에 주면 스크롤 프레임이 패딩되어
    내용 끝이 잘린다. .hidden 안내문이 끝까지 내려도 반쯤 잘리던 원인이 이것이었다.
@@ -3233,7 +3234,10 @@ eq('앱도 같은 열쇠 자리를 본다',
 {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
   eq('갈라진 파일이 전부 있다', APP_FILES.filter(f => !exists(f)), []);
-  eq('index.html은 뼈대만 남았다', html.split('\n').length < 60, true);
+  /* 뼈대 + 뜨기 전에 끝나야 하는 것 하나(이야기 비우기)까지다. 리액트가
+     뜬 뒤에 해도 되는 일이 여기 들어오기 시작하면 다시 3,500줄이 된다 */
+  eq('index.html은 뼈대만 남았다', html.split('\n').length < 90, true);
+  eq('index.html에 화면이 없다', /React|useState|className/.test(html), false);
   const order = ['null.css', 'app-data.js', 'app-ui.js', 'app.js'].map(f => html.indexOf(f));
   eq('싣는 차례가 데이터 → 화면 → 앱이다',
     order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), true);
@@ -4138,7 +4142,40 @@ eq('머리글이 사물함을 말한다',
 eq('리스타트는 표식만 남기고 다시 연다',
   /localStorage\.setItem\("null_wipe","1"\)/.test(web) && /location\.reload\(\)/.test(web), true);
 eq('다음 판 맨 앞에서 비운다',
-  /if\(localStorage\.getItem\("null_wipe"\)\)\{ localStorage\.clear\(\); \}/.test(web), true);
+  /if\(localStorage\.getItem\("null_wipe"\) \|\| localStorage\.getItem\("null_rev"\)!==window\.NULL_STORY_REV\)\s*\n?\s*window\.nullWipeStory\(\);/.test(web), true);
+/* ── clear()는 안 쓴다 ──
+   여기는 이 게임만의 저장소가 아니다. 같은 출처에 다른 것이 들어 있으면
+   그것까지 같이 날아간다. 열쇠도 이야기가 아니라 접속 설정이라 리스타트로
+   지울 것이 아니었다 — 새로 시작할 때마다 열쇠를 다시 넣어야 했다. */
+eq('통째로 지우지 않는다', /localStorage\.clear\(\)/.test(web), false);
+eq('앱도 통째로 지우지 않는다', /DELETE FROM meta;/.test(dbSrcTop), false);
+/* 지울 것을 적으면 늘 빠뜨린다. 남길 것만 적는다 */
+eq('이야기 key만 골라 지운다',
+  /k\.indexOf\("null_"\)===0 && KEEP\.indexOf\(k\)<0/.test(web)
+  && /var KEEP = \["null_apikey"\]/.test(web), true);
+eq('앱도 남길 것만 적는다',
+  /export const KEEP_META = \['null_apikey', 'null_rev'\]/.test(dbSrcTop)
+  && /DELETE FROM meta WHERE key NOT IN/.test(dbSrcTop), true);
+/* 메시지만 지워지고 meta가 남으면 이름은 있는데 대화가 없는 세계가 된다 */
+eq('앱은 한 트랜잭션으로 비운다', /withTransactionAsync\(async \(\) => \{[\s\S]{0,200}?DELETE FROM messages/.test(dbSrcTop), true);
+/* ── 판 갈이는 딱 한 번 ──
+   옛 세이브에는 옛 정사(첫 만남 자리·D-day)가 섞여 있다. 새 정사로 옮기는
+   변환은 안 만든다 — 어차피 맞출 수 없고, 반쯤 맞은 세계가 제일 나쁘다.
+   비운 뒤 번호를 찍으므로 다음 실행부터는 새로 쌓인 것이 그대로 남는다. */
+eq('판 번호가 웹과 앱에서 같다', (() => {
+  const w = (web.match(/window\.NULL_STORY_REV = "(\d+)"/) || [])[1];
+  const a = (dbSrcTop.match(/export const NULL_STORY_REV = '(\d+)'/) || [])[1];
+  return !!w && w === a;
+})(), true);
+eq('비운 뒤에 번호를 찍는다',
+  /window\.nullWipeStory\(\);\s*\n\s*localStorage\.setItem\("null_rev", window\.NULL_STORY_REV\)/.test(web)
+  && /await wipeStory\(\);\s*\n\s*await setMeta\('null_rev', NULL_STORY_REV\)/.test(dbSrcTop), true);
+/* 먼저 퍼가면 지운 값을 화면이 들고 있다가 다음 저장 때 도로 써진다 */
+eq('앱은 퍼가기 전에 비운다',
+  appSrc.indexOf('wipeIfOldRevision()') < appSrc.indexOf('await hydrateShim()'), true);
+/* 손으로 「새로 시작」한 것도 같은 helper를 쓴다 */
+eq('앱의 새로 시작도 같은 helper다',
+  /await wipeStory\(\); resetShim\(\);/.test(appSrc) && !/clearAll/.test(appSrc), true);
 
 /* ── 시간표 ──
    하루에 여섯 번 알림을 띄우면 사흘이면 벽지가 된다. 하루에 한 번이면

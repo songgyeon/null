@@ -127,7 +127,34 @@ export async function recentPhotos(room: string, n = 4): Promise<string[]> {
   return rows.map(r => r.photo);
 }
 
-export async function clearAll() {
+/* ── 이야기만 비운다 ──
+   웹의 nullWipeStory와 같은 일이다. 여기 meta에는 이야기 상태 말고
+   접속 설정도 들어 있어서, 통째로 지우면 새로 시작할 때마다 열쇠를 다시
+   넣어야 했다. 남길 것만 적는다 — 지울 것을 적으면 늘 빠뜨린다.
+   한 트랜잭션으로 묶는다: 메시지만 지워지고 meta가 남으면 이름은 있는데
+   대화가 없는 세계가 된다. */
+export const KEEP_META = ['null_apikey', 'null_rev'];
+
+export async function wipeStory() {
   const d = await initDB();
-  await d.execAsync('DELETE FROM messages; DELETE FROM meta;');
+  const marks = KEEP_META.map(() => '?').join(',');
+  await d.withTransactionAsync(async () => {
+    await d.runAsync('DELETE FROM messages');
+    await d.runAsync(`DELETE FROM meta WHERE key NOT IN (${marks})`, ...KEEP_META);
+  });
+}
+
+/* ── 판 갈이 ──
+   옛 세이브에는 옛 정사(첫 만남 자리·D-day)가 섞여 있다. 새 정사로 옮기는
+   변환은 안 만든다 — 어차피 맞출 수 없고, 반쯤 맞은 세계가 제일 나쁘다.
+   판 번호가 다르면 이야기만 한 번 비운다. 비운 뒤 번호를 찍으므로 다음
+   실행부터는 새로 쌓인 것이 그대로 남는다. 웹(index.html)과 같은 번호다. */
+export const NULL_STORY_REV = '3';
+
+export async function wipeIfOldRevision(): Promise<boolean> {
+  const at = await getMeta('null_rev');
+  if (at === NULL_STORY_REV) return false;
+  await wipeStory();
+  await setMeta('null_rev', NULL_STORY_REV);
+  return true;
 }

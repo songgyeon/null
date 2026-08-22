@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
-import { initDB, getMsgs, insertMsg, getMeta, setMeta, clearAll, countMsgs, Msg } from './lib/db';
+import { initDB, getMsgs, insertMsg, getMeta, setMeta, wipeStory, wipeIfOldRevision, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoGreetWhen, demoWatchOpen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
@@ -1561,6 +1561,11 @@ function Root() {
 
   useEffect(()=>{(async()=>{
     await initDB();
+    /* 옛 세이브에는 옛 정사가 섞여 있다. 판 번호가 다르면 이야기만 한 번
+       비운다 — 웹(index.html)이 리액트 뜨기 전에 하는 것과 같은 일이다.
+       shim이 값을 퍼가기 전에 해야 한다: 먼저 퍼가면 지운 값을 화면이
+       들고 있다가 다음 저장 때 도로 써진다. */
+    if(await wipeIfOldRevision()) console.log('[NULL] 옛 판이라 이야기를 한 번 비웠다');
     /* 규칙 파일이 읽는 localStorage를 저장소에서 한 번에 채운다. 이걸 안 하면
        규칙이 전부 「저장된 게 없다」로 읽는다 — 가방도 다녀온 자리도 없는
        첫날처럼 보인다. 화면을 그리기 전에 끝나야 한다. */
@@ -2045,7 +2050,9 @@ function Root() {
        방금 선톡을 받고 지웠으면 1분 동안 첫 인사가 안 왔다. */
     /* 저장소를 비웠으면 규칙이 보고 있는 메모리도 같이 비운다 — 안 비우면
        지운 값이 화면에 남아 있다가 다음 저장 때 도로 써진다(웹에서 겪었다) */
-    await clearAll(); resetShim(); greetAtRef.current=0; summingRef.current={};
+    /* 손으로 「새로 시작」한 것도 판 갈이와 같은 helper를 쓴다 — 접속
+       설정까지 날리면 새로 시작할 때마다 열쇠를 다시 넣어야 한다 */
+    await wipeStory(); resetShim(); greetAtRef.current=0; summingRef.current={};
     setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
     lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
   };
