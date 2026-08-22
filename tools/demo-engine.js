@@ -555,7 +555,7 @@ function demoProactive(room, when, name) {
   if (!list.length) return [];
   var p = list[Math.floor(demoRand() * list.length)];
   /* 첫 만남 인사에만 꼬리표를 남긴다. 유저가 「무슨 말이에요?」로 받으면
-     [직전 대답 다음에만] 갈래가 열려서 골목 얘기를 꺼낸다.
+     [직전 대답 다음에만] 갈래가 열려서 병원 옥상 얘기를 꺼낸다.
      다른 선톡에는 안 남긴다 — 「오랜만」 같은 이름은 기존 조건문과 낱말이
      겹쳐서, 엉뚱한 갈래가 선톡 뒤에 열린다. */
   if (p.when === '첫 만남') { DEMO_ST.lastTag = p.when; DEMO_ST.lastRoom = room; }

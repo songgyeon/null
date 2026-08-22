@@ -444,7 +444,7 @@ const bothAwake=now=>!asleep("jaeeon",now)&&!asleep("minhyun",now);
 const OPENINGS=[
   /* 새벽. 라면 하나 놓고 마주 앉는다 */
   {from:2,  place:"편의점",     room:"minhyun", note:"라면을 먹으러 편의점에 들렀다."},
-  /* 아침. 개학 전에 둘이 처음 마주친 자리다 — 다시 그 자리에서 시작한다 */
+  /* 아침. 등굣길에 지나는 골목에서 마주친다 — 처음 만난 자리는 병원 옥상이다 */
   {from:6,  place:"후문 골목",   room:"minhyun", bg:"minhyun-alley.webp",
    note:"후문 골목으로 들어섰다."},
   /* 낮. 제 발로 간 게 아니라 손을 베여서 내려온 것이다 */
