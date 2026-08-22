@@ -23,7 +23,7 @@ const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"100%",pos:"50% 40%",
     gallery:["jaeeon-work.webp","jaeeon-chart.webp","jaeeon-cook.webp","jaeeon-rooftop.webp","jaeeon-shelf.webp","jaeeon-laundry.webp","jaeeon-driveseat.webp","jaeeon-conv.webp","jaeeon-record.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp"]},
+    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp"]},
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;
@@ -854,7 +854,10 @@ const SCENE_SHOT={
   "집":       {jaeeon:["jaeeon-cook"], minhyun:["minhyun-morning","minhyun-elevator"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
      빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
-  "귀갓길":   {jaeeon:["jaeeon-driveseat"], minhyun:["minhyun-busstop","minhyun-neon"]},
+  /* 귀갓길은 같이 버스를 탄 자리다. 정류장 사진은 기다리는 그림이라
+     여기 오면 아직 안 탄 사람이 된다 — 탄 그림으로 바꿨다.
+     정류장 사진은 그대로 산다: 저녁 첫 자리(버스정류장)의 배경이고 앨범에도 있다. */
+  "귀갓길":   {jaeeon:["jaeeon-driveseat"], minhyun:["minhyun-busride","minhyun-neon"]},
 };
 /* ── 귀갓길 ── 지도에 없다. 골라서 가는 데가 아니라 자리가 끝나고 붙는 데다.
    유저 집은 정거장이 아니라 데려다주는 일이 끝나는 곳이라서 아이콘이 없다.

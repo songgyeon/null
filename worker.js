@@ -1489,6 +1489,10 @@ const PHOTOS = {
     char: "minhyun",
     when: "버스정류장에서 기다리는 중. 집에 가는 길, 만나기로 한 날.",
   },
+  "minhyun-busride": {
+    char: "minhyun",
+    when: "밤 버스 안. 창밖은 비 온 뒤 젖은 거리다. 같이 타고 가는 길에, 늦은 시간 대화에.",
+  },
   "minhyun-winter": {
     char: "minhyun",
     when: "겨울. 춥다는 얘기에. 얇게 입고 다니는 걸 들켰을 때.",

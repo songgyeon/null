@@ -3764,8 +3764,14 @@ eq('나온 뒤에 데려다주기를 묻는다',
     /\{name:"귀갓길"/.test(web) || /"귀갓길":\s*\{x:/.test(web), false);
   eq('귀갓길도 빈 자리로 시작한다',
     /const WAY_BG=\{jaeeon:"jaeeon-drive\.webp", ?minhyun:"minhyun-bus\.webp"\}/.test(web), true);
+  /* 정류장 사진은 기다리는 그림이다. 귀갓길에 깔리면 같이 타고 가는 중에
+     아직 안 탄 사람이 나온다 — 탄 그림으로 바꿨다. */
   eq('귀갓길에도 그 사람이 깔린다',
-    /"귀갓길":\s*\{jaeeon:\["jaeeon-driveseat"\], ?minhyun:\["minhyun-busstop","minhyun-neon"\]\}/.test(web), true);
+    /"귀갓길":\s*\{jaeeon:\["jaeeon-driveseat"\], ?minhyun:\["minhyun-busride","minhyun-neon"\]\}/.test(web), true);
+  /* 정류장 사진은 안 없어진다 — 저녁 첫 자리의 배경이고 앨범에도 있다 */
+  eq('정류장 사진은 제자리에 있다',
+    /place:"버스정류장",\s+room:"minhyun", bg:"minhyun-busstop\.webp"/.test(web)
+    && /"minhyun-busstop\.webp","minhyun-busride\.webp"/.test(web), true);
   /* 지도 자리가 아니라 PLACE_BG에 없다. 자리가 자기 배경을 들고 와야 한다 */
   eq('지도에 없는 자리는 배경을 들고 온다', /scene\.shot\|\|scene\.bg\|\|PLACE_BG/.test(web), true);
   /* 낮에 보건실 나오면서 집까지 태워다 주는 건 데려다주는 게 아니라 조퇴다 */
