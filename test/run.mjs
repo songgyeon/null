@@ -3179,6 +3179,28 @@ eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), 
   eq('남의 자리에 가면 따로 만난 자리다',
     /따로 만난 자리다/.test(buildPlace('보건실', true, 'minhyun'))
     && !/여기는 원래 네 자리다/.test(buildPlace('옥상', true, 'jaeeon')), true);
+  /* ── 같이 가기로 하고 간 자리 ──
+     「같이 갈 사람은 Who?」로 골라 나란히 걸어 들어온 레코드샵에서 재언이
+     "여기까지 어떻게 왔어요", "저도 지나가다 들어왔어요"라고 했다. 자리 이름만
+     받으니 마주친 것과 구분이 안 됐다. 프론트가 어떻게 갔는지를 같이 보낸다 */
+  eq('같이 가자고 해서 간 자리는 따로 만난 게 아니다', (() => {
+    const t = buildPlace('레코드샵', true, 'jaeeon', false, 'asked');
+    return /같이 가자고 해서 둘이 같이 왔다/.test(t)
+        && /우연히 마주친 것이 아니다/.test(t)
+        && !/따로 만난 자리다/.test(t);
+  })(), true);
+  eq('인물이 불러서 간 자리는 제가 데려온 자리다', (() => {
+    const t = buildPlace('레코드샵', true, 'jaeeon', false, 'invited');
+    return /네가 가자고 해서 둘이 같이 왔다/.test(t) && !/따로 만난 자리다/.test(t);
+  })(), true);
+  /* 제 자리라는 사실은 그대로 두고 도착에 관한 줄만 바뀐다 —
+     같이 걸어 들어왔는데 「찾아온 쪽은 유저다」가 붙으면 또 남남이 된다 */
+  eq('같이 왔으면 제 자리라도 찾아온 게 아니다', (() => {
+    const t = buildPlace('보건실', true, 'jaeeon', false, 'asked');
+    return /여기는 원래 네 자리다/.test(t) && !/찾아온 쪽은/.test(t);
+  })(), true);
+  eq('안 보내면 예전 그대로다',
+    buildPlace('레코드샵', true, 'jaeeon') === buildPlace('레코드샵', true, 'jaeeon', false, 'x'), true);
   /* 임자가 있는 자리 셋 — 교실은 민현, 보건실과 집은 재언이다.
      집은 재언 집이지만 민현도 산다. 사는 것과 임자인 것은 다르다 —
      여벌 열쇠를 내주는 쪽이 임자다. */
@@ -4080,6 +4102,27 @@ eq('시간표 단추는 peek보다 좁다',
     const t = wk.slice(wk.indexOf('const FORMAT_AUTO = `'));
     return /이 방에는 존댓말을 쓸 상대가 없다/.test(t.slice(0, t.indexOf('`;')));
   })(), true);
+}
+
+/* ── 어떻게 갔는지를 프론트가 보낸다 ──
+   워커에 갈래를 만들어놔도 프론트가 안 보내면 아무것도 안 바뀐다.
+   자리를 여는 세 갈래와, 자리에 머무는 동안의 매 턴까지 다 걸어둔다 */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  eq('워커는 두 값만 받는다',
+    /body\.came === "asked" \|\| body\.came === "invited"/.test(wk), true);
+  eq('웹이 같이 간 자리를 알린다',
+    /place:iv\.place,came:"invited"/.test(web)          // 초대 수락
+    && /place,came:"asked",bag:bagOut\(\)/.test(web)     // 같이 자리 옮기기
+    && /place,\.\.\.\(p\.pick\?\{came:"asked"\}:\{\}\),bag:bagOut\(\)/.test(web), true);
+  /* 첫 턴에만 보내면 두 번째 말부터 도로 남남이 된다 */
+  eq('자리에 있는 내내 보낸다',
+    /\.\.\.\(sc\.came\?\{came:sc\.came\}:\{\}\)/.test(web)
+    && /\.\.\.\(sc\.came\?\{came:sc\.came\}:\{\}\)/.test(appSrc), true);
+  eq('앱도 같이 간 자리를 알린다',
+    /came\?:\s*string;/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8'))
+    && /place && came \? \{ came \} : \{\}/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8'))
+    && /goPlace=async\(place:string,who:string,note\?:string,came\?:string\)/.test(appSrc), true);
 }
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);

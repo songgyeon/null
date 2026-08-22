@@ -153,6 +153,7 @@ export async function callApi(payload: any) {
 export type ChatOpts = {
   gift?: { key: string; name: string; note?: string };
   place?: string | null;      // 지금 마주 앉은 자리
+  came?: string;              // 그 자리에 어떻게 갔나 — 'asked'(유저가 같이 가자고) / 'invited'(인물이 부름)
   bag?: any[];                // 받은 것 {k,from} — from이 있어야 제 것을 고른다
   left?: string;              // 방금 나온 자리 이름
   placeOver?: boolean;        // 그 자리의 때가 지났다 — 이번 대답에서 일어선다
@@ -162,7 +163,7 @@ export type ChatOpts = {
 export async function sendChat(room: string, userName: string, history: Msg[],
                                opts: ChatOpts = {}) {
   const sum = await loadSum(room);
-  const { gift, place, bag, placeOver, greet, left, extra } = opts;
+  const { gift, place, bag, placeOver, greet, left, came, extra } = opts;
   /* 그 방 사람의 접속 상태. 목록에 뜨는 것과 같은 함수(presence)를 쓴다 —
      화면에는 「수업 중」인데 본인은 한가한 사람처럼 답하던 것이 이걸로 맞는다.
      「주말」은 안 보낸다 — 요일이 이미 실려 있어 같은 말이 두 번 된다. */
@@ -203,6 +204,11 @@ export async function sendChat(room: string, userName: string, history: Msg[],
        물건을 두고 「그게 왜 선생님한테 있어요」라고 되물었다. 늘 보낸다. */
     bag: bag || [],
     ...(place ? { place } : {}),
+    /* 같이 가기로 하고 간 자리인지. 이걸 안 보내면 워커가 전부 「따로 만난
+       자리」로 깔아서, 나란히 걸어 들어온 레코드샵에서 「여기까지 어떻게
+       왔어요」가 나온다. 자리에 있는 내내 같이 보낸다 — 첫 턴에만 보내면
+       두 번째 말부터 도로 남남이 된다. */
+    ...(place && came ? { came } : {}),
     /* 방금 나온 자리. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다.
        이걸 안 보내면 모델이 저는 거기 없었던 것으로 읽는다 — 웹만 보내고
        앱은 안 보내고 있었다. */

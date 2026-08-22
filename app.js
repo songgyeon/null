@@ -315,7 +315,7 @@ function App(){
       // 그 자리로 화면을 옮긴다. 배경이 깔리고 말풍선이 걷힌다
       /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
       if(PLACE_BY[iv.place]){ if(sceneRef.current)closeScene();
-        const sc={room:iv.char,place:iv.place,since:Date.now()}; setScene(sc); saveScene(sc); } }
+        const sc={room:iv.char,place:iv.place,since:Date.now(),came:"invited"}; setScene(sc); saveScene(sc); } }
     else  { saveRefused([...loadRefused(),iv.place]); }
     /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 —
        가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다.
@@ -326,7 +326,7 @@ function App(){
       history:buildHistory(sinceSum(iv.char,next)),signals:buildSignals(iv.char),
       recent_photos:recentPhotos(iv.char),counts:roomCounts({[iv.char]:next.length}),
       bag:bagOut(),
-      ...(ok&&PLACE_BY[iv.place]?{place:iv.place}:{})});
+      ...(ok&&PLACE_BY[iv.place]?{place:iv.place,came:"invited"}:{})});
   };
 
   /* 지도에서 내가 고른 자리. 인물이 부른 게 아니라 내 발로 가는 거라 창만
@@ -356,12 +356,12 @@ function App(){
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
       text:`${jos(place,"으로/로")} 같이 자리를 옮겼다`,ts:Date.now()};
     appendMsg(who,sys);
-    const nsc={room:who,place,since:Date.now()}; setScene(nsc); saveScene(nsc); setView(who);
+    const nsc={room:who,place,since:Date.now(),came:"asked"}; setScene(nsc); saveScene(nsc); setView(who);
     const next=[...(storeRef.current.msgs[who]||[]),sys];
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
-      place,bag:bagOut()});
+      place,came:"asked",bag:bagOut()});
   };
   /* 동행을 고르는 자리에서 고른 사람. 창을 닫으면 같이 비운다 */
   const [askWho,setAskWho]=useState(null);
@@ -385,18 +385,21 @@ function App(){
     if(!wendOnlyOk(p)||goneToday(place))return;
     const who=whoAt(p,picked); if(!who)return;
     stampGone(place);
-    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:`${place}에 갔다`,ts:Date.now()};
+    /* 「같이 갈 사람은 Who?」로 고른 자리는 같이 간 것이다. 기록에도 그렇게 남긴다 —
+       「레코드샵에 갔다」만 있으면 이력만 읽는 다음 턴이 혼자 간 것으로 읽는다 */
+    const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
+      text:p.pick?`${jos(CHARS[who].name,"과/와")} ${place}에 갔다`:`${place}에 갔다`,ts:Date.now()};
     appendMsg(who,sys);
     goneTo(place); markEvent({kind:"met",to:who,name:place});
     /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
     if(sceneRef.current)closeScene();
-    const sc={room:who,place,since:Date.now()}; setScene(sc); saveScene(sc);
+    const sc={room:who,place,since:Date.now(),...(p.pick?{came:"asked"}:{})}; setScene(sc); saveScene(sc);
     setView(who);
     const next=[...(storeRef.current.msgs[who]||[]),sys];
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
-      place,bag:bagOut()});
+      place,...(p.pick?{came:"asked"}:{}),bag:bagOut()});
   };
 
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
@@ -606,12 +609,15 @@ function App(){
        "지금 어디예요?"를 묻는다 — 화면만 바뀌고 사람은 안 바뀐 꼴이 된다. */
     const sc=sceneRef.current;
     const at=sc&&sc.room===room?sc.place:null;
+    /* 어떻게 그 자리에 갔는지도 자리에 있는 내내 같이 보낸다. 첫 턴에만 보내면
+       두 번째 말부터 다시 「따로 만난 자리」가 되고, 같이 온 사람이 「여기까지
+       어떻게 왔어요」를 묻는다. 그래서 자리(scene)에 적어두고 자리째 딸려 보낸다. */
     /* 자리의 때가 지났으면(문 닫음·잘 시간) 그 사실을 같이 보낸다.
        인물이 이번 대답에서 마무리하고 일어서고, 답이 다 뜨면 자리가 닫힌다 */
     request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),
       recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length}),
       bag:bagOut(),
-      ...(at?{place:at,...(sceneOver(sc)?{place_over:true}:{})}:{})});
+      ...(at?{place:at,...(sc.came?{came:sc.came}:{}),...(sceneOver(sc)?{place_over:true}:{})}:{})});
   };
   /* 선물 보내기.
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.

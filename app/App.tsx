@@ -1712,7 +1712,7 @@ function Root() {
       /* left는 자리를 닫고 나서 부르는 턴에만 온다. place와 같이 오지 않는다 —
          워커도 place가 없을 때만 본다. */
       const data=await sendChat(room,name,hist,{bag:bagOut(bag),
-        ...(at?{place:at,...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
+        ...(at?{place:at,...(sc.came?{came:sc.came}:{}),...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);
@@ -2017,7 +2017,7 @@ function Root() {
     }
     putScene(null);
   };
-  const goPlace=async(place:string,who:string,note?:string)=>{
+  const goPlace=async(place:string,who:string,note?:string,came?:string)=>{
     if(!name) return;
     stampGone(place);
     const nextMet=met.includes(place)?met:[...met,place];
@@ -2027,7 +2027,7 @@ function Root() {
     await sysLine(who,note||`${place}에 갔다`);
     const shot=sceneShot(place,who);
     if(shot)stampShot(shot);
-    putScene({room:who,place,since:Date.now(),...(shot?{shot}:{})});
+    putScene({room:who,place,since:Date.now(),...(shot?{shot}:{}),...(came?{came}:{})});
     setView({type:'chat',id:who}); setUnread(u=>({...u,[who]:0}));
     await runTurn(who);
   };
@@ -2037,7 +2037,10 @@ function Root() {
     const st=askState(place,{scene,met,msgs:msgsForFlow(),picked});
     if(st.no) return;
     const who=whoAt(PLACE_BY[place],picked,msgsForFlow());
-    if(who) await goPlace(place,who);
+    const p=PLACE_BY[place];
+    if(who) await goPlace(place,who,
+      p&&p.pick?`${jos(CHARS[who].name,'과/와')} ${place}에 갔다`:undefined,
+      p&&p.pick?'asked':undefined);
   };
   /* 같이 있다가 발길 닿는 이동. 떠나는 자리를 먼저 정리한다 */
   const answerMove=async(ok:boolean)=>{
@@ -2046,7 +2049,7 @@ function Root() {
     if(!ok||!place||!sc) return;
     const st=askState(place,{scene:sc,met,msgs:msgsForFlow()});
     if(!st.mv) return;
-    await goPlace(place,sc.room,`${jos(place,'으로/로')} 같이 자리를 옮겼다`);
+    await goPlace(place,sc.room,`${jos(place,'으로/로')} 같이 자리를 옮겼다`,'asked');
   };
   const answerLeave=async(ok:boolean)=>{
     const sc=leaving; setLeaving(null);

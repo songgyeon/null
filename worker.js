@@ -2039,7 +2039,15 @@ function placeOf(raw) {
 }
 /* 자리 블록. 문자가 아니라 마주 보고 하는 말이라는 것부터 알려준다 —
    이게 없으면 같은 자리에 앉아서 "지금 어디예요?"라고 묻는다. */
-function buildPlace(place, hasItem, room, over) {
+/* ── 어떻게 그 자리에 갔나 ──
+   자리 하나만 받아서는 마주친 건지 같이 간 건지 알 수가 없다. 그래서 남의
+   자리는 전부 「따로 만난 자리다. 둘 다 여기까지 왔다」로 깔렸고, 유저가
+   「같이 가자」고 골라서 나란히 걸어 들어온 레코드샵에서 재언이 "여기까지
+   어떻게 왔어요", "저도 지나가다 들어왔어요"라고 했다. 같이 온 사람한테
+   할 말이 아니다.
+   프론트가 세 갈래를 다 알고 있다 — 인물이 부른 것(초대), 유저가 고른 것
+   (동행을 고르는 자리·같이 자리 옮기기), 그냥 찾아간 것. 그걸 받는다. */
+function buildPlace(place, hasItem, room, over, came) {
   if (!place) return "";
   /* 귀갓길은 방마다 그림이 다르다. 재언은 운전을 하고 있고 민현은 옆에 앉아 있다.
      그리고 이 자리는 곧 끝난다 — 여기서 새 얘기를 길게 벌이면 내리는 데서 잘린다. */
@@ -2057,14 +2065,27 @@ function buildPlace(place, hasItem, room, over) {
      민현도 거기서 산다 — 「따로 만난 자리다, 둘 다 여기까지 왔다」가 나오면
      제 집에 손님으로 온 사람이 된다. */
   const lives = !mine && (it.lives || []).includes(room);
-  let t = `\n## 지금 있는 자리\n{user_name:과/와} ${place}에 같이 있다.\n`
-        + (mine
-            ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다. 찾아온 쪽은 {user_name}이다.\n`
-            + `불려 나온 것이 아니다. 와줘서 고맙다거나 불러줘서 왔다는 말을 하지 않는다.\n`
-            : lives
-            ? `네가 사는 데다. 임자는 삼촌이지만 너도 여기서 산다 — ${place}에 있는 것 자체는 사건이 아니다.\n`
-            + `찾아온 쪽은 {user_name}이다. 불려 나온 것이 아니고, 여기까지 왔다는 말도 네 쪽 얘기가 아니다.\n`
-            : `따로 만난 자리다. 둘 다 여기까지 왔다.\n`)
+  /* 같이 온 자리에서는 「어떻게 왔냐」가 통째로 없는 말이다. 제 자리든
+     남의 자리든 마찬가지라, 도착에 관한 줄만 갈아 끼운다. */
+  const together = came === "asked" || came === "invited";
+  const here = mine
+    ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다.\n`
+    : lives
+    ? `네가 사는 데다. 임자는 삼촌이지만 너도 여기서 산다 — ${place}에 있는 것 자체는 사건이 아니다.\n`
+    : ``;
+  const arrive = together
+    ? (came === "asked"
+        ? `{user_name:이/가} 같이 가자고 해서 둘이 같이 왔다.\n`
+        : `네가 가자고 해서 둘이 같이 왔다.\n`)
+      + `길에서부터 같이 있었다. 우연히 마주친 것이 아니다 — 어떻게 왔는지, 오는 길에 들렀는지 묻지 않는다.\n`
+      + `너도 지나가다 들어온 것이 아니다. 가기로 하고 같이 간 자리다.\n`
+    : mine
+    ? `찾아온 쪽은 {user_name}이다.\n`
+      + `불려 나온 것이 아니다. 와줘서 고맙다거나 불러줘서 왔다는 말을 하지 않는다.\n`
+    : lives
+    ? `찾아온 쪽은 {user_name}이다. 불려 나온 것이 아니고, 여기까지 왔다는 말도 네 쪽 얘기가 아니다.\n`
+    : `따로 만난 자리다. 둘 다 여기까지 왔다.\n`;
+  let t = `\n## 지금 있는 자리\n{user_name:과/와} ${place}에 같이 있다.\n` + here + arrive
         + `문자가 아니라 마주 보고 하는 말이다. 어디냐고 묻지 않는다. 왔냐고도 이미 물었다.\n`
         + `여기서는 사진을 안 보낸다("photo"를 쓰지 않는다). 눈앞에 있는데 사진을 왜 보내나.\n`
         + `짧게 주고받는다. 한 번에 한두 마디다. 눈앞에 있는 것이 말에 섞인다.\n`;
@@ -2263,7 +2284,7 @@ const TURN = `
 지난 네 말이 아니라 「대화 예시」가 견본이다. 했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left, came) {
   const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -2287,7 +2308,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + buildGift(gift, userName, room) + buildEvent(event, userName)
           + buildBag(bag || [], room, userName)
           + buildLeft(left, userName)
-          + buildPlace(place, hasItem, room, placeOver)
+          + buildPlace(place, hasItem, room, placeOver, came)
           + (place ? "" : buildInvite(invite, room))
           + (place ? "" : buildCanGo(canGo))
           + TURN;
@@ -3261,6 +3282,11 @@ export default {
     /* 지도에서 불러낸 자리. 1:1에서만 의미가 있다 — 단톡이나 관전방에
        마주 앉을 자리는 없다. bag은 이미 받은 것들이라 두 번 안 준다. */
     const place = mode === "chat" ? placeOf(body.place) : null;
+    /* 그 자리에 어떻게 갔나. 자리가 있을 때만 뜻이 있다.
+       "asked" — 유저가 같이 가자고 했다(동행을 고르는 자리, 같이 자리 옮기기)
+       "invited" — 인물이 가자고 했고 유저가 응했다
+       그 밖 — 유저가 혼자 찾아갔거나 마주친 것이다. 예전 프론트는 안 보낸다. */
+    const came = place && (body.came === "asked" || body.came === "invited") ? body.came : "";
     /* 귀갓길에는 건넬 것이 없다. 그래서 이미 받은 걸로 친다 — 「언젠가 건넬 것」
        블록이 아예 안 붙는다 */
     const bag = normBag(body.bag);
@@ -3283,7 +3309,7 @@ export default {
     const placeOver = !!place && body.place_over === true;
     /* 방금 자리에서 나왔다. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다 */
     const left = mode === "chat" && !place ? (body.left || "").toString().slice(0, 20).trim() : "";
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left, came);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
