@@ -34,6 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
+  loadWorld, saveWorld, loadPartner, savePartner,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
@@ -286,7 +287,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
     Animated.timing(fade,{toValue:1,duration:400,useNativeDriver:true}).start();
     rows.forEach((v,i)=>Animated.timing(v,{toValue:1,duration:350,delay:300+250*i,useNativeDriver:true}).start());
   },[]);
-  const filled = ENR_FIELDS.filter(f=>(profile[f.k]||'').trim()).length;
+  const filled = ENR_FIELDS.filter(f=>f.k==='age'||(profile[f.k]||'').trim()).length;
   const done   = filled===ENR_FIELDS.length;
   const leave  = ()=>{ Animated.timing(fade,{toValue:0,duration:420,useNativeDriver:true}).start(); setTimeout(onDone,440) };
   const anim   = (v:Animated.Value)=>({opacity:v,
@@ -306,10 +307,14 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
         {ENR_FIELDS.map((f,i)=>
           <Animated.View key={f.k} style={[en.row,anim(rows[i])]}>
             <Text style={en.rowL}>{f.lab}</Text>
-            <TextInput style={[en.blank,!!(profile[f.k]||'').trim()&&en.blankOn,f.w?{minWidth:f.w}:null]}
-              placeholder="□□" placeholderTextColor="#7a6bb8" maxLength={20}
-              defaultValue={profile[f.k]||''}
-              onEndEditing={e=>onSaveField(f.k,e.nativeEvent.text.trim())}/>
+            {/* 나이는 세계의 고정값이다 — 유저가 아니라 세계가 정한 칸.
+                행은 남기고 입력만 잠근다(웹의 .enr와 같다) */}
+            {f.k==='age'
+              ?<Text style={[en.blank,en.blankOn,{minWidth:f.w}]}>25</Text>
+              :<TextInput style={[en.blank,!!(profile[f.k]||'').trim()&&en.blankOn,f.w?{minWidth:f.w}:null]}
+                 placeholder="□□" placeholderTextColor="#7a6bb8" maxLength={20}
+                 defaultValue={profile[f.k]||''}
+                 onEndEditing={e=>onSaveField(f.k,e.nativeEvent.text.trim())}/>}
             <Text style={en.rowT}>{f.tail}</Text>
           </Animated.View>)}
         {/* ── 이 판을 어떻게 살 것인가 ── 웹의 .emode와 같은 자리·같은 글월.
@@ -337,6 +342,27 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
         {/* 다 안 채워도 들어갈 수 있다 */}
         <TouchableOpacity style={en.go} activeOpacity={.8} onPress={leave}>
           <Text style={en.goT}>Click!</Text></TouchableOpacity>
+      </View>
+    </View>
+  </Animated.View>;
+}
+/* ── 세계 확정 ── 웹의 Confirm과 같은 카피·같은 자재(en.card).
+   「NULL을」로 고치지 않는다 — NULL=널이라 조사가 없는 것이 의도다.
+   작품 안 선택지는 YES 하나고, back은 등록으로 돌아갈 뿐 세계를 만들지 않는다. */
+function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void}) {
+  const fade = useRef(new Animated.Value(0)).current;
+  const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
+  useEffect(()=>{Animated.timing(fade,{toValue:1,duration:400,useNativeDriver:true}).start()},[]);
+  const yes=()=>{ if(pressed)return; setPressed(true); onYes() };
+  return <Animated.View style={[en.root,{opacity:fade}]}>
+    <View style={en.card}>
+      <View style={en.tb}><Text style={en.tbT}>null.exe</Text></View>
+      <View style={en.body}>
+        <Text style={en.cq}>{name}, 너는 이 세계에{'\n'}NULL 존재하게 할 수 있을까?</Text>
+        <TouchableOpacity style={[en.go,{marginTop:14}]} activeOpacity={.8} onPress={yes}>
+          <Text style={en.goT}>YES</Text></TouchableOpacity>
+        <Text style={en.chint}>거절은 거절해 (´▽｀ ʃƪ)♡</Text>
+        <TouchableOpacity onPress={onBack}><Text style={en.cback}>‹ back</Text></TouchableOpacity>
       </View>
     </View>
   </Animated.View>;
@@ -388,6 +414,10 @@ const en=StyleSheet.create({
   go:{marginTop:13,paddingVertical:10,alignItems:'center',borderRadius:999,backgroundColor:'#ffd9ec',
       borderWidth:1.5,borderColor:'#fff'},
   goT:{...F,fontSize:12,letterSpacing:3.6,color:'#6b5fa8'},
+  /* 세계 확정 화면 — 등록 카드 안의 세 줄뿐이다. 새 껍데기를 만들지 않는다 */
+  cq:{...F,marginTop:18,textAlign:'center',fontSize:13,lineHeight:26,letterSpacing:.5,color:'#4a4276'},
+  chint:{...F,marginTop:11,textAlign:'center',fontSize:9.5,letterSpacing:.8,color:'#b09ecf'},
+  cback:{...F,marginTop:10,textAlign:'center',fontSize:8.5,letterSpacing:1.4,color:'#c9bfe4'},
 });
 
 // ═══ 오프닝 ═══
@@ -1407,9 +1437,10 @@ function Root() {
   const [stamp,setStamp]=useState(0);                              // 프로필 갱신 트리거
   const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
   const [demo,setDemo]=useState(false);                            // 각본으로 넘어갔나
-  /* 등록 화면은 이름을 처음 넣은 사람에게만 지나간다 — 이미 이름이 있으면
-     앱을 열 때마다 볼 이유가 없다. */
-  const [enrolling,setEnrolling]=useState(false);
+  /* 등록 → 세계 확정(YES)이 한 번 지나간다. false | 'enroll' | 'confirm'.
+     이름이 저장돼 있어도 YES를 안 눌렀으면 메신저로 건너뛰지 않는다 —
+     등록만 하고 닫은 사람은 아직 시작 전이다(웹과 같은 규칙·같은 열쇠). */
+  const [enrolling,setEnrolling]=useState<false|'enroll'|'confirm'>(false);
   /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 — 웹과 같은 열쇠다 */
   const [mode,setMode]=useState<string>(loadMode);
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
@@ -1481,7 +1512,7 @@ function Root() {
     setSeenStage(await loadSeenStage());
     const a=await getMeta('null_auto_at');
     if(a) setAutoAt(Number(a)||0);
-    if(n){ setName(n); await reload(); } else setName('');
+    if(n){ setName(n); if(!loadWorld()) setEnrolling('enroll'); await reload(); } else setName('');
     setReady(true);
   })()},[]);
 
@@ -1600,7 +1631,7 @@ function Root() {
 
   /* 입장 — 기본 문장 없음, 빈 방에서 시작 */
   const handleEnter = async(n:string)=>{
-    await setMeta('user_name',n); setName(n); setEnrolling(true);
+    await setMeta('user_name',n); setName(n); setEnrolling('enroll');
     await reload();
   };
 
@@ -1872,8 +1903,20 @@ function Root() {
   },[ready,name,enrolling,view,msgs]);
 
   /* 당신.txt: 빈칸 저장 / 이름 변경 */
-  const saveProfile=(k:string,v:string)=>setProfile(p=>{const n={...p,[k]:v}; setMeta('null_profile',JSON.stringify(n)); return n;});
-  const doRename=(t:string)=>{const v=t.trim(); if(v){setMeta('user_name',v); setName(v);}};
+  const saveProfile=(k:string,v:string)=>{
+    /* YES 뒤에는 프로필이 잠긴다. 나이 고정은 YES 자신이 부르는 것이라 통과시킨다 */
+    if(loadWorld()&&k!=='age')return;
+    setProfile(p=>{const n={...p,[k]:v}; setMeta('null_profile',JSON.stringify(n)); return n;});
+  };
+  /* YES — 세계가 생기는 순간. 프로필이 잠기고 나이는 세계 고정값 25가 된다.
+     saveWorld는 멱등이라 연타·재렌더가 와도 시작은 한 번이다(웹과 같다). */
+  const confirmYes=()=>{
+    saveWorld();
+    saveProfile('age','25');
+    setEnrolling(false);
+  };
+  /* YES 뒤에는 이름도 칸도 안 바뀐다 */
+  const doRename=(t:string)=>{if(loadWorld())return;const v=t.trim(); if(v){setMeta('user_name',v); setName(v);}};
   /* [편집] 대화 저장: 전체 방 → 공유 시트로 내보내기 */
   const exportTxt=async()=>{
     const lines:string[]=['NULL — 대화 기록',''];
@@ -2151,9 +2194,10 @@ function Root() {
         </View>
       </View>
     </Modal>
-    {enrolling&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
+    {enrolling==='enroll'&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
-      onRename={doRename} onDone={()=>setEnrolling(false)}/>}
+      onRename={doRename} onDone={()=>setEnrolling('confirm')}/>}
+    {enrolling==='confirm'&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling('enroll')}/>}
     {/* ── 지도와 자리의 창들 ── 판정은 flow.ts, 글월은 웹과 같다 */}
     {ask&&<AskDialog place={ask}
       state={askState(ask,{scene,met,msgs:msgsForFlow(),picked:askWho})}

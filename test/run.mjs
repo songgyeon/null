@@ -365,10 +365,10 @@ eq('음악이 막혔을 때 켜라고 알려준다',
    앱을 열 때마다 나오면 그냥 방해다. */
 eq('등록 화면이 웹·앱 둘 다 있다',
   /function Enroll\(/.test(appSrc) && /function Enroll\(/.test(web), true);
-/* 웹은 등록이 단계가 됐다(false|"enroll"|"confirm") — 이름을 넣으면 등록으로,
-   Click 뒤 세계 확정(YES)으로 간다. 앱은 아직 불리언이다(확정 화면은 다음 차례). */
+/* 등록이 단계가 됐다(false|'enroll'|'confirm') — 이름을 넣으면 등록으로,
+   Click 뒤 세계 확정(YES)으로 간다. 웹과 앱이 같은 단계를 쓴다 */
 eq('등록 화면은 이름을 넣은 순간에 뜬다',
-  [/setName\(n\);\s*setEnrolling\(true\)/.test(appSrc), /setName\(n\);setEnrolling\("enroll"\)/.test(web)],
+  [/setName\(n\); setEnrolling\('enroll'\)/.test(appSrc), /setName\(n\);setEnrolling\("enroll"\)/.test(web)],
   [true, true]);
 /* 남은 날이 null인 것이 이 프로덕트의 이름이자 이야기다. 숫자로 바꾸면 안 된다. */
 eq('DAYS LEFT는 null로 둔다',
@@ -2227,6 +2227,22 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     const tail = web.slice(i, i + 220);
     return /\{' '\}<span className="kao">/.test(tail) && !/<\/div>[\s\S]{0,40}kao/.test(tail);
   })(), true);
+  /* ── 앱도 같은 문을 쓴다 ──
+     웹만 고치면 두 화면이 다른 세계가 된다. 카피도 잠금도 같은 것이어야 한다 */
+  eq('앱도 확정 화면을 지난다',
+    /function Confirm\(\{name,onYes,onBack\}/.test(appSrc)
+    && appSrc.includes('너는 이 세계에')
+    && appSrc.includes('NULL 존재하게 할 수 있을까?')
+    && appSrc.includes('거절은 거절해'), true);
+  eq('앱도 이름만으로는 못 들어간다',
+    /if\(!loadWorld\(\)\) setEnrolling\('enroll'\)/.test(appSrc), true);
+  eq('앱도 나이가 고정값 25다',
+    /f\.k==='age'/.test(appSrc)
+    && /saveProfile\('age','25'\)/.test(appSrc), true);
+  eq('앱도 YES 뒤에는 잠긴다',
+    /const doRename=\(t:string\)=>\{if\(loadWorld\(\)\)return;/.test(appSrc)
+    && /if\(loadWorld\(\)&&k!=='age'\)return;/.test(appSrc), true);
+  eq('앱도 YES 연타는 한 번이다', /if\(pressed\)return; setPressed\(true\); onYes\(\)/.test(appSrc), true);
   /* 연장은 한 번 — 추가 30일이 끝나면 WHO도 연장도 다시 안 묻는다 */
   eq('두 번째 D-0는 없다',
     /ddayAns!==String\(dSpan\)&&!loadExtend\(\)/.test(web), true);
@@ -4352,6 +4368,32 @@ eq('시간표 단추는 peek보다 좁다',
   /* 조용히 넘어가는 것이 문제였다 */
   eq('고른 모델이 아니면 콘솔에 적는다',
     /고른 모델이 아니다 — \$\{MODELS\[0\]\.id\} 대신 \$\{m\.id\}가 답했다/.test(wk), true);
+}
+
+/* ── 요청 하나에 이름표 하나 ──
+   앞으로 한 턴이 모델 여러 번을 타게 된다. 그러면 답이 늦어지고, 그 사이
+   유저가 다시 보내거나 방을 들락거릴 수 있다. 먼저 보낸 요청의 답이 뒤늦게
+   도착해 지금 화면에 붙으면 딴말이 된다. 이름표로 가린다.
+   워커는 상태를 안 들고 있으므로 판정은 프론트 몫이고, 워커는 비춰만 준다. */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  eq('요청에 이름표를 단다',
+    /payload\.request_id=rid;/.test(web) && /inflightRef\.current\[bucket\]=rid;/.test(web), true);
+  eq('워커가 이름표를 비춰준다',
+    /const reqId = typeof body\.request_id === "string"/.test(wk)
+    && /\.\.\.\(reqId \? \{ request_id: reqId \} : \{\}\)/.test(wk), true);
+  /* 늦게 온 답은 성공도 실패도 지금 화면을 안 건드린다 */
+  eq('늦게 온 답은 버린다',
+    (web.match(/if\(inflightRef\.current\[bucket\]!==rid\)return;/g) || []).length, 2);
+  /* 여러 단계를 타는 턴은 느리다. 넉넉히 주되 무한정 기다리지는 않는다 —
+     스피너가 영원히 도는 화면이 제일 나쁘다 */
+  eq('오래 걸려도 안 깨지고 영영은 안 기다린다',
+    /const REQ_TIMEOUT=90000;/.test(web)
+    && /new AbortController\(\)/.test(web)
+    && /e&&e\.name==="AbortError"/.test(web), true);
+  /* 실패는 실패로 보인다 — 각본으로 메우지 않는다(?demo=1만 예외) */
+  eq('실패를 각본으로 안 메운다',
+    /setFailed\(f=>\(\{\.\.\.f,\[bucket\]:\{payload,detail\}\}\)\)/.test(web), true);
 }
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);

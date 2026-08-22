@@ -12,6 +12,8 @@ function App(){
   const [view,setView]=useState("list");            // 'list' | roomId
   const [busy,setBusy]=useState({});                // 방별 타이핑 인디케이터
   const [failed,setFailed]=useState({});            // 방별 실패 payload (재시도용)
+  /* 여러 단계를 타는 턴은 느리다. 넉넉히 주되 무한정 기다리지는 않는다 */
+  const REQ_TIMEOUT=90000;
   const [autoLoading,setAutoLoading]=useState(false);
   const viewRef=useRef(view); viewRef.current=view;
   /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 */
@@ -565,26 +567,44 @@ function App(){
         appendMsg(bucket,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
       return;
     }
-    inflightRef.current[bucket]=true;
+    /* ── 요청 하나에 이름표 하나 ──
+       앞으로 한 턴이 모델 여러 번을 타게 된다(Writer→Director). 그러면 답이
+       늦게 오고, 늦게 오는 동안 유저가 다시 보내거나 방을 나갔다 들어올 수
+       있다. 그때 먼저 보낸 요청의 답이 뒤늦게 도착하면 지금 화면과 어긋난
+       말이 붙는다. 이름표를 달아두고, 지금 것이 아니면 버린다.
+       화면에 안 보이는 값이지만 없으면 늦은 답이 조용히 섞인다. */
+    const rid=(crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();
+    payload.request_id=rid;
+    inflightRef.current[bucket]=rid;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
     /* 데모는 ?demo=1로 고른 것만 남았다. 실패해서 넘어가는 길은 없앴다 —
        실패를 각본으로 메우면 화면에서 장애가 안 보인다. */
     if(DEMO.on){
-      inflightRef.current[bucket]=false;
+      inflightRef.current[bucket]=null;
       setTimeout(()=>demoSay(bucket,demoAsk(payload),demoGiftKey(payload)),450);
       return;
     }
+    /* ── 오래 걸려도 안 깨지고, 영영 안 오면 끊는다 ──
+       여러 단계를 타는 턴은 평소보다 느리다. 그걸 고장으로 읽고 일찍 끊으면
+       멀쩡한 답을 버리게 되므로 넉넉히 준다. 대신 무한정 기다리지는 않는다 —
+       스피너가 영원히 도는 화면이 제일 나쁘다. */
+    const ac=(typeof AbortController!=="undefined")?new AbortController():null;
+    const killer=ac?setTimeout(()=>ac.abort(),REQ_TIMEOUT):null;
     try{
-      const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload),...(ac?{signal:ac.signal}:{})});
       const data=await res.json().catch(()=>null);
+      /* 이 방의 지금 요청이 아니면 버린다. 늦게 온 답을 붙이면 화면과 딴말이 된다 */
+      if(inflightRef.current[bucket]!==rid)return;
       if(!res.ok){
         // 서버가 알려준 실패 사유를 그대로 들고 올라간다
         const err=new Error("HTTP "+res.status);
         err.detail=(data&&(data.detail||data.error))||("HTTP "+res.status);
         throw err;
       }
-      inflightRef.current[bucket]=false;
+      clearTimeout(killer);
+      if(inflightRef.current[bucket]===rid)inflightRef.current[bucket]=null;
       /* 선톡 답이 오는 사이 유저가 그 사람 자리에 들어갔을 수 있다.
          눈앞에 앉은 사람이 보낸 원격 안부 문자가 도착하면 버린다 — 발사 시점
          가드는 요청만 막지 도착은 못 막는다 */
@@ -631,9 +651,15 @@ function App(){
         },Math.max(1500,((data.messages||[]).length+2)*600));
       }
     }catch(e){
-      inflightRef.current[bucket]=false;
+      clearTimeout(killer);
+      /* 늦게 터진 옛 요청은 지금 화면을 안 건드린다 — 이미 새 요청이
+         돌고 있는데 옛것의 실패로 스피너를 끄면 답이 오는 중에 재시도가 뜬다 */
+      if(inflightRef.current[bucket]!==rid)return;
+      inflightRef.current[bucket]=null;
       setBusy(b=>({...b,[bucket]:false}));
-      const detail=String(e.detail||e.message||e).slice(0,500);
+      const detail=(e&&e.name==="AbortError")
+        ?"응답이 없어서 끊었습니다(시간 초과)"
+        :String(e.detail||e.message||e).slice(0,500);
       // 화면(재시도 버튼 아래)과 콘솔 양쪽에 남긴다 — 어느 쪽을 보든 원인이 보이게
       console.error("%c[NULL] 실패 원인 ▶ "+detail,"color:#c23b50;font-size:13px;font-weight:bold");
       /* 실패한 턴을 각본으로 메우지 않는다.

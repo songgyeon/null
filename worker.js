@@ -3213,6 +3213,8 @@ export default {
     let body;
     try { body = await request.json(); } catch { body = {}; }
 
+    /* 프론트가 붙인 요청 이름표. 워커는 판정하지 않고 그대로 비춰준다 */
+    const reqId = typeof body.request_id === "string" ? body.request_id.slice(0, 64) : "";
     const mode = body.mode === "auto" ? "auto" : body.mode === "summarize" ? "summarize" : "chat";
     /* 요약은 방을 안 가려도 된다 — 압축이라 인물 블록도 형식도 안 쓴다.
        관전(health)도 요약해야 창 밖으로 밀려난 대화가 남는다. 다만 chat·auto
@@ -3418,8 +3420,14 @@ export default {
           { status: 502, headers: { ...CORS, "content-type": "application/json" } });
       }
       const messages = dropSleepers(kept, place ? null : states);
+      /* ── 이름표를 되돌려준다 ──
+         한 턴이 모델 여러 번을 타게 되면 답이 늦어지고, 그 사이 프론트에서
+         새 요청이 나갈 수 있다. 프론트가 「이게 지금 것이 맞나」를 스스로
+         가리려면 보낸 이름표가 답에 실려 와야 한다. 워커는 상태를 안 들고
+         있으므로 판정은 프론트 몫이고, 여기서는 그대로 비춰주기만 한다. */
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
         usage: lastUsage,
+        ...(reqId ? { request_id: reqId } : {}),
         ...(invite ? { invite: { place: invite, char: room } } : {}),
         ...(give ? { give: { item: give, place, char: room } } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
