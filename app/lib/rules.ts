@@ -32,7 +32,7 @@ const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"100%",pos:"50% 40%",
     gallery:["jaeeon-work.webp","jaeeon-chart.webp","jaeeon-cook.webp","jaeeon-rooftop.webp","jaeeon-shelf.webp","jaeeon-laundry.webp","jaeeon-driveseat.webp","jaeeon-conv.webp","jaeeon-record.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp"]},
+    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp"]},
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;
@@ -595,7 +595,7 @@ const PLACES=[
   {name:"빨래방",   map:"town", meet:"out", bg:"place-laundry.webp",  icon:"laundry", need:["도서관"],            who:["jaeeon","minhyun"], item:"coin",
    note:"건조기 도는 사십 분."},
   /* 마지막. 양쪽을 다 걸어봐야 열린다 — 한쪽만 파서 남의 집에 갈 수는 없다 */
-  {name:"집",       map:"town", hours:[17,2], wend:[11,2], bg:"place-home.webp", icon:"home", need:["빨래방","레코드샵"], who:["jaeeon"], item:"key",
+  {name:"집",       map:"town", hours:[17,2], wend:[11,2], bg:"place-home.webp", icon:"home", need:["빨래방","레코드샵"], who:["jaeeon","minhyun"], own:"jaeeon", item:"key",
    note:"현관에 우산이 두 개."},
   /* ── 학교 안 ── 길이 아니라 건물이다. 그래서 표지판을 안 세운다 */
   {name:"교실",     map:"school", hours:[8,22], wend:false, bg:"place-class.webp",   icon:"class",   need:[],                 who:["minhyun"], own:"minhyun", item:"note",
@@ -827,7 +827,9 @@ const SCENE_SHOT={
      건조기 앞에 앉아 수건을 개고 있고 창밖에 비가 온다 */
   "빨래방":   {minhyun:["minhyun-laundry"], jaeeon:["jaeeon-laundry"]},
   "체육관":   {minhyun:["minhyun-gym"]},
-  "집":       {jaeeon:["jaeeon-cook"]},
+  /* 재언 집이지만 민현도 산다. 재언은 부엌에 서 있고, 민현은 막 일어난
+     참이거나 엘리베이터에서 올라오는 길이다 */
+  "집":       {jaeeon:["jaeeon-cook"], minhyun:["minhyun-morning","minhyun-elevator"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
      빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
   "귀갓길":   {jaeeon:["jaeeon-driveseat"], minhyun:["minhyun-busstop","minhyun-neon"]},

@@ -3082,8 +3082,11 @@ eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), 
   eq('남의 자리에 가면 따로 만난 자리다',
     /따로 만난 자리다/.test(buildPlace('보건실', true, 'minhyun'))
     && !/여기는 원래 네 자리다/.test(buildPlace('옥상', true, 'jaeeon')), true);
-    eq('교실과 보건실에 임자가 적혀 있다',
-    (web.match(/own:"(minhyun|jaeeon)"/g) || []).length, 2);
+  /* 임자가 있는 자리 셋 — 교실은 민현, 보건실과 집은 재언이다.
+     집은 재언 집이지만 민현도 산다. 사는 것과 임자인 것은 다르다 —
+     여벌 열쇠를 내주는 쪽이 임자다. */
+  eq('교실·보건실·집에 임자가 적혀 있다',
+    (web.match(/own:"(minhyun|jaeeon)"/g) || []).length, 3);
 }
 /* 마주 앉아서 어디 가자고 하면 지금 여기가 어디가 되는지 알 수가 없다 */
 eq('자리에 있는 동안엔 갈 자리를 안 꺼낸다',

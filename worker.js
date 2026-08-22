@@ -1890,7 +1890,10 @@ const PLACE_ITEMS = {
   "도서관":   { key: "book",    name: "책",          how: "빌려주는 것이다. 반납일은 정하지 않는다." },
   "레코드샵": { key: "lp",      name: "중고 LP",     how: "상자 밑에서 꺼내 사준다." },
   "빨래방":   { key: "coin",    name: "동전 한 줌",  how: "건조기용이다. 남으면 가지라고 한다." },
-  "집":       { key: "key",     name: "여벌 열쇠",   how: "고리도 안 달린 것이다." },
+  /* by — 이 자리에 둘이 다 올 수 있어도 건네는 쪽은 하나다. 여벌 열쇠는
+     재언 집 열쇠라 민현이 줄 수 있는 것이 아니다. own은 누구 자리인가,
+     by는 누가 건네는가 — 집은 둘 다 재언이다. */
+  "집":       { key: "key",     name: "여벌 열쇠",   own: "jaeeon", by: "jaeeon", lives: ["minhyun"], how: "고리도 안 달린 것이다." },
   "체육관":   { key: "wrist",   name: "손목 보호대", how: "손목에서 풀어서 준다. 늘어나 있다." },
 };
 /* 가방에 든 키로 이름을 찾는다. 「하리보 젤리」라고 불러야 하는데
@@ -2012,10 +2015,17 @@ function buildPlace(place, hasItem, room, over) {
   }
   const it = PLACE_ITEMS[place];
   const mine = it.own && it.own === room;
+  /* 사는 것과 임자인 것은 다르다. 집은 재언 집이고 열쇠도 재언이 내주지만
+     민현도 거기서 산다 — 「따로 만난 자리다, 둘 다 여기까지 왔다」가 나오면
+     제 집에 손님으로 온 사람이 된다. */
+  const lives = !mine && (it.lives || []).includes(room);
   let t = `\n## 지금 있는 자리\n{user_name:과/와} ${place}에 같이 있다.\n`
         + (mine
             ? `여기는 원래 네 자리다. 늘 있던 데고, ${place}에 있는 것 자체는 사건이 아니다. 찾아온 쪽은 {user_name}이다.\n`
             + `불려 나온 것이 아니다. 와줘서 고맙다거나 불러줘서 왔다는 말을 하지 않는다.\n`
+            : lives
+            ? `네가 사는 데다. 임자는 삼촌이지만 너도 여기서 산다 — ${place}에 있는 것 자체는 사건이 아니다.\n`
+            + `찾아온 쪽은 {user_name}이다. 불려 나온 것이 아니고, 여기까지 왔다는 말도 네 쪽 얘기가 아니다.\n`
             : `따로 만난 자리다. 둘 다 여기까지 왔다.\n`)
         + `문자가 아니라 마주 보고 하는 말이다. 어디냐고 묻지 않는다. 왔냐고도 이미 물었다.\n`
         + `여기서는 사진을 안 보낸다("photo"를 쓰지 않는다). 눈앞에 있는데 사진을 왜 보내나.\n`
@@ -2027,7 +2037,9 @@ function buildPlace(place, hasItem, room, over) {
     t += `\n이 자리는 여기까지다. 문 닫을 시간이거나 서로 가야 할 시간이 됐다.\n`
        + `이번 대답에서 하던 말을 자연스럽게 매듭짓고 먼저 일어선다. 새 화제를 벌이지 않는다.\n`;
   }
-  if (!hasItem) {
+  /* by가 걸린 자리는 그 사람 턴에만 건넬 것을 알려준다. 안 걸면 민현이
+     재언 집 열쇠를 내민다. */
+  if (!hasItem && (!it.by || it.by === room)) {
     /* 「여기서 건넬 것」이라고 표제를 달아놓으니 첫 마디부터 건네줬다.
        자리에 앉자마자 물건을 내미는 사람은 없다. 표제부터 「언젠가」로 바꾸고,
        초대와 같은 모양으로 조건을 적는다 — 그쪽은 이 방식으로 잘 되고 있다. */
@@ -2097,8 +2109,9 @@ ${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.ke
 `;
 }
 /* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
-function pickGive(raw, place, hasItem) {
+function pickGive(raw, place, hasItem, room) {
   if (!place || hasItem || !PLACE_ITEMS[place]) return null;
+  if (PLACE_ITEMS[place].by && PLACE_ITEMS[place].by !== room) return null;
   const k = (raw || "").toString().trim();
   return k && PLACE_ITEMS[place].key === k ? k : null;
 }
@@ -3219,7 +3232,7 @@ export default {
          걸리면, 화면에는 아무 일도 안 일어나고 말만 남는다. */
       const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
       // 이 자리의 물건을 건넸나. 자리에 없거나 이미 받았으면 null이다
-      const give = pickGive(parseMessages.give, place, hasItem);
+      const give = pickGive(parseMessages.give, place, hasItem, room);
       /* 메아리 거르기는 말버릇 필터 뒤다 — trimTics가 앞의 말줄임표를 떼고 나야
          「...흥이래요.」도 같은 줄로 보인다 */
       const messages = dropSleepers(
