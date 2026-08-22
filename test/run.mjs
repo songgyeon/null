@@ -1288,10 +1288,14 @@ eq('생성된 파일이라고 적어둔다',
 }
 
 /* 실패했을 때 조용히 각본으로 갈아타면 진짜 장애를 못 알아챈다.
-   원인은 콘솔에, 표시는 하단 바에 — 웹이 하는 것과 같아야 한다. */
-eq('앱도 서버가 죽으면 각본으로 넘어간다', /catch[\s\S]{0,80}fallToDemo/.test(appSrc), true);
-eq('넘어간 이유를 콘솔에 남긴다', /console\.error\([^)]*NULL/.test(appSrc), true);
+   한동안은 반대로 적혀 있었다 — 「앱도 서버가 죽으면 각본으로 넘어간다」가
+   시험이었다. 웹에는 ?demo=1이 있어서 각본이 고른 것이었지만, 앱에는 그게
+   없으니 실패 폴백이 유일한 각본 경로였다. 그래서 앱은 서버가 죽어도 아무
+   티를 안 내고 대사를 읽었다. 지금은 원인이 콘솔과 화면 양쪽에 남는다. */
+eq('실패한 까닭을 콘솔에 남긴다', /console\.error\([^)]*NULL/.test(appSrc), true);
 eq('데모로 돌고 있으면 하단 바에 뜬다', /NULL v[\d.]+\{demo\?' · demo'/.test(appSrc), true);
+/* 실패가 각본을 켜던 자리였다. 이제 DEMO는 손으로만 켠다 */
+eq('실패는 각본 스위치를 못 켠다', /DEMO\.auto=true/.test(appSrc), false);
 
 /* 배경 사진은 나중에 올라온다. 없는 파일을 걸면 RN은 아무 말 없이 빈 화면이 되므로
    onError로 기존 배경에 돌아가야 한다(웹의 useBg가 하는 일). */
@@ -4478,6 +4482,35 @@ eq('시간표 단추는 peek보다 좁다',
   /* 실패는 실패로 보인다 — 각본으로 메우지 않는다(?demo=1만 예외) */
   eq('실패를 각본으로 안 메운다',
     /setFailed\(f=>\(\{\.\.\.f,\[bucket\]:\{payload,detail\}\}\)\)/.test(web), true);
+  /* ── 앱도 같은 규칙이다 ──
+     웹만 고치면 같은 고장이 앱에서만 조용해진다. 앱에는 ?demo=1이 없으므로
+     실패 폴백이 곧 유일한 데모 경로였고, 그래서 서버가 죽으면 앱은 아무
+     티도 안 내고 각본을 읽었다. */
+  eq('앱도 요청에 이름표를 단다',
+    /\{reqId:rid,/.test(appSrc) && /reqId \? \{ request_id: reqId \} : \{\}/.test(apiSrc), true);
+  eq('앱은 재시도에 같은 이름표를 쓴다',
+    /keep&&ridRef\.current\[room\]\?ridRef\.current\[room\]:newRid\(\)/.test(appSrc)
+    && /runTurn\(room,undefined,true\)/.test(appSrc), true);
+  /* 성공도 실패도 늦게 오면 화면을 안 건드린다 — 세 자리(선물·대화·관전) 모두 */
+  /* 세 자리 모두 성공 쪽과 실패 쪽 양쪽을 막아야 한다 — 한쪽만 막으면
+     늦게 터진 옛 실패가 지금 도는 요청 위에 재시도를 띄운다 */
+  eq('앱도 늦게 온 답을 버린다', (() => {
+    const site = (from, to) => appSrc.slice(appSrc.indexOf(from), appSrc.indexOf(to));
+    return [
+      ['const giveGift = async', '/* 실측.'],
+      ['const runTurn = async', '/* 재시도는 같은 논리 요청'],
+      ['const handleAuto = async', '/* 선물이나 해금이 있으면'],
+    ].filter(([a, b]) => (site(a, b).match(/stale\((?:char|room|'health'),rid\)/g) || []).length !== 2)
+     .map(([a]) => a);
+  })(), []);
+  eq('앱은 실패를 각본으로 안 메운다',
+    !/fallToDemo/.test(appSrc) && /setFailed\(\{room,detail\}\)/.test(appSrc), true);
+  /* 실패한 까닭이 화면에 안 뜨면 「그냥 답이 없네」로 읽힌다 */
+  eq('앱도 실패 원인을 화면에 적는다',
+    /failed\.detail&&<Text style=\{ch\.retryWhy\}>/.test(appSrc), true);
+  /* 방을 옮기면 남의 방 실패가 따라다녔다 */
+  eq('앱의 실패는 그 방에만 뜬다',
+    /failed=\{failed&&failed\.room===view\.id\?failed:null\}/.test(appSrc), true);
 }
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);

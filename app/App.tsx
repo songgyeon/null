@@ -1374,8 +1374,11 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
         <HardShadow radius={8}><View style={ch.bub}>
           <Text style={{...F,color:P.mid,fontSize:14,letterSpacing:2}}>···</Text></View></HardShadow>
       </View>}
+      {/* 왜 안 됐는지를 단추 아래 그대로 적는다 — 안 적으면 잠긴 것도
+          키가 죽은 것도 「그냥 답이 없네」로 보인다 */}
       {failed&&!typing&&<TouchableOpacity style={ch.retry} onPress={onRetry}>
-        <Text style={ch.retryT}>no reply... try again?</Text></TouchableOpacity>}
+        <Text style={ch.retryT}>no reply... try again?</Text>
+        {!!failed.detail&&<Text style={ch.retryWhy}>{failed.detail}</Text>}</TouchableOpacity>}
     </ScrollView>
     {watch
       ? <View style={ch.wBar}><Text style={{fontSize:8}}>🔴</Text><Text style={ch.wT}>u can't join this one</Text></View>
@@ -1411,6 +1414,7 @@ const ch=StyleSheet.create({
   pCap:{...F,paddingHorizontal:7,paddingVertical:5,fontSize:12.5,color:P.ink},
   retry:{alignSelf:'flex-start',marginTop:8,marginLeft:34,paddingHorizontal:13,paddingVertical:8,backgroundColor:'#fff0f3',borderWidth:1,borderColor:'#d4586b'},
   retryT:{...F,fontSize:11,color:P.err},
+  retryWhy:{...F,marginTop:5,maxWidth:250,fontSize:9.5,lineHeight:14,color:'#a04255',opacity:.85},
   iBar:{flexDirection:'row',alignItems:'center',gap:8,padding:10,backgroundColor:P.chrome,borderTopWidth:1,borderTopColor:P.mid},
   input:{...F,flex:1,paddingHorizontal:12,paddingVertical:10,fontSize:16,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,borderTopColor:P.border,borderLeftColor:P.border,color:P.ink},
   wBar:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,paddingVertical:12,backgroundColor:P.chrome,borderTopWidth:1,borderTopColor:P.mid},
@@ -1495,7 +1499,9 @@ function Root() {
   const [unlocked,setUnlocked]=useState<string[]>([]);             // .hidden 해금 key
   const [stamp,setStamp]=useState(0);                              // 프로필 갱신 트리거
   const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
-  const [demo,setDemo]=useState(false);                            // 각본으로 넘어갔나
+  /* 각본으로 도는 중인가. 이제 실패는 여기를 못 건드린다 — DEMO는 손으로
+     켜는 개발용 스위치일 뿐이고, 서버가 안 되면 각본이 아니라 재시도가 뜬다 */
+  const [demo]=useState(demoOn());
   /* 등록 → 세계 확정(YES)이 한 번 지나간다. false | 'enroll' | 'confirm'.
      이름이 저장돼 있어도 YES를 안 눌렀으면 메신저로 건너뛰지 않는다 —
      등록만 하고 닫은 사람은 아직 시작 전이다(웹과 같은 규칙·같은 열쇠). */
@@ -1730,17 +1736,23 @@ function Root() {
     await markEvent({kind:'gift', to:char, name:gift.name});
     setFailed(null); setTyping(true);
     if(demoOn()){ setTyping(false); await enqueue(char,demoReply(char,line,name,gift.key)); return; }
+    const rid=startTurn(char);
     try{
       const hist=await getMsgs(char);
-      const data=await sendChat(char,name,hist,{gift:{key:gift.key,name:gift.name,note},
+      const data=await sendChat(char,name,hist,{reqId:rid,
+        gift:{key:gift.key,name:gift.name,note},
         bag:bagOut(bagRef.current),
         ...(sceneRef.current&&sceneRef.current.room===char
           ?{place:sceneRef.current.place}:{})});
-      setTyping(false);
+      if(stale(char,rid))return;                  // 늦게 온 답은 화면을 안 건드린다
+      endTurn(char,rid); setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(char,data.messages);
       logUsage(data); rollLater(char);
-    }catch(e:any){ setTyping(false); await fallToDemo(e,char,line,gift.key); }
+    }catch(e:any){
+      if(stale(char,rid))return;
+      endTurn(char,rid); setTyping(false); failTurn(e,char);
+    }
   };
 
   /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가 안 맞고
@@ -1760,18 +1772,41 @@ function Root() {
     },1200);
   };
 
-  /* 서버가 안 되면 각본으로 넘어간다. 한 번 넘어가면 그 뒤로는 계속 데모다 —
-     한 대화 안에서 진짜와 각본이 섞이면 어느 쪽이 고장인지 알 수가 없다.
-     실패한 진짜 이유는 콘솔에 그대로 남긴다. */
-  const fallToDemo = async(e:any, room:string, lastText?:string, gift?:string|null)=>{
-    console.error('[NULL] 서버 호출 실패 → 데모로 전환', e);
-    DEMO.auto=true; setDemo(true); setFailed(null);
-    await enqueue(room, demoReply(room,lastText,name,gift));
+  /* ── 실패한 턴을 각본으로 안 메운다 ──
+     예전에는 서버가 안 되면 조용히 데모로 넘어갔다. 그러면 화면에는 대화가
+     그대로 뜬다 — 잠긴 것도, 키가 죽은 것도, 한도가 바닥난 것도 전부
+     「잘 되는 중」으로 보인다. 안 되면 안 되는 게 보여야 한다. 웹(app.js)이
+     먼저 그렇게 고쳤고 이제 앱도 같다. 명시적 데모(DEMO)는 그대로 둔다 —
+     그건 고른 것이다. */
+  const failTurn = (e:any, room:string)=>{
+    const detail=String(e?.detail||e?.message||e).slice(0,500);
+    console.error('[NULL] 실패 원인 ▶ '+detail);
+    setFailed({room,detail});
   };
+
+  /* ── 한 논리 요청에 이름표 하나 ──
+     재시도해도 같은 이름표를 쓴다. 워커가 나중에 멱등 처리를 붙일 때
+     「같은 턴을 다시 부른 것」과 「새 턴」을 구별할 자리가 여기다.
+     그리고 늦게 온 답을 버리는 기준이기도 하다 — 방마다 지금 도는 이름표를
+     적어두고, 답이 왔을 때 그게 아니면 화면을 안 건드린다. */
+  const ridRef=useRef<Record<string,string>>({});      // 방별 논리 요청 ID
+  const inflightRef=useRef<Record<string,string|null>>({});
+  const newRid=()=>{
+    const c:any=(globalThis as any).crypto;
+    return c&&c.randomUUID?c.randomUUID():String(Date.now())+Math.random();
+  };
+  /* keep이면 재시도다 — 있던 이름표를 그대로 쓴다 */
+  const startTurn=(room:string, keep?:boolean)=>{
+    const rid=keep&&ridRef.current[room]?ridRef.current[room]:newRid();
+    ridRef.current[room]=rid; inflightRef.current[room]=rid;
+    return rid;
+  };
+  const stale=(room:string, rid:string)=>inflightRef.current[room]!==rid;
+  const endTurn=(room:string, rid:string)=>{ if(!stale(room,rid)) inflightRef.current[room]=null; };
 
   /* 보낸 말은 이미 저장돼 있다. 모델 호출만 다시 한다 —
      재시도해도 같은 말이 두 번 쌓이지 않는다. */
-  const runTurn = async(room:string, left?:string)=>{
+  const runTurn = async(room:string, left?:string, retry?:boolean)=>{
     if(!name) return;
     setFailed(null); setTyping(true);
     const ls=lastSent.current;
@@ -1791,6 +1826,7 @@ function Root() {
       if(!(last&&last.sender==='sys'&&last.text===line)) await sysLine(room,line);
       return;
     }
+    const rid=startTurn(room,retry);
     try{
       const hist=await getMsgs(room);
       /* 마주 앉은 자리면 어디인지 같이 보낸다. 안 보내면 같은 자리에 앉아서
@@ -1801,19 +1837,24 @@ function Root() {
       const at=sc&&sc.room===room?sc.place:null;
       /* left는 자리를 닫고 나서 부르는 턴에만 온다. place와 같이 오지 않는다 —
          워커도 place가 없을 때만 본다. */
-      const data=await sendChat(room,name,hist,{bag:bagOut(bagRef.current),
+      const data=await sendChat(room,name,hist,{reqId:rid,bag:bagOut(bagRef.current),
         ...(at?{place:at,...(sc.came?{came:sc.came}:{}),...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
-      setTyping(false);
+      if(stale(room,rid))return;
+      endTurn(room,rid); setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);
       logUsage(data); rollLater(room);
-    }catch(e:any){ setTyping(false); await fallToDemo(e,room,said); }
+    }catch(e:any){
+      if(stale(room,rid))return;
+      endTurn(room,rid); setTyping(false); failTurn(e,room);
+    }
   };
 
+  /* 재시도는 같은 논리 요청이다 — 이름표를 새로 뽑지 않는다 */
   const handleRetry = ()=>{
     const last=lastSent.current;
     const room=(viewRef.current.type==='chat'&&viewRef.current.id)||last?.room;
-    if(room) runTurn(room);
+    if(room) runTurn(room,undefined,true);
   };
 
   const handleAuto = async()=>{
@@ -1833,12 +1874,17 @@ function Root() {
     const t=Date.now(); setAutoAt(t); setMeta('null_auto_at',String(t));
     setAutoLoading(true);
     if(demoOn()){ await enqueue('health',demoReply('health')); setAutoLoading(false); return; }
+    const rid=startTurn('health');
     try{
-      const data=await genAuto(name);
-      await applyExtras(data);
-      if(data.messages?.length) await enqueue('health',data.messages);
-    }catch(e:any){ await fallToDemo(e,'health'); }
-    setAutoLoading(false);
+      const data=await genAuto(name,undefined,rid);
+      if(!stale('health',rid)){
+        endTurn('health',rid);
+        await applyExtras(data);
+        if(data.messages?.length) await enqueue('health',data.messages);
+      }
+    }catch(e:any){
+      if(!stale('health',rid)){ endTurn('health',rid); failTurn(e,'health'); }
+    }finally{ setAutoLoading(false); }
   };
 
   /* 선물이나 해금이 있으면 그 일을 적어둔다. 바로 만들지는 않는다 —
@@ -2214,7 +2260,8 @@ function Root() {
        X는 접기다 — 자리는 살아 있고 다른 사람과 카톡만 할 수 있다.
        하루에 한 번뿐인 자리를 뒤로가기 한 번에 닫으면 실수로 닫힌다. */
     const sc=scene&&scene.room===view.id?scene:null;
-    screen=<ChatRoom room={room} msgs={msgs[view.id!]||[]} typing={typing&&view.id!=='health'} failed={failed}
+    screen=<ChatRoom room={room} msgs={msgs[view.id!]||[]} typing={typing&&view.id!=='health'}
+      failed={failed&&failed.room===view.id?failed:null}
       scene={sc} onLeaveScene={()=>sc&&setLeaving(sc)} onMinimize={()=>setView({type:'list'})}
       onBack={()=>sc?setLeaving(sc):setView({type:'list'})} onSend={handleSend} onRetry={handleRetry}
       onProfile={openProfile}/>;
