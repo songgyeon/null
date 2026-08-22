@@ -1630,67 +1630,61 @@ const unlockedKeys = new Function(workerSrc.slice(workerSrc.indexOf('const UNLOC
 const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
 /* ── 두 시계 ──
    리얼 모드는 진짜 달력을 본다. 스피드 모드는 쌓인 대화를 날로 센다.
-   처음엔 네 마디를 하루로 놨다 — 사다리가 그 비율이었다(at 12·26·44·64·90·116
-   ↔ day 3·7·11·15·20·26 ≒ at÷4). 그런데 한 마디가 여섯 시간이라, 한 번 앉아
-   스무 마디를 나누면 그 사이에 닷새가 흘렀다. 열여섯으로 올렸다 — 한 마디가
-   한 시간 반이다. 사다리는 day 쪽이 걸림돌이 되면서 저절로 같이 늘어난다. */
+   네 마디가 하루다 — 사다리가 그 비율로 놓여 있었다(at 12·26·44·64·90·116
+   ↔ day 3·7·11·15·20·26 ≒ at÷4).
+   시각은 이걸로 안 굴린다. 한때 같은 식으로 굴렸는데 한 마디에 여섯 시간이
+   뛰어서, 한 번 앉아 스무 마디를 나누면 닷새가 흘렀다. 나눠지는 수를 바꿔도
+   모양은 같다 — 말풍선이 시계를 미는 한 「한 마디에 몇 시간」이다.
+   그래서 뗐다. 진도는 마디 수가 세고, 시각은 진짜 시간이 민다. */
 {
   const D = new Function(
     'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
     + web.slice(web.indexOf('const SPEED_PER_DAY='), web.indexOf('const loadExtend='))
     + 'return {SPEED_PER_DAY,saveMode,speedOn,speedCountOf,speedDaysOf,'
     + 'setSpeedAt,speedDay,speedNow,nowClock};')();
-  eq('열여섯 마디가 하루다',
-    [D.speedDaysOf({ msgs: { jaeeon: Array(15) } }), D.speedDaysOf({ msgs: { jaeeon: Array(16) } })],
-    [0, 1]);
+  eq('네 마디가 하루다',
+    [D.speedDaysOf({ msgs: { jaeeon: Array(11) } }), D.speedDaysOf({ msgs: { jaeeon: Array(12) } })],
+    [2, 3]);
   /* 많이 나눈 쪽으로 센다 — 한쪽만 파도 다른 방 것은 그 방 대화 수가 막는다 */
   eq('많이 나눈 쪽으로 센다',
-    D.speedDaysOf({ msgs: { jaeeon: Array(416), minhyun: Array(0) } }), 26);
+    D.speedDaysOf({ msgs: { jaeeon: Array(116), minhyun: Array(0) } }), 29);
   /* ── 단톡도 센다 ──
      1:1 둘만 셌더니 스피드 모드에서 단톡에만 있으면 시계가 통째로 멈췄다.
      백스무 마디를 떠들어도 지난 날이 그대로고, 가상 시계도 안 돌아 같은
      시각·같은 요일에 얼어붙는다. 그러다 1:1로 옮기면 시간이 훅 뛴다 */
   eq('단톡에서 떠들어도 날이 간다',
-    [0, 112, 480].map(n => D.speedDaysOf({ msgs: { jaeeon: Array(16), minhyun: Array(16), group: Array(n) } })),
+    [0, 30, 120].map(n => D.speedDaysOf({ msgs: { jaeeon: Array(4), minhyun: Array(4), group: Array(n) } })),
     [1, 7, 30]);
   /* 관전은 유저가 말한 게 아니라 자리를 비운 사이에 찍힌 것이다 —
      그걸로 날이 가면 안 켜고 둔 시간이 진도가 된다 */
   eq('관전은 날을 못 민다',
-    D.speedDaysOf({ msgs: { jaeeon: Array(16), minhyun: Array(16), health: Array(480) } }), 1);
-  /* 사다리는 at(마디)과 day(날)를 둘 다 본다. 날이 늦게 가므로 이제 day 쪽이
-     걸림돌이다 — 마지막 칸(day 26)에 닿으려면 116마디가 아니라 416마디다 */
-  eq('마지막 칸에 대화로 닿는다', D.speedDaysOf({ msgs: { jaeeon: Array(416) } }) >= 26, true);
-  eq('116마디로는 아직 못 닿는다', D.speedDaysOf({ msgs: { jaeeon: Array(116) } }) >= 26, false);
+    D.speedDaysOf({ msgs: { jaeeon: Array(4), minhyun: Array(4), health: Array(120) } }), 1);
+  /* 116마디면 마지막 칸(day 26)에 닿는다 — 리얼 모드의 26일과 같은 자리다 */
+  eq('마지막 칸에 대화로 닿는다', D.speedDaysOf({ msgs: { jaeeon: Array(116) } }) >= 26, true);
   eq('기본은 리얼이다', D.speedOn(), false);
-  /* ── 시각도 진행을 따라 돈다 ──
-     날짜만 당기고 시각을 진짜 시계로 두면, 한 판이 실제 이십 분이라 새벽 세
-     시에 시작한 사람은 판이 끝날 때까지 새벽 세 시다. 재언은 1시~4:30 자니까
-     한 번도 안 깨고, 시간표도 안 돌고, 학교도 내내 닫혀 있다. */
+  /* ── 시각은 진짜 시간이 민다 ──
+     말풍선 수로 굴리면 한 마디에 몇 시간이 뛴다. 나눠지는 수를 바꿔도 모양은
+     같아서, 구조를 뗐다. 첫 마디가 있던 날 아침 여덟 시에서 출발해 그 뒤로
+     흐른 진짜 시간 × SPEED_RATE만큼 간다. */
   D.saveMode('speed');
-  const anchor = new Date(2026, 0, 6, 22, 40).getTime();   // 밤에 시작해도
+  const anchor = Date.now() - 60 * 1000;        // 일 분 전에 시작했다
   D.setSpeedAt(0, anchor);
-  eq('아침 여덟 시에서 출발한다',
-    [D.speedNow().getHours(), D.speedNow().getMinutes()], [8, 0]);
-  /* 한 마디에 하루의 1/SPEED_PER_DAY = 한 시간 반. 예전엔 여섯 시간이었다 */
-  D.setSpeedAt(2, anchor); eq('두 마디면 세 시간이다', D.speedNow().getHours(), 11);
-  D.setSpeedAt(16, anchor);
-  eq('열여섯 마디면 다음 날 아침이다',
-    [D.speedNow().getHours(), D.speedNow().getDate()], [8, 7]);
-  /* 네 마디마다 8·14·20·2시를 지난다. 자는 사람이 있는 칸은 밤 하나뿐이고,
-     그 칸도 민현은 깨 있다 — 어느 칸에 서도 말 걸 사람이 있어야 한다 */
-  eq('네 마디마다 출근·수업·저녁·밤에 얹힌다',
-    [0, 4, 8, 12].map(n => { D.setSpeedAt(n, anchor); return D.speedNow().getHours(); }),
-    [8, 14, 20, 2]);
-  /* 날 수와 시계가 어긋나면 D-N과 시간표가 딴말을 한다 */
-  eq('날 수와 시계가 같은 것을 센다', [0, 3, 16, 47, 416].filter(n => {
-    D.setSpeedAt(n, anchor);
-    const a = new Date(anchor); a.setHours(8, 0, 0, 0);
-    return Math.floor((D.speedNow() - a) / 864e5) !== D.speedDay();
-  }), []);
-  /* 재언은 1시~4:30 잔다. 진행하다 보면 자는 자리도 지나가야 한다 —
-     한 판 내내 깨어 있거나 한 판 내내 자면 그건 시계가 아니다 */
-  const hours = Array.from({ length: 40 }, (_, n) => { D.setSpeedAt(n, anchor); return D.speedNow().getHours(); });
-  eq('하루가 실제로 돈다', new Set(hours).size >= 4, true);
+  const h0 = D.speedNow();
+  eq('아침 여덟 시에서 출발한다', h0.getHours(), 8);
+  /* 일 분이 흘렀으면 게임으로는 사 분이다 — 아직 여덟 시다 */
+  eq('일 분은 사 분이다', h0.getMinutes() >= 3 && h0.getMinutes() <= 5, true);
+  /* ── 여기가 핵심이다 ── 마디를 아무리 쌓아도 시계는 안 움직인다 */
+  eq('말풍선은 시계를 안 민다', (() => {
+    const before = D.speedNow().getTime();
+    D.setSpeedAt(200, anchor);
+    return Math.abs(D.speedNow().getTime() - before) < 5000;   // 흐른 진짜 시간만큼만
+  })(), true);
+  /* 진짜 시간이 흐르면 시계도 흐른다 — 세 시간 전에 시작했으면 열두 시간 */
+  D.setSpeedAt(0, Date.now() - 3 * 3600 * 1000);
+  eq('세 시간이 열두 시간이다', D.speedNow().getHours(), 20);
+  /* 진도는 여전히 마디 수가 센다 — 둘은 다른 것을 센다 */
+  D.setSpeedAt(48, anchor);
+  eq('진도는 마디가 센다', D.speedDay(), 12);
   D.saveMode('real');
   eq('리얼 모드는 진짜 지금이다', Math.abs(D.nowClock() - Date.now()) < 4000, true);
 }
