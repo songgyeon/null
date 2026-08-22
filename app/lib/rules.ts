@@ -991,15 +991,21 @@ const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));
    영영 안 열리는 칸이었다. 빨래방에서 그 사람을 마주 보고 앉아 있었는데
    사진첩에는 없는 것이다. 본 것도 모은다 — 이건 기록에 없으니 따로 적어둔다. */
 const loadShots=()=>{try{return JSON.parse(localStorage.getItem("null_shots")||"[]")}catch(e){return[]}};
+/* sceneShot은 파일명(.webp까지)을 돌려주는데, 말풍선 사진(m.photo)은 확장자
+   없는 열쇠다. 그대로 담아두니 cam이 gallery의 열쇠와 맞대볼 때 영영 안 맞았다
+   — 자리 배경은 한 번도 사진첩에 안 떴다. 담을 때 확장자를 뗀다.
+   시험은 확장자 없이 넣고 있어서 이걸 못 잡았다(F.stampShot('jaeeon-laundry')). */
 const stampShot=key=>{try{
-  if(!key)return;
-  const a=loadShots(); if(a.includes(key))return;
-  localStorage.setItem("null_shots",JSON.stringify([...a,key]));
+  const k=(key||"").toString().replace(/\.webp$/,"");
+  if(!k)return;
+  const a=loadShots(); if(a.includes(k))return;
+  localStorage.setItem("null_shots",JSON.stringify([...a,k]));
 }catch(e){}};
 function seenPhotos(msgs){
   const set=new Set();
   Object.values(msgs||{}).forEach(list=>(list||[]).forEach(m=>{if(m.photo)set.add(m.photo)}));
-  loadShots().forEach(k=>set.add(k));
+  /* 이미 .webp가 붙은 채로 저장된 것이 있다. 읽을 때도 떼어 맞춘다 */
+  loadShots().forEach(k=>set.add(String(k).replace(/\.webp$/,"")));
   return set;
 }
 

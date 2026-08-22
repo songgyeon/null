@@ -2531,13 +2531,17 @@ eq('세계관에는 안 남겼다',
   const F = new Function(
     'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
     + web.slice(web.indexOf('const loadShots='),
-        web.indexOf('}', web.indexOf('loadShots().forEach(k=>set.add(k));')) + 1)
+        web.indexOf('}', web.indexOf("loadShots().forEach(k=>set.add(String(k).replace(")) + 1)
     + 'return {loadShots,stampShot,seenPhotos};')();
   eq('처음엔 비어 있다', F.seenPhotos({}).size, 0);
-  F.stampShot('jaeeon-laundry');
+  /* sceneShot이 돌려주는 그대로 넣는다. 전에는 여기서만 확장자를 떼고 넣어서,
+     실제로는 「jaeeon-laundry.webp」가 담기는데 시험은 통과했다 — cam은
+     gallery의 열쇠(확장자 없음)와 맞대보므로 자리 배경이 한 번도 안 떴다. */
+  F.stampShot('jaeeon-laundry.webp');
   eq('본 것이 사진첩에 꽂힌다', [...F.seenPhotos({})], ['jaeeon-laundry']);
+  eq('확장자를 떼고 담는다', F.loadShots(), ['jaeeon-laundry']);
   /* 같은 자리에 여러 번 앉아도 한 장이다 */
-  F.stampShot('jaeeon-laundry');
+  F.stampShot('jaeeon-laundry.webp');
   eq('같은 사진이 두 번 안 꽂힌다', F.loadShots().length, 1);
   /* 받은 사진과 본 사진이 한 앨범에 모인다 */
   eq('받은 것과 본 것이 같이 모인다',
