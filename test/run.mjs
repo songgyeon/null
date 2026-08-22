@@ -365,8 +365,10 @@ eq('음악이 막혔을 때 켜라고 알려준다',
    앱을 열 때마다 나오면 그냥 방해다. */
 eq('등록 화면이 웹·앱 둘 다 있다',
   /function Enroll\(/.test(appSrc) && /function Enroll\(/.test(web), true);
-eq('등록 화면은 이름을 넣은 순간에만 뜬다',
-  [/setName\(n\);\s*setEnrolling\(true\)/.test(appSrc), /setName\(n\);setEnrolling\(true\)/.test(web)],
+/* 웹은 등록이 단계가 됐다(false|"enroll"|"confirm") — 이름을 넣으면 등록으로,
+   Click 뒤 세계 확정(YES)으로 간다. 앱은 아직 불리언이다(확정 화면은 다음 차례). */
+eq('등록 화면은 이름을 넣은 순간에 뜬다',
+  [/setName\(n\);\s*setEnrolling\(true\)/.test(appSrc), /setName\(n\);setEnrolling\("enroll"\)/.test(web)],
   [true, true]);
 /* 남은 날이 null인 것이 이 프로덕트의 이름이자 이야기다. 숫자로 바꾸면 안 된다. */
 eq('DAYS LEFT는 null로 둔다',
@@ -2164,6 +2166,43 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     files.filter(f => readFileSync(join(ROOT, f), 'utf8').includes(OLD)), []);
 }
 
+/* ── 세계 확정(YES)과 D-0의 WHO ──
+   YES를 누른 순간에만 세계가 생긴다. 이름이 저장돼 있어도 확정 전이면
+   메신저로 안 간다. 나이는 세계 고정값 25다. D-0의 STAY 뒤에는 WHO가
+   서고, 상대는 한 명·한 번이다. 카피는 작가가 못박은 그대로 —
+   「NULL을」로 고치지 않는다(NULL=널이라 조사가 없다). */
+{
+  eq('확정 카피가 정확하다',
+    web.includes('너는 이 세계에<br/>NULL 존재하게 할 수 있을까?')
+    && web.includes('거절은 거절해'), true);
+  eq('NULL에 조사를 안 붙였다', /NULL을 존재/.test(web), false);
+  eq('이름만으로는 메신저에 못 들어간다',
+    /localStorage\.getItem\("null_name"\)&&!loadWorld\(\)\?"enroll":false/.test(web), true);
+  eq('YES 연타는 한 번이다', /if\(pressed\)return;setPressed\(true\);onYes\(\)/.test(web), true);
+  /* AGE 행은 남기고 입력만 잠근다. YES에 25가 프로필로 박힌다 */
+  eq('나이는 세계 고정값 25다',
+    /f\.k==="age"/.test(web)
+    && /title="세계의 고정값">25</.test(web)
+    && /setProfile\(p=>\(\{\.\.\.p,age:"25"\}\)\)/.test(web), true);
+  eq('YES 뒤에는 프로필이 잠긴다',
+    /const rename=n=>\{if\(loadWorld\(\)\)return;/.test(web)
+    && /\(k,v\)=>\{if\(loadWorld\(\)\)return;setProfile/.test(web), true);
+  /* null | jaeeon | minhyun 단일값. 처음 저장된 값이 이긴다 */
+  eq('상대는 한 명, 한 번이다',
+    /if\(id!=="jaeeon"&&id!=="minhyun"\)return null;/.test(web)
+    && /if\(loadPartner\(\)\)return null;/.test(web)
+    && /if\(loadPartner\(\)\)return;/.test(web), true);
+  eq('기다리고 있어 카피가 정확하다',
+    web.includes('이재언이 NULL 기다리고 있어!')
+    && web.includes('이민현이 NULL 기다리고 있어!')
+    && web.includes('꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'), true);
+  /* 연장은 한 번 — 추가 30일이 끝나면 WHO도 연장도 다시 안 묻는다 */
+  eq('두 번째 D-0는 없다',
+    /ddayAns!==String\(dSpan\)&&!loadExtend\(\)/.test(web), true);
+  /* STAY는 아직 답이 아니다 — WHO까지 골라야 답이 찍힌다 */
+  eq('STAY만으로는 답이 안 찍힌다', /if\(yes\)\{ setWhoAsk\(true\); return \}/.test(web), true);
+}
+
 /* 다시 시작하면 첫 만남부터다. greetAtRef는 리액트 ref라 저장소를 비워도
    안 없어진다 — 방금 선톡을 받고 지웠으면 1분 동안 아무도 말을 안 걸었다.
    처음 들어온 화면에서 조용한 게 제일 나쁜 그림이다. */
@@ -3318,8 +3357,8 @@ eq('어둠막이 입력줄을 안 덮는다',
    채팅방 머리글만 남아 있었다 — 창 셋, 자리, 그리고 여기까지 같은 실수였다 */
 eq('채팅방 X가 목록으로 보낸다',
   /\{room\.name\}\{watch\?"\.cam":"\.chat"\}<WinDots onClose=\{onBack\}\/>/.test(web), true);
-/* 안 눌려도 되는 것은 오프닝의 가짜 오류창 넷과 등록 화면, 그리고 앱 창틀뿐이다 */
-eq('안 눌리는 X는 여섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 6);
+/* 안 눌려도 되는 것은 오프닝의 가짜 오류창 넷과 등록·세계 확정 화면, 앱 창틀뿐이다 */
+eq('안 눌리는 X는 일곱뿐이다', (web.match(/<WinDots\/>/g) || []).length, 7);
 
 /* X는 나가기가 아니라 접기다. 자리는 그대로 두고 메신저로 돌아간다 —
    교실에 앉아서 삼촌한테 카톡하는 건 되는 일이다.

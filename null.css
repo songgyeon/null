@@ -1180,3 +1180,12 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
   text-decoration-color:#d9b6cd}
 .fixin{font:inherit;font-size:12px;line-height:1.6;padding:8px 9px;min-height:76px;
   resize:vertical;border-radius:6px;color:#4a3f66}
+
+/* ── 세계 확정 화면 ── 등록 카드(.enr/.ecard)와 같은 껍데기를 쓴다.
+   새 스타일을 만들지 않는다 — 이 넷은 글자 간격과 자리뿐이다 */
+.cq{margin:18px 4px 4px;text-align:center;font-size:14px;line-height:2;letter-spacing:.04em;color:#4a4276}
+.cyes{margin-top:14px}
+.chint{margin-top:11px;text-align:center;font-size:10px;letter-spacing:.08em;color:#b09ecf}
+.cback{margin:10px auto 0;display:block;background:none;border:none;font:inherit;font-size:9px;letter-spacing:.14em;color:#c9bfe4;cursor:pointer}
+/* D-0 결과 카피의 얼굴 */
+.wkao{display:block;margin-top:10px;font-size:15px;color:#c86ea8}

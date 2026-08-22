@@ -418,7 +418,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
   /* 한 칸 채우고 엔터를 치면 다음 칸이 열린다. 네 칸을 채우는 데 클릭이
      네 번 필요할 이유가 없다. -1은 아무 칸도 안 열린 상태다. */
   const [focus,setFocus]=useState(-1);
-  const filled=ENR_FIELDS.filter(f=>(profile[f.k]||"").trim()).length;
+  const filled=ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr"+(out?" out":"")}>
     <div className="ecard">
@@ -432,9 +432,12 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
         {ENR_FIELDS.map((f,i)=>
           <div className="eline" key={f.k}>
             <span className="lab">{f.lab}</span>
-            <Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
-              open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
-              onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/>
+            {/* 나이는 세계의 고정값이다 — 유저가 아니라 세계가 정한 칸. 행은 남기고 입력만 잠근다 */}
+            {f.k==="age"
+              ?<span className="blank filled" title="세계의 고정값">25</span>
+              :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
+                 open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
+                 onNext={()=>{const n=ENR_FIELDS.findIndex((g,j)=>j>i&&g.k!=="age");setFocus(n)}}/>}
             <span>{f.tail}</span>
           </div>)}
         {/* ── 이 판을 어떻게 살 것인가 ──
@@ -456,6 +459,26 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
           {filled===ENR_FIELDS.length?"READY ✓":`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</div>
         {/* 다 안 채워도 들어갈 수 있다 — 비워두는 것도 이 이야기에서는 답이다 */}
         <button className="ego" onClick={leave}>Click!</button>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ── 세계 확정 ──
+   등록의 Click 뒤에 한 번. YES를 눌러야 세계가 생긴다.
+   「NULL을」로 고치지 않는다 — NULL=널이라 조사 없이 그대로가 의도다.
+   작품 안 선택지는 YES 하나다. back은 등록으로 돌아갈 뿐 세계를 만들지 않는다. */
+function Confirm({name,onYes,onBack}){
+  const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
+  const yes=()=>{if(pressed)return;setPressed(true);onYes()};
+  return <div className="enr">
+    <div className="ecard">
+      <div className="etb">null.exe<WinDots/></div>
+      <div className="ebody">
+        <div className="cq">{name}, 너는 이 세계에<br/>NULL 존재하게 할 수 있을까?</div>
+        <button className="ego cyes" onClick={yes}>YES</button>
+        <div className="chint">거절은 거절해 <span className="kao">{'(´▽｀ ʃƪ)♡'}</span></div>
+        <button className="cback" onClick={onBack}>‹ back</button>
       </div>
     </div>
   </div>;

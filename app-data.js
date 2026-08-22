@@ -49,6 +49,23 @@ const ENROLL_DAYS = 30;
    시각은 진짜 시간이 민다. 둘은 이제 다른 것을 센다.
    모드는 판마다 하나고 등록 화면에서 한 번 고른다. 중간에 바꾸면 D-N이 튄다. */
 const SPEED_PER_DAY=4;
+/* ── 세계 확정 ──
+   등록의 Click 뒤에 확인 화면이 한 번 선다 — 「{이름}, 너는 이 세계에 /
+   NULL 존재하게 할 수 있을까?」. YES를 누른 순간에만 세계가 생긴다.
+   이름이 저장돼 있어도 이 값이 없으면 메신저로 건너뛰지 않는다 —
+   등록만 하고 닫은 사람은 아직 시작 전이다. YES 뒤에는 프로필이 잠긴다. */
+const loadWorld=()=>{try{return localStorage.getItem("null_world")==="1"}catch(e){return false}};
+const saveWorld=()=>{try{localStorage.setItem("null_world","1")}catch(e){}};
+/* ── 연애 상대 ──
+   D-0의 WHO에서 정해진다. null | jaeeon | minhyun 단일값 — 배열 없음,
+   두 명 없음, 한 번 정해지면 무를 수 없다. 연타·새로고침이 와도 처음
+   저장된 값이 이긴다. */
+const loadPartner=()=>{try{const v=localStorage.getItem("null_partner");
+  return v==="jaeeon"||v==="minhyun"?v:null}catch(e){return null}};
+const savePartner=id=>{try{
+  if(id!=="jaeeon"&&id!=="minhyun")return null;
+  if(loadPartner())return null;                  // WHO는 한 번만이다
+  localStorage.setItem("null_partner",id);return id}catch(e){return null}};
 const loadMode=()=>{try{return localStorage.getItem("null_mode")==="speed"?"speed":"real"}catch(e){return"real"}};
 const saveMode=v=>{try{localStorage.setItem("null_mode",v==="speed"?"speed":"real")}catch(e){}};
 const speedOn=()=>loadMode()==="speed";

@@ -914,7 +914,7 @@ function App(){
   /* [대화] 읽음 처리 */
   const readAll=()=>setStore(s=>({...s,unread:{}}));
   /* [당신] 이름 변경 / 새로 시작 */
-  const rename=n=>{localStorage.setItem("null_name",n);setName(n)};
+  const rename=n=>{if(loadWorld())return;localStorage.setItem("null_name",n);setName(n)};
   /* 다시 시작. greetAtRef까지 같이 지운다 — 이건 리액트 ref라 localStorage를
      지워도 안 없어진다. 방금 선톡을 받고 지웠으면 1분 동안 첫 인사가 안 왔다.
      처음 들어온 화면에서 아무도 말을 안 거는 게 제일 나쁜 그림이다. */
@@ -1027,14 +1027,26 @@ function App(){
     saveSys1(); setSys1(true);
   },[name,store,dLeft]);
 
-  const askDday=dLeft===0&&!!name&&ddayAns!==String(dSpan);
+  /* 연장은 한 번뿐이다. 추가 30일이 끝나면 WHO도 연장도 다시 안 묻는다 —
+     세계를 지우지 않고 자유대화로 계속된다. */
+  const askDday=dLeft===0&&!!name&&ddayAns!==String(dSpan)&&!loadExtend();
+  const [whoAsk,setWhoAsk]=useState(false);     // STAY 뒤 — 누구 곁에 남나
+  const [whoDone,setWhoDone]=useState(null);    // 방금 정해진 상대. 결과 카피 한 번
   const answerDday=yes=>{
+    /* STAY는 아직 답이 아니다 — WHO까지 골라야 이 날의 답이 찍힌다.
+       중간에 닫으면 d-0.exe가 다시 뜬다. */
+    if(yes){ setWhoAsk(true); return }
     try{localStorage.setItem("null_dday_ans",String(dSpan))}catch(e){}
     setDdayAns(String(dSpan));
-    if(yes){
-      try{localStorage.setItem("null_extend",String(loadExtend()+ENROLL_DAYS))}catch(e){}
-      setToast("staying ♡ +"+ENROLL_DAYS+" days");
-    }else setToast("left 4 real ✧");
+    setToast("left 4 real ✧");
+  };
+  const pickWho=id=>{
+    if(loadPartner())return;                    // 한 번 정해지면 무를 수 없다
+    try{localStorage.setItem("null_dday_ans",String(dSpan))}catch(e){}
+    setDdayAns(String(dSpan));
+    try{localStorage.setItem("null_extend",String(loadExtend()+ENROLL_DAYS))}catch(e){}
+    const got=savePartner(id);
+    setWhoAsk(false); setWhoDone(got||id);
   };
 
   /* 프로필 화면. 대화 수는 그 캐릭터가 낀 모든 방을 합쳐 센다 (worker의 단계 기준과 같다) */
@@ -1052,10 +1064,21 @@ function App(){
     const s=storeRef.current.msgs||{};
     return (s[id]||[]).length+(s.group||[]).filter(m=>m.sender===id||m.sender==="user").length;
   };
-  /* 이름을 넣으면 등록 화면이 한 번 지나간다. 처음 들어온 사람에게만이다 —
-     이미 이름이 있으면 오프닝도 등록도 건너뛰고 바로 메신저다. */
-  const [enrolling,setEnrolling]=useState(false);
-  const enter=n=>{localStorage.setItem("null_name",n);setName(n);setEnrolling(true)};
+  /* 이름을 넣으면 등록 → 세계 확정(YES)이 한 번 지나간다.
+     enrolling은 단계다: false | "enroll" | "confirm".
+     이름이 저장돼 있어도 YES를 안 눌렀으면(loadWorld가 거짓) 메신저로
+     건너뛰지 않는다 — 등록만 하고 닫은 사람은 아직 시작 전이다. */
+  const [enrolling,setEnrolling]=useState(()=>{
+    try{return localStorage.getItem("null_name")&&!loadWorld()?"enroll":false}catch(e){return false}
+  });
+  const enter=n=>{localStorage.setItem("null_name",n);setName(n);setEnrolling("enroll")};
+  /* YES — 세계가 생기는 순간. 프로필이 잠기고 나이는 세계 고정값 25가 된다.
+     saveWorld는 멱등이라 연타·재렌더가 와도 시작은 한 번이다. */
+  const confirmYes=()=>{
+    saveWorld();
+    setProfile(p=>({...p,age:"25"}));
+    setEnrolling(false);
+  };
 
   /* 선톡은 방을 열어야 오는 게 아니다. 안 보고 있을 때 오는 것이 메신저다 —
      목록에 있는 동안 말이 도착하고 안 읽음이 붙는다. appendMsg가 지금 보고
@@ -1128,14 +1151,15 @@ function App(){
   },[name,view,enrolling]);
 
   return <div className="phone">
-    {enrolling&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling(false)}
+    {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
+    {enrolling==="confirm"&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling("enroll")}/>}
     {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        groupOn={groupOn} onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
-       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
+       profile={profile} onSaveField={(k,v)=>{if(loadWorld())return;setProfile(p=>({...p,[k]:v}))}} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
@@ -1332,6 +1356,25 @@ function App(){
         <div className="dlgbtns" style={{justifyContent:"center"}}>
           <button className="wbtn" onClick={()=>setSys1(false)}>ok ♡</button>
         </div>
+      </div>
+    </Dialog>}
+    {whoAsk&&<Dialog title="d-0.exe" onClose={()=>setWhoAsk(false)}>
+      <div className="ddq">
+        <div className="k">stay ♡ but</div>
+        <div className="q">WHO?</div>
+        <div className="s">한 명만 고를 수 있어 · 무를 수 없어</div>
+        <div className="askwho" style={{margin:"13px 4px 4px",justifyContent:"center"}}>
+          {["jaeeon","minhyun"].map(c=><button key={c} className="whobtn bevel"
+            onClick={()=>pickWho(c)}>
+            <span className="cface" style={faceBg(CHARS[c])}/>{CHARS[c].name}</button>)}
+        </div>
+      </div>
+    </Dialog>}
+    {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>
+      <div className="ddq">
+        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이민현이 NULL 기다리고 있어!"}</div>
+        <div className="wkao kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</div>
+        <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
       </div>
     </Dialog>}
     {askDday&&!ddayHide&&<Dialog title="d-0.exe" onClose={()=>setDdayHide(true)}>
