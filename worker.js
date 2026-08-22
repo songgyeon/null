@@ -2474,8 +2474,16 @@ const LEAD_DOTS = /^[.·ㆍ…]{2,}\s*/;
    메신저에서 한자를 칠 일이 없다. 지우고 앞에 남은 구두점까지 정리한다.
    고쳐 쓰지는 않는다. 무슨 말을 하려던 건지 짐작해서 바꾸면 더 이상해진다. */
 const HAN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g;
+/* 한자가 한글에 붙어 있으면 단어 안에 낀 것이다 — 「生수」 「便의점」.
+   여기서 한자만 빼면 「수」 「의점」이 남아 문장 가운데가 구멍 난다.
+   기록에서 그렇게 깨진 말풍선이 셋 나왔다(docs/playlog-review.md). 한 줄
+   없어지는 것은 티가 안 나는데 깨진 단어는 티가 난다. 그래서 붙어 있으면
+   그 말풍선을 통째로 버리고, 떨어져 있으면(「那, 도서관 갈래요」)
+   예전처럼 지우기만 한다. */
+const HAN_IN_WORD = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff][\uac00-\ud7a3]|[\uac00-\ud7a3][\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 function stripHan(t) {
   if (!t || !HAN.test(t)) return t;
+  if (HAN_IN_WORD.test(t)) return "";
   return t.replace(HAN, "").replace(/^[\s,.·、。]+/, "").replace(/\s{2,}/g, " ").trim();
 }
 /* ── 없는 말 하나 ──
@@ -2625,6 +2633,22 @@ function isSelfNarration(text, sender) {
   return new RegExp(nm + "\\s*(?:은|는|이|가|도|의|만)").test(t) && NARRATE_END.test(t);
 }
 
+/* ── 제 이름을 호칭 자리에 쓴 것 ──
+   「식사 맛있게 하세요」에 「이재언도요.」가 돌아왔다. 「선생님도요」가
+   나와야 할 자리다. 유저가 「?」로 되물으니 같은 말을 한 번 더 하면서
+   우겼다(docs/playlog-review.md).
+   메신저에서 자기를 성까지 붙여 부르는 사람은 없다. 말풍선이 제 이름과
+   짧은 조사뿐이면 호칭이 어긋난 것이므로 버린다. 문장 안에서 제 이름이
+   나오는 것은 안 건드린다 — 「이재언이 그랬어요」처럼 남 얘기하듯 쓰는
+   자리가 있을 수 있어서다. */
+function isSelfName(text, sender) {
+  const nm = ID_TO_NAME[sender];
+  if (!nm) return false;
+  const t = (text || "").trim();
+  return t.startsWith(nm) && t.length <= nm.length + 4 &&
+    new RegExp("^" + nm + "\\s*(?:은|는|이|가|도|의|만)?\\s*(?:요|예요|이에요)?[.!?\u2026~]*$").test(t);
+}
+
 function dropMeta(list) {
   const out = [];
   for (const m of list || []) {
@@ -2634,6 +2658,10 @@ function dropMeta(list) {
     }
     if (isSelfNarration(m && m.text, m && m.sender)) {
       console.log(`[NULL] 지문을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
+      continue;
+    }
+    if (isSelfName(m && m.text, m && m.sender)) {
+      console.log(`[NULL] 제 이름을 호칭 자리에 쓴 것을 버렸다 ▶ ${String(m.text).slice(0, 40)}`);
       continue;
     }
     out.push(m);
@@ -2719,15 +2747,44 @@ function parseTagged(text, allowed) {
   return tagged && out.length ? out : null;
 }
 
+/* ── 중괄호 짝 맞춰 떼기 ──
+   전에는 첫 「{」부터 문자열 끝까지 잘라서 파싱했다. 그래서 JSON 뒤에 뭐가
+   하나라도 붙으면 — 닫는 코드펜스의 백틱 하나든, 모델이 덧붙인 설명이든 —
+   JSON.parse가 터지고 아래 폴백이 원문을 통째로 말풍선에 찍었다.
+   실제로 기록에서 13번 그렇게 샜다(docs/playlog-review.md).
+   문자열 안의 중괄호와 이스케이프를 세면서 짝이 맞는 데까지만 자른다. */
+function carveJson(s) {
+  const start = s.indexOf("{");
+  if (start === -1) return "";
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (esc) { esc = false; continue; }
+    if (c === "\\") { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) return s.slice(start, i + 1);
+  }
+  return "";   // 끝까지 안 닫혔다 — 잘린 응답이다
+}
+
+/* 파서가 다 실패했을 때 원문을 그대로 말풍선으로 내보내면 안 되는 것들.
+   기록에 모델의 영어 사고 과정이 그대로 찍힌 적이 있다 —
+   「The instructions say "..." and the available place is 빨래방.」
+   이런 줄은 한 줄만 나가도 세계가 무너진다. 조용히 가짜를 내보내느니
+   빈 손으로 돌아가서 화면에 실패를 띄우는 편이 낫다. */
+const LEAKY = /^[[{]|"messages"\s*:|```|\bThe instructions\b|\bI should\b|\bLet me\b|\bJSON\b/;
+
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
   parseMessages.invite = "";   // 이번 응답에서 모델이 고른 자리. 없으면 빈 문자열
   parseMessages.give = "";     // 이번 응답에서 건넨 물건. 없으면 빈 문자열
   try {
     const cleaned = text.replace(/```json|```/g, "").trim();
-    const start = cleaned.indexOf("{");
-    if (start !== -1) {
-      const j = JSON.parse(cleaned.slice(start));
+    const body = carveJson(cleaned);
+    if (body) {
+      const j = JSON.parse(body);
       if (Array.isArray(j.messages)) {
         // 모델이 같이 가자고 하기로 했으면 여기 장소 이름이 온다. 부수적으로 넘긴다
         parseMessages.invite = typeof j.invite === "string" ? j.invite : "";
@@ -2749,8 +2806,12 @@ function parseMessages(text, fallbackSender, allowed) {
   // JSON이 아니다 — 이름표 형식이면 화자별로 풀어준다
   const tagged = parseTagged(text, ok);
   if (tagged) return tagged;
-  // 그것도 아니면 원문을 한 덩어리 메시지로
-  return [{ sender: fallbackSender, text: text }];
+  /* 그것도 아니면 원문을 한 덩어리로 내보냈었다. 그게 누출 경로였다.
+     안이 비치는 것(JSON 조각·코드펜스·모델의 자기 설명)이면 버린다.
+     빈 목록은 위에서 실패로 처리돼 화면에 재시도 버튼이 뜬다. */
+  const raw = String(text || "").trim();
+  if (!raw || LEAKY.test(raw)) return [];
+  return [{ sender: fallbackSender, text: raw }];
 }
 
 // ─────────────────────────────────────────────
