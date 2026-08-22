@@ -2585,31 +2585,40 @@ eq('세계관에는 안 남겼다',
   eq('앱도 같은 함수로 앨범을 만든다', /const album=seenPhotos\(msgs\);/.test(appSrc), true);
 }
 
-/* ── 계절을 안 알려주면 지어낸다 ──
-   요일과 때만 보내고 계절을 안 보냈다. 그래서 팔월에 민현이 「눈이 그제보다
-   덜 오네요」라고 했다. 날씨는 창밖을 보면 바로 나오는 말이라, 안 알려주면
-   지어낸다. 달까지는 안 준다 — 날짜를 주면 날짜를 세기 시작한다. */
+/* ── 이 세계의 계절은 안 돈다 ──
+   요일과 때만 보내고 계절을 안 보냈더니 팔월에 민현이 「눈이 그제보다 덜
+   오네요」라고 했다. 그래서 달력에서 뽑아 보내게 고쳤는데, 팔월에 또 눈이
+   여섯 번 왔다(docs/playlog-review-2.md ①).
+   필터가 진 게 아니라 세계가 겨울로 쓰여 있어서다 — WORLD 첫 줄이 「겨울이
+   끝나가는 시점」이고 사진에 「눈 온 날」이 있고 선물이 장갑·목도리·핫팩·
+   비니다. 캐시 첫 덩어리가 겨울이라고 말하는데 가변부 끝의 낱말 하나가
+   여름이면 지는 쪽은 정해져 있다. 계절은 유저 시계의 것이 아니라 세계의
+   것이다. 하루와 요일만 돌고 계절은 안 돈다. */
 {
   const 계절 = new Function(web.slice(web.indexOf('const seasonWord='),
     web.indexOf('/* ── 자는 사람은 먼저 말을 안 건다 ──')) + 'return seasonWord;')();
-  eq('달을 계절로 옮긴다',
+  eq('계절은 달력을 안 본다',
     [1, 3, 5, 6, 8, 9, 11, 12].map(m => 계절(new Date(2026, m - 1, 15))),
-    ['겨울', '봄', '봄', '여름', '여름', '가을', '가을', '겨울']);
-  /* 워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때다 — 프론트가 재서 보낸다 */
+    ['겨울', '겨울', '겨울', '겨울', '겨울', '겨울', '겨울', '겨울']);
   for (const [label, src] of [['웹', web], ['앱', readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8')]])
     eq(`${label}이 계절을 보낸다`, /season(:|=)\s*seasonWord\(\)/.test(src), true);
   const w = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  eq('워커가 계절을 받는다',
-    /const season = SEASON_WORDS\.includes\(body\.season\) \? body\.season : null;/.test(w), true);
-  /* 아는 낱말만 받는다 — 모르는 값이 그대로 프롬프트에 박히면 안 된다 */
+  /* 옛 프론트는 아직 달력에서 뽑아 보낸다. 그걸 그대로 쓰면 배포가 안 닿은
+     화면에서만 여름이 된다 — 워커가 세계의 계절을 들고 있어야 한다 */
+  eq('워커는 보내온 계절을 안 믿는다',
+    /const WORLD_SEASON = "겨울";/.test(w)
+    && /const season = WORLD_SEASON;/.test(w)
+    && !/SEASON_WORDS\.includes\(body\.season\)/.test(w), true);
   eq('아는 계절만 받는다', /const SEASON_WORDS = \["봄", "여름", "가을", "겨울"\];/.test(w), true);
   const v = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [], 3,
-    null, false, '저녁', '화요일', null, false, null, [], '여름');
-  eq('지금 줄에 계절이 앞선다', v.includes('## [지금] 여름 화요일 저녁'), true);
+    null, false, '저녁', '화요일', null, false, null, [], '겨울');
+  eq('지금 줄에 계절이 앞선다', v.includes('## [지금] 겨울 화요일 저녁'), true);
   /* 값은 가변부, 설명은 고정부 */
   const 규칙 = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text).join('');
   eq('설명은 고정부에 있다', 규칙.includes('## 날씨와 계절 (지어내지 않기)'), true);
-  eq('여름에 눈이 안 온다고 적었다', 규칙.includes('여름에 눈이 오지 않는다'), true);
+  eq('겨울이 끝나가는 때라고 적었다',
+    규칙.includes('지금은 겨울이고, 그 겨울이 끝나가는 때다')
+    && 규칙.includes('학교. 겨울이 끝나가는 시점.'), true);
   /* 「그제보다 덜 오네요」 — 없던 날을 근거로 삼는 것도 같이 막는다 */
   eq('어제 날씨도 지어내지 않는다',
     규칙.includes('어제·그제 날씨를 지어내지 않는다'), true);
