@@ -1381,7 +1381,7 @@ function App(){
             한다 — 얼굴을 고르는 게 아니라 이름을 쓴다. 아무 이름이나 되는 건
             아니고, 이 세계에 있는 두 사람만 들어간다. */}
         <div className="q">Stay with <WhoBlank onPick={pickWho}/>?</div>
-        <div className="s">선택은 NEVER EVER!</div>
+        <div className="s">선택은 NEVER EVER! <span className="kao">{'(ᐡ⊃ෆ  ̫ ෆ ᐡ)⊃︵ 💕💕💕'}</span></div>
       </div>
     </Dialog>}
     {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>

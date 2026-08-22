@@ -2193,7 +2193,8 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
      들어가고 그 밖의 글자는 에러다 — 창을 하나 더 띄우지 않고 칸에서 낸다. */
   eq('마지막도 빈칸이다',
     web.includes('Stay with <WhoBlank onPick={pickWho}/>?')
-    && web.includes('선택은 NEVER EVER!')
+    && web.includes('선택은 NEVER EVER! <span className="kao">')
+    && web.includes('(ᐡ⊃ෆ  ̫ ෆ ᐡ)⊃︵ 💕💕💕')
     && /<span className="blank whoblank" onClick=\{\(\)=>setOn\(true\)\}>□□<\/span>/.test(web), true);
   /* 얼굴 단추는 걷었다. 지도의 「같이 갈 사람은 Who?」와는 다른 화면이다 */
   eq('D-0에는 얼굴 단추가 없다', (() => {
