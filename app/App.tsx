@@ -1503,7 +1503,7 @@ function Root() {
     await sysLine(sc.room, sc.place===WAY?'집에 도착했다':`${sc.place}에서 나왔다`);
     const pr=presence(sc.room);
     if(pr&&pr.s==='off') return;
-    await runTurn(sc.room);
+    await runTurn(sc.room, sc.place);
   },[msgs,typing]);
   useEffect(()=>{ if(ready&&name&&!enrolling) expireScene(); },[ready,name,enrolling,view.type]);
 
@@ -1681,7 +1681,7 @@ function Root() {
 
   /* 보낸 말은 이미 저장돼 있다. 모델 호출만 다시 한다 —
      재시도해도 같은 말이 두 번 쌓이지 않는다. */
-  const runTurn = async(room:string)=>{
+  const runTurn = async(room:string, left?:string)=>{
     if(!name) return;
     setFailed(null); setTyping(true);
     const ls=lastSent.current;
@@ -1709,8 +1709,10 @@ function Root() {
          인물이 이번 대답에서 매듭짓고 일어선다. */
       const sc=sceneRef.current;
       const at=sc&&sc.room===room?sc.place:null;
+      /* left는 자리를 닫고 나서 부르는 턴에만 온다. place와 같이 오지 않는다 —
+         워커도 place가 없을 때만 본다. */
       const data=await sendChat(room,name,hist,{bag:bagOut(bag),
-        ...(at?{place:at,...(placeOverNow(sc)?{placeOver:true}:{})}:{})});
+        ...(at?{place:at,...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
       setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);
@@ -2054,7 +2056,7 @@ function Root() {
     const cur=sceneRef.current; if(!cur||cur.since!==sc.since) return;
     closeScene();
     await sysLine(sc.room, sc.place===WAY?'집에 도착했다':`${sc.place}에서 나왔다`);
-    await runTurn(sc.room);
+    await runTurn(sc.room, sc.place);
     /* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
     if(sc.place!==WAY&&talkedEnough(sc,msgsForFlow())&&wayOK()&&loadWay()!==dayKey()) setWay(sc);
   };

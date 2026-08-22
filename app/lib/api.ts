@@ -154,6 +154,7 @@ export type ChatOpts = {
   gift?: { key: string; name: string; note?: string };
   place?: string | null;      // 지금 마주 앉은 자리
   bag?: any[];                // 받은 것 {k,from} — from이 있어야 제 것을 고른다
+  left?: string;              // 방금 나온 자리 이름
   placeOver?: boolean;        // 그 자리의 때가 지났다 — 이번 대답에서 일어선다
   greet?: boolean;            // 선톡 턴 — 워커가 이력 캐시 지점을 안 찍는다
   extra?: Record<string, any>;
@@ -161,7 +162,7 @@ export type ChatOpts = {
 export async function sendChat(room: string, userName: string, history: Msg[],
                                opts: ChatOpts = {}) {
   const sum = await loadSum(room);
-  const { gift, place, bag, placeOver, greet, extra } = opts;
+  const { gift, place, bag, placeOver, greet, left, extra } = opts;
   /* 그 방 사람의 접속 상태. 목록에 뜨는 것과 같은 함수(presence)를 쓴다 —
      화면에는 「수업 중」인데 본인은 한가한 사람처럼 답하던 것이 이걸로 맞는다.
      「주말」은 안 보낸다 — 요일이 이미 실려 있어 같은 말이 두 번 된다. */
@@ -202,6 +203,10 @@ export async function sendChat(room: string, userName: string, history: Msg[],
        물건을 두고 「그게 왜 선생님한테 있어요」라고 되물었다. 늘 보낸다. */
     bag: bag || [],
     ...(place ? { place } : {}),
+    /* 방금 나온 자리. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다.
+       이걸 안 보내면 모델이 저는 거기 없었던 것으로 읽는다 — 웹만 보내고
+       앱은 안 보내고 있었다. */
+    ...(left ? { left } : {}),
     ...(placeOver ? { place_over: true } : {}),
     ...(greet ? { greet: true } : {}),
     // 다녀온 자리·거절한 자리·지금 문 닫은 자리 — 서버가 다음 제안을 고르는 근거
