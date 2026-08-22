@@ -1470,10 +1470,19 @@ eq('첫날 읽는 법을 슬롯에 적어둔다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
   return /「오늘 처음 만났다」고 적혀 있으면 그 앞에 쌓인 것이 하나도 없다는 뜻이다/.test(wk);
 })(), true);
-eq('다녀온 자리를 웹·앱 둘 다 들고 있다',
-  /null_met/.test(web) && /null_met/.test(appSrc), true);
-eq('거절한 자리를 웹·앱 둘 다 들고 있다',
-  /null_refused/.test(web) && /null_refused/.test(appSrc), true);
+/* 열쇠는 규칙 파일이 들고 있다 — 웹은 app-data.js, 앱은 rules.ts. 둘은 같은
+   글에서 만들어지므로 열쇠가 어긋날 수가 없다. 화면(App.tsx)이 저장소에
+   직접 쓰던 자리가 하나 있었는데, 그건 규칙 파일이 읽는 사본을 안 건드려서
+   같은 판 안에서는 안 보였다 — 걷어내고 saveMet/saveRefused로 모았다. */
+{
+  const rulesSrc = readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8');
+  eq('다녀온 자리를 웹·앱 둘 다 들고 있다',
+    /null_met/.test(web) && /null_met/.test(rulesSrc), true);
+  eq('거절한 자리를 웹·앱 둘 다 들고 있다',
+    /null_refused/.test(web) && /null_refused/.test(rulesSrc), true);
+  eq('화면은 저장소에 직접 안 쓴다',
+    !/setMeta\('null_(met|refused)'/.test(appSrc) && !/setMeta\(key,/.test(appSrc), true);
+}
 
 /* 영상이 없어졌으니 띠도 그 얘기를 안 한다 */
 eq('흐르는 띠에 영상 안내가 없다',
@@ -4119,6 +4128,16 @@ eq('시간표 단추는 peek보다 좁다',
   eq('자리에 있는 내내 보낸다',
     /\.\.\.\(sc\.came\?\{came:sc\.came\}:\{\}\)/.test(web)
     && /\.\.\.\(sc\.came\?\{came:sc\.came\}:\{\}\)/.test(appSrc), true);
+  /* ── 「같이 GO!」는 양쪽에서 같은 일을 해야 한다 ──
+     웹은 초대를 수락하면 그 자리가 열리는데 앱은 지문만 남기고 문자를 이어갔다.
+     같은 창을 눌렀는데 한쪽은 레코드샵에 앉고 한쪽은 안 앉는다 */
+  eq('앱도 초대를 받으면 자리가 열린다',
+    /await goPlace\(iv\.place,iv\.char,line,'invited'\)/.test(appSrc), true);
+  /* 규칙 파일은 localStorage(shim)로 읽는다. 그건 켤 때 한 번 메모리로 올린
+     사본이라 setMeta로 저장소에만 써두면 이번 판에서는 안 보인다 —
+     가기로 한 자리가 해금 사다리에 안 잡혔다 */
+  eq('다녀온 자리는 메모리에도 쓴다',
+    !/setMeta\(key,/.test(appSrc) && /saveRefused\(\[\.\.\.loadRefused\(\), iv\.place\]\)/.test(appSrc), true);
   eq('앱도 같이 간 자리를 알린다',
     /came\?:\s*string;/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8'))
     && /place && came \? \{ came \} : \{\}/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8'))

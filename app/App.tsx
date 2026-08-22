@@ -1758,20 +1758,29 @@ function Root() {
   /* 같이 가자는 제안이 오면 답을 받는다. 수락하면 그 자리에 다녀온 것이 되고,
      한 시간 뒤 관전방에서 다른 한 사람이 그 얘기를 꺼낸다. 거절하면 안 간다 —
      그리고 그 자리는 다시 안 나온다. 두 번 조르지 않는 것이 이 두 사람의 성격이다. */
+  /* 「같이 GO!」를 눌렀으면 그 자리가 열린다. 웹은 열고 앱은 안 열고 있었다 —
+     같은 창을 눌렀는데 한쪽은 레코드샵에 앉고 한쪽은 문자만 이어졌다.
+     도장·해금·지문·자리·턴은 goPlace가 다 맡는다. 지도에서 골라 간 것과
+     같은 길로 보내야 한쪽만 빠뜨리는 일이 안 생긴다.
+
+     met·refused를 setMeta로 직접 쓰던 것도 같이 걷었다. 규칙 파일은
+     localStorage(shim)로 읽는데 그건 켤 때 한 번 메모리로 올린 사본이라,
+     저장소에만 써두면 이번 판에서는 안 보인다 — 가기로 한 자리가 해금
+     사다리에 안 잡혔다. saveMet/saveRefused는 메모리와 저장소를 같이 쓴다. */
   const answerInvite = async(ok:boolean)=>{
     const iv=invite; setInvite(null); if(!iv) return;
-    const key=ok?'null_met':'null_refused';
-    let arr:string[]=[]; try{ arr=JSON.parse((await getMeta(key))||'[]') }catch{}
-    await setMeta(key, JSON.stringify([...arr, iv.place]));
-    const line=ok?`${CHARS[iv.char].name}과 ${iv.place}에 가기로 했다`:`${iv.place}은 다음에 가기로 했다`;
-    await insertMsg({room:iv.char,sender:'sys',text:line,created_at:Date.now()});
-    await reload(iv.char);
-    if(ok) await markEvent({kind:'met', to:iv.char, name:iv.place});
+    const line=ok?`${jos(CHARS[iv.char].name,'과/와')} ${iv.place}에 가기로 했다`
+                 :`${jos(iv.place,'은/는')} 다음에 가기로 했다`;
+    lastSent.current={room:iv.char,text:line};
+    if(ok&&PLACE_BY[iv.place]){ await goPlace(iv.place,iv.char,line,'invited'); return; }
+    if(ok){ const nm=met.includes(iv.place)?met:[...met,iv.place]; setMet(nm); saveMet(nm);
+            stampGone(iv.place); await markEvent({kind:'met', to:iv.char, name:iv.place}); }
+    else  { saveRefused([...loadRefused(), iv.place]); }
+    await sysLine(iv.char, line);
     /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 — 가자고
        해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다. 그 자리 얘기는 한
        시간 뒤 관전방에서나 나왔고, 정작 같이 가기로 한 사람은 입을 다물고
        있었다. 승낙이든 거절이든 반응이 있어야 사람이다. */
-    lastSent.current={room:iv.char,text:line};
     await runTurn(iv.char);
   };
 
