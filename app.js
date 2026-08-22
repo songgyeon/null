@@ -174,8 +174,13 @@ function App(){
   const takeItem=(key,from,where)=>{
     const it=ITEMS[key]; if(!it)return false;
     if(bagRef.current.some(b=>b.key===key))return false;
+    /* ref를 여기서 같이 앞세운다. setBag은 다음 그림에서야 반영되는데,
+       자리를 닫는 손(closeScene)은 그 자리에서 바로 워커를 부른다 —
+       그 사이 bagOut()이 읽는 것은 아직 옛 가방이라, 방금 받은 것이 빠진
+       채로 나갔다. 체육관에서 손목 보호대를 받고 나온 턴에서 민현이
+       「손목 보호대가 왜 선생님한테 있어요」라고 물은 자리가 여기다. */
     const next=[...bagRef.current,{key,from,where,ts:Date.now()}];
-    setBag(next); saveBag(next);
+    bagRef.current=next; setBag(next); saveBag(next);
     const line=`${CHARS[from]?CHARS[from].name:from}에게 ${jos(it.name,"을/를")} 받았다`;
     appendMsg(from,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
     setToast(`bag — ${it.name}`);
@@ -186,7 +191,7 @@ function App(){
   const giveEnergyBar=()=>{
     if(bagRef.current.some(b=>b.key==="ebar"))return;
     const next=[...bagRef.current,{key:"ebar",ts:Date.now()}];
-    setBag(next); saveBag(next); setToast("bag — 에너지바");
+    bagRef.current=next; setBag(next); saveBag(next); setToast("bag — 에너지바");
   };
   /* 자리에서 나온다.
      나오는데 아직 못 받았으면 여기서 넣어준다. 모델이 안 건네주고 끝내는

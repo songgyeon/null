@@ -4164,6 +4164,21 @@ eq('시간표 단추는 peek보다 좁다',
     /유저 말을 "아니고요"로 받아치면서 열지 않는다/.test(wk), true);
 }
 
+/* ── 방금 받은 것이 빠진 가방 ──
+   체육관에서 손목 보호대를 받고 나온 턴에서 민현이 「손목 보호대가 왜
+   선생님한테 있어요」라고 물었다. 준 사람(from)은 8월 17일에 고쳤는데도
+   그랬다 — 자리를 닫는 손이 takeItem으로 가방에 넣고 그 자리에서 바로
+   워커를 부르는데, setBag은 다음 그림에서야 반영되므로 그 사이 bagOut()이
+   읽는 ref는 아직 옛 가방이었다. 넣는 자리에서 ref를 같이 앞세운다. */
+{
+  eq('받자마자 보내도 가방에 들어 있다',
+    /bagRef\.current=next; setBag\(next\); saveBag\(next\);/.test(web)
+    && /bagRef\.current=next; setBag\(next\); saveBag\(next\);/.test(appSrc), true);
+  /* 앱은 그림 때의 bag을 닫아 들고 있었다 — 그건 await를 건너도 안 새로워진다 */
+  eq('앱은 늘 최신 가방을 본다',
+    !/bag:bagOut\(bag\)/.test(appSrc) && /bag:bagOut\(bagRef\.current\)/.test(appSrc), true);
+}
+
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 

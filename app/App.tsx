@@ -1643,7 +1643,7 @@ function Root() {
     try{
       const hist=await getMsgs(char);
       const data=await sendChat(char,name,hist,{gift:{key:gift.key,name:gift.name,note},
-        bag:bagOut(bag),
+        bag:bagOut(bagRef.current),
         ...(sceneRef.current&&sceneRef.current.room===char
           ?{place:sceneRef.current.place}:{})});
       setTyping(false);
@@ -1711,7 +1711,7 @@ function Root() {
       const at=sc&&sc.room===room?sc.place:null;
       /* left는 자리를 닫고 나서 부르는 턴에만 온다. place와 같이 오지 않는다 —
          워커도 place가 없을 때만 본다. */
-      const data=await sendChat(room,name,hist,{bag:bagOut(bag),
+      const data=await sendChat(room,name,hist,{bag:bagOut(bagRef.current),
         ...(at?{place:at,...(sc.came?{came:sc.came}:{}),...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
       setTyping(false);
       await applyExtras(data);
@@ -2017,8 +2017,10 @@ function Root() {
     if(sc&&talkedEnough(sc,msgsForFlow())){
       const p=PLACE_BY[sc.place];
       if(p&&p.item&&!bagRef.current.some((b:any)=>b.key===p.item)){
+        /* ref를 앞세운다 — setBag은 다음 그림에서야 반영되는데 자리를 닫자마자
+           워커를 부르므로, 방금 받은 것이 빠진 가방이 나간다(웹 app.js와 같은 자리) */
         const next=[...bagRef.current,{key:p.item,from:sc.room,where:sc.place,ts:Date.now()}];
-        setBag(next); saveBag(next);
+        bagRef.current=next; setBag(next); saveBag(next);
         const it=ITEMS[p.item];
         if(it){ sysLine(sc.room,`${CHARS[sc.room].name}에게 ${jos(it.name,'을/를')} 받았다`);
           setToast(`bag — ${it.name}`); }
