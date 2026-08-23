@@ -1097,16 +1097,18 @@ const putBatch=b=>{
   a.push(b); return saveBatches(a);
 };
 const getBatch=id=>loadBatches().find(x=>x.id===id)||null;
-/* 그린 것 하나를 기록에서 뺀다. 남은 덩어리를 돌려준다 —
-   items가 비었으면 이 덩어리의 마지막 말풍선이 방금 떴다는 뜻이다.
-   없는 덩어리면 null: 이미 끝난 것을 두 번 끝내지 않게 하는 자물쇠다.
-   저장이 실패하면 **안 뺀 것으로 친다** — 뺐다고 치고 넘어가면 그 줄이
-   장부에서만 사라져 다시 못 푼다. */
+/* 그린 것 하나를 기록에서 뺀다. 갈래를 셋으로 가른다 —
+   전에는 셋이 다 null이었다. 「이미 끝난 덩어리」와 「저장이 안 됐다」가
+   같은 값이면, 저장 실패가 조용히 넘어가 그 방이 영영 잠긴다.
+
+   missing        없는 덩어리다. 이미 끝났다 — 두 번 끝내지 않는다
+   storage_error  안 뺐다. 뺐다고 치고 넘어가면 그 줄을 다시 못 푼다
+   ok             뺐다. batch.items가 비었으면 마지막 말풍선이 방금 떴다 */
 const dropBatchItem=(id,itemId)=>{
   const a=loadBatches(),b=a.find(x=>x.id===id);
-  if(!b)return null;
+  if(!b)return{status:"missing",batch:null};
   b.items=(b.items||[]).filter(i=>i&&i.id!==itemId);
-  return saveBatches(a)?b:null;
+  return saveBatches(a)?{status:"ok",batch:b}:{status:"storage_error",batch:b};
 };
 const dropBatch=id=>saveBatches(loadBatches().filter(x=>x.id!==id));
 /* 한 덩어리에 든 말풍선의 id. 재생 전에 그 방에 이미 있는지 보는 자 */

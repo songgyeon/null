@@ -475,7 +475,7 @@ for (const r of ['jaeeon', 'minhyun'])
     if (!demo.demoAnswer(r, t, '윤하').length) empties++;
 eq('짧은 입력에도 빈 답이 없다', empties, 0);
 eq('큐가 비면 타이핑 표시를 끈다',
-  /if\(!dropBatch\(id\)\)return false;\s*\n\s*settle\(b\.room\);/.test(web)
+  /if\(!dropBatch\(id\)\)\{ saveFailed\(b\.room,null,id\); return false \}\s*\n\s*settle\(b\.room\);/.test(web)
   && /const settle=room=>\{ if\(roomIdle\(room\)\)setBusy/.test(web), true);
 /* 셋 다 비어야 끈다 — 미완료 장부가 남아 있으면 아직 하는 중이다.
    말풍선이 끝났어도 지문·초대·표·자리 닫기가 남았으면 열지 않는다.
@@ -866,7 +866,7 @@ eq('자리 몫과 선물 몫을 둘 다 쓴다',
   /if\(giftedToday\(char\)\|\|goneToday\(place\)\)return;/.test(web), true);
 /* 워커에게 자리와 선물을 같이 보낸다 — 마주 앉아 있고 방금 이걸 받았다 */
 eq('자리와 선물을 같이 보낸다',
-  /place,bag:bagOut\(\),gift:\{name:gift\.name,key:gift\.key,note\}\}\);/.test(web), true);
+  /after_request:\{extra:\{place,gift:\{name:gift\.name,key:gift\.key,note\}\}\}/.test(web), true);
 /* ── 가방은 준 사람을 같이 들고 간다 ──
    키만 보내니 워커에서 수수 방향이 사라졌다. 방향이 적힌 자리가 buildGift
    하나뿐이었고 그건 전부 유저→인물이라, 민현이 제가 준 젤리를 두고
@@ -2701,7 +2701,7 @@ eq('세계관에는 안 남겼다',
     /const left = mode === "chat" && !place \? \(body\.left \|\| ""\)/.test(w), true);
   /* 프론트가 나간 자리를 실어 보내야 한다 — 안 보내면 위가 다 소용없다 */
   eq('프론트가 나간 자리를 보낸다',
-    /request\(sc\.room,\{mode:"chat",room:sc\.room,user_name:name,left:sc\.place,/.test(web), true);
+    /after_request:\{extra:\{left:sc\.place\}\}/.test(web), true);
 }
 
 /* ── 단톡의 지난 대화가 요약도 없이 사라지던 것 ──
@@ -2991,7 +2991,7 @@ eq('행동 지문은 한 응답에 하나만',
 
 /* 가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다 */
 eq('같이 가기로 하면 상대가 답을 한다',
-  /invite_ops:\[\{op:"shift",place:iv\.place,char:iv\.char\}\]\}\)\)return;[\s\S]{0,300}request\(iv\.char,\{mode:"chat"/.test(web)
+  /invite_ops:\[\{op:"shift",place:iv\.place,char:iv\.char\}\],\s*\n\s*after_request:\{extra:/.test(web)
   && /await runTurn\(iv\.char\);/.test(appSrc), true);
 
 /* 세계관이 열리는 자리라 문장을 고정한다 — 각본만이 아니라 모델도 */
@@ -3582,7 +3582,10 @@ eq('나갈 때와 같은 규칙으로 닫는다 — 두고 온 것도 챙기고 
 /* 말없이 끝나 있으면 세계가 돌아간 게 아니라 꺼져 있던 거다 */
 eq('닫고 나서 인사를 부른다 — 먼저 간 사람이 말을 남긴다', (() => {
   const i = web.indexOf('접어둔 자리는 시간에 맞춰 끝난다');
-  return web.slice(i, i + 2400).includes('request(sc.room');
+  const t = web.slice(i, i + 2400);
+  /* 자는 사람은 안 부른다. 그 밖에는 장부가 끝난 뒤에 이어 부른다 */
+  return t.includes('after_request:{extra:{left:sc.place}}')
+      && t.includes('pr&&pr.s==="off"?{}:');
 })(), true);
 
 /* ── 대화 중에도 때는 온다 ──
@@ -3807,7 +3810,7 @@ eq('나가면 끝난다고 말해준다',
 eq('나오면 지문이 남는다',
   /`\$\{sc\.place\}에서 나왔다`/.test(web), true);
 eq('그 지문을 보고 인사한다',
-  /if\(!localBatch\(id,sc\.room,\{local_ops:\[\{op:"leave"[\s\S]{0,400}request\(sc\.room,/.test(web), true);
+  /localBatch\(id,sc\.room,\{local_ops:\[\{op:"leave"[\s\S]{0,300}after_request:\{extra:\{left:sc\.place\}\}/.test(web), true);
 /* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 */
 eq('귀갓길은 도착이다', /sc\.place===WAY\?"집에 도착했다"/.test(web), true);
 /* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
@@ -4452,9 +4455,9 @@ eq('시간표 단추는 peek보다 좁다',
   eq('워커는 두 값만 받는다',
     /body\.came === "asked" \|\| body\.came === "invited"/.test(wk), true);
   eq('웹이 같이 간 자리를 알린다',
-    /place:iv\.place,came:"invited"/.test(web)          // 초대 수락
-    && /place,came:"asked",bag:bagOut\(\)/.test(web)     // 같이 자리 옮기기
-    && /place,\.\.\.\(p\.pick\?\{came:"asked"\}:\{\}\),bag:bagOut\(\)/.test(web), true);
+    /place:iv\.place,came:"invited"/.test(web)                       // 초대 수락
+    && /after_request:\{extra:\{place,came:"asked"\}\}/.test(web)     // 같이 자리 옮기기
+    && /after_request:\{extra:\{place,\.\.\.\(p\.pick\?\{came:"asked"\}:\{\}\)\}\}/.test(web), true);
   /* 첫 턴에만 보내면 두 번째 말부터 도로 남남이 된다 */
   eq('자리에 있는 내내 보낸다',
     /\.\.\.\(sc\.came\?\{came:sc\.came\}:\{\}\)/.test(web)
@@ -5856,10 +5859,18 @@ eq('시간표 단추는 peek보다 좁다',
     const boot = (seed, reply, opt) => {
       const mem = new Map(Object.entries(seed || {}));
       const fail = (opt && opt.failKeys) || [];   // 저장 실패를 주입할 key
+      /* 그 key의 n번째 쓰기만 실패시킨다. 켜는 것은 부팅이 끝난 뒤부터이고,
+         값이 실제로 바뀌는 쓰기만 센다 — 리액트 effect가 같은 값을 한 번 더
+         쓰는 것까지 세면 번호가 코드 모양에 딸려 흔들린다. */
+      let armed = false;
+      const nthFail = (opt && opt.failNth) || null;
       const localStorage = { getItem: k => mem.has(k) ? mem.get(k) : null,
         setItem: (k, v) => {
+          const t = String(v);
           if (fail.includes(k)) throw new Error('QuotaExceededError');
-          mem.set(k, String(v));
+          if (nthFail && armed && nthFail.key === k && mem.get(k) !== t && nthFail.n())
+            throw new Error('QuotaExceededError');
+          mem.set(k, t);
         },
         removeItem: k => mem.delete(k),
         clear: () => mem.clear(), get length() { return mem.size }, key: i => [...mem.keys()][i] };
@@ -5922,10 +5933,12 @@ eq('시간표 단추는 peek보다 좁다',
         render();
       };
       render();
+      armed = true;
       return { get app() { return probe }, tick, render, sent,
         ls: k => { const v = mem.get(k); try { return JSON.parse(v) } catch (e) { return v } },
         dump: () => Object.fromEntries(mem) };
     };
+    const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
     const said = (W, r) => (W.app.store.msgs[r || 'minhyun'] || []).map(m => (m.sys ? '· ' : '') + m.text);
     /* 모델에게 실제로 나간 history 안의 지문 줄 */
     const outSys = W => (W.sent[W.sent.length - 1].history || [])
@@ -6415,6 +6428,172 @@ eq('시간표 단추는 peek보다 좁다',
           shot(W).forEach(([k, v], i) => { if (v !== base[i][1]) diffs.push([f, k, v, base[i][1]]) });
         }
         eq('실패를 걷고 이어서 돌린 끝이 무실패와 같다', diffs, []);
+      }
+    }
+
+    /* ══════ 장애가 난 뒤 실제로 복구되는가 ══════
+       장부 구조가 맞아도 배선이 빠지면 유저는 못 빠져나온다. 말풍선 저장·
+       장부에서 빼기·마지막 지우기를 각각 실패시키고, 화면의 재시도 단추를
+       실제로 눌러서 끝까지 가는지 본다. */
+    {
+      /* n번째 저장만 실패시킨다 — 첫 쓰기는 되고 도중에 무너지는 자리 */
+      const nth = (key, n) => { let i = 0; return { failKeys: [], failNth: { key, n: () => ++i === n } } };
+
+      /* ① 말풍선 저장 실패 — 이름표를 잃으면 재시도가 아무것도 못 한다 */
+      {
+        const rep = () => ({ messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }] });
+        const W = boot({ null_name: '윤하' }, rep, nth('null_store_v1', 2));
+        W.app.send('minhyun', '안녕');       // 1번째 쓰기 = 유저 말
+        await W.tick(9000);                  // 2번째 쓰기 = 'ㄱ' → 실패
+        const f = W.app.failed.minhyun;
+        eq('말풍선 저장이 실패해도 이름표가 남는다',
+          [!!f, !!(f && f.batch)], [true, true]);
+        eq('그 batch가 실제로 장부에 있다',
+          (W.ls('null_batch') || []).some(b => b.id === f.batch), true);
+        const before = W.sent.length;
+        W.app.retry('minhyun');
+        await W.tick(9000);
+        eq('재시도가 남은 것을 이어서 푼다', said(W), ['안녕', 'ㄱ', 'ㄴ']);
+        eq('그 재시도는 API를 다시 안 부른다', W.sent.length, before);
+        eq('끝나면 장부도 잠금도 없다',
+          [(W.ls('null_batch') || []).length, !!W.app.failed.minhyun, !!W.app.busy.minhyun],
+          [0, false, false]);
+      }
+
+      /* ② 장부에서 빼기 실패 — 조용히 삼키면 그 방이 영영 잠긴다 */
+      {
+        const rep = () => ({ messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }] });
+        const W = boot({ null_name: '윤하' }, rep, nth('null_batch', 2));
+        W.app.send('minhyun', '안녕');       // 1번째 = 장부 쓰기
+        await W.tick(9000);                  // 2번째 = 첫 말풍선 빼기 → 실패
+        eq('빼기 실패도 이름표로 올라온다',
+          !!(W.app.failed.minhyun && W.app.failed.minhyun.batch), true);
+        const before = W.sent.length;
+        W.app.retry('minhyun'); await W.tick(9000);
+        eq('이어서 풀면 말이 두 번 안 붙는다', said(W), ['안녕', 'ㄱ', 'ㄴ']);
+        eq('빼기 실패 복구도 API를 안 부른다', W.sent.length, before);
+        eq('끝나면 풀린다',
+          [(W.ls('null_batch') || []).length, !!W.app.busy.minhyun], [0, false]);
+      }
+
+      /* ③ 마지막 dropBatch 실패 — 다 했는데 장부가 안 지워지는 자리 */
+      {
+        const rep = () => ({ messages: [{ text: 'ㄱ' }] });
+        const W = boot({ null_name: '윤하' }, rep, nth('null_batch', 3));
+        W.app.send('minhyun', '안녕');       // 1=장부 쓰기 2=말풍선 빼기 3=마지막 지우기
+        await W.tick(9000);
+        eq('마지막 지우기 실패도 삼키지 않는다',
+          !!(W.app.failed.minhyun && W.app.failed.minhyun.batch), true);
+        W.app.retry('minhyun'); await W.tick(9000);
+        eq('이어서 하면 장부가 지워지고 방이 열린다',
+          [(W.ls('null_batch') || []).length, !!W.app.busy.minhyun, said(W)],
+          [0, false, ['안녕', 'ㄱ']]);
+      }
+
+      /* ④ 화면의 단추를 실제로 누른다 — 잠긴 방에서도 보여야 한다 */
+      {
+        const rep = () => ({ messages: [{ text: 'ㄱ' }] });
+        const W = boot({ null_name: '윤하' }, rep, nth('null_batch', 3));
+        W.app.send('minhyun', '안녕');
+        await W.tick(9000);
+        /* 방 화면이 실제로 그리는 조건 그대로 — busy여도 failed가 이긴다 */
+        const shows = (busy, failed) => [!!(busy && !failed), !!failed];
+        eq('잠긴 방에서도 단추가 보인다',
+          shows(W.app.busy.minhyun, W.app.failed.minhyun), [false, true]);
+        eq('타이핑과 단추를 같이 안 띄운다',
+          /\{busy&&!failed&&<div className="mrow"/.test(ui)
+          && /\{failed&&<button className="retry"/.test(ui), true);
+        eq('자리 화면도 같다',
+          /\{busy&&!failed&&<div className="sline">/.test(ui)
+          && (ui.match(/\{failed&&<button className="retry"/g) || []).length === 2, true);
+        /* 그 자리에서 누른다 */
+        W.app.retry('minhyun'); await W.tick(9000);
+        eq('눌러서 빠져나온다',
+          [(W.ls('null_batch') || []).length, !!W.app.failed.minhyun, !!W.app.busy.minhyun],
+          [0, false, false]);
+      }
+
+      /* ⑤ local batch 복구는 캐릭터 답까지 이어간다 ──
+         선물·초대·자리 이동은 아직 모델을 부르기 전이다. 상태와 지문만
+         살아나고 답장이 영영 안 오면, 선물은 가방에 들어갔는데 상대는
+         아무 말도 안 하는 판이 된다. */
+      {
+        const rep = () => ({ messages: [{ text: '고마워요' }] });
+        const W = boot({ null_name: '윤하', null_met: JSON.stringify(['교실', '보건실', '옥상']) },
+          rep, nth('null_store_v1', 1));      // 첫 지문 저장부터 실패
+        W.app.giveGiftAt('minhyun', { key: 'mug', name: '회색 머그컵' }, '', '옥상');
+        await W.tick(9000);
+        eq('지문이 안 남으면 요청도 안 나간다', W.sent.length, 0);
+        eq('이어갈 요청이 장부에 적혀 있다',
+          (W.ls('null_batch') || []).map(b => b.after_request && b.after_request.extra.place), ['옥상']);
+        /* 새로고침해도 이어갈 요청이 남아 있다 — closure가 아니라 장부다 */
+        const V = boot(W.dump(), rep);
+        await V.tick(9000);
+        eq('복구하면 캐릭터 답을 정확히 한 번 이어간다',
+          [V.sent.length, said(V).filter(t => t === '고마워요').length], [1, 1]);
+        eq('그 요청에 자리와 선물이 실려 있다',
+          [V.sent[0].place, V.sent[0].gift.key], ['옥상', 'mug']);
+        /* history·counts는 장부를 쓸 때가 아니라 보낼 때의 세계로 조립된다 */
+        eq('최신 상태로 다시 조립한다',
+          [V.sent[0].counts.minhyun, (V.sent[0].history || []).length], [2, 2]);
+        eq('끝나면 아무것도 안 남는다',
+          [(V.ls('null_batch') || []).length, !!V.app.failed.minhyun, !!V.app.busy.minhyun],
+          [0, false, false]);
+      }
+
+      /* ⑥ 모델 답을 이미 받은 batch의 복구는 API 0회 */
+      {
+        const rep = () => ({ messages: [{ text: 'ㄱ' }] });
+        const W = boot({ null_name: '윤하' }, rep, nth('null_batch', 2));
+        W.app.send('minhyun', '안녕');
+        await W.tick(9000);
+        const V = boot(W.dump(), rep);        // ← 새로고침으로 이어간다
+        await V.tick(9000);
+        eq('받은 답의 복구는 모델을 안 부른다', V.sent.length, 0);
+        eq('그래도 끝까지 간다',
+          [said(V), (V.ls('null_batch') || []).length, !!V.app.busy.minhyun],
+          [['안녕', 'ㄱ'], 0, false]);
+      }
+
+      /* ⑦ 여덟 경로 전부 — 복구 뒤 답장이 정확히 한 번 */
+      {
+        const rep = () => ({ messages: [{ text: '네' }] });
+        const sc = { room: 'minhyun', place: '옥상', since: T0 - 60e3 };
+        const MET = JSON.stringify(['교실', '보건실', '옥상']);
+        const cases = [
+          ['자리 자동 종료', { null_scene: JSON.stringify({ ...sc, since: T0 - 3 * 3600e3 }) }, W => {}],
+          ['직접 나가기', { null_scene: JSON.stringify(sc) },
+            W => { W.app.leaveScene(); W.render(); W.app.answerLeave(true) }],
+          ['귀갓길', { null_scene: JSON.stringify(sc) },
+            W => { W.app.startWay(sc); W.render(); W.app.answerWay(true) }],
+          ['초대 수락', { null_invite: JSON.stringify([{ place: '옥상', char: 'minhyun' }]) },
+            W => W.app.answerInvite(true)],
+          ['초대 거절', { null_invite: JSON.stringify([{ place: '옥상', char: 'minhyun' }]) },
+            W => W.app.answerInvite(false)],
+          ['자리 이동', { null_scene: JSON.stringify(sc), null_met: MET },
+            W => { W.app.openAsk('체육관'); W.render(); W.app.answerMove(true) }],
+          ['지도 방문', { null_met: MET },
+            W => { W.app.openAsk('체육관'); W.render(); W.app.answerAsk(true) }],
+          ['선물', { null_scene: JSON.stringify(sc) },
+            W => W.app.giveGift('minhyun', { key: 'mug', name: '회색 머그컵' }, '')],
+          ['들고 가기', { null_met: MET },
+            W => W.app.giveGiftAt('minhyun', { key: 'mug', name: '회색 머그컵' }, '', '옥상')],
+        ];
+        const bad = [];
+        for (const [label, extra, act] of cases) {
+          const W = boot({ null_name: '윤하', ...extra }, rep, nth('null_store_v1', 1));
+          act(W); await W.tick(9000);
+          const V = boot(W.dump(), rep);       // 복구
+          await V.tick(9000);
+          const said1 = (V.app.store.msgs.minhyun || []).filter(m => m.text === '네').length;
+          const left = (V.ls('null_batch') || []).length;
+          /* 자리 만료처럼 스스로 다시 도는 길은 W에서 이미 이어질 수 있다 —
+             둘을 합쳐 정확히 한 번이면 된다 */
+          const calls = W.sent.length + V.sent.length;
+          if (calls !== 1 || said1 !== 1 || left || V.app.failed.minhyun || V.app.busy.minhyun)
+            bad.push([label, calls, said1, left, !!V.app.failed.minhyun, !!V.app.busy.minhyun]);
+        }
+        eq('여덟 경로 모두 복구 뒤 답장이 정확히 한 번', bad, []);
       }
     }
 

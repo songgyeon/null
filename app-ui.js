@@ -1291,7 +1291,11 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
                             {...(me?{}:hold(m))}>{m.text}</div>}
             </div>;
           })}
-          {busy&&<div className="sline"><div className="stext dim">…</div></div>}
+          {busy&&!failed&&<div className="sline"><div className="stext dim">…</div></div>}
+          {failed&&<button className="retry" onClick={onRetry}>
+            no reply... try again?
+            {failed.detail&&<span className="why">{failed.detail}</span>}
+          </button>}
         </div>
       </div>
       <div className="inputbar scenebar">
@@ -1363,11 +1367,15 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
           </div>}
         </React.Fragment>;
       })}
-      {busy&&<div className="mrow" style={{marginTop:8}}>
+      {/* ── 실패가 타이핑보다 앞선다 ──
+          전에는 busy면 단추를 숨겼다. 그런데 저장이 실패한 방은 「이어서
+          할 것이 남았다」는 뜻으로 잠긴 채(busy)로 둔다 — 그러면 복구할
+          정보가 있는데도 유저가 누를 수가 없었다. 둘을 같이 띄우지 않는다. */}
+      {busy&&!failed&&<div className="mrow" style={{marginTop:8}}>
         <div className="mavatar" style={{background:"#ece8fa"}}/>
         <div className="bubble typing"><i/><i/><i/></div>
       </div>}
-      {failed&&!busy&&<button className="retry" onClick={onRetry}>
+      {failed&&<button className="retry" onClick={onRetry}>
         no reply... try again?
         {failed.detail&&<span className="why">{failed.detail}</span>}
       </button>}
