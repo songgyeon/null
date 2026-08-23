@@ -40,26 +40,51 @@ function App(){
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2600);return()=>clearTimeout(t)},[toast]);
 
   /* 메시지 추가 (+현재 안 보고 있는 방이면 unread 증가)
-     ── 그 자리에서 저장한다 ──
-     전에는 setStore만 하고 저장은 리액트가 그림을 그린 뒤 effect가 했다.
-     그러면 「그렸다」와 「남았다」 사이에 틈이 생긴다 — 재생 기록에서
-     그 줄을 빼는 것은 즉시인데 줄 자체는 아직 안 남아 있는 순간. 지금
-     쓰고, ref도 같이 앞세운다(가방이 하는 것과 같다). */
+     ── 계약 ──
+     ① 그 자리에서 저장한다. 전에는 setStore만 하고 저장은 리액트가 그림을
+        그린 뒤 effect가 했다. 그러면 「그렸다」와 「남았다」 사이에 틈이
+        생긴다 — 재생 장부에서 그 줄을 빼는 것은 즉시인데 줄 자체는 아직
+        안 남아 있는 순간. 지금 쓰고, ref도 같이 앞세운다.
+     ② **갱신된 그 방의 목록을 돌려준다.** 이걸 안 하면 부르는 쪽이
+        `[...storeRef.current.msgs[room], msg]`로 직접 이어 붙이는데,
+        ref가 이미 갱신됐으므로 **같은 사건이 두 번** 들어간다. 화면에는
+        한 번인데 모델에게 가는 history에는 두 번이고, counts도 부푼다.
+        붙이지 말고 받아 쓴다.
+     ③ 저장이 실패하면 null이다. 안 남은 것을 남았다고 치고 넘어가지 않는다. */
   const appendMsg=(room,msg)=>{
     const s=storeRef.current;
-    const next={msgs:{...s.msgs,[room]:[...(s.msgs[room]||[]),msg]},
+    const list=[...(s.msgs[room]||[]),msg];
+    const next={msgs:{...s.msgs,[room]:list},
       unread:viewRef.current!==room?{...s.unread,[room]:(s.unread[room]||0)+1}:s.unread};
-    storeRef.current=next; saveStore(next); setStore(next);
-    return next;
+    if(!saveStore(next))return null;
+    storeRef.current=next; setStore(next);
+    return list;
+  };
+  /* 저장이 안 됐다. 조용히 넘어가면 화면에만 있는 세계가 된다 —
+     그 방을 멈추고 왜 멈췄는지 적는다. */
+  const saveFailed=(room,payload)=>{
+    setBusy(b=>({...b,[room]:false}));
+    setFailed(f=>({...f,[room]:{payload:payload||null,
+      detail:"저장에 실패했다 — 브라우저 저장 공간이 찼을 수 있다"}}));
+    return null;
   };
   /* ── 같은 줄을 두 번 붙이지 않는다 ──
      재생은 끊길 수 있다. 덩어리에 적힌 id는 저장할 때 이미 박은 것이라,
      저장이 어디서 끊겼든 「이미 있는지」만 보면 두 번 붙는 일이 없다. */
   const appendOnce=(room,msg)=>{
     const ms=storeRef.current.msgs[room]||[];
-    if(ms.some(m=>m&&m.id===msg.id))return false;
-    appendMsg(room,msg); return true;
+    if(ms.some(m=>m&&m.id===msg.id))return true;   // 이미 있다 — 한 것으로 친다
+    return !!appendMsg(room,msg);
   };
+  /* ── 이 방이 아무것도 안 하고 있나 ──
+     타이핑 표시를 끄는 조건이자 새 입력을 여는 조건이다. 셋 중 하나라도
+     남아 있으면 아직 하는 중이다: 큐에 남은 말풍선 · 안 푼 덩어리 · 도는 요청.
+     안 푼 덩어리를 안 보면, 새로고침으로 되살아난 답이 재생되는 동안
+     입력이 열려서 「유저 말 → 새 유저 말 → 옛 답 나머지」로 갈린다. */
+  const replaying=room=>loadBatches().some(b=>b.room===room&&(b.items||[]).length);
+  const roomIdle=room=>!queueRef.current.some(q=>q.room===room)
+    && !inflightRef.current[room] && !replaying(room);
+  const settle=room=>{ if(roomIdle(room))setBusy(b=>({...b,[room]:false})) };
 
   /* 대기열 처리: 0.6초 간격 순차 등장 */
   const pump=()=>{
@@ -69,8 +94,7 @@ function App(){
       const it=queueRef.current.shift();
       if(!it){runningRef.current=false;return}
       paintQueued(it);
-      if(!queueRef.current.some(q=>q.room===it.room)&&!inflightRef.current[it.room])
-        setBusy(b=>({...b,[it.room]:false}));
+      settle(it.room);
       setTimeout(step,600);
     };
     setTimeout(step,500); // 타이핑 인디케이터를 잠깐 보여준 뒤 첫 버블
@@ -83,11 +107,14 @@ function App(){
      「받았다」가 먼저 뜨는 게 그거였다. 마지막 말풍선이 실제로 뜬 자리가
      그 시점이다. */
   const paintQueued=it=>{
-    if(it.text||it.photo)
-      appendOnce(it.room,{id:it.id,sender:it.sender,text:it.text,photo:it.photo,ts:Date.now()});
+    /* 안 남았으면 장부에서도 안 뺀다 — 빼고 넘어가면 그 줄을 다시 못 푼다 */
+    if((it.text||it.photo)
+      && !appendOnce(it.room,{id:it.id,sender:it.sender,text:it.text,photo:it.photo,ts:Date.now()}))
+      return saveFailed(it.room);
     if(!it.batch)return;
     const left=dropBatchItem(it.batch,it.id);
-    if(left&&(left.items||[]).length)return;
+    if(!left)return;                                   // 없거나 저장 실패
+    if((left.items||[]).length)return;
     finishBatch(it.batch);
   };
   /* 그 자리에서 그 사람이 처음 입을 열면 화면이 그 사람으로 바뀐다.
@@ -184,8 +211,9 @@ function App(){
      한 시간 뒤 관전방에서 다른 한 사람이 그 얘기를 꺼낸다. 거절하면 안 간다 —
      그리고 그 자리는 다시 안 나온다. 두 번 조르지 않는 것이 이 두 사람의 성격이다. */
   /* 저장소에서 읽어 시작한다. 창이 떠 있는 채로 껐다 켜도 물음은 남아야
-     한다 — 워커는 초대한 걸로 아는데 유저에게는 물어본 적이 없으면 안 된다 */
-  const [invite,setInvite]=useState(loadInvite);
+     한다 — 워커는 초대한 걸로 아는데 유저에게는 물어본 적이 없으면 안 된다.
+     줄의 맨 앞 하나만 뜬다. 답하면 다음 것이 열린다. */
+  const [invite,setInvite]=useState(headInvite);
   /* 지금 어느 자리에 있나. 새로고침해도 그 자리에 남아 있게 저장해 둔다 */
   const [scene,setScene]=useState(loadScene);
   /* 다녀온 자리. 지도가 열리는 유일한 근거라서 저장소에만 두면 안 된다 —
@@ -291,7 +319,9 @@ function App(){
        채로 나갔다. 체육관에서 손목 보호대를 받고 나온 턴에서 민현이
        「손목 보호대가 왜 선생님한테 있어요」라고 물은 자리가 여기다. */
     const next=[...bagRef.current,{key,from,where,ts:Date.now()}];
-    bagRef.current=next; setBag(next); saveBag(next);
+    /* 안 남았으면 받은 게 아니다 — 표를 안 찍으므로 다음에 다시 받을 수 있다 */
+    if(!saveBag(next))return false;
+    bagRef.current=next; setBag(next);
     const line=`${CHARS[from]?CHARS[from].name:from}에게 ${jos(it.name,"을/를")} 받았다`;
     /* 가방에는 들어갔는데 「누구에게 받았다」가 사라지면, 물건에서 얼굴이
        떨어진다. 지문도 가방과 같이 남긴다 — 덩어리에 적으니 같이 남는다. */
@@ -332,6 +362,12 @@ function App(){
        가방 → 덩어리(말풍선·지문·초대·자리 닫기) → effect_done
      effect_done이 제일 마지막이라, 어디서 끊겨도 「표만 남는」 일은 없다. */
   const commitTurn=(id,room,messages,effects,over)=>{
+    /* ── 같은 답을 두 번 적지 않는다 ──
+       늦게 온 답·재시도·되살아난 탭이 같은 id로 다시 올 수 있다. 그때
+       덮어쓰면 **반쯤 푼 상태가 처음으로 되돌아가** 이미 뜬 말풍선이 또
+       뜬다. 있으면 있는 것을 그대로 돌려준다 — Effect도 다시 안 센다. */
+    const had=getBatch(id);
+    if(had){ had.saved=true; return had }
     const items=[];
     (messages||[]).forEach((m,i)=>{
       if(!m)return;
@@ -339,21 +375,28 @@ function App(){
       const text=(m.text||"").trim();
       if(text||photo)items.push({id:batchItemId(id,i),room,sender:m.sender||room,text,photo});
     });
-    const b={id,room,items,sys:[],invite:null,toast:"",over:over||null};
+    const b={id,room,items,sys:[],invite:null,toast:"",over:over||null,saved:true};
     const done=applyEffects(effects,b);            // 가방은 여기서 저장된다
-    if(items.length||b.sys.length||b.invite||b.over)putBatch(b);
-    if(done)saveEffDone(done);                     // ← 남을 것이 다 남은 뒤에만
+    if(items.length||b.sys.length||b.invite||b.over)b.saved=putBatch(b);
+    /* 안 남았으면 표도 안 찍는다. 표만 남으면 다시는 못 받는다 */
+    if(b.saved&&done)b.saved=saveEffDone(done);
     return b;
   };
   /* 적힌 덩어리를 화면에 푼다. 큐는 방마다가 아니라 하나뿐이므로 다른 방의
      말풍선이 앞에 있을 수 있다 — 순서는 큐가 정하고, 뒤따르는 것은 이
      덩어리의 마지막 말풍선이 정한다(paintQueued). */
   const playBatch=b=>{
-    if(!b)return b;
+    if(!b||b.saved===false)return b;
+    /* 이미 큐에서 도는 덩어리면 다시 안 넣는다 — 같은 답이 두 벌 뜬다 */
+    if(queueRef.current.some(q=>q.batch===b.id))return b;
     /* 넣을 게 하나도 없으면 여기서 타이핑 표시를 끈다. 큐에 안 들어가면
        pump가 돌지 않고, 그러면 표시가 영영 안 꺼진다 —
        데이터가 비었다고 화면이 멈추면 안 된다. */
-    if(!b.items.length){ setBusy(x=>({...x,[b.room]:false})); finishBatch(b.id); return b; }
+    if(!b.items.length){ finishBatch(b.id); settle(b.room); return b; }
+    /* 풀 것이 남아 있는 방은 잠근다. 재생 중에 새 말을 받으면 「유저 말 →
+       새 유저 말 → 옛 답 나머지」로 순서가 갈리고, 새 요청의 history에는
+       아직 안 뜬 옛 답이 통째로 빠진다. */
+    setBusy(x=>({...x,[b.room]:true}));
     b.items.forEach(it=>queueRef.current.push({...it,batch:b.id}));
     swapShot(b.room);
     pump();
@@ -362,12 +405,16 @@ function App(){
   /* 말풍선이 다 떴다. 이제 뒤따르는 것을 낸다 — 초대를 먼저 옮겨 적고
      (덩어리를 지우기 전에), 지문을 붙이고, 마지막에 기록을 지운다.
      중간에 끊겨도 덩어리가 남아 있으므로 다시 낸다. id가 박혀 있어서
-     두 번 붙지는 않는다. */
+     두 번 붙지는 않는다. 하나라도 저장이 안 되면 **기록을 안 지운다** —
+     다음에 다시 켜면 남은 것부터 또 낸다. */
   const finishBatch=id=>{
-    const b=getBatch(id); if(!b)return;
-    if(b.invite){ saveInvite(b.invite); setInvite(b.invite); }
-    (b.sys||[]).forEach(s=>{ if(s&&s.id)
-      appendOnce(s.room,{id:s.id,sender:"user",sys:true,text:s.text,ts:Date.now()}); });
+    const b=getBatch(id); if(!b)return false;
+    if(b.invite&&!pushInvite(b.invite))return false;
+    setInvite(headInvite());
+    let ok=true;
+    (b.sys||[]).forEach(s=>{ if(s&&s.id&&
+      !appendOnce(s.room,{id:s.id,sender:"user",sys:true,text:s.text,ts:Date.now()}))ok=false; });
+    if(!ok){ saveFailed(b.room); return false }
     if(b.toast)setToast(b.toast);
     /* 때가 지난 자리였다 — 방금 온 답이 마무리 인사다. 인사가 다 뜬 뒤에
        자리를 닫는다. 답을 기다리는 사이 유저가 나가고 다른 자리를 열었을
@@ -375,16 +422,19 @@ function App(){
     if(b.over){
       const sc=sceneRef.current;
       if(sc&&sc.room===b.over.room&&sc.since===b.over.since){
+        if(!appendOnce(b.over.room,{id:id+"#out",sender:"user",sys:true,
+          text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()}))
+          return saveFailed(b.room),false;
         closeScene();
-        appendOnce(b.over.room,{id:id+"#out",sender:"user",sys:true,
-          text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
       }
     }
-    dropBatch(id);
+    return dropBatch(id);
   };
   /* ── 끊긴 재생을 잇는다 ──
      첫 말풍선 전에 껐든 타이핑 도중에 껐든, 남아 있는 덩어리부터 다시 푼다.
-     그래서 「장면은 소모됐는데 답이 없다」가 안 생긴다. */
+     그래서 「장면은 소모됐는데 답이 없다」가 안 생긴다.
+     푸는 동안 그 방은 잠긴다(playBatch) — 아직 안 뜬 말 위에 새 말을
+     얹으면 순서도 이력도 갈린다. */
   useEffect(()=>{ loadBatches().forEach(playBatch) },[]);
   /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
      X는 나가기가 아니라 접어두기다. 그런데 유효기간이 없어서, 낮에 보건실을
@@ -416,10 +466,10 @@ function App(){
     closeScene();
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
       text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()};
-    appendMsg(sc.room,sys);
+    const next=appendMsg(sc.room,sys);
+    if(!next)return saveFailed(sc.room);
     const pr=presence(sc.room);
     if(pr&&pr.s==="off")return;
-    const next=[...(storeRef.current.msgs[sc.room]||[]),sys];
     /* 나갔다는 것을 같이 보낸다. 여기서는 closeScene을 이미 했으므로 place가
        안 실리고, 그러면 모델에게는 그냥 문자 대화로 보인다 — 지문 한 줄만
        유저가 한 말처럼 들어간다. 그래서 이미 나간 사람을 두고 「오늘 벌써
@@ -461,8 +511,8 @@ function App(){
     /* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 */
     const line=sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
-    appendMsg(sc.room,sys);
-    const next=[...(storeRef.current.msgs[sc.room]||[]),sys];
+    const next=appendMsg(sc.room,sys);
+    if(!next)return saveFailed(sc.room);
     request(sc.room,{mode:"chat",room:sc.room,user_name:name,
       history:buildHistory(sinceSum(sc.room,next)),signals:buildSignals(sc.room),
       recent_photos:recentPhotos(sc.room),counts:roomCounts({[sc.room]:next.length}),
@@ -479,20 +529,23 @@ function App(){
     const who=sc.room, nm=CHARS[who].name;
     const line=who==="jaeeon"?`${nm}의 차를 타고 집에 가는 길이다`:`${nm}과 같이 버스를 타고 집에 가는 길이다`;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
-    appendMsg(who,sys);
+    const next=appendMsg(who,sys);
+    if(!next)return saveFailed(who);
     const next2={room:who,place:WAY,since:Date.now(),bg:WAY_BG[who]};
     setScene(next2); saveScene(next2); setView(who);
-    const next=[...(storeRef.current.msgs[who]||[]),sys];
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
       place:WAY,bag:bagOut()});
   };
   const answerInvite=ok=>{
-    const iv=invite; setInvite(null); saveInvite(null); if(!iv)return;
+    /* 답한 것만 줄에서 뺀다. 뒤에 밀려 있던 초대는 그 자리에서 열린다 */
+    const iv=invite; if(!iv){ setInvite(null); return }
+    shiftInvite(); setInvite(headInvite());
     const line=ok?`${jos(CHARS[iv.char].name,"과/와")} ${iv.place}에 가기로 했다`:`${jos(iv.place,"은/는")} 다음에 가기로 했다`;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
-    appendMsg(iv.char,sys);
+    const next=appendMsg(iv.char,sys);
+    if(!next)return saveFailed(iv.char);
     if(ok){ goneTo(iv.place); stampGone(iv.place); markEvent({kind:"met",to:iv.char,name:iv.place});
       // 그 자리로 화면을 옮긴다. 배경이 깔리고 말풍선이 걷힌다
       /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
@@ -503,7 +556,6 @@ function App(){
        가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다.
        그 자리 얘기는 한 시간 뒤 관전방에서나 나왔고, 정작 같이 가기로 한
        사람은 입을 다물고 있었다. 승낙이든 거절이든 반응이 있어야 사람이다. */
-    const next=[...(storeRef.current.msgs[iv.char]||[]),sys];
     request(iv.char,{mode:"chat",room:iv.char,user_name:name,
       history:buildHistory(sinceSum(iv.char,next)),signals:buildSignals(iv.char),
       recent_photos:recentPhotos(iv.char),counts:roomCounts({[iv.char]:next.length}),
@@ -537,9 +589,9 @@ function App(){
     stampGone(place); goneTo(place); markEvent({kind:"met",to:who,name:place});
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
       text:`${jos(place,"으로/로")} 같이 자리를 옮겼다`,ts:Date.now()};
-    appendMsg(who,sys);
+    const next=appendMsg(who,sys);
+    if(!next)return saveFailed(who);
     const nsc={room:who,place,since:Date.now(),came:"asked"}; setScene(nsc); saveScene(nsc); setView(who);
-    const next=[...(storeRef.current.msgs[who]||[]),sys];
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
@@ -571,13 +623,13 @@ function App(){
        「레코드샵에 갔다」만 있으면 이력만 읽는 다음 턴이 혼자 간 것으로 읽는다 */
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,
       text:p.pick?`${jos(CHARS[who].name,"과/와")} ${place}에 갔다`:`${place}에 갔다`,ts:Date.now()};
-    appendMsg(who,sys);
+    const next=appendMsg(who,sys);
+    if(!next)return saveFailed(who);
     goneTo(place); markEvent({kind:"met",to:who,name:place});
     /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
     if(sceneRef.current)closeScene();
     const sc={room:who,place,since:Date.now(),...(p.pick?{came:"asked"}:{})}; setScene(sc); saveScene(sc);
     setView(who);
-    const next=[...(storeRef.current.msgs[who]||[]),sys];
     request(who,{mode:"chat",room:who,user_name:name,
       history:buildHistory(sinceSum(who,next)),signals:buildSignals(who),
       recent_photos:recentPhotos(who),counts:roomCounts({[who]:next.length}),
@@ -778,6 +830,9 @@ function App(){
         data&&data.effects,
         payload.place_over
           ?{room:bucket,since:sceneRef.current&&sceneRef.current.since}:null);
+      /* 안 남았으면 없던 일이다. 장면도 안 지우고 표도 안 찍혔다 —
+         다시 눌러 볼 수 있게 실패로 남긴다 */
+      if(batch.saved===false){ saveFailed(bucket,payload); return }
       applyUnlocked(data&&data.unlocked);
       /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가
          안 맞고 있다는 뜻인데, 그건 오류를 안 내고 조용히 정가를 문다 */
@@ -848,10 +903,15 @@ function App(){
     /* 「//」로 열면 대화가 아니라 적어두는 것이다. 여기서 끊으므로 이력에도
        안 남고 워커도 안 부른다 — 인물은 이 말을 모른다. */
     if(/^\/\//.test(text)){ addNote(room,text.replace(/^\/\/\s*/,"")); return }
+    /* ── 아직 안 뜬 답 위에 말을 얹지 않는다 ──
+       화면에서도 막지만(busy) 코드로도 막는다. 받으면 「유저 말 → 새 유저
+       말 → 옛 답 나머지」로 순서가 갈리고, 이 요청의 history에는 아직 안 뜬
+       옛 답이 통째로 빠진다. 새로고침으로 되살아난 재생이 그 자리다. */
+    if(replaying(room)){ setBusy(b=>({...b,[room]:true})); return }
     const prevList=storeRef.current.msgs[room]||[];
     const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};
-    appendMsg(room,userMsg);
-    const next=[...prevList,userMsg];
+    const next=appendMsg(room,userMsg);
+    if(!next)return saveFailed(room);
     const history=buildHistory(sinceSum(room,next));
     /* ── 「그거 어떻게 알아요?」 ──
        등록값은 YES를 누른 순간 세계의 빈칸에 들어갔고, 두 사람은 그것을
@@ -909,10 +969,10 @@ function App(){
     const note=(memo||"").trim().slice(0,60);
     const line=`${jos(CHARS[char].name,"이/가")} ${jos(gift.name,"을/를")} 받았다`+(note?` — “${note}”`:"");
     const sysMsg={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
-    appendMsg(char,sysMsg);
+    const nextMsgs=appendMsg(char,sysMsg);
+    if(!nextMsgs)return saveFailed(char);
     setToast(`${CHARS[char].name} — ${gift.name}`);
     markEvent({kind:"gift",to:char,name:gift.name});
-    const nextMsgs=[...(storeRef.current.msgs[char]||[]),sysMsg];
     request(char,{mode:"chat",room:char,user_name:name,history:buildHistory(sinceSum(char,nextMsgs)),
       signals:buildSignals(char),recent_photos:recentPhotos(char),
       counts:roomCounts({[char]:nextMsgs.length}),bag:bagOut(),
@@ -935,12 +995,15 @@ function App(){
     const at={id:Date.now()+Math.random(),sender:"user",sys:true,text:`${place}에 갔다`,ts:Date.now()};
     const got={id:Date.now()+Math.random(),sender:"user",sys:true,
       text:`${jos(CHARS[char].name,"이/가")} ${jos(gift.name,"을/를")} 받았다`+(note?` — “${note}”`:""),ts:Date.now()+1};
-    appendMsg(char,at); appendMsg(char,got);
+    /* 두 사건을 잇달아 적는다. 두 번째가 돌려주는 목록이 둘 다 든 목록이다 —
+       직접 이어 붙이면 방문도 선물도 각각 두 번씩 들어간다 */
+    if(!appendMsg(char,at))return saveFailed(char);
+    const ms=appendMsg(char,got);
+    if(!ms)return saveFailed(char);
     goneTo(place); markEvent({kind:"gift",to:char,name:gift.name});
     setToast(`${CHARS[char].name} — ${gift.name}`);
     if(sceneRef.current)closeScene();   // 하던 자리 정리 — 덮어쓰면 두고 온 것이 증발한다
     const sc={room:char,place,since:Date.now()}; setScene(sc); saveScene(sc); setView(char);
-    const ms=[...(storeRef.current.msgs[char]||[]),at,got];
     request(char,{mode:"chat",room:char,user_name:name,
       history:buildHistory(sinceSum(char,ms)),signals:buildSignals(char),
       recent_photos:recentPhotos(char),counts:roomCounts({[char]:ms.length}),
@@ -1064,17 +1127,23 @@ function App(){
       autoBusy.current=false;
       /* 실패하면 사건이 줄에 그대로 남는다. 다음에 다시 시도한다 */
       if(!list||!list.length)return;
-      /* 성공했다. **그 사건만** 지운다 — 뒤에 쌓인 것은 그대로 둔다 */
-      if(ev&&ev.id)ackAutoEvent(ev.id);
-      let t=at;
+      /* ── 저장이 먼저, 소모가 나중 ──
+         전에는 ackAutoEvent를 먼저 부르고 그 다음에 말을 붙였다. 저장이
+         실패하면 사건은 소모됐는데 대화는 없는 상태가 된다 — 유저가 준
+         선물이 없던 일이 되는 자리다. 다 남은 뒤에만 지운다. */
+      let t=at, kept=true;
       list.forEach(x=>{
-        if(!x)return;
+        if(!x||!kept)return;
         const photo=photoSrc(x.photo)?x.photo:null;
         const text=(x.text||"").trim();
         if(!text&&!photo)return;
-        appendMsg("health",{id:t+Math.random(),sender:x.sender||"health",text,photo,ts:t});
+        if(!appendMsg("health",{id:t+Math.random(),sender:x.sender||"health",text,photo,ts:t}))
+          kept=false;
         t+=40000+Math.floor(Math.random()*80000);
       });
+      if(!kept)return;   // 안 남았다 — 사건은 줄에 그대로 두고 다음에 다시
+      /* 성공했다. **그 사건만** 지운다 — 뒤에 쌓인 것은 그대로 둔다 */
+      if(ev&&ev.id)ackAutoEvent(ev.id);
       /* 관전도 창이 있다. 굴려두지 않으면 지난 관전 대화가 그냥 사라진다 */
       setTimeout(()=>rollSummary("health"),1200);
     })();

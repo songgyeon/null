@@ -297,7 +297,11 @@ const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255}
 
 /* localStorage */
 const loadStore=()=>{try{const s=JSON.parse(localStorage.getItem("null_store_v1"));if(s&&s.msgs)return{msgs:s.msgs,unread:s.unread||{}}}catch(e){}return{msgs:{},unread:{}}};
-const saveStore=s=>{try{localStorage.setItem("null_store_v1",JSON.stringify(s))}catch(e){}};
+/* ── 저장은 성공했는지 말해야 한다 ──
+   저장 공간이 차면 setItem이 던진다. 전에는 그걸 삼키고 아무 일 없다는 듯
+   다음으로 갔다 — 그래서 「장면은 소모됐는데 답은 없는」 상태가 저장 실패
+   하나로 다시 만들어졌다. 부르는 쪽이 알아야 멈출 수 있다. */
+const saveStore=s=>{try{localStorage.setItem("null_store_v1",JSON.stringify(s));return true}catch(e){return false}};
 const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"))||{}}catch(e){return{}}};
 
 /* 시간 포맷 */
@@ -806,7 +810,7 @@ const jos=(w,pair)=>{
   return w+(batchim?a:b);
 };
 const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}catch(e){return[]}};
-const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a))}catch(e){}};
+const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a));return true}catch(e){return false}};
 /* 자리가 열렸나. 다녀온 자리 목록만 본다 — 대화 수도 날짜도 안 본다.
    이미 다녀온 데는 조건을 안 본다. 캐릭터가 먼저 같이 가자고 하는 자리(초대)는
    지도의 순서를 건너뛴다 — 옥상에 가기 전에 민현이 편의점으로 불러낼 수 있다.
@@ -1037,7 +1041,9 @@ const talkedEnoughIn=(sc,list)=>countUserSaid(sc,list)>=SCENE_MIN_TALK;
 
 const EFF_MAX=200;
 const loadEffDone=()=>{try{const a=JSON.parse(localStorage.getItem("null_eff_done"));return Array.isArray(a)?a:[]}catch(e){return[]}};
-const saveEffDone=a=>{try{localStorage.setItem("null_eff_done",JSON.stringify((a||[]).slice(-EFF_MAX)))}catch(e){}};
+const saveEffDone=a=>{try{
+  localStorage.setItem("null_eff_done",JSON.stringify((a||[]).slice(-EFF_MAX)));return true;
+}catch(e){return false}};
 
 /* ── 답 하나는 한 덩어리다 ──
    전에는 말풍선을 0.6초마다 하나씩 화면 상태에 붙였고, 저장은 리액트가
@@ -1053,31 +1059,77 @@ const saveEffDone=a=>{try{localStorage.setItem("null_eff_done",JSON.stringify((a
 
    말풍선마다 id를 **적을 때** 박는다. 저장이 어디서 끊겨도 같은 id가 두
    번 붙지는 않는다 — 재생하기 전에 그 방에 이미 있는지 보면 된다.
-   상한 여덟은 방 넷이 동시에 밀려도 남는 수다. */
-const BATCH_MAX=8;
-const loadBatches=()=>{try{const a=JSON.parse(localStorage.getItem("null_batch"));return Array.isArray(a)?a:[]}catch(e){return[]}};
-const saveBatches=a=>{try{localStorage.setItem("null_batch",JSON.stringify((a||[]).slice(-BATCH_MAX)))}catch(e){}};
-const putBatch=b=>{const a=loadBatches().filter(x=>x&&x.id!==b.id);a.push(b);saveBatches(a);return b};
-const getBatch=id=>loadBatches().find(x=>x&&x.id===id)||null;
+
+   ── 상한을 두지 않는다 ──
+   전에는 `slice(-8)`로 잘랐다. 이건 완료 기록이 아니라 **미완료 장부**다.
+   아홉 번째가 들어올 때 제일 오래된 **아직 안 푼 답**이 조용히 사라졌다 —
+   가방과 effect_done만 남고 「받았다」 지문이 없어지는 자리가 그거였다.
+   다 푼 덩어리는 스스로 지워진다(dropBatch). 안 지워졌으면 아직 할 일이
+   남은 것이므로 오래됐다는 이유로 버릴 근거가 없다. */
+const okBatch=b=>!!b&&typeof b==="object"&&typeof b.id==="string"&&!!b.id;
+/* 저장값이 깨져 있어도 앱을 죽이지 않는다 — 읽을 수 있는 것만 남긴다 */
+const loadBatches=()=>{try{
+  const a=JSON.parse(localStorage.getItem("null_batch"));
+  if(!Array.isArray(a))return[];
+  return a.filter(okBatch).map(b=>({...b,
+    items:Array.isArray(b.items)?b.items.filter(i=>i&&i.id):[],
+    sys:Array.isArray(b.sys)?b.sys.filter(s=>s&&s.id):[]}));
+}catch(e){return[]}};
+const saveBatches=a=>{try{
+  localStorage.setItem("null_batch",JSON.stringify((a||[]).filter(okBatch)));return true;
+}catch(e){return false}};
+/* ── 이미 있는 id는 덮지 않는다 ──
+   같은 답이 두 번 처리될 수 있다(늦게 온 답·재시도·되살아난 탭). 그때
+   덮어쓰면 **반쯤 푼 상태가 처음으로 되돌아가** 이미 화면에 뜬 말풍선이
+   한 번 더 뜬다. 있으면 그대로 두고 false를 돌려준다. */
+const putBatch=b=>{
+  const a=loadBatches();
+  if(a.some(x=>x.id===b.id))return false;
+  a.push(b); return saveBatches(a);
+};
+const getBatch=id=>loadBatches().find(x=>x.id===id)||null;
 /* 그린 것 하나를 기록에서 뺀다. 남은 덩어리를 돌려준다 —
    items가 비었으면 이 덩어리의 마지막 말풍선이 방금 떴다는 뜻이다.
-   없는 덩어리면 null: 이미 끝난 것을 두 번 끝내지 않게 하는 자물쇠다. */
+   없는 덩어리면 null: 이미 끝난 것을 두 번 끝내지 않게 하는 자물쇠다.
+   저장이 실패하면 **안 뺀 것으로 친다** — 뺐다고 치고 넘어가면 그 줄이
+   장부에서만 사라져 다시 못 푼다. */
 const dropBatchItem=(id,itemId)=>{
-  const a=loadBatches(),b=a.find(x=>x&&x.id===id);
+  const a=loadBatches(),b=a.find(x=>x.id===id);
   if(!b)return null;
   b.items=(b.items||[]).filter(i=>i&&i.id!==itemId);
-  saveBatches(a); return b;
+  return saveBatches(a)?b:null;
 };
-const dropBatch=id=>{saveBatches(loadBatches().filter(x=>x&&x.id!==id))};
+const dropBatch=id=>saveBatches(loadBatches().filter(x=>x.id!==id));
 /* 한 덩어리에 든 말풍선의 id. 재생 전에 그 방에 이미 있는지 보는 자 */
 const batchItemId=(id,i)=>id+"#"+i;
 
-/* ── 초대는 화면 상태가 아니라 남는 상태다 ──
+/* ── 초대는 화면 상태가 아니라 남는 상태다. 그리고 하나가 아니다 ──
    effect_done은 즉시 찍는데 초대는 setInvite()만 했다. 새로고침 한 번에
    「이미 처리했다」는 표만 남고 창은 사라진다 — 워커는 초대한 걸로 아는데
-   유저에게는 물어본 적이 없는 게 된다. 답할 때까지 여기 남는다. */
-const loadInvite=()=>{try{return JSON.parse(localStorage.getItem("null_invite"))||null}catch(e){return null}};
-const saveInvite=v=>{try{v?localStorage.setItem("null_invite",JSON.stringify(v)):localStorage.removeItem("null_invite")}catch(e){}};
+   유저에게는 물어본 적이 없는 게 된다.
+
+   값 하나로 두면 두 방에서 초대가 겹칠 때 나중 것이 아직 답 안 한 앞의
+   것을 덮는다. 재언의 편의점을 물어보기 전에 민현의 옥상이 오면 편의점은
+   묻지도 못하고 사라진다. 줄로 세운다 — 앞엣것에 답해야 다음이 열린다. */
+const loadInvites=()=>{try{
+  const v=JSON.parse(localStorage.getItem("null_invite"));
+  if(Array.isArray(v))return v.filter(x=>x&&x.place&&x.char);
+  return v&&v.place&&v.char?[v]:[];   // 옛 단일 값도 읽는다
+}catch(e){return[]}};
+const saveInvites=a=>{try{
+  const list=(a||[]).filter(x=>x&&x.place&&x.char);
+  if(list.length)localStorage.setItem("null_invite",JSON.stringify(list));
+  else localStorage.removeItem("null_invite");
+  return true;
+}catch(e){return false}};
+const headInvite=()=>loadInvites()[0]||null;
+/* 같은 초대가 두 번 들어오지 않는다 — 그건 같은 물음이다 */
+const pushInvite=iv=>{
+  const a=loadInvites();
+  if(a.some(x=>x.place===iv.place&&x.char===iv.char))return true;
+  a.push(iv); return saveInvites(a);
+};
+const shiftInvite=()=>{const a=loadInvites();a.shift();return saveInvites(a)};
 
 const loadEvDone=()=>{try{return JSON.parse(localStorage.getItem("null_ev_done"))||[]}catch(e){return[]}};
 const saveEvDone=a=>{try{localStorage.setItem("null_ev_done",JSON.stringify(a))}catch(e){}};

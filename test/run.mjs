@@ -475,7 +475,14 @@ for (const r of ['jaeeon', 'minhyun'])
     if (!demo.demoAnswer(r, t, '윤하').length) empties++;
 eq('짧은 입력에도 빈 답이 없다', empties, 0);
 eq('큐가 비면 타이핑 표시를 끈다',
-  /if\(!b\.items\.length\)\{ setBusy\(x=>\(\{\.\.\.x,\[b\.room\]:false\}\)\); finishBatch\(b\.id\); return b; \}/.test(web), true);
+  /if\(!b\.items\.length\)\{ finishBatch\(b\.id\); settle\(b\.room\); return b; \}/.test(web)
+  && /const settle=room=>\{ if\(roomIdle\(room\)\)setBusy/.test(web), true);
+/* 셋 다 비어야 끈다 — 안 푼 덩어리가 남아 있으면 아직 하는 중이다.
+   그리고 보내는 손도 같은 자를 본다 */
+eq('안 푼 덩어리가 있으면 그 방은 잠겨 있다',
+  /const replaying=room=>loadBatches\(\)\.some\(b=>b\.room===room&&\(b\.items\|\|\[\]\)\.length\);/.test(web)
+  && /const roomIdle=room=>!queueRef\.current\.some\(q=>q\.room===room\)\s*\n\s*&& !inflightRef\.current\[room\] && !replaying\(room\);/.test(web)
+  && /if\(replaying\(room\)\)\{ setBusy/.test(web), true);
 /* 모듈 바깥에서 App 안의 것(storeRef 같은)을 참조하면 부를 때마다 터진다.
    그러면 콜백이 죽고 타이핑 표시가 영영 안 꺼진다. 실제로 그렇게 났다. */
 const outside = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('function App()'));
@@ -2983,7 +2990,7 @@ eq('행동 지문은 한 응답에 하나만',
 
 /* 가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다 */
 eq('같이 가기로 하면 상대가 답을 한다',
-  /const next=\[\.\.\.\(storeRef\.current\.msgs\[iv\.char\]\|\|\[\]\),sys\];/.test(web)
+  /const next=appendMsg\(iv\.char,sys\);[\s\S]{0,900}request\(iv\.char,\{mode:"chat"/.test(web)
   && /await runTurn\(iv\.char\);/.test(appSrc), true);
 
 /* 세계관이 열리는 자리라 문장을 고정한다 — 각본만이 아니라 모델도 */
@@ -3794,7 +3801,7 @@ eq('나가면 끝난다고 말해준다',
 eq('나오면 지문이 남는다',
   /`\$\{sc\.place\}에서 나왔다`/.test(web), true);
 eq('그 지문을 보고 인사한다',
-  /appendMsg\(sc\.room,sys\);\s*\n\s*const next=\[\.\.\.\(storeRef\.current\.msgs\[sc\.room\]\|\|\[\]\),sys\];\s*\n\s*request\(sc\.room,/.test(web), true);
+  /const next=appendMsg\(sc\.room,sys\);\s*\n\s*if\(!next\)return saveFailed\(sc\.room\);\s*\n\s*request\(sc\.room,/.test(web), true);
 /* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 */
 eq('귀갓길은 도착이다', /sc\.place===WAY\?"집에 도착했다"/.test(web), true);
 /* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
@@ -5815,18 +5822,41 @@ eq('시간표 단추는 peek보다 좁다',
     eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes('function App(){'), true);
     const APP_SRC = 'function App(){'
       + web.slice(web.indexOf('function App(){') + 'function App(){'.length, web.indexOf(CUT))
-      + `\n  return { send, request, enqueue, answerInvite, invite,
+      + `\n  return { send, request, enqueue, commitTurn, playBatch, openRoom,
+        leaveScene, answerLeave, startWay: setWay, answerWay,
+        openAsk, answerMove, answerAsk, answerInvite, giveGift, giveGiftAt,
+        invite, busy, failed,
         get store(){ return storeRef.current }, get bag(){ return bagRef.current } };\n}`;
 
+    /* ── 시계도 가짜여야 한다 ──
+       타이머만 가짜로 두면 Date.now()와 캐릭터 수면 판정은 진짜 벽시계를
+       본다. 민현이 자는 시각에 돌리면 요청이 모델까지 안 가고 「자고 있다」로
+       끝나서, 같은 코드가 실행한 시각에 따라 통과와 실패로 갈렸다.
+       **로컬 벽시계 성분으로** 기준 시각을 만든다 — new Date(2026,0,6,14,0)은
+       어느 시간대에서 돌리든 그 지역의 화요일 오후 두 시다. 둘 다 깨어 있다. */
+    const T0 = new Date(2026, 0, 6, 14, 0, 0).getTime();
+    eq('하네스 기준 시각은 시간대와 무관하다',
+      [new Date(T0).getHours(), new Date(T0).getDay()], [14, 2]);
+
     /* 저장소 하나를 두고 앱을 켠다. 같은 저장소로 다시 켜면 그게 새로고침이다 */
-    const boot = (seed, reply) => {
+    const boot = (seed, reply, opt) => {
       const mem = new Map(Object.entries(seed || {}));
+      const fail = (opt && opt.failKeys) || [];   // 저장 실패를 주입할 key
       const localStorage = { getItem: k => mem.has(k) ? mem.get(k) : null,
-        setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k),
+        setItem: (k, v) => {
+          if (fail.includes(k)) throw new Error('QuotaExceededError');
+          mem.set(k, String(v));
+        },
+        removeItem: k => mem.delete(k),
         clear: () => mem.clear(), get length() { return mem.size }, key: i => [...mem.keys()][i] };
-      let now = 1e12, seq = 0;
+      let now = T0, seq = 0;
       const timers = [];
       const setT = (fn, ms) => { timers.push({ at: now + (ms || 0), n: seq++, fn }); return seq };
+      /* app.js·app-data.js가 보는 Date를 통째로 갈아끼운다 */
+      class FakeDate extends Date {
+        constructor(...a) { if (!a.length) super(now); else super(...a) }
+        static now() { return now }
+      }
       const cells = []; let idx = 0, dirty = false, effects = [], probe = null;
       const React = {
         useState(init) {
@@ -5846,14 +5876,14 @@ eq('시간표 단추는 peek보다 좁다',
       };
       const sent = [];
       const App = new Function('React', 'localStorage', 'location', 'fetch',
-        'setTimeout', 'clearTimeout', 'console', 'crypto',
+        'setTimeout', 'clearTimeout', 'console', 'crypto', 'Date',
         dataSrc + '\n' + APP_SRC + '\nreturn App;')(
         React, localStorage, { search: '' },
         async (url, opt) => {
           const body = JSON.parse(opt.body); sent.push(body);
           return { ok: true, status: 200, json: async () => (reply ? reply(body) : { messages: [] }) };
         },
-        setT, () => {}, { log() {}, error() {}, warn() {} }, globalThis.crypto);
+        setT, () => {}, { log() {}, error() {}, warn() {} }, globalThis.crypto, FakeDate);
       const render = () => {
         let guard = 0;
         do {
@@ -5882,7 +5912,10 @@ eq('시간표 단추는 peek보다 좁다',
         ls: k => { const v = mem.get(k); try { return JSON.parse(v) } catch (e) { return v } },
         dump: () => Object.fromEntries(mem) };
     };
-    const said = W => (W.app.store.msgs.minhyun || []).map(m => (m.sys ? '· ' : '') + m.text);
+    const said = (W, r) => (W.app.store.msgs[r || 'minhyun'] || []).map(m => (m.sys ? '· ' : '') + m.text);
+    /* 모델에게 실제로 나간 history 안의 지문 줄 */
+    const outSys = W => (W.sent[W.sent.length - 1].history || [])
+      .filter(h => h.kind === 'event').map(h => h.content);
 
     /* ── 첫 말풍선 전에 껐다 켠다 ──
        전에는 장면(scene_pend)이 답이 저장되기도 전에 지워졌다. 그 사이에
@@ -5955,7 +5988,7 @@ eq('시간표 단추는 peek보다 좁다',
       const W2 = boot(W.dump(), rep);        // ← 창 열리기 전에 새로고침
       await W2.tick(5000);
       eq('껐다 켜도 초대는 온다', [W2.ls('null_invite'), W2.app.invite],
-        [{ place: '옥상', char: 'minhyun' }, { place: '옥상', char: 'minhyun' }]);
+        [[{ place: '옥상', char: 'minhyun' }], { place: '옥상', char: 'minhyun' }]);
       /* 창이 떠 있는 채로 또 껐다 켜도 물음은 남는다 */
       const W3 = boot(W2.dump(), rep);
       eq('창이 떠 있는 채로 꺼도 남는다', W3.app.invite, { place: '옥상', char: 'minhyun' });
@@ -5975,6 +6008,235 @@ eq('시간표 단추는 peek보다 좁다',
       await W2.tick(5000);
       eq('끝난 답은 다시 재생 안 된다', said(W2), ['뭐해요', 'ㄱ', '· 이민현에게 캔커피를 받았다']);
       eq('가방에도 하나뿐이다', (W2.ls('null_bag') || []).map(x => x.key), ['can']);
+    }
+
+    /* ══════ 사건은 정확히 한 번이다 ══════
+       appendMsg가 storeRef까지 즉시 앞세우게 되면서, 「방금 붙인 것을 다시
+       이어 붙이는」 옛 관용구가 사건을 두 벌로 만들었다. 화면과 저장에는
+       한 번인데 **모델에게 가는 history와 counts에는 두 번**이라, 같은 일이
+       두 번 일어난 것으로 읽히고 관계 단계·해금이 일찍 열린다.
+       여덟 특수 경로를 전부 실제로 굴려서 셋을 맞춰본다:
+         화면 · 영속 store · outbound history. counts도 같이 본다. */
+    {
+      const rep = () => ({ messages: [{ text: '네' }] });
+      /* 지문이 화면·저장·history에 각각 몇 번인가 */
+      const trace = (W, room, mark) => {
+        const scr = (W.app.store.msgs[room] || []).filter(m => m.sys && m.text.includes(mark)).length;
+        const kept = ((W.ls('null_store_v1') || { msgs: {} }).msgs[room] || [])
+          .filter(m => m.sys && m.text.includes(mark)).length;
+        const out = W.sent[W.sent.length - 1];
+        const hist = (out.history || []).filter(h => String(h.content).includes(mark)).length;
+        return [scr, kept, hist];
+      };
+      /* history 줄 수와 counts가 맞나 — counts가 부풀면 관계 단계가 앞당겨진다 */
+      const counted = (W, room) => {
+        const out = W.sent[W.sent.length - 1];
+        return [(out.history || []).length, (out.counts || {})[room]];
+      };
+      const ONE = [1, 1, 1];
+
+      /* ① 자리 자동 종료 — 한 시간 지난 자리를 열면 닫히고 작별을 부른다 */
+      {
+        const sc = { room: 'minhyun', place: '옥상', since: T0 - 3 * 3600e3 };
+        const W = boot({ null_name: '윤하', null_scene: JSON.stringify(sc),
+          null_store_v1: JSON.stringify({ msgs: { minhyun: [
+            { id: 1, sender: 'user', text: '안녕', ts: T0 - 3 * 3600e3 }] }, unread: {} }) }, rep);
+        await W.tick(0);
+        eq('자리 자동 종료 — 나왔다가 한 번', trace(W, 'minhyun', '옥상에서 나왔다'), ONE);
+        eq('자리 자동 종료 — history와 counts가 맞다', counted(W, 'minhyun'), [2, 2]);
+      }
+      /* ② 자리에서 직접 나가기 */
+      {
+        const sc = { room: 'minhyun', place: '옥상', since: T0 - 60e3 };
+        const W = boot({ null_name: '윤하', null_scene: JSON.stringify(sc) }, rep);
+        W.app.leaveScene(); W.render();       // X — 「나가기」 확인창
+        W.app.answerLeave(true);
+        await W.tick(0);
+        eq('직접 나가기 — 나왔다가 한 번', trace(W, 'minhyun', '옥상에서 나왔다'), ONE);
+        eq('직접 나가기 — history와 counts가 맞다', counted(W, 'minhyun'), [1, 1]);
+      }
+      /* ③ 귀갓길 */
+      {
+        const sc = { room: 'minhyun', place: '옥상', since: T0 - 60e3 };
+        const W = boot({ null_name: '윤하', null_scene: JSON.stringify(sc) }, rep);
+        W.app.startWay(sc); W.render();
+        W.app.answerWay(true);
+        await W.tick(0);
+        eq('귀갓길 — 가는 길이 한 번', trace(W, 'minhyun', '버스를 타고 집에 가는 길'), ONE);
+        eq('귀갓길 — history와 counts가 맞다', counted(W, 'minhyun'), [1, 1]);
+      }
+      /* ④·⑤ 초대 수락과 거절 */
+      for (const [ok, mark] of [[true, '옥상에 가기로 했다'], [false, '옥상은 다음에 가기로 했다']]) {
+        const W = boot({ null_name: '윤하',
+          null_invite: JSON.stringify([{ place: '옥상', char: 'minhyun' }]) }, rep);
+        W.app.answerInvite(ok);
+        await W.tick(0);
+        eq(`초대 ${ok ? '수락' : '거절'} — 지문이 한 번`, trace(W, 'minhyun', mark), ONE);
+        eq(`초대 ${ok ? '수락' : '거절'} — history와 counts가 맞다`, counted(W, 'minhyun'), [1, 1]);
+      }
+      /* ⑥ 같이 자리 이동 */
+      {
+        const sc = { room: 'minhyun', place: '옥상', since: T0 - 60e3 };
+        const W = boot({ null_name: '윤하', null_scene: JSON.stringify(sc),
+          null_met: JSON.stringify(['교실', '보건실', '옥상']) }, rep);
+        W.app.openAsk('체육관'); W.render();
+        W.app.answerMove(true);
+        await W.tick(0);
+        eq('자리 이동 — 옮겼다가 한 번', trace(W, 'minhyun', '체육관으로 같이 자리를 옮겼다'), ONE);
+        eq('자리 이동 — history와 counts가 맞다', counted(W, 'minhyun'), [1, 1]);
+      }
+      /* ⑦ 지도에서 자리 방문 — 자리 임자가 하나뿐이라 상대가 정해진다 */
+      {
+        const W = boot({ null_name: '윤하',
+          null_met: JSON.stringify(['교실', '보건실', '옥상']) }, rep);
+        W.app.openAsk('체육관'); W.render();
+        W.app.answerAsk(true);
+        await W.tick(0);
+        eq('지도 방문 — 갔다가 한 번', trace(W, 'minhyun', '체육관에 갔다'), ONE);
+        eq('지도 방문 — history와 counts가 맞다', counted(W, 'minhyun'), [1, 1]);
+      }
+      /* ⑧ 선물 전달 — 만나서 준다 */
+      {
+        const sc = { room: 'minhyun', place: '옥상', since: T0 - 60e3 };
+        const W = boot({ null_name: '윤하', null_scene: JSON.stringify(sc) }, rep);
+        W.app.giveGift('minhyun', { key: 'mug', name: '회색 머그컵' }, '');
+        await W.tick(0);
+        eq('선물 — 받았다가 한 번', trace(W, 'minhyun', '회색 머그컵을 받았다'), ONE);
+        eq('선물 — history와 counts가 맞다', counted(W, 'minhyun'), [1, 1]);
+      }
+      /* ⑨ 선물을 들고 만나러 가기 — 방문과 선물이 **각각** 한 번 */
+      {
+        const W = boot({ null_name: '윤하', null_met: JSON.stringify(['옥상']) }, rep);
+        W.app.giveGiftAt('minhyun', { key: 'mug', name: '회색 머그컵' }, '', '옥상');
+        await W.tick(0);
+        eq('들고 가기 — 방문이 한 번', trace(W, 'minhyun', '옥상에 갔다'), ONE);
+        eq('들고 가기 — 선물이 한 번', trace(W, 'minhyun', '회색 머그컵을 받았다'), ONE);
+        eq('들고 가기 — history와 counts가 맞다', counted(W, 'minhyun'), [2, 2]);
+      }
+    }
+
+    /* ══════ 재생 중에는 그 방이 잠긴다 ══════
+       새로고침으로 되살아난 답이 아직 다 안 떴는데 새 말을 받으면
+       「유저 말 → 새 유저 말 → 옛 답 나머지」로 갈리고, 새 요청의 history에는
+       아직 안 뜬 옛 답이 통째로 빠진다. */
+    {
+      const rep = () => ({ messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }, { text: 'ㄷ' }] });
+      const W = boot({ null_name: '윤하' }, rep);
+      W.app.send('minhyun', '안녕');
+      await W.tick(1200);
+      const W2 = boot(W.dump(), rep);          // ← 재생 도중 새로고침
+      eq('되살아난 방은 곧바로 잠긴다', W2.app.busy.minhyun, true);
+      const before = W2.sent.length;
+      W2.app.send('minhyun', '끼어들기');       // 화면에서도 막히지만 손으로도 눌러본다
+      await W2.tick(0);
+      eq('재생 중에는 새 요청이 안 나간다', W2.sent.length, before);
+      await W2.tick(5000);
+      eq('다 풀린 뒤에야 열린다', [W2.app.busy.minhyun, said(W2)],
+        [false, ['안녕', 'ㄱ', 'ㄴ', 'ㄷ']]);
+      W2.app.send('minhyun', '이제');
+      await W2.tick(0);
+      eq('열린 뒤에는 나간다', W2.sent.length, before + 1);
+    }
+
+    /* ══════ 같은 답을 두 번 적지 않는다 ══════
+       늦게 온 답·재시도·되살아난 탭이 같은 id로 다시 올 수 있다. 반쯤 푼
+       상태를 처음으로 되돌리면 이미 뜬 말풍선이 한 번 더 뜬다. */
+    {
+      const W = boot({ null_name: '윤하' }, () => ({ messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }, { text: 'ㄷ' }] }));
+      W.app.send('minhyun', '안녕');
+      await W.tick(1200);                       // ㄱ·ㄴ까지 떴다
+      const again = W.app.commitTurn(W.ls('null_batch')[0].id, 'minhyun',
+        [{ text: 'ㄱ' }, { text: 'ㄴ' }, { text: 'ㄷ' }], null, null);
+      W.app.playBatch(again);
+      await W.tick(5000);
+      eq('부분 재생 중 같은 답이 또 와도 한 벌이다', said(W), ['안녕', 'ㄱ', 'ㄴ', 'ㄷ']);
+      eq('남은 것만 들고 있었다', again.items.map(i => i.text), ['ㄷ']);
+    }
+
+    /* ══════ 미완료 장부는 오래됐다고 안 버린다 ══════
+       전에는 slice(-8)이었다. 아홉 번째가 들어올 때 제일 오래된 **아직 안 푼**
+       답이 조용히 사라져, 가방과 표만 남고 「받았다」 지문이 없어졌다. */
+    {
+      const W = boot({ null_name: '윤하' }, () => ({ messages: [{ text: 'ㄱ' }] }));
+      for (let i = 0; i < 9; i++)
+        W.app.commitTurn('b' + i, 'minhyun', [{ text: '답' + i }], null, null);
+      eq('아홉 개가 다 남는다', (W.ls('null_batch') || []).map(b => b.id),
+        ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8']);
+      /* 깨진 값이 섞여 있어도 앱이 안 죽는다 */
+      const V = boot({ null_name: '윤하', null_batch: '{"nope":1}' }, null);
+      eq('깨진 장부는 빈 것으로 읽는다', V.ls('null_batch'), { nope: 1 });
+      eq('깨져 있어도 켜진다', !!V.app, true);
+    }
+
+    /* ══════ 두 방의 초대가 겹쳐도 앞엣것이 안 사라진다 ══════ */
+    {
+      const W = boot({ null_name: '윤하' }, b => b.room === 'jaeeon'
+        ? { messages: [{ text: '같이 갈까요' }],
+            effects: [{ id: 'iJ', type: 'invite', place: '편의점', char: 'jaeeon' }] }
+        : { messages: [{ text: '가실래요' }],
+            effects: [{ id: 'iM', type: 'invite', place: '옥상', char: 'minhyun' }] });
+      W.app.send('jaeeon', '뭐해요');
+      W.app.send('minhyun', '뭐해요');
+      await W.tick(5000);
+      eq('먼저 온 초대가 앞에 선다',
+        (W.ls('null_invite') || []).map(x => x.place), ['편의점', '옥상']);
+      eq('뜨는 것은 앞엣것 하나', W.app.invite, { place: '편의점', char: 'jaeeon' });
+      W.app.answerInvite(false); W.render();
+      eq('답하면 다음 것이 열린다',
+        [W.app.invite, (W.ls('null_invite') || []).map(x => x.place)],
+        [{ place: '옥상', char: 'minhyun' }, ['옥상']]);
+      W.app.answerInvite(false); W.render();
+      eq('다 답하면 비운다', [W.app.invite, W.ls('null_invite')], [null, undefined]);
+      /* 옛 세이브의 단일 값도 읽는다 — 줄로 바뀌었다고 답 못 한 초대를 버리지 않는다 */
+      const O = boot({ null_name: '윤하',
+        null_invite: JSON.stringify({ place: '옥상', char: 'minhyun' }) }, null);
+      eq('옛 단일 초대도 읽는다', O.app.invite, { place: '옥상', char: 'minhyun' });
+    }
+
+    /* ══════ 저장이 실패하면 아무것도 소모하지 않는다 ══════
+       삼키고 넘어가면 「장면은 소모됐는데 답은 없음」이 저장 실패 하나로
+       다시 만들어진다. */
+    {
+      const rep = () => ({ messages: [{ text: 'ㄱ' }], scene_ack: 'confession',
+        effects: [{ id: 'eX', type: 'item_transfer', from: 'minhyun', to: 'user', item: 'can' }] });
+      const seed = { null_name: '윤하', null_scene_pend: JSON.stringify({ minhyun: 'confession' }) };
+      const W = boot(seed, rep, { failKeys: ['null_batch'] });
+      W.app.send('minhyun', '있잖아');
+      await W.tick(5000);
+      eq('장부 저장이 실패하면 장면이 안 지워진다', W.ls('null_scene_pend'), { minhyun: 'confession' });
+      eq('표도 안 찍힌다', W.ls('null_eff_done'), undefined);
+      eq('재시도할 수 있게 실패로 남는다', !!W.app.failed.minhyun, true);
+      /* 대화 저장 자체가 실패해도 마찬가지 */
+      const V = boot(seed, rep, { failKeys: ['null_store_v1'] });
+      V.app.send('minhyun', '있잖아');
+      await V.tick(5000);
+      eq('대화 저장이 실패해도 장면이 안 지워진다', V.ls('null_scene_pend'), { minhyun: 'confession' });
+      eq('안 남은 말은 화면에도 안 남긴다', (V.app.store.msgs.minhyun || []).length, 0);
+    }
+
+    /* ══════ 관전 사건은 대화가 남은 뒤에만 소모된다 ══════
+       전에는 ackAutoEvent가 먼저였다. 저장이 실패하면 유저가 준 선물이
+       없던 일이 된다. */
+    {
+      const ev = { id: 'gift|minhyun|머그컵', kind: 'gift', to: 'minhyun',
+        name: '머그컵', created_at: T0 - 2 * 3600e3 };
+      const seed = () => ({ null_name: '윤하', null_view: 'health',
+        null_auto_q: JSON.stringify([ev]),
+        null_auto_at: String(T0 - 2 * 3600e3),
+        null_store_v1: JSON.stringify({ msgs: { health: [
+          { id: 1, sender: 'minhyun', text: 'ㅇㅇ', ts: T0 - 2 * 3600e3 }] }, unread: {} }) });
+      const rep = () => ({ messages: [{ sender: 'minhyun', text: '삼촌 그거 어디서 났어요' }] });
+      const W = boot(seed(), rep);
+      W.app.openRoom('health');
+      await W.tick(2000);
+      eq('관전이 성공하면 사건이 소모된다',
+        [(W.ls('null_auto_q') || []).length, said(W, 'health').length], [0, 2]);
+      /* 저장이 실패하면 사건은 줄에 그대로 남아 다음에 다시 시도된다 */
+      const V = boot(seed(), rep, { failKeys: ['null_store_v1'] });
+      V.app.openRoom('health');
+      await V.tick(2000);
+      eq('저장이 실패하면 사건이 안 소모된다',
+        (V.ls('null_auto_q') || []).map(x => x.kind), ['gift']);
     }
   }
 
