@@ -5094,7 +5094,7 @@ eq('시간표 단추는 peek보다 좁다',
     eq('요청이 실제로 돈다', r.status, 200);
     const saw = writerSaw();
     eq('민현은 출처를 못 본다', leaksOrigin(), false);
-    eq('민현은 물건이 있다는 것만 본다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+    eq('민현은 물건이 있다는 것만 본다', saw.includes('이재언에게 회색 머그컵이 있다'), true);
   })();
 
   /* ── 2. 반대 방향도 대칭이다 ── */
@@ -5103,7 +5103,7 @@ eq('시간표 단추는 peek보다 좁다',
     eq('반대 방향도 요청이 돈다', r.status, 200);
     const saw = writerSaw();
     eq('재언도 출처는 못 본다', leaksOrigin(), false);
-    eq('재언도 물건만 본다', saw.includes('편지지는 이민현에게 있다'), true);
+    eq('재언도 물건만 본다', saw.includes('이민현에게 편지지가 있다'), true);
   })();
 
   /* ── 3. 받은 사람은 출처를 안다 ── */
@@ -5111,7 +5111,7 @@ eq('시간표 단추는 peek보다 좁다',
     await runTurn({ mode: 'chat', room: 'jaeeon', ...BASE, ...GAVE_JAEEON });
     const saw = writerSaw();
     eq('받은 사람은 출처를 안다', factsBlock().includes('회색 머그컵을 줬다'), true);
-    eq('받은 사람은 제 물건도 안다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+    eq('받은 사람은 제 물건도 안다', saw.includes('이재언에게 회색 머그컵이 있다'), true);
   })();
 
   /* ── 4. 공동 Writer에는 교집합만 ──
@@ -5122,7 +5122,7 @@ eq('시간표 단추는 peek보다 좁다',
     const saw = writerSaw();
     eq('단톡에 출처가 안 실린다', leaksOrigin(), false);
     /* 보유 사실은 둘 다 아니까 교집합에 남는다 */
-    eq('단톡에 보유 사실은 실린다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+    eq('단톡에 보유 사실은 실린다', saw.includes('이재언에게 회색 머그컵이 있다'), true);
   })();
 
   /* ── 5. 관전방이 민현 1:1로 안 떨어진다 ── */
@@ -5132,7 +5132,7 @@ eq('시간표 단추는 peek보다 좁다',
     const saw = writerSaw();
     eq('관전에 출처가 안 실린다', leaksOrigin(), false);
     /* 관전은 두 사람이 같이 읽는 자리다 — 여기가 제일 크게 새던 곳이다 */
-    eq('관전에 보유 사실만 실린다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+    eq('관전에 보유 사실만 실린다', saw.includes('이재언에게 회색 머그컵이 있다'), true);
   })();
   /* room을 안 실은 옛 클라이언트도 관전은 health로 간다 — 조용한 폴백이 아니라
      승인된 기본값이다 */
@@ -5318,29 +5318,104 @@ eq('시간표 단추는 peek보다 좁다',
   /* ── 15. 원본 상태와 파생 사실이 어긋나지 않는다 ──
      owned·givenHistory가 저장된 원본이고 facts는 거기서 요청마다 파생한
      읽기 전용 결과다. 둘이 반대되는 값을 가지면 어느 쪽을 믿을지가 없다. */
+  /* ── 물건의 정체성은 (수신자, 종류)다 ──
+     처음에 종류 key만으로 「같은 물건이 두 곳에 있다」를 판정했다. 틀렸다.
+     gift.key는 **상품 종류**지 세상에 하나뿐인 물건의 id가 아니다 —
+     같은 머그컵을 재언에게 하나, 민현에게 하나 줄 수 있다. 코드도 그렇게
+     막는다(app.js: `have.includes(gift.key)` — 수신자별로만).
+     별도 instance_id가 없으므로 (수신자, 종류)를 하나의 물건으로 본다. */
+  const checkFacts = (given, bag, F) => {
+    const bad = [];
+    const ids = F.map(f => f.fact_id);
+    /* 같은 수령 사건이 두 번 기록되지 않는다 */
+    ids.forEach((id, i) => { if (ids.indexOf(id) !== i) bad.push(`중복 기록 ${id}`); });
+    /* 준 것은 전부 그 사람의 수령 사건과 보유 사실을 갖는다 */
+    for (const [who, keys] of Object.entries(given))
+      for (const k of keys) {
+        if (!ids.includes(`item.${k}.with_${who}`)) bad.push(`보유 없음 ${k}/${who}`);
+        if (!ids.includes(`gift.${k}.user_to_${who}`)) bad.push(`출처 없음 ${k}/${who}`);
+      }
+    /* 유저 가방에 있는 것은 유저 보유 사실을 갖는다 */
+    for (const b of bag)
+      if (!ids.includes(`item.${b.key}.with_user`)) bad.push(`가방 없음 ${b.key}`);
+    /* 한 물건 정체성이 두 보유자를 갖지 않는다. 정체성이 (수신자, 종류)이므로
+       비교 열쇠도 그 둘이다 — 종류만 보면 같은 컵 두 개가 충돌로 잡힌다. */
+    const holder = {};
+    for (const id of ids) {
+      const m = id.match(/^item\.([^.]+)\.with_(.+)$/);
+      if (!m) continue;
+      const identity = `${m[2]}/${m[1]}`;              // 수신자 + 종류
+      if (holder[identity] && holder[identity] !== m[2])
+        bad.push(`두 곳에 있다 ${identity}`);
+      holder[identity] = m[2];
+    }
+    /* 보유 사실이 있는데 원본에 근거가 없으면 그것도 모순이다 */
+    for (const id of ids) {
+      const m = id.match(/^item\.([^.]+)\.with_(.+)$/);
+      if (!m || m[2] === 'user') continue;
+      if (!(given[m[2]] || []).includes(m[1])) bad.push(`원본에 없는 보유 ${id}`);
+    }
+    return bad;
+  };
+
   eq('파생 사실이 원본과 안 어긋난다', (() => {
     const given = { jaeeon: ['mug', 'coffee'], minhyun: ['letter'] };
     const bag = [{ key: 'bandaid', from: 'jaeeon' }];
-    const F = buildFacts(given, bag, null, '');
-    const bad = [];
-    /* 준 것은 전부 그 사람 보유 사실이 있어야 한다 */
-    for (const [who, keys] of Object.entries(given))
-      for (const k of keys) {
-        if (!F.some(f => f.fact_id === `item.${k}.with_${who}`)) bad.push(`보유 없음 ${k}/${who}`);
-        if (!F.some(f => f.fact_id === `gift.${k}.user_to_${who}`)) bad.push(`출처 없음 ${k}/${who}`);
-      }
-    /* 유저 가방에 있는 것은 유저 보유 사실이 있어야 한다 */
-    for (const b of bag)
-      if (!F.some(f => f.fact_id === `item.${b.key}.with_user`)) bad.push(`가방 없음 ${b.key}`);
-    /* 같은 물건이 두 사람에게 동시에 있다고 하지 않는다 */
-    const holders = {};
-    for (const f of F) {
-      const m = f.fact_id.match(/^item\.([^.]+)\.with_(.+)$/);
-      if (m) (holders[m[1]] = holders[m[1]] || []).push(m[2]);
-    }
-    for (const [k, hs] of Object.entries(holders))
-      if (hs.length > 1) bad.push(`두 곳에 있다 ${k}: ${hs.join(',')}`);
-    return bad;
+    return checkFacts(given, bag, buildFacts(given, bag, null, ''));
+  })(), []);
+
+  /* ── 같은 종류를 둘에게 각각 하나씩 — 정상이다 ── */
+  {
+    const given = { jaeeon: ['mug'], minhyun: ['mug'] };
+    const F = buildFacts(given, [], null, '');
+    eq('같은 종류를 둘에게 줘도 통과한다', checkFacts(given, [], F), []);
+    eq('두 수령 사건은 서로 다른 사건이다', F.map(f => f.fact_id),
+      ['gift.mug.user_to_jaeeon', 'item.mug.with_jaeeon',
+       'gift.mug.user_to_minhyun', 'item.mug.with_minhyun']);
+    eq('각자 제 것을 보유한다', [
+      factsForSpeaker({ facts: F }, 'jaeeon').some(f => f.fact_id === 'item.mug.with_jaeeon'),
+      factsForSpeaker({ facts: F }, 'minhyun').some(f => f.fact_id === 'item.mug.with_minhyun'),
+    ], [true, true]);
+    /* 한쪽 출처가 다른 쪽으로 자동 전파되지 않는다 — 여기가 핵심이다 */
+    eq('출처는 서로에게 안 샌다', [
+      factsForSpeaker({ facts: F }, 'jaeeon').map(f => f.fact_id),
+      factsForSpeaker({ facts: F }, 'minhyun').map(f => f.fact_id),
+    ], [
+      ['gift.mug.user_to_jaeeon', 'item.mug.with_jaeeon', 'item.mug.with_minhyun'],
+      ['item.mug.with_jaeeon', 'gift.mug.user_to_minhyun', 'item.mug.with_minhyun'],
+    ]);
+    /* 종류가 같으니 문장도 같은 실물처럼 읽히면 안 된다.
+       「회색 머그컵은 …에게 있다」를 나란히 두면 컵 하나가 두 곳에 있는 말이 된다. */
+    eq('각자 하나씩 가진 것으로 읽힌다',
+      ENG.factLines(factsForSpeaker({ facts: F }, 'jaeeon'), '선생님'),
+      ['선생님이 이재언에게 회색 머그컵을 줬다.',
+       '이재언에게 회색 머그컵이 있다.', '이민현에게 회색 머그컵이 있다.']);
+  }
+
+  /* ── 이건 반드시 걸려야 한다 ── */
+  eq('같은 수령 사건 중복은 걸린다', (() => {
+    const given = { jaeeon: ['mug'] };
+    const F = buildFacts(given, [], null, '');
+    return checkFacts(given, [], [...F, F[0]]).filter(x => x.startsWith('중복 기록'));
+  })(), ['중복 기록 gift.mug.user_to_jaeeon']);
+  eq('원본에 없는 보유는 걸린다', (() => {
+    const given = { jaeeon: ['mug'] };
+    const F = buildFacts({ jaeeon: ['mug'], minhyun: ['letter'] }, [], null, '');
+    return checkFacts(given, [], F).filter(x => x.startsWith('원본에 없는 보유'));
+  })(), ['원본에 없는 보유 item.letter.with_minhyun']);
+  eq('원본에 있는데 사실이 없으면 걸린다',
+    checkFacts({ jaeeon: ['mug'] }, [], []), ['보유 없음 mug/jaeeon', '출처 없음 mug/jaeeon']);
+  eq('가방 물건이 빠지면 걸린다',
+    checkFacts({}, [{ key: 'bandaid', from: 'jaeeon' }], []), ['가방 없음 bandaid']);
+
+  /* ── 자리 물건과 선물 상품은 다른 namespace다 ──
+     겹치면 (수신자, 종류) 정체성이 두 뜻을 갖게 된다. 지금은 안 겹친다. */
+  eq('두 namespace가 안 겹친다', (() => {
+    const place = [...workerSrc.matchAll(/key: "(\w+)",\s+name:/g)].map(m => m[1]);
+    const gsrc = workerSrc.slice(workerSrc.indexOf('const GIFT_NAME_BY_KEY = {'),
+                                 workerSrc.indexOf('};', workerSrc.indexOf('const GIFT_NAME_BY_KEY')));
+    const gifts = [...gsrc.matchAll(/(\w+):"/g)].map(m => m[1]);
+    return place.filter(k => gifts.includes(k));
   })(), []);
   /* 파생 결과를 상태처럼 고쳐 쓰지 않는다 — 어디서도 facts에 push하지 않는다 */
   eq('파생 사실을 상태처럼 안 고친다',
@@ -5689,7 +5764,7 @@ eq('시간표 단추는 peek보다 좁다',
   const cands = [{ kept: [{ text: '진짜요?' }], signals: [] },
                  { kept: [{ text: '알았어요.' }], signals: ['TOO_EXPLANATORY'] }];
   eq('꾸러미에 사실이 실린다',
-    sceneHead(ctx).join('\n').includes('[사실] 회색 머그컵은 이재언에게 있다. · 상대가 정해졌다'), true);
+    sceneHead(ctx).join('\n').includes('[사실] 이재언에게 회색 머그컵이 있다. · 상대가 정해졌다'), true);
   /* 꾸러미가 받는 것은 Fact[]다. 문장은 여기서 처음 만들어진다 —
      그래서 다음 단계가 fact_id를 그대로 들고 검사할 수 있다. */
   eq('꾸러미는 구조를 들고 있다', typeof ctx.facts[0].fact_id, 'string');
