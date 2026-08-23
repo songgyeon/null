@@ -1253,7 +1253,7 @@ function App(){
          그 점이 거짓말이 된다. 지금이 아니라 찍힐 시각(at)으로 잰다.
          하루 몫을 깎기 전에 본다 — 순서가 반대면 만들지도 못한 대화에 몫만
          나가고, 적어둔 사건(선물)까지 같이 지워진다. 전에 그렇게 잃었다. */
-      if(!bothAwake(new Date(at)))return;
+      if(!bothAwake(gameAt(at)))return;
       /* 하루 경계는 여기서도 새벽 다섯 시다. UTC 날짜로 세면 아침 아홉 시에
          상한이 리셋돼 한 하루에 네 번이 돈다 — 제일 비싼 호출인데 */
       const day=dayKey();
@@ -1342,7 +1342,7 @@ function App(){
 
   /* [편집] 대화 저장: 전체 방 → .txt 다운로드 */
   const exportTxt=()=>{
-    const lines=["NULL — 대화 기록","내보낸 시각: "+new Date().toLocaleString("ko-KR"),""];
+    const lines=["NULL — 대화 기록","내보낸 시각: "+gameAt(Date.now()).toLocaleString("ko-KR"),""];
     /* 고친 말을 맨 앞에 싣는다. 뒤에 붙이면 천 줄을 스크롤해야 보인다 —
        이 파일을 여는 이유가 그것일 때가 많다. 원문(✕)과 고친 말(○)을
        짝으로 적는다: 그 짝이 그대로 대화 예시가 된다. */

@@ -973,7 +973,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         {roomsOn(groupOn).map((r,i)=>{
           const ms=store.msgs[r.id]||[], last=ms[ms.length-1], un=store.unread[r.id]||0;
           const watch=r.type==="watch";
-          const pr=presence(r.id,new Date(now));
+          const pr=presence(r.id,gameAt(now));
           /* 프로필이 바뀌었는데 아직 안 열어봤으면 — 아바타 둘레가 돈다 */
           const nu=CHARS[r.id]?stageDiff(r.id,(seenStage||{})[r.id]||0,stageIdx(counts[r.id]||0,dayN)):[];
           return <React.Fragment key={r.id}>
@@ -1335,7 +1335,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       </div>}
       {msgs.map((m,i)=>{
         const prev=msgs[i-1];
-        const gap=!prev||m.ts-prev.ts>10*60*1000;
+        const gap=dividerGap(prev&&prev.ts,m.ts);
         const me=m.sender==="user";
         const meta=senderMeta(m.sender);
         // 클러스터 시작. 지문 줄이 끼면 흐름이 끊기므로 다음 말은 프로필부터 다시 보여준다

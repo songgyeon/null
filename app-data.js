@@ -113,12 +113,23 @@ const setSpeedAt=(n,firstTs)=>{
 };
 /* 진도의 하루. 마디 수가 센다 — 해금·D-N·도장이 이걸 본다 */
 const speedDay=()=>Math.floor(SPEED_N/SPEED_PER_DAY);
-/* 세계의 시각. 진짜 시간이 민다 — 잠·시간표·자리 여는 시각·요일이 이걸 본다 */
-const speedNow=()=>{
+/* ── 두 시계를 잇는 다리 ──
+   저장(ts·since·created_at)은 늘 **현실 epoch 그대로**다. 스피드 모드의
+   세계 시각은 그 위의 번역일 뿐이다 — 저장에 gameAt을 쓰면 앵커가 제
+   출력을 도로 먹어 시계가 발산한다(소스 검사로 막는다).
+   변환하는 자리는 딱 둘: 화면에 그릴 때, 그리고 생활리듬(잠·문 닫는 시각)을
+   잴 때. 리얼 모드면 그대로 돌려준다 — 번역할 것이 없다. */
+const gameAt=ts=>{
+  const t=Number(ts)||Date.now();
+  if(!speedOn())return new Date(t);
   const start=SPEED_ANCHOR||Date.now();
   const a=new Date(start); a.setHours(SPEED_START_HOUR,0,0,0);
-  return new Date(a.getTime()+Math.max(0,Date.now()-start)*SPEED_RATE);
+  return new Date(a.getTime()+Math.max(0,t-start)*SPEED_RATE);
 };
+/* 세계의 시각. 진짜 시간이 민다 — 잠·시간표·자리 여는 시각·요일이 이걸 본다.
+   따로 계산하지 않는다 — 같은 다리를 「지금」에 대면 이거다. 두 식이 따로
+   살면 화면의 시각과 세계의 시각이 도로 갈린다. */
+const speedNow=()=>gameAt(Date.now());
 /* 세계가 보는 지금. 리얼 모드면 진짜 지금이다 */
 const nowClock=()=>speedOn()?speedNow():new Date();
 /* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
@@ -356,18 +367,27 @@ const demoAsk=payload=>{
 const demoGiftKey=payload=>(payload.gift&&payload.gift.key)||null;
 
 
-const fmtClock=ts=>{const d=new Date(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
-const isToday=ts=>{const d=new Date(ts),n=new Date();return d.toDateString()===n.toDateString()};
-const fmtDivider=ts=>isToday(ts)?fmtClock(ts):`${new Date(ts).getMonth()+1}월 ${new Date(ts).getDate()}일 ${fmtClock(ts)}`;
+/* ── 화면은 세계의 시각을 말한다 ──
+   저장된 ts는 현실 epoch지만, 그리는 순간 gameAt으로 번역한다. 프롬프트와
+   시간표는 게임 시각을 보는데 화면만 진짜 시각을 찍으면 — 인물은 「저녁이네요」
+   하는데 말풍선 옆에는 오후 두 시가 붙는, 화면이 거짓말하는 그림이 됐다.
+   리얼 모드에서는 번역이 항등이라 아무것도 안 변한다. */
+const fmtClock=ts=>{const d=gameAt(ts);const h=d.getHours(),ap=h<12?"오전":"오후";return `${ap} ${h%12||12}:${String(d.getMinutes()).padStart(2,"0")}`};
+/* 「오늘」도 세계의 오늘이다 — 진짜 달력과 견주면 게임 하루가 넷으로 쪼개진다 */
+const isToday=ts=>gameAt(ts).toDateString()===nowClock().toDateString();
+const fmtDivider=ts=>{const d=gameAt(ts);return isToday(ts)?fmtClock(ts):`${d.getMonth()+1}월 ${d.getDate()}일 ${fmtClock(ts)}`};
 
 /* 괄호만으로 된 말풍선은 대사가 아니라 행동 지문이다 — 말풍선 대신 채팅창에 쳐진 줄로 그린다.
    서버가 줄 단위로 갈라서 보내주므로 여기서는 통째로 괄호인지만 보면 된다. */
 /* 지문처럼 그릴 줄: 괄호로만 된 대사, 그리고 선물처럼 "일어난 일"을 적은 sys 줄 */
 const isNarr=m=>!!m&&!m.photo&&(m.sys===true||/^[（(][^()（）]*[)）]$/.test((m.text||"").trim()));
-const fmtListTime=ts=>isToday(ts)?fmtClock(ts):`${new Date(ts).getMonth()+1}월 ${new Date(ts).getDate()}일`;
+const fmtListTime=ts=>{const d=gameAt(ts);return isToday(ts)?fmtClock(ts):`${d.getMonth()+1}월 ${d.getDate()}일`};
 const MON=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
-const fmtDay=ts=>{const d=new Date(ts),y=d.getFullYear();
-  return `${MON[d.getMonth()]} ${d.getDate()}`+(y!==new Date().getFullYear()?", "+y:"")};
+const fmtDay=ts=>{const d=gameAt(ts),y=d.getFullYear();
+  return `${MON[d.getMonth()]} ${d.getDate()}`+(y!==nowClock().getFullYear()?", "+y:"")};
+/* 시간 구분선의 「한참 지났다」도 세계의 십 분이다. 진짜 십 분으로 재면
+   스피드 모드에서 게임 사십 분이 소리 없이 지나간다 */
+const dividerGap=(prevTs,ts)=>!prevTs||gameAt(ts).getTime()-gameAt(prevTs).getTime()>10*60*1000;
 
 /* ── 지금이 언제인가 ──
    몇 시인지는 안 보낸다. 분 단위를 주면 「7시 42분이네요」 같은 말이 나온다.
@@ -897,7 +917,7 @@ const sceneOver=(sc,now)=>{
      (편의점 라면, 여섯 시 후문 골목)은 시간표를 안 보고 여는 자리인데,
      시간표로 닫으면 열리자마자 「나왔다」가 찍혔다. 눈앞에 있는 사람은
      자고 있지 않다. 깨어 있다가 잘 시간이 된 경우만 때다. */
-  const at=presence(sc.room,new Date(sc.since));
+  const at=presence(sc.room,gameAt(sc.since));
   return !at||at.s!=="off";
 };
 

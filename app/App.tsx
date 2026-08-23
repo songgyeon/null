@@ -38,6 +38,7 @@ import {
   talkedEnoughIn, applyStoryTransition, markPartnerKnown,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
+  fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -90,10 +91,8 @@ const face = (id:string) => IMG + id + '-profile.webp' + AV_V;
    RN의 DimensionValue에 안 들어간다(TS 2769). 자리 하나라 여기서 좁혀둔다. */
 const pct = (n:number) => `${Math.max(0, Math.min(100, Math.round(n)))}%` as `${number}%`;
 
-const fmtTime = (ts:number) => {
-  const d=new Date(ts), h=d.getHours();
-  return `${h<12?'오전':'오후'} ${h%12||12}:${String(d.getMinutes()).padStart(2,'0')}`;
-};
+/* 시각은 전부 규칙 파일의 것을 쓴다(fmtClock·fmtListTime·fmtDivider) —
+   여기 자체 fmtTime을 두면 빨리감기 번역(gameAt)을 앱만 못 받는다. */
 
 /* 괄호만으로 된 말풍선은 대사가 아니라 행동 지문이다 — 말풍선 대신 채팅창에 쳐진 줄로 그린다.
    서버가 줄 단위로 갈라서 보내주므로 여기서는 통째로 괄호인지만 보면 된다. */
@@ -1138,7 +1137,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                 {pr&&<View style={rl.pres}>
                   <View style={[rl.presDot,{backgroundColor:DOT[pr.s]}]}/>
                   <Text style={rl.presT}>{pr.t}</Text></View>}
-                {last&&<Text style={rl.tm}>{fmtTime(last.created_at)}</Text>}
+                {last&&<Text style={rl.tm}>{fmtListTime(last.created_at)}</Text>}
               </View>
               <Text style={rl.pv} numberOfLines={1}>
                 {/* 지문에는 말한 사람이 없다 — 웹 목록에서 「나: 이재언은 자고
@@ -1194,7 +1193,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
       </Modal>
       <View style={rl.st}>
         <Text style={rl.stT}>the blank u fill in ♡ NULL v1.1{demo?' · demo':''}</Text>
-        <Text style={rl.stC}>{fmtTime(Date.now())}</Text>
+        <Text style={rl.stC}>{fmtClock(Date.now())}</Text>
       </View>
     </View>
   </ImageBackground>;
@@ -1336,18 +1335,18 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
         {!watch&&<Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>}
         <Text style={ch.empty}>{watch?'':room.empty}</Text></View>}
       {msgs.map((m:Msg,i:number)=>{
-        const prev=msgs[i-1]; const gap=!prev||m.created_at-prev.created_at>600000;
+        const prev=msgs[i-1]; const gap=dividerGap(prev&&prev.created_at,m.created_at);
         const me=m.sender==='user'; const mt=meta(m.sender);
         // 지문 줄이 끼면 흐름이 끊기므로 다음 말은 프로필부터 다시 보여준다
         const head=gap||!prev||prev.sender!==m.sender||isNarr(prev);
         const showName=head&&!me&&(room.type==='group'||watch);
         const pu=m.photo&&photoSrc(m.photo)?IMG+photoSrc(m.photo):null;
         if (isNarr(m)) return <React.Fragment key={m.id||i}>
-          {gap&&<Text style={ch.div}>✦ {fmtTime(m.created_at)} ✦</Text>}
+          {gap&&<Text style={ch.div}>✦ {fmtDivider(m.created_at)} ✦</Text>}
           <Text style={ch.narr}>{m.text}</Text>
         </React.Fragment>;
         return <React.Fragment key={m.id||i}>
-          {gap&&<Text style={ch.div}>✦ {fmtTime(m.created_at)} ✦</Text>}
+          {gap&&<Text style={ch.div}>✦ {fmtDivider(m.created_at)} ✦</Text>}
           <View style={[ch.row,me&&{justifyContent:'flex-end'},{marginTop:head?8:2}]}>
             {!me&&head&&(CHARS[m.sender]
               ? <TouchableOpacity activeOpacity={0.8} onPress={()=>onProfile(m.sender)}>
@@ -2109,7 +2108,7 @@ function Root() {
          그 점이 거짓말이 된다. 지금이 아니라 찍힐 시각(at)으로 잰다.
          하루 몫을 깎기 전에 본다 — 순서가 반대면 만들지도 못한 대화에 몫만
          나가고, 적어둔 사건(선물)까지 같이 지워진다. */
-      if(!bothAwake(new Date(at))) return;
+      if(!bothAwake(gameAt(at))) return;
       /* 하루 경계는 여기서도 새벽 다섯 시다. UTC 날짜로 세면 아침 아홉 시에
          상한이 리셋돼 한 하루에 네 번이 돈다 — 제일 비싼 호출인데 */
       const day=dayKey();
@@ -2153,11 +2152,15 @@ function Root() {
   const doRename=(t:string)=>{if(loadWorld())return;const v=t.trim(); if(v){setMeta('user_name',v); setName(v);}};
   /* [편집] 대화 저장: 전체 방 → 공유 시트로 내보내기 */
   const exportTxt=async()=>{
-    const lines:string[]=['NULL — 대화 기록',''];
+    const lines:string[]=['NULL — 대화 기록','내보낸 시각: '+gameAt(Date.now()).toLocaleString('ko-KR'),''];
     for(const r of ROOMS){
       const ms:Msg[]=msgs[r.id]||[]; if(!ms.length) continue;
       lines.push('──── '+r.name+' ────');
-      ms.forEach(m=>lines.push(`${m.sender==='user'?name:(CHARS[m.sender]?.name||m.sender)}: ${m.photo?'(사진) ':''}${m.text||''}`));
+      /* 웹과 같은 모양 — 줄머리에 시각, 지문(sys)에는 화자를 안 붙인다 */
+      ms.forEach(m=>{
+        if(m.sender==='sys'){ lines.push(`[${fmtDivider(m.created_at)}] · ${m.text||''}`); return; }
+        lines.push(`[${fmtDivider(m.created_at)}] ${m.sender==='user'?name:(CHARS[m.sender]?.name||m.sender)}: ${m.photo?'(사진) ':''}${m.text||''}`);
+      });
       lines.push('');
     }
     try{ await Share.share({message:lines.join('\n'),title:'NULL 대화기록'}); }catch{}

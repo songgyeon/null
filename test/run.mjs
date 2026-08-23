@@ -745,16 +745,19 @@ eq('점이 꺼진 사람은 안 건다',
   /* 재언 1~6시, 민현 3~8시 — 둘을 합치면 1~8시가 조용하다 */
   eq('한쪽만 자도 관전은 안 만든다',
     [0, 2, 5, 7, 9, 23].map(h => B(at2(h))), [true, false, false, false, true, true]);
-  /* 지금이 아니라 그 대화가 찍힐 시각으로 잰다 — 관전은 한 시간쯤 거슬러 찍힌다 */
-  eq('찍힐 시각으로 잰다', /if\(!bothAwake\(new Date\(at\)\)\)return;/.test(web), true);
+  /* 지금이 아니라 그 대화가 찍힐 시각으로 잰다 — 관전은 한 시간쯤 거슬러 찍힌다.
+     그리고 생활리듬은 세계 시계로 본다 — 진짜 시각(new Date)으로 재면 스피드
+     모드에서 화면의 「자는 중」과 관전이 딴말을 한다 */
+  eq('찍힐 시각으로 잰다', /if\(!bothAwake\(gameAt\(at\)\)\)return;/.test(web), true);
   /* 하루 몫을 깎기 전에 본다. 순서가 반대면 만들지도 못한 대화에 몫만 나가고
      적어둔 사건(선물)까지 같이 지워진다 */
   eq('몫을 깎기 전에 본다',
-    web.indexOf('if(!bothAwake(new Date(at)))return;') < web.indexOf('saveAutoDay(`${day}|'), true);
-  /* peek 단추는 지금 벌어지는 일이라 지금으로 잰다 */
+    web.indexOf('if(!bothAwake(gameAt(at)))return;') < web.indexOf('saveAutoDay(`${day}|'), true);
+  /* peek 단추는 지금 벌어지는 일이라 지금으로 잰다 — 인자 없는 bothAwake는
+     nowClock()을 보므로 이미 세계 시계다 */
   eq('peek도 자면 안 부른다', /if\(!bothAwake\(\)\)\{/.test(web), true);
   eq('앱도 관전을 막는다',
-    /if\(!bothAwake\(new Date\(at\)\)\) return;/.test(appSrc)
+    /if\(!bothAwake\(gameAt\(at\)\)\) return;/.test(appSrc)
     && /if\(!bothAwake\(\)\)\{/.test(appSrc), true);
   /* ── 자는 사람을 셋으로 세지 않는다 ──
      조건은 bothAwake라 한 명만 자도 막히는데 말은 「둘 다 자요」였다.
@@ -766,7 +769,7 @@ eq('점이 꺼진 사람은 안 건다',
       && /지금은 \$\{jos\(CHARS\[zz\[0\]\]\.name,\s*['"]이\/가['"]\)\} 자요 ♡/.test(src), true);
   eq('앱이 asleep을 들여온다', /openingFor, canGreet, asleep, allAsleep, bothAwake,/.test(appSrc), true);
   eq('앱도 몫을 깎기 전에 본다',
-    appSrc.indexOf('if(!bothAwake(new Date(at))) return;') < appSrc.indexOf("null_auto_day',`${day}|"), true);
+    appSrc.indexOf('if(!bothAwake(gameAt(at))) return;') < appSrc.indexOf("null_auto_day',`${day}|"), true);
 }
 /* 앱도 같은 자리에서 같은 시계를 본다 — 한쪽만 고치면 두 화면이 갈린다 */
   eq('앱도 자는 사람은 안 부른다',
@@ -1728,8 +1731,79 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
 {
   const rules = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
   eq('규칙층에 진짜 시계가 안 샌다', /\|\|new Date\(\)/.test(rules), false);
-  /* 말풍선에 찍히는 시각은 진짜다. 그건 진짜로 일어난 일이다 */
-  eq('찍히는 시각은 진짜 그대로다', /const isToday=ts=>\{const d=new Date\(ts\),n=new Date\(\)/.test(rules), true);
+  /* 말풍선에 찍히는 시각도 세계 시계로 번역한다 — 프롬프트는 저녁이라는데
+     화면이 오후 2시를 찍으면 화면이 거짓말이다. 저장(ts)은 진짜 epoch 그대로고
+     번역은 그리는 순간에만 한다 */
+  eq('찍히는 시각은 세계 시계로 번역한다',
+    /const isToday=ts=>gameAt\(ts\)\.toDateString\(\)===nowClock\(\)\.toDateString\(\)/.test(rules), true);
+}
+/* ── F. 시계 통일 — 번역기는 하나다 ──
+   gameAt(ts) 하나가 저장된 진짜 epoch를 세계 시각으로 번역한다. 리얼 모드에서는
+   항등이라 아무것도 안 변하고, 스피드 모드에서는 앵커 날 아침 여덟 시에서
+   출발해 흐른 진짜 시간 × SPEED_RATE만큼 간다. 실제로 굴려서 잰다 —
+   모양만 보면 정의가 뒤집혀도 통과한다. */
+{
+  const F = new Function(
+    'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
+    + web.slice(web.indexOf('const SPEED_PER_DAY='), web.indexOf('const loadExtend='))
+    + web.slice(web.indexOf('const fmtClock='), web.indexOf('/* ── 지금이 언제인가'))
+    + 'return {saveMode,setSpeedAt,gameAt,fmtClock,isToday,fmtDivider,fmtListTime,fmtDay,dividerGap,nowClock};')();
+  /* 리얼 모드 — 번역은 항등이다 */
+  F.saveMode('real');
+  const t = new Date(2026, 0, 6, 14, 30).getTime();
+  eq('리얼 모드의 gameAt은 항등이다', F.gameAt(t).getTime(), t);
+  eq('리얼 모드 말풍선은 그대로 찍힌다', F.fmtClock(t), '오후 2:30');
+  eq('리얼 모드 구분선은 진짜 십 분이다',
+    [F.dividerGap(t, t + 11 * 60 * 1000), F.dividerGap(t, t + 9 * 60 * 1000)], [true, false]);
+  /* 스피드 모드 — 일곱 시간 전에 시작했으면 게임으로 하루가 넘게 흘렀다 */
+  F.saveMode('speed');
+  const anchor = Date.now() - 7 * 3600 * 1000;
+  F.setSpeedAt(0, anchor);
+  const early = anchor + 15 * 60 * 1000;          // 십오 분째에 찍힌 말
+  eq('십오 분째 말풍선은 아홉 시다', [F.gameAt(early).getHours(), F.gameAt(early).getMinutes()], [9, 0]);
+  eq('말풍선도 번역돼 찍힌다', F.fmtClock(early), '오전 9:00');
+  /* 앵커보다 먼저 찍힌 ts는 여덟 시에 멈춘다 — 음수로 거슬러 올라가지 않는다 */
+  eq('앵커 앞은 여덟 시에 멈춘다',
+    [F.gameAt(anchor - 3600 * 1000).getHours(), F.gameAt(anchor - 3600 * 1000).getMinutes()], [8, 0]);
+  /* 「오늘」도 세계의 오늘이다 — 첫날의 말은 이제 세계의 어제다 */
+  eq('첫날 말풍선은 세계의 어제다', F.isToday(early), false);
+  eq('지금 찍힌 말은 오늘이다', F.isToday(Date.now()), true);
+  eq('어제 말풍선엔 날짜가 붙는다', /^\d+월 \d+일 오/.test(F.fmtDivider(early)), true);
+  eq('목록도 어제는 날짜만 적는다', /^\d+월 \d+일$/.test(F.fmtListTime(early)), true);
+  /* 구분선의 십 분도 게임 십 분이다 — 진짜 삼 분이면 게임 십이 분 */
+  eq('구분선은 세계의 십 분으로 잰다',
+    [F.dividerGap(early, early + 3 * 60 * 1000), F.dividerGap(early, early + 2 * 60 * 1000)], [true, false]);
+  eq('첫 말 앞에는 늘 구분선이다', F.dividerGap(undefined, early), true);
+  F.saveMode('real');
+}
+/* 저장은 진짜 epoch 그대로다 — ts·since·created_at에 gameAt을 쓰면 앵커(첫 ts)가
+   번역된 시각을 도로 먹어 시계가 발산한다. 계약이 적은 최대 위험. */
+{
+  const everything = [web, appSrc, readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8')].join('\n');
+  eq('저장 ts에 번역기가 안 낀다', /ts:\s*gameAt\(/.test(everything), false);
+  eq('since에도 안 낀다', /since:\s*gameAt\(/.test(everything), false);
+  eq('created_at에도 안 낀다', /created_at:\s*gameAt\(/.test(everything), false);
+  /* 안 바꿀 것 — 앵커·하루 열쇠·도장·선톡 간격은 번역 없이 그대로다 */
+  const rules = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  eq('앵커는 진짜 첫 ts다', /const firstTsOf=store=>Object\.values\(\(store&&store\.msgs\)\|\|\{\}\)\.flat\(\)/.test(rules)
+    && !/firstTsOf=[\s\S]{0,120}gameAt\(/.test(rules), true);
+  eq('하루 열쇠는 그대로다', /const d=new Date\(now\|\|Date\.now\(\)\); if\(d\.getHours\(\)<5\)d\.setDate\(d\.getDate\(\)-1\);/.test(rules), true);
+  eq('도장도 그대로다', /const giftedToday=\(char,now\)=>loadGiftDay\(\)\[char\]===dayKey\(now\);/.test(rules)
+    && /const goneToday=\(place,now\)=>loadGone\(\)\[place\]===dayKey\(now\);/.test(rules), true);
+  eq('선톡 간격은 진짜 분으로 잰다', /const gapMin=list\.length\?Math\.round\(\(Date\.now\(\)-list\[list\.length-1\]\.ts\)\/60000\):-1;/.test(web), true);
+  /* 시계 소스는 한 군데다 — 앱은 자기 fmtTime을 버리고 규칙 것을 쓴다 */
+  eq('앱의 자체 fmtTime이 없다', /const fmtTime\s*=/.test(appSrc), false);
+  eq('앱이 규칙의 시계를 들여온다', /fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt,/.test(appSrc), true);
+  eq('앱 내보내기에 시각이 붙는다', /내보낸 시각: '\+gameAt\(Date\.now\(\)\)\.toLocaleString\('ko-KR'\)/.test(appSrc)
+    && /\[\$\{fmtDivider\(m\.created_at\)\}\]/.test(appSrc), true);
+  eq('웹 내보내기 머리도 세계 시각이다', /내보낸 시각: "\+gameAt\(Date\.now\(\)\)\.toLocaleString\("ko-KR"\)/.test(web), true);
+  /* 목록·상단바·구분선이 같은 번역을 본다 */
+  eq('앱 목록·상단바·구분선이 규칙 시계를 쓴다', /fmtListTime\(last\.created_at\)/.test(appSrc)
+    && /fmtClock\(Date\.now\(\)\)/.test(appSrc)
+    && /fmtDivider\(m\.created_at\)/.test(appSrc)
+    && /dividerGap\(prev&&prev\.created_at,m\.created_at\)/.test(appSrc), true);
+  eq('웹 구분선도 세계 십 분이다', /const gap=dividerGap\(prev&&prev\.ts,m\.ts\);/.test(web), true);
+  eq('방 목록의 자는 중도 세계 시계다', /const pr=presence\(r\.id,gameAt\(now\)\);/.test(web), true);
 }
 eq('시간표도 세계 시계를 본다', /function Timetable\(\{wend,onFillWend,onClose\}\)\{[\s\S]{0,220}const now=nowClock\(\);/.test(web), true);
 /* 시계는 store가 바뀔 때마다 감는다 — 규칙들은 대화 수를 스스로 못 본다 */
@@ -3601,7 +3675,7 @@ eq('자리의 때를 있는 시계 둘로 잰다', /const sceneOver=\(sc,now\)=>
 /* 새벽 오프닝(편의점 라면)은 시간표를 안 보고 여는 자리다 — 열릴 때부터
    자는 시간이었다면 자리가 이긴다. 안 그러면 열리자마자 「나왔다」가 찍혔다 */
 eq('자리가 열릴 때부터 잔 사람은 안 쫓아낸다',
-  /const at=presence\(sc\.room,new Date\(sc\.since\)\);/.test(web)
+  /const at=presence\(sc\.room,gameAt\(sc\.since\)\);/.test(web)
   && /return !at\|\|at\.s!=="off";/.test(web), true);
 eq('귀갓길은 안 본다 — 원래 곧 끝나는 자리다',
   /if\(!sc\|\|sc\.place===WAY\)return false;/.test(web), true);
