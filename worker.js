@@ -3448,8 +3448,12 @@ function unlabel(list, allowed) {
    하나에 통째로 들어가고 화자도 엉뚱하게 붙는다.
    그래서 이름표가 붙은 줄은 화자별 말풍선으로 풀어준다. 모델이 형식을 어겨도
    화면은 멀쩡하게 나오도록. 이름표가 하나도 없으면 null을 돌려 원래대로 둔다. */
+/* {messages, intruder}를 돌려준다. 형식이 아니면 null.
+   전에는 intruder를 함수 속성에 걸어뒀는데, 그건 방금 걷어낸
+   parseMessages.invite와 **똑같은 숨은 상태**다. 지금은 부르고 바로 읽어서
+   안 섞이지만, 사이에 한 줄만 끼면 요청끼리 섞이는 길이 다시 생긴다. */
 function parseTagged(text, allowed) {
-  parseTagged.intruder = false;
+  let intruder = false;
   const lines = String(text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   if (!lines.length) return null;
   const out = [];
@@ -3462,7 +3466,7 @@ function parseTagged(text, allowed) {
     /* 이 방에 없는 사람은 말하지 않는다. 줄은 버리되 **버렸다고 신고한다** —
        조용히 버리면 SENDER 검사가 이름표 형식에서 영영 발화하지 못하고,
        모든 줄이 난입이면 이름표째 평문 말풍선으로 나간다. */
-    if (id && !allowed.includes(id)) { parseTagged.intruder = true; id = null; }
+    if (id && !allowed.includes(id)) { intruder = true; id = null; }
     if (id) {
       tagged++;
       const t = m[2].trim();
@@ -3477,7 +3481,10 @@ function parseTagged(text, allowed) {
       return null; // 이름표가 나오기도 전에 딴 게 있다 — 이 형식이 아니다
     }
   }
-  return tagged && out.length ? out : null;
+  /* 이름표를 알아봤으면 결과를 준다. 남은 줄이 없어도 준다 —
+     모든 줄이 난입이라 다 버린 경우가 그렇고, 그건 평문이 아니라
+     「이 방에 없는 사람만 말했다」는 뜻이다. */
+  return tagged ? { messages: out, intruder } : null;
 }
 
 /* ── 중괄호 짝 맞춰 떼기 ──
@@ -3566,9 +3573,14 @@ const DENY_UNDO = /(?:안 받았|받은 적 없|못 받았)[^.!?]{0,6}(?:게 아
 
    ctx는 코드가 확실히 아는 현재 값이다:
      giftNow{key,name} · giftRoom · place · placeItemOwned · openPlaces · room */
+/* ── Candidate만 받는다 ──
+   한동안 배열도 받았다. 안전 검사에 옛 입구를 남기면 어떤 경로는 새 검사를
+   온전히 받고 어떤 경로는 옛 검사만 받는 상태가 생긴다 — 배열에는 id도
+   invite도 give도 없으니 SENDER·FACT_DENIAL·INVALID_*가 통째로 안 돈다.
+   그러면 「테스트는 통과했는데 저 경로만 안 걸러짐」이 되고, G에서 모델
+   차이가 아니라 후처리 차이를 비교하게 된다. 입구는 하나다. */
 function hardFilter(cand, allowed, ctx) {
-  /* 옛 호출부(kept 배열)도 받는다 — 검사줄 자체를 시험하는 자리가 많다 */
-  const c = Array.isArray(cand) ? { messages: cand } : (cand || {});
+  const c = cand || {};
   const kept = c.messages || [];
   if (!kept.length) return ["EMPTY"];
   const codes = [];
@@ -4080,14 +4092,15 @@ function parseMessages(text, fallbackSender, allowed) {
   } catch (e) { /* fall through */ }
   // JSON이 아니다 — 이름표 형식이면 화자별로 풀어준다
   const tagged = parseTagged(text, ok);
-  /* 이름표는 모델이 화자를 **명시한** 것이다. 잘못된 이름표도 검사에 올린다 */
-  if (tagged) return bundle(tagged.map(m => ({ ...m, senderGiven: true })), "tagged",
-    parseTagged.intruder ? { intruder: true } : {});
-  /* 이름표 형식인데 모든 줄이 난입이라 남은 것이 없다. 평문으로 떨어뜨리면
-     「[이재언] 앉으세요.」가 통째로 말풍선이 된다 — 검사에 올린다. */
-  if (parseTagged.intruder)
-    return bundle([{ sender: fallbackSender, text: String(text || "").trim(), senderGiven: false }],
-      "tagged", { intruder: true });
+  /* 이름표는 모델이 화자를 **명시한** 것이다. 잘못된 이름표도 검사에 올린다.
+     모든 줄이 난입이라 남은 것이 없으면 평문으로 떨어뜨리지 않는다 —
+     그러면 「[이재언] 앉으세요.」가 통째로 말풍선이 된다. */
+  if (tagged) {
+    const kept = tagged.messages.length
+      ? tagged.messages.map(m => ({ ...m, senderGiven: true }))
+      : [{ sender: fallbackSender, text: String(text || "").trim(), senderGiven: false }];
+    return bundle(kept, "tagged", tagged.intruder ? { intruder: true } : {});
+  }
   /* 그것도 아니면 원문을 한 덩어리로 내보낸다. 평문 한 줄로 답하는 턴이
      실제로 있어서 이 길은 열어둔다.
 
@@ -4643,20 +4656,37 @@ export default {
          옛 길: 모델 하나가 한 번에 쓴다. 지우지 않고 깃발 뒤에 남긴다 —
          지금 길이 나은지는 같은 대화를 두 길로 굴려 봐야 아는 것이다.
          이 길은 목록 폴백을 그대로 쓴다. 그게 옛 길의 모습이기 때문이다. */
+      /* 기준선도 이걸 쓴다 — 검사 입구가 하나여야 G 비교가 공정하다.
+          코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
+      const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned, room,
+                        openPlaces: place ? [] : [...openPlaces, ...canGo] };
+
       if (engineMode(env) === "legacy") {
         const t0 = Date.now();
         const raw = await askClaude(env, meter, system, msgs, budget0);
         stageStamp(meter, "legacy", meter.legacyModel || "?", meter.writerUsage,
                    Date.now() - t0, 1, "legacy", "ok", "");
         devLog(`[NULL] 기준선 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
+        /* ── 기준선도 같은 계약을 탄다 ──
+           전에는 여기가 hardFilter를 아예 안 탔다. 옛 길이 그랬으니 그대로
+           둔다고 생각했는데, 그러면 G에서 비교하는 것이 모델 차이가 아니라
+           **후처리 차이**가 된다. 새는 줄이 한쪽에서만 걸러지기 때문이다.
+           모델 호출 구조는 그대로 두고 파싱과 검사만 같게 맞춘다. */
         const p0 = parseMessages(raw, fallbackSender, chars);
-        const inv0 = pickInvite(p0.invite, place ? [] : [...openPlaces, ...canGo]);
-        const giv0 = pickGive(p0.give, place, placeItemOwned, room);
-        const kept0 = dropEcho(
-          trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(p0.messages)), chars), photoChars, fallbackSender, recentPhotos)),
-          lastSaid(msgs, mode));
+        const c0 = { id: "L", originalMessages: p0.messages,
+          messages: dropEcho(
+            trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(p0.messages)), chars), photoChars, fallbackSender, recentPhotos)),
+            lastSaid(msgs, mode)),
+          invite: p0.invite, give: p0.give, photo: p0.photo,
+          parseStatus: p0.parseStatus, intruder: p0.intruder, signals: [] };
+        const codes0 = hardFilter(c0, chars, hardCtx);
+        const kept0 = codes0.length ? [] : c0.messages;
+        const inv0 = kept0.length ? pickInvite(c0.invite, place ? [] : [...openPlaces, ...canGo]) : null;
+        const giv0 = kept0.length ? pickGive(c0.give, place, placeItemOwned, room) : null;
         if (!kept0.length) {
-          return new Response(JSON.stringify({ error: "생성 실패", detail: "모델 응답을 읽지 못했습니다",
+          console.log(`[NULL] 기준선 후보 탈락 — ${codes0.join(",") || "EMPTY"}`);
+          return new Response(JSON.stringify({ error: "생성 실패",
+            detail: `모델 응답을 읽지 못했습니다${codes0.length ? ` (${codes0.join(", ")})` : ""}`,
             stages: meter.rows, usage_total: meterTotal(meter),
             ...(reqId ? { request_id: reqId } : {}) }),
             { status: 502, headers: { ...CORS, "content-type": "application/json" } });
@@ -4718,10 +4748,6 @@ export default {
         role: m.role,
         content: Array.isArray(m.content) ? m.content.map(b => b.text || "").join(" ") : m.content,
       }));
-
-      /* 코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
-      const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned, room,
-                        openPlaces: place ? [] : [...openPlaces, ...canGo] };
 
       let picked = null, lastCodes = [];
       for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked; attempt++) {

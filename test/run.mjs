@@ -5517,10 +5517,18 @@ eq('시간표 단추는 peek보다 좁다',
   eq('옛 모양은 후보 하나로 본다',
     splitCandidates(JSON.stringify({ messages: [{ text: 'ㄱ' }] })).length, 1);
 
-  eq('빈 후보는 떨어진다', hardFilter([], ['minhyun']), ['EMPTY']);
-  eq('남의 화자는 떨어진다', hardFilter([{ sender: 'x', text: 'ㄱ' }], ['minhyun']), ['SENDER']);
-  eq('안이 비치면 떨어진다', hardFilter([{ sender: 'minhyun', text: '{"messages":' }], ['minhyun']), ['LEAK']);
-  eq('멀쩡한 것은 안 떨어진다', hardFilter([{ sender: 'minhyun', text: '아직 학교예요.' }], ['minhyun']), []);
+  /* hardFilter는 Candidate만 받는다. 배열도 받던 옛 입구를 남기면 어떤
+     경로는 새 검사를 온전히 받고 어떤 경로는 옛 검사만 받는다 —
+     배열에는 id도 invite도 give도 없어서 절반이 통째로 안 돈다. */
+  const cand = (messages, extra) => ({ id: 'A', originalMessages: messages, messages,
+    invite: '', give: '', photo: '', signals: [], ...(extra || {}) });
+  eq('빈 후보는 떨어진다', hardFilter(cand([]), ['minhyun'], {}), ['EMPTY']);
+  eq('남의 화자는 떨어진다',
+    hardFilter(cand([{ sender: 'x', text: 'ㄱ', senderGiven: true }]), ['minhyun'], {}), ['SENDER']);
+  eq('안이 비치면 떨어진다',
+    hardFilter(cand([{ sender: 'minhyun', text: '{"messages":' }]), ['minhyun'], {}), ['LEAK']);
+  eq('멀쩡한 것은 안 떨어진다',
+    hardFilter(cand([{ sender: 'minhyun', text: '아직 학교예요.' }]), ['minhyun'], {}), []);
 
   eq('매번 묻는 것은 신호다', softSignals([{ text: '밥 먹었어요?' }, { text: '어디예요?' }], []), ['ALL_QUESTIONS']);
   eq('상담사 말투는 신호다',
@@ -5668,6 +5676,74 @@ eq('시간표 단추는 peek보다 좁다',
   eq('그 자리의 물건은 통과한다',
     hardFilter({ messages: [{ text: 'ㄱ' }], give: 'can' }, MH,
       { place: '옥상', placeItemOwned: false, room: 'minhyun' }), []);
+
+  /* ── D 후속 · 입구가 하나다 ──
+     안전 검사에 옛 입구를 남기면 「테스트는 통과했는데 저 경로만 안 걸러짐」이
+     생기고, G에서 모델 차이가 아니라 후처리 차이를 비교하게 된다. */
+  eq('검사가 배열을 안 받는다', (() => {
+    const f = wk.slice(wk.indexOf('function hardFilter('), wk.indexOf('/* ── Soft Signal ──'));
+    return /Array\.isArray\(cand\)/.test(f);
+  })(), false);
+  eq('생산 호출이 전부 Candidate다', (() => {
+    /* hardFilter(무엇, …) 의 첫 인자가 배열 리터럴이거나 messages 배열이면 옛 모양이다 */
+    return (wk.match(/hardFilter\(/g) || []).length === 4      // 정의 1 + 호출 3
+        && /hardFilter\(cand, chars, hardCtx\)/.test(wk)      // 일반·pair·one·auto·중요
+        && /hardFilter\(fCand, chars, hardCtx\)/.test(wk)     // 마무리
+        && /hardFilter\(c0, chars, hardCtx\)/.test(wk)        // 기준선
+        && !/hardFilter\(kept/.test(wk) && !/hardFilter\(\[/.test(wk);
+  })(), true);
+  /* 기준선도 같은 검사를 탄다. 전에는 아예 안 탔다 —
+     새는 줄이 한쪽에서만 걸러지면 비교가 성립하지 않는다. */
+  eq('기준선도 Candidate로 검사한다', (() => {
+    const i = wk.indexOf('if (engineMode(env) === "legacy")');
+    const box = wk.slice(i, i + 1600);
+    return box.includes('const c0 = { id: "L"') && box.includes('hardFilter(c0, chars, hardCtx)');
+  })(), true);
+  eq('기준선 Candidate에 칸이 다 있다', (() => {
+    const i = wk.indexOf('const c0 = { id: "L"');
+    const box = wk.slice(i, i + 500);
+    return ['originalMessages', 'messages:', 'invite:', 'give:', 'photo:', 'signals:']
+      .filter(k => !box.includes(k));
+  })(), []);
+  /* hardCtx가 기준선보다 뒤에 정의되면 TDZ로 터진다 */
+  eq('검사 재료가 기준선보다 앞에 있다',
+    wk.indexOf('const hardCtx =') < wk.indexOf('if (engineMode(env) === "legacy")'), true);
+
+  /* ── D 후속 · 파서에 숨은 상태가 없다 ──
+     parseMessages.invite를 걷어낸 것과 같은 함정이다. 지금은 부르고 바로
+     읽어서 안 섞이지만, 사이에 한 줄만 끼면 요청끼리 섞이는 길이 다시 생긴다. */
+  eq('파서가 함수 속성을 안 쓴다',
+    /(parseMessages|parseTagged|splitCandidates|readProblems|readDecision)\.[a-zA-Z_]+\s*=/.test(wk), false);
+  eq('이름표 파서가 결과를 돌려준다',
+    /return tagged \? \{ messages: out, intruder \} : null;/.test(wk), true);
+  /* 앞 호출의 난입 표시가 다음 호출에 남으면 안 된다 */
+  eq('난입 표시가 다음 파싱에 안 남는다', (() => {
+    const a = parseMessages('[이재언] 앉으세요.', 'minhyun', MH);       // 난입
+    const b = parseMessages('{"messages":["네."]}', 'minhyun', MH);      // 정상
+    return [!!a.intruder, !!b.intruder];
+  })(), [true, false]);
+  eq('정상 다음의 난입도 정확히 잡는다', (() => {
+    const a = parseMessages('{"messages":["네."]}', 'minhyun', MH);
+    const b = parseMessages('[이재언] 앉으세요.', 'minhyun', MH);
+    return [!!a.intruder, !!b.intruder];
+  })(), [false, true]);
+  /* 방이 바뀌면 판정도 바뀐다 — 앞 방의 결과가 남으면 안 된다 */
+  eq('앞 방의 결과가 다음 방에 안 남는다', (() => {
+    const a = parseMessages('[이재언] 앉으세요.', 'minhyun', MH);        // 민현 방 → 난입
+    const b = parseMessages('[이재언] 앉으세요.', 'jaeeon', ['jaeeon']); // 재언 방 → 정상
+    return [!!a.intruder, !!b.intruder, hardFilter(b, ['jaeeon'], {})];
+  })(), [true, false, []]);
+  /* 모든 줄이 난입이면 이름표째 말풍선으로 내보내지 않는다 */
+  eq('난입뿐이면 평문으로 안 떨어진다', (() => {
+    const b = parseMessages('[이재언] 앉으세요.', 'minhyun', MH);
+    return [b.parseStatus, hardFilter(b, MH, {})];
+  })(), ['tagged', ['SENDER']]);
+  /* JSON 경로와 이름표 경로가 같은 묶음을 낸다 */
+  eq('두 경로가 같은 계약을 낸다', (() => {
+    const keys = o => Object.keys(o).sort().join(',');
+    return keys(parseMessages('{"messages":["ㄱ"]}', 'minhyun', MH))
+        === keys(parseMessages('[이민현] ㄱ', 'minhyun', MH));
+  })(), true);
 
   /* ── D4 성격표 ── */
   eq('성격표에 새 인물이 없다',
