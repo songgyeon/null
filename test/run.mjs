@@ -1804,6 +1804,15 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
     && /dividerGap\(prev&&prev\.created_at,m\.created_at\)/.test(appSrc), true);
   eq('웹 구분선도 세계 십 분이다', /const gap=dividerGap\(prev&&prev\.ts,m\.ts\);/.test(web), true);
   eq('방 목록의 자는 중도 세계 시계다', /const pr=presence\(r\.id,gameAt\(now\)\);/.test(web), true);
+  /* 첫 만남 날짜도 세계 날짜다 — 앱 StatsPanel이 자체 MON·day로 진짜 달력을
+     보면, 같은 첫 만남이 웹에서는 게임 날짜·앱에서는 현실 날짜로 갈린다 */
+  eq('앱이 fmtDay를 들여온다', /fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,/.test(appSrc), true);
+  eq('첫 만남 날짜는 규칙의 fmtDay다', /'first met u · '\+fmtDay\(first\)/.test(appSrc), true);
+  eq('StatsPanel에 현실 시계가 안 남았다', (() => {
+    const s = appSrc.indexOf('function StatsPanel(');
+    const body = appSrc.slice(s, appSrc.indexOf('\nfunction ', s + 1));
+    return s >= 0 && !/new Date\(/.test(body) && !/const MON=/.test(body);
+  })(), true);
 }
 eq('시간표도 세계 시계를 본다', /function Timetable\(\{wend,onFillWend,onClose\}\)\{[\s\S]{0,220}const now=nowClock\(\);/.test(web), true);
 /* 시계는 store가 바뀔 때마다 감는다 — 규칙들은 대화 수를 스스로 못 본다 */

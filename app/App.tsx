@@ -38,7 +38,7 @@ import {
   talkedEnoughIn, applyStoryTransition, markPartnerKnown,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
-  fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt,
+  fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -1432,8 +1432,6 @@ function MenuRow({label,onPress}:{label:string;onPress:()=>void}) {
 function StatsPanel({msgs,counts,unlocked,album}:any) {
   const allPhotos=Object.values(GALLERY).reduce((n:number,l:any)=>n+l.length,0);
   const first=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0) as number;
-  const MON=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-  const day=(ts:number)=>{const d=new Date(ts);return MON[d.getMonth()]+' '+d.getDate()};
   const rows:[string,string][]=[
     ['w/ 재언', String(counts.jaeeon||0)],
     ['w/ 민현', String(counts.minhyun||0)],
@@ -1444,7 +1442,7 @@ function StatsPanel({msgs,counts,unlocked,album}:any) {
   return <View style={{width:'100%'}}>
     {rows.map(([k,v])=><View key={k} style={mo.srow}>
       <Text style={mo.sk}>{k}</Text><Text style={mo.sv}>{v}</Text></View>)}
-    <Text style={mo.sfoot}>{first?'first met u · '+day(first):'nothing yet'}</Text>
+    <Text style={mo.sfoot}>{first?'first met u · '+fmtDay(first):'nothing yet'}</Text>
   </View>;
 }
 
