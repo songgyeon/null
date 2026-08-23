@@ -351,12 +351,38 @@ const next = [...storeRef.current.msgs[room], sys];   ← 금지
 특수 경로(자리 자동 종료 · 직접 나가기 · 귀갓길 · 초대 수락/거절 · 자리 이동 ·
 지도 방문 · 선물 · 선물 들고 가기)가 전부 이 꼴이었다.
 
-### 저장 실패는 삼키지 않는다
+### 저장 실패 — write-ahead journal
 
-`saveStore` · `saveBag` · `saveInvites` · `saveBatches` · `saveEffDone`는
-성공 여부를 돌려준다. 실패했으면 `scene_ack` · `effect_done` · `dropBatchItem` ·
-`dropBatch` · `ackAutoEvent`를 **진행하지 않고** 재시도 가능한 오류로 남긴다.
-삼키고 넘어가면 「장면은 소모됐는데 답은 없음」이 저장 실패 하나로 다시 만들어진다.
+「저장하고 나서 실패면 멈춘다」로는 부족했다. 실패를 알았을 때는 이미 앞
+단계의 상태가 바뀐 뒤라 되돌릴 수도 이어갈 수도 없다: 가방은 들어갔는데
+지문이 없고, 표는 찍혔는데 장부가 없고, 초대는 줄에서 빠졌는데 답 지문이
+안 남았다. localStorage key 여럿을 하나씩 즉시 바꾸는 구조가 그렇다.
+
+**순서를 뒤집는다. 바꿀 계획을 먼저 한 덩어리로 적고, 저장이 성공한 뒤에
+`resumeBatch`가 그 계획을 실행한다.** 상태를 먼저 바꾸고 장부를 쓰는 자리는
+없다 — 모델의 답도(`commitTurn`), 유저가 누르는 여덟 가지 일도(`localBatch`),
+관전 자동 응답도 같은 장부를 탄다.
+
+```
+{ id, room, items, sys, effects, unlocked,
+  scene_ack, invite_ops, local_ops, auto_event_id, toast }
+```
+
+실행은 전부 **쓰고 나서 다시 읽어 확인한다.** 그러면 「이미 되어 있다」와
+「방금 했다」가 같은 검사로 처리되고, 되풀이해도 결과가 같다.
+
+| | 무엇 |
+|---|---|
+| Effect 결과 | 참·거짓으로 뭉개지 않는다 — `applied` / `already_applied` / `not_applicable` / `storage_error{key}`. 「이미 가진 물건」과 「저장 실패」가 둘 다 false였던 것이 가방 없이 장면만 소모되던 자리다 |
+| 소모는 나중에 | 말이 안 남았으면 거기서 멈춘다. 초대를 줄에서 빼는 것 · 장면 소모 · 관전 사건 소모는 전부 그 뒤다 |
+| 지문 guard | 「누구에게 받았다」 줄에 `need:{key,from}`가 붙는다. 그 물건이 실제로 그 사람이 준 것으로 가방에 있을 때만 나온다 |
+| 재시도 | 저장 실패의 재시도는 **모델을 다시 안 부른다.** 답은 이미 장부에 있다 — `request_id`는 서버의 멱등 키가 아니라 Writer·Critic·Finalizer 값이 통째로 한 번 더 나간다 |
+| 관전 id | `auto:${event.id}#${i}` — 뽑기가 아니다. 둘째 말풍선 저장이 실패해도 다시 만들 때 첫째가 두 번 안 붙는다 |
+| 잠금 | `replaying(room)`은 items가 아니라 **그 방에 미완료 장부가 있는지**를 본다. 말풍선이 끝났어도 뒤가 남았으면 입력을 안 연다 |
+
+`saveStore` · `saveBag` · `saveInvites` · `saveBatches` · `saveEffDone` ·
+`saveGifts` · `saveScene` · `saveMet` · `saveGone` · `saveGiftDay` ·
+`saveScenePend` · `saveAutoQ`가 전부 성공 여부를 돌려준다.
 
 ### 검증
 
@@ -370,7 +396,11 @@ const next = [...storeRef.current.msgs[room], sys];   ← 금지
 첫 말풍선 전 끄기 · 타이핑 도중 끄기 · 큐에 다른 방이 먼저 쌓인 상태
 초대 복원 · 두 번 재생 · 여덟 경로의 사건 한 번 · 재생 중 입력 차단
 같은 batch id 재commit · 미완료 아홉 개 · 두 방 초대 겹침
-null_batch·null_store_v1 저장 실패 · 관전 저장 실패 시 사건 미소모
+null_bag·null_batch·null_eff_done·null_invite·null_store_v1 각각 저장 실패
+말풍선은 끝났고 뒤가 남은 장부에서도 입력 차단
+여덟 경로 각각에 메시지 저장 실패 주입 — 도장·선물·자리가 먼저 소비되지 않는다
+실패를 걷고 이어서 돌린 끝이 무실패 실행과 같다 · 복구 중 API 호출 0
+관전 저장 실패 시 사건 미소모
 ```
 
 **아직 안 닫은 것 (E-A를 막지는 않는다)**
@@ -379,6 +409,7 @@ null_batch·null_store_v1 저장 실패 · 관전 저장 실패 시 사건 미�
 |---|---|
 | 🟠 | Expo의 `null_eff_done` 저장이 비동기라 같은 턴에 두 Effect가 겹치면 경쟁이 난다. 웹은 동기라 해당 없음 |
 | 🟠 | 관전 자동 사건 큐 `null_auto_q`의 `slice(-20)`이 밀린 옛 사건을 조용히 버린다 |
+| 🟠 | Expo는 아직 이 장부를 안 쓴다. 웹을 기준으로 삼기로 한 범위 결정(E 절) 그대로다 |
 | 🔴 | **`story_transition`은 실제 상태 적용을 만든 뒤에만 방출한다.** 지금 클라이언트는 스키마만 받고 id를 적을 뿐이다 — E-B에서 워커가 이걸 내기 전에 적용부터 만든다 |
 
 ## 9. 품질 비교

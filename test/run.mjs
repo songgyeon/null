@@ -475,12 +475,13 @@ for (const r of ['jaeeon', 'minhyun'])
     if (!demo.demoAnswer(r, t, '윤하').length) empties++;
 eq('짧은 입력에도 빈 답이 없다', empties, 0);
 eq('큐가 비면 타이핑 표시를 끈다',
-  /if\(!b\.items\.length\)\{ finishBatch\(b\.id\); settle\(b\.room\); return b; \}/.test(web)
+  /if\(!dropBatch\(id\)\)return false;\s*\n\s*settle\(b\.room\);/.test(web)
   && /const settle=room=>\{ if\(roomIdle\(room\)\)setBusy/.test(web), true);
-/* 셋 다 비어야 끈다 — 안 푼 덩어리가 남아 있으면 아직 하는 중이다.
+/* 셋 다 비어야 끈다 — 미완료 장부가 남아 있으면 아직 하는 중이다.
+   말풍선이 끝났어도 지문·초대·표·자리 닫기가 남았으면 열지 않는다.
    그리고 보내는 손도 같은 자를 본다 */
 eq('안 푼 덩어리가 있으면 그 방은 잠겨 있다',
-  /const replaying=room=>loadBatches\(\)\.some\(b=>b\.room===room&&\(b\.items\|\|\[\]\)\.length\);/.test(web)
+  /const replaying=room=>loadBatches\(\)\.some\(b=>b\.room===room\);/.test(web)
   && /const roomIdle=room=>!queueRef\.current\.some\(q=>q\.room===room\)\s*\n\s*&& !inflightRef\.current\[room\] && !replaying\(room\);/.test(web)
   && /if\(replaying\(room\)\)\{ setBusy/.test(web), true);
 /* 모듈 바깥에서 App 안의 것(storeRef 같은)을 참조하면 부를 때마다 터진다.
@@ -860,7 +861,7 @@ eq('못 가는 이유를 남긴다',
 /* 가서 다시 눌러 줘야 하면 두 번 일이고, 선물을 들고 간 사람이 빈손으로 앉는다 */
 eq('가는 것과 주는 것을 한 번에 한다',
   /const giveGiftAt=\(char,gift,memo,place\)=>\{/.test(web)
-  && /stampGift\(char\); stampGone\(place\);/.test(web), true);
+  && /\{op:"stampGift",char\},\{op:"stampGone",place\},\{op:"goneTo",place\}/.test(web), true);
 eq('자리 몫과 선물 몫을 둘 다 쓴다',
   /if\(giftedToday\(char\)\|\|goneToday\(place\)\)return;/.test(web), true);
 /* 워커에게 자리와 선물을 같이 보낸다 — 마주 앉아 있고 방금 이걸 받았다 */
@@ -914,7 +915,7 @@ eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.k
     && !/const o=openingFor\(\);[\s\S]{0,600}?wendOnlyOk/.test(web), true);
   /* 첫 자리도 다녀온 자리다 — 도장을 안 찍으면 같은 날 한 번 더 갈 수 있다 */
   eq('첫 자리도 도장을 찍는다',
-    /if\(PLACE_BY\[o\.place\]\)\{ goneTo\(o\.place\); stampGone\(o\.place\) \}/.test(web), true);
+    /if\(PLACE_BY\[o\.place\]\)localBatch\("open\|"\+o\.place,o\.room,\s*\n\s*\{local_ops:\[\{op:"goneTo",place:o\.place\},\{op:"stampGone",place:o\.place\}\]\}\);/.test(web), true);
   /* 21시부터 다음날 2시까지가 밤이다. 자정을 넘어가는 띠라 표에서 못 찾는다 —
      못 찾으면 마지막 것으로 떨어져야 새벽 한 시가 빨래방이 된다 */
   eq('자정을 넘는 띠는 마지막으로 떨어진다',
@@ -1073,14 +1074,14 @@ eq('새 절 이름이 기존 이름과 안 겹친다',
 eq('선물 몫은 사람마다 따로 센다',
   /const giftedToday=\(char,now\)=>loadGiftDay\(\)\[char\]===dayKey\(now\)/.test(web), true);
 eq('한쪽에 줘도 다른 쪽 몫은 남는다',
-  /const stampGift=\(char,now\)=>saveGiftDay\(\{\.\.\.loadGiftDay\(\),\[char\]:dayKey\(now\)\}\)/.test(web), true);
+  /const stampGift=\(char,now\)=>giftedToday\(char,now\)\|\|saveGiftDay\(\{\.\.\.loadGiftDay\(\),\[char\]:dayKey\(now\)\}\)/.test(web), true);
 /* 선물 몫도 새벽 다섯 시에 넘어간다 — 저 이어폰과 사진집이 같은 날로
    묶여야 이 규칙에 걸린다. 자정 기준이면 둘 다 통과한다 */
 eq('선물 몫도 새벽 다섯 시에 넘어간다', /giftedToday=\(char,now\)=>loadGiftDay\(\)\[char\]===dayKey/.test(web), true);
 /* 창에서만 막으면 자물쇠가 아니다 — 주는 길이 둘이면 둘 다 잠가야 한다 */
 eq('보내는 쪽에서도 막는다',
   /if\(giftedToday\(char\)\)\{ setToast\(`\$\{CHARS\[char\]\.name\} — one a day ♡`\); return \}/.test(web)
-  && /stampGift\(char\);/.test(web), true);
+  && /\{op:"stampGift",char\}/.test(web), true);
 eq('창에서도 막는다', /shut=done\|\|today\(c\)/.test(web), true);
 /* 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지 적어주는 편이 낫다.
    한쪽만 잠긴 날에도 규칙은 알려준다 */
@@ -2990,7 +2991,7 @@ eq('행동 지문은 한 응답에 하나만',
 
 /* 가자고 해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다 */
 eq('같이 가기로 하면 상대가 답을 한다',
-  /const next=appendMsg\(iv\.char,sys\);[\s\S]{0,900}request\(iv\.char,\{mode:"chat"/.test(web)
+  /invite_ops:\[\{op:"shift",place:iv\.place,char:iv\.char\}\]\}\)\)return;[\s\S]{0,300}request\(iv\.char,\{mode:"chat"/.test(web)
   && /await runTurn\(iv\.char\);/.test(appSrc), true);
 
 /* 세계관이 열리는 자리라 문장을 고정한다 — 각본만이 아니라 모델도 */
@@ -3343,8 +3344,10 @@ eq('자리에 온 뒤의 말만 보여준다', /m\.ts>=\(scene\.since\|\|0\)/.te
 /* 다섯 — 첫 자리로, 초대를 받아서, 지도에서 골라서, 선물을 들고 가서,
    그리고 귀갓길로 이어져서 */
 /* 여섯 번째는 같이 자리를 옮길 때다(answerMove) */
+/* 자리를 여는 계획은 전부 since를 박는다 — 그 자리인지 아닌지를 가르는 자다 */
 eq('자리에 들어갈 때 시각을 찍는다',
-  (web.match(/since:Date\.now\(\)/g) || []).length, 6);
+  (web.match(/const since=Date\.now\(\)/g) || []).length
+  + (web.match(/since:Date\.now\(\)/g) || []).length, 6);
 
 /* ── 이름표가 말풍선 안으로 새는 것 ──
    누가 말하는지는 sender로만 밝히라고 형식에 적어뒀는데, 관전방은 이력을
@@ -3485,8 +3488,9 @@ eq('자리에 없으면 갈 자리는 그대로 나온다',
    전에는 두 마디만 했으면 나오면서 넣어줬다. 그러면 유저가 거절해도
    들어가고, 인물이 준 적 없는 것이 가방에 있고, 대사와 가방이 갈린다.
    가방에 들어오는 길은 하나다 — 검증된 give Effect를 한 번 적용하는 것. */
+/* 자리를 닫는 것은 이제 장부의 계획 하나다 — 지급이 붙을 자리가 없다 */
 eq('자리를 닫으면서 물건을 안 준다',
-  /const closeScene=\(\)=>\{ setScene\(null\); saveScene\(null\); \};/.test(web), true);
+  /if\(o\.op==="closeScene"\)\{[\s\S]{0,300}setScene\(null\); return true;/.test(web), true);
 eq('닫는 손에 지급이 안 붙어 있다', /closeScene[\s\S]{0,200}takeItem\(/.test(web), false);
 
 /* ── 관전방도 저절로 쌓인다 ──
@@ -3573,7 +3577,7 @@ eq('한 시간은 자리 비움의 기준과 같은 자다', /AUTO_AWAY=60\*60\*
 eq('나갈 때와 같은 규칙으로 닫는다 — 두고 온 것도 챙기고 한 줄 남긴다', (() => {
   const i = web.indexOf('접어둔 자리는 시간에 맞춰 끝난다');
   const t = web.slice(i, i + 2400);
-  return t.includes('closeScene();') && t.includes('에서 나왔다');
+  return t.includes('op:"leave"') && t.includes('에서 나왔다');
 })(), true);
 /* 말없이 끝나 있으면 세계가 돌아간 게 아니라 꺼져 있던 거다 */
 eq('닫고 나서 인사를 부른다 — 먼저 간 사람이 말을 남긴다', (() => {
@@ -3600,8 +3604,8 @@ eq('귀갓길은 안 본다 — 원래 곧 끝나는 자리다',
 eq('때가 지나면 보내는 말에 실린다', /sceneOver\(sc\)\?\{place_over:true\}/.test(web), true);
 /* 시간으로 재지 않는다 — 그 답 덩어리의 마지막 말풍선이 뜬 자리에 매단다 */
 eq('답이 다 뜬 뒤에 자리가 닫힌다 — 인사보다 「나왔다」가 먼저면 거꾸로다',
-  /payload\.place_over\s*\n?\s*\?\{room:bucket,since:sceneRef\.current&&sceneRef\.current\.since\}:null/.test(web)
-  && /if\(b\.over\)\{[\s\S]{0,400}closeScene\(\);/.test(web), true);
+  /if\(payload\.place_over&&scene\)ops\.push\(\{op:"leave",id:id\+"#out",room,since:scene\.since,/.test(web)
+  && /if\(o\.op==="leave"\)\{[\s\S]{0,500}setScene\(null\); return true;/.test(web), true);
 eq('접어두고 떠난 자리도 때가 지나면 닫힌다',
   /Date\.now\(\)-last<AUTO_AWAY&&!sceneOver\(sc\)/.test(web), true);
 eq('워커가 때를 받으면 일어서라고 말한다',
@@ -3617,12 +3621,14 @@ eq('워커가 때를 받으면 일어서라고 말한다',
     && /answerMove/.test(web), true);
   const i = web.indexOf('const answerMove');
   const t = web.slice(i, i + 1600);
-  eq('이동도 방문이다 — 도장을 찍는다', t.includes('stampGone(place); goneTo(place);'), true);
+  eq('이동도 방문이다 — 도장을 찍는다',
+    t.includes('{op:"stampGone",place},{op:"goneTo",place}'), true);
   /* wendOnly는 약속 잡고 가는 날의 규칙이다. 이미 같이 있는 사람과
      흘러가는 저녁은 평일에도 있다 — 그래서 퇴근한 재언과 도서관·레코드샵이 된다 */
   eq('주말 전용은 이동에선 안 본다', t.includes('wendOnlyOk'), false);
   eq('그 사람이 갈 수 있는 자리만 간다', t.includes('(p.who||[]).includes(sc.room)'), true);
-  eq('떠나는 자리를 먼저 정리한다 — 두고 온 것도 챙긴다', t.includes('closeScene();'), true);
+  eq('떠나는 자리를 먼저 정리한다 — 두고 온 것도 챙긴다',
+    t.includes('{op:"closeScene",since:sc.since}'), true);
   eq('귀갓길에서는 못 옮긴다 — 곧 내린다', t.includes('sc.place===WAY)return'), true);
   /* 「교실으로」가 아니라 「교실로」다 — (으)로만 ㄹ받침 예외가 있다 */
   const s = web.slice(web.indexOf('const jos=(w,pair)'));
@@ -3801,7 +3807,7 @@ eq('나가면 끝난다고 말해준다',
 eq('나오면 지문이 남는다',
   /`\$\{sc\.place\}에서 나왔다`/.test(web), true);
 eq('그 지문을 보고 인사한다',
-  /const next=appendMsg\(sc\.room,sys\);\s*\n\s*if\(!next\)return saveFailed\(sc\.room\);\s*\n\s*request\(sc\.room,/.test(web), true);
+  /if\(!localBatch\(id,sc\.room,\{local_ops:\[\{op:"leave"[\s\S]{0,400}request\(sc\.room,/.test(web), true);
 /* 귀갓길에서 나오는 건 나오는 게 아니라 도착하는 것이다 */
 eq('귀갓길은 도착이다', /sc\.place===WAY\?"집에 도착했다"/.test(web), true);
 /* 나온 뒤에 밤이면 데려다준다. 인사와 겹치지 않게 창을 이어서 띄운다 */
@@ -3830,11 +3836,11 @@ eq('나온 뒤에 데려다주기를 묻는다',
   eq('밤에만 데려다준다', /const wayOK=\(now\)=>\{const h=\(now\|\|nowClock\(\)\)\.getHours\(\);return h>=20\|\|h<5\}/.test(web), true);
   /* 매번 나올 때마다 물으면 데려다주는 게 아니라 절차가 된다 */
   eq('하루에 한 번만 묻는다',
-    /loadWay\(\)!==dayKey\(\)/.test(web) && /saveWay\(dayKey\(\)\)/.test(web), true);
+    /loadWay\(\)!==dayKey\(\)/.test(web) && /\{op:"way",day:dayKey\(\)\}/.test(web), true);
   eq('귀갓길에서 또 데려다주지 않는다', /sc\.place!==WAY&&talkedEnough\(sc\)/.test(web), true);
   /* 여기서 물러나도 그 자리에 두고 온 건 챙긴다 — 나온 건 나온 거다 */
   eq('데려다주기를 물어도 자리는 끝난다',
-    /const answerWay=ok=>\{[\s\S]{0,200}closeScene\(\);/.test(web), true);
+    /const answerWay=ok=>\{[\s\S]{0,700}\{op:"closeScene",since:sc\.since\}/.test(web), true);
   /* ── 워커 쪽 ── */
   eq('워커가 귀갓길을 자리로 인정한다', placeOf('귀갓길'), '귀갓길');
   eq('없는 자리는 여전히 버린다', placeOf('노래방'), null);
@@ -3885,7 +3891,7 @@ eq('물건마다 그림이 있다', (() => {
   return keys.filter(k => !existsSync(join(ROOT, `item-${k}.webp`)));
 })(), []);
 eq('같은 것은 가방에 두 번 안 들어간다',
-  /if\(bagRef\.current\.some\(x=>x\.key===key\)\)return false/.test(web), true);
+  /if\(!bag\.some\(x=>x\.key===e\.item\)\)\{/.test(web), true);
 eq('자리에 있으면 place를 같이 보낸다',
   /\.\.\.\(at\?\{place:at,/.test(web) && /\n      bag:bagOut\(\),/.test(web), true);
 eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true);
@@ -3910,6 +3916,10 @@ eq('받은 날을 남은 날로 적는다',
   && /className="bagmeta">\{b\.where\}\{d!=null\?" · D-"\+d:""\}/.test(web), true);
 /* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */
 eq('준 사람 이름을 글로 또 안 적는다', /에게서/.test(web), false);
+/* 「누구에게 받았다」는 그 물건이 실제로 그 사람에게서 들어와 있을 때만 나온다 */
+eq('가방과 지문이 갈리지 않는다',
+  /need:\{key:e\.item,from:e\.from\}/.test(web)
+  && /if\(s\.need&&!loadBag\(\)\.some\(x=>x\.key===s\.need\.key&&x\.from===s\.need\.from\)\)continue;/.test(web), true);
 /* 설명이 아니라 물건이 하는 한 마디 */
 eq('받은 것마다 한 마디가 있다', (() => {
   const t = web.slice(web.indexOf('const ITEMS={'));
@@ -3983,10 +3993,10 @@ eq('모델이 첫 턴에 건네도 안 받는다', (() => {
 })(), 0);
 /* 상태를 바꾸는 길은 effects 하나다 */
 eq('상태 경로가 하나다',
-  /const batch=commitTurn\(rid\+"\|"\+bucket,bucket,\(data&&data\.messages\)\|\|\[\],\s*\n?\s*data&&data\.effects,/.test(web)
-  /* 부르는 자리는 commitTurn 하나뿐이다 — 응답 처리기가 직접 안 부른다 */
-  && (web.match(/applyEffects\(/g) || []).length === 1
-  && /const done=applyEffects\(effects,b\);/.test(web), true);
+  /const batch=commitTurn\(bid,bucket,data,payload,sceneRef\.current\);/.test(web)
+  /* Effect를 적용하는 자리는 장부 실행기 하나뿐이다 */
+  && (web.match(/applyEffect\(/g) || []).length === 1
+  && /const r=applyEffect\(e\);/.test(web), true);
 /* 표제를 「여기서 건넬 것」이라고 달아놨더니 첫 마디부터 건네줬다 */
 eq('언젠가 건넨다고 적는다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
@@ -4008,13 +4018,13 @@ eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.
    경계는 여기서도 새벽 다섯 시다 */
 eq('자리마다 다녀온 날을 찍는다',
   /const goneToday=\(place,now\)=>loadGone\(\)\[place\]===dayKey\(now\)/.test(web)
-  && /const stampGone=\(place,now\)=>saveGone\(\{\.\.\.loadGone\(\),\[place\]:dayKey\(now\)\}\)/.test(web), true);
-eq('가기로 하면 그 날을 찍는다', /stampGone\(place\);/.test(web), true);
+  && /const stampGone=\(place,now\)=>goneToday\(place,now\)\|\|saveGone\(\{\.\.\.loadGone\(\),\[place\]:dayKey\(now\)\}\)/.test(web), true);
+eq('가기로 하면 그 날을 찍는다', /\{op:"stampGone",place\}/.test(web), true);
 /* 시작한 자리도 다녀온 자리다. goneTo만 부르던 때는 해금 목록에만 들어가고
    오늘 도장이 안 찍혀서, 빨래방에서 시작한 날 지도의 빨래방이 그대로 열려
    있었다 — 하루에 한 번인데 두 번 갈 수 있었다. 앱도 같이 본다 */
 eq('첫 자리도 그 날을 찍는다',
-  /if\(PLACE_BY\[o\.place\]\)\{ goneTo\(o\.place\); stampGone\(o\.place\) \}/.test(web)
+  /\{op:"goneTo",place:o\.place\},\{op:"stampGone",place:o\.place\}/.test(web)
   && /setMet\(nm\); saveMet\(nm\); stampGone\(o\.place\);/.test(appSrc), true);
 /* 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */
 eq('묻는 창이 규칙을 알려준다',
@@ -5671,7 +5681,7 @@ eq('시간표 단추는 peek보다 좁다',
 
   /* ── 자동 지급이 없다 ── */
   eq('닫는 손이 물건을 안 준다',
-    /const closeScene=\(\)=>\{ setScene\(null\); saveScene\(null\); \};/.test(web), true);
+    /if\(o\.op==="closeScene"\)\{[\s\S]{0,300}setScene\(null\); return true;/.test(web), true);
   eq('앱의 닫는 손도 안 준다',
     /const closeScene=\(\)=>\{ putScene\(null\); \};/.test(appSrc), true);
   eq('웹·앱 어디에도 자동 지급이 없다',
@@ -5684,12 +5694,13 @@ eq('시간표 단추는 peek보다 좁다',
 
   /* ── 한 번만 적용한다 ── */
   eq('웹이 적용한 id를 적어둔다',
-    /const done=loadEffDone\(\);/.test(web) && /if\(done\.indexOf\(e\.id\)>=0\)continue;/.test(web), true);
+    /if\(loadEffDone\(\)\.indexOf\(e\.id\)>=0\)return\{status:"already_applied"\};/.test(web)
+    && /if\(done\.indexOf\(e\.id\)<0\)done\.push\(e\.id\);/.test(web), true);
   eq('앱도 적용한 id를 적어둔다',
     /null_eff_done/.test(appSrc) && /if\(done\.includes\(e\.id\)\)continue;/.test(appSrc), true);
   /* 방향을 본다 — 유저가 받는 것만 가방에 들어간다 */
   eq('웹·앱 둘 다 방향을 본다',
-    /e\.to==="user"/.test(web) && /e\.to==='user'/.test(appSrc), true);
+    /e\.to!=="user"/.test(web) && /e\.to==='user'/.test(appSrc), true);
   /* 앱이 give를 아예 안 보던 구멍을 막았다 */
   eq('앱이 이제 물건을 받는다',
     /await applyEffects\(data\?\.effects\);/.test(appSrc) && /item_transfer/.test(appSrc), true);
@@ -5709,34 +5720,37 @@ eq('시간표 단추는 peek보다 좁다',
      저장 방식은 다르다(localStorage vs SQLite meta). 그래도 같은 입력에서
      같은 최종 상태가 나와야 한다 — 아니면 기기마다 다른 가방을 든다. */
   {
-    /* 두 적용 함수의 뼈대를 소스에서 그대로 뽑아 나란히 돌린다 */
-    const webBody = web.slice(web.indexOf('const applyEffects=(fx,b)=>{'),
-                              web.indexOf('const takeItem=(key,from,where,b,effId)=>{'));
+    /* 두 적용 함수의 뼈대를 소스에서 그대로 뽑아 나란히 견준다 */
+    const webBody = web.slice(web.indexOf('const markDone=e=>{'),
+                              web.indexOf('const planEffects=fx=>{'));
     const appStart = appSrc.indexOf('const applyEffects=async(fx:any)=>{');
     const appBody = appSrc.slice(appStart, appSrc.indexOf('\n  };', appStart));
     /* 같은 판정을 하는지 문장으로 맞춘다 — 둘 다 id 중복·방향·갈래를 본다 */
     const shape = t => [
       /e\.id/.test(t), /e\.type/.test(t),
       /item_transfer/.test(t), /invite/.test(t), /story_transition/.test(t),
-      /to\s*===?\s*['"]user['"]/.test(t), /ITEMS\[e\.item\]/.test(t),
+      /to\s*!?===?\s*['"]user['"]/.test(t), /ITEMS\[e\.item\]/.test(t),
       /(indexOf\(e\.id\)>=0|includes\(e\.id\))/.test(t),
     ];
     eq('웹과 앱의 적용 판정이 같다', shape(webBody), shape(appBody));
     eq('둘 다 여덟 가지를 본다', shape(webBody), [true, true, true, true, true, true, true, true]);
-    /* 같은 fixture를 두 번 넣으면 한 번과 같아야 한다 — 두 쪽 모두 */
+    /* 같은 fixture를 두 번 넣으면 한 번과 같아야 한다 — 두 쪽 모두.
+       웹은 갈래를 셋으로 가르므로 「이미 했다」가 상태로 드러난다 */
     eq('두 번 적용해도 한 번이다', (() => {
-      const twice = t => {
-        /* done에 넣는 자리가 적용 뒤이고, 이미 있으면 건너뛴다 */
-        const skips = /if\((done\.indexOf\(e\.id\)>=0|done\.includes\(e\.id\))\)continue;/.test(t);
-        const records = /(done\.push\(e\.id\)|done\.push\(e\.id\))/.test(t);
-        return skips && records;
-      };
-      return [twice(webBody), twice(appBody)];
+      const webTwice = /if\(loadEffDone\(\)\.indexOf\(e\.id\)>=0\)return\{status:"already_applied"\};/.test(webBody)
+        && /if\(done\.indexOf\(e\.id\)<0\)done\.push\(e\.id\);/.test(web);
+      const appTwice = /if\(done\.includes\(e\.id\)\)continue;/.test(appBody)
+        && /done\.push\(e\.id\)/.test(appBody);
+      return [webTwice, appTwice];
     })(), [true, true]);
     /* 가방에도 같은 물건을 두 번 안 넣는다 — id 검사와 별개의 두 번째 자물쇠 */
     eq('가방에도 두 번 안 넣는다',
-      /bagRef\.current\.some\(x=>x\.key===key\)/.test(web)
+      /if\(!bag\.some\(x=>x\.key===e\.item\)\)\{/.test(web)
       && /!bagRef\.current\.some\(\(b:any\)=>b\.key===e\.item\)/.test(appSrc), true);
+    /* 참·거짓으로 뭉개지 않는다 — 「이미 가짐」과 「저장 실패」는 다른 일이다 */
+    eq('갈래를 넷으로 가른다',
+      ['applied', 'already_applied', 'not_applicable', 'storage_error']
+        .filter(k => !webBody.includes(`status:"${k}"`)), []);
   }
 
   /* ── E-A 후속 · 실제로 돌려서 본다 ──
@@ -5822,7 +5836,7 @@ eq('시간표 단추는 peek보다 좁다',
     eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes('function App(){'), true);
     const APP_SRC = 'function App(){'
       + web.slice(web.indexOf('function App(){') + 'function App(){'.length, web.indexOf(CUT))
-      + `\n  return { send, request, enqueue, commitTurn, playBatch, openRoom,
+      + `\n  return { send, request, enqueue, commitTurn, resumeBatch, retry, openRoom,
         leaveScene, answerLeave, startWay: setWay, answerWay,
         openAsk, answerMove, answerAsk, answerInvite, giveGift, giveGiftAt,
         invite, busy, failed,
@@ -5926,14 +5940,21 @@ eq('시간표 단추는 peek보다 좁다',
       const W = boot({ null_name: '윤하', null_scene_pend: JSON.stringify({ minhyun: 'confession' }) }, rep);
       W.app.send('minhyun', '있잖아');
       await W.tick(0);                       // 답은 왔고 첫 말풍선은 아직
-      eq('장면은 답이 저장된 뒤에 지워진다', W.ls('null_scene_pend'), {});
+      /* 장부가 먼저다. 이 시점에 바뀐 상태는 하나도 없다 —
+         계획만 통째로 적혀 있고 장면은 아직 예약된 채다 */
       eq('그 시점에 답은 통째로 남아 있다',
         (W.ls('null_batch') || []).map(b => b.items.map(i => i.text)), [['ㄱ', 'ㄴ', 'ㄷ']]);
-      eq('아직 화면에는 안 떴다', said(W), ['있잖아']);
+      eq('소모할 장면도 장부에 적혀 있다',
+        (W.ls('null_batch') || []).map(b => b.scene_ack), ['confession']);
+      eq('아직 아무것도 안 바꿨다',
+        [W.ls('null_scene_pend'), said(W)], [{ minhyun: 'confession' }, ['있잖아']]);
       const W2 = boot(W.dump(), rep);        // ← 새로고침
       await W2.tick(5000);
       eq('첫 말풍선 전에 꺼도 답이 다 온다',
         (W2.app.store.msgs.minhyun || []).map(m => m.text), ['있잖아', 'ㄱ', 'ㄴ', 'ㄷ']);
+      /* 다 푼 뒤에야 장면이 소모되고 장부가 지워진다 */
+      eq('다 푼 뒤에 장면이 소모된다',
+        [W2.ls('null_scene_pend'), W2.ls('null_batch')], [{}, []]);
     }
 
     /* ── 타이핑 도중에 껐다 켠다 ── */
@@ -5963,15 +5984,20 @@ eq('시간표 단추는 peek보다 좁다',
       W.app.enqueue('jaeeon', [{ text: 'ja1' }, { text: 'ja2' }, { text: 'ja3' }, { text: 'ja4' }]);
       W.app.send('minhyun', '뭐해요');
       await W.tick(0);
-      /* 남을 것은 지금 남는다 — 가방도, 「받았다」도 */
-      eq('가방은 답을 받는 즉시 저장된다', (W.ls('null_bag') || []).map(x => x.key), ['can']);
+      /* 계획이 먼저 남는다 — Effect 원본과 「받았다」 줄이 장부에 있고,
+         가방도 표도 아직 안 바뀌었다 */
+      eq('Effect가 장부에 그대로 있다',
+        (W.ls('null_batch') || []).flatMap(b => b.effects.map(e => e.id)), ['e1']);
       eq('받았다 지문도 같이 남는다',
         (W.ls('null_batch') || []).flatMap(b => b.sys.map(s => s.text)),
         ['이민현에게 캔커피를 받았다']);
-      eq('표는 그 뒤에 찍혀 있다', W.ls('null_eff_done'), ['e1']);
+      eq('아직 가방도 표도 안 바뀌었다',
+        [W.ls('null_bag'), W.ls('null_eff_done')], [undefined, undefined]);
       await W.tick(9000);
       eq('건네는 대사가 먼저, 받았다가 나중이다',
         said(W), ['뭐해요', '이거 드세요', '따뜻해요', '· 이민현에게 캔커피를 받았다']);
+      eq('다 푼 뒤에 가방과 표가 남는다',
+        [(W.ls('null_bag') || []).map(x => x.key), W.ls('null_eff_done')], [['can'], ['e1']]);
     }
 
     /* ── 초대는 답할 때까지 남는다 ──
@@ -5983,8 +6009,9 @@ eq('시간표 단추는 peek보다 좁다',
       const W = boot({ null_name: '윤하' }, rep);
       W.app.send('minhyun', '뭐해요');
       await W.tick(0);
-      eq('타이머 전이면 초대는 기록에 있다',
-        (W.ls('null_batch') || []).map(b => b.invite), [{ place: '옥상', char: 'minhyun' }]);
+      eq('타이머 전이면 초대는 계획으로만 있다',
+        [(W.ls('null_batch') || []).flatMap(b => b.effects.map(e => e.place)), W.ls('null_invite')],
+        [['옥상'], undefined]);
       const W2 = boot(W.dump(), rep);        // ← 창 열리기 전에 새로고침
       await W2.tick(5000);
       eq('껐다 켜도 초대는 온다', [W2.ls('null_invite'), W2.app.invite],
@@ -6146,8 +6173,8 @@ eq('시간표 단추는 peek보다 좁다',
       W.app.send('minhyun', '안녕');
       await W.tick(1200);                       // ㄱ·ㄴ까지 떴다
       const again = W.app.commitTurn(W.ls('null_batch')[0].id, 'minhyun',
-        [{ text: 'ㄱ' }, { text: 'ㄴ' }, { text: 'ㄷ' }], null, null);
-      W.app.playBatch(again);
+        { messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }, { text: 'ㄷ' }] }, {}, null);
+      W.app.resumeBatch(again.id);
       await W.tick(5000);
       eq('부분 재생 중 같은 답이 또 와도 한 벌이다', said(W), ['안녕', 'ㄱ', 'ㄴ', 'ㄷ']);
       eq('남은 것만 들고 있었다', again.items.map(i => i.text), ['ㄷ']);
@@ -6159,7 +6186,7 @@ eq('시간표 단추는 peek보다 좁다',
     {
       const W = boot({ null_name: '윤하' }, () => ({ messages: [{ text: 'ㄱ' }] }));
       for (let i = 0; i < 9; i++)
-        W.app.commitTurn('b' + i, 'minhyun', [{ text: '답' + i }], null, null);
+        W.app.commitTurn('b' + i, 'minhyun', { messages: [{ text: '답' + i }] }, {}, null);
       eq('아홉 개가 다 남는다', (W.ls('null_batch') || []).map(b => b.id),
         ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8']);
       /* 깨진 값이 섞여 있어도 앱이 안 죽는다 */
@@ -6214,6 +6241,183 @@ eq('시간표 단추는 peek보다 좁다',
       eq('안 남은 말은 화면에도 안 남긴다', (V.app.store.msgs.minhyun || []).length, 0);
     }
 
+    /* ══════ 장부는 write-ahead다 ══════
+       저장 함수마다 if를 하나씩 더 붙이는 것으로는 안 된다. 실패를 알았을
+       때는 이미 앞 단계 상태가 바뀐 뒤라 되돌릴 수도 이어갈 수도 없었다.
+       key 하나씩을 실제로 실패시키고, 고친 뒤 이어서 돌려본다. */
+    {
+      const EFF = [{ id: 'eB', type: 'item_transfer', from: 'minhyun', to: 'user', item: 'can' }];
+      const rep = () => ({ messages: [{ text: 'ㄱ' }], effects: EFF, scene_ack: 'confession' });
+      const seed = () => ({ null_name: '윤하',
+        null_scene_pend: JSON.stringify({ minhyun: 'confession' }) });
+
+      /* ① 가방 저장만 실패 — 대사는 나가면 안 되고 장면도 안 지워진다 */
+      {
+        const W = boot(seed(), rep, { failKeys: ['null_bag'] });
+        W.app.send('minhyun', '있잖아');
+        await W.tick(9000);
+        const fetches = W.sent.length;
+        eq('가방이 안 남으면 장면도 안 지워진다', W.ls('null_scene_pend'), { minhyun: 'confession' });
+        eq('표도 안 찍힌다', W.ls('null_eff_done'), undefined);
+        eq('장부가 그대로 남는다', (W.ls('null_batch') || []).map(b => b.id.split('|')[1]), ['minhyun']);
+        eq('받았다 지문도 안 뜬다', said(W).filter(t => t.includes('받았다')), []);
+        eq('재시도할 수 있게 잠긴 채로 남는다',
+          [!!W.app.failed.minhyun, W.app.busy.minhyun], [true, true]);
+        /* ② 재시도는 모델을 다시 안 부른다 — 답은 이미 장부에 있다 */
+        W.app.retry('minhyun');
+        await W.tick(2000);
+        eq('저장 실패 재시도는 API를 다시 안 부른다', W.sent.length, fetches);
+      }
+
+      /* ③ 장부 첫 쓰기만 실패 — 아무것도 안 바뀌고, 고치면 정확히 한 번 */
+      {
+        const W = boot(seed(), rep, { failKeys: ['null_batch'] });
+        W.app.send('minhyun', '있잖아');
+        await W.tick(9000);
+        eq('장부가 안 써지면 아무것도 안 바뀐다',
+          [W.ls('null_bag'), W.ls('null_eff_done'), W.ls('null_scene_pend')],
+          [undefined, undefined, { minhyun: 'confession' }]);
+        /* 고치고 다시 — 장부에 답이 없으니 이번엔 모델을 다시 부른다 */
+        const V = boot(W.dump(), rep);
+        V.app.send('minhyun', '있잖아');
+        await V.tick(9000);
+        eq('고친 뒤에는 가방·지문·표가 각각 한 번',
+          [(V.ls('null_bag') || []).map(x => x.key), V.ls('null_eff_done'),
+           said(V, 'minhyun').filter(t => t.includes('받았다')).length],
+          [['can'], ['eB'], 1]);
+      }
+
+      /* ④ 표(effect_done) 첫 쓰기만 실패 — 중요 장면이 다시 발동하면 안 된다 */
+      {
+        const W = boot(seed(), rep, { failKeys: ['null_eff_done'] });
+        W.app.send('minhyun', '있잖아');
+        await W.tick(9000);
+        eq('표가 안 찍히면 장면도 안 소모된다', W.ls('null_scene_pend'), { minhyun: 'confession' });
+        eq('장부가 남아 이어서 할 수 있다', (W.ls('null_batch') || []).length, 1);
+        const V = boot(W.dump(), rep);          // ← 고치고 다시 켠다
+        await V.tick(9000);
+        eq('이어서 돌리면 표가 찍히고 장면이 소모된다',
+          [V.ls('null_eff_done'), V.ls('null_scene_pend'), (V.ls('null_batch') || []).length],
+          [['eB'], {}, 0]);
+        /* 이어서 도는 동안 모델은 한 번도 안 부른다 — 답은 이미 장부에 있다 */
+        eq('복구는 API를 한 번도 안 부른다', V.sent.length, 0);
+        eq('중요 장면이 다시 발동하지 않는다', V.app.store.msgs.minhyun.filter(m => m.text === 'ㄱ').length, 1);
+      }
+
+      /* ⑤ 말풍선은 끝났는데 뒤가 남은 batch — 입력이 열리면 안 된다 */
+      {
+        const W = boot(seed(), rep, { failKeys: ['null_bag'] });
+        W.app.send('minhyun', '있잖아');
+        await W.tick(9000);
+        eq('말풍선은 다 떴다', said(W), ['있잖아', 'ㄱ']);
+        eq('그래도 남은 일이 있으면 잠겨 있다',
+          [(W.ls('null_batch') || [])[0].items.length, W.app.busy.minhyun], [0, true]);
+        const before = W.sent.length;
+        W.app.send('minhyun', '끼어들기');
+        await W.tick(0);
+        eq('뒤가 남은 batch에서도 새 요청이 안 나간다', W.sent.length, before);
+      }
+
+      /* ⑥ 초대 답변 — 지문 저장 실패와 초대 저장 실패 양쪽 */
+      {
+        const IV = JSON.stringify([{ place: '옥상', char: 'minhyun' }]);
+        const A = boot({ null_name: '윤하', null_invite: IV }, () => ({ messages: [{ text: '네' }] }),
+          { failKeys: ['null_store_v1'] });
+        A.app.answerInvite(true); await A.tick(2000);
+        eq('답 지문이 안 남으면 초대도 줄에 남는다',
+          [(A.ls('null_invite') || []).map(x => x.place), A.sent.length], [['옥상'], 0]);
+        eq('간 것으로 찍히지도 않는다', [A.ls('null_met'), A.ls('null_goneday')], [undefined, undefined]);
+        const TWO = JSON.stringify([{ place: '옥상', char: 'minhyun' },
+          { place: '편의점', char: 'jaeeon' }]);
+        const B = boot({ null_name: '윤하', null_invite: TWO }, () => ({ messages: [{ text: '네' }] }),
+          { failKeys: ['null_invite'] });
+        B.app.answerInvite(true); await B.tick(2000);
+        eq('초대를 못 빼면 요청도 안 나간다', B.sent.length, 0);
+        eq('줄에 그대로 남아 다시 답할 수 있다',
+          (B.ls('null_invite') || []).map(x => x.place), ['옥상', '편의점']);
+        /* 고치고 이어서 — 답은 정확히 한 번 */
+        const C = boot(B.dump(), () => ({ messages: [{ text: '네' }] }));
+        C.app.retry('minhyun'); await C.tick(2000);
+        eq('고친 뒤 답 지문이 한 번', said(C).filter(t => t.includes('옥상에 가기로 했다')).length, 1);
+        eq('그때 앞엣것만 줄에서 빠진다',
+          (C.ls('null_invite') || []).map(x => x.place), ['편의점']);
+      }
+
+      /* ⑦ 여덟 local 경로 — 메시지 저장이 실패하면 도장이 먼저 찍히면 안 된다 */
+      {
+        const rep2 = () => ({ messages: [{ text: '네' }] });
+        const F = { failKeys: ['null_store_v1'] };
+        const sc = { room: 'minhyun', place: '옥상', since: T0 - 60e3 };
+        const cases = [
+          ['자리 자동 종료', { null_scene: JSON.stringify({ ...sc, since: T0 - 3 * 3600e3 }) },
+            W => {}],
+          ['직접 나가기', { null_scene: JSON.stringify(sc) },
+            W => { W.app.leaveScene(); W.render(); W.app.answerLeave(true) }],
+          ['귀갓길', { null_scene: JSON.stringify(sc) },
+            W => { W.app.startWay(sc); W.render(); W.app.answerWay(true) }],
+          ['초대 수락', { null_invite: JSON.stringify([{ place: '옥상', char: 'minhyun' }]) },
+            W => W.app.answerInvite(true)],
+          ['초대 거절', { null_invite: JSON.stringify([{ place: '옥상', char: 'minhyun' }]) },
+            W => W.app.answerInvite(false)],
+          ['자리 이동', { null_scene: JSON.stringify(sc), null_met: JSON.stringify(['교실', '보건실', '옥상']) },
+            W => { W.app.openAsk('체육관'); W.render(); W.app.answerMove(true) }],
+          ['지도 방문', { null_met: JSON.stringify(['교실', '보건실', '옥상']) },
+            W => { W.app.openAsk('체육관'); W.render(); W.app.answerAsk(true) }],
+          ['선물', { null_scene: JSON.stringify(sc) },
+            W => W.app.giveGift('minhyun', { key: 'mug', name: '회색 머그컵' }, '')],
+          ['들고 가기', { null_met: JSON.stringify(['교실', '보건실', '옥상']) },
+            W => W.app.giveGiftAt('minhyun', { key: 'mug', name: '회색 머그컵' }, '', '옥상')],
+        ];
+        const spoiled = [];
+        for (const [label, extra, act] of cases) {
+          const W = boot({ null_name: '윤하', ...extra }, rep2, F);
+          act(W);
+          await W.tick(2000);
+          /* 메시지가 안 남았으면 도장·선물·자리·초대 어느 것도 소비되면 안 된다 */
+          const dirty = ['null_goneday', 'null_giftday', 'null_gifts', 'null_met', 'null_way']
+            .filter(k => JSON.stringify(W.ls(k)) !== JSON.stringify(
+              extra[k] === undefined ? undefined : JSON.parse(extra[k])));
+          const sceneGone = extra.null_scene && W.ls('null_scene') === undefined;
+          const inviteGone = extra.null_invite && W.ls('null_invite') === undefined;
+          if (dirty.length || sceneGone || inviteGone || W.sent.length)
+            spoiled.push([label, dirty, !!sceneGone, !!inviteGone, W.sent.length]);
+        }
+        eq('메시지가 안 남으면 어떤 상태도 먼저 소비되지 않는다', spoiled, []);
+      }
+
+      /* ⑧ 저장 실패를 걷고 이어서 돌린 최종 상태가 무실패 실행과 같다 */
+      {
+        const run = async fail => {
+          const W = boot({ null_name: '윤하', null_met: JSON.stringify(['교실', '보건실', '옥상']) },
+            () => ({ messages: [{ text: '네' }] }), fail ? { failKeys: [fail] } : undefined);
+          W.app.giveGiftAt('minhyun', { key: 'mug', name: '회색 머그컵' }, '', '옥상');
+          await W.tick(3000);
+          if (!fail) return W;
+          const V = boot(W.dump(), () => ({ messages: [{ text: '네' }] }));   // 실패를 걷고 이어서
+          await V.tick(3000);
+          return V;
+        };
+        const clean = await run(null);
+        const keys = ['null_store_v1', 'null_gifts', 'null_goneday', 'null_giftday',
+          'null_met', 'null_auto_q', 'null_batch', 'null_scene'];
+        const shot = W => keys.map(k => {
+          const v = W.ls(k);
+          if (k !== 'null_store_v1') return [k, JSON.stringify(v)];
+          /* ts·id는 실행마다 다르다. 그리고 이어서 돌린 쪽은 모델을 다시
+             안 부르므로(그게 계약이다) 인물의 답은 빼고 지문만 견준다 */
+          const ms = (v && v.msgs && v.msgs.minhyun) || [];
+          return [k, JSON.stringify(ms.filter(m => m.sys).map(m => m.text))];
+        });
+        const base = shot(clean);
+        const diffs = [];
+        for (const f of ['null_store_v1', 'null_gifts', 'null_goneday']) {
+          const W = await run(f);
+          shot(W).forEach(([k, v], i) => { if (v !== base[i][1]) diffs.push([f, k, v, base[i][1]]) });
+        }
+        eq('실패를 걷고 이어서 돌린 끝이 무실패와 같다', diffs, []);
+      }
+    }
+
     /* ══════ 관전 사건은 대화가 남은 뒤에만 소모된다 ══════
        전에는 ackAutoEvent가 먼저였다. 저장이 실패하면 유저가 준 선물이
        없던 일이 된다. */
@@ -6252,21 +6456,25 @@ eq('시간표 단추는 peek보다 좁다',
      앱: 인물의 말이 먼저 저장돼야 「받았다」가 뒤에 온다. */
   /* 표(effect_done)는 남을 것이 다 저장된 뒤에 찍는다.
      순서가 곧 안전이다: 가방 → 덩어리 → effect_done */
-  eq('표는 저장이 끝난 뒤에 찍는다', (() => {
-    const i = web.indexOf('const commitTurn=(id,room,messages,effects,over)=>{');
-    const box = web.slice(i, web.indexOf('const playBatch=', i));
-    return box.indexOf('applyEffects(effects,b)') < box.indexOf('putBatch(b)')
-        && box.indexOf('putBatch(b)') < box.indexOf('saveEffDone(done)');
+  /* ── 계획을 적는 자리에서는 아무것도 안 바꾼다 ──
+     장부를 쓰기 전에 상태를 건드리면, 저장이 실패했을 때 되돌릴 수도
+     이어갈 수도 없다. commitTurn은 putBatch만 한다. */
+  eq('계획을 적는 자리는 상태를 안 바꾼다', (() => {
+    const i = web.indexOf('const commitTurn=(id,room,data,payload,scene)=>{');
+    const box = web.slice(i, web.indexOf('\n  };', i));
+    return box.includes('return putBatch(b)?b:null;')
+      && !/save(Bag|EffDone|Gifts|Scene|Invites|Unlocked)\(/.test(box)
+      && !/applyEffect\(|applyOp\(|ackScene\(|ackAutoEvent\(/.test(box);
   })(), true);
-  eq('적용 함수는 표를 안 찍는다',
-    /const applyEffects=\(fx,b\)=>\{[\s\S]*?return changed\?done:null;\n  \};/.test(web)
-    && !/const applyEffects=\(fx,b\)=>\{[\s\S]*?saveEffDone/.test(
-      web.slice(web.indexOf('const applyEffects=(fx,b)=>{'),
-                web.indexOf('const takeItem=(key,from,where,b,effId)=>{'))), true);
-  eq('가방은 지금 저장한다', (() => {
-    const i = web.indexOf('const takeItem=(key,from,where,b,effId)=>{');
-    const box = web.slice(i, i + 1200);
-    return box.indexOf('saveBag(next)') < box.indexOf('b.sys.push(');
+  /* 실행기는 장부가 남은 뒤에만 돈다 */
+  eq('실행은 장부가 남은 뒤에만 한다',
+    /if\(!putBatch\(newBatch\(id,room,plan\)\)\)\{ saveFailed\(room\); return false \}\s*\n\s*return resumeBatch\(id\);/.test(web), true);
+  /* 말이 안 남았으면 소모 단계로 안 넘어간다 */
+  eq('대화가 안 남으면 아무것도 소모 안 한다', (() => {
+    const i = web.indexOf('const finishBatch=id=>{');
+    const box = web.slice(i, web.indexOf('return dropBatch(id)', i));
+    return box.indexOf('if(!ok){ saveFailed(b.room,null,id); return false }')
+         < box.indexOf('ackScene(b.room,b.scene_ack)');
   })(), true);
   eq('앱은 인물 말을 먼저 저장한다', (() => {
     const i = appSrc.indexOf('const data=await sendChat(room,name,hist,{reqId:rid');
@@ -6278,9 +6486,11 @@ eq('시간표 단추는 peek보다 좁다',
   eq('유저 선물은 Effect를 안 탄다', (() => {
     const i = web.indexOf('const giveGift=(char,gift,memo)=>{');
     const box = web.slice(i, i + 1400);
-    /* 유저가 직접 확정한 사건이라 모델의 「받았다」를 기다리지 않는다 */
-    return box.includes('saveGifts(next)') && box.includes('markEvent({kind:"gift"')
-        && !box.includes('applyEffects');
+    /* 유저가 직접 확정한 사건이라 모델의 「받았다」를 기다리지 않는다 —
+       그래도 장부는 탄다. 저장 실패에 도장만 찍히면 안 되니까 */
+    return box.includes('{op:"gift",char,key:gift.key}')
+        && box.includes('{op:"event",ev:{kind:"gift"')
+        && !box.includes('effects:');
   })(), true);
 }
 
@@ -6938,7 +7148,8 @@ eq('시간표 단추는 peek보다 좁다',
     /const rid=startTurn\(room,retry\);/.test(appSrc), true);
   /* 답이 저장된 뒤에만 지운다 — 웹·앱 둘 다 */
   eq('성공한 뒤에 장면을 지운다',
-    /ackScene\(bucket,payload\.scene_reason\)/.test(web) && /ackScene\(room,why\)/.test(appSrc), true);
+    /scene_ack:\(payload\.scene_reason&&data&&data\.scene_ack===payload\.scene_reason\)\s*\n?\s*\?payload\.scene_reason:""/.test(web)
+    && /ackScene\(b\.room,b\.scene_ack\);/.test(web) && /ackScene\(room,why\)/.test(appSrc), true);
   eq('앱도 같은 이름으로 보낸다',
     /sceneReason \? \{ scene_reason: sceneReason \} : \{\}/.test(apiSrc)
     && /loadPartner\(\) \? \{ partner: loadPartner\(\) \} : \{\}/.test(apiSrc), true);

@@ -285,9 +285,9 @@ const GIFT_NAME={};GIFTS.forEach(g=>{GIFT_NAME[g.key]=g.name});
    주자마자 걸리면 사는 것이지 관계가 아니다. 숫자 하나만 고치면 조절된다. */
 const GIFT_AT=2;
 const loadGifts=()=>{try{return JSON.parse(localStorage.getItem("null_gifts"))||{}}catch(e){return{}}};
-const saveGifts=g=>{try{localStorage.setItem("null_gifts",JSON.stringify(g))}catch(e){}};
+const saveGifts=g=>{try{localStorage.setItem("null_gifts",JSON.stringify(g));return true}catch(e){return false}};
 const loadUnlocked=()=>{try{return JSON.parse(localStorage.getItem("null_unlocked"))||[]}catch(e){return[]}};
-const saveUnlocked=a=>{try{localStorage.setItem("null_unlocked",JSON.stringify(a))}catch(e){}};
+const saveUnlocked=a=>{try{localStorage.setItem("null_unlocked",JSON.stringify(a));return true}catch(e){return false}};
 /* 프로필을 마지막으로 본 단계. 지금 단계가 이보다 높으면 목록에 표시가 붙는다. */
 const loadSeenStage=()=>{try{return JSON.parse(localStorage.getItem("null_seen_stage"))||{}}catch(e){return{}}};
 const saveSeenStage=o=>{try{localStorage.setItem("null_seen_stage",JSON.stringify(o))}catch(e){}};
@@ -780,9 +780,9 @@ const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};
    하루의 경계는 여기서도 새벽 다섯 시다. 새벽에 준 건 어제 준 것이다 —
    저 이어폰과 사진집이 같은 날로 묶여야 이 규칙에 걸린다. */
 const loadGiftDay=()=>{try{return JSON.parse(localStorage.getItem("null_giftday"))||{}}catch(e){return{}}};
-const saveGiftDay=v=>{try{localStorage.setItem("null_giftday",JSON.stringify(v))}catch(e){}};
+const saveGiftDay=v=>{try{localStorage.setItem("null_giftday",JSON.stringify(v));return true}catch(e){return false}};
 const giftedToday=(char,now)=>loadGiftDay()[char]===dayKey(now);
-const stampGift=(char,now)=>saveGiftDay({...loadGiftDay(),[char]:dayKey(now)});
+const stampGift=(char,now)=>giftedToday(char,now)||saveGiftDay({...loadGiftDay(),[char]:dayKey(now)});
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
 const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};
@@ -872,7 +872,7 @@ const WAY_BG={jaeeon:"jaeeon-drive.webp", minhyun:"minhyun-bus.webp"};
 /* 밤에, 말을 나누고 나온 자리에서만. 그리고 하루에 한 번 */
 const wayOK=(now)=>{const h=(now||nowClock()).getHours();return h>=20||h<5};
 const loadWay=()=>{try{return localStorage.getItem("null_way")||""}catch(e){return""}};
-const saveWay=v=>{try{localStorage.setItem("null_way",v)}catch(e){}};
+const saveWay=v=>{try{localStorage.setItem("null_way",v);return true}catch(e){return false}};
 /* 그 자리·그 사람·그 시간에 맞는 사진 하나. 없으면 빈 방 그대로 */
 const sceneShot=(place,who,now)=>{
   const t=(SCENE_SHOT[place]||{})[who]; if(!t)return null;
@@ -905,9 +905,9 @@ const sceneOver=(sc,now)=>{
    같은 데를 하루에 세 번 가면 그건 다니는 게 아니라 새로고침이다.
    경계는 여기서도 새벽 다섯 시다. */
 const loadGone=()=>{try{return JSON.parse(localStorage.getItem("null_goneday"))||{}}catch(e){return{}}};
-const saveGone=v=>{try{localStorage.setItem("null_goneday",JSON.stringify(v))}catch(e){}};
+const saveGone=v=>{try{localStorage.setItem("null_goneday",JSON.stringify(v));return true}catch(e){return false}};
 const goneToday=(place,now)=>loadGone()[place]===dayKey(now);
-const stampGone=(place,now)=>saveGone({...loadGone(),[place]:dayKey(now)});
+const stampGone=(place,now)=>goneToday(place,now)||saveGone({...loadGone(),[place]:dayKey(now)});
 
 /* ── 지금 밖에 나와 있을 수 있나 ──
    편의점·빨래방은 누가 있을지 정해두지 않는다. 마주치는 자리라서.
@@ -993,7 +993,7 @@ const placeWhen=(p,now)=>{
 /* 아직 못 간 자리에 뭐가 남았는지. 잠긴 칸에 그대로 적어준다 */
 const placeNeed=(p,been)=>(p.need||[]).filter(n=>!been.includes(n));
 const loadScene=()=>{try{return JSON.parse(localStorage.getItem("null_scene"))||null}catch(e){return null}};
-const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):localStorage.removeItem("null_scene")}catch(e){}};
+const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):localStorage.removeItem("null_scene");return true}catch(e){return false}};
 /* ── 고친 대사 ──
    인물이 이상한 말을 하면 그 말풍선을 눌러 고쳐 쓴다. 이력은 대화 목록에서
    다시 만들어지므로, 고치면 다음 턴부터 인물은 **자기가 그렇게 말한 걸로**
@@ -1011,9 +1011,9 @@ const EDIT_MAX=500;
 const loadEdits=()=>{try{return JSON.parse(localStorage.getItem("null_edits"))||[]}catch(e){return[]}};
 const saveEdits=a=>{try{localStorage.setItem("null_edits",JSON.stringify(a.slice(-EDIT_MAX)))}catch(e){}};
 const loadMet=()=>{try{return JSON.parse(localStorage.getItem("null_met"))||[]}catch(e){return[]}};
-const saveMet=a=>{try{localStorage.setItem("null_met",JSON.stringify(a))}catch(e){}};
+const saveMet=a=>{try{localStorage.setItem("null_met",JSON.stringify(a));return true}catch(e){return false}};
 const loadRefused=()=>{try{return JSON.parse(localStorage.getItem("null_refused"))||[]}catch(e){return[]}};
-const saveRefused=a=>{try{localStorage.setItem("null_refused",JSON.stringify(a))}catch(e){}};
+const saveRefused=a=>{try{localStorage.setItem("null_refused",JSON.stringify(a));return true}catch(e){return false}};
 /* 눌러서 만드는 사건(선물·해금·약속) 말고, 그냥 쌓여서 되는 사건이 둘 있다.
    한 번씩만 찍는다 — 같은 일이 매일 나오면 그건 사건이 아니라 배경이다. */
 const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 민현이 눈치챈다
@@ -1152,7 +1152,7 @@ const SCENE_REASONS = ["memory_reveal","null_identity","confession","irreversibl
   "partner_confirm","dday_choice","partner_first_reaction","partner_known",
   "parting","ending","conflict_result"];
 const loadScenePend=()=>{try{return JSON.parse(localStorage.getItem("null_scene_pend"))||{}}catch(e){return{}}};
-const saveScenePend=o=>{try{localStorage.setItem("null_scene_pend",JSON.stringify(o))}catch(e){}};
+const saveScenePend=o=>{try{localStorage.setItem("null_scene_pend",JSON.stringify(o));return true}catch(e){return false}};
 const markScene=(room,reason)=>{
   if(SCENE_REASONS.indexOf(reason)<0)return;
   const o=loadScenePend(); o[room]=reason; saveScenePend(o);
@@ -1170,7 +1170,7 @@ const ackScene=(room,reason)=>{
   /* 그 사이에 다른 사유가 예약됐으면 그건 아직 안 끝난 것이다.
      지금 성공한 것만 지운다 — 남의 장면을 대신 지우지 않는다. */
   if(!o[room]||(reason&&o[room]!==reason))return false;
-  delete o[room]; saveScenePend(o); return true;
+  delete o[room]; return saveScenePend(o);
 };
 
 /* ── 프로필 출처 ──
@@ -1228,7 +1228,7 @@ const originGate=(said,prev,who,profile,name)=>{
    실패해도 칸을 비워서 같은 이유로 사라졌다.
    줄로 바꾼다. 읽기(peek)와 지우기(ack)를 가른다. */
 const loadAutoQ=()=>{try{const a=JSON.parse(localStorage.getItem("null_auto_q"));return Array.isArray(a)?a:[]}catch(e){return[]}};
-const saveAutoQ=a=>{try{localStorage.setItem("null_auto_q",JSON.stringify((a||[]).slice(-20)))}catch(e){}};
+const saveAutoQ=a=>{try{localStorage.setItem("null_auto_q",JSON.stringify((a||[]).slice(-20)));return true}catch(e){return false}};
 /* 같은 사건은 같은 id다. 두 번 넣어도 하나다 — 화면을 두 번 눌러도
    두 사람이 같은 얘기를 두 번 하지 않는다. */
 const evId=ev=>[ev.kind,ev.to||"",ev.name||""].join("|");
@@ -1236,7 +1236,7 @@ const pushAutoEvent=ev=>{
   const q=loadAutoQ(); const id=evId(ev);
   if(q.some(x=>x.id===id))return false;
   q.push({...ev,id,created_at:Date.now(),status:"pending"});
-  saveAutoQ(q); return true;
+  return saveAutoQ(q);
 };
 /* 제일 오래된 것부터. created_at으로 안정된 순서를 지킨다 */
 const peekAutoEvent=()=>{
@@ -1248,7 +1248,7 @@ const peekAutoEvent=()=>{
 const ackAutoEvent=id=>{
   const q=loadAutoQ(); const n=q.filter(x=>x&&x.id!==id);
   if(n.length===q.length)return false;
-  saveAutoQ(n); return true;
+  return saveAutoQ(n);
 };
 const loadAutoAt=()=>{const v=+localStorage.getItem("null_auto_at");return v||0};
 const saveAutoAt=t=>{try{localStorage.setItem("null_auto_at",String(t))}catch(e){}};
