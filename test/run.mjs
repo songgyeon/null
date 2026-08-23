@@ -5213,7 +5213,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('사실 원본이 TurnContext로 들어간다',
     /const turnCtx = makeTurnContext\([\s\S]{0,300}facts: buildFacts\(/.test(workerSrc), true);
   eq('고르는 쪽도 같은 원본에서 받는다',
-    /const sceneFacts = renderFacts\(factsForSpeaker\(turnCtx, fallbackSender\)/.test(workerSrc), true);
+    /const stageFacts = factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
   eq('재시도해도 같은 이름이다', (() => {
     const a = buildFacts({ jaeeon: ['mug'] }, [], null, 'jaeeon').map(f => f.fact_id);
     const b = buildFacts({ jaeeon: ['mug'] }, [], null, 'jaeeon').map(f => f.fact_id);
@@ -5267,9 +5267,138 @@ eq('시간표 단추는 peek보다 좁다',
   eq('건넬 수 있다는 가진 것의 반대다',
     /const placeItemAvailable = !!place && !!PLACE_ITEMS\[place\] && !placeItemOwned;/.test(workerSrc), true);
   eq('꾸러미에 뜻이 뒤집혀 들어가지 않는다',
-    /if \(placeItemAvailable\) turnFacts\.push\("이 자리에 건넬 수 있는 물건이 있다"\)/.test(workerSrc), true);
+    /if \(placeItemAvailable\) here\.push\("이 자리에 건넬 수 있는 물건이 있다"\)/.test(workerSrc), true);
 
-  /* ── 14. 없는 것은 모르는 것이지 아닌 것이 아니다 ── */
+  /* ── 14. 구조화 Fact는 마지막 경계까지 산다 ──
+     다음 단계(D)가 사실을 검사한다. Canon Critic이 fact_id를 돌려주면
+     코드가 그 id가 이 턴에 실제로 있는지 봐야 한다. 중간에 문자열로
+     납작해지면 id가 사라지고, 문자열을 도로 파싱하거나 없는 id를
+     통과시키게 된다. Fact[]가 모델 호출 직전까지 살아 있어야 한다. */
+  eq('꾸러미가 받는 것은 Fact[]다',
+    /facts: stageFacts, here,/.test(workerSrc)
+    && /const stageFacts = factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
+  /* 사실이 아닌 것(자리·건넬 물건)은 facts에 안 섞는다 — fact_id가 없으므로
+     검사가 판정할 수 없고, 섞이면 허용 id 집합이 오염된다 */
+  eq('턴 조건은 사실과 따로 담는다',
+    /const here = \[\];/.test(workerSrc) && !/turnFacts/.test(workerSrc), true);
+  /* 문장은 프롬프트 직전에만 만든다. 그 결과를 facts라고 부르지 않는다 */
+  eq('렌더 결과를 facts라고 안 부른다', (() => {
+    const bad = workerSrc.split('\n').filter(l =>
+      /(facts|Facts)\s*[:=]\s*(factLines|renderFacts)\(/.test(l));
+    return bad;
+  })(), []);
+  eq('sceneHead가 마지막에 문장을 만든다', (() => {
+    const f = workerSrc.slice(workerSrc.indexOf('function sceneHead('),
+                              workerSrc.indexOf('function criticPacket('));
+    return /const lines = \[\.\.\.factLines\(ctx\.facts, ctx\.userName\)/.test(f);
+  })(), true);
+  /* 허용 id 집합은 Fact[]에서 직접 만든다 — 문장을 다시 파싱하지 않는다 */
+  eq('허용 id를 구조에서 뽑는다', (() => {
+    const F = buildFacts({ jaeeon: ['mug'] }, [], null, 'jaeeon');
+    return [...ENG.factIds(F)];
+  })(), ['gift.mug.user_to_jaeeon', 'item.mug.with_jaeeon']);
+  eq('허용 id는 문장을 안 본다', (() => {
+    const f = workerSrc.slice(workerSrc.indexOf('function factIds('),
+                              workerSrc.indexOf('function renderFacts('));
+    return /factLines|match\(|split\(/.test(f);
+  })(), false);
+  /* ── fact_id가 각 단계 투영에서 그대로 살아남는다 ── */
+  eq('투영이 fact_id를 안 건드린다', (() => {
+    const F = buildFacts({ jaeeon: ['mug'], minhyun: ['letter'] }, [], null, '');
+    const ctx = { facts: F };
+    const all = new Set(F.map(f => f.fact_id));
+    const projected = [
+      ...factsForSpeaker(ctx, 'jaeeon'), ...factsForSpeaker(ctx, 'minhyun'),
+      ...factsForSpeaker(ctx, 'user'), ...sharedFactsForRoom(ctx, ['jaeeon', 'minhyun']),
+    ];
+    /* 투영은 고르기만 한다. 새 id를 만들거나 이름을 바꾸지 않는다 */
+    return projected.filter(f => !all.has(f.fact_id) || typeof f.known_by !== 'object');
+  })(), []);
+
+  /* ── 15. 원본 상태와 파생 사실이 어긋나지 않는다 ──
+     owned·givenHistory가 저장된 원본이고 facts는 거기서 요청마다 파생한
+     읽기 전용 결과다. 둘이 반대되는 값을 가지면 어느 쪽을 믿을지가 없다. */
+  eq('파생 사실이 원본과 안 어긋난다', (() => {
+    const given = { jaeeon: ['mug', 'coffee'], minhyun: ['letter'] };
+    const bag = [{ key: 'bandaid', from: 'jaeeon' }];
+    const F = buildFacts(given, bag, null, '');
+    const bad = [];
+    /* 준 것은 전부 그 사람 보유 사실이 있어야 한다 */
+    for (const [who, keys] of Object.entries(given))
+      for (const k of keys) {
+        if (!F.some(f => f.fact_id === `item.${k}.with_${who}`)) bad.push(`보유 없음 ${k}/${who}`);
+        if (!F.some(f => f.fact_id === `gift.${k}.user_to_${who}`)) bad.push(`출처 없음 ${k}/${who}`);
+      }
+    /* 유저 가방에 있는 것은 유저 보유 사실이 있어야 한다 */
+    for (const b of bag)
+      if (!F.some(f => f.fact_id === `item.${b.key}.with_user`)) bad.push(`가방 없음 ${b.key}`);
+    /* 같은 물건이 두 사람에게 동시에 있다고 하지 않는다 */
+    const holders = {};
+    for (const f of F) {
+      const m = f.fact_id.match(/^item\.([^.]+)\.with_(.+)$/);
+      if (m) (holders[m[1]] = holders[m[1]] || []).push(m[2]);
+    }
+    for (const [k, hs] of Object.entries(holders))
+      if (hs.length > 1) bad.push(`두 곳에 있다 ${k}: ${hs.join(',')}`);
+    return bad;
+  })(), []);
+  /* 파생 결과를 상태처럼 고쳐 쓰지 않는다 — 어디서도 facts에 push하지 않는다 */
+  eq('파생 사실을 상태처럼 안 고친다',
+    /\.facts\.push\(|turnCtx\.facts\s*=|ctx\.facts\.push\(/.test(workerSrc), false);
+
+  /* ── 16. 관전방에서 사라진 보유 정보가 교집합으로 온다 ──
+     buildBag("health")가 비는 것은 맞다 — 전에는 room이 minhyun으로 떨어져
+     「네가 준 것」이 두 사람 방에 실렸다. 그 정보가 이제 사실로 오는지 본다. */
+  eq('관전 교집합은 보유만 준다', (() => {
+    const F = buildFacts({ jaeeon: ['mug'] }, [], null, '');
+    return sharedFactsForRoom({ facts: F }, ['jaeeon', 'minhyun']).map(f => f.fact_id);
+  })(), ['item.mug.with_jaeeon']);
+  eq('관전 교집합에 출처는 없다', (() => {
+    const F = buildFacts({ jaeeon: ['mug'] }, [], null, '');
+    return sharedFactsForRoom({ facts: F }, ['jaeeon', 'minhyun'])
+      .some(f => f.fact_id.startsWith('gift.'));
+  })(), false);
+  eq('관전방 가방은 비어 있다', ENG.buildVolatile('auto', 'health', '선생님', null, [], null, null,
+    null, null, [], 1, null, false, '저녁', '월요일', null, false, [],
+    [{ key: 'bandaid', from: 'minhyun' }], '겨울', '', '', { facts: [] })
+    .includes('네가 선생님에게 준 것'), false);
+
+  /* ── 17. 지문이 앱에서도 끝까지 사건으로 간다 ──
+     타입 선언만 보면 안 된다. api.ts의 **진짜 buildHistory를 굴려서** 나온
+     것을 그대로 워커에 먹인다. 중간에서 user 문자열로 퇴화하면 여기서 걸린다. */
+  await (async () => {
+    const src = apiSrc.slice(apiSrc.indexOf('export function buildHistory('),
+                             apiSrc.indexOf('\n}', apiSrc.indexOf('export function buildHistory(')) + 2);
+    /* TS 구문이 셋뿐이라 벗겨서 그대로 돌린다. 못 벗기면 조용히 넘어가지
+       않고 여기서 터진다 — 그게 신호다. */
+    const js = src
+      .replace('export function buildHistory(msgs: Msg[])', 'function buildHistory(msgs)')
+      .replace(/ as const/g, '')
+      .replace(/const out: typeof all = \[\];/, 'const out = [];');
+    eq('앱 buildHistory에서 타입을 다 벗겼다', /:\s*(Msg|typeof|number|string)\b|as const/.test(js), false);
+    const run = new Function('HISTORY_CHARS', js + '; return buildHistory;')(60000);
+    /* 실제 선물 흐름 그대로다 — 지문을 넣고 바로 요청을 보내므로 끝이 지문이다 */
+    const out = run([
+      { sender: 'jaeeon', text: '왔어요.' },
+      { sender: 'user', text: '(웃음)' },
+      { sender: 'sys', text: '이재언이 회색 머그컵을 받았다' },
+    ]);
+    eq('앱이 사건에 타입을 붙인다', out.map(m => m.kind || ''), ['', '', 'event']);
+    eq('앱이 사건을 괄호로 감싸지 않는다', out[2].content, '이재언이 회색 머그컵을 받았다');
+    eq('앱에서 유저가 친 괄호는 그대로다', [out[1].content, out[1].kind], ['(웃음)', undefined]);
+    /* 그 결과를 그대로 워커에 먹인다 */
+    await runTurn({ mode: 'chat', room: 'jaeeon', user_name: '선생님', history: out });
+    const saw = writerSaw();
+    eq('앱 사건이 워커까지 사건으로 간다',
+      saw.includes('[시스템 사건] 이재언이 회색 머그컵을 받았다'), true);
+    eq('앱 유저 괄호는 사건이 안 된다', saw.includes('[시스템 사건] (웃음)'), false);
+  })();
+  /* 앱 저장 쪽도 갈라져 있어야 한다 — 코드가 만든 사건만 sys다 */
+  eq('앱은 유저 입력을 sys로 안 넣는다',
+    /insertMsg\(\{room,sender:'user',text,created_at/.test(appSrc)
+    && /insertMsg\(\{room:char,sender:'sys',text:line/.test(appSrc), true);
+
+  /* ── 18. 없는 것은 모르는 것이지 아닌 것이 아니다 ── */
   eq('없는 것은 아직 모르는 것이라고 적는다',
     renderFacts(giftFacts('jaeeon', 'mug', false), '선생님').includes('없다고 단정하지 않는다'), true);
   eq('목록을 읊지 말라고 적는다',
@@ -5551,11 +5680,19 @@ eq('시간표 단추는 peek보다 좁다',
     [{ candidate: '', note: '앞서 나감', critic: 'character' }]);
   eq('못 읽으면 잡을 것이 없는 것으로 본다', readProblems('음 글쎄요', 'canon'), []);
 
+  /* facts는 Fact[]다 — sceneHead가 마지막에 문장으로 바꾼다.
+     here는 사실이 아니라 이번 턴의 조건이라 따로 담는다. */
   const ctx = { who: 'minhyun', when: '저녁', place: null, stage: '시한 · 30일째',
-    knows: '병원 옥상', facts: ['상대가 정해졌다'], recent: [{ role: 'user', content: '너로 할게' }] };
+    knows: '병원 옥상', userName: '선생님',
+    facts: [ENG.makeFact('item.mug.with_jaeeon', true, 'state', ['minhyun'])],
+    here: ['상대가 정해졌다'], recent: [{ role: 'user', content: '너로 할게' }] };
   const cands = [{ kept: [{ text: '진짜요?' }], signals: [] },
                  { kept: [{ text: '알았어요.' }], signals: ['TOO_EXPLANATORY'] }];
-  eq('꾸러미에 사실이 실린다', sceneHead(ctx).join('\n').includes('[사실] 상대가 정해졌다'), true);
+  eq('꾸러미에 사실이 실린다',
+    sceneHead(ctx).join('\n').includes('[사실] 회색 머그컵은 이재언에게 있다. · 상대가 정해졌다'), true);
+  /* 꾸러미가 받는 것은 Fact[]다. 문장은 여기서 처음 만들어진다 —
+     그래서 다음 단계가 fact_id를 그대로 들고 검사할 수 있다. */
+  eq('꾸러미는 구조를 들고 있다', typeof ctx.facts[0].fact_id, 'string');
   const notes1 = [{ candidate: 'A', note: '앞서 나감', critic: 'canon' }];
   eq('마무리 꾸러미에 검사 결과가 실린다',
     finalizerPacket(ctx, cands, notes1).includes('[검사가 잡은 것]\n- 후보 A · 사실 — 앞서 나감'), true);

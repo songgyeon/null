@@ -2639,16 +2639,20 @@ function buildFacts(gifts, bag, giftNow, giftRoom) {
   return out;
 }
 
-/* ── 사실을 문장으로 ──
-   투영을 거친 것만 들어온다. 여기서 다시 거르지 않는다 — 거르는 자리가
-   둘이면 어느 쪽이 막았는지 알 수 없게 된다.
-   **반드시 가변부에만 렌더링한다.** 고정부에 넣으면 선물 하나에 캐시가
-   통째로 다시 쓰인다. */
-function renderFacts(facts, userName) {
+/* ── 자연어는 여기가 마지막 경계다 ──
+   구조화된 Fact는 **모델을 부르기 직전까지** Fact[]로 남는다. 문장은 여기서만
+   만든다. 이 구별이 중요한 까닭은 다음 단계(D)가 사실을 검사하기 때문이다 —
+   Canon Critic이 `{"fact_id":"gift.mug.user_to_jaeeon"}`를 돌려주면 코드가
+   그 id가 이 턴에 실제로 있는 id인지 봐야 한다. 중간에 문자열로 납작해지면
+   id가 사라지고, 문자열을 도로 파싱하거나 없는 id를 통과시키게 된다.
+
+   그래서 이 함수가 돌려주는 것은 **표시용**이고, 그 이름을 facts라고
+   부르지 않는다. 부르는 쪽에서 factLines로 받는다. */
+function factLines(facts, userName) {
   const u = userName || "선생님";
   const L = [];
   for (const f of facts || []) {
-    const m = String(f.fact_id).match(/^(gift|item)\.([^.]+)\.(.+)$/);
+    const m = String(f && f.fact_id).match(/^(gift|item)\.([^.]+)\.(.+)$/);
     if (!m) continue;
     const name = ANY_NAME_BY_KEY[m[2]];
     if (!name) continue;
@@ -2656,12 +2660,26 @@ function renderFacts(facts, userName) {
     if (m[1] === "gift") {
       const d = m[3].match(/^(\w+)_to_(\w+)$/);
       if (!d) continue;
-      L.push(`- ${jos(NAME[d[1]] || d[1], "이/가")} ${jos(NAME[d[2]] || d[2], "에게/에게")} ${jos(name, "을/를")} 줬다.`);
+      L.push(`${jos(NAME[d[1]] || d[1], "이/가")} ${jos(NAME[d[2]] || d[2], "에게/에게")} ${jos(name, "을/를")} 줬다.`);
     } else {
       const w = m[3].replace(/^with_/, "");
-      L.push(`- ${jos(name, "은/는")} ${NAME[w] || w}에게 있다.`);
+      L.push(`${jos(name, "은/는")} ${NAME[w] || w}에게 있다.`);
     }
   }
+  return L;
+}
+
+/* ── 허용된 fact_id ──
+   D에서 Critic이 돌려준 id가 진짜인지 볼 때 쓴다. **Fact[]에서 직접 만든다** —
+   문장을 다시 파싱해서 복원하지 않는다. 여기 없는 id는 무효다. */
+function factIds(facts) {
+  return new Set((facts || []).map(f => f && f.fact_id).filter(Boolean));
+}
+
+/* 가변부에 실을 블록. **반드시 가변부에만 렌더링한다** — 고정부에 넣으면
+   선물 하나에 캐시가 통째로 다시 쓰인다. */
+function renderFacts(facts, userName) {
+  const L = factLines(facts, userName).map(t => `- ${t}`);
   if (!L.length) return "";
   /* 「목록에 없으면 모른다」가 아니라 「목록에 없으면 **아직 모른다**」다.
      없는 것을 아니라고 단정하면 멀쩡한 짐작까지 위반이 된다. */
@@ -3742,13 +3760,19 @@ const FINALIZER_RULES = `너는 이 장면의 마지막 손이다. 유저가 실
 
 /* 장면 머리. 검사도 마무리도 같은 것을 본다 — 둘이 다른 장면을 보면
    검사가 잡은 것을 마무리가 이해할 수 없다. */
+/* ctx.facts는 **Fact[]**다. 여기가 문장으로 바꾸는 마지막 경계다 —
+   위 renderFacts와 같은 factLines를 쓴다. 두 자리가 다른 문장을 만들면
+   검사가 잡은 것을 마무리하는 쪽이 못 알아본다.
+   ctx.here는 사실이 아니라 이번 턴의 조건이다(자리·건넬 물건). 사실과
+   섞이지만 fact_id가 없으므로 검사의 판정 대상이 아니다. */
 function sceneHead(ctx) {
   const L = [];
   L.push(`[화자] ${ctx.who}`);
   if (ctx.stage) L.push(`[관계] ${ctx.stage}`);
   L.push(`[지금] ${ctx.when}${ctx.place ? ` · ${ctx.place}` : ""}`);
   if (ctx.knows) L.push(`[아는 범위] ${ctx.knows}`);
-  L.push(`[사실] ${(ctx.facts || []).join(" · ") || "이 장면에 특별한 사실 없음"}`);
+  const lines = [...factLines(ctx.facts, ctx.userName), ...(ctx.here || [])];
+  L.push(`[사실] ${lines.join(" · ") || "이 장면에 특별한 사실 없음"}`);
   if (ctx.recent && ctx.recent.length) {
     L.push(`[최근 대화]`);
     for (const m of ctx.recent) L.push(`${m.role === "user" ? "유저" : ctx.who}: ${String(m.content).slice(0, 160)}`);
@@ -4435,16 +4459,19 @@ export default {
           : "";
       /* ── 고르는 쪽·검사·마무리도 같은 원본에서 받는다 ──
          단계마다 사실을 새로 조립하지 않는다. 중요 장면은 늘 1:1이므로
-         (관전은 위에서 일반 경로로 빠진다) 화자 투영이 곧 그 방의 투영이다. */
-      const sceneFacts = renderFacts(factsForSpeaker(turnCtx, fallbackSender), userName)
-        .split("\n").filter(l => l.startsWith("- ") && !l.includes("읊지 않는다")
-                                  && !l.includes("단정하지 않는다"))
-        .map(l => l.slice(2).trim());
-      const turnFacts = [...sceneFacts];
-      if (place) turnFacts.push(`자리: ${place}`);
+         (관전은 위에서 일반 경로로 빠진다) 화자 투영이 곧 그 방의 투영이다.
+
+         **Fact[] 그대로 넘긴다.** 전에는 여기서 문장으로 납작하게 만들어
+         넘겼는데, 그러면 다음 단계가 사실을 검사할 때 fact_id가 없다 —
+         문자열을 도로 파싱하거나 없는 id를 통과시키게 된다. */
+      const stageFacts = factsForSpeaker(turnCtx, fallbackSender);
+      /* 이건 사실이 아니라 이번 턴의 조건이다. fact_id가 없으므로 검사의
+         판정 대상이 아니고, 그래서 facts와 섞어 담지 않는다. */
+      const here = [];
+      if (place) here.push(`자리: ${place}`);
       /* 「건넬 수 있는 물건이 있다」는 placeItemOwned의 반대다. 전에는 같은
          값을 그대로 넣어 뜻이 뒤집혀 있었다. */
-      if (placeItemAvailable) turnFacts.push("이 자리에 건넬 수 있는 물건이 있다");
+      if (placeItemAvailable) here.push("이 자리에 건넬 수 있는 물건이 있다");
       const budget = mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET;
       /* 후보를 담을 자리를 넉넉히 준다. 천장이지 청구서가 아니라서 열어둔다고
          값이 오르지 않는다 — 실제로 뽑은 만큼만 낸다. */
@@ -4496,9 +4523,11 @@ export default {
            장면 전체가 다르고, 여기서 값을 두 배로 낼 자리가 아니다. */
         if (mode === "auto" || cands.length === 0) { picked = cands[0]; break; }
 
+        /* facts는 **Fact[]**다. 이 꾸러미가 Director·Canon·Character·
+           Finalizer로 그대로 간다 — 문장은 sceneHead가 마지막에 만든다. */
         const sceneCtx = {
-          who: fallbackSender, when: now, place,
-          stage: relLabel, knows: knowsLabel, facts: turnFacts,
+          who: fallbackSender, when: now, place, userName,
+          stage: relLabel, knows: knowsLabel, facts: stageFacts, here,
           recent: recentForDirector,
         };
 
@@ -4611,7 +4640,8 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          /* 공통 계약 — 모든 단계가 같은 세계를 보게 하는 모양 */
          makeFact, factsForSpeaker, sharedFactsForRoom, factValue, contradicts,
          ROOM_EARS, ROOM_SPEAKERS, FACT_SOURCES, KNOWERS,
-         buildFacts, giftFacts, handedFacts, renderFacts, ITEM_WITNESS, ANY_NAME_BY_KEY,
+         buildFacts, giftFacts, handedFacts, renderFacts, factLines, factIds,
+         ITEM_WITNESS, ANY_NAME_BY_KEY,
          buildEvent,
          makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
          makeEffect, mintEffectId, EFFECT_TYPES,
