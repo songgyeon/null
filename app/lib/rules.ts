@@ -1023,6 +1023,18 @@ const saveRefused=a=>{try{localStorage.setItem("null_refused",JSON.stringify(a))
    한 번씩만 찍는다 — 같은 일이 매일 나오면 그건 사건이 아니라 배경이다. */
 const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 민현이 눈치챈다
 const DDAY_MARKS=[7,3,1];    // 남은 날이 이 값이 되는 날
+/* ── 이미 새긴 사건 ──
+   워커가 준 Effect.id를 적어둔다. 같은 응답을 두 번 처리해도(재시도·늦게
+   온 답·새로고침) 결과가 한 번과 같으려면 이게 있어야 한다.
+
+   상한을 둔다. 한 판에서 나올 수 있는 Effect는 자리 아이템 아홉과 초대
+   몇 번이 전부지만, 재시도마다 request_id가 달라지므로 id는 그보다 는다.
+   200이면 한 판을 다 돌고도 남는다 — 넘치면 오래된 것부터 버린다.
+   버려진 id가 다시 와도 그때는 이미 가방에 있어서 takeItem이 막는다. */
+const EFF_MAX=200;
+const loadEffDone=()=>{try{const a=JSON.parse(localStorage.getItem("null_eff_done"));return Array.isArray(a)?a:[]}catch(e){return[]}};
+const saveEffDone=a=>{try{localStorage.setItem("null_eff_done",JSON.stringify((a||[]).slice(-EFF_MAX)))}catch(e){}};
+
 const loadEvDone=()=>{try{return JSON.parse(localStorage.getItem("null_ev_done"))||[]}catch(e){return[]}};
 const saveEvDone=a=>{try{localStorage.setItem("null_ev_done",JSON.stringify(a))}catch(e){}};
 /* ── 한 번만 할 일에 이름표 ──
@@ -1049,13 +1061,20 @@ const markScene=(room,reason)=>{
   if(SCENE_REASONS.indexOf(reason)<0)return;
   const o=loadScenePend(); o[room]=reason; saveScenePend(o);
 };
-/* 꺼내면서 지운다. 한 번짜리라 다음 턴에 또 실리면 안 된다 —
-   실리면 그 방의 모든 턴이 중요한 장면이 되고 값만 두 배가 된다. */
-const takeScene=room=>{
-  const o=loadScenePend(); const r=o[room];
-  if(!r)return "";
-  delete o[room]; saveScenePend(o);
-  return r;
+/* ── 예약과 완료를 가른다 ──
+   전에는 takeScene이 꺼내면서 지웠다. **요청을 보내기 전에** 지우는 것이라,
+   그 요청이 실패하면 장면이 통째로 증발했다 — 고백도 기억 공개도 다시는
+   안 온다. 한 번짜리인 것은 맞지만 「한 번 **성공**」이어야 한다.
+
+   peekScene  읽기만 한다. 안 지운다.
+   ackScene   검증된 답이 저장된 뒤에만 지운다. 그 방 것만 지운다. */
+const peekScene=room=>loadScenePend()[room]||"";
+const ackScene=(room,reason)=>{
+  const o=loadScenePend();
+  /* 그 사이에 다른 사유가 예약됐으면 그건 아직 안 끝난 것이다.
+     지금 성공한 것만 지운다 — 남의 장면을 대신 지우지 않는다. */
+  if(!o[room]||(reason&&o[room]!==reason))return false;
+  delete o[room]; saveScenePend(o); return true;
 };
 
 /* ── 프로필 출처 ──
@@ -1107,8 +1126,34 @@ const originGate=(said,prev,who,profile,name)=>{
   if(!ORIGIN_DENY.test(t))return null;
   return{line:ORIGIN_START,next:"revealed_from_start"};
 };
-const loadAutoEvent=()=>{try{return JSON.parse(localStorage.getItem("null_auto_event"))}catch(e){return null}};
-const saveAutoEvent=v=>{try{v?localStorage.setItem("null_auto_event",JSON.stringify(v)):localStorage.removeItem("null_auto_event")}catch(e){}};
+/* ── 관전 사건은 줄을 선다 ──
+   전에는 한 칸이었다. 선물을 연달아 둘 주면 앞엣것이 그냥 사라졌다 —
+   그 사건에 대한 두 사람의 대화가 영영 안 나온다. 그리고 관전 API가
+   실패해도 칸을 비워서 같은 이유로 사라졌다.
+   줄로 바꾼다. 읽기(peek)와 지우기(ack)를 가른다. */
+const loadAutoQ=()=>{try{const a=JSON.parse(localStorage.getItem("null_auto_q"));return Array.isArray(a)?a:[]}catch(e){return[]}};
+const saveAutoQ=a=>{try{localStorage.setItem("null_auto_q",JSON.stringify((a||[]).slice(-20)))}catch(e){}};
+/* 같은 사건은 같은 id다. 두 번 넣어도 하나다 — 화면을 두 번 눌러도
+   두 사람이 같은 얘기를 두 번 하지 않는다. */
+const evId=ev=>[ev.kind,ev.to||"",ev.name||""].join("|");
+const pushAutoEvent=ev=>{
+  const q=loadAutoQ(); const id=evId(ev);
+  if(q.some(x=>x.id===id))return false;
+  q.push({...ev,id,created_at:Date.now(),status:"pending"});
+  saveAutoQ(q); return true;
+};
+/* 제일 오래된 것부터. created_at으로 안정된 순서를 지킨다 */
+const peekAutoEvent=()=>{
+  const q=loadAutoQ().filter(x=>x&&x.status!=="done");
+  if(!q.length)return null;
+  return q.slice().sort((a,b)=>(a.created_at||0)-(b.created_at||0))[0];
+};
+/* 그 하나만 지운다. 성공한 것 말고는 안 건드린다 */
+const ackAutoEvent=id=>{
+  const q=loadAutoQ(); const n=q.filter(x=>x&&x.id!==id);
+  if(n.length===q.length)return false;
+  saveAutoQ(n); return true;
+};
 const loadAutoAt=()=>{const v=+localStorage.getItem("null_auto_at");return v||0};
 const saveAutoAt=t=>{try{localStorage.setItem("null_auto_at",String(t))}catch(e){}};
 const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));
@@ -1309,6 +1354,9 @@ return {
   saveRefused,
   PHOTO_EVENT_AT,
   DDAY_MARKS,
+  EFF_MAX,
+  loadEffDone,
+  saveEffDone,
   loadEvDone,
   saveEvDone,
   markOnce,
@@ -1317,7 +1365,8 @@ return {
   loadScenePend,
   saveScenePend,
   markScene,
-  takeScene,
+  peekScene,
+  ackScene,
   ORIGIN_ASK,
   ORIGIN_DENY,
   ORIGIN_TOLD,
@@ -1328,8 +1377,12 @@ return {
   setOriginPhase,
   mentionsProfile,
   originGate,
-  loadAutoEvent,
-  saveAutoEvent,
+  loadAutoQ,
+  saveAutoQ,
+  evId,
+  pushAutoEvent,
+  peekAutoEvent,
+  ackAutoEvent,
   loadAutoAt,
   saveAutoAt,
   mmss,
@@ -1506,6 +1559,9 @@ export const {
   saveRefused,
   PHOTO_EVENT_AT,
   DDAY_MARKS,
+  EFF_MAX,
+  loadEffDone,
+  saveEffDone,
   loadEvDone,
   saveEvDone,
   markOnce,
@@ -1514,7 +1570,8 @@ export const {
   loadScenePend,
   saveScenePend,
   markScene,
-  takeScene,
+  peekScene,
+  ackScene,
   ORIGIN_ASK,
   ORIGIN_DENY,
   ORIGIN_TOLD,
@@ -1525,8 +1582,12 @@ export const {
   setOriginPhase,
   mentionsProfile,
   originGate,
-  loadAutoEvent,
-  saveAutoEvent,
+  loadAutoQ,
+  saveAutoQ,
+  evId,
+  pushAutoEvent,
+  peekAutoEvent,
+  ackAutoEvent,
   loadAutoAt,
   saveAutoAt,
   mmss,

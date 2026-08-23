@@ -163,6 +163,10 @@ export type ChatOpts = {
   bag?: any[];                // 받은 것 {k,from} — from이 있어야 제 것을 고른다
   left?: string;              // 방금 나온 자리 이름
   placeOver?: boolean;        // 그 자리의 때가 지났다 — 이번 대답에서 일어선다
+  /* 이 자리에서 유저가 두 마디는 했나. **부르기 전에** 재서 보낸다 —
+     응답 뒤에 재면 「받아요」는 화면에 뜨고 가방은 비는 일이 생긴다.
+     웹과 같은 함수(talkedEnough)에서 나온다. */
+  talkedEnough?: boolean;
   greet?: boolean;            // 선톡 턴 — 워커가 이력 캐시 지점을 안 찍는다
   /* 한 논리 요청의 이름표. 재시도해도 같은 값이 온다 — 워커가 멱등 처리를
      붙일 자리이고, 지금은 답에 그대로 되비쳐서 늦게 온 답을 가리는 데 쓴다 */
@@ -176,7 +180,7 @@ export type ChatOpts = {
 export async function sendChat(room: string, userName: string, history: Msg[],
                                opts: ChatOpts = {}) {
   const sum = await loadSum(room);
-  const { gift, place, bag, placeOver, greet, left, came, reqId, sceneReason, extra } = opts;
+  const { gift, place, bag, placeOver, talkedEnough, greet, left, came, reqId, sceneReason, extra } = opts;
   /* 그 방 사람의 접속 상태. 목록에 뜨는 것과 같은 함수(presence)를 쓴다 —
      화면에는 「수업 중」인데 본인은 한가한 사람처럼 답하던 것이 이걸로 맞는다.
      「주말」은 안 보낸다 — 요일이 이미 실려 있어 같은 말이 두 번 된다. */
@@ -232,6 +236,7 @@ export async function sendChat(room: string, userName: string, history: Msg[],
        앱은 안 보내고 있었다. */
     ...(left ? { left } : {}),
     ...(placeOver ? { place_over: true } : {}),
+    ...(place ? { talked_enough: !!talkedEnough } : {}),
     ...(greet ? { greet: true } : {}),
     // 다녀온 자리·거절한 자리·지금 문 닫은 자리 — 서버가 다음 제안을 고르는 근거
     met: await loadList('null_met'),

@@ -348,6 +348,39 @@ function makeEffect(requestId, e) {
   return { id: mintEffectId(requestId, type, key, o.to), type, key, from: o.from, to: o.to };
 }
 
+/* ── 제안을 사건으로 바꾸는 유일한 자리 ──
+   후보의 invite·give는 **모델의 제안**이다. 아직 일어난 일이 아니다.
+   고른 후보가 검사를 다 통과한 뒤에야 코드가 Effect를 만든다.
+
+   전에는 워커가 give를 그대로 응답에 실었고 클라이언트가 그걸 보고 가방에
+   넣었다. 그러면 「제안」과 「사건」이 같은 값이라, 재시도로 같은 응답이 두 번
+   오면 두 번 들어간다. 이제 응답에 실리는 것은 **검증된 Effect**뿐이고,
+   id는 코드가 만든다 — 모델이 임의 id를 내도 안 쓴다.
+
+   여기서 다시 검증하는 이유: hardFilter는 「이 후보를 버릴까」를 보고,
+   여기는 「이 사건을 세계에 새길까」를 본다. 통과한 후보라도 마지막 값이
+   바뀌었을 수 있고, 상태를 바꾸는 자리는 한 번 더 봐야 한다. */
+function materializeEffects(requestId, picked, ctx) {
+  const out = [];
+  if (!picked) return out;
+  const g = ctx || {};
+  /* ── 물건은 유저가 두 마디는 하고 나서만 ──
+     placeItemAvailable은 talkedEnough까지 포함해 **부르기 전에** 계산된
+     값이다. 여기서 다시 세지 않는다 — 두 곳에서 세면 갈린다. */
+  if (picked.give && g.placeItemAvailable && !g.placeItemOwned) {
+    const item = pickGive(picked.give, g.place, g.placeItemOwned, g.room);
+    if (item) out.push(makeEffect(requestId, {
+      type: "item_transfer", from: g.room, to: "user", item }));
+  }
+  /* ── 초대는 열려 있는 자리로만 ──
+     지금 앉아 있는 자리로 다시 부르는 것은 모순이라 openPlaces가 비어 있다. */
+  if (picked.invite && !g.place) {
+    const place = pickInvite(picked.invite, g.openPlaces || []);
+    if (place) out.push(makeEffect(requestId, { type: "invite", place, char: g.room }));
+  }
+  return out;
+}
+
 /* ══════════════════════════════════════════════════════════════ */
 
 /* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
@@ -4567,7 +4600,15 @@ export default {
       : PLACE_ITEMS[place]
         ? bag.some(b => b.key === PLACE_ITEMS[place].key)
         : true;
-    const placeItemAvailable = !!place && !!PLACE_ITEMS[place] && !placeItemOwned;
+    /* ── 두 마디는 하고 나서 ──
+       자리에 들르자마자 물건이 손에 들어오면 그건 받은 게 아니라 주운 것이다.
+       조건은 클라이언트가 센다 — 그 방 메시지를 들고 있는 쪽이 거기다.
+       **부르기 전에** 정해서 보낸다. 응답 뒤에 재면 「받아요」 한 마디는
+       화면에 뜨고 가방은 비는 일이 생긴다.
+       옛 클라이언트는 이 값을 안 보낸다. 그때는 안 준다 — 못 받는 것이
+       모르는 채로 주는 것보다 낫다. */
+    const talkedEnough = body.talked_enough === true;
+    const placeItemAvailable = !!place && !!PLACE_ITEMS[place] && !placeItemOwned && talkedEnough;
     /* ── 준 기록은 수신자를 지킨다 ──
        평면 배열로 합치면 단톡·관전에서 누구에게 준 것인지가 사라진다.
        이번 턴에 건넨 것(giftNow)은 여기서 뺀다 — 현재는 gift가, 과거는
@@ -4658,7 +4699,8 @@ export default {
          이 길은 목록 폴백을 그대로 쓴다. 그게 옛 길의 모습이기 때문이다. */
       /* 기준선도 이걸 쓴다 — 검사 입구가 하나여야 G 비교가 공정하다.
           코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
-      const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned, room,
+      const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned,
+                        placeItemAvailable, room,
                         openPlaces: place ? [] : [...openPlaces, ...canGo] };
 
       if (engineMode(env) === "legacy") {
@@ -4681,8 +4723,6 @@ export default {
           parseStatus: p0.parseStatus, intruder: p0.intruder, signals: [] };
         const codes0 = hardFilter(c0, chars, hardCtx);
         const kept0 = codes0.length ? [] : c0.messages;
-        const inv0 = kept0.length ? pickInvite(c0.invite, place ? [] : [...openPlaces, ...canGo]) : null;
-        const giv0 = kept0.length ? pickGive(c0.give, place, placeItemOwned, room) : null;
         if (!kept0.length) {
           console.log(`[NULL] 기준선 후보 탈락 — ${codes0.join(",") || "EMPTY"}`);
           return new Response(JSON.stringify({ error: "생성 실패",
@@ -4691,13 +4731,13 @@ export default {
             ...(reqId ? { request_id: reqId } : {}) }),
             { status: 502, headers: { ...CORS, "content-type": "application/json" } });
         }
+        const fx0 = materializeEffects(reqId, c0, hardCtx);
         return new Response(JSON.stringify({
           messages: dropSleepers(kept0, place ? null : states),
           unlocked: unlockedKeys(counts, days), usage: meter.writerUsage,
           stages: meter.rows, usage_total: meterTotal(meter),
           ...(reqId ? { request_id: reqId } : {}),
-          ...(inv0 ? { invite: { place: inv0, char: room } } : {}),
-          ...(giv0 ? { give: { item: giv0, place, char: room } } : {}) }),
+          effects: fx0 }),
           { headers: { ...CORS, "content-type": "application/json" } });
       }
 
@@ -4938,9 +4978,11 @@ export default {
           ...(reqId ? { request_id: reqId } : {}) }),
           { status: 502, headers: { ...CORS, "content-type": "application/json" } });
       }
-      /* 고른 후보의 부수 출력만 나간다. 묶음째 골랐으므로 여기서 다른
-         후보의 것을 집어올 길이 없다. */
-      const { invite, give } = picked;
+      /* ── 제안이 여기서 사건이 된다 ──
+         고른 묶음의 제안만 Effect가 된다. 다른 후보의 것을 집어올 길이 없고,
+         마무리(F)를 골랐으면 F가 실제로 낸 것만 나간다.
+         id는 코드가 만든다 — 같은 요청의 같은 사건은 늘 같은 id다. */
+      const effects = materializeEffects(reqId, picked, hardCtx);
       const messages = dropSleepers(picked.messages, place ? null : states);
       /* ── 이름표를 되돌려준다 ──
          한 턴이 모델 여러 번을 타게 되면 답이 늦어지고, 그 사이 프론트에서
@@ -4957,8 +4999,9 @@ export default {
         stages: meter.rows,
         usage_total: meterTotal(meter),
         ...(reqId ? { request_id: reqId } : {}),
-        ...(invite ? { invite: { place: invite, char: room } } : {}),
-        ...(give ? { give: { item: give, place, char: room } } : {}) }),
+        /* 상태를 바꾸는 정식 경로는 이것 하나다. give/invite를 따로 실어
+           두면 클라이언트가 둘 다 적용해 두 번 일어난다. */
+        effects }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
       /* 이름표는 실패한 답에도 실어야 한다. 프론트가 「이게 지금 것이 맞나」를
@@ -4984,6 +5027,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          makeFact, factsForSpeaker, sharedFactsForRoom, factValue, contradicts,
          ROOM_EARS, ROOM_SPEAKERS, FACT_SOURCES, KNOWERS,
          buildFacts, giftFacts, handedFacts, renderFacts, factLines, factIds,
+         materializeEffects,
          ITEM_WITNESS, ANY_NAME_BY_KEY,
          buildEvent,
          makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,

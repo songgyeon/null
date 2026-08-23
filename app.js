@@ -224,6 +224,30 @@ function App(){
   const sceneRef=useRef(scene); sceneRef.current=scene;
   /* 받은 것을 가방에 넣는다. 같은 것은 두 번 안 들어간다.
      채팅에는 지문 한 줄로 남긴다 — 유저의 말이 아니라 일어난 일이니까. */
+  /* ── 같은 사건을 두 번 새기지 않는다 ──
+     같은 응답을 두 번 처리해도(재시도·늦게 온 답·새로고침) 결과는 한 번과
+     같아야 한다. id는 워커가 만든 것을 그대로 쓴다 — 같은 요청의 같은
+     사건은 늘 같은 id다. */
+  const applyEffects=(fx)=>{
+    if(!Array.isArray(fx)||!fx.length)return;
+    const done=loadEffDone(); let changed=false;
+    for(const e of fx){
+      if(!e||typeof e!=="object"||!e.id||!e.type)continue;
+      if(done.indexOf(e.id)>=0)continue;                       // 이미 새겼다
+      let ok=false;
+      if(e.type==="item_transfer"){
+        /* 방향을 본다. 유저가 받는 것만 가방에 들어간다 */
+        if(e.to==="user"&&e.item&&ITEMS[e.item])
+          ok=takeItem(e.item,e.from,(sceneRef.current||{}).place);
+      }else if(e.type==="invite"){
+        if(e.place&&e.char){ setInvite({place:e.place,char:e.char}); ok=true; }
+      }
+      /* story_transition은 E-B에서 낸다. 스키마는 받아두되 여기서는 안 만든다 */
+      if(ok||e.type==="story_transition"){ done.push(e.id); changed=true; }
+    }
+    if(changed)saveEffDone(done);
+  };
+
   const takeItem=(key,from,where)=>{
     const it=ITEMS[key]; if(!it)return false;
     if(bagRef.current.some(b=>b.key===key))return false;
@@ -246,10 +270,12 @@ function App(){
     const next=[...bagRef.current,{key:"ebar",ts:Date.now()}];
     bagRef.current=next; setBag(next); saveBag(next); setToast("bag — 에너지바");
   };
-  /* 자리에서 나온다.
-     나오는데 아직 못 받았으면 여기서 넣어준다. 모델이 안 건네주고 끝내는
-     턴이 있는데, 그때마다 가방이 비면 지도를 도는 이유가 사라진다.
-     받는 순간을 모델에게 맡기되, 받는다는 사실까지 맡기지는 않는다. */
+  /* 자리에서 나온다. **여기서 물건을 안 준다.**
+     전에는 두 마디만 했으면 나오면서 넣어줬다. 모델이 안 건네고 끝내는 턴이
+     있어서였는데, 그러면 유저가 거절해도 들어가고, 인물이 준 적 없는 것이
+     가방에 있고, 대사와 가방이 갈린다.
+     가방에 들어오는 길은 하나다: 검증된 give Effect를 한 번 적용하는 것.
+     자리를 닫는 것과 물건을 받는 것은 다른 일이다. */
   /* 자리에 들어오자마자 손에 들어오면 그건 받은 게 아니라 주운 것이다.
      들렀다 바로 나오는 것만으로 여덟 개가 다 모이면 지도를 도는 일이
      심부름이 된다. 말을 두 마디는 하고 나와야 건넬 자리가 있었던 걸로 친다.
@@ -257,11 +283,7 @@ function App(){
   const SCENE_MIN_TALK=2;
   const talkedEnough=sc=>!!sc&&(storeRef.current.msgs[sc.room]||[])
     .filter(m=>!m.sys&&m.sender==="user"&&m.ts>=(sc.since||0)).length>=SCENE_MIN_TALK;
-  const closeScene=()=>{
-    const sc=sceneRef.current;
-    if(sc&&talkedEnough(sc)){ const p=PLACE_BY[sc.place]; if(p&&p.item)takeItem(p.item,sc.room,sc.place); }
-    setScene(null); saveScene(null);
-  };
+  const closeScene=()=>{ setScene(null); saveScene(null); };
   /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
      X는 나가기가 아니라 접어두기다. 그런데 유효기간이 없어서, 낮에 보건실을
      접어두고 저녁에 열어도 아직 보건실에 앉아 있었다 — 재언은 다섯 시에
@@ -599,8 +621,10 @@ function App(){
        그 사유를 받쳐주는지를 둘 다 보고 승인한다. 그래서 partner도 같이 보낸다.
        재시도면 이미 실려 있으니 다시 꺼내지 않는다 — 꺼내면서 지우기 때문에
        한 번 더 꺼내면 빈 값이 되어 중요한 장면이 일반 턴으로 내려간다. */
+    /* 읽기만 한다. 지우는 것은 답이 저장된 뒤다(ackScene) —
+       보내기 전에 지우면 실패한 턴에 그 장면이 통째로 증발한다. */
     if(!payload.scene_reason){
-      const why=takeScene(bucket);
+      const why=peekScene(bucket);
       if(why)payload.scene_reason=why;
     }
     const pid=loadPartner();
@@ -676,13 +700,18 @@ function App(){
           "color:#7a6cc4");
       }
       setTimeout(()=>rollSummary(bucket),1200);
-      if(data&&data.invite&&data.invite.place) setInvite(data.invite);
-      /* 자리에서 뭘 건넸다. 말풍선이 다 뜬 뒤에 가방에 넣는다 —
-         "받았다" 줄이 주는 말보다 먼저 뜨면 순서가 거꾸로 보인다. */
-      /* 모델이 첫 턴부터 건네주기도 한다. 그때는 아직 아무 말도 안 오갔다 */
-      if(data&&data.give&&data.give.item&&talkedEnough(sceneRef.current))
-        setTimeout(()=>takeItem(data.give.item,data.give.char,data.give.place),
+      /* ── 상태를 바꾸는 길은 이것 하나다 ──
+         전에는 data.give와 data.invite를 따로 봤다. 그건 모델의 **제안**이지
+         일어난 일이 아니었고, 같은 응답을 두 번 처리하면 두 번 일어났다.
+         이제 워커가 검증한 Effect만 온다.
+         말풍선이 다 뜬 뒤에 적용한다 — 「받았다」 줄이 주는 말보다 먼저 뜨면
+         순서가 거꾸로 보인다. */
+      if(data&&Array.isArray(data.effects)&&data.effects.length)
+        setTimeout(()=>applyEffects(data.effects),
           Math.max(900,((data.messages||[]).length+1)*600));
+      /* 장면은 **여기서** 끝난다. 답이 저장된 뒤에만 지운다 —
+         보내기 전에 지우면 실패한 턴에 고백도 기억 공개도 증발한다. */
+      if(payload.scene_reason) ackScene(bucket,payload.scene_reason);
       /* 때가 지난 자리였다 — 방금 온 답이 마무리 인사다. 말풍선이 다 뜬 뒤에
          자리를 닫는다. 인사보다 「나왔다」 줄이 먼저 뜨면 순서가 거꾸로다.
          답을 기다리는 사이 유저가 나가고 다른 자리(귀갓길 등)를 열었을 수
@@ -761,7 +790,10 @@ function App(){
     request(room,{mode:"chat",room,user_name:name,history,signals:buildSignals(room),
       recent_photos:recentPhotos(room),counts:roomCounts({[room]:next.length}),
       bag:bagOut(),
-      ...(at?{place:at,...(sc.came?{came:sc.came}:{}),...(sceneOver(sc)?{place_over:true}:{})}:{})});
+      /* 두 마디는 하고 나서만 건넬 수 있다. **부르기 전에** 정해서 보낸다 —
+         응답 뒤에 재면 「받아요」는 화면에 뜨고 가방은 비는 일이 생긴다. */
+      ...(at?{place:at,talked_enough:talkedEnough(sc),
+        ...(sc.came?{came:sc.came}:{}),...(sceneOver(sc)?{place_over:true}:{})}:{})});
   };
   /* 선물 보내기.
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
@@ -835,7 +867,8 @@ function App(){
      유저가 자리를 비운 지 한 시간이 지나 다시 들어왔을 때 만든다.
      원문은 여전히 서버로 안 간다. 무슨 물건을 줬는지만 알려주고, 무슨 말이
      오갔는지는 프롬프트에서 못박아 막는다. */
-  const markEvent=ev=>saveAutoEvent({...ev,at:Date.now()});
+  /* 줄에 넣는다. 앞엣것을 안 덮는다 — 선물을 연달아 둘 주면 둘 다 남는다 */
+  const markEvent=ev=>pushAutoEvent(ev);
 
   /* 유저가 아무것도 안 눌러도 생기는 사건 둘.
      ① 재언에게 사진이 다섯 장 넘게 오면 — 민현이는 그 사진을 못 본다.
@@ -877,10 +910,10 @@ function App(){
          전에는 사건이 없으면 아무것도 안 만들었다 — 선물도 안 주고 자리도
          안 간 사람에게는 관전방이 영영 첫 장면 그대로였다.
          자리를 비운 시간과 하루 상한은 그대로다. 여기가 제일 비싼 호출이다. */
-      const ev=loadAutoEvent()||null;
+      const ev=peekAutoEvent();
       const m=storeRef.current.msgs||{};
       const all=Object.values(m).flat();
-      const lastAny=all.reduce((a,x)=>x.ts>a?x.ts:a,(ev&&ev.at)||0);
+      const lastAny=all.reduce((a,x)=>x.ts>a?x.ts:a,(ev&&ev.created_at)||0);
       const now=Date.now();
       /* 아직 아무 일도 없었으면 비운 자리도 없다. 이걸 안 막으면 lastAny가
          0이라 「한 시간 뒤」가 1970년 1월 1일 한 시간 뒤가 된다 — 실제로
@@ -904,9 +937,11 @@ function App(){
       const day=dayKey();
       const [d,n]=loadAutoDay().split("|");
       const used=d===day?Number(n)||0:0;
-      if(used>=AUTO_MAX_DAY){ saveAutoEvent(null); return; }
+      /* 하루 몫이 찼다. **사건은 안 지운다** — 유저가 한 일이 없던 일이 되면
+         안 된다. 내일 그 얘기가 나온다. */
+      if(used>=AUTO_MAX_DAY)return;
       autoBusy.current=true;
-      saveAutoEvent(null); saveAutoDay(`${day}|${used+1}`);
+      saveAutoDay(`${day}|${used+1}`);
       /* setAutoAt은 여기 없다 — 방 목록 안의 상태다. 한 파일이던 앱을 넷으로
          가를 때(f35bcf6) 이 줄만 따라오지 못했고, 그 뒤로 이 효과는 매번
          ReferenceError로 죽었다. 조용히 죽었다 — async 안이라 화면에는
@@ -935,7 +970,10 @@ function App(){
         }catch(e){ /* 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
       }
       autoBusy.current=false;
+      /* 실패하면 사건이 줄에 그대로 남는다. 다음에 다시 시도한다 */
       if(!list||!list.length)return;
+      /* 성공했다. **그 사건만** 지운다 — 뒤에 쌓인 것은 그대로 둔다 */
+      if(ev&&ev.id)ackAutoEvent(ev.id);
       let t=at;
       list.forEach(x=>{
         if(!x)return;

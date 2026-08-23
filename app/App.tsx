@@ -34,7 +34,7 @@ import {
   placeOpen, placeHours, sceneShot, sceneOver, wayOK, loadWay, saveWay,
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
-  loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, takeScene,
+  loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
@@ -1666,8 +1666,44 @@ function Root() {
 
   /* 응답에 딸려오는 해금 목록과 상태메시지를 저장한다.
      이걸 안 하면 .hidden이 영영 안 열리고 프로필 상태메시지도 늘 비어 있다. */
+  /* ── 같은 사건을 두 번 새기지 않는다 ──
+     웹 app.js의 applyEffects와 같은 의미다. 같은 Effect 묶음을 두 번
+     처리해도 결과는 한 번과 같아야 한다.
+     전에는 applyExtras가 give를 **아예 안 봤다** — 앱에서는 자리 물건을
+     영영 못 받았고, 그 구멍을 자동 지급이 가리고 있었다. */
+  const applyEffects=async(fx:any)=>{
+    if(!Array.isArray(fx)||!fx.length)return;
+    let done:string[]=[];
+    try{ done=JSON.parse((await getMeta('null_eff_done'))||'[]') }catch{}
+    let changed=false;
+    for(const e of fx){
+      if(!e||typeof e!=='object'||!e.id||!e.type)continue;
+      if(done.includes(e.id))continue;                          // 이미 새겼다
+      let ok=false;
+      if(e.type==='item_transfer'){
+        /* 방향을 본다. 유저가 받는 것만 가방에 들어간다 */
+        if(e.to==='user'&&e.item&&ITEMS[e.item]
+           &&!bagRef.current.some((b:any)=>b.key===e.item)){
+          const sc=sceneRef.current;
+          const next=[...bagRef.current,{key:e.item,from:e.from,where:sc?sc.place:'',ts:Date.now()}];
+          bagRef.current=next; setBag(next); saveBag(next);
+          const it=ITEMS[e.item];
+          await sysLine(e.from,`${CHARS[e.from]?CHARS[e.from].name:e.from}에게 ${jos(it.name,'을/를')} 받았다`);
+          setToast(`bag — ${it.name}`); ok=true;
+        }
+      }else if(e.type==='invite'){
+        if(e.place&&e.char){ setInvite({place:e.place,char:e.char}); ok=true; }
+      }
+      /* story_transition은 E-B에서 낸다. 스키마는 받아두되 여기서는 안 만든다 */
+      if(ok||e.type==='story_transition'){ done.push(e.id); changed=true; }
+    }
+    if(changed)await setMeta('null_eff_done',JSON.stringify(done.slice(-200)));
+  };
+
   const applyExtras = async(data:any)=>{
-    if(data?.invite?.place) setInvite(data.invite);
+    /* 상태를 바꾸는 길은 effects 하나다. 전에는 invite를 여기서 바로 열고
+       give는 아예 안 봤다 — 두 방향이 서로 다른 길을 탔다. */
+    await applyEffects(data?.effects);
     if(Array.isArray(data?.unlocked)){
       setUnlocked(prev=>{
         const merged=Array.from(new Set([...prev,...data.unlocked]));
@@ -1879,16 +1915,22 @@ function Root() {
       const at=sc&&sc.room===room?sc.place:null;
       /* left는 자리를 닫고 나서 부르는 턴에만 온다. place와 같이 오지 않는다 —
          워커도 place가 없을 때만 본다. */
-      /* 예약된 자리는 그 방의 다음 한 마디에 한 번만 실린다. 꺼내면서
-         지우므로 재시도에서는 안 실린다 — 재시도는 같은 요청이라 워커가
-         이미 그 사유를 봤다. */
-      const why=retry?'':takeScene(room);
+      /* 읽기만 한다. 지우는 것은 답이 저장된 뒤다(ackScene) —
+         보내기 전에 지우면 실패한 턴에 그 장면이 통째로 증발한다. */
+      const why=retry?'':peekScene(room);
       const data=await sendChat(room,name,hist,{reqId:rid,...(why?{sceneReason:why}:{}),bag:bagOut(bagRef.current),
-        ...(at?{place:at,...(sc.came?{came:sc.came}:{}),...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
+        /* 두 마디는 하고 나서만 건넬 수 있다. **부르기 전에** 정해서 보낸다 —
+           응답 뒤에 재면 「받아요」는 화면에 뜨고 가방은 비는 일이 생긴다.
+           조건은 웹과 같은 함수(talkedEnough)에서 나온다. */
+        ...(at?{place:at,talkedEnough:talkedEnough(sc,msgsForFlow()),
+          ...(sc.came?{came:sc.came}:{}),...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
       if(stale(room,rid))return;
       endTurn(room,rid); setTyping(false);
       await applyExtras(data);
       if(data.messages?.length) await enqueue(room,data.messages);
+      /* 장면은 **여기서** 끝난다. 답이 저장된 뒤에만 지운다 —
+         보내기 전에 지우면 실패한 턴에 고백도 기억 공개도 증발한다. */
+      if(why) ackScene(room,why);
       logUsage(data); rollLater(room);
     }catch(e:any){
       if(stale(room,rid))return;
@@ -1966,8 +2008,30 @@ function Root() {
     await runTurn(iv.char);
   };
 
+  /* 줄에 넣는다. 앞엣것을 안 덮는다 — 선물을 연달아 둘 주면 둘 다 남는다.
+     웹 app-data.js의 pushAutoEvent와 같은 의미다. */
+  const evKey=(ev:any)=>[ev.kind,ev.to||'',ev.name||''].join('|');
+  const loadEvQ=async()=>{
+    try{ const a=JSON.parse((await getMeta('null_auto_q'))||'[]'); return Array.isArray(a)?a:[] }catch{ return [] }
+  };
   const markEvent = async(ev:any)=>{
-    try{ await setMeta('null_auto_event', JSON.stringify({...ev, at:Date.now()})); }catch{}
+    try{
+      const q=await loadEvQ(); const id=evKey(ev);
+      if(q.some((x:any)=>x.id===id))return;
+      q.push({...ev,id,created_at:Date.now(),status:'pending'});
+      await setMeta('null_auto_q', JSON.stringify(q.slice(-20)));
+    }catch{}
+  };
+  /* 제일 오래된 것부터. 성공한 것 하나만 지운다 */
+  const peekEvent = async()=>{
+    const q=(await loadEvQ()).filter((x:any)=>x&&x.status!=='done');
+    if(!q.length)return null;
+    return q.slice().sort((a:any,b:any)=>(a.created_at||0)-(b.created_at||0))[0];
+  };
+  const ackEvent = async(id:string)=>{
+    const q=await loadEvQ(); const n=q.filter((x:any)=>x&&x.id!==id);
+    if(n.length===q.length)return;
+    await setMeta('null_auto_q', JSON.stringify(n));
   };
   /* 유저가 아무것도 안 눌러도 생기는 사건 둘.
      ① 재언에게 사진이 다섯 장 넘게 오면 — 민현이는 그 사진을 못 본다.
@@ -2009,13 +2073,10 @@ function Root() {
       /* 사건이 있으면 그 일을 두고 얘기하고, 없으면 그냥 둘이 떠든다.
          전에는 사건이 없으면 아무것도 안 만들었다 — 선물도 안 주고 자리도
          안 간 사람에게는 관전방이 영영 첫 장면 그대로였다. */
-      let ev:any=null;
-      const raw=await getMeta('null_auto_event');
-      if(raw){ try{ ev=JSON.parse(raw) }catch{ ev=null } }
-      if(ev&&!ev.kind) ev=null;
+      const ev:any=await peekEvent();
       // 마지막으로 뭐라도 한 시각. 그때로부터 한 시간은 지나야 "없는 자리"가 된다
       const all=Object.values(msgs).flat() as any[];
-      const lastAny=all.reduce((a,m)=>m.created_at>a?m.created_at:a,(ev&&ev.at)||0);
+      const lastAny=all.reduce((a,m)=>m.created_at>a?m.created_at:a,(ev&&ev.created_at)||0);
       const now=Date.now();
       /* 아직 아무 일도 없었으면 비운 자리도 없다. 이걸 안 막으면 lastAny가 0이라
          「한 시간 뒤」가 1970년 1월 1일 한 시간 뒤가 된다 — 웹에서 실제로 첫
@@ -2036,9 +2097,10 @@ function Root() {
       const day=dayKey();
       const [d,n]=((await getMeta('null_auto_day'))||'').split('|');
       const used=d===day?Number(n)||0:0;
-      if(used>=AUTO_MAX_DAY){ await setMeta('null_auto_event',''); return; }
+      /* 하루 몫이 찼다. **사건은 안 지운다** — 유저가 한 일이 없던 일이 되면
+         안 된다. 내일 그 얘기가 나온다. */
+      if(used>=AUTO_MAX_DAY) return;
       autoBusy.current=true;
-      await setMeta('null_auto_event','');
       await setMeta('null_auto_day',`${day}|${used+1}`);
       await setMeta('null_auto_at',String(now)); setAutoAt(now);
       try{
@@ -2048,6 +2110,9 @@ function Root() {
         const data=await genAuto(name,ev?{kind:ev.kind,to:ev.to,name:ev.name}:undefined);
         await applyExtras(data);
         if(data.messages?.length) await enqueuePast('health',data.messages,at);
+        /* 성공했다. **그 사건만** 지운다 — 뒤에 쌓인 것은 그대로 둔다.
+           실패하면 줄에 남아서 다음에 다시 시도한다. */
+        if(ev&&ev.id&&data.messages?.length) await ackEvent(ev.id);
       }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
       autoBusy.current=false;
     })();
@@ -2212,24 +2277,12 @@ function Root() {
     await insertMsg({room,sender:'sys',text,created_at:Date.now()});
     await reload(room);
   };
-  /* 자리를 떠난다. 말을 나눈 자리면 두고 온 것을 챙긴다 — 모델이 안 건네고
-     끝내는 턴이 있는데, 그때마다 가방이 비면 지도를 도는 이유가 사라진다. */
-  const closeScene=()=>{
-    const sc=sceneRef.current;
-    if(sc&&talkedEnough(sc,msgsForFlow())){
-      const p=PLACE_BY[sc.place];
-      if(p&&p.item&&!bagRef.current.some((b:any)=>b.key===p.item)){
-        /* ref를 앞세운다 — setBag은 다음 그림에서야 반영되는데 자리를 닫자마자
-           워커를 부르므로, 방금 받은 것이 빠진 가방이 나간다(웹 app.js와 같은 자리) */
-        const next=[...bagRef.current,{key:p.item,from:sc.room,where:sc.place,ts:Date.now()}];
-        bagRef.current=next; setBag(next); saveBag(next);
-        const it=ITEMS[p.item];
-        if(it){ sysLine(sc.room,`${CHARS[sc.room].name}에게 ${jos(it.name,'을/를')} 받았다`);
-          setToast(`bag — ${it.name}`); }
-      }
-    }
-    putScene(null);
-  };
+  /* 자리를 떠난다. **여기서 물건을 안 준다** — 웹과 같다.
+     전에는 두 마디만 했으면 나오면서 넣어줬다. 그러면 유저가 거절해도
+     들어가고, 인물이 준 적 없는 것이 가방에 있고, 대사와 가방이 갈린다.
+     가방에 들어오는 길은 하나다: 검증된 give Effect를 한 번 적용하는 것. */
+  const closeScene=()=>{ putScene(null); };
+
   const goPlace=async(place:string,who:string,note?:string,came?:string)=>{
     if(!name) return;
     stampGone(place);
