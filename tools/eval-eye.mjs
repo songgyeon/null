@@ -39,22 +39,61 @@
      update성의 없다고 놀린 게 아니라…
      …'invite'를 같이 쓴다" and the available place is…
 
-   사람은 한글 옆에 소문자 영단어를 붙여 쓰지 않는다. 붙는다면 그건
-   낱말이 아니라 조각이다. 작가 문구집 2,640줄에서 0건.
-
-   대문자가 하나라도 섞이면 안 잡는다 — iPhone·LP·NCT가 그 자리다. */
-const LATIN_RUN = /[A-Za-z][A-Za-z'’]*/g;
+   대문자가 하나라도 섞이면 안 잡는다 — iPhone·LP·NCT가 그 자리다.
+   그런데 이것만으로는 모자랐다. 바로 아래 조사 예외가 그 얘기다. */
+const LATIN_RUN = /[A-Za-z][A-Za-z'’_0-9]*/g;
 const HANGUL = /[가-힣]/;
+
+/* ── 조사가 붙었으면 낱말이다 ──
+   처음에는 「소문자 로마자가 한글에 붙으면 샌 것」으로 뒀다. 기록과
+   문구집에서는 오탐 0이었는데, 적대 검증이 실제로 나올 만한 것을 열셋 찾았다.
+
+     dm으로 보낼걸 그랬나.        그 앨범 bandcamp에만 있어요.
+     mp3로 보내요?                 보건실 wifi가 안 잡혀요.
+     아이디요? minhyunee_2예요.    그거 lo-fi라서 그래요.
+
+   전부 소문자가 표준 표기인 낱말(약칭·포맷·브랜드·아이디)에 **조사**가
+   붙은 것이다. 한국어에서 이건 지극히 평범하다. 이 게임의 두 사람은
+   음악과 SNS 얘기를 제일 많이 하므로 정면으로 걸리는 자리다.
+
+   가르는 자리는 **뒤에 붙은 한글이 조사냐 낱말이냐**다.
+     mp3「로」 · wifi「가」 · bandcamp「에만」   조사 → 낱말이다
+     update「성의」                              명사 → 조각이다
+
+   조사를 최대한 먹은 뒤 한글이 더 남으면 그건 새 낱말이 시작된 것이다.
+   「foo이상해」처럼 조사로 시작하는 낱말도 이 규칙에 안 속는다 —
+   「이」를 먹어도 「상해」가 남으므로 통과 못 한다.
+
+   ── 못 가르는 것 하나 ──
+   「qr코드」는 「update성의」와 **구조가 같다**(소문자 + 명사). 좁혀서는
+   못 가른다. 대문자 「QR코드」가 표준 표기라 실제로 드물다고 보고 남긴다.
+   여기 걸리면 그건 자가 틀린 것이니 이 목록이 아니라 판단을 고쳐야 한다. */
+const JOSA = ["으로", "이랑", "에서", "에게", "한테", "이라고", "라고", "이라서", "라서",
+  "이라며", "라며", "이라니", "라니", "이라", "라", "까지", "부터", "처럼", "보다", "마다",
+  "조차", "밖에", "이나", "이든", "이면", "예요", "이에요", "입니다", "이다", "이었", "였",
+  "은", "는", "이", "가", "을", "를", "에", "의", "도", "만", "로", "와", "과", "랑",
+  "뿐", "씩", "째", "급", "쯤", "나", "든", "면", "야", "요", "님", "씨", "네"];
 
 function gluedLower(t) {
   const s = String(t || "");
   LATIN_RUN.lastIndex = 0;
   let m;
   while ((m = LATIN_RUN.exec(s))) {
-    if (!/^[a-z'’]+$/.test(m[0])) continue;         // 대문자가 섞였으면 고유명사다
-    const before = m.index > 0 ? s[m.index - 1] : "";
-    const after = s[m.index + m[0].length] || "";
-    if (HANGUL.test(before) || HANGUL.test(after)) return m[0];
+    /* 대문자가 섞였으면 고유명사다 — LP·Sia·NCT·Kisses.
+       글자가 하나도 없는 것(숫자뿐)은 로마자 낱말이 아니다. */
+    if (!/^[a-z'’_0-9]+$/.test(m[0]) || !/[a-z]/.test(m[0])) continue;
+    const end = m.index + m[0].length;
+    /* 앞이 한글이면 그건 조사가 아니라 낱말 뒤에 붙은 것이다 — 늘 조각이다 */
+    if (m.index > 0 && HANGUL.test(s[m.index - 1])) return m[0];
+    if (!HANGUL.test(s[end] || "")) continue;
+    let i = end;
+    for (;;) {
+      const hit = JOSA.filter(j => s.startsWith(j, i)).sort((a, b) => b.length - a.length)[0];
+      if (!hit) break;
+      i += hit.length;
+    }
+    if (i > end && !HANGUL.test(s[i] || "")) continue;   // 조사만 붙었다 → 낱말이다
+    return m[0];
   }
   return null;
 }
@@ -69,14 +108,35 @@ function gluedLower(t) {
    반면 영어 산문은 관사·전치사·조동사가 줄줄이 소문자다:
    「…say "…" and the available place is …」.
 
-   셋으로 잡은 것은 실측이다. 둘도 문구집에서 0건이었지만 셋이 더 안전하다 —
-   소문자 두 낱말짜리 제목(「the xx」)이 없다고 장담할 수 없다. */
-function lowerRun(t, need) {
+   ── 셋으로는 안 된다 ──
+   처음에 셋으로 뒀다. 문구집에서 오탐 0이라 넘어갔는데, 적대 검증이
+   **열 건 전부 걸리는** 것을 보여줬다. 전부 소문자가 정식 표기인
+   밴드·곡 이름과 인용이다.
+
+     se so neon · wave to earth · girl in red        (전부 공식 표기가 소문자다)
+     그냥 wolf alice don't delete the kisses 쳐봐요.  (검색어는 소문자로 친다)
+     가사에 you and me were meant to be 나오는 그 부분요.
+     영어 숙제요. it is what it is 이거 뭐라고 해석해요?
+
+   이 게임의 두 사람이 제일 많이 하는 얘기가 음악이다. 기록에서 유저가
+   실제로 「i don't think that i like her」를 소문자로 쳤다(1998줄).
+   제목을 셋으로 자르면 이 화제가 통째로 위반이 된다.
+
+   ── 길이가 가른다 ──
+   샌 것은 모델의 **혼잣말**이라 여러 문장으로 길다(564줄은 로마자 서른셋).
+   인용한 제목·가사는 짧다(넷에서 일곱). 그래서 두 조건을 함께 건다:
+   소문자가 다섯 이어지고, **그 줄의 로마자 낱말이 여덟 이상**.
+   적대 견본 열 건이 전부 빠지고 564는 그대로 잡힌다. */
+const LOWER_RUN = 5;
+const LATIN_MIN = 8;
+
+function lowerRun(t) {
   const words = String(t || "").match(LATIN_RUN) || [];
+  if (words.length < LATIN_MIN) return false;
   let run = 0;
   for (const w of words) {
     run = /^[a-z'’]+$/.test(w) ? run + 1 : 0;
-    if (run >= (need || 3)) return true;
+    if (run >= LOWER_RUN) return true;
   }
   return false;
 }
@@ -112,7 +172,7 @@ export function seesLeak(text) {
   if (g) return { code: "GLUED_LATIN", why: `한글에 붙은 소문자 「${g}」` };
   const f = fragment(text);
   if (f) return { code: "FRAGMENT", why: f };
-  if (lowerRun(text, 3)) return { code: "EN_PROSE", why: "소문자 로마자 세 낱말 연속" };
+  if (lowerRun(text)) return { code: "EN_PROSE", why: "소문자 로마자가 길게 이어진다" };
   return null;
 }
 

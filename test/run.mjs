@@ -4522,13 +4522,45 @@ eq('시간표 단추는 peek보다 좁다',
     ['LP는 고마워요.', 'Sia예요.', 'Kisses예요, Wolf Alice.', 'NCT면 도영 아니에요?',
      'Dumb이나 Teen Spirit급으로 하나 걸어봐요.', "Don't Delete the Kisses."]
       .filter(t => seesLeak(t)), []);
+  /* ── 적대 검증이 찾아온 것들 ──
+     문구집에서는 오탐 0이었는데 실제로 나올 만한 것이 열셋 있었다.
+     전부 소문자가 표준 표기인 낱말에 **조사**가 붙은 것이다. 이 게임의
+     두 사람은 음악과 SNS 얘기를 제일 많이 하므로 정면으로 걸리는 자리였다. */
+  eq('소문자 낱말에 조사가 붙은 것은 안 잡는다',
+    ['아이디요? minhyunee_2예요.', 'dm으로 보낼걸 그랬나.', '그 앨범 bandcamp에만 있어요.',
+     'mp3로 보내요?', 'pdf로 보내줘요.', 'usb에 담아서 줄게요.', '보건실 wifi가 안 잡혀요.',
+     'ost만 듣는 거 아니에요.', 'edm은 별로예요.', 'b면이 더 좋아요.',
+     '그거 lo-fi라서 그래요.', '어제 그 i don\'t think that i like her는 몇 번 들었어요?']
+      .filter(t => seesLeak(t)), []);
+  /* 조사로 시작하는 낱말에는 안 속는다 — 「이」를 먹어도 「상해」가 남는다 */
+  eq('조사처럼 시작하는 낱말에는 안 속는다',
+    (seesLeak('foo이상해요.') || {}).code, 'GLUED_LATIN');
+  /* ── 소문자 밴드·곡 이름 ──
+     se so neon · girl in red · wave to earth는 공식 표기가 소문자다.
+     셋으로 자르면 이 화제가 통째로 위반이 된다. 샌 것은 혼잣말이라 길고
+     인용한 제목은 짧다 — 길이가 가른다. */
+  eq('소문자 제목과 인용은 안 잡는다',
+    ['새소년요. 재킷에 se so neon 이라고만 써 있어요.',
+     'wave to earth 알아요? 요즘 그거만 들어요.',
+     'girl in red요. 이름이 원래 소문자예요.',
+     "when the party's over요. 제목이 원래 소문자예요.",
+     "그냥 wolf alice don't delete the kisses 쳐봐요.",
+     '왜 다 소문자로 써요. bird set free 이렇게.',
+     '애들 시작할 때 good luck have fun 이러는 거 있잖아요.',
+     '영어 숙제요. it is what it is 이거 뭐라고 해석해요?',
+     '가사에 you and me were meant to be 나오는 그 부분요.']
+      .filter(t => seesLeak(t)), []);
   /* 워커는 줄머리만 본다. 자는 아무 데나 본다 — 그게 독립인 지점이다 */
   eq('앞에 말이 붙어도 조각을 잡는다',
     (seesLeak('알겠어요. {"messages": ["들어가요."]}') || {}).code, 'FRAGMENT');
   eq('시각과 웃는 표시는 조각이 아니다',
     ['3:40에 봐요.', '2:1로 이겼어요.', '웃겨 :D', '그래요 :)'].filter(t => seesLeak(t)), []);
-  eq('영어 혼잣말을 잡는다',
-    (seesLeak('I should probably not say that here.') || {}).code, 'EN_PROSE');
+  /* 혼잣말은 여러 문장이라 길다. 짧은 영어 한 마디는 이제 안 잡는다 —
+     그건 제목·가사와 구별이 안 되고, 워커의 문구 목록이 보는 자리다.
+     엇갈림에 「워커만 봄」으로 뜨므로 조용히 사라지지 않는다. */
+  eq('긴 영어 혼잣말을 잡는다', (seesLeak(
+    'The instructions say the available place is there. But there is no natural segue to invite them right now.'
+  ) || {}).code, 'EN_PROSE');
 
   /* ── ㄹ 받침 앞의 래요는 의지지 전언이 아니다 ──
      작가 문구집에서 다섯 줄이 걸려서 알았다. 낱말 목록으로는 못 막는 갈래다. */
