@@ -2699,14 +2699,26 @@ eq('세계관에는 안 남겼다',
   eq('관전 요약을 굴린다', /setTimeout\(\(\)=>rollSummary\("health"\),1200\);/.test(web), true);
   /* 워커가 단톡 요약을 받는다 — room 검증에 group이 있어야 엉뚱한 방이 안 된다 */
   const w = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  /* ── 요약일 때만 넷을 받는다 ──
-     요약은 인물 블록도 형식도 안 쓰는 압축이라 방을 안 가려도 된다. 그런데
-     chat·auto에서 health를 방으로 받으면 buildSystem이 인물 블록을 못 골라
-     minhyun으로 떨어진다 — 엉뚱한 방 프롬프트가 된다. */
+  /* ── 방은 갈래마다 다르다 ──
+     관전(auto)의 방은 health 하나뿐이다. 전에는 생성 경로가 health를 아예
+     안 받아서 관전이 **민현 1:1 방으로 처리**되고 있었다 — 클라이언트가
+     room을 안 실었고 못 받은 room이 조용히 minhyun으로 떨어졌다.
+     buildSystem은 mode === "auto"를 먼저 보므로 room이 health여도 인물
+     블록은 제대로 골라진다. */
+  eq('관전은 health만 받는다',
+    /mode === "auto" \? \["health"\]/.test(w), true);
   eq('요약은 네 방을 받는다',
-    /mode === "summarize"\s*\n\s*\? \["jaeeon", "minhyun", "group", "health"\]/.test(w), true);
+    /mode === "summarize" \? \["jaeeon", "minhyun", "group", "health"\]/.test(w), true);
   eq('대화는 세 방만 받는다',
-    /: \["jaeeon", "minhyun", "group"\];\s*\n\s*const room = ROOMS_OK\.includes\(body\.room\)/.test(w), true);
+    /: \["jaeeon", "minhyun", "group"\];\s*\n\s*const DEFAULT_ROOM/.test(w), true);
+  /* 조용한 폴백을 없앤다. 관전의 기본값은 health이고 그것이 승인된 값이다 */
+  eq('관전의 기본값이 health다',
+    /const DEFAULT_ROOM = mode === "auto" \? "health" : "minhyun";/.test(w), true);
+  eq('모르는 방 이름은 조용히 안 넘어간다', /모르는 방 이름/.test(w), true);
+  /* 클라이언트가 실제로 실어 보내야 배선이 산다 */
+  eq('웹·앱 관전 호출이 방 이름을 싣는다',
+    (web.match(/mode:"auto",room:"health"/g) || []).length === 2
+    && /mode: 'auto',[\s\S]{0,200}room: 'health'/.test(apiSrc), true);
   /* 요약 갈래는 room을 안 쓴다 — 그래서 넷을 받아도 안전하다 */
   {
     const i = w.indexOf('if (mode === "summarize") {');
@@ -4708,9 +4720,11 @@ eq('시간표 단추는 peek보다 좁다',
    여기 있는 것을 아직 배선하지 않았다(그건 뒤 단계다). 그래도 테스트를
    지금 쓴다: 계약이 계약대로 도는지를 배선 전에 굳혀두는 것이 요점이다. */
 {
-  const { makeFact, factsFor, factValue, contradicts, ROOM_EARS,
+  const { makeFact, factsForSpeaker, sharedFactsForRoom, factValue, contradicts,
+          ROOM_EARS, ROOM_SPEAKERS,
           makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
           makeEffect, mintEffectId } = ENG;
+  const ctxOf = facts => ({ facts });
   const boom = fn => { try { fn(); return null; } catch (e) { return String(e.message); } };
 
   /* ── 없는 것은 거짓이 아니다 ──
@@ -4728,30 +4742,40 @@ eq('시간표 단추는 peek보다 좁다',
     contradicts(F, 'gift.mug.received_by_jaeeon', true),
   ], [true, false]);
 
-  /* ── 아는 범위를 방마다 자른다 ──
-     이걸 빠뜨리면 재언만 아는 20년 전 과거가 민현 방과 단톡 Writer에 샌다. */
-  /* 재언만 아는 20년 전 과거가 민현 방으로 새면 안 된다.
-     선물은 유저도 아는 일이라 민현 방에서도 말할 수 있다 — 그 둘은 다르다. */
-  eq('재언만 아는 것은 민현 방에 안 간다',
-    factsFor(F, 'minhyun').map(f => f.fact_id).includes('jaeeon.knew.child'), false);
-  eq('유저도 아는 일은 다른 방에서도 말할 수 있다',
-    factsFor(F, 'minhyun').map(f => f.fact_id),
-    ['gift.mug.received_by_jaeeon', 'minhyun.met.rooftop']);
-  eq('단톡은 셋이 듣는다', factsFor(F, 'group').length, 3);
-  eq('관전방에 유저만 아는 것은 안 간다', (() => {
-    const only = [makeFact('user.only', 1, 'state', ['user'])];
-    return factsFor(only, 'health').length;
-  })(), 0);
-  /* 화자를 주면 그 한 사람이 아는 것만. 재언 방이어도 유저만 아는 건 빠진다 */
-  eq('화자를 주면 그 사람 것만 남는다',
-    factsFor(F, 'jaeeon', 'jaeeon').map(f => f.fact_id),
+  /* ── 방으로 합치지 않는다 ──
+     전에 여기 「유저도 아는 일은 다른 방에서도 말할 수 있다」가 있었다.
+     factsFor(F,'minhyun')에 선물 사실이 들어가는 것을 **정답으로 굳혀놨다** —
+     ROOM_EARS.minhyun에 user가 있고 유저는 제가 준 선물을 아니까.
+     막으려던 그 누출이 투영 함수 안에 있었고 테스트가 그걸 지켰다.
+     known_by:["user"]는 유저가 안다는 뜻일 뿐 그 방 인물에게 공개됐다는
+     뜻이 아니다. 방 단위 투영을 없애고 화자 투영으로 바꾼다. */
+  eq('방 단위 투영은 아예 없다', typeof ENG.factsFor, 'undefined');
+  eq('재언만 아는 것은 민현에게 안 간다',
+    factsForSpeaker(ctxOf(F), 'minhyun').map(f => f.fact_id), ['minhyun.met.rooftop']);
+  eq('유저가 안다고 다른 방 인물에게 가지 않는다',
+    factsForSpeaker(ctxOf(F), 'minhyun').map(f => f.fact_id)
+      .includes('gift.mug.received_by_jaeeon'), false);
+  eq('제가 아는 것은 제게 간다',
+    factsForSpeaker(ctxOf(F), 'jaeeon').map(f => f.fact_id),
     ['gift.mug.received_by_jaeeon', 'jaeeon.knew.child']);
-  eq('방 목록에 없는 방은 아무것도 안 준다', factsFor(F, '없는방').length, 0);
+  /* 공동 Writer는 교집합만 받는다. 한 사람만 아는 것에 딱지를 붙여 같이
+     넣으면 같은 모델이 둘 다 읽는다 — 차단이 아니라 부탁이다. */
+  eq('공동 Writer는 둘 다 아는 것만 받는다',
+    sharedFactsForRoom(ctxOf(F), ['jaeeon', 'minhyun']).map(f => f.fact_id), []);
+  eq('둘 다 아는 것은 교집합에 남는다', (() => {
+    const both = [...F, makeFact('둘다.안다', 1, 'state', ['jaeeon', 'minhyun', 'user'])];
+    return sharedFactsForRoom(ctxOf(both), ['jaeeon', 'minhyun']).map(f => f.fact_id);
+  })(), ['둘다.안다']);
+  /* 유저가 안다는 이유로 교집합에 끼워 넣지 않는다 */
+  eq('교집합에 유저는 안 낀다',
+    ROOM_SPEAKERS.group.includes('user') || ROOM_SPEAKERS.health.includes('user'), false);
+  eq('화자가 없으면 아무것도 안 준다',
+    [factsForSpeaker(ctxOf(F), '').length, sharedFactsForRoom(ctxOf(F), []).length], [0, 0]);
   /* 아무도 모르는 사실은 아무에게도 안 간다 — 조용히 새는 것이 제일 나쁘다 */
-  eq('known_by가 비면 어느 방에도 안 간다', (() => {
-    const secret = [makeFact('아무도.모름', 1, 'canon', [])];
-    return ['jaeeon', 'minhyun', 'group', 'health'].map(r => factsFor(secret, r).length);
-  })(), [0, 0, 0, 0]);
+  eq('known_by가 비면 누구에게도 안 간다', (() => {
+    const secret = ctxOf([makeFact('아무도.모름', 1, 'canon', [])]);
+    return ['jaeeon', 'minhyun', 'user'].map(w => factsForSpeaker(secret, w).length);
+  })(), [0, 0, 0]);
   eq('모르는 사람 이름은 known_by에서 걸러진다',
     makeFact('x', 1, 'canon', ['jaeeon', '선생님', 'user']).known_by, ['jaeeon', 'user']);
   eq('source는 둘뿐이다', boom(() => makeFact('x', 1, 'guess', [])), '모르는 source: guess');
@@ -4759,7 +4783,7 @@ eq('시간표 단추는 peek보다 좁다',
   /* Canon Critic은 고정 정사와 이번 판 상태를 둘 다 봐야 한다 —
      정사만 주면 방금 일어난 일을 「없는 일」로 잡는다 */
   eq('사실에는 두 출처가 섞여 있다',
-    [...new Set(factsFor(F, 'group').map(f => f.source))].sort(), ['canon', 'state']);
+    [...new Set(F.map(f => f.source))].sort(), ['canon', 'state']);
 
   /* ── 예약과 발생을 가르는 세 칸 ── */
   eq('이야기 상태 기본값', (() => {
@@ -4821,8 +4845,14 @@ eq('시간표 단추는 peek보다 좁다',
     makeEffect('req-1', { type: 'invite', place: '빨래방', char: 'jaeeon' }).id,
     mintEffectId('req-1', 'invite', 'jaeeon', '빨래방'));
 
-  /* 방마다 누가 듣는지는 한 군데에만 적는다 */
+  /* ROOM_EARS는 이제 「누가 그 방에 있나」다 — 사실 투영에는 안 쓴다.
+     E단계에서 공개(disclosure)의 heard_by가 그 자리에 있었는지 볼 때 쓴다. */
   eq('관전방은 유저가 안 낀다', ROOM_EARS.health.includes('user'), false);
+  eq('사실 투영이 ROOM_EARS를 안 쓴다', (() => {
+    const a = workerSrc.indexOf('function factsForSpeaker(');
+    const b = workerSrc.indexOf('/* ── StoryState ──');
+    return workerSrc.slice(a, b).includes('ROOM_EARS');
+  })(), false);
 }
 
 /* ══════════ 생성 엔진 ══════════
@@ -4981,6 +5011,270 @@ eq('시간표 단추는 peek보다 좁다',
   /* 같은 단계 이름이 재시도로 두 번 나온다 — 번호가 없으면 구분이 안 된다 */
   eq('호출 번호가 화면까지 온다',
     /t\.call_id/.test(web) && /t\.call_id/.test(appSrc), true);
+}
+
+/* ══════════ 지식 범위 — 요청 하나, 사실 하나 ══════════
+   ── 왜 통짜 파이프라인으로 재나 ──
+   투영 함수 단위 시험은 전부 통과하는데 배선이 새는 일이 실제로 있었다.
+   관전방이 그랬다: ROOM_EARS.health는 유저를 빼놨는데 클라이언트가 room을
+   안 실어서 워커에서 minhyun으로 떨어졌고, 그래서 그 줄이 죽어 있었다.
+   함수만 보면 안 보인다. 요청 진입부터 프롬프트까지 실제로 굴려야 보인다.
+
+   fetch를 가로채 모델 대신 가짜 답을 돌려주고, 그때 워커가 **실제로 만든
+   프롬프트**를 들여다본다. */
+{
+  const { buildFacts, factsForSpeaker, sharedFactsForRoom, renderFacts,
+          giftFacts, handedFacts, makeTurnContext, buildEvent } = ENG;
+
+  /* ── 가짜 API ── */
+  const realFetch = globalThis.fetch;
+  let sent = [];
+  const fakeReply = txt => ({
+    ok: true, status: 200,
+    headers: { get: () => null },
+    json: async () => ({
+      content: [{ type: 'text', text: txt }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+      stop_reason: 'end_turn',
+    }),
+    text: async () => '',
+  });
+  /* 한 턴이 모델을 여러 번 탄다 — 쓰는 쪽 다음에 고르는 쪽이 온다.
+     같은 답을 두 번 주면 고르는 쪽이 못 읽고 RETRY가 돌아 502가 난다. */
+  async function runTurn(body, reply) {
+    sent = [];
+    globalThis.fetch = async (url, init) => {
+      const c = JSON.parse(init.body);
+      sent.push(c);
+      const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
+        .map(b => b.text || '').join('');
+      const isDirector = sys.includes('대사를 쓰지 않는다 — 고르기만 한다');
+      return fakeReply(isDirector
+        ? JSON.stringify({ decision: 'ACCEPT', reject_codes: {} })
+        : (reply || JSON.stringify({ messages: [{ text: '네.' }] })));
+    };
+    try {
+      const res = await worker.fetch(
+        new Request('https://x/?k=열쇠', { method: 'POST', body: JSON.stringify(body) }),
+        { ANTHROPIC_API_KEY: 'sk-테스트', ACCESS_KEY: '열쇠', CANDIDATE_MODE: 'one' });
+      return { status: res.status, data: await res.json() };
+    } finally { globalThis.fetch = realFetch; }
+  }
+  /* 그 요청에서 쓰는 쪽이 실제로 읽은 글 전부 — 고정부 + 이력 + 가변부 */
+  const writerSaw = () => {
+    const c = sent[0];
+    if (!c) return '';
+    const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
+      .map(b => b.text || '').join('\n');
+    const msg = (c.messages || []).map(m => Array.isArray(m.content)
+      ? m.content.map(b => b.text || '').join('\n') : m.content).join('\n');
+    return sys + '\n' + msg;
+  };
+  const cachedPart = () => (sent[0].system || []).filter(b => b.cache_control)
+    .map(b => b.text).join('\n');
+  /* ── 사실 블록만 본다 ──
+     세계관 lore에 「줬다」가 마흔 번 넘게 나온다(사탕 목걸이·밴드·캔커피…).
+     프롬프트 전체를 훑으면 그게 다 걸려서 아무것도 못 잰다. */
+  const factsBlock = () => {
+    const saw = writerSaw();
+    const i = saw.indexOf('## [지금 아는 것]');
+    if (i < 0) return '';
+    const rest = saw.slice(i);
+    const j = rest.indexOf('\n##', 3);
+    return j < 0 ? rest : rest.slice(0, j);
+  };
+  const leaksOrigin = () => /줬다/.test(factsBlock());
+
+  const BASE = { user_name: '선생님', history: [{ role: 'user', content: '안녕' }] };
+  const GAVE_JAEEON = { gifts: { jaeeon: ['mug'] } };
+
+  /* ── 1. 재언만 아는 선물 출처가 민현에게 안 보인다 ── */
+  await (async () => {
+    const r = await runTurn({ mode: 'chat', room: 'minhyun', ...BASE, ...GAVE_JAEEON });
+    eq('요청이 실제로 돈다', r.status, 200);
+    const saw = writerSaw();
+    eq('민현은 출처를 못 본다', leaksOrigin(), false);
+    eq('민현은 물건이 있다는 것만 본다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+  })();
+
+  /* ── 2. 반대 방향도 대칭이다 ── */
+  await (async () => {
+    const r = await runTurn({ mode: 'chat', room: 'jaeeon', ...BASE, gifts: { minhyun: ['letter'] } });
+    eq('반대 방향도 요청이 돈다', r.status, 200);
+    const saw = writerSaw();
+    eq('재언도 출처는 못 본다', leaksOrigin(), false);
+    eq('재언도 물건만 본다', saw.includes('편지지는 이민현에게 있다'), true);
+  })();
+
+  /* ── 3. 받은 사람은 출처를 안다 ── */
+  await (async () => {
+    await runTurn({ mode: 'chat', room: 'jaeeon', ...BASE, ...GAVE_JAEEON });
+    const saw = writerSaw();
+    eq('받은 사람은 출처를 안다', factsBlock().includes('회색 머그컵을 줬다'), true);
+    eq('받은 사람은 제 물건도 안다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+  })();
+
+  /* ── 4. 공동 Writer에는 교집합만 ──
+     단톡·관전은 한 호출로 두 사람 대사를 낸다. 한 사람만 아는 것을 딱지
+     붙여 같이 넣으면 같은 모델이 둘 다 읽는다 — 차단이 아니라 부탁이다. */
+  await (async () => {
+    await runTurn({ mode: 'chat', room: 'group', ...BASE, ...GAVE_JAEEON });
+    const saw = writerSaw();
+    eq('단톡에 출처가 안 실린다', leaksOrigin(), false);
+    /* 보유 사실은 둘 다 아니까 교집합에 남는다 */
+    eq('단톡에 보유 사실은 실린다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+  })();
+
+  /* ── 5. 관전방이 민현 1:1로 안 떨어진다 ── */
+  await (async () => {
+    const r = await runTurn({ mode: 'auto', room: 'health', ...BASE, ...GAVE_JAEEON });
+    eq('관전이 실제로 돈다', r.status, 200);
+    const saw = writerSaw();
+    eq('관전에 출처가 안 실린다', leaksOrigin(), false);
+    /* 관전은 두 사람이 같이 읽는 자리다 — 여기가 제일 크게 새던 곳이다 */
+    eq('관전에 보유 사실만 실린다', saw.includes('회색 머그컵은 이재언에게 있다'), true);
+  })();
+  /* room을 안 실은 옛 클라이언트도 관전은 health로 간다 — 조용한 폴백이 아니라
+     승인된 기본값이다 */
+  await (async () => {
+    await runTurn({ mode: 'auto', ...BASE, ...GAVE_JAEEON });
+    eq('room 없는 관전도 출처가 안 샌다', leaksOrigin(), false);
+  })();
+
+  /* ── 6. buildEvent가 출처를 우회 누출하지 않는다 ──
+     사실을 아무리 잘 가려도 산문이 먼저 답을 말하면 소용없다. */
+  eq('사건 문장에 준 사람이 없다', (() => {
+    const t = buildEvent({ kind: 'gift', to: 'jaeeon', name: '회색 머그컵' }, '선생님');
+    return /선생님이 이재언에게/.test(t) || /선생님이.*줬다/.test(t);
+  })(), false);
+  eq('사건 문장은 물건과 보유자만 말한다', (() => {
+    const t = buildEvent({ kind: 'gift', to: 'jaeeon', name: '회색 머그컵' }, '선생님');
+    return t.includes('이재언에게 전에 없던 회색 머그컵이 있다') && t.includes('본 것만으로는 모른다');
+  })(), true);
+  await (async () => {
+    await runTurn({ mode: 'auto', room: 'health', ...BASE, ...GAVE_JAEEON,
+      event: { kind: 'gift', to: 'jaeeon', name: '회색 머그컵' } });
+    const saw = writerSaw();
+    eq('사건이 실려도 출처는 안 샌다', /선생님이 이재언에게/.test(saw) || leaksOrigin(), false);
+    eq('사건은 실린다', saw.includes('전에 없던 회색 머그컵이 있다'), true);
+  })();
+
+  /* ── 7. 유저가 다른 방에서 한 일이 이 방 사실로 승격되지 않는다 ── */
+  await (async () => {
+    await runTurn({ mode: 'chat', room: 'minhyun', ...BASE, ...GAVE_JAEEON });
+    const saw = writerSaw();
+    eq('유저가 안다고 이 방 인물이 알지 않는다', leaksOrigin(), false);
+  })();
+  /* 유저가 이 방에서 실제로 말한 것은 history로 온다 — 사실 목록이 아니다 */
+  await (async () => {
+    await runTurn({ mode: 'chat', room: 'minhyun', user_name: '선생님',
+      history: [{ role: 'user', content: '삼촌한테 컵 줬어' }], ...GAVE_JAEEON });
+    const saw = writerSaw();
+    eq('이 방에서 한 말은 이력으로 온다', saw.includes('삼촌한테 컵 줬어'), true);
+    eq('그래도 사실 목록에는 안 들어간다', leaksOrigin(), false);
+  })();
+
+  /* ── 8. 지문과 유저의 괄호를 가른다 ── */
+  await (async () => {
+    await runTurn({ mode: 'chat', room: 'jaeeon', user_name: '선생님', history: [
+      { role: 'user', content: '(웃음)' },
+      { role: 'user', kind: 'event', content: '이재언이 회색 머그컵을 받았다' },
+    ]});
+    const saw = writerSaw();
+    eq('실제 사건은 사건으로 간다', saw.includes('[시스템 사건] 이재언이 회색 머그컵을 받았다'), true);
+    eq('유저가 친 괄호는 사건이 아니다', saw.includes('[시스템 사건] (웃음)'), false);
+    eq('유저가 친 괄호는 그대로 남는다', saw.includes('(웃음)'), true);
+  })();
+
+  /* ── 9. 캐시 경계 ──
+     사실은 가변부에만 간다. 선물 하나에 고정부가 달라지면 캐시가 통째로
+     다시 쓰인다 — 오류가 안 나고 조용히 정가를 문다. */
+  await (async () => {
+    await runTurn({ mode: 'chat', room: 'jaeeon', ...BASE });
+    const a = cachedPart();
+    await runTurn({ mode: 'chat', room: 'jaeeon', ...BASE, ...GAVE_JAEEON,
+      place: '보건실', bag: [{ key: 'bandaid', from: 'jaeeon' }] });
+    const b = cachedPart();
+    eq('사실이 달라져도 고정부는 같다', a === b, true);
+    eq('고정부에 사실이 없다', /지금 아는 것/.test(a), false);
+    eq('사실은 가변부에 있다', /지금 아는 것/.test(writerSaw()), true);
+  })();
+  eq('사실 렌더는 가변부에서만 부른다', (() => {
+    const sys = workerSrc.slice(workerSrc.indexOf('function buildSystem('),
+                                workerSrc.indexOf('function buildVolatile('));
+    const vol = workerSrc.slice(workerSrc.indexOf('function buildVolatile('),
+                                workerSrc.indexOf('// 사진 검증'));
+    return !sys.includes('renderFacts') && vol.includes('renderFacts');
+  })(), true);
+
+  /* ── 10. 모든 단계가 같은 fact_id를 본다 ── */
+  eq('사실은 요청 진입에서 한 번 만든다',
+    (workerSrc.match(/buildFacts\(/g) || []).length, 2);      // 정의 하나 + 호출 하나
+  eq('사실 원본이 TurnContext로 들어간다',
+    /const turnCtx = makeTurnContext\([\s\S]{0,300}facts: buildFacts\(/.test(workerSrc), true);
+  eq('고르는 쪽도 같은 원본에서 받는다',
+    /const sceneFacts = renderFacts\(factsForSpeaker\(turnCtx, fallbackSender\)/.test(workerSrc), true);
+  eq('재시도해도 같은 이름이다', (() => {
+    const a = buildFacts({ jaeeon: ['mug'] }, [], null, 'jaeeon').map(f => f.fact_id);
+    const b = buildFacts({ jaeeon: ['mug'] }, [], null, 'jaeeon').map(f => f.fact_id);
+    return JSON.stringify(a) === JSON.stringify(b) && a.length === 2;
+  })(), true);
+
+  /* ── 11. 사실 조립 ── */
+  eq('선물 하나가 사실 둘을 낳는다',
+    giftFacts('jaeeon', 'mug', false).map(f => [f.fact_id, f.known_by.join('·')]),
+    [['gift.mug.user_to_jaeeon', 'user·jaeeon'],
+     ['item.mug.with_jaeeon', 'user·jaeeon·minhyun']]);
+  /* 관측 행위를 이름에 넣지 않는다 — 누가 봤는지는 known_by가 말한다 */
+  eq('이름은 세계 상태를 적는다',
+    giftFacts('jaeeon', 'mug', false).some(f => /observed|봤|seen/.test(f.fact_id)), false);
+  /* 방금 건넨 것은 아직 아무도 못 봤다 */
+  eq('방금 준 것은 관측자가 없다',
+    giftFacts('jaeeon', 'mug', true).map(f => f.known_by.join('·')),
+    ['user·jaeeon', 'user·jaeeon']);
+  /* 유저 가방은 아무도 안 들여다본다 */
+  eq('인물이 준 것은 둘만 안다',
+    handedFacts('jaeeon', 'bandaid').map(f => [f.fact_id, f.known_by.join('·')]),
+    [['gift.bandaid.jaeeon_to_user', 'user·jaeeon'],
+     ['item.bandaid.with_user', 'user·jaeeon']]);
+  eq('모르는 물건은 사실이 안 된다', giftFacts('jaeeon', '없는것', false), []);
+
+  /* ── 12. 준 기록은 수신자를 지킨다 ── */
+  eq('준 기록이 평면 배열로 안 뭉친다', (() => {
+    const F = buildFacts({ jaeeon: ['mug'], minhyun: ['letter'] }, [], null, '');
+    return [factsForSpeaker({ facts: F }, 'jaeeon').map(f => f.fact_id),
+            factsForSpeaker({ facts: F }, 'minhyun').map(f => f.fact_id)];
+  })(), [['gift.mug.user_to_jaeeon', 'item.mug.with_jaeeon', 'item.letter.with_minhyun'],
+         ['item.mug.with_jaeeon', 'gift.letter.user_to_minhyun', 'item.letter.with_minhyun']]);
+  eq('이번 턴 선물은 지난 기록에서 뺀다',
+    /k !== now/.test(workerSrc) && /const now = gift && gift\.key/.test(workerSrc), true);
+  eq('웹이 준 기록을 수신자별로 보낸다', /payload\.gifts=giftsRef\.current/.test(web), true);
+  /* 앱도 같이 보낸다. 한쪽만 보내면 같은 세이브가 기기마다 다른 사실을 본다 */
+  eq('앱도 준 기록을 보낸다', (apiSrc.match(/gifts: await loadGifts\(\)/g) || []).length, 2);
+  eq('앱도 평면으로 안 뭉친다', /\.flat\(\)[\s\S]{0,40}gifts|gifts[\s\S]{0,20}\.flat\(\)/.test(apiSrc), false);
+
+  /* ── 13. hasItem을 넷으로 갈랐다 ──
+     한 값이 정반대 두 뜻으로 돌았다 — 코드는 「이미 가짐」, 꾸러미에는
+     「건넬 수 있다」. 같은 값을 반대 뜻으로 재사용하지 않는다. */
+  /* 남은 hasItem은 「전에는 이랬다」를 적은 주석 둘뿐이다. 코드에는 없다 */
+  eq('hasItem이 코드에 안 남았다', (() => {
+    return workerSrc.split('\n')
+      .filter(l => /\bhasItem\b/.test(l) && !/^\s*(\/\*|\*|\/\/|\s{3})/.test(l)).length;
+  })(), 0);
+  eq('넷이 다 있다',
+    ['placeItemOwned', 'placeItemAvailable', 'giftNow', 'givenHistory']
+      .filter(k => !workerSrc.includes(k)), []);
+  eq('건넬 수 있다는 가진 것의 반대다',
+    /const placeItemAvailable = !!place && !!PLACE_ITEMS\[place\] && !placeItemOwned;/.test(workerSrc), true);
+  eq('꾸러미에 뜻이 뒤집혀 들어가지 않는다',
+    /if \(placeItemAvailable\) turnFacts\.push\("이 자리에 건넬 수 있는 물건이 있다"\)/.test(workerSrc), true);
+
+  /* ── 14. 없는 것은 모르는 것이지 아닌 것이 아니다 ── */
+  eq('없는 것은 아직 모르는 것이라고 적는다',
+    renderFacts(giftFacts('jaeeon', 'mug', false), '선생님').includes('없다고 단정하지 않는다'), true);
+  eq('목록을 읊지 말라고 적는다',
+    renderFacts(giftFacts('jaeeon', 'mug', false), '선생님').includes('읊지 않는다'), true);
+  eq('사실이 없으면 블록도 없다', renderFacts([], '선생님'), '');
 }
 
 /* 파이프라인을 실제로 굴려 본다 — 조각이 다 맞아도 이어붙인 데서 새는 것은

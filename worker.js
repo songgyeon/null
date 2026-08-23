@@ -187,23 +187,50 @@ function makeFact(fact_id, value, source, known_by) {
   return { fact_id: id, value, source, known_by: who };
 }
 
-/* 방에 앉은 사람들. 단톡은 셋이 같이 듣는다 — 여기서 새면 제일 크게 샌다. */
+/* 방에 누가 있나. **사실 투영에는 안 쓴다** — 아래 「방으로 합치지 않는다」를
+   보라. 나중에 공개(disclosure)의 heard_by가 그 자리에 있었는지 볼 때 쓴다. */
 const ROOM_EARS = {
   jaeeon: ["jaeeon", "user"],
   minhyun: ["minhyun", "user"],
   group: ["jaeeon", "minhyun", "user"],
   health: ["jaeeon", "minhyun"],          // 관전 — 유저는 읽기만 한다
 };
+/* 그 방에서 말하는 인물. 유저는 안 낀다 — 말하는 쪽이 아니다. */
+const ROOM_SPEAKERS = {
+  jaeeon: ["jaeeon"],
+  minhyun: ["minhyun"],
+  group: ["jaeeon", "minhyun"],
+  health: ["jaeeon", "minhyun"],
+};
 
-/* ── 투영 ──
-   그 방에서 말할 수 있는 사람 중 **누구 하나라도** 아는 사실만 남긴다.
-   유저만 아는 것도 남긴다 — 유저가 방금 말한 것이 거기 있다.
-   speaker를 주면 그 한 사람이 아는 것만 남긴다(그 화자의 Writer용). */
-function factsFor(facts, room, speaker) {
-  const ears = speaker ? [String(speaker)] : (ROOM_EARS[room] || []);
-  if (!ears.length) return [];
-  return (facts || []).filter(f => f && Array.isArray(f.known_by)
-    && f.known_by.some(w => ears.includes(w)));
+/* ── 방으로 합치지 않는다 ──
+   전에는 `factsFor(facts, room)`이 「그 방 사람 중 누구 하나라도 아는 것」을
+   남겼다. ROOM_EARS에 user가 들어 있고 유저는 자기가 준 선물을 아니까,
+   **민현 방에도 관전방에도 선물 출처가 그대로 실렸다.** 막으려던 그 누출이
+   투영 함수 안에 들어 있었고, 테스트가 그걸 정답으로 굳혀놨다.
+
+   `known_by: ["user"]`는 **유저가 그 사실을 안다**는 뜻일 뿐이다.
+   그 방 인물에게 공개됐다는 뜻이 아니다. 유저가 이 방에서 실제로 말한 것은
+   최근 대화(history)로 간다 — 사실 목록으로 승격시키지 않는다.
+
+   그래서 투영은 둘뿐이다. 방 단위 투영은 없앤다. */
+function factsForSpeaker(ctx, speaker) {
+  const who = String(speaker || "");
+  if (!who) return [];
+  return ((ctx && ctx.facts) || []).filter(f =>
+    f && Array.isArray(f.known_by) && f.known_by.includes(who));
+}
+
+/* ── 공동 Writer는 교집합만 받는다 ──
+   단톡·관전은 한 호출로 두 사람 대사를 낸다. 「재언이 아는 것 / 민현이 아는
+   것」을 딱지 붙여 나란히 넣으면 같은 모델이 둘 다 읽는다 — 그건 차단이
+   아니라 부탁이다. 둘 다 아는 것만 준다. 한 사람만 아는 사실이 필요한
+   장면은 화자를 갈라 따로 부른다(E단계). */
+function sharedFactsForRoom(ctx, speakers) {
+  const who = (speakers || []).map(String).filter(Boolean);
+  if (!who.length) return [];
+  return ((ctx && ctx.facts) || []).filter(f =>
+    f && Array.isArray(f.known_by) && who.every(s => f.known_by.includes(s)));
 }
 
 /* 목록에 없으면 undefined다. false가 아니다 — 부르는 쪽이 그 둘을
@@ -2426,7 +2453,11 @@ function placeOf(raw) {
    할 말이 아니다.
    프론트가 세 갈래를 다 알고 있다 — 인물이 부른 것(초대), 유저가 고른 것
    (동행을 고르는 자리·같이 자리 옮기기), 그냥 찾아간 것. 그걸 받는다. */
-function buildPlace(place, hasItem, room, over, came) {
+/* placeItemOwned — **유저가 이 자리의 물건을 이미 가졌나.**
+   전에는 hasItem이었는데, 코드는 「이미 가짐」으로 쓰고 고르는 쪽 꾸러미에는
+   「건넬 수 있는 물건이 있다」로 나갔다 — 한 값이 정반대 두 뜻으로 돌았다.
+   이제 넷으로 갈랐다: placeItemOwned · placeItemAvailable · giftNow · givenHistory. */
+function buildPlace(place, placeItemOwned, room, over, came) {
   if (!place) return "";
   /* 귀갓길은 방마다 그림이 다르다. 재언은 운전을 하고 있고 민현은 옆에 앉아 있다.
      그리고 이 자리는 곧 끝난다 — 여기서 새 얘기를 길게 벌이면 내리는 데서 잘린다. */
@@ -2477,7 +2508,7 @@ function buildPlace(place, hasItem, room, over, came) {
   }
   /* by가 걸린 자리는 그 사람 턴에만 건넬 것을 알려준다. 안 걸면 민현이
      재언 집 열쇠를 내민다. */
-  if (!hasItem && (!it.by || it.by === room)) {
+  if (!placeItemOwned && (!it.by || it.by === room)) {
     /* 「여기서 건넬 것」이라고 표제를 달아놓으니 첫 마디부터 건네줬다.
        자리에 앉자마자 물건을 내미는 사람은 없다. 표제부터 「언젠가」로 바꾸고,
        초대와 같은 모양으로 조건을 적는다 — 그쪽은 이 방식으로 잘 되고 있다. */
@@ -2533,6 +2564,112 @@ const subName = (t, name) => (t || "")
   .replace(NAME_JOSA, (_, a, b) => jos(name, a + "/" + b))
   .replaceAll("{user_name}", name);
 
+/* ══════════════════════════════════════════════════════════════
+   사실 원본 — 요청마다 한 벌
+
+   ── 선물 하나가 사실 둘을 낳는다 ──
+   유저가 재언에게 머그컵을 줬다. 그 일에서 나오는 사실은 하나가 아니다.
+
+     gift.mug.user_to_jaeeon   유저가 재언에게 머그컵을 줬다   user · jaeeon
+     item.mug.with_jaeeon      머그컵이 재언에게 있다          user · jaeeon · minhyun
+
+   민현은 같은 집에 산다. 물건이 생긴 것은 보이지만 누가 줬는지는 못 본다.
+   그래서 「삼촌, 그거 어디서 났어요?」를 물을 수 있고, 물을 수밖에 없다.
+   민현의 투영에 아래 것만 있고 위 것이 없다 — 그게 이 갈래의 전부다.
+
+   ── 이름은 세계 상태를 적는다 ──
+   `item.mug.observed_with_jaeeon`이 아니라 `item.mug.with_jaeeon`이다.
+   관측은 값이 아니다 — **누가 봤는지는 known_by에 적힌다.** 그리고 이 상태는
+   출처가 공개된 뒤에도 참으로 남는다. 컵은 여전히 재언에게 있다.
+
+   ── 방향은 대칭이다 ──
+   유저가 민현에게 줬으면 재언이 물건만 본다. 인물이 유저에게 준 것은
+   유저 가방에 들어가고, 남의 가방을 들여다보는 사람은 없다. */
+const ITEM_WITNESS = {
+  /* 근거는 세계관에 있다 — 「보건교사 이재언과 고등학교 3학년 이민현은
+     … 같은 집에 산다」. 집이냐 보건실이냐는 안 가른다: 둘 다 「본다」로
+     수렴하고, 가르려면 이 저장소에 없는 자료가 필요하다. */
+  jaeeon:  ["minhyun"],
+  minhyun: ["jaeeon"],
+  user:    [],            // 유저 가방을 들여다보는 사람은 없다
+};
+
+const ANY_NAME_BY_KEY = { ...ITEM_NAME_BY_KEY, ...GIFT_NAME_BY_KEY };
+
+/* 유저→인물 선물 하나. fresh면 아직 아무도 못 봤다 — 방금 손에서 손으로
+   건너간 것이라 다른 방 사람이 볼 틈이 없었다. 물건 사실 자체는 만든다:
+   목록에서 빼면 「없는 것」이 되어 받은 사람이 제 물건을 지어낸 것이 된다. */
+function giftFacts(who, key, fresh) {
+  const to = String(who || ""), k = String(key || "");
+  if (!ANY_NAME_BY_KEY[k] || !ITEM_WITNESS[to]) return [];
+  const seers = fresh ? [] : ITEM_WITNESS[to];
+  return [
+    makeFact(`gift.${k}.user_to_${to}`, true, "state", ["user", to]),
+    makeFact(`item.${k}.with_${to}`, true, "state", [...new Set(["user", to, ...seers])]),
+  ];
+}
+
+/* 인물→유저 전달. 준 사람과 유저만 안다 — 유저 가방은 아무도 안 본다.
+   출처와 보유를 가르는 것은 같다. 방향만 뒤집혔다. */
+function handedFacts(from, key) {
+  const by = String(from || ""), k = String(key || "");
+  if (!ANY_NAME_BY_KEY[k] || !ITEM_WITNESS[by]) return [];
+  return [
+    makeFact(`gift.${k}.${by}_to_user`, true, "state", ["user", by]),
+    makeFact(`item.${k}.with_user`, true, "state", ["user", by]),
+  ];
+}
+
+/* ── 이번 요청의 사실 전부 ──
+   요청 진입에서 **한 번** 부른다. 단계마다 다시 조립하지 않는다 —
+   그러면 같은 fact_id가 단계마다 달라지고, 재시도 때 또 달라진다. */
+function buildFacts(gifts, bag, giftNow, giftRoom) {
+  const out = [];
+  const seen = new Set();
+  const add = f => { if (!seen.has(f.fact_id)) { seen.add(f.fact_id); out.push(f); } };
+  /* 지난 턴들에 준 것 — 수신자별로 온다. 평면 배열로 합치면 누구에게 준
+     것인지가 사라지고, 그러면 사실을 만들 수가 없다. */
+  for (const [who, keys] of Object.entries(gifts || {}))
+    for (const k of keys || []) giftFacts(who, k, false).forEach(add);
+  /* 인물이 유저에게 준 것 */
+  for (const b of bag || []) handedFacts(b.from, b.key).forEach(add);
+  /* 이번 턴에 건넨 것. 아직 아무도 못 봤다 — 위 지난 것들보다 뒤에 두어
+     같은 물건이면 fresh 쪽이 무시된다(먼저 든 것이 이긴다). */
+  if (giftNow && giftNow.key) giftFacts(giftRoom, giftNow.key, true).forEach(add);
+  return out;
+}
+
+/* ── 사실을 문장으로 ──
+   투영을 거친 것만 들어온다. 여기서 다시 거르지 않는다 — 거르는 자리가
+   둘이면 어느 쪽이 막았는지 알 수 없게 된다.
+   **반드시 가변부에만 렌더링한다.** 고정부에 넣으면 선물 하나에 캐시가
+   통째로 다시 쓰인다. */
+function renderFacts(facts, userName) {
+  const u = userName || "선생님";
+  const L = [];
+  for (const f of facts || []) {
+    const m = String(f.fact_id).match(/^(gift|item)\.([^.]+)\.(.+)$/);
+    if (!m) continue;
+    const name = ANY_NAME_BY_KEY[m[2]];
+    if (!name) continue;
+    const NAME = { jaeeon: "이재언", minhyun: "이민현", user: u };
+    if (m[1] === "gift") {
+      const d = m[3].match(/^(\w+)_to_(\w+)$/);
+      if (!d) continue;
+      L.push(`- ${jos(NAME[d[1]] || d[1], "이/가")} ${jos(NAME[d[2]] || d[2], "에게/에게")} ${jos(name, "을/를")} 줬다.`);
+    } else {
+      const w = m[3].replace(/^with_/, "");
+      L.push(`- ${jos(name, "은/는")} ${NAME[w] || w}에게 있다.`);
+    }
+  }
+  if (!L.length) return "";
+  /* 「목록에 없으면 모른다」가 아니라 「목록에 없으면 **아직 모른다**」다.
+     없는 것을 아니라고 단정하면 멀쩡한 짐작까지 위반이 된다. */
+  return `\n## [지금 아는 것]\n${L.join("\n")}\n`
+       + `- 여기 없는 것은 네가 아직 모르는 것이다. 없다고 단정하지 않는다.\n`
+       + `- 이 목록을 읊지 않는다. 아는 채로 굴기만 한다.\n`;
+}
+
 function buildBag(bag, room, userName) {
   const mine = bag.filter(b => b.from === room && ITEM_NAME_BY_KEY[b.key]);
   if (!mine.length) return "";
@@ -2547,8 +2684,8 @@ ${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.ke
 `;
 }
 /* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
-function pickGive(raw, place, hasItem, room) {
-  if (!place || hasItem || !PLACE_ITEMS[place]) return null;
+function pickGive(raw, place, placeItemOwned, room) {
+  if (!place || placeItemOwned || !PLACE_ITEMS[place]) return null;
   if (PLACE_ITEMS[place].by && PLACE_ITEMS[place].by !== room) return null;
   const k = (raw || "").toString().trim();
   return k && PLACE_ITEMS[place].key === k ? k : null;
@@ -2563,10 +2700,19 @@ function buildEvent(event, userName) {
   const who = { jaeeon: "이재언", minhyun: "이민현" }[event.to] || "";
   const what = (event.name || "").toString().slice(0, 40).trim();
   const u = userName || "선생님";
+  /* ── 출처를 여기서 주지 않는다 ──
+     전에는 「선생님이 이재언에게 회색 머그컵을 줬다」였다. 관전방은 두
+     사람이 같이 읽는 자리인데, 이 한 줄이 민현에게 **출처를 통째로** 줬다.
+     사실 목록을 아무리 잘 가려도 산문이 먼저 답을 말해버리면 소용이 없다 —
+     두 채널이 나란히 반대말을 하고 산문이 이긴다.
+
+     관측자에게 허용된 것은 물건과 보유자뿐이다. 여기에도 그것만 적는다.
+     누가 줬는지는 [지금 아는 것] 목록이 아는 사람에게만 준다. */
   if (event.kind === "gift" && who && what) {
-    return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${who}에게 ${jos(what, "을/를")} 줬다.\n`
-         + `물건은 눈에 띈다 — 상대가 그것을 봤거나 전해 들었을 수 있다.\n`
-         + `그러나 무슨 말이 오갔는지는 모른다. 지어내서 인용하지 않는다.\n`
+    return `\n## 방금 있었던 일\n${who}에게 전에 없던 ${jos(what, "이/가")} 있다.\n`
+         + `물건은 눈에 띈다. 그러나 어디서 났는지는 **본 것만으로는 모른다.**\n`
+         + `짐작할 수는 있다. 아는 것처럼 말하지 않는다.\n`
+         + `무슨 말이 오갔는지도 모른다. 지어내서 인용하지 않는다.\n`
   }
   if (event.kind === "met" && who && what) {
     return `\n## 방금 있었던 일\n${jos(u, "이/가")} ${jos(who, "과/와")} ${what}에 갔다.\n`
@@ -2663,7 +2809,10 @@ const TURN = `
 지난 네 말이 아니라 「대화 예시」가 견본이다. 했던 요구를 되풀이하지 않고, 대화를 착하게 닫지 않는다.
 `;
 
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left, came) {
+/* ctx — 이번 요청의 TurnContext. 사실은 **여기서만** 렌더링한다.
+   고정부(buildSystem)에는 한 글자도 안 들어간다 — 선물 하나에 캐시가
+   통째로 다시 쓰이면 안 된다. 인자로 넘기는 것 자체는 캐시와 무관하다. */
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, ctx) {
   const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -2685,9 +2834,18 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName, room) + buildEvent(event, userName)
+          /* ── 화자별 투영 ──
+             1:1은 그 인물이 아는 것. 단톡·관전은 **둘 다 아는 것의 교집합**.
+             한 사람만 아는 사실에 딱지를 붙여 공동 Writer에 같이 넣지 않는다 —
+             같은 모델이 둘 다 읽으므로 그건 차단이 아니라 부탁이다. */
+          + renderFacts(
+              (mode === "auto" || room === "group")
+                ? sharedFactsForRoom(ctx, ROOM_SPEAKERS[room] || [])
+                : factsForSpeaker(ctx, room),
+              userName)
           + buildBag(bag || [], room, userName)
           + buildLeft(left, userName)
-          + buildPlace(place, hasItem, room, placeOver, came)
+          + buildPlace(place, placeItemOwned, room, placeOver, came)
           + (place ? "" : buildInvite(invite, room))
           + (place ? "" : buildCanGo(canGo))
           + TURN;
@@ -4004,10 +4162,19 @@ export default {
        관전(health)도 요약해야 창 밖으로 밀려난 대화가 남는다. 다만 chat·auto
        에서는 health를 방으로 받으면 안 된다 — buildSystem이 인물 블록을 못
        골라 minhyun으로 떨어진다. 그래서 요약일 때만 넷을 받는다. */
-    const ROOMS_OK = mode === "summarize"
-      ? ["jaeeon", "minhyun", "group", "health"]
+    /* ── 관전방 배선 ──
+       전에는 생성 경로가 health를 아예 안 받았다. 관전(auto) 호출은 room을
+       안 실었고, 못 받은 room은 조용히 "minhyun"으로 떨어졌다 — 관전방이
+       민현 1:1 방으로 처리되고 있었다. 화면은 멀쩡해서 아무도 몰랐다.
+       조용한 폴백을 없앤다: auto의 방은 health 하나뿐이고, 그것이 **승인된
+       기본값**이다. 딴 방 이름이 실려 오면 무시하되 콘솔에 적는다. */
+    const ROOMS_OK = mode === "auto" ? ["health"]
+      : mode === "summarize" ? ["jaeeon", "minhyun", "group", "health"]
       : ["jaeeon", "minhyun", "group"];
-    const room = ROOMS_OK.includes(body.room) ? body.room : "minhyun";
+    const DEFAULT_ROOM = mode === "auto" ? "health" : "minhyun";
+    const room = ROOMS_OK.includes(body.room) ? body.room : DEFAULT_ROOM;
+    if (body.room && body.room !== room)
+      console.log(`[NULL] 모르는 방 이름 — ${String(body.room).slice(0, 20)} → ${room}`);
     const userName = (body.user_name || "").toString().slice(0, 20).trim() || "선생님";
     const signals = body.signals || null;
     const userProfile = body.user_profile || null;   // 당신.txt에서 채운 칸
@@ -4062,6 +4229,20 @@ export default {
       const role = m.role === "user" ? "user" : "assistant";
       let content = (m.content || "").toString().slice(0, 1000);
       if (!content) continue;
+      /* ── 사건과 유저의 말을 가른다 ──
+         전에는 클라이언트가 지문을 "(보건실에 갔다)"로 감싸 보냈다. 그러면
+         유저가 직접 친 "(웃음)"과 글자 모양이 같아진다 — 유저가 친 괄호까지
+         일어난 일로 읽혔고, 실제로 일어난 일은 유저의 말투로 읽혔다.
+         이제 타입이 끝까지 온다. 사건은 사건으로 적는다.
+         인용하거나 괄호 말투로 따라 쓰라는 지시가 아니라 **이미 일어난
+         사실**이므로, 흉내낼 것이 없게 머리표를 붙여 따로 세운다. */
+      if (m.kind === "event") {
+        content = `[시스템 사건] ${content}`;
+        if (msgs.length && msgs[msgs.length - 1].role === "user")
+          msgs[msgs.length - 1].content += "\n" + content;
+        else msgs.push({ role: "user", content });
+        continue;
+      }
       // 단톡/자율 대화에서는 발화자를 표기해 모델이 화자를 구분하게 한다
       if ((room === "group" || mode === "auto") && m.sender) {
         const name = { user: userName, jaeeon: "이재언", minhyun: "이민현" }[m.sender] || m.sender;
@@ -4110,10 +4291,36 @@ export default {
     /* 귀갓길에는 건넬 것이 없다. 그래서 이미 받은 걸로 친다 — 「언젠가 건넬 것」
        블록이 아예 안 붙는다 */
     const bag = normBag(body.bag);
-    const hasItem = !place ? false
+    /* ── hasItem을 넷으로 갈랐다 ──
+       한 값이 정반대 두 뜻으로 돌고 있었다 — 코드는 「유저가 이미 가짐」으로
+       쓰는데 고르는 쪽 꾸러미에는 「건넬 수 있는 물건이 있다」로 나갔다.
+         placeItemOwned      이 자리 물건을 유저가 이미 가졌다
+         placeItemAvailable  이 자리에 아직 안 받은 물건이 있다
+         giftNow             이번 턴에 유저가 건넨 것
+         givenHistory        지난 턴들에 준 것 (수신자별) */
+    const placeItemOwned = !place ? false
       : PLACE_ITEMS[place]
         ? bag.some(b => b.key === PLACE_ITEMS[place].key)
         : true;
+    const placeItemAvailable = !!place && !!PLACE_ITEMS[place] && !placeItemOwned;
+    /* ── 준 기록은 수신자를 지킨다 ──
+       평면 배열로 합치면 단톡·관전에서 누구에게 준 것인지가 사라진다.
+       이번 턴에 건넨 것(giftNow)은 여기서 뺀다 — 현재는 gift가, 과거는
+       이것이 맡는다. 둘을 겹치면 같은 선물이 두 번 센다. */
+    const givenHistory = {};
+    for (const [who, keys] of Object.entries(body.gifts && typeof body.gifts === "object" ? body.gifts : {})) {
+      if (!ITEM_WITNESS[who] || !Array.isArray(keys)) continue;
+      const now = gift && gift.key && who === room ? String(gift.key) : "";
+      const list = keys.map(String).filter(k => ANY_NAME_BY_KEY[k] && k !== now);
+      if (list.length) givenHistory[who] = list.slice(0, 40);
+    }
+    /* ── 이번 요청의 사실 원본. 여기서 **한 번** 만든다 ──
+       단계마다 다시 조립하지 않는다. 그러면 같은 fact_id가 단계마다 달라지고,
+       재시도 때 또 달라진다. 아래 모든 단계는 이 하나에서 투영만 받는다. */
+    const turnCtx = makeTurnContext(
+      { room, days, unlocked: unlockedKeys(counts, days), owned: bag.map(b => b.key) },
+      { place, came, giftNow: gift, givenHistory, now, day, season,
+        facts: buildFacts(givenHistory, bag, gift, room) });
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
 
@@ -4129,7 +4336,7 @@ export default {
     const placeOver = !!place && body.place_over === true;
     /* 방금 자리에서 나왔다. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다 */
     const left = mode === "chat" && !place ? (body.left || "").toString().slice(0, 20).trim() : "";
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, hasItem, now, day, states, placeOver, canGo, bag, season, left, came);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, turnCtx);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
@@ -4192,7 +4399,7 @@ export default {
         devLog(`[NULL] 기준선 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
         const p0 = parseMessages(raw, fallbackSender, chars);
         const inv0 = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
-        const giv0 = pickGive(parseMessages.give, place, hasItem, room);
+        const giv0 = pickGive(parseMessages.give, place, placeItemOwned, room);
         const kept0 = dropEcho(
           trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(p0)), chars), photoChars, fallbackSender, recentPhotos)),
           lastSaid(msgs, mode));
@@ -4226,9 +4433,18 @@ export default {
         : room === "minhyun"
           ? "병원 옥상에서 유저를 만났다. 삼촌과 유저의 과거는 모른다"
           : "";
-      const turnFacts = [];
+      /* ── 고르는 쪽·검사·마무리도 같은 원본에서 받는다 ──
+         단계마다 사실을 새로 조립하지 않는다. 중요 장면은 늘 1:1이므로
+         (관전은 위에서 일반 경로로 빠진다) 화자 투영이 곧 그 방의 투영이다. */
+      const sceneFacts = renderFacts(factsForSpeaker(turnCtx, fallbackSender), userName)
+        .split("\n").filter(l => l.startsWith("- ") && !l.includes("읊지 않는다")
+                                  && !l.includes("단정하지 않는다"))
+        .map(l => l.slice(2).trim());
+      const turnFacts = [...sceneFacts];
       if (place) turnFacts.push(`자리: ${place}`);
-      if (hasItem) turnFacts.push("이 자리에 건넬 수 있는 물건이 있다");
+      /* 「건넬 수 있는 물건이 있다」는 placeItemOwned의 반대다. 전에는 같은
+         값을 그대로 넣어 뜻이 뒤집혀 있었다. */
+      if (placeItemAvailable) turnFacts.push("이 자리에 건넬 수 있는 물건이 있다");
       const budget = mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET;
       /* 후보를 담을 자리를 넉넉히 준다. 천장이지 청구서가 아니라서 열어둔다고
          값이 오르지 않는다 — 실제로 뽑은 만큼만 낸다. */
@@ -4266,7 +4482,7 @@ export default {
         for (const one of raws.flatMap(splitCandidates)) {
           const parsed = parseMessages(one, fallbackSender, chars);
           const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
-          const give = pickGive(parseMessages.give, place, hasItem, room);
+          const give = pickGive(parseMessages.give, place, placeItemOwned, room);
           const kept = dropEcho(
             trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
             lastSaid(msgs, mode));
@@ -4320,7 +4536,7 @@ export default {
              빠져나가면 여기가 유일하게 안 걸러지는 자리가 된다 */
           const fp = parseMessages(finRaw, fallbackSender, chars);
           const fInvite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
-          const fGive = pickGive(parseMessages.give, place, hasItem, room);
+          const fGive = pickGive(parseMessages.give, place, placeItemOwned, room);
           const fKept = dropEcho(
             trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(fp)), chars), photoChars, fallbackSender, recentPhotos)),
             lastSaid(msgs, mode));
@@ -4393,7 +4609,10 @@ export default {
 export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
          isLeak, isMeta,
          /* 공통 계약 — 모든 단계가 같은 세계를 보게 하는 모양 */
-         makeFact, factsFor, factValue, contradicts, ROOM_EARS, FACT_SOURCES, KNOWERS,
+         makeFact, factsForSpeaker, sharedFactsForRoom, factValue, contradicts,
+         ROOM_EARS, ROOM_SPEAKERS, FACT_SOURCES, KNOWERS,
+         buildFacts, giftFacts, handedFacts, renderFacts, ITEM_WITNESS, ANY_NAME_BY_KEY,
+         buildEvent,
          makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, buildPlace,

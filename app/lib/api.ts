@@ -2,6 +2,7 @@ import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, 
 /* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
 import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner } from './rules';
+import { loadGifts } from './profiles';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -77,9 +78,14 @@ export function buildHistory(msgs: Msg[]) {
     sender: m.sender,
     /* 시스템 줄은 유저가 친 말이 아니라 일어난 일이다. 그대로 보내면 모델이
        유저의 발화로 읽어서, 제가 준 물건을 두고 「그게 왜 선생님한테 있어요」
-       라고 되묻는다. 괄호로 감싸 지문으로 보낸다 — 웹 app.js와 같아야 한다. */
+       라고 되묻는다.
+       전에는 괄호로 감쌌는데 그러면 유저가 직접 친 「(웃음)」과 글자 모양이
+       같아진다 — 코드가 기록한 사건과 유저의 괄호 말투가 구별되지 않는다.
+       타입을 끝까지 들고 간다. 워커가 「[시스템 사건] …」으로 따로 적는다.
+       웹 app.js와 같아야 한다. */
+    ...(m.sender === 'sys' ? { kind: 'event' as const } : {}),
     content: m.photo ? `${m.text ? m.text + ' ' : ''}(사진을 보냈다)`
-           : (m.sender === 'sys' ? `(${(m.text || '').trim()})` : (m.text || '')),
+           : (m.text || ''),
   })).filter(m => m.content && m.content.trim());
   const out: typeof all = [];
   let used = 0;
@@ -192,6 +198,11 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     counts: await buildCounts(),
     days: await buildDays(),
     user_profile: await buildUserProfile(),
+    /* ── 준 기록은 수신자를 지킨다 ──
+       {jaeeon:["mug"], minhyun:["letter"]} 그대로 보낸다. 평면 배열로 합치면
+       누구에게 준 것인지가 사라지고, 워커가 사실을 만들 수가 없다.
+       이번 턴에 건넨 것은 워커가 gift와 겹치는 것을 빼준다. 웹과 같아야 한다. */
+    gifts: await loadGifts(),
     /* 지금이 언제인가. 워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때라
        여기서 재서 보낸다 — 요일은 때보다 세다(주말이면 학교가 통째로 없다) */
     now: timeWord(),
@@ -266,9 +277,13 @@ export async function genAuto(userName: string, event?: any, reqId?: string) {
   const healthMsgs = await getMsgs('health', 30);
   return callApi({
     mode: 'auto',
+    /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로 떨어져
+       관전이 민현 1:1 방으로 처리된다 */
+    room: 'health',
     user_name: userName,
     history: buildHistory(healthMsgs),
     signals: await buildSignals(null),
+    gifts: await loadGifts(),
     // 「두 사람」방은 사진을 쓰지 않는다 — recent_photos를 보낼 이유가 없다
     counts: await buildCounts(),
     days: await buildDays(),

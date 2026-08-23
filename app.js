@@ -109,10 +109,16 @@ function App(){
      「그게 왜 선생님한테 있어요」라고 되묻는 일이 생긴다. 괄호로 감싸 지문으로
      보낸다 — 화면에서 이미 지문으로 그리고 있고(isNarr), 선톡 지시문도 같은
      꼴이라 모델이 아는 표기다. */
+  /* ── 지문은 유저가 친 말이 아니다 ──
+     전에는 sys 줄을 "("+text+")"로 감싸 보냈다. 그러면 유저가 직접 친
+     "(웃음)"과 글자 모양이 같아진다 — 모델에게는 둘 다 유저 발화이고,
+     코드가 기록한 실제 사건이 유저의 괄호 말투와 구별되지 않는다.
+     타입을 끝까지 들고 간다. 워커가 "[시스템 사건] …"으로 따로 적는다. */
   const buildHistory=ms=>{
     const all=ms.map(m=>({role:m.sender==="user"?"user":"assistant",sender:m.sender,
+      ...(m.sys?{kind:"event"}:{}),
       content:m.photo?((m.text?m.text+" ":"")+"(사진을 보냈다)")
-             :(m.sys?"("+(m.text||"").trim()+")":m.text)}))
+             :(m.sys?(m.text||"").trim():m.text)}))
       .filter(m=>m.content&&m.content.trim());
     const out=[];let used=0;
     for(let i=all.length-1;i>=0;i--){
@@ -520,6 +526,11 @@ function App(){
   /* API 요청 — 실패 시 조용한 재시도 버튼 */
   const request=async(bucket,payload)=>{
     const up=userProfile();
+    /* ── 준 기록은 수신자를 지킨다 ──
+       {jaeeon:["mug"], minhyun:["letter"]} 그대로 보낸다. 평면 배열로 합치면
+       누구에게 준 것인지가 사라지고, 워커가 사실을 만들 수가 없다.
+       이번 턴에 건넨 것은 워커가 gift와 겹치는 것을 빼준다. */
+    payload.gifts=giftsRef.current||{};
     // 다녀온 자리·거절한 자리 — 서버가 다음 제안을 고르는 근거
     if(payload.mode==="chat"){ payload.met=loadMet(); payload.refused=loadRefused();
       /* 지금 문 닫은 자리는 인물도 가자고 안 한다. 시간은 프론트만 안다 —
@@ -910,7 +921,9 @@ function App(){
       else{
         try{
           const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({mode:"auto",user_name:name,counts:roomCounts(),
+            /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로
+               떨어져 관전이 민현 1:1 방으로 처리된다 */
+            body:JSON.stringify({mode:"auto",room:"health",user_name:name,counts:roomCounts(),
               /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
                  같은 얘기를 두 번 싣는다 */
               history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
@@ -951,7 +964,7 @@ function App(){
         :`지금은 ${jos(CHARS[zz[0]].name,"이/가")} 자요 ♡`);
       return }
     setAutoLoading(true);
-    await request("health",{mode:"auto",user_name:name,
+    await request("health",{mode:"auto",room:"health",user_name:name,
       history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
       signals:buildSignals(null),recent_photos:recentPhotos("health")});
     setAutoLoading(false);
