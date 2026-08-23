@@ -38,12 +38,20 @@
 | 단계 | 모델 |
 |---|---|
 | Writer | `claude-haiku-4-5` |
-| Normal Director | `claude-sonnet-4-5-20250929` |
+| Normal Director | `claude-haiku-4-5` |
 | Canon Critic | `claude-haiku-4-5` |
 | Character Critic | `claude-haiku-4-5` |
 | Critical Finalizer | `claude-sonnet-4-5-20250929` |
 
 NULL은 Haiku 4.5 + Sonnet 4.5 하이브리드로 간다.
+**위를 쓰는 자리는 하나뿐이다 — 중요 장면의 마무리.**
+
+> Normal Director는 원래 Sonnet 4.5였다. 그러면 「중요할 때만 Sonnet」이 아니라
+> **일반 턴마다 Sonnet을 부르는 것**이 된다. 계약과 실제가 어긋나 있었고,
+> `test/run.mjs`의 「고르는 쪽과 마무리는 같은 급이다」가 그 어긋남을 강제하고
+> 있었다. 코드·문서·테스트·비용식을 함께 고쳤다(테스트 이름은 「마무리만 위를 쓴다」).
+> 고르는 일은 **쓰는 일보다 쉬운 일**이다 — 후보 둘 중 하나를 고르고 코드를
+> 붙이는 데 위가 필요한지는 증명된 적이 없다. G의 세 갈래 비교가 답한다.
 
 Sonnet 4.6과 Sonnet 5는 이 엔진에서 쓰지 않는다. 실패했을 때 조용히 넘어가지도
 않는다. **모델이 바뀌면 캐릭터의 말맛이 바뀐다.** 4.5를 못 쓰면 실제 오류와
@@ -64,12 +72,13 @@ Sonnet 4.6과 Sonnet 5는 이 엔진에서 쓰지 않는다. 실패했을 때 �
 TurnPacket 생성 — 코드
 → Writer — Haiku 4.5
 → Hard Filter와 Soft Signal — 코드
-→ Director — Sonnet 4.5
+→ Director — Haiku 4.5
 → 최종 검사 — 코드
 → Director가 고른 Haiku 후보를 그대로 출력
 ```
 
-일반 턴에서 Sonnet 4.5는 **대사를 쓰지 않는다.** 후보를 비교해 아래 하나만 돌려준다.
+일반 턴은 **호출 둘이 전부다.** Director는 **대사를 쓰지 않는다.** 후보를 비교해
+아래 하나만 돌려준다.
 
 ```json
 { "decision": "A", "reject_codes": { "A": [], "B": ["TOO_EXPLANATORY"] } }
@@ -106,12 +115,17 @@ CriticalScenePacket 생성 — 코드
 → Writer — Haiku 4.5
 → Hard Filter — 코드
 → Canon Critic ┐
-               ├ Haiku 4.5 병렬
+               ├ Haiku 4.5 병렬 — 각각 한 호출로 후보 전부를 본다
 → Character Critic ┘
 → Finalizer — Sonnet 4.5
 → 최종 검사와 상태 반영 — 코드
 → 출력
 ```
+
+중요 장면은 **호출 넷이다**(재시도 포함 최대 여덟). **검사는 후보마다 부르지
+않는다** — Canon 한 호출과 Character 한 호출이 각각 A/B를 함께 보고, 결과 안에
+후보 표식(`candidate`)을 남긴다. 후보마다 부르면 여섯 호출이 나고, 결과를
+합치면서 어느 후보의 문제였는지가 사라진다.
 
 중요 장면에서는 일반 Director를 따로 부르지 않는다. Sonnet 4.5 Finalizer가 후보 선택과
 최종 문장 완성을 함께 맡는다.
@@ -214,26 +228,43 @@ n-gram, 물음표 비율, 문구 목록은 **참고 신호**다. 자연어 의�
 ## 8. 비용과 로그
 
 이 하이브리드가 지금의 단일 Sonnet 호출보다 싸다고 미리 단정하지 않는다.
-지금 로그에는 usage가 없다. 실험 전에 호출 단계별로 기록한다.
+실험 전에 호출 단계별로 기록한다. ✅ 응답의 `stages`가 이 줄들이다.
 
 ```
-request_id / stage / model
+request_id / call_id / stage / model / candidate
 input_tokens / output_tokens
 cache_read_input_tokens / cache_creation_input_tokens
-latency_ms / attempt / scene_tier
+latency_ms / attempt / status / scene_tier
 ```
 
-대화 원문과 전체 프롬프트는 로그에 추가로 저장하지 않는다.
+`call_id`가 있는 까닭은 중요 장면이 네 단계이고 재시도가 붙기 때문이다 —
+단계 이름만으로는 같은 이름이 두 번 나올 때 구분이 안 된다.
+
+**계측은 요청별이다.** 모듈 전역(`stageLog`/`lastUsage`)이던 때는 아이솔레이트
+하나가 요청을 동시에 받으면 A 요청의 단계가 B 응답에 실렸다 — 비용도 지연도
+믿을 수 없었다. 요청 진입에서 `newMeter(request_id)`를 만들어 들고 다닌다.
+
+`usage`는 예나 지금이나 **쓰는 쪽 한 번의 실측**이다. 총합은 `usage_total`로
+**따로** 낸다 — 기존 `usage`의 뜻을 몰래 총합으로 바꾸면 옛 화면이 읽던 숫자가
+딴것이 된다.
+
+> `request_id`는 **멱등 키가 아니다.** 늦은 응답을 가리는 이름표일 뿐이라,
+> 같은 ID로 재시도하면 모델을 다시 부르고 비용이 또 난다.
+
+**대화 원문과 전체 프롬프트는 로그에 남기지 않는다.** 쓰는 쪽 응답 600자를 매 턴
+찍고 있었는데 그건 대화 원문이다. 대시보드에서 `DEV_LOG=1`을 켰을 때만 찍는다.
+기본 로그에 남는 것은 단계·토큰·지연·오류 코드뿐이다.
 
 ```
 B = 현재 Sonnet 단일 생성 평균 비용
-N = 일반 턴 — Haiku Writer + Sonnet 4.5 Director 평균 비용
-K = 중요 턴 — Haiku Writer + Haiku Critics + Sonnet 4.5 Finalizer 평균 비용
+N = 일반 턴 — Haiku Writer + Haiku Director 평균 비용   (호출 2)
+K = 중요 턴 — Haiku Writer + Haiku Critic ×2 + Sonnet 4.5 Finalizer 평균 비용   (호출 4)
 
 중요 턴 비율이 p일 때   NEW = (1 - p) × N + p × K
 ```
 
 호출 수만 보고 비용을 추측하지 않는다. 후보 재입력, 캐시 쓰기·읽기, RETRY 비용까지 포함한다.
+재시도가 붙으면 중요 턴은 최대 여덟 호출이 되고, 그것도 `stages`에 그대로 잡힌다.
 
 ## 9. 품질 비교
 
@@ -301,8 +332,8 @@ UI는 호출 횟수나 모델 종류를 전제하지 않고 최종 응답 하나
 
 ```
 코드가 세계의 사실을 결정한다.
-Haiku 4.5가 살아 있는 반응을 탐색한다.
-일반 턴에서는 Sonnet 4.5가 감정적으로 더 맞는 후보를 선택한다.
-중요한 장면에서는 Sonnet 4.5가 직접 최종 대사를 완성한다.
+Haiku 4.5가 살아 있는 반응을 탐색하고, 그중 하나를 고른다.
+중요한 장면에서만 Sonnet 4.5가 직접 최종 대사를 완성한다.
+위를 쓰는 자리는 그 하나뿐이다.
 모델의 우수성과 비용은 추측이 아니라 실제 NULL 대화와 usage로 판단한다.
 ```

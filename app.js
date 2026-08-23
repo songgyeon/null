@@ -650,11 +650,20 @@ function App(){
       /* ── 한 턴이 몇 번을 탔나 ──
          호출 수만 보고 비용을 짐작하지 않는다. 후보 재입력도, 캐시 쓰기·읽기도,
          재생성도 여기 다 잡힌다. 한 턴이 두 줄이면 다시 쓴 것이다. */
-      if(data&&Array.isArray(data.stages)&&data.stages.length)
-        console.log("%c[NULL] 단계 "+data.stages.length+"회\n"+data.stages.map(t=>
-          `  ${t.stage} · ${t.model} · 새로 ${t.input_tokens} / 캐시읽음 ${t.cache_read_input_tokens}`
+      /* 위의 usage는 쓰는 쪽 한 번이다. 한 턴이 네 번을 탔으면 그 하나만
+         보고 비용을 짐작하면 안 된다 — 총합은 워커가 따로 세서 보낸다. */
+      if(data&&Array.isArray(data.stages)&&data.stages.length){
+        var tot=data.usage_total||{};
+        console.log("%c[NULL] 단계 "+data.stages.length+"회"
+          +" · 합계 새로 "+(tot.input_tokens||0)
+          +" / 캐시 씀 "+(tot.cache_creation_input_tokens||0)
+          +" / 읽음 "+(tot.cache_read_input_tokens||0)
+          +" / 출력 "+(tot.output_tokens||0)+"\n"+data.stages.map(t=>
+          `  #${t.call_id} ${t.stage}${t.candidate?"("+t.candidate+")":""} · ${t.model}`
+          +` · ${t.status} · 새로 ${t.input_tokens} / 캐시읽음 ${t.cache_read_input_tokens}`
           +` / 출력 ${t.output_tokens} · ${t.latency_ms}ms · ${t.attempt}회차`).join("\n"),
           "color:#7a6cc4");
+      }
       setTimeout(()=>rollSummary(bucket),1200);
       if(data&&data.invite&&data.invite.place) setInvite(data.invite);
       /* 자리에서 뭘 건넸다. 말풍선이 다 뜬 뒤에 가방에 넣는다 —

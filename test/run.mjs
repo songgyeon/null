@@ -1473,7 +1473,7 @@ eq('첫날은 첫날이라고 적는다', (() => {
    아니라 쌓이는 것이라고. 이건 코드가 지어낸 말이 아니라 작가의 문장이다 */
 eq('관계가 쌓이는 것이라고 못 박는다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  const w = wk.slice(wk.indexOf('const WORLD = `'), wk.indexOf('const JAEEON'));
+  const w = wk.slice(wk.indexOf('const WORLD = `'), wk.indexOf('const JAEEON = `'));
   return /유저와 보내는 하루가 쌓일 때마다 감정이 달라진다\. 이미 가까운 사이가 아니다\. 가까워질 수 있는 사이다\./.test(w)
     && w.indexOf('가까워질 수 있는 사이다') < w.indexOf('이재언과 이민현\n\n이재언은 이민현을') + w.length;
 })(), true);
@@ -2506,7 +2506,7 @@ eq('세계관에는 안 남겼다',
    깨졌다. 규칙이 없어서가 아니라 세계관 한가운데(3,385자 자리)에 묻혀서다.
    역할 바로 다음에 대화 원칙과 쓰는 법이 오고, 세계·사연은 그 뒤로 물렸다. */
 {
-  const w = workerSrc.slice(workerSrc.indexOf('const WORLD = `'), workerSrc.indexOf('const JAEEON'));
+  const w = workerSrc.slice(workerSrc.indexOf('const WORLD = `'), workerSrc.indexOf('const JAEEON = `'));
   eq('대화 원칙이 세계 설정보다 앞이다',
     w.indexOf('대화 원칙') > 0 && w.indexOf('대화 원칙') < w.indexOf('\n세계\n'), true);
   eq('쓰는 법도 앞이다 — 반복 규칙이 제일 많이 깨졌다',
@@ -2993,7 +2993,7 @@ eq('요약이 없으면 그 대목도 없다',
 eq('요약은 하이쿠가 쓴다', /SUMMARY_MODEL = \{ id: "claude-haiku-4-5"/.test(workerSrc), true);
 /* 인물 프롬프트를 쓰면 압축하러 가서 2만 자를 다시 읽는 꼴이다 */
 eq('요약 호출은 인물 프롬프트를 안 쓴다',
-  /askSummary\(env,\s*\n?\s*\[\{ type: "text", text: SUMMARIZE/.test(workerSrc), true);
+  /askSummary\(env, meter,\s*\n?\s*\[\{ type: "text", text: SUMMARIZE/.test(workerSrc), true);
 eq('웹·앱 둘 다 요약 뒤부터만 원문을 보낸다',
   /sinceSum\(room,next\)/.test(web) && /m\.created_at > \(sum\.upto \|\| 0\)/.test(apiSrc), true);
 /* 다 뭉치면 방금 하던 얘기까지 요약으로만 남아 말투가 끊긴다 */
@@ -3025,7 +3025,7 @@ eq('단톡·두 사람 방에는 자리 설명이 안 붙는다',
   [false, false]);
 
 /* 캐시가 안 맞아도 오류가 안 난다. 실측을 안 보면 정가를 무는 줄 모른다 */
-eq('응답에 실측 토큰이 실린다', /usage: lastUsage/.test(workerSrc), true);
+eq('응답에 실측 토큰이 실린다', /usage: meter\.writerUsage/.test(workerSrc), true);
 eq('웹·앱 둘 다 실측을 찍는다',
   /cache_read_input_tokens/.test(web) && /cache_read_input_tokens/.test(appSrc), true);
 
@@ -3611,7 +3611,7 @@ eq('워커가 때를 받으면 일어서라고 말한다',
   /* 줄을 가르기 전에 걸러야 한 말풍선에 섞여 온 것도 통째로 잡힌다 */
   eq('말버릇 필터보다 앞에 있다',
     /trimTics\(sanitizePhotos\(unlabel\(splitLines\(dropMeta\(parsed\)\)/.test(workerSrc), true);
-  eq('버릴 때 로그를 남긴다', /사고 유출을 버렸다/.test(workerSrc), true);
+  eq('버릴 때 로그를 남긴다', /dropped\("사고 유출"/.test(workerSrc), true);
 
   /* ── 없는 말 하나 ──
      「약 갖다올게요」, 「약 갖다 왔어요」가 나왔다. 「갖다주다」는 맞지만
@@ -3652,7 +3652,7 @@ eq('워커가 때를 받으면 일어서라고 말한다',
     ['minhyun', '됐다 그럼.'],
     ['jaeeon', '라면은 집에서 끓여요.'],
   ].filter(([w, t]) => !keepAs(w, t)), []);
-  eq('지문을 버릴 때도 로그를 남긴다', /지문을 버렸다/.test(workerSrc), true);
+  eq('지문을 버릴 때도 로그를 남긴다', /dropped\("지문"/.test(workerSrc), true);
 }
 
 /* ── 아무 일도 없었으면 비운 자리도 없다 ──
@@ -4474,6 +4474,130 @@ eq('시간표 단추는 peek보다 좁다',
   eq('내 말풍선은 안 잡는다', /\{\.\.\.\(me\?\{\}:hold\(m\)\)\}/.test(web), true);
 }
 
+/* ══════════ 공통 계약 ══════════
+   모든 단계가 같은 세계를 보게 하는 모양. 사실을 하나씩 덧붙이기 전에
+   구조를 먼저 못박는다 — 그러지 않으면 단계마다 다른 세계를 본다.
+
+   여기 있는 것을 아직 배선하지 않았다(그건 뒤 단계다). 그래도 테스트를
+   지금 쓴다: 계약이 계약대로 도는지를 배선 전에 굳혀두는 것이 요점이다. */
+{
+  const { makeFact, factsFor, factValue, contradicts, ROOM_EARS,
+          makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
+          makeEffect, mintEffectId } = ENG;
+  const boom = fn => { try { fn(); return null; } catch (e) { return String(e.message); } };
+
+  /* ── 없는 것은 거짓이 아니다 ──
+     제일 중요한 규칙이다. 「모르는 것」을 「아니라고 아는 것」으로 다루면
+     검사가 멀쩡한 대사를 위반으로 잡고 RETRY가 폭주한다. */
+  const F = [
+    makeFact('gift.mug.received_by_jaeeon', true, 'state', ['jaeeon', 'user']),
+    makeFact('jaeeon.knew.child', true, 'canon', ['jaeeon']),
+    makeFact('minhyun.met.rooftop', true, 'canon', ['minhyun', 'user']),
+  ];
+  eq('없는 사실은 undefined다 — false가 아니다', factValue(F, '없는.것'), undefined);
+  eq('모르는 것은 어기는 것이 아니다', contradicts(F, '없는.것', true), false);
+  eq('반대 값일 때만 어긴 것이다', [
+    contradicts(F, 'gift.mug.received_by_jaeeon', false),
+    contradicts(F, 'gift.mug.received_by_jaeeon', true),
+  ], [true, false]);
+
+  /* ── 아는 범위를 방마다 자른다 ──
+     이걸 빠뜨리면 재언만 아는 20년 전 과거가 민현 방과 단톡 Writer에 샌다. */
+  /* 재언만 아는 20년 전 과거가 민현 방으로 새면 안 된다.
+     선물은 유저도 아는 일이라 민현 방에서도 말할 수 있다 — 그 둘은 다르다. */
+  eq('재언만 아는 것은 민현 방에 안 간다',
+    factsFor(F, 'minhyun').map(f => f.fact_id).includes('jaeeon.knew.child'), false);
+  eq('유저도 아는 일은 다른 방에서도 말할 수 있다',
+    factsFor(F, 'minhyun').map(f => f.fact_id),
+    ['gift.mug.received_by_jaeeon', 'minhyun.met.rooftop']);
+  eq('단톡은 셋이 듣는다', factsFor(F, 'group').length, 3);
+  eq('관전방에 유저만 아는 것은 안 간다', (() => {
+    const only = [makeFact('user.only', 1, 'state', ['user'])];
+    return factsFor(only, 'health').length;
+  })(), 0);
+  /* 화자를 주면 그 한 사람이 아는 것만. 재언 방이어도 유저만 아는 건 빠진다 */
+  eq('화자를 주면 그 사람 것만 남는다',
+    factsFor(F, 'jaeeon', 'jaeeon').map(f => f.fact_id),
+    ['gift.mug.received_by_jaeeon', 'jaeeon.knew.child']);
+  eq('방 목록에 없는 방은 아무것도 안 준다', factsFor(F, '없는방').length, 0);
+  /* 아무도 모르는 사실은 아무에게도 안 간다 — 조용히 새는 것이 제일 나쁘다 */
+  eq('known_by가 비면 어느 방에도 안 간다', (() => {
+    const secret = [makeFact('아무도.모름', 1, 'canon', [])];
+    return ['jaeeon', 'minhyun', 'group', 'health'].map(r => factsFor(secret, r).length);
+  })(), [0, 0, 0, 0]);
+  eq('모르는 사람 이름은 known_by에서 걸러진다',
+    makeFact('x', 1, 'canon', ['jaeeon', '선생님', 'user']).known_by, ['jaeeon', 'user']);
+  eq('source는 둘뿐이다', boom(() => makeFact('x', 1, 'guess', [])), '모르는 source: guess');
+  eq('fact_id 없이는 못 만든다', boom(() => makeFact('', 1, 'canon', [])), 'fact_id가 없다');
+  /* Canon Critic은 고정 정사와 이번 판 상태를 둘 다 봐야 한다 —
+     정사만 주면 방금 일어난 일을 「없는 일」로 잡는다 */
+  eq('사실에는 두 출처가 섞여 있다',
+    [...new Set(factsFor(F, 'group').map(f => f.source))].sort(), ['canon', 'state']);
+
+  /* ── 예약과 발생을 가르는 세 칸 ── */
+  eq('이야기 상태 기본값', (() => {
+    const s = makeStoryState(null);
+    return [s.firstContact, s.jaeeonMemory, s.partnerKnown.jaeeon, s.partnerKnown.minhyun];
+  })(), ['unseen', 'hidden', false, false]);
+  eq('모르는 상태값은 처음으로 되돌린다',
+    makeStoryState({ firstContact: '아무거나' }).firstContact, 'unseen');
+  eq('상대는 둘 중 하나이거나 없다',
+    [makeStoryState({ partnerId: 'jaeeon' }).partnerId, makeStoryState({ partnerId: '나' }).partnerId],
+    ['jaeeon', null]);
+
+  /* ── 이번 턴 ── */
+  const T = makeTurnContext({ room: 'group', partnerId: 'minhyun' },
+    { place: '빨래방', giftNow: { item: 'mug' },
+      givenHistory: { jaeeon: ['mug'], minhyun: ['letter'] }, facts: F });
+  /* 일반 단톡마다 두 사람을 강제로 말시키면 대화가 인위적으로 변한다 */
+  eq('말할 사람을 기본으로 정하지 않는다', T.requiredSpeakers, []);
+  /* 평면 배열로 두면 단톡·관전에서 누구에게 준 것인지가 사라진다 */
+  eq('준 기록은 수신자를 지킨다', T.givenHistory, { jaeeon: ['mug'], minhyun: ['letter'] });
+  eq('이번 턴에도 이야기 상태가 실려 있다', [T.room, T.partnerId, T.firstContact],
+    ['group', 'minhyun', 'unseen']);
+  eq('승인 안 된 사유는 빈칸이다', T.sceneReason, '');
+
+  /* ── Effect: 제안 ≠ 발생 ──
+     id를 모델이 만들면 재시도마다 다른 id가 나오고 같은 선물이 두 번 지급된다. */
+  const e1 = makeEffect('req-1', { type: 'item_transfer', from: 'user', to: 'jaeeon', item: 'mug' });
+  const e2 = makeEffect('req-1', { type: 'item_transfer', from: 'user', to: 'jaeeon', item: 'mug' });
+  eq('같은 재료면 같은 id다 — 재시도해도 두 번 안 준다', e1.id === e2.id, true);
+  eq('대상이 다르면 id도 다르다',
+    e1.id !== makeEffect('req-1', { type: 'item_transfer', to: 'minhyun', item: 'mug' }).id, true);
+  eq('요청이 다르면 id도 다르다',
+    e1.id !== makeEffect('req-2', { type: 'item_transfer', to: 'jaeeon', item: 'mug' }).id, true);
+  eq('id는 코드가 만든다 — 모델이 준 id는 안 쓴다',
+    makeEffect('req-1', { type: 'item_transfer', to: 'jaeeon', item: 'mug', id: '모델이지어낸것' }).id,
+    mintEffectId('req-1', 'item_transfer', 'jaeeon', 'mug'));
+  eq('모르는 갈래는 못 만든다', boom(() => makeEffect('r', { type: '아무거나' })), '모르는 effect: 아무거나');
+  eq('받는 사람 없는 전달은 못 만든다',
+    boom(() => makeEffect('r', { type: 'item_transfer', item: 'mug' })), 'item_transfer에 to/item이 없다');
+  /* 상태는 앞으로만 간다. 뒤로 가는 커밋을 받으면 이미 지나간 장면이 다시 열린다 */
+  eq('이야기 상태는 뒤로 못 간다',
+    boom(() => makeEffect('r', { type: 'story_transition', key: 'firstContact',
+                                 from: 'explained', to: 'pending' })),
+    'firstContact는 뒤로 못 간다: explained → pending');
+  eq('제자리 커밋도 막는다',
+    boom(() => makeEffect('r', { type: 'story_transition', key: 'jaeeonMemory',
+                                 from: 'opened', to: 'opened' })),
+    'jaeeonMemory는 뒤로 못 간다: opened → opened');
+  eq('아는 열쇠만 넘어간다',
+    boom(() => makeEffect('r', { type: 'story_transition', key: 'partnerKnown', from: 'a', to: 'b' })),
+    '모르는 story_transition: partnerKnown');
+  eq('상태 이름이 아니면 못 만든다',
+    boom(() => makeEffect('r', { type: 'story_transition', key: 'firstContact',
+                                 from: 'unseen', to: '끝남' })),
+    'firstContact의 상태가 아니다: unseen → 끝남');
+  eq('두 상태 사슬이 계약대로다', [FIRST_CONTACT, JAEEON_MEMORY],
+    [['unseen', 'pending', 'explained'], ['hidden', 'opened', 'acknowledged']]);
+  eq('초대도 같은 규칙으로 id를 받는다',
+    makeEffect('req-1', { type: 'invite', place: '빨래방', char: 'jaeeon' }).id,
+    mintEffectId('req-1', 'invite', 'jaeeon', '빨래방'));
+
+  /* 방마다 누가 듣는지는 한 군데에만 적는다 */
+  eq('관전방은 유저가 안 낀다', ROOM_EARS.health.includes('user'), false);
+}
+
 /* ══════════ 생성 엔진 ══════════
    ── 왜 목록 폴백을 걷었나 ──
    전에는 모델 목록을 위에서부터 시도했다. budget_tokens 500이 API 최소(1024)
@@ -4495,9 +4619,15 @@ eq('시간표 단추는 peek보다 좁다',
     const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
     return id('writer') === id('canon') && id('writer') === id('character');
   })(), true);
-  eq('고르는 쪽과 마무리는 같은 급이다', (() => {
+  /* 「중요할 때만 위를 쓴다」가 계약인데 고르는 쪽이 Sonnet이었다 —
+     일반 턴마다 위를 부르고 있었다. 위를 쓰는 자리는 마무리 하나뿐이다.
+     이 테스트가 옛 구조를 강제하고 있었으므로 같이 고친다. */
+  eq('마무리만 위를 쓴다', (() => {
     const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
-    return id('director') === id('finalizer') && id('director') !== id('writer');
+    return id('finalizer') !== id('writer')
+        && id('director') === id('writer')
+        && id('canon') === id('writer')
+        && id('character') === id('writer');
   })(), true);
   /* 이 엔진이 안 쓰기로 한 것들 */
   eq('엔진에 안 쓰기로 한 급이 없다', /sonnet-4-6|sonnet-5|opus/.test(eng), false);
@@ -4542,7 +4672,7 @@ eq('시간표 단추는 peek보다 좁다',
   /* 한쪽이 실패하면 그건 진짜 실패다 — 남은 한쪽으로 때우면 두 배 값을 내고
      한 개를 받은 것을 아무도 모른다 */
   eq('parallel은 한쪽이 죽으면 실패다',
-    /await Promise\.all\(\[1, 2\]\.map\(\(\) =>\s*\n\s*callStage\(env, "writer"/.test(wk), true);
+    /await Promise\.all\(\[1, 2\]\.map\(i =>\s*\n\s*callStage\(env, meter, "writer"/.test(wk), true);
 
   /* ── 일반 턴은 고르는 쪽이 한 글자도 안 쓴다 ── */
   eq('고르는 쪽은 대사를 안 쓴다',
@@ -4579,7 +4709,18 @@ eq('시간표 단추는 peek보다 좁다',
     return /messages|system|history|content/.test(f);
   })(), false);
   /* 워커의 전역은 요청 사이에 살아남는다 — 안 비우면 앞 요청 것이 딸려 나간다 */
-  eq('요청마다 계측을 비운다', /stageLog = \[\];\n/.test(wk.slice(wk.indexOf('const reqId ='))), true);
+  /* 비우는 것으로는 안 됐다 — 아이솔레이트 하나가 요청을 동시에 받으면
+     앞 요청의 단계가 이번 답에 실린다. 요청마다 새로 만들어 들고 다닌다. */
+  eq('계측은 요청마다 새로 만든다',
+    /const meter = newMeter\(reqId\);/.test(wk) && !/^let (stageLog|lastUsage)/m.test(wk), true);
+  eq('계측이 요청 이름표와 호출 번호를 단다', (() => {
+    const f = wk.slice(wk.indexOf('function stageStamp('), wk.indexOf('/* 한 단계를 부른다'));
+    return /request_id:/.test(f) && /call_id: meter \? \+\+meter\.n : 0/.test(f)
+        && /candidate:/.test(f) && /attempt,/.test(f) && /status:/.test(f) && /latency_ms:/.test(f);
+  })(), true);
+  /* 총합을 usage에 몰래 넣으면 옛 화면이 읽던 숫자가 딴것이 된다 */
+  eq('총합은 따로 낸다',
+    /usage_total: meterTotal\(meter\)/.test(wk) && /usage: meter\.writerUsage/.test(wk), true);
 
   /* ── 코드 검사는 명백한 것만 자른다 ──
      자연어 뜻까지 코드가 판정한다고 가정하지 않는다. 애매한 것은 신호로 넘긴다. */
@@ -4596,7 +4737,7 @@ eq('시간표 단추는 peek보다 좁다',
      사진 전체 목록도, 장소 규칙도, 전체 세계관도, 전체 기록도 안 넣는다.
      그걸 다시 주면 값만 두 배가 되고 판단은 안 좋아진다. */
   eq('고르는 쪽 꾸러미가 작다', (() => {
-    const i = wk.indexOf('const decRaw = await callStage(env, "director"');
+    const i = wk.indexOf('const decRaw = await callStage(env, meter, "director"');
     const box = wk.slice(i, i + 220);
     return box.includes('DIRECTOR_RULES') && box.includes('content: packet')
         && !box.includes('system,');
@@ -4606,6 +4747,13 @@ eq('시간표 단추는 peek보다 좁다',
   eq('실측이 화면까지 온다',
     /Array\.isArray\(data\.stages\)&&data\.stages\.length/.test(web)
     && /Array\.isArray\(d\.stages\)&&d\.stages\.length/.test(appSrc), true);
+  /* 쓰는 쪽 한 번(usage)과 한 턴 총합(usage_total)은 다른 숫자다.
+     하나만 보이면 네 번 탄 턴을 한 번짜리로 읽는다 */
+  eq('총합도 화면까지 온다',
+    /data\.usage_total/.test(web) && /d\.usage_total/.test(appSrc), true);
+  /* 같은 단계 이름이 재시도로 두 번 나온다 — 번호가 없으면 구분이 안 된다 */
+  eq('호출 번호가 화면까지 온다',
+    /t\.call_id/.test(web) && /t\.call_id/.test(appSrc), true);
 }
 
 /* 파이프라인을 실제로 굴려 본다 — 조각이 다 맞아도 이어붙인 데서 새는 것은
@@ -4815,7 +4963,33 @@ eq('시간표 단추는 peek보다 좁다',
     /문장이 좋은지 나쁜지는 보지 않는다\. 사실만 본다\./.test(wk), true);
   eq('한쪽은 사람만 본다',
     /너는 이 사람이 이 사람다운지만 본다\. 사실 관계는 보지 않는다\./.test(wk), true);
-  eq('검사 둘이 나란히 돈다', /Promise\.all\(\[\s*\n\s*callStage\(env, "canon"/.test(wk), true);
+  eq('검사 둘이 나란히 돈다', /Promise\.all\(\[\s*\n\s*callStage\(env, meter, "canon"/.test(wk), true);
+  /* ── 마무리에게 세계를 준다 ──
+     `system + "\n\n" + FINALIZER_RULES`였다. buildSystem은 블록 배열이라
+     문자열과 더하면 "[object Object],[object Object]…"가 됐다 —
+     이 작품에서 제일 중요한 자리를 세계관도 인물도 규칙도 없이 쓰고 있었다. */
+  eq('마무리가 세계를 받는다',
+    /const finalizerSystem = \[\.\.\.system, \{ type: "text", text: FINALIZER_RULES \}\]/.test(wk), true);
+  /* 주석에는 남아 있다 — 왜 이렇게 됐는지가 거기 적혀 있다. 코드만 본다 */
+  eq('문자열로 더하지 않는다', /[^`]system \+ "\\n\\n" \+ FINALIZER_RULES/.test(wk), false);
+  /* push()면 같은 배열을 재시도 때 쓰는 쪽이 다시 받는다 — 규칙이 쌓인다 */
+  eq('마무리 규칙을 원본에 밀어넣지 않는다', /system\.push\(/.test(wk), false);
+  eq('마무리가 그 사본으로 불린다',
+    /callStage\(env, meter, "finalizer",\s*\n\s*finalizerSystem,/.test(wk), true);
+
+  /* ── 원문은 운영 로그에 안 남긴다 ──
+     쓰는 쪽 응답 600자를 매 턴 찍고 있었다. 그건 대화 원문이다. */
+  eq('응답 원문은 개발 플래그 뒤에 있다', (() => {
+    const raw = wk.match(/^\s*(console\.log|devLog)\(`\[NULL\] (응답|기준선 응답)/gm) || [];
+    return raw.length === 2 && raw.every(x => x.includes('devLog('));
+  })(), true);
+  eq('플래그는 기본으로 꺼져 있다', /let DEV_LOG = false;/.test(wk), true);
+  eq('플래그는 요청 진입에서 읽는다', /DEV_LOG = devFlag\(env\);/.test(wk), true);
+  /* 갈래와 건수는 늘 남긴다 — 그게 없으면 어느 필터가 도는지도 모른다 */
+  eq('버린 갈래는 플래그 없이도 남는다', (() => {
+    const f = wk.slice(wk.indexOf('function dropped('), wk.indexOf('function dropMeta('));
+    return /console\.log\(`\[NULL\] 버렸다 ▶ \$\{why\}`\)/.test(f) && /devLog\(/.test(f);
+  })(), true);
   /* 검사도 마무리도 같은 장면을 봐야 한다 — 다른 장면을 보면 검사가 잡은
      것을 마무리가 이해할 수 없다 */
   eq('검사와 마무리가 같은 머리를 쓴다', (() => {
@@ -4844,17 +5018,32 @@ eq('시간표 단추는 peek보다 좁다',
     return !box.includes('"director"');
   })(), true);
 
-  eq('검사 답을 읽는다', readProblems(JSON.stringify({ problems: ['앞서 나감'] })), ['앞서 나감']);
-  eq('못 읽으면 잡을 것이 없는 것으로 본다', readProblems('음 글쎄요'), []);
+  /* 검사는 후보 전부를 한 번에 본다 — 어느 후보 것인지가 답에 남아야 한다.
+     `.flat()`으로 합치던 때는 표식이 사라져 마무리가 어느 쪽을 고칠지 몰랐다. */
+  eq('검사 답이 후보 표식을 지킨다',
+    readProblems(JSON.stringify({ problems: [
+      { candidate: 'A', note: '앞서 나감' }, { candidate: 'B', note: '설명이 길다' }] }), 'canon'),
+    [{ candidate: 'A', note: '앞서 나감', critic: 'canon' },
+     { candidate: 'B', note: '설명이 길다', critic: 'canon' }]);
+  /* 후보가 하나인 턴에는 표식이 없다 — 없다고 버리지 않는다 */
+  eq('표식 없는 답도 읽는다', readProblems(JSON.stringify({ problems: ['앞서 나감'] }), 'character'),
+    [{ candidate: '', note: '앞서 나감', critic: 'character' }]);
+  eq('못 읽으면 잡을 것이 없는 것으로 본다', readProblems('음 글쎄요', 'canon'), []);
 
   const ctx = { who: 'minhyun', when: '저녁', place: null, stage: '시한 · 30일째',
     knows: '병원 옥상', facts: ['상대가 정해졌다'], recent: [{ role: 'user', content: '너로 할게' }] };
   const cands = [{ kept: [{ text: '진짜요?' }], signals: [] },
                  { kept: [{ text: '알았어요.' }], signals: ['TOO_EXPLANATORY'] }];
   eq('꾸러미에 사실이 실린다', sceneHead(ctx).join('\n').includes('[사실] 상대가 정해졌다'), true);
+  const notes1 = [{ candidate: 'A', note: '앞서 나감', critic: 'canon' }];
   eq('마무리 꾸러미에 검사 결과가 실린다',
-    finalizerPacket(ctx, cands, ['앞서 나감']).includes('[검사가 잡은 것]\n- 앞서 나감'), true);
-  eq('마무리 꾸러미도 짧다', finalizerPacket(ctx, cands, ['앞서 나감']).length < 900, true);
+    finalizerPacket(ctx, cands, notes1).includes('[검사가 잡은 것]\n- 후보 A · 사실 — 앞서 나감'), true);
+  /* 사실이 틀린 것과 사람이 틀린 것은 고치는 법이 다르다 — 어느 검사가
+     잡았는지를 지운 채 넘기면 마무리가 같은 것으로 본다 */
+  eq('어느 검사가 잡았는지도 실린다',
+    finalizerPacket(ctx, cands, [{ candidate: 'B', note: '말투가 상담사다', critic: 'character' }])
+      .includes('- 후보 B · 사람 — 말투가 상담사다'), true);
+  eq('마무리 꾸러미도 짧다', finalizerPacket(ctx, cands, notes1).length < 900, true);
 
   /* ── 예약은 한 번짜리다 ──
      꺼내면서 지운다. 안 지우면 그 방의 모든 턴이 중요한 장면이 되고

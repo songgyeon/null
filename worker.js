@@ -64,10 +64,18 @@ const MODELS = [
    ── 왜 이렇게 나눴나 ──
    대사를 쓰는 일과 고르는 일은 다른 일이다. 쓰는 쪽은 여러 갈래를 빨리
    떠올려야 하고, 고르는 쪽은 그 중 어느 쪽이 이 사람다운지를 봐야 한다.
-   그래서 쓰는 쪽은 싸고 빠른 것으로 여러 후보를 뽑고, 고르는 쪽만 위를 쓴다.
-   일반 턴에서 고르는 쪽은 한 글자도 쓰지 않는다 — 고르기만 한다.
-   중요한 장면에서만 고르는 쪽이 직접 문장을 완성한다. 그 자리에서는
-   정확성만큼 감정의 체온·머뭇거림·말하지 않은 부분이 중요하기 때문이다.
+
+   ── 위를 쓰는 자리는 하나뿐이다 ──
+   한동안 고르는 쪽에도 위를 썼다. 그러면 「평소에는 싼 것, 중요할 때만
+   위」라는 말과 실제가 어긋난다 — 일반 턴마다 위를 부르고 있었다.
+   고르는 일은 쓰는 일보다 쉽다. 후보 둘을 놓고 어느 쪽이 이 사람인지
+   고르는 데는 세계를 새로 지어낼 힘이 필요 없다.
+   그래서 마무리 하나만 위다. 그 자리에서는 정확성만큼 감정의 체온·
+   머뭇거림·말하지 않은 부분이 중요하고, 그건 고르기로는 안 되기 때문이다.
+
+     일반 턴    쓰기 1 → 고르기 1                        2호출
+     중요 장면  쓰기 1 → 검사 2(정사·사람) → 마무리 1    4호출
+                재시도 포함 최대 8호출
 
    ── 폴백은 없다 ──
    모델이 바뀌면 캐릭터의 말맛이 바뀐다. 못 쓰면 다른 것으로 조용히
@@ -76,9 +84,10 @@ const MODELS = [
    뒷일에만 남는다. */
 const ENGINE = {
   writer:    { id: "claude-haiku-4-5",            effort: null, noThinking: true },
-  director:  { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
+  director:  { id: "claude-haiku-4-5",            effort: null, noThinking: true },
   canon:     { id: "claude-haiku-4-5",            effort: null, noThinking: true },
   character: { id: "claude-haiku-4-5",            effort: null, noThinking: true },
+  /* 위를 쓰는 자리는 여기 하나다 */
   finalizer: { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
 };
 /* ── 후보를 몇 개, 어떻게 뽑나 ──
@@ -114,6 +123,206 @@ function candidateMode(env) {
   const v = String((env && (env.CANDIDATE_MODE || env.candidate_mode)) || "").trim().toLowerCase();
   return CANDIDATE_N[v] ? v : CANDIDATE_MODE;
 }
+
+/* ── 원문은 운영 로그에 안 남긴다 ──
+   쓰는 쪽 응답 600자를 매 턴 찍고 있었다. 그건 대화 원문이다 — 유저가
+   쓴 말과 인물이 한 말이 그대로 Cloudflare 로그에 쌓인다. 남길 것은
+   단계·토큰·지연·오류 코드뿐이다.
+   진단할 때는 대시보드에서 DEV_LOG=1을 켠다. 켜는 것은 사람이 하는
+   일이고, 기본값은 꺼짐이다 — 「일단 켜놓고 나중에 끈다」는 안 끈다.
+
+   플래그는 요청 진입에서 한 번 읽어 여기에 둔다. 이 함수들은 env를
+   안 받는 자리(dropMeta 등)에서도 불린다. 아이솔레이트가 요청을
+   동시에 받으면 다른 요청의 값을 볼 수 있지만, 이건 켜고 끄는 진단
+   스위치라 섞여도 새는 것이 늘지 않는다 — 계측(meter)과 달리
+   요청별로 들고 다닐 이유가 없다. */
+let DEV_LOG = false;
+function devFlag(env) {
+  const v = String((env && (env.DEV_LOG || env.dev_log)) || "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on";
+}
+function devLog(...a) { if (DEV_LOG) console.log(...a); }
+/* ══════════════════════════════════════════════════════════════
+   공통 계약 — 모든 단계가 같은 세계를 본다
+
+   ── 뿌리 ──
+   지금까지의 실패는 「누가 무엇을 몰랐나」로 거의 다 설명된다. 쓰는 쪽은
+   아는 범위를 못 받았고, 고르는 쪽은 사실을 못 받았고, 마무리는 세계관
+   자체를 못 받았다. 사실을 하나씩 덧붙이면 단계마다 다른 세계를 보게
+   된다 — 그래서 사실을 붙이기 전에 **모양**을 먼저 못박는다.
+
+   Writer · Director · Canon · Character · Finalizer · 기준선이 같은
+   객체를 본다. 여기가 그 객체다.
+
+   ── 여기는 정의만 있다 ──
+   이 단계는 구조를 세우는 자리고, 실제 배선(사실을 채워 각 단계에
+   넘기는 것)은 뒤 단계다. 여기 있는 것을 아직 아무도 안 쓴다고 해서
+   죽은 코드가 아니라, 뒤 단계가 딛고 설 바닥이다.
+
+   ── 없는 것은 거짓이 아니다 ──
+   제일 중요한 규칙이다. 목록에 없는 사실은 `unknown`이지 `false`가
+   아니다. 「모르는 것」을 「아니라고 아는 것」으로 다루면 검사가
+   멀쩡한 대사를 위반으로 잡고 RETRY가 폭주한다.
+   위반은 **명시적으로 반대 값이 있을 때만**이다. */
+
+/* ── Fact ──
+   source는 둘뿐이다. `canon`은 이 세계가 원래 그런 것(바뀌지 않는다),
+   `state`는 이번 판에서 그렇게 된 것(플레이마다 다르다).
+   Canon Critic에게는 **둘 다** 준다 — 고정 정사만 주면 이번 턴에
+   방금 일어난 일을 「없는 일」로 잡는다.
+
+   known_by가 핵심이다. 단순 문자열 목록이면 재언만 아는 과거가
+   민현·단톡 Writer에게 샌다. 「20년 전 공부방 아이」가 그 자리다. */
+const FACT_SOURCES = ["canon", "state"];
+const KNOWERS = ["jaeeon", "minhyun", "user"];
+
+function makeFact(fact_id, value, source, known_by) {
+  const id = String(fact_id || "").trim();
+  if (!id) throw new Error("fact_id가 없다");
+  if (!FACT_SOURCES.includes(source)) throw new Error(`모르는 source: ${source}`);
+  /* 아무도 모르는 사실은 사실이 아니라 설정 파일의 한 줄이다.
+     known_by를 빠뜨리면 조용히 모두에게 새므로, 빈 목록도 명시로 받는다. */
+  const who = (Array.isArray(known_by) ? known_by : [])
+    .map(String).filter(w => KNOWERS.includes(w));
+  return { fact_id: id, value, source, known_by: who };
+}
+
+/* 방에 앉은 사람들. 단톡은 셋이 같이 듣는다 — 여기서 새면 제일 크게 샌다. */
+const ROOM_EARS = {
+  jaeeon: ["jaeeon", "user"],
+  minhyun: ["minhyun", "user"],
+  group: ["jaeeon", "minhyun", "user"],
+  health: ["jaeeon", "minhyun"],          // 관전 — 유저는 읽기만 한다
+};
+
+/* ── 투영 ──
+   그 방에서 말할 수 있는 사람 중 **누구 하나라도** 아는 사실만 남긴다.
+   유저만 아는 것도 남긴다 — 유저가 방금 말한 것이 거기 있다.
+   speaker를 주면 그 한 사람이 아는 것만 남긴다(그 화자의 Writer용). */
+function factsFor(facts, room, speaker) {
+  const ears = speaker ? [String(speaker)] : (ROOM_EARS[room] || []);
+  if (!ears.length) return [];
+  return (facts || []).filter(f => f && Array.isArray(f.known_by)
+    && f.known_by.some(w => ears.includes(w)));
+}
+
+/* 목록에 없으면 undefined다. false가 아니다 — 부르는 쪽이 그 둘을
+   구별하게 강제하려고 일부러 세 갈래로 돌려준다. */
+function factValue(facts, fact_id) {
+  const f = (facts || []).find(x => x && x.fact_id === fact_id);
+  return f ? f.value : undefined;
+}
+
+/* 위반은 명시적으로 반대일 때만이다. 모르는 것은 어기는 것이 아니다. */
+function contradicts(facts, fact_id, claimed) {
+  const v = factValue(facts, fact_id);
+  if (v === undefined) return false;              // unknown — 위반 아님
+  return v !== claimed;
+}
+
+/* ── StoryState ──
+   이야기가 어디까지 왔나. 「예약했다」와 「일어났다」를 구별하는 것이
+   이 세 칸이 있는 이유다 — 모델을 부르기 전에 explained/acknowledged를
+   찍어버려서, 실패한 턴에 장면이 증발한 적이 있다. */
+const FIRST_CONTACT = ["unseen", "pending", "explained"];
+const JAEEON_MEMORY = ["hidden", "opened", "acknowledged"];
+
+function makeStoryState(s) {
+  const o = s || {};
+  const one = (list, v) => list.includes(v) ? v : list[0];
+  const pk = o.partnerKnown || {};
+  return {
+    room:        ["jaeeon", "minhyun", "group", "health"].includes(o.room) ? o.room : "minhyun",
+    stage:       String(o.stage || ""),
+    days:        Math.max(0, Math.floor(Number(o.days) || 0)),
+    partnerId:   o.partnerId === "jaeeon" || o.partnerId === "minhyun" ? o.partnerId : null,
+    unlocked:    Array.isArray(o.unlocked) ? o.unlocked.slice() : [],
+    originPhase: String(o.originPhase || ""),
+    owned:       Array.isArray(o.owned) ? o.owned.slice() : [],       // 유저가 가진 것
+    firstContact: one(FIRST_CONTACT, o.firstContact),
+    jaeeonMemory: one(JAEEON_MEMORY, o.jaeeonMemory),
+    partnerKnown: { jaeeon: !!pk.jaeeon, minhyun: !!pk.minhyun },
+  };
+}
+
+/* ── TurnContext ──
+   StoryState에 이번 턴에만 참인 것을 얹은 것. 여기가 각 단계에 넘어간다.
+
+   requiredSpeakers 기본값은 **빈 배열**이다. 일반 단톡마다 두 사람을
+   강제로 말시키면 대화가 인위적으로 변한다 — 코드가 반드시 둘의 반응을
+   요구하는 특정 사건에만 채운다.
+
+   givenHistory는 **수신자를 보존한다**. 평면 배열로 두면 단톡·관전에서
+   누구에게 준 것인지가 사라진다. */
+function makeTurnContext(state, t) {
+  const o = t || {};
+  const gh = {};
+  for (const [who, list] of Object.entries(o.givenHistory || {})) {
+    if (!Array.isArray(list)) continue;
+    gh[who] = list.map(String);
+  }
+  return {
+    ...makeStoryState(state),
+    place:    o.place || null,
+    came:     o.came || null,
+    left:     o.left || null,
+    giftNow:  o.giftNow || null,                 // 이번 턴에 유저가 건넨 것
+    givenHistory: gh,                            // {jaeeon:["mug"], minhyun:["letter"]}
+    now:      o.now || null,
+    day:      o.day || null,
+    season:   o.season || null,
+    requiredSpeakers: Array.isArray(o.requiredSpeakers) ? o.requiredSpeakers.map(String) : [],
+    sceneReason: o.sceneReason || "",            // 승인된 것만 들어온다
+    facts:    Array.isArray(o.facts) ? o.facts.slice() : [],
+    recent:   Array.isArray(o.recent) ? o.recent.slice() : [],
+  };
+}
+
+/* ── Effect ──
+   제안 ≠ 발생. 모델이 낸 것은 **제안**이고, 검증을 통과한 뒤 코드가
+   커밋해야 비로소 일어난 일이다. 그 구별을 타입 모양으로 못박는다.
+
+   ── id는 모델이 만들지 않는다 ──
+   선택이 끝난 뒤 코드가 `request_id + type + 대상 + item/key`로 만든다.
+   모델이 임의 ID를 쓰거나 재시도마다 다른 ID를 내면 같은 선물이 두 번
+   지급된다. 재시도해도 같은 재료면 같은 id가 나오는 것이 요점이다. */
+const EFFECT_TYPES = ["item_transfer", "invite", "story_transition"];
+
+function mintEffectId(requestId, type, target, key) {
+  return [String(requestId || ""), String(type || ""),
+          String(target || ""), String(key || "")].join("|");
+}
+
+function makeEffect(requestId, e) {
+  const o = e || {};
+  const type = o.type;
+  if (!EFFECT_TYPES.includes(type)) throw new Error(`모르는 effect: ${type}`);
+  if (type === "item_transfer") {
+    const to = String(o.to || ""), item = String(o.item || "");
+    if (!to || !item) throw new Error("item_transfer에 to/item이 없다");
+    return { id: mintEffectId(requestId, type, to, item),
+             type, from: String(o.from || ""), to, item };
+  }
+  if (type === "invite") {
+    const place = String(o.place || ""), char = String(o.char || "");
+    if (!place || !char) throw new Error("invite에 place/char가 없다");
+    return { id: mintEffectId(requestId, type, char, place), type, place, char };
+  }
+  /* story_transition — 어디서 어디로 가는지를 둘 다 적는다. from을 안 적으면
+     이미 지나간 상태를 다시 커밋해도 아무도 모른다. */
+  const key = String(o.key || "");
+  if (key !== "firstContact" && key !== "jaeeonMemory")
+    throw new Error(`모르는 story_transition: ${key}`);
+  const list = key === "firstContact" ? FIRST_CONTACT : JAEEON_MEMORY;
+  if (!list.includes(o.from) || !list.includes(o.to))
+    throw new Error(`${key}의 상태가 아니다: ${o.from} → ${o.to}`);
+  if (list.indexOf(o.to) <= list.indexOf(o.from))
+    throw new Error(`${key}는 뒤로 못 간다: ${o.from} → ${o.to}`);
+  return { id: mintEffectId(requestId, type, key, o.to), type, key, from: o.from, to: o.to };
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+
 /* 예산 안에서 새것부터 담는다. 잘라내는 쪽은 늘 오래된 쪽이다 —
    앞에서 자르지 않고 뒤에서 자르면 캐시된 앞부분이 매번 달라진다. */
 function budgetHistory(list, budget) {
@@ -2583,51 +2792,77 @@ async function callModel(env, m, system, messages, maxTokens, effort) {
 /* 캐시가 실제로 맞았는지는 응답의 usage에만 나온다. 안 맞아도 오류가 안 나고
    조용히 정가를 물기 때문에, 진단에서는 이 숫자를 눈으로 봐야 한다.
    쓰기(creation)가 계속 잡히고 읽기(read)가 0이면 고정부가 매 턴 달라지고 있는 것이다. */
-/* 마지막 호출의 usage. 응답에 실어 보내면 화면에서 실측이 보인다 —
-   내 산수가 아니라 진짜 숫자로 판단할 수 있게. 캐시가 조용히 안 맞고 있어도
-   오류가 안 나기 때문에, 이걸 안 보면 정가를 무는 줄 모른다. */
-let lastUsage = null;
-
 /* ══════════════════════════════════════════════════════════════
    단계별 호출과 계측
 
    이 하이브리드가 지금보다 싸다고 미리 단정하지 않는다. 호출 수만 보고
    비용을 추측하는 것도 안 한다 — 후보 재입력, 캐시 쓰기·읽기, 재생성
    비용이 다 들어간다. 그래서 단계마다 실측을 남긴다.
-   원문과 프롬프트는 안 남긴다. 남길 것은 숫자뿐이다. */
-let stageLog = [];
+   원문과 프롬프트는 안 남긴다. 남길 것은 숫자뿐이다.
 
-function stageStamp(stage, model, usage, ms, attempt, tier) {
+   ── 전역이 아니라 요청별이다 ──
+   전에는 모듈 전역(let stageLog / let lastUsage)이었다. 워커 아이솔레이트는
+   요청을 동시에 받는다 — 방 둘에 선톡에 관전이 겹치면 A 요청의 단계가
+   B 응답에 실린다. 그러면 비용도 지연도 못 믿는다. 요청 진입에서 하나
+   만들어 들고 다닌다.
+
+   ── 식별자 ──
+   중요 장면은 쓰기·정사검사·사람검사·마무리 네 단계이고 재시도가 붙는다.
+   단계 이름만으로는 같은 이름이 두 번 나올 때 구분이 안 된다. call_id를 센다. */
+function newMeter(requestId) {
+  return { request_id: requestId || "", rows: [], n: 0, writerUsage: null };
+}
+
+/* usage_total은 따로 낸다. 기존 usage(= 쓰는 쪽 한 번의 실측)의 뜻을
+   몰래 총합으로 바꾸지 않는다 — 그러면 옛 화면이 읽던 숫자가 딴것이 된다. */
+function meterTotal(meter) {
+  const t = { input_tokens: 0, output_tokens: 0,
+              cache_read_input_tokens: 0, cache_creation_input_tokens: 0, calls: 0 };
+  for (const r of (meter && meter.rows) || []) {
+    t.input_tokens += r.input_tokens; t.output_tokens += r.output_tokens;
+    t.cache_read_input_tokens += r.cache_read_input_tokens;
+    t.cache_creation_input_tokens += r.cache_creation_input_tokens;
+    t.calls++;
+  }
+  return t;
+}
+
+function stageStamp(meter, stage, model, usage, ms, attempt, tier, status, candidate) {
   const u = usage || {};
   const row = {
+    request_id: (meter && meter.request_id) || "",
+    call_id: meter ? ++meter.n : 0,
     stage, model,
+    candidate: candidate || "",
+    attempt, status: status || "ok", scene_tier: tier,
     input_tokens: u.input_tokens || 0,
     output_tokens: u.output_tokens || 0,
     cache_read_input_tokens: u.cache_read_input_tokens || 0,
     cache_creation_input_tokens: u.cache_creation_input_tokens || 0,
-    latency_ms: ms, attempt, scene_tier: tier,
+    latency_ms: ms,
   };
-  stageLog.push(row);
-  console.log(`[NULL] 단계 ${stage} ▶ ${model} ▶ 새로 ${row.input_tokens}`
-    + ` · 캐시 씀 ${row.cache_creation_input_tokens} / 읽음 ${row.cache_read_input_tokens}`
-    + ` · 출력 ${row.output_tokens} · ${ms}ms · ${attempt}회차 · ${tier}`);
+  if (meter) meter.rows.push(row);
+  console.log(`[NULL] 단계 #${row.call_id} ${stage} ▶ ${model} ▶ ${row.status}`
+    + ` · 새로 ${row.input_tokens} · 캐시 씀 ${row.cache_creation_input_tokens}`
+    + ` / 읽음 ${row.cache_read_input_tokens} · 출력 ${row.output_tokens}`
+    + ` · ${ms}ms · ${attempt}회차 · ${tier}`);
   return row;
 }
 
 /* 한 단계를 부른다. 실패하면 다른 모델로 넘어가지 않는다 — 진짜 오류를
    그대로 올린다. 말맛이 바뀌는 것보다 안 되는 게 보이는 편이 낫다. */
-async function callStage(env, stage, system, messages, maxTokens, attempt, tier) {
+async function callStage(env, meter, stage, system, messages, maxTokens, attempt, tier, candidate) {
   const m = ENGINE[stage];
   if (!m) throw new Error(`모르는 단계: ${stage}`);
   const t0 = Date.now();
   const res = await callModel(env, m, system, messages, maxTokens);
   const ms = Date.now() - t0;
   if (!res.ok) {
-    stageStamp(stage, m.id, null, ms, attempt, tier);
+    stageStamp(meter, stage, m.id, null, ms, attempt, tier, `err:${res.status}`, candidate);
     throw new Error(`${stage} 실패 — ${m.id} → ${res.status}: ${String(res.body).slice(0, 200)}`);
   }
-  stageStamp(stage, m.id, res.usage, ms, attempt, tier);
-  if (stage === "writer") lastUsage = res.usage;   // 화면 콘솔이 보던 자리
+  stageStamp(meter, stage, m.id, res.usage, ms, attempt, tier, "ok", candidate);
+  if (stage === "writer" && meter) meter.writerUsage = res.usage;   // 화면 콘솔이 보던 자리
   return res.text;
 }
 
@@ -2641,14 +2876,14 @@ function cacheNote(u) {
 
 /* 요약은 하이쿠로 돈다. 계정에서 못 쓰면(404) 쓰던 모델로 넘어간다 —
    요약이 아예 안 되는 것보다는 비싸게라도 되는 편이 낫다. */
-async function askSummary(env, system, messages, maxTokens) {
+async function askSummary(env, meter, system, messages, maxTokens) {
   const r = await callModel(env, SUMMARY_MODEL, system, messages, maxTokens);
-  if (r.ok) { lastUsage = r.usage; return r.text; }
+  if (r.ok) { if (meter) meter.writerUsage = r.usage; return r.text; }
   console.log(`[NULL] 요약 모델 실패 ${SUMMARY_MODEL.id} → ${r.status}, 쓰던 모델로 넘어간다`);
-  return await askClaude(env, system, messages, maxTokens);
+  return await askClaude(env, meter, system, messages, maxTokens);
 }
 
-async function askClaude(env, system, messages, maxTokens, effort) {
+async function askClaude(env, meter, system, messages, maxTokens, effort) {
   // 이미 되는 모델을 알면 그것부터, 아니면 목록 순서대로
   /* 고른 모델은 MODELS[0]이다. 최근에 그게 안 돼서 다른 걸 쓰고 있는 동안만
      그 다른 걸 앞에 세운다. 시효가 지나면 고른 모델부터 다시 부른다. */
@@ -2661,7 +2896,8 @@ async function askClaude(env, system, messages, maxTokens, effort) {
   for (const m of order) {
     const res = await callModel(env, m, system, messages, maxTokens, effort);
     if (res.ok) {
-      workingModel = m; workingAt = Date.now(); lastUsage = res.usage;
+      workingModel = m; workingAt = Date.now();
+      if (meter) { meter.writerUsage = res.usage; meter.legacyModel = m.id; }
       /* 조용히 넘어가는 것이 문제였다. 고른 모델이 아니면 콘솔에 적는다 */
       if (m.id !== MODELS[0].id) {
         console.log(`[NULL] ⚠ 고른 모델이 아니다 — ${MODELS[0].id} 대신 ${m.id}가 답했다`
@@ -2958,25 +3194,21 @@ function isSelfName(text, sender) {
     new RegExp("^" + nm + "\\s*(?:은|는|이|가|도|의|만)?\\s*(?:요|예요|이에요)?[.!?\u2026~]*$").test(t);
 }
 
+/* 버린 줄은 「무엇을 왜 버렸다」까지만 늘 남긴다. 버려진 글자 자체는
+   모델 원문이라 개발 플래그 뒤로 보낸다 — 갈래와 건수만으로도 어느
+   필터가 도는지는 보인다. */
+function dropped(why, text, n) {
+  console.log(`[NULL] 버렸다 ▶ ${why}`);
+  devLog(`[NULL] 버린 줄 ▶ ${why} ▶ ${String(text).slice(0, n)}`);
+}
+
 function dropMeta(list) {
   const out = [];
   for (const m of list || []) {
-    if (isMeta(m && m.text)) {
-      console.log(`[NULL] 사고 유출을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
-      continue;
-    }
-    if (isLeak(m && m.text)) {
-      console.log(`[NULL] 안이 비친 줄을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
-      continue;
-    }
-    if (isSelfNarration(m && m.text, m && m.sender)) {
-      console.log(`[NULL] 지문을 버렸다 ▶ ${String(m.text).slice(0, 120)}`);
-      continue;
-    }
-    if (isSelfName(m && m.text, m && m.sender)) {
-      console.log(`[NULL] 제 이름을 호칭 자리에 쓴 것을 버렸다 ▶ ${String(m.text).slice(0, 40)}`);
-      continue;
-    }
+    if (isMeta(m && m.text)) { dropped("사고 유출", m && m.text, 120); continue; }
+    if (isLeak(m && m.text)) { dropped("안이 비친 줄", m && m.text, 120); continue; }
+    if (isSelfNarration(m && m.text, m && m.sender)) { dropped("지문", m && m.text, 120); continue; }
+    if (isSelfName(m && m.text, m && m.sender)) { dropped("제 이름을 호칭 자리에", m && m.text, 40); continue; }
     out.push(m);
   }
   return out;
@@ -3310,8 +3542,11 @@ const CANON_CRITIC = `너는 이 세계의 사실만 본다. 아래 [사실]에 
 - 유저가 한 적 없는 행동을 했다고 말한 것
 
 문장이 좋은지 나쁜지는 보지 않는다. 사실만 본다.
+
+후보가 여럿이면 **한 번에 다 본다.** 어느 후보 얘기인지 반드시 표시한다 —
+표시가 없으면 마무리하는 쪽이 어느 쪽을 고쳐야 하는지 알 수 없다.
 출력은 이 모양 하나뿐이다.
-{"problems":["짧게 무엇이 틀렸는지"]}
+{"problems":[{"candidate":"A","note":"짧게 무엇이 틀렸는지"}]}
 잡을 것이 없으면 {"problems":[]}`;
 
 const CHAR_CRITIC = `너는 이 사람이 이 사람다운지만 본다. 사실 관계는 보지 않는다.
@@ -3323,8 +3558,9 @@ const CHAR_CRITIC = `너는 이 사람이 이 사람다운지만 본다. 사실 
 - 유저의 감정이나 행동을 대신 써준 것
 - 세계관을 길게 설명하는 것
 
+후보가 여럿이면 **한 번에 다 본다.** 어느 후보 얘기인지 반드시 표시한다.
 출력은 이 모양 하나뿐이다.
-{"problems":["짧게 무엇이 어긋났는지"]}
+{"problems":[{"candidate":"A","note":"짧게 무엇이 어긋났는지"}]}
 잡을 것이 없으면 {"problems":[]}`;
 
 const FINALIZER_RULES = `너는 이 장면의 마지막 손이다. 유저가 실제로 읽을 대사를 완성한다.
@@ -3362,20 +3598,34 @@ function sceneHead(ctx) {
   return L;
 }
 
-function criticPacket(ctx, c) {
+/* 후보를 한 꾸러미에 담는다. 전에는 후보마다 검사를 따로 불러서 중요
+   장면 한 번에 여섯 호출이 났고, 결과를 합치면서 어느 후보 문제인지도
+   사라졌다. 한 번에 보여주고 표식을 달아 받는다 — 네 호출이 된다. */
+function criticPacket(ctx, cands) {
   const L = sceneHead(ctx);
-  L.push(``, `[후보]`);
-  c.kept.forEach(m => L.push(`  ${m.text}`));
+  L.push(``);
+  cands.forEach((c, i) => {
+    L.push(cands.length === 1 ? `[후보]` : `[후보 ${"AB"[i]}]`);
+    c.kept.forEach(m => L.push(`  ${m.text}`));
+  });
   return L.join("\n");
 }
 
-function readProblems(raw) {
+/* 검사 답을 읽는다. 후보 표식을 살린다 — {candidate, note}.
+   옛 모양(문자열 배열)도 읽는다: 표식이 없으면 후보를 안 가린 것으로 본다.
+   (파싱 실패를 RETRY로 올리는 것은 D단계다. 여기서는 모양만 바꾼다.) */
+function readProblems(raw, critic) {
   const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
   if (!body) return [];
-  try {
-    const j = JSON.parse(body);
-    return Array.isArray(j.problems) ? j.problems.map(x => String(x).slice(0, 120)).filter(Boolean) : [];
-  } catch (e) { return []; }
+  let j;
+  try { j = JSON.parse(body); } catch (e) { return []; }
+  if (!Array.isArray(j.problems)) return [];
+  return j.problems.map(x => {
+    const note = String((x && x.note) != null ? x.note : x).slice(0, 120).trim();
+    if (!note) return null;
+    const c = String((x && x.candidate) || "").toUpperCase();
+    return { candidate: c === "A" || c === "B" ? c : "", note, critic: critic || "" };
+  }).filter(Boolean);
 }
 
 function finalizerPacket(ctx, cands, notes) {
@@ -3386,9 +3636,12 @@ function finalizerPacket(ctx, cands, notes) {
     c.kept.forEach(m => L.push(`  ${m.text}`));
     if (c.signals.length) L.push(`  (코드 신호: ${c.signals.join(", ")})`);
   });
+  /* 어느 후보의 어느 검사가 잡은 것인지 남긴다. 표식 없이 합치면
+     마무리하는 쪽이 어느 쪽을 고쳐야 하는지 알 수가 없다. */
   if (notes && notes.length) {
     L.push(``, `[검사가 잡은 것]`);
-    notes.forEach(n => L.push(`- ${n}`));
+    notes.forEach(n => L.push(
+      `- ${n.candidate ? `후보 ${n.candidate} · ` : ""}${n.critic === "canon" ? "사실" : "사람"} — ${n.note}`));
   }
   return L.join("\n");
 }
@@ -3741,9 +3994,11 @@ export default {
 
     /* 프론트가 붙인 요청 이름표. 워커는 판정하지 않고 그대로 비춰준다 */
     const reqId = typeof body.request_id === "string" ? body.request_id.slice(0, 64) : "";
-    /* 워커의 전역은 요청 사이에 살아남는다. 안 비우면 앞 요청의 단계가
-       이번 답에 딸려 나가고, 비용을 두 번 센 것처럼 보인다. */
-    stageLog = [];
+    /* 계측은 이 요청 안에서만 산다. 전역이던 시절에는 앞 요청의 단계가
+       이번 답에 딸려 나갔다 — 아이솔레이트 하나가 요청을 동시에 받으므로
+       비우는 것으로는 안 됐다. 요청마다 하나 만들어 들고 다닌다. */
+    const meter = newMeter(reqId);
+    DEV_LOG = devFlag(env);          // 원문을 찍을지. 기본은 꺼짐
     const mode = body.mode === "auto" ? "auto" : body.mode === "summarize" ? "summarize" : "chat";
     /* 요약은 방을 안 가려도 된다 — 압축이라 인물 블록도 형식도 안 쓴다.
        관전(health)도 요약해야 창 밖으로 밀려난 대화가 남는다. 다만 chat·auto
@@ -3789,11 +4044,11 @@ export default {
         .filter(t => t.trim()).join("\n").slice(0, 40000);
       if (!chunk) return new Response(JSON.stringify({ error: "요약할 대화가 없음" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
       try {
-        const text = await askSummary(env,
+        const text = await askSummary(env, meter,
           [{ type: "text", text: SUMMARIZE, cache_control: CACHE }],
           [{ role: "user", content: (prev ? `## 지금까지의 요약\n${prev}\n\n` : "") + `## 그 뒤에 오간 대화\n${chunk}` }],
           Math.ceil(SUMMARY_MAX * 1.2));
-        return new Response(JSON.stringify({ summary: (text || "").trim().slice(0, 4000), usage: lastUsage }),
+        return new Response(JSON.stringify({ summary: (text || "").trim().slice(0, 4000), usage: meter.writerUsage }),
           { headers: { ...CORS, "content-type": "application/json" } });
       } catch (e) {
         return new Response(JSON.stringify({ error: "요약 실패", detail: String(e).slice(0, 200) }), { status: 502, headers: { ...CORS, "content-type": "application/json" } });
@@ -3931,9 +4186,10 @@ export default {
          이 길은 목록 폴백을 그대로 쓴다. 그게 옛 길의 모습이기 때문이다. */
       if (engineMode(env) === "legacy") {
         const t0 = Date.now();
-        const raw = await askClaude(env, system, msgs, budget0);
-        stageStamp("legacy", (lastUsage && lastUsage.model) || "?", lastUsage, Date.now() - t0, 1, "legacy");
-        console.log(`[NULL] 기준선 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
+        const raw = await askClaude(env, meter, system, msgs, budget0);
+        stageStamp(meter, "legacy", meter.legacyModel || "?", meter.writerUsage,
+                   Date.now() - t0, 1, "legacy", "ok", "");
+        devLog(`[NULL] 기준선 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
         const p0 = parseMessages(raw, fallbackSender, chars);
         const inv0 = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
         const giv0 = pickGive(parseMessages.give, place, hasItem, room);
@@ -3942,12 +4198,14 @@ export default {
           lastSaid(msgs, mode));
         if (!kept0.length) {
           return new Response(JSON.stringify({ error: "생성 실패", detail: "모델 응답을 읽지 못했습니다",
-            stages: stageLog, ...(reqId ? { request_id: reqId } : {}) }),
+            stages: meter.rows, usage_total: meterTotal(meter),
+            ...(reqId ? { request_id: reqId } : {}) }),
             { status: 502, headers: { ...CORS, "content-type": "application/json" } });
         }
         return new Response(JSON.stringify({
           messages: dropSleepers(kept0, place ? null : states),
-          unlocked: unlockedKeys(counts, days), usage: lastUsage, stages: stageLog,
+          unlocked: unlockedKeys(counts, days), usage: meter.writerUsage,
+          stages: meter.rows, usage_total: meterTotal(meter),
           ...(reqId ? { request_id: reqId } : {}),
           ...(inv0 ? { invite: { place: inv0, char: room } } : {}),
           ...(giv0 ? { give: { item: giv0, place, char: room } } : {}) }),
@@ -3996,11 +4254,11 @@ export default {
            남은 한쪽으로 조용히 때우면 두 배 값을 내고 한 개를 받은 것을
            아무도 모른다. */
         const raws = cMode === "parallel"
-          ? await Promise.all([1, 2].map(() =>
-              callStage(env, "writer", system, msgs, budget, attempt, tier)))
-          : [await callStage(env, "writer", system, msgs,
-              budget * (nCand > 1 ? nCand : 1), attempt, tier)];
-        console.log(`[NULL] 응답 ▶ ${mode}/${room}/${cMode} ▶ ${raws.join(" ⋯ ").slice(0, 600)}`);
+          ? await Promise.all([1, 2].map(i =>
+              callStage(env, meter, "writer", system, msgs, budget, attempt, tier, "AB"[i - 1])))
+          : [await callStage(env, meter, "writer", system, msgs,
+              budget * (nCand > 1 ? nCand : 1), attempt, tier, "")];
+        devLog(`[NULL] 응답 ▶ ${mode}/${room}/${cMode} ▶ ${raws.join(" ⋯ ").slice(0, 600)}`);
 
         /* 후보마다 지금까지 쓰던 검사줄을 그대로 태운다. 새 검사를 만들지
            않는다 — 사진·초대·물건·메아리·말버릇은 이미 여기서 걸러진다. */
@@ -4034,18 +4292,30 @@ export default {
            맡는다. 정확성만큼 감정의 체온과 말하지 않은 것이 중요한 자리라
            고르기만 해서는 모자라기 때문이다. */
         if (tier === "critical") {
-          const notes = (await Promise.all(cands.map(c =>
-            Promise.all([
-              callStage(env, "canon", CANON_CRITIC,
-                [{ role: "user", content: criticPacket(sceneCtx, c) }], 300, attempt, tier),
-              callStage(env, "character", CHAR_CRITIC,
-                [{ role: "user", content: criticPacket(sceneCtx, c) }], 300, attempt, tier),
-            ])))).flat().flatMap(readProblems);
-          console.log(`[NULL] 검사 ▶ ${notes.length}건 ${JSON.stringify(notes).slice(0, 300)}`);
-          const finRaw = await callStage(env, "finalizer",
-            system + "\n\n" + FINALIZER_RULES,
+          /* 검사는 둘이고, 각각 후보 전부를 한 번에 본다. 후보마다 부르면
+             여섯 호출이 나고 결과를 합치면서 표식이 사라진다. */
+          const pk = criticPacket(sceneCtx, cands);
+          const [canonRaw, charRaw] = await Promise.all([
+            callStage(env, meter, "canon", CANON_CRITIC,
+              [{ role: "user", content: pk }], 400, attempt, tier, ""),
+            callStage(env, meter, "character", CHAR_CRITIC,
+              [{ role: "user", content: pk }], 400, attempt, tier, ""),
+          ]);
+          const notes = [...readProblems(canonRaw, "canon"), ...readProblems(charRaw, "character")];
+          console.log(`[NULL] 검사 ▶ ${notes.length}건`);
+          /* ── 마무리에게 세계를 준다 ──
+             전에는 `system + "\n\n" + FINALIZER_RULES`였다. buildSystem은
+             블록 배열이라 문자열과 더하면 "[object Object],…"가 됐다 —
+             이 작품에서 제일 중요한 자리를 세계관도 인물도 규칙도 없이
+             쓰고 있었다. 배열을 비변이로 복사해 규칙 한 장을 뒤에 붙인다.
+             push()는 안 된다: 같은 배열을 재시도 때 쓰는 쪽이 다시 받는다.
+             cache_control은 안 붙인다 — 캐시 지점 네 개를 이미 다 썼다
+             (WORLD·people·rules + 이력 꼬리). */
+          const finalizerSystem = [...system, { type: "text", text: FINALIZER_RULES }];
+          const finRaw = await callStage(env, meter, "finalizer",
+            finalizerSystem,
             [{ role: "user", content: finalizerPacket(sceneCtx, cands, notes) }],
-            budget, attempt, tier);
+            budget, attempt, tier, "");
           /* 마무리한 것도 같은 검사줄을 다시 통과해야 한다 — 위를 썼다고
              빠져나가면 여기가 유일하게 안 걸러지는 자리가 된다 */
           const fp = parseMessages(finRaw, fallbackSender, chars);
@@ -4061,8 +4331,8 @@ export default {
         }
 
         const packet = directorPacket(sceneCtx, cands);
-        const decRaw = await callStage(env, "director", DIRECTOR_RULES,
-          [{ role: "user", content: packet }], 300, attempt, tier);
+        const decRaw = await callStage(env, meter, "director", DIRECTOR_RULES,
+          [{ role: "user", content: packet }], 300, attempt, tier, "");
         const dec = readDecision(decRaw, cands.length);
         console.log(`[NULL] 고름 ▶ ${dec.decision} ${JSON.stringify(dec.reject_codes).slice(0, 200)}`);
         if (dec.decision === "RETRY") {
@@ -4078,7 +4348,8 @@ export default {
         console.log("[NULL] 쓸 만한 후보가 없다 — 재시도로 돌린다");
         return new Response(JSON.stringify({ error: "생성 실패",
           detail: "쓸 만한 응답을 못 받았습니다" + (lastCodes.length ? ` (${lastCodes.join(", ")})` : ""),
-          stages: stageLog, ...(reqId ? { request_id: reqId } : {}) }),
+          stages: meter.rows, usage_total: meterTotal(meter),
+          ...(reqId ? { request_id: reqId } : {}) }),
           { status: 502, headers: { ...CORS, "content-type": "application/json" } });
       }
       const { kept, invite, give } = picked;
@@ -4089,11 +4360,14 @@ export default {
          가리려면 보낸 이름표가 답에 실려 와야 한다. 워커는 상태를 안 들고
          있으므로 판정은 프론트 몫이고, 여기서는 그대로 비춰주기만 한다. */
       return new Response(JSON.stringify({ messages, unlocked: unlockedKeys(counts, days),
-        usage: lastUsage,
+        /* usage는 예나 지금이나 「쓰는 쪽 한 번의 실측」이다. 총합을 여기에
+           몰래 넣지 않는다 — 옛 화면이 읽던 숫자가 딴것이 되면 안 된다. */
+        usage: meter.writerUsage,
         /* 단계별 실측. 호출 수만 보고 비용을 추측하지 않으려면 이게 있어야
            한다 — 후보 재입력도, 캐시 쓰기·읽기도, 재생성도 다 여기 잡힌다.
            원문과 프롬프트는 안 싣는다. 숫자만이다. */
-        stages: stageLog,
+        stages: meter.rows,
+        usage_total: meterTotal(meter),
         ...(reqId ? { request_id: reqId } : {}),
         ...(invite ? { invite: { place: invite, char: room } } : {}),
         ...(give ? { give: { item: give, place, char: room } } : {}) }),
@@ -4103,7 +4377,8 @@ export default {
          가리는 기준이 이름표인데, 실패에만 없으면 늦게 터진 옛 실패가
          지금 도는 요청 위에 재시도를 띄운다. */
       return new Response(JSON.stringify({ error: "생성 실패", detail: String(e).slice(0, 200),
-        stages: stageLog, ...(reqId ? { request_id: reqId } : {}) }),
+        stages: meter.rows, usage_total: meterTotal(meter),
+        ...(reqId ? { request_id: reqId } : {}) }),
         { status: 502, headers: { ...CORS, "content-type": "application/json" } });
     }
   },
@@ -4112,7 +4387,15 @@ export default {
 /* 테스트에서 쓰려고 내보낸다. Workers 런타임은 default export만 보므로
    이 줄은 배포 동작에 아무 영향이 없다. 순수 함수만 내보낸다 —
    테스트가 네트워크나 키에 기대지 않게. */
+/* isLeak·isMeta는 품질 자(tools/eval.mjs)도 쓴다. 정규식을 저쪽에 복사하면
+   두 판정이 갈린다 — 워커가 거른 것과 자가 세는 것이 달라지면 「고쳤다」를
+   확인할 수가 없다. 판정은 여기 하나다. */
 export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
+         isLeak, isMeta,
+         /* 공통 계약 — 모든 단계가 같은 세계를 보게 하는 모양 */
+         makeFact, factsFor, factValue, contradicts, ROOM_EARS, FACT_SOURCES, KNOWERS,
+         makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
+         makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          directorPacket, readDecision, DIRECTOR_RULES,
