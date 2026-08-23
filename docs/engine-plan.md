@@ -486,11 +486,16 @@ partnerKnown이 아직 안 뒤집혀 있으므로 `partnerSceneFacts`가 이번 
 | memory_reveal | 재언 방 · 아직 acknowledged 아님 · (감지 성공 **또는** 재언 일기 히든 키). 민현의 히든이나 무관한 해금은 근거가 아니다 |
 | null_identity | 출처 상태 `revealed_from_start` · 직전 인물 발화가 「처음부터」 · 유저가 그걸 파고든다 |
 | confession | 1:1 방 · 관계 단계 ≥ 익숙 · 실제 유저 발화가 고백이다 |
-| partner_known | 실제 partnerId 존재 · **다른 쪽 방**(room ≠ partner) · 그 사람이 아직 모른다 |
+| partner_known | 실제 partnerId 존재 · **다른 쪽의 정확한 1:1 방**(room = other — group·health는 아니다) · 그 사람이 아직 모른다 |
 | partner_confirm | partnerId 존재 · **본인 방**(room = partner) |
-| partner_first_reaction | partnerId 존재 |
+| partner_first_reaction | partnerId 존재 · **본인 방** — 정해진 직후의 첫 반응은 고른 쪽의 장면이다 |
 | irreversible · conflict_result | **승인 안 함** — 아직 코드가 확인할 상태 근거가 없다. 근거 없이 올리지 않는다 |
 | dday_choice · ending · parting | 실습 만료일 도달 |
+
+모르는 방 이름은 민현 방으로 눌러 대화는 살리되, **장면은 그 위에서 태우지
+않는다** — 방이 정확할 때만 판정한다(`roomTrusted`). 그리고 단톡·관전의
+고르는 쪽·검사·마무리(`stageFacts`)는 쓰는 쪽과 같은 **교집합 투영**을
+받는다 — 화자 투영을 그대로 쓰면 민현만 아는 사실이 뒷단계에 샜다.
 
 판정(`sceneTier`)은 **프롬프트를 만들기 전에** 돈다 — 승인된 사유만
 turnCtx에 실려 volatile의 `[지금 장면]` 줄과 검사·마무리의 `[장면]` 줄이

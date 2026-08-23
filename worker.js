@@ -4020,12 +4020,17 @@ function approveReason(r, ctx) {
       /* 정해지는 것은 본인의 방에서만 일어난다 */
       return !!partner && ctx.room === partner;
     case "partner_first_reaction":
-      return !!partner;
-    case "partner_known":
-      /* 실제 상대가 있고, **다른 쪽** 방이고, 그 사람이 아직 모를 때만.
-         본인 방에서 「처음 안다」가 열리면 정해진 사람이 남 얘기를 듣는
-         그림이 되고, 이미 아는 사람에게 두 번 열 수도 없다. */
-      return !!partner && ctx.room !== partner && !((st.partnerKnown || {})[ctx.room]);
+      /* 정해진 직후의 첫 반응 — 고른 쪽의 장면이다. 본인 방에서만 */
+      return !!partner && ctx.room === partner;
+    case "partner_known": {
+      /* 선택되지 않은 **다른 캐릭터의 정확한 1:1 방**에서만, 그 사람이
+         아직 모를 때만. room ≠ partner로만 걸면 group·health까지 지나간다 —
+         공동방에서 「처음 안다」가 열리면 정해진 사람이 그 자리에 앉아
+         남 얘기처럼 듣는 그림이 된다. */
+      if (!partner) return false;
+      const other = partner === "jaeeon" ? "minhyun" : "jaeeon";
+      return ctx.room === other && !((st.partnerKnown || {})[other]);
+    }
     case "dday_choice": case "ending": case "parting":
       return days >= ENROLL_DAYS;
     case "memory_reveal":
@@ -4891,7 +4896,11 @@ export default {
     const lastUser = lastUserUtterance(Array.isArray(body.history) ? body.history : []);
     const lastChar = lastCharUtterance(Array.isArray(body.history) ? body.history : []);
     const stageIdx = STAGES.indexOf(stageOf(Number((counts || {})[room]) || 0, days));
-    const routed = mode !== "chat" ? { tier: "normal", reason: "" }
+    /* 모르는 방 이름은 위에서 민현 방으로 눌러 **대화는** 살린다. 그런데
+       한 번뿐인 장면까지 그 위에서 태우면, health나 오타 방으로 온 예약이
+       민현 방의 장면으로 소모된다. 방이 정확할 때만 장면을 판정한다. */
+    const roomTrusted = !body.room || ROOMS_OK.includes(body.room);
+    const routed = mode !== "chat" || !roomTrusted ? { tier: "normal", reason: "" }
       : sceneTier(body.scene_reason, {
           room, mode, greet: body.greet === true,
           partner: body.partner, days, unlocked: unlockedKeys(counts, days),
@@ -4905,11 +4914,15 @@ export default {
     const turnCtx = makeTurnContext(
       { room, days, unlocked: unlockedKeys(counts, days), owned: bag.map(b => b.key),
         firstContact: story.firstContact, jaeeonMemory: story.jaeeonMemory,
-        partnerKnown: story.partnerKnown, originPhase: body.origin_phase },
+        partnerKnown: story.partnerKnown, originPhase: body.origin_phase,
+        /* 누구를 골랐는지도 문맥의 일부다 — story에서 이미 정규화됐다
+           (jaeeon·minhyun 밖의 값은 null). 여기 빠지면 TurnContext만
+           상대를 모르는 반쪽이 된다. */
+        partnerId: story.partnerId },
       { place, came, giftNow: gift, givenHistory, now, day, season,
         sceneReason: routed.reason,
         facts: [...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story),
-                ...partnerSceneFacts(routed.reason, room, body.partner)] });
+                ...partnerSceneFacts(routed.reason, room, story.partnerId)] });
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
 
@@ -5047,7 +5060,14 @@ export default {
          **Fact[] 그대로 넘긴다.** 전에는 여기서 문장으로 납작하게 만들어
          넘겼는데, 그러면 다음 단계가 사실을 검사할 때 fact_id가 없다 —
          문자열을 도로 파싱하거나 없는 id를 통과시키게 된다. */
-      const stageFacts = factsForSpeaker(turnCtx, fallbackSender);
+      /* ── Writer와 같은 투영 규칙이다 ──
+         전에는 여기가 무조건 화자 투영이었다. 단톡의 fallbackSender가
+         민현이라, 민현만 아는 사실이 고르는 쪽·검사·마무리에 통째로
+         샜다 — 쓰는 쪽에는 교집합만 주면서. 한 사람만 아는 사실은
+         공동방의 어느 단계도 보면 안 된다. */
+      const stageFacts = mode === "auto" || room === "group"
+        ? sharedFactsForRoom(turnCtx, ROOM_SPEAKERS[room] || [])
+        : factsForSpeaker(turnCtx, fallbackSender);
       /* 이건 사실이 아니라 이번 턴의 조건이다. fact_id가 없으므로 검사의
          판정 대상이 아니고, 그래서 facts와 섞어 담지 않는다. */
       const here = [];

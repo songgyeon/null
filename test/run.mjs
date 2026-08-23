@@ -5284,9 +5284,11 @@ eq('시간표 단추는 peek보다 좁다',
   eq('사실은 요청 진입에서 한 번 만든다',
     (workerSrc.match(/buildFacts\(/g) || []).length, 2);      // 정의 하나 + 호출 하나
   eq('사실 원본이 TurnContext로 들어간다',
-    /const turnCtx = makeTurnContext\([\s\S]{0,600}facts: \[\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\),\s*\n\s*\.\.\.partnerSceneFacts\(routed\.reason, room, body\.partner\)\]/.test(workerSrc), true);
-  eq('고르는 쪽도 같은 원본에서 받는다',
-    /const stageFacts = factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
+    /const turnCtx = makeTurnContext\([\s\S]{0,900}partnerId: story\.partnerId \},[\s\S]{0,300}facts: \[\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\),\s*\n\s*\.\.\.partnerSceneFacts\(routed\.reason, room, story\.partnerId\)\]/.test(workerSrc), true);
+  /* 단톡·관전은 쓰는 쪽과 같은 교집합 투영이다 — 화자 투영을 그대로 쓰면
+     민현만 아는 사실이 고르는 쪽·검사·마무리에 샌다 */
+  eq('고르는 쪽도 같은 원본·같은 투영에서 받는다',
+    /const stageFacts = mode === "auto" \|\| room === "group"\s*\n\s*\? sharedFactsForRoom\(turnCtx, ROOM_SPEAKERS\[room\] \|\| \[\]\)\s*\n\s*: factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
   eq('재시도해도 같은 이름이다', (() => {
     const a = buildFacts({ jaeeon: ['mug'] }, [], null, 'jaeeon').map(f => f.fact_id);
     const b = buildFacts({ jaeeon: ['mug'] }, [], null, 'jaeeon').map(f => f.fact_id);
@@ -5349,7 +5351,7 @@ eq('시간표 단추는 peek보다 좁다',
      통과시키게 된다. Fact[]가 모델 호출 직전까지 살아 있어야 한다. */
   eq('꾸러미가 받는 것은 Fact[]다',
     /facts: stageFacts, here,/.test(workerSrc)
-    && /const stageFacts = factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
+    && /: factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
   /* 사실이 아닌 것(자리·건넬 물건)은 facts에 안 섞는다 — fact_id가 없으므로
      검사가 판정할 수 없고, 섞이면 허용 id 집합이 오염된다 */
   eq('턴 조건은 사실과 따로 담는다',
@@ -5721,6 +5723,69 @@ eq('시간표 단추는 peek보다 좁다',
       partner: 'jaeeon', story: { partnerKnown: { jaeeon: true, minhyun: false } },
       history: [{ role: 'user', content: '안녕' }] }, '[이재언] 네.');
     eq('한쪽만 알면 단톡에도 없다', writerSaw().includes('상대로 정했다'), false);
+  })();
+
+  const wk2 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  /* ── 단톡 지식 분리 — 쓰는 쪽과 고르는 쪽이 같은 교집합을 본다 ── */
+  await (async () => {
+    const directorSaw = () => {
+      const c = sent.find(x => (Array.isArray(x.system) ? x.system : [{ text: x.system }])
+        .map(b => b.text || '').join('').includes('대사를 쓰지 않는다 — 고르기만 한다'));
+      return c ? (c.messages || []).map(m => Array.isArray(m.content)
+        ? m.content.map(b => b.text || '').join('\n') : m.content).join('\n') : '';
+    };
+    const run = pk => runScene({ mode: 'chat', room: 'group', user_name: '선생님',
+      partner: 'jaeeon', story: { partnerKnown: pk },
+      history: [{ role: 'user', content: '안녕' }] }, '[이재언] 네.');
+    await run({ jaeeon: false, minhyun: true });
+    eq('민현만 알 때 — 쓰는 쪽도 고르는 쪽도 못 본다',
+      [writerSaw().includes('상대로 정했다'), directorSaw().includes('상대로 정했다')],
+      [false, false]);
+    await run({ jaeeon: true, minhyun: false });
+    eq('재언만 알 때도 대칭이다',
+      [writerSaw().includes('상대로 정했다'), directorSaw().includes('상대로 정했다')],
+      [false, false]);
+    await run({ jaeeon: true, minhyun: true });
+    eq('둘 다 알면 두 단계가 같은 공유 사실을 본다',
+      [writerSaw().includes('두 사람 다 그 사실을 안다'),
+       directorSaw().includes('두 사람 다 그 사실을 안다')], [true, true]);
+    /* 검사·마무리도 같은 원본(stageFacts)을 받는다 — 소스가 그 하나를 넘긴다 */
+    eq('검사·마무리도 같은 투영을 받는다',
+      /facts: stageFacts, here,/.test(wk2)
+      && (wk2.match(/factsForSpeaker\(turnCtx, fallbackSender\)/g) || []).length === 1, true);
+  })();
+
+  /* ── 처음 아는 자리의 방별 라우팅 — 두 방향 전부 ── */
+  await (async () => {
+    const ask = (room, partner, extra) => runScene({ mode: room === 'health' ? 'auto' : 'chat',
+      room, user_name: '선생님', partner, scene_reason: 'partner_known',
+      history: [{ role: 'user', content: '있잖아' }], ...(extra || {}) },
+      room === 'health' ? '[이재언] 네.' : room === 'group' ? '[이민현] 네.' : '네.');
+    const shape = r => [r.data.scene_ack, stagesOf(r).includes('finalizer')];
+    for (const [partner, other] of [['jaeeon', 'minhyun'], ['minhyun', 'jaeeon']]) {
+      eq(`다른 쪽 1:1만 오른다 — partner:${partner}`,
+        shape(await ask(other, partner)), ['partner_known', true]);
+      eq(`본인 방은 안 오른다 — partner:${partner}`,
+        shape(await ask(partner, partner)), [undefined, false]);
+      eq(`이미 알면 안 오른다 — partner:${partner}`,
+        shape(await ask(other, partner,
+          { story: { partnerKnown: { [other]: true } } })), [undefined, false]);
+    }
+    eq('단톡은 안 오른다', shape(await ask('group', 'jaeeon')), [undefined, false]);
+    eq('관전은 안 오른다', shape(await ask('health', 'jaeeon')), [undefined, false]);
+    /* 모르는 방 이름은 대화는 민현 방으로 살리되, 장면은 그 위에서 안 태운다 */
+    const odd = await runScene({ mode: 'chat', room: 'health', user_name: '선생님',
+      partner: 'jaeeon', scene_reason: 'partner_known',
+      history: [{ role: 'user', content: '있잖아' }] }, '네.');
+    eq('chat의 health(모르는 방)도 장면을 안 태운다',
+      [odd.status, odd.data.scene_ack, stagesOf(odd).includes('finalizer')],
+      [200, undefined, false]);
+    /* 잘못된 partner 값은 없는 것으로 눌린다 — 장면도 정체 사실도 없다 */
+    const bad = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      partner: '몰라', scene_reason: 'partner_confirm',
+      history: [{ role: 'user', content: '당신이에요.' }] }, '네.');
+    eq('잘못된 partner는 null로 눌린다',
+      [bad.data.scene_ack, writerSaw().includes('상대로 정했다')], [undefined, false]);
   })();
 
   /* ── 예약된 WHO 장면 — 승인과 ack, 그리고 이미 아는 사람 ── */
@@ -7840,7 +7905,24 @@ eq('시간표 단추는 peek보다 좁다',
     eq('처음 아는 턴의 사실은 누구인지를 말한다',
       ENG.partnerSceneFacts('partner_known', 'minhyun', 'jaeeon')[0].value.includes('이재언을 상대로 정했다'), true);
     eq('상대가 없으면 장면 사실도 없다', ENG.partnerSceneFacts('partner_confirm', 'jaeeon', null), []);
+    /* TurnContext도 상대를 안다 — 모르는 값은 null로 눌린다 */
+    eq('문맥이 상대를 든다', [
+      makeTurnContext({ partnerId: 'jaeeon' }, {}).partnerId,
+      makeTurnContext({ partnerId: 'minhyun' }, {}).partnerId,
+      makeTurnContext({ partnerId: '몰라' }, {}).partnerId,
+    ], ['jaeeon', 'minhyun', null]);
   }
+  /* ── 처음 아는 자리는 다른 쪽의 정확한 1:1 방뿐이다 ──
+     room ≠ partner로만 걸면 group·health까지 지나간다 */
+  eq('공동방에서는 처음 아는 장면이 안 열린다',
+    ['group', 'health', 'jaeeon'].map(r =>
+      approveReason('partner_known', CTX({ room: r, partner: 'jaeeon' }))), [false, false, false]);
+  eq('다른 쪽 1:1만 열린다 — 두 방향',
+    [approveReason('partner_known', CTX({ room: 'minhyun', partner: 'jaeeon' })),
+     approveReason('partner_known', CTX({ room: 'jaeeon', partner: 'minhyun' }))], [true, true]);
+  eq('첫 반응도 본인 방에서만',
+    [approveReason('partner_first_reaction', CTX({ room: 'jaeeon', partner: 'jaeeon' })),
+     approveReason('partner_first_reaction', CTX({ room: 'minhyun', partner: 'jaeeon' }))], [true, false]);
 
   /* ── 전환은 검증된 응답 뒤에만, 코드가 만든다 (E3) ── */
   const CAND = texts => ({ id: 'A', originalMessages: [], messages: texts.map(t => ({ text: t })),
