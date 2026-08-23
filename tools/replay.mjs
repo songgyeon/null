@@ -93,13 +93,25 @@ const recentPhotosOf = ms => {
 /* ── 경로 → env ──
    ENGINE_MODE=legacy는 안 쓴다 — MODELS의 4.6→5→4.5 폴백을 타서 깨끗한
    Sonnet 4.5 기준선이 아니다. single은 고정 singleWriter를 탄다. */
-export const PATHS = ["hybrid-one", "hybrid-pair", "single-sonnet", "staged"];
+export const PATHS = ["hybrid-one", "hybrid-pair", "single-sonnet", "staged",
+  /* 동세대 비교 팔 — single/anchor Writer만 Sonnet 4.6으로 바꿔 끼운다.
+     기본 실행(--paths 생략)에는 안 들어간다 — 명시로만 돈다. */
+  "single-sonnet46", "staged-46"];
+export const DEFAULT_PATHS = PATHS.slice(0, 4);
+const SONNET46 = "claude-sonnet-4-6";
+/* staged 계열인가 — anchor 판정을 타는 경로 */
+export const isStaged = path => String(path).startsWith("staged");
 export const pathEnv = (path, base, anchor) => {
   if (path === "hybrid-one") return { CANDIDATE_MODE: "one" };
   if (path === "hybrid-pair") return { CANDIDATE_MODE: "pair" };
   if (path === "single-sonnet") return { ENGINE_MODE: "single" };
+  if (path === "single-sonnet46")
+    return { ENGINE_MODE: "single", SONNET_WRITER_MODEL: SONNET46 };
   const b = { CANDIDATE_MODE: base === "one" ? "one" : "pair" };
-  return anchor ? { ...b, ENGINE_MODE: "single", ANCHOR_REASON: anchor } : b;
+  if (!anchor) return b;
+  return path === "staged-46"
+    ? { ...b, ENGINE_MODE: "single", ANCHOR_REASON: anchor, SONNET_WRITER_MODEL: SONNET46 }
+    : { ...b, ENGINE_MODE: "single", ANCHOR_REASON: anchor };
 };
 /* 실행 순서 균형 — 결정적 회전. k번째 항목은 k만큼 돌린 순서로 돈다 */
 export const rotated = (paths, k) => {
@@ -227,7 +239,7 @@ const applyTransition = (story, fx) => {
    opts.call(env, body) → {ok, status, data, latency_ms} — 주입 가능해서
    테스트가 실패를 심을 수 있다. 반환: 경로별 상태(rows·transcript·status). */
 export async function runSession(ses, paths, opts) {
-  const { call, stagedBase = "pair", uiRetries = 1, rotBase = 0, onTurn } = opts;
+  const { call, stagedBase = "pair", uiRetries = 1, rotBase = 0, onTurn, envFor } = opts;
   const room0 = ses.turns[0].room;
   const seed = ses.seed || {};
   const states = {};
@@ -281,9 +293,11 @@ export async function runSession(ses, paths, opts) {
         ...(t.scene_reason ? { scene_reason: t.scene_reason } : {}),
         ...(t.extra || {}),
       };
-      const anchor = path === "staged"
+      const anchor = isStaged(path)
         ? decideAnchor(snapshot(st.mem, room), body, sum.upto) : null;
-      const env = pathEnv(path, stagedBase, anchor);
+      /* envFor — G2 모델 스윕처럼 경로 이름이 곧 모델인 실행이 env를 직접
+         꽂는 자리. 없으면 기존 경로 표(pathEnv) 그대로다. */
+      const env = envFor ? envFor(path, anchor) : pathEnv(path, stagedBase, anchor);
       /* UI 재시도 — 실제 앱처럼 같은 body·같은 request_id로, 제한적으로.
          모델 내부 attempt(stages의 attempt)와는 따로 센다. 비용은 실패한
          시도 것까지 전부 합산한다 — 실제로 청구된 돈이다. */
@@ -458,7 +472,7 @@ async function main() {
 
   /* ── 입력 검증 — 모르면 죽는다. 반쯤 도는 것이 제일 나쁘다 ── */
   const ALIAS = { one: "hybrid-one", pair: "hybrid-pair", single: "single-sonnet" };
-  const rawPaths = argOf("paths", PATHS.join(",")).split(",").map(s => s.trim());
+  const rawPaths = argOf("paths", DEFAULT_PATHS.join(",")).split(",").map(s => s.trim());
   const paths = rawPaths.map(s => ALIAS[s] || s);
   if (!paths.length || rawPaths.some(s => !s)) die("--paths가 비었다");
   for (const p of paths) if (!PATHS.includes(p)) die(`모르는 경로 — ${p} (허용: ${PATHS.join(", ")})`);
@@ -500,7 +514,7 @@ async function main() {
             stageIdx: meta.prev.stage_idx }
         : { responses: 99 };
       const curUpto = meta.summary_upto ?? 0;
-      const anchor = path === "staged" ? decideAnchor(prev, pkt.body, curUpto) : null;
+      const anchor = isStaged(path) ? decideAnchor(prev, pkt.body, curUpto) : null;
       const body = { ...pkt.body, request_id: `rp-A-${label}-${path}` };
       const r = await call(pathEnv(path, stagedBase, anchor), body);
       const stages = (r.data && r.data.stages) || [];
@@ -571,7 +585,7 @@ async function main() {
   const key2blind = {};
   for (const item of blindItems) {
     const order = shuffled(Object.keys(item.byPath).sort(), seed + item.item);
-    const tags = ["갑", "을", "병", "정"];
+    const tags = ["갑", "을", "병", "정", "무", "기"];
     const lines = [`# ${item.item}`, "", item.context ? `상황: ${item.context}` : "", ""];
     order.forEach((path, i) => {
       key2blind[`${item.item}/${tags[i]}`] = path;

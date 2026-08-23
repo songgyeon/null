@@ -3219,8 +3219,35 @@ function stageStamp(meter, stage, model, usage, ms, attempt, tier, status, candi
 
 /* 한 단계를 부른다. 실패하면 다른 모델로 넘어가지 않는다 — 진짜 오류를
    그대로 올린다. 말맛이 바뀌는 것보다 안 되는 게 보이는 편이 낫다. */
+/* ── G 비교 전용 — single/anchor Writer의 모델만 env로 바꿔 끼운다 ──
+   같은 자리(single_writer·anchor_writer)에 4.5와 4.6을 나란히 세워 보는
+   동세대 비교용이다. Sonnet 계열 id만 받고, 다른 단계(writer·director·
+   critic·finalizer)에는 절대 안 닿는다. 운영 env에는 이 변수가 없다 —
+   ENGINE 표의 「대사 경로에 폴백 없음」 계약은 그대로다: 이건 폴백이
+   아니라 replay의 비교 팔이다. */
+function sonnetOverride(env) {
+  const v = String((env && (env.SONNET_WRITER_MODEL || env.sonnet_writer_model)) || "").trim();
+  return v.startsWith("claude-sonnet-") ? v : "";
+}
+function stageModel(env, stage) {
+  const key = STAGE_ENGINE[stage];
+  const m = ENGINE[key || stage];
+  if (!m) return null;
+  const ov = key ? sonnetOverride(env) : "";
+  if (!ov) return m;
+  /* SWEEP_BARE — G2 모델 스윕 전용. thinking·budget·effort를 아무것도 안
+     실어서 payload가 model·max_tokens·system·messages 넷뿐이 된다.
+     Sonnet 5는 비기본 샘플링·수동 thinking에 400을 내므로, 세 모델 모두
+     같은 맨몸 payload로 **각자의 기본 동작**을 비교한다(5는 adaptive
+     thinking이 기본으로 켜지고, 4.5·4.6은 꺼진 채 답한다 — 그것까지가
+     모델의 기본 특성이다). 운영 env에는 이 변수가 없다. */
+  const bare = String((env && env.SWEEP_BARE) || "") === "1";
+  return bare ? { id: ov, effort: null, noThinking: false, budget: null }
+              : { ...m, id: ov };
+}
+
 async function callStage(env, meter, stage, system, messages, maxTokens, attempt, tier, candidate) {
-  const m = ENGINE[STAGE_ENGINE[stage] || stage];
+  const m = stageModel(env, stage);
   if (!m) throw new Error(`모르는 단계: ${stage}`);
   const t0 = Date.now();
   const res = await callModel(env, m, system, messages, maxTokens);
@@ -5134,7 +5161,7 @@ export default {
         candidate_mode: cMode,
         anchor_reason: singleNow && anchorWhy ? anchorWhy : null,
         ...(anchorDeclined ? { anchor_declined: anchorWhy } : {}),
-        writer_model: ENGINE[STAGE_ENGINE[writerStage] || writerStage].id,
+        writer_model: (stageModel(env, writerStage) || {}).id,
         route: { tier, reason: routed.reason },
         turnContext: turnCtx,
         selectedCandidate: picked

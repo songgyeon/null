@@ -654,6 +654,38 @@ node test/engine-pipeline.test.mjs                 # 네 갈래 회귀 113개
 TRACE 응답은 replay 전용이다 — 운영 env에는 TRACE가 없고, turnContext와
 후보 원문이 실리므로 §12에 따라 운영 로그·기본 응답에는 싣지 않는다.
 
+### G2 — Sonnet 4.5 · 4.6 · 5 single 모델 스윕 (구현됨)
+
+구조 비교가 아니라 배우 교체다: 동일한 세계관·TurnContext·프롬프트·후처리
+(single 경로 그대로)에서 **모델 ID만** 셋을 바꿔 세운다. 이 결과로 운영
+모델 하나를 확정하고 엔진 실험을 끝낸다. 어느 모델이 이길지는 실험 전에
+적지 않는다.
+
+- 세 모델 모두 `ENGINE_MODE=single` + `SWEEP_BARE=1` — payload는
+  model·max_tokens·system·messages 넷뿐이다. temperature·top_p·top_k·수동
+  thinking·budget·effort 전부 없음(Sonnet 5가 비기본 샘플링에 400을 내므로
+  셋 다 같이 뺀다). 각 모델의 **기본 동작**이 비교 대상이다 — 5의 adaptive
+  thinking도 사용량·지연에 그대로 포함된다. model만 빼면 payload가 바이트
+  단위로 같음을 테스트가 강제한다.
+- 실험량: 기본 42턴×3=126 + 안정성(문제 장면 10항목 × 추가 2회 × 3)=60,
+  총 186 대화 턴. 반복은 상태를 진전시키지 않는 독립 재생이다 — 「가끔
+  이상한 답」과 한 번의 운을 가르는 장치다.
+- 공정 계약은 G 그대로: 단위마다 순서 회전, 순차 호출, 모델별 상태 완전
+  분리, 실패 시 같은 body·같은 이름표 UI 재시도 1회 후 incomplete, 폴백
+  없음, 모르는 모델/usage는 INVALID + 비정상 종료. Sonnet 5 비용은 문자
+  수 추정이 아니라 **실측 usage만** 쓴다(새 토크나이저).
+- 산출물 `replay-model-out/`: blind(갑·을·병, 항목별 독립 셔플) ·
+  blind-stability(이름표당 같은 모델 sample 3) · blind-key · trace ·
+  report(p50/p95 지연·성공턴당 비용 포함) · manifest(실행 순서 기록).
+  판정 순서: ① 하드 오류·생성 실패 최소 → ② B 장기 세션 유지력 →
+  ③ 안정성 사용 가능 비율 → ④ 블라인드 선호 → ⑤ 비슷하면 성공턴당
+  비용·p95. 단발이 예뻐도 장기 세션이 무너지면 채택하지 않는다.
+
+```
+node tools/model-sweep.mjs --fake              # 배선 전수 점검 (186턴)
+ANTHROPIC_API_KEY=<키> node tools/model-sweep.mjs   # 실제 스윕 1회
+```
+
 명백한 것은 `node tools/eval.mjs`가 센다 — 앱에서 내보낸 기록을 읽어
 안이 비친 줄·상담사 말투·메아리·금지한 어미·긴 줄·유저 속을 단정한 것·
 같은 말 반복·옛 정사의 흔적을 세고, 인물별 평균 문장 길이도 같이 낸다.

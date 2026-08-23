@@ -375,7 +375,7 @@ const PROBE = { ...BASE,
   const count = {};                  // path → 자리별 등장 수
   for (let k = 0; k < N; k++)
     RP.rotated(RP.PATHS, k).forEach((p, pos) => {
-      count[p] = count[p] || [0, 0, 0, 0]; count[p][pos]++;
+      count[p] = count[p] || Array(RP.PATHS.length).fill(0); count[p][pos]++;
     });
   eq("각 경로가 각 자리에 서는 횟수 차는 최대 1이다",
     Object.values(count).every(a => Math.max(...a) - Math.min(...a) <= 1), true);
@@ -429,6 +429,33 @@ const PROBE = { ...BASE,
   eq("예상 밖 Effect는 세션을 invalid로 끝낸다",
     [st2["hybrid-one"].status, st2["hybrid-one"].rows.length, st2["hybrid-one"].invalidWhy],
     ["invalid", 1, "예상 밖 Effect: invite"]);
+}
+
+/* ══════════ 7.57b 동세대 비교 팔 — 4.5 vs 4.6은 자리만 같고 모델만 다르다 ══════════ */
+{
+  eq("46팔의 env가 모델만 바꾼다", RP.pathEnv("single-sonnet46"),
+    { ENGINE_MODE: "single", SONNET_WRITER_MODEL: "claude-sonnet-4-6" });
+  eq("staged-46의 anchor 턴도 모델만 다르다", RP.pathEnv("staged-46", "pair", "opening"),
+    { CANDIDATE_MODE: "pair", ENGINE_MODE: "single", ANCHOR_REASON: "opening",
+      SONNET_WRITER_MODEL: "claude-sonnet-4-6" });
+  eq("staged 계열 판별", [RP.isStaged("staged"), RP.isStaged("staged-46"),
+    RP.isStaged("single-sonnet46")], [true, true, false]);
+  eq("기본 실행은 여전히 넷이다", RP.DEFAULT_PATHS,
+    ["hybrid-one", "hybrid-pair", "single-sonnet", "staged"]);
+  /* 워커 쪽 — 덮어쓰기는 single/anchor Writer 자리에만 닿는다 */
+  const ov = await run({ ENGINE_MODE: "single", SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, BASE);
+  eq("덮어쓴 모델로 부른다", [ov.data.stages[0].stage, ov.data.stages[0].model,
+    ov.data.trace.writer_model],
+    ["single_writer", "claude-sonnet-4-6", "claude-sonnet-4-6"]);
+  const plain = await run({ CANDIDATE_MODE: "pair", SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, BASE);
+  eq("hybrid의 Writer에는 안 닿는다", plain.data.stages.map(s => s.model),
+    ["claude-haiku-4-5", "claude-haiku-4-5"]);
+  const badOv = await run({ ENGINE_MODE: "single", SONNET_WRITER_MODEL: "gpt-x" }, BASE);
+  eq("Sonnet 계열이 아니면 무시한다", badOv.data.stages[0].model, "claude-sonnet-4-5-20250929");
+  const crit = await run({ ENGINE_MODE: "single", ANCHOR_REASON: "opening",
+    CANDIDATE_MODE: "pair", SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, PROBE);
+  eq("물린 anchor 턴의 마무리는 여전히 4.5다 — 덮어쓰기가 finalizer에 안 닿는다",
+    crit.data.stages.map(s => s.model.includes("4-6")), [false, false, false, false]);
 }
 
 /* ══════════ 7.58 CLI — 반쯤 도는 것보다 안 도는 게 낫다 ══════════ */
@@ -513,6 +540,130 @@ const PROBE = { ...BASE,
   eq("S3 씨앗이 문턱 바로 아래다 (11,000~11,950자)", total >= 11000 && total <= 11950, true);
   eq("S3는 기왕의 응답 수를 선언한다 — opening 재발 방지",
     (s3.seed.responses || {}).jaeeon >= 2, true);
+}
+
+/* ══════════ 9. G2 모델 스윕 — 배우만 셋, 나머지는 바이트까지 같다 ══════════ */
+{
+  const SW = await import("../tools/model-sweep.mjs");
+  eq("비교 모델은 셋뿐이고 4.5는 저장소 검증 ID다", (() => {
+    SW.validateModels();
+    return [SW.SINGLE_SWEEP_MODELS.sonnet45 === ENG.ENGINE.singleWriter.id,
+            SW.MODEL_KEYS.length];
+  })(), [true, 3]);
+  eq("모르는 모델 키는 즉시 던진다", (() => {
+    try { SW.sweepEnv("gpt5"); return "안 던짐"; } catch (e) { return "던짐"; }
+  })(), "던짐");
+  eq("안정성 항목은 계약의 열 개다", SW.STABILITY,
+    ["A-03", "A-04", "A-05", "A-06", "A-07", "A-08", "A-10", "A-12", "A-13", "A-14"]);
+  eq("스윕 단가가 갈린다 — 5는 $2/$10, 4.5·4.6은 $3/$15",
+    [RP.PRICES["claude-sonnet-5"], RP.PRICES["claude-sonnet-4-6"]],
+    [{ in: 2.00, out: 10.00 }, { in: 3.00, out: 15.00 }]);
+
+  /* ── 맨몸 payload — 세 모델 모두 model·max_tokens·system·messages 넷뿐 ──
+     Sonnet 5가 비기본 샘플링·수동 thinking에 400을 내므로 셋 다 같이 뺀다.
+     model 필드만 빼면 프롬프트가 바이트 단위로 같아야 한다. */
+  const payloads = {};
+  for (const mk of SW.MODEL_KEYS) {
+    sent = [];
+    globalThis.fetch = async (url, init) => {
+      payloads[mk] = JSON.parse(init.body);
+      return { ok: true, status: 200, headers: { get: () => null },
+        json: async () => ({ content: [{ type: "text", text: JSON.stringify({ messages: [{ text: "네." }] }) }],
+          usage: { input_tokens: 1, output_tokens: 1 }, stop_reason: "end_turn" }),
+        text: async () => "" };
+    };
+    try {
+      await worker.fetch(new Request("https://x/?k=열쇠", { method: "POST",
+        body: JSON.stringify({ ...BASE, request_id: "sweep:test:" + mk + ":r0" }),
+        headers: { "CF-Connecting-IP": `9.7.0.${(ipN++ % 250) + 1}` } }),
+        { ANTHROPIC_API_KEY: "sk-테스트", ACCESS_KEY: "열쇠", ...SW.sweepEnv(mk) });
+    } finally { globalThis.fetch = realFetch; }
+  }
+  eq("payload 열쇠가 정확히 넷이다 — 샘플링·thinking·effort 없음",
+    SW.MODEL_KEYS.map(mk => Object.keys(payloads[mk]).sort().join(",")),
+    Array(3).fill("max_tokens,messages,model,system"));
+  eq("모델 필드가 요청 그대로다 — 폴백 없음",
+    SW.MODEL_KEYS.map(mk => payloads[mk].model),
+    ["claude-sonnet-4-5-20250929", "claude-sonnet-4-6", "claude-sonnet-5"]);
+  eq("model만 빼면 바이트까지 같다", (() => {
+    const strip = p => JSON.stringify({ ...p, model: "X" });
+    return strip(payloads.sonnet45) === strip(payloads.sonnet46)
+        && strip(payloads.sonnet46) === strip(payloads.sonnet5);
+  })(), true);
+
+  /* 같은 후처리 — 스윕 env에서도 SENDER 위반은 재시도로 돈다 */
+  const rt = await run(SW.sweepEnv("sonnet5"), BASE, [
+    JSON.stringify({ messages: [{ sender: "minhyun", text: "쌤!" }] }),
+    JSON.stringify({ messages: [{ text: "먹었어요." }] })]);
+  eq("스윕도 같은 hardFilter를 탄다", rt.data.stages.map(s => [s.stage, s.attempt]),
+    [["single_writer", 1], ["single_writer", 2]]);
+  eq("스윕 trace의 writer_model이 5다", rt.data.trace.writer_model, "claude-sonnet-5");
+
+  /* ── 모델별 상태 격리 — 각 모델의 history에는 자기 답만 있다 ── */
+  const mini = { label: "TT", user_name: "연",
+    seed: { msgs: { jaeeon: [{ sender: "jaeeon", text: "새로 오셨죠.", ts: 1000 }] } },
+    turns: [
+      { room: "jaeeon", text: "안녕하세요", ts: 2000, days: 0, now: "저녁", day: "목요일" },
+      { room: "jaeeon", text: "두 번째 말", ts: 3000, days: 0, now: "저녁", day: "목요일" },
+    ] };
+  const tagCall = async (env, body) => ({ ok: true, status: 200, latency_ms: 1, data: {
+    messages: [{ sender: "jaeeon", text: "답-" + env.SONNET_WRITER_MODEL }],
+    effects: [], stages: [{ stage: "single_writer", model: env.SONNET_WRITER_MODEL,
+      attempt: 1, input_tokens: 1, output_tokens: 1,
+      cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }], trace: {} } });
+  const iso = await RP.runSession(mini, SW.MODEL_KEYS, { call: tagCall, rotBase: 0,
+    envFor: mk => SW.sweepEnv(mk) });
+  eq("모델별 history가 안 섞인다", SW.MODEL_KEYS.map(mk => {
+    const replies = iso[mk].msgs.jaeeon.filter(m => m.sender === "jaeeon" && m.text.startsWith("답-"));
+    return replies.length === 2 && replies.every(m => m.text === "답-" + SW.SINGLE_SWEEP_MODELS[mk]);
+  }), [true, true, true]);
+
+  /* ── fake 전수 실행 — 실험량·회전·블라인드·키를 실측으로 ── */
+  const { execSync } = await import("node:child_process");
+  const { mkdtempSync, readdirSync: rd } = await import("node:fs");
+  const os = await import("node:os");
+  const tmp = mkdtempSync(join(os.tmpdir(), "sweep-test-"));
+  const sh = args => {
+    try { execSync(`node tools/model-sweep.mjs ${args}`, { cwd: ROOT, stdio: "pipe", maxBuffer: 64e6 }); return 0; }
+    catch (e) { return e.status || 1; }
+  };
+  const out1 = join(tmp, "run1");
+  eq("fake 전수 스윕이 성공한다", sh(`--fake --out=${out1}`), 0);
+  const man = JSON.parse(readFileSync(join(out1, "manifest.json"), "utf8"));
+  eq("실험량 — 기본 126 + 안정성 60 = 186", [man.planned, man.executed.chat],
+    [{ base: 126, stability: 60, total: 186 }, 186]);
+  eq("회전이 계약 순서다", man.order.slice(0, 3).map(u => u.order.join(">")),
+    ["sonnet45>sonnet46>sonnet5", "sonnet46>sonnet5>sonnet45", "sonnet5>sonnet45>sonnet46"]);
+  const traces = rd(join(out1, "trace"));
+  const isSum = f => /-sum\d+\.json$/.test(f);
+  eq("chat trace가 186개다", traces.filter(f => !isSum(f)).length, 186);
+  eq("모델별 62개씩이다", SW.MODEL_KEYS.map(mk =>
+    traces.filter(f => !isSum(f) && f.includes(`-${mk}-`)).length), [62, 62, 62]);
+  const key2 = JSON.parse(readFileSync(join(out1, "blind-key.json"), "utf8"));
+  eq("blind-key가 27항목 × 3 = 81짝이다", Object.keys(key2).length, 81);
+  eq("항목마다 세 이름표가 세 모델의 순열이다", (() => {
+    const items = {};
+    for (const [kk, v] of Object.entries(key2)) {
+      const [item] = kk.split("/"); (items[item] = items[item] || []).push(v);
+    }
+    return Object.values(items).every(v => v.slice().sort().join(",") === SW.MODEL_KEYS.slice().sort().join(","));
+  })(), true);
+  eq("안정성 파일이 이름표당 sample 셋이다", (() => {
+    const f = readFileSync(join(out1, "blind-stability", "S-A-03-jaeeon-summary-rollover.md"), "utf8");
+    return (f.match(/- sample \d+:/g) || []).length === 9
+        && (f.match(/^## /gm) || []).length === 3;
+  })(), true);
+  /* 블라인드에 모델·usage·지연·경로 흔적이 없다 */
+  eq("블라인드가 깨끗하다", (() => {
+    const bad = /sonnet|claude|4-5|4-6|usage|latency|writer|single|staged|hybrid|token|ms\b/i;
+    for (const d of ["blind", "blind-stability"])
+      for (const f of rd(join(out1, d)))
+        if (bad.test(readFileSync(join(out1, d, f), "utf8"))) return f;
+    return "깨끗";
+  })(), "깨끗");
+  eq("스윕도 비어 있지 않은 outDir을 거부한다", sh(`--fake --out=${out1}`) !== 0, true);
+  eq("스윕 산출물이 gitignore에 있다",
+    /replay-model-out\*?\//.test(readFileSync(join(ROOT, ".gitignore"), "utf8")), true);
 }
 
 /* ══════════ 8. 블라인드 섞기 — 결정적이고, 자리로 못 맞힌다 ══════════ */
