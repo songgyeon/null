@@ -2490,7 +2490,7 @@ function placeOf(raw) {
    전에는 hasItem이었는데, 코드는 「이미 가짐」으로 쓰고 고르는 쪽 꾸러미에는
    「건넬 수 있는 물건이 있다」로 나갔다 — 한 값이 정반대 두 뜻으로 돌았다.
    이제 넷으로 갈랐다: placeItemOwned · placeItemAvailable · giftNow · givenHistory. */
-function buildPlace(place, placeItemOwned, room, over, came) {
+function buildPlace(place, placeItemOwned, room, over, came, placeItemAvailable) {
   if (!place) return "";
   /* 귀갓길은 방마다 그림이 다르다. 재언은 운전을 하고 있고 민현은 옆에 앉아 있다.
      그리고 이 자리는 곧 끝난다 — 여기서 새 얘기를 길게 벌이면 내리는 데서 잘린다. */
@@ -2541,7 +2541,13 @@ function buildPlace(place, placeItemOwned, room, over, came) {
   }
   /* by가 걸린 자리는 그 사람 턴에만 건넬 것을 알려준다. 안 걸면 민현이
      재언 집 열쇠를 내민다. */
-  if (!placeItemOwned && (!it.by || it.by === room)) {
+  /* ── 못 건네는 턴에는 물건을 아예 안 보여준다 ──
+     Effect만 막는 것으로는 모자랐다. 프롬프트에 물건 이름과 give 쓰는 법이
+     처음부터 보이면 모델은 첫 마디에도 「받아요」라고 말한다 — 지급은 막히고
+     대사는 나가서, 고치려던 「대사와 가방이 갈린다」가 그대로 재현된다.
+     조건은 placeItemAvailable 하나다: 코드가 못 준다고 정한 턴에는
+     모델도 그 물건을 모른다. */
+  if (placeItemAvailable && !placeItemOwned && (!it.by || it.by === room)) {
     /* 「여기서 건넬 것」이라고 표제를 달아놓으니 첫 마디부터 건네줬다.
        자리에 앉자마자 물건을 내미는 사람은 없다. 표제부터 「언젠가」로 바꾸고,
        초대와 같은 모양으로 조건을 적는다 — 그쪽은 이 방식으로 잘 되고 있다. */
@@ -2872,7 +2878,7 @@ const TURN = `
 /* ctx — 이번 요청의 TurnContext. 사실은 **여기서만** 렌더링한다.
    고정부(buildSystem)에는 한 글자도 안 들어간다 — 선물 하나에 캐시가
    통째로 다시 쓰이면 안 된다. 인자로 넘기는 것 자체는 캐시와 무관하다. */
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, ctx) {
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, ctx, placeItemAvailable) {
   const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -2905,7 +2911,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
               userName)
           + buildBag(bag || [], room, userName)
           + buildLeft(left, userName)
-          + buildPlace(place, placeItemOwned, room, placeOver, came)
+          + buildPlace(place, placeItemOwned, room, placeOver, came, placeItemAvailable)
           + (place ? "" : buildInvite(invite, room))
           + (place ? "" : buildCanGo(canGo))
           + TURN;
@@ -3663,7 +3669,10 @@ function hardFilter(cand, allowed, ctx) {
      상태를 고치지 않는다. 어겼는지만 본다 — 커밋은 E다.
      제안을 안 낸 것은 어긴 것이 아니다. */
   if (c.invite && !pickInvite(c.invite, g.openPlaces || [])) push("INVALID_INVITE");
-  if (c.give && !pickGive(c.give, g.place, g.placeItemOwned, g.room)) push("INVALID_GIVE");
+  /* 못 건네는 턴인데 give를 냈다. 프롬프트에 안 보여줬는데도 지어냈으면
+     그건 후보가 세계를 어긴 것이다 — 조용히 버리지 않고 떨어뜨린다. */
+  if (c.give && (!g.placeItemAvailable || !pickGive(c.give, g.place, g.placeItemOwned, g.room)))
+    push("INVALID_GIVE");
   return codes;
 }
 
@@ -4642,7 +4651,7 @@ export default {
     const placeOver = !!place && body.place_over === true;
     /* 방금 자리에서 나왔다. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다 */
     const left = mode === "chat" && !place ? (body.left || "").toString().slice(0, 20).trim() : "";
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, turnCtx);
+    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, turnCtx, placeItemAvailable);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
@@ -5001,7 +5010,14 @@ export default {
         ...(reqId ? { request_id: reqId } : {}),
         /* 상태를 바꾸는 정식 경로는 이것 하나다. give/invite를 따로 실어
            두면 클라이언트가 둘 다 적용해 두 번 일어난다. */
-        effects }),
+        effects,
+        /* ── 승인된 장면만 지울 수 있다 ──
+           프론트가 보낸 사유를 워커가 거절하고 일반 턴으로 내릴 때가 있다
+           (상태가 그 사유를 안 받쳐줄 때). 그런데 클라이언트는 200이면
+           무조건 지웠다 — 한 번뿐인 장면이 쓰이지도 않고 사라졌다.
+           **실제로 중요 장면으로 올라가서 답까지 나온 경우에만** 돌려준다.
+           프론트는 제가 보낸 사유와 같을 때만 지운다. */
+        ...(tier === "critical" && routed.reason ? { scene_ack: routed.reason } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
       /* 이름표는 실패한 답에도 실어야 한다. 프론트가 「이게 지금 것이 맞나」를

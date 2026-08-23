@@ -3416,10 +3416,16 @@ eq('그 자리 물건만 인정한다',
   ['haribo', null, null]);
 eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), null);
 {
-  const t = buildPlace('편의점', false, 'minhyun');
+  const t = buildPlace('편의점', false, 'minhyun', false, '', true);
   eq('자리 블록은 마주 보고 있다고 알린다', /마주 보고/.test(t) && /어디냐고 묻지 않는다/.test(t), true);
+  /* ── 못 건네는 턴에는 물건 이름도 give 쓰는 법도 안 보여준다 ──
+     Effect만 막는 것으로는 모자랐다. 프롬프트에 보이면 모델은 첫 마디에도
+     「받아요」라고 말하고, 지급은 막혀서 대사와 가방이 갈린다. */
   eq('자리 블록에 건넬 것이 적힌다', /"give": "haribo"/.test(t), true);
-  eq('이미 받았으면 건넬 것은 안 적는다', /give/.test(buildPlace('편의점', true, 'minhyun')), false);
+  eq('두 마디 전에는 물건을 안 보여준다',
+    /give|하리보/.test(buildPlace('편의점', false, 'minhyun', false, '', false)), false);
+  eq('이미 받았으면 건넬 것은 안 적는다',
+    /give/.test(buildPlace('편의점', true, 'minhyun', false, '', true)), false);
   eq('자리에 없으면 블록도 없다', buildPlace(null, false, 'minhyun'), '');
   /* 재언은 보건실에 있는 게 일이고 민현은 교실에 앉아 있다. 「불러줘서 왔어요」가
      자기 교실에서 나오면 안 된다 — 찾아온 쪽은 유저다 */
@@ -3951,10 +3957,12 @@ eq('가방에 알약이 안 붙는다',
    들렀다 바로 나오는 것만으로 여덟 개가 다 모이면 지도가 심부름이 된다 */
 /* 두 마디 조건은 그대로다. 다만 **부르기 전에** 재서 보낸다 —
    응답 뒤에 재면 「받아요」는 화면에 뜨고 가방은 비는 일이 생긴다. */
+/* 셈은 app-data.js 하나다 — 웹과 앱이 같은 원본을 쓴다. 손으로 복제하면
+   숫자든 셈이든 갈린다. 그리고 **방금 친 말을 포함해서** 센다. */
 eq('말을 하고 나와야 받은 게 있다',
-  /const SCENE_MIN_TALK=2/.test(web)
-  && /const talkedEnough=sc=>!!sc&&/.test(web)
-  && /talked_enough:talkedEnough\(sc\)/.test(web), true);
+  /const SCENE_MIN_TALK=2;/.test(web)
+  && /const talkedEnoughIn=\(sc,list\)=>countUserSaid\(sc,list\)>=SCENE_MIN_TALK;/.test(web)
+  && /talked_enough:talkedEnough\(sc,next\)/.test(web), true);
 eq('워커가 그 조건을 건넬 수 있음에 넣는다',
   /const talkedEnough = body\.talked_enough === true;/.test(workerSrc)
   && /!placeItemOwned && talkedEnough;/.test(workerSrc), true);
@@ -3966,7 +3974,7 @@ eq('모델이 첫 턴에 건네도 안 받는다', (() => {
 /* 상태를 바꾸는 길은 effects 하나다 */
 eq('상태 경로가 하나다',
   /Array\.isArray\(data\.effects\)&&data\.effects\.length/.test(web)
-  && /applyEffects\(data\.effects\)/.test(web), true);
+  && /applyEffects\(data\.effects,Math\.max/.test(web), true);
 /* 표제를 「여기서 건넬 것」이라고 달아놨더니 첫 마디부터 건네줬다 */
 eq('언젠가 건넨다고 적는다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
@@ -5592,7 +5600,7 @@ eq('시간표 단추는 peek보다 좁다',
    두 번 일어난다. 그리고 자리를 닫을 때 자동으로 넣어주기까지 했다 —
    유저가 거절해도 들어가고, 인물이 준 적 없는 것이 가방에 있었다. */
 {
-  const { materializeEffects, makeEffect, mintEffectId } = ENG;
+  const { materializeEffects, makeEffect, mintEffectId, hardFilter } = ENG;
   const CAND = (extra) => ({ id: 'A', originalMessages: [], messages: [{ text: 'ㄱ' }],
     invite: '', give: '', photo: '', signals: [], ...(extra || {}) });
   const AT = { place: '옥상', room: 'minhyun', placeItemOwned: false,
@@ -5658,8 +5666,8 @@ eq('시간표 단추는 peek보다 좁다',
     /talkedEnough\([^)]*\)\)\{[\s\S]{0,200}(takeItem|saveBag)/.test(web + appSrc), false);
   /* 워커가 두 마디 조건을 받아서 쓴다 — 응답 뒤가 아니라 부르기 전이다 */
   eq('두 마디 조건이 요청에 실린다',
-    /talked_enough:talkedEnough\(sc\)/.test(web)
-    && /talkedEnough:talkedEnough\(sc,msgsForFlow\(\)\)/.test(appSrc)
+    /talked_enough:talkedEnough\(sc,next\)/.test(web)
+    && /talkedEnough:talkedEnoughIn\(sc,hist\)/.test(appSrc)
     && /talked_enough: !!talkedEnough/.test(apiSrc), true);
 
   /* ── 한 번만 적용한다 ── */
@@ -5690,7 +5698,7 @@ eq('시간표 단추는 peek보다 좁다',
      같은 최종 상태가 나와야 한다 — 아니면 기기마다 다른 가방을 든다. */
   {
     /* 두 적용 함수의 뼈대를 소스에서 그대로 뽑아 나란히 돌린다 */
-    const webBody = web.slice(web.indexOf('const applyEffects=(fx)=>{'),
+    const webBody = web.slice(web.indexOf('const applyEffects=(fx,delay)=>{'),
                               web.indexOf('const takeItem=(key,from,where)=>{'));
     const appStart = appSrc.indexOf('const applyEffects=async(fx:any)=>{');
     const appBody = appSrc.slice(appStart, appSrc.indexOf('\n  };', appStart));
@@ -5718,6 +5726,104 @@ eq('시간표 단추는 peek보다 좁다',
       /bagRef\.current\.some\(b=>b\.key===key\)/.test(web)
       && /!bagRef\.current\.some\(\(b:any\)=>b\.key===e\.item\)/.test(appSrc), true);
   }
+
+  /* ── E-A 후속 · 실제로 돌려서 본다 ──
+     소스 모양만 보는 검사는 시간 순서·리액트의 늦은 갱신·무상태 워커
+     재시도를 못 잡는다. 여기서는 실제 상태를 만들어 굴린다. */
+  {
+    const store = {};
+    globalThis.localStorage = { getItem:k=>store[k]??null, setItem:(k,v)=>{store[k]=String(v)},
+      removeItem:k=>{delete store[k]}, get length(){return Object.keys(store).length},
+      key:i=>Object.keys(store)[i] };
+    globalThis.location = { search:'' };
+    globalThis.React = { useState:()=>[], useEffect:()=>{}, useRef:()=>({}) };
+    const D = new Function(readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      + ';return {talkedEnoughIn,countUserSaid,SCENE_MIN_TALK,peekScene,ackScene,markScene}')();
+
+    /* ── 정확히 두 번째 발화에서 열린다 ──
+       전에는 방금 친 말이 빠진 목록으로 세서 세 번째부터 열렸다. */
+    const sc = { room: 'minhyun', place: '옥상', since: 1000 };
+    const said = n => Array.from({ length: n }, (_, i) => ({ sender: 'user', ts: 1000 + i }));
+    eq('두 마디 조건이 정확히 두 번째다',
+      [0, 1, 2, 3].map(n => D.talkedEnoughIn(sc, said(n))), [false, false, true, true]);
+    /* 자리에 앉기 전에 한 말은 안 센다 */
+    eq('자리 전에 한 말은 안 센다',
+      D.talkedEnoughIn(sc, [{ sender: 'user', ts: 1 }, { sender: 'user', ts: 2 }]), false);
+    /* 지문과 인물 말은 발화가 아니다 */
+    eq('지문과 인물 말은 안 센다', D.talkedEnoughIn(sc, [
+      { sender: 'user', ts: 1000, sys: true }, { sender: 'minhyun', ts: 1001 },
+      { sender: 'user', ts: 1002 }]), false);
+    /* 앱은 created_at, 웹은 ts — 같은 함수가 둘 다 받는다 */
+    eq('웹·앱의 시각 칸을 둘 다 읽는다',
+      D.talkedEnoughIn(sc, [{ sender: 'user', created_at: 1000 }, { sender: 'user', created_at: 1001 }]), true);
+
+    /* ── 그 전의 give 제안은 탈락한다 ──
+       프롬프트에 안 보여줬는데도 지어냈으면 그건 세계를 어긴 것이다.
+       「받아요」가 화면에 뜨고 가방은 비는 일이 없어야 한다. */
+    const two = { place: '옥상', room: 'minhyun', placeItemOwned: false };
+    eq('두 마디 전 give는 후보째 떨어진다',
+      hardFilter({ messages: [{ text: '이거 받아요.' }], give: 'can' }, ['minhyun'],
+        { ...two, placeItemAvailable: false }), ['INVALID_GIVE']);
+    eq('두 마디 뒤 give는 통과한다',
+      hardFilter({ messages: [{ text: '이거 받아요.' }], give: 'can' }, ['minhyun'],
+        { ...two, placeItemAvailable: true }), []);
+    /* 프롬프트에도 안 보인다 — 이름조차 안 나가야 지어낼 거리가 없다 */
+    eq('두 마디 전 프롬프트에 물건이 없다', (() => {
+      const off = ENG.buildPlace('옥상', false, 'minhyun', false, '', false);
+      const on = ENG.buildPlace('옥상', false, 'minhyun', false, '', true);
+      return [/캔커피|"give"/.test(off), /캔커피/.test(on) && /"give"/.test(on)];
+    })(), [false, true]);
+
+    /* ── 승격 거절이면 pending을 지키지 않는다 ── */
+    D.markScene('minhyun', 'confession');
+    eq('거절된 장면은 남는다', (() => {
+      const data = { messages: [{ text: 'ㄱ' }] };            // scene_ack 없음
+      if (data.scene_ack === 'confession') D.ackScene('minhyun', 'confession');
+      return D.peekScene('minhyun');
+    })(), 'confession');
+    eq('승인된 장면만 지운다', (() => {
+      const data = { messages: [{ text: 'ㄱ' }], scene_ack: 'confession' };
+      if (data.scene_ack === 'confession') D.ackScene('minhyun', 'confession');
+      return D.peekScene('minhyun');
+    })(), '');
+    /* 다른 사유가 돌아와도 안 지운다 */
+    D.markScene('minhyun', 'partner_known');
+    eq('딴 사유가 오면 안 지운다', (() => {
+      const data = { scene_ack: 'confession' };
+      if (data.scene_ack === 'partner_known') D.ackScene('minhyun', 'partner_known');
+      return D.peekScene('minhyun');
+    })(), 'partner_known');
+    D.ackScene('minhyun', 'partner_known');
+  }
+
+  /* ── 워커가 승인한 것만 scene_ack로 돌려준다 ── */
+  eq('거절하면 scene_ack가 없다',
+    /tier === "critical" && routed\.reason \? \{ scene_ack: routed\.reason \}/.test(workerSrc), true);
+  eq('웹·앱이 일치할 때만 지운다',
+    /data\.scene_ack===payload\.scene_reason/.test(web)
+    && /data\.scene_ack===why/.test(appSrc), true);
+
+  /* ── 커밋과 연출을 가른다 ──
+     웹: 타이머만으로 커밋하면 그 사이 새로고침에 사라진다.
+     앱: 인물의 말이 먼저 저장돼야 「받았다」가 뒤에 온다. */
+  eq('웹은 커밋을 즉시 한다', (() => {
+    const i = web.indexOf('const applyEffects=(fx,delay)=>{');
+    const box = web.slice(i, i + 1600);
+    /* saveEffDone과 saveBag이 타이머 밖에 있고, 화면에 보이는 것만 show에 담긴다 */
+    return box.includes('if(changed)saveEffDone(done);')
+        && box.includes('delay>0?setTimeout(run,delay):run();')
+        && box.indexOf('saveEffDone(done)') < box.indexOf('setTimeout(run,delay)');
+  })(), true);
+  eq('가방은 타이머 밖에서 저장한다', (() => {
+    const i = web.indexOf('const takeItem=(key,from,where,show)=>{');
+    const box = web.slice(i, i + 900);
+    return box.indexOf('saveBag(next)') < box.indexOf('show?show.push(paint):paint()');
+  })(), true);
+  eq('앱은 인물 말을 먼저 저장한다', (() => {
+    const i = appSrc.indexOf('const data=await sendChat(room,name,hist,{reqId:rid');
+    const box = appSrc.slice(i, i + 1400);
+    return box.indexOf('await enqueue(room,data.messages)') < box.indexOf('await applyExtras(data)');
+  })(), true);
 
   /* ── 유저 선물과 모델 Effect는 다른 길이다 ── */
   eq('유저 선물은 Effect를 안 탄다', (() => {
@@ -5836,7 +5942,12 @@ eq('시간표 단추는 peek보다 좁다',
       { place: '옥상', placeItemOwned: true, room: 'minhyun' }), ['INVALID_GIVE']);
   eq('그 자리의 물건은 통과한다',
     hardFilter({ messages: [{ text: 'ㄱ' }], give: 'can' }, MH,
-      { place: '옥상', placeItemOwned: false, room: 'minhyun' }), []);
+      { place: '옥상', placeItemOwned: false, placeItemAvailable: true, room: 'minhyun' }), []);
+  /* 못 건네는 턴인데 give를 냈다 — 프롬프트에 안 보여줬는데도 지어낸 것이다 */
+  eq('두 마디 전의 give는 떨어진다',
+    hardFilter({ messages: [{ text: 'ㄱ' }], give: 'can' }, MH,
+      { place: '옥상', placeItemOwned: false, placeItemAvailable: false, room: 'minhyun' }),
+    ['INVALID_GIVE']);
 
   /* ── D 후속 · 입구가 하나다 ──
      안전 검사에 옛 입구를 남기면 「테스트는 통과했는데 저 경로만 안 걸러짐」이
@@ -6364,9 +6475,18 @@ eq('시간표 단추는 peek보다 좁다',
         && box.includes('markScene(other,"partner_known")');
   })(), true);
   /* 재시도는 같은 요청이라 워커가 이미 그 사유를 봤다 */
-  eq('재시도에는 다시 안 싣는다',
+  /* ── 재시도에도 싣는다 ──
+     전에는 앱이 재시도면 뺐다. 「워커가 이미 봤다」는 전제였는데 워커는
+     상태를 안 들고 있다 — 첫 호출이 실패하고 재시도하면 그 턴이 중요
+     장면이 아니라 일반 턴으로 내려간다. 웹은 payload를 재사용해 그대로
+     실려 있었고, 앱만 새 payload를 만들어서 빠졌다. */
+  eq('재시도에도 사유가 실린다',
     /if\(!payload\.scene_reason\)\{[\s\S]{0,200}const why=peekScene\(bucket\);/.test(web)
-    && /const why=retry\?'':peekScene\(room\);/.test(appSrc), true);
+    && /const why=peekScene\(room\);/.test(appSrc)
+    && !/retry\?'':peekScene/.test(appSrc), true);
+  /* 재시도는 같은 논리 요청이라 이름표도 같다 */
+  eq('재시도가 같은 이름표를 쓴다',
+    /const rid=startTurn\(room,retry\);/.test(appSrc), true);
   /* 답이 저장된 뒤에만 지운다 — 웹·앱 둘 다 */
   eq('성공한 뒤에 장면을 지운다',
     /ackScene\(bucket,payload\.scene_reason\)/.test(web) && /ackScene\(room,why\)/.test(appSrc), true);

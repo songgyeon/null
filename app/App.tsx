@@ -35,6 +35,7 @@ import {
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
+  talkedEnoughIn,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
@@ -1915,22 +1916,29 @@ function Root() {
       const at=sc&&sc.room===room?sc.place:null;
       /* left는 자리를 닫고 나서 부르는 턴에만 온다. place와 같이 오지 않는다 —
          워커도 place가 없을 때만 본다. */
-      /* 읽기만 한다. 지우는 것은 답이 저장된 뒤다(ackScene) —
-         보내기 전에 지우면 실패한 턴에 그 장면이 통째로 증발한다. */
-      const why=retry?'':peekScene(room);
+      /* ── 재시도에도 다시 싣는다 ──
+         전에는 재시도면 뺐다. 「워커가 이미 봤다」는 전제였는데 **워커는
+         상태를 안 들고 있다** — 첫 호출이 실패하고 재시도하면 그 턴은
+         중요 장면이 아니라 일반 턴으로 내려간다. 사유는 성공할 때까지
+         계속 실린다(peekScene은 안 지운다). */
+      const why=peekScene(room);
       const data=await sendChat(room,name,hist,{reqId:rid,...(why?{sceneReason:why}:{}),bag:bagOut(bagRef.current),
         /* 두 마디는 하고 나서만 건넬 수 있다. **부르기 전에** 정해서 보낸다 —
            응답 뒤에 재면 「받아요」는 화면에 뜨고 가방은 비는 일이 생긴다.
-           조건은 웹과 같은 함수(talkedEnough)에서 나온다. */
-        ...(at?{place:at,talkedEnough:talkedEnough(sc,msgsForFlow()),
+           방금 친 말이 든 hist로 센다 — msgs 상태는 아직 갱신 전이라
+           두 번째 발화에서 열려야 할 것이 세 번째부터 열렸다. */
+        ...(at?{place:at,talkedEnough:talkedEnoughIn(sc,hist),
           ...(sc.came?{came:sc.came}:{}),...(placeOverNow(sc)?{placeOver:true}:{})}:(left?{left}:{}))});
       if(stale(room,rid))return;
       endTurn(room,rid); setTyping(false);
-      await applyExtras(data);
+      /* 인물의 말이 먼저 저장되고 그 뒤에 「받았다」 지문이 붙는다 —
+         순서가 반대면 주기도 전에 받은 것이 된다 */
       if(data.messages?.length) await enqueue(room,data.messages);
-      /* 장면은 **여기서** 끝난다. 답이 저장된 뒤에만 지운다 —
-         보내기 전에 지우면 실패한 턴에 고백도 기억 공개도 증발한다. */
-      if(why) ackScene(room,why);
+      await applyExtras(data);
+      /* ── 승인된 장면만 지운다 ──
+         워커가 사유를 거절하고 일반 턴으로 내려도 전에는 지웠다.
+         실제로 올라가서 답까지 낸 경우에만 scene_ack가 온다. */
+      if(why&&data&&data.scene_ack===why) ackScene(room,why);
       logUsage(data); rollLater(room);
     }catch(e:any){
       if(stale(room,rid))return;

@@ -228,27 +228,41 @@ function App(){
      같은 응답을 두 번 처리해도(재시도·늦게 온 답·새로고침) 결과는 한 번과
      같아야 한다. id는 워커가 만든 것을 그대로 쓴다 — 같은 요청의 같은
      사건은 늘 같은 id다. */
-  const applyEffects=(fx)=>{
+  /* ── 커밋은 지금, 보이는 것은 나중에 ──
+     전에는 통째로 타이머 뒤에 뒀다. 말풍선이 다 뜬 뒤에 「받았다」가 떠야
+     순서가 맞아서였는데, 그 사이에 새로고침하면 물건도 초대도 통째로
+     사라졌다 — 워커는 이미 준 것으로 알고 있는데.
+     남는 것(가방·적용한 id)은 답을 받는 즉시 저장하고, 화면에 보이는 것
+     (지문 한 줄·토스트·초대창)만 늦춘다. */
+  const applyEffects=(fx,delay)=>{
     if(!Array.isArray(fx)||!fx.length)return;
     const done=loadEffDone(); let changed=false;
+    const show=[];
     for(const e of fx){
       if(!e||typeof e!=="object"||!e.id||!e.type)continue;
       if(done.indexOf(e.id)>=0)continue;                       // 이미 새겼다
       let ok=false;
       if(e.type==="item_transfer"){
         /* 방향을 본다. 유저가 받는 것만 가방에 들어간다 */
-        if(e.to==="user"&&e.item&&ITEMS[e.item])
-          ok=takeItem(e.item,e.from,(sceneRef.current||{}).place);
+        if(e.to==="user"&&e.item&&ITEMS[e.item]){
+          ok=takeItem(e.item,e.from,(sceneRef.current||{}).place,show);
+        }
       }else if(e.type==="invite"){
-        if(e.place&&e.char){ setInvite({place:e.place,char:e.char}); ok=true; }
+        if(e.place&&e.char){ show.push(()=>setInvite({place:e.place,char:e.char})); ok=true; }
       }
       /* story_transition은 E-B에서 낸다. 스키마는 받아두되 여기서는 안 만든다 */
       if(ok||e.type==="story_transition"){ done.push(e.id); changed=true; }
     }
-    if(changed)saveEffDone(done);
+    if(changed)saveEffDone(done);                              // ← 즉시 저장
+    if(show.length){
+      const run=()=>show.forEach(f=>f());
+      delay>0?setTimeout(run,delay):run();
+    }
   };
 
-  const takeItem=(key,from,where)=>{
+  /* show를 주면 화면에 보이는 것(지문·토스트)만 거기 담아 나중에 돌린다.
+     가방은 늘 지금 저장한다 — 늦추면 그 사이 새로고침에 사라진다. */
+  const takeItem=(key,from,where,show)=>{
     const it=ITEMS[key]; if(!it)return false;
     if(bagRef.current.some(b=>b.key===key))return false;
     /* ref를 여기서 같이 앞세운다. setBag은 다음 그림에서야 반영되는데,
@@ -259,8 +273,11 @@ function App(){
     const next=[...bagRef.current,{key,from,where,ts:Date.now()}];
     bagRef.current=next; setBag(next); saveBag(next);
     const line=`${CHARS[from]?CHARS[from].name:from}에게 ${jos(it.name,"을/를")} 받았다`;
-    appendMsg(from,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
-    setToast(`bag — ${it.name}`);
+    const paint=()=>{
+      appendMsg(from,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
+      setToast(`bag — ${it.name}`);
+    };
+    show?show.push(paint):paint();
     return true;
   };
   /* 야자 감독인 주에 하나. 사람이 준 게 아니라 시간표가 쥐여주는 것이라
@@ -280,9 +297,10 @@ function App(){
      들렀다 바로 나오는 것만으로 여덟 개가 다 모이면 지도를 도는 일이
      심부름이 된다. 말을 두 마디는 하고 나와야 건넬 자리가 있었던 걸로 친다.
      덜 하고 나가면 그 자리는 그대로 남는다 — 다시 오면 된다. */
-  const SCENE_MIN_TALK=2;
-  const talkedEnough=sc=>!!sc&&(storeRef.current.msgs[sc.room]||[])
-    .filter(m=>!m.sys&&m.sender==="user"&&m.ts>=(sc.since||0)).length>=SCENE_MIN_TALK;
+  /* 셈은 app-data.js에 있다 — 웹과 앱이 같은 원본을 쓴다.
+     list를 안 주면 storeRef를 읽는데 그건 리액트가 아직 갱신하기 전이라
+     방금 친 말이 빠져 있다. 보내는 자리에서는 갓 만든 배열을 직접 넘긴다. */
+  const talkedEnough=(sc,list)=>talkedEnoughIn(sc,list||storeRef.current.msgs[(sc||{}).room]||[]);
   const closeScene=()=>{ setScene(null); saveScene(null); };
   /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
      X는 나가기가 아니라 접어두기다. 그런데 유효기간이 없어서, 낮에 보건실을
@@ -707,11 +725,13 @@ function App(){
          말풍선이 다 뜬 뒤에 적용한다 — 「받았다」 줄이 주는 말보다 먼저 뜨면
          순서가 거꾸로 보인다. */
       if(data&&Array.isArray(data.effects)&&data.effects.length)
-        setTimeout(()=>applyEffects(data.effects),
-          Math.max(900,((data.messages||[]).length+1)*600));
-      /* 장면은 **여기서** 끝난다. 답이 저장된 뒤에만 지운다 —
-         보내기 전에 지우면 실패한 턴에 고백도 기억 공개도 증발한다. */
-      if(payload.scene_reason) ackScene(bucket,payload.scene_reason);
+        applyEffects(data.effects,Math.max(900,((data.messages||[]).length+1)*600));
+      /* ── 승인된 장면만 지운다 ──
+         전에는 200이면 무조건 지웠다. 워커가 사유를 거절하고 일반 턴으로
+         내려도 지워져서, 한 번뿐인 장면이 쓰이지도 않고 사라졌다.
+         워커가 실제로 올려서 답까지 낸 경우에만 scene_ack가 온다. */
+      if(payload.scene_reason&&data&&data.scene_ack===payload.scene_reason)
+        ackScene(bucket,payload.scene_reason);
       /* 때가 지난 자리였다 — 방금 온 답이 마무리 인사다. 말풍선이 다 뜬 뒤에
          자리를 닫는다. 인사보다 「나왔다」 줄이 먼저 뜨면 순서가 거꾸로다.
          답을 기다리는 사이 유저가 나가고 다른 자리(귀갓길 등)를 열었을 수
@@ -792,7 +812,7 @@ function App(){
       bag:bagOut(),
       /* 두 마디는 하고 나서만 건넬 수 있다. **부르기 전에** 정해서 보낸다 —
          응답 뒤에 재면 「받아요」는 화면에 뜨고 가방은 비는 일이 생긴다. */
-      ...(at?{place:at,talked_enough:talkedEnough(sc),
+      ...(at?{place:at,talked_enough:talkedEnough(sc,next),
         ...(sc.came?{came:sc.came}:{}),...(sceneOver(sc)?{place_over:true}:{})}:{})});
   };
   /* 선물 보내기.

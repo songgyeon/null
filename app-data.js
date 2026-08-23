@@ -1022,6 +1022,19 @@ const DDAY_MARKS=[7,3,1];    // 남은 날이 이 값이 되는 날
    몇 번이 전부지만, 재시도마다 request_id가 달라지므로 id는 그보다 는다.
    200이면 한 판을 다 돌고도 남는다 — 넘치면 오래된 것부터 버린다.
    버려진 id가 다시 와도 그때는 이미 가방에 있어서 takeItem이 막는다. */
+/* ── 두 마디는 하고 나서 ──
+   자리에 들르자마자 물건이 손에 들어오면 그건 받은 게 아니라 주운 것이다.
+   웹과 앱이 **같은 숫자와 같은 셈**을 써야 한다 — 손으로 복제하면 갈린다.
+   여기가 원본이고 rules.ts는 여기서 만들어진다.
+
+   list를 반드시 넘긴다. 화면 상태(리액트 msgs)는 방금 친 말이 빠져 있어서,
+   두 번째 발화에서 열려야 할 것이 세 번째부터 열렸다.
+   ts든 created_at이든 받는다 — 웹은 ts, 앱은 created_at이다. */
+const SCENE_MIN_TALK=2;
+const countUserSaid=(sc,list)=>!sc?0:(list||[])
+  .filter(m=>m&&!m.sys&&m.sender==="user"&&((m.ts||m.created_at||0)>=(sc.since||0))).length;
+const talkedEnoughIn=(sc,list)=>countUserSaid(sc,list)>=SCENE_MIN_TALK;
+
 const EFF_MAX=200;
 const loadEffDone=()=>{try{const a=JSON.parse(localStorage.getItem("null_eff_done"));return Array.isArray(a)?a:[]}catch(e){return[]}};
 const saveEffDone=a=>{try{localStorage.setItem("null_eff_done",JSON.stringify((a||[]).slice(-EFF_MAX)))}catch(e){}};
