@@ -4474,6 +4474,132 @@ eq('시간표 단추는 peek보다 좁다',
   eq('내 말풍선은 안 잡는다', /\{\.\.\.\(me\?\{\}:hold\(m\)\)\}/.test(web), true);
 }
 
+/* ══════════ 품질 자 ══════════
+   ── 왜 눈을 갈랐나 ──
+   전에는 tools/eval.mjs가 `import { isLeak, isMeta } from '../worker.js'`를 했다.
+   판정을 한 군데로 모으는 것은 보통 옳지만 여기서는 틀렸다.
+
+     워커 필터가 못 본다 → 자가 같은 필터를 빌려 쓴다 → 자도 못 본다
+     → 둘이 동시에 「문제 없음」이라고 한다
+
+   실제로 그런 줄이 있었다(`update성의 없다고…`). 사람이 찍어둔 정답지만
+   그게 문제라고 알려줬다. 자는 생산 코드와 다른 눈이어야 한다. */
+{
+  const eye = readFileSync(join(ROOT, 'tools/eval-eye.mjs'), 'utf8');
+  const ev  = readFileSync(join(ROOT, 'tools/eval.mjs'), 'utf8');
+
+  /* ── 독립을 주석의 약속이 아니라 구조로 ──
+     이 검사가 없으면 다음 사람이 무심코 다시 얽는다. */
+  /* 주석에는 「worker.js를 import하지 않는다」가 적혀 있다. 낱말이 아니라
+     실제로 끌어오는 자리를 본다 */
+  eq('자의 눈은 워커를 안 끌어온다',
+    /(?:^|\n)\s*(?:import|const)[^\n]*(?:from\s*['"][^'"]*worker|require\(['"][^'"]*worker)/.test(eye), false);
+  eq('자의 눈은 아무것도 안 빌린다', (eye.match(/^import /gm) || []).length, 0);
+  /* 워커의 눈을 아예 안 쓰는 것이 아니다 — 엇갈림을 보는 데는 쓴다.
+     자만 보는 것이 D단계에서 고칠 목록이 되기 때문이다. */
+  eq('자는 판정을 제 눈으로 한다',
+    /from '\.\/eval-eye\.mjs'/.test(ev) && /seesLeak/.test(ev), true);
+  eq('워커의 눈은 엇갈림에만 쓴다', (() => {
+    /* import는 별명으로만 받는다. 그 별명이 gap 계산 밖에서 안 불려야 한다 */
+    if (!/isLeak as workerLeak/.test(ev)) return false;
+    const used = (ev.match(/workerLeak\(|workerMeta\(/g) || []).length;
+    const inGap = (ev.slice(ev.indexOf('const gap =')).match(/workerLeak\(|workerMeta\(/g) || []).length;
+    return used > 0 && used === inGap;
+  })(), true);
+
+  const { seesLeak, seesTail, seesUserWrite, seesDenial } = await import('../tools/eval-eye.mjs');
+
+  /* ── 골든이 놓쳤던 열다섯 번째 ──
+     워커의 isLeak도 isMeta도 이걸 못 잡는다. 자가 잡아야 한다.
+     생산 필터를 넓히는 것은 D단계다 — 여기서는 안 고친다. */
+  eq('한글에 붙은 소문자를 잡는다',
+    (seesLeak('update성의 없다고 놀린 게 아니라 진짜 궁금해서 그런 건데.') || {}).code, 'GLUED_LATIN');
+  eq('그건 워커가 아직 못 잡는다',
+    ENG.isLeak('update성의 없다고 놀린 게 아니라 진짜 궁금해서 그런 건데.')
+    || ENG.isMeta('update성의 없다고 놀린 게 아니라 진짜 궁금해서 그런 건데.'), false);
+  /* 대문자면 고유명사다. 두 사람은 음악 얘기를 길게 한다 — 여기가 오탐 자리다 */
+  eq('제목과 약칭은 안 잡는다',
+    ['LP는 고마워요.', 'Sia예요.', 'Kisses예요, Wolf Alice.', 'NCT면 도영 아니에요?',
+     'Dumb이나 Teen Spirit급으로 하나 걸어봐요.', "Don't Delete the Kisses."]
+      .filter(t => seesLeak(t)), []);
+  /* 워커는 줄머리만 본다. 자는 아무 데나 본다 — 그게 독립인 지점이다 */
+  eq('앞에 말이 붙어도 조각을 잡는다',
+    (seesLeak('알겠어요. {"messages": ["들어가요."]}') || {}).code, 'FRAGMENT');
+  eq('시각과 웃는 표시는 조각이 아니다',
+    ['3:40에 봐요.', '2:1로 이겼어요.', '웃겨 :D', '그래요 :)'].filter(t => seesLeak(t)), []);
+  eq('영어 혼잣말을 잡는다',
+    (seesLeak('I should probably not say that here.') || {}).code, 'EN_PROSE');
+
+  /* ── ㄹ 받침 앞의 래요는 의지지 전언이 아니다 ──
+     작가 문구집에서 다섯 줄이 걸려서 알았다. 낱말 목록으로는 못 막는 갈래다. */
+  eq('전언 어미를 잡는다',
+    ['왜 그랬대요.', '누가 먼저 가래요.', '저만 고치래요.'].filter(t => !seesTail(t)), []);
+  eq('의지 어미는 안 잡는다',
+    ['저도 먹을래요.', '갈래요.', '마실래요.', '정할래요.', '팔래요.'].filter(seesTail), []);
+  eq('그래요는 전언이 아니다', ['그래요.', '밤에만 그래요.'].filter(seesTail), []);
+
+  /* ── 유저 속을 단정하는 것만 ──
+     「하고 싶은 대로 해도 돼요」는 유저를 대신 쓴 것이 아니라 맡기는 말이다.
+     「했잖아요」는 앞 대화를 봐야 날조인지 기억인지 안다 — 자는 못 가린다. */
+  eq('속을 단정하면 잡는다',
+    ['많이 힘드셨죠.', '외로우셨죠.', '선생님도 사실은 보고 싶었잖아요.'].filter(t => !seesUserWrite(t)), []);
+  eq('맡기는 말은 안 잡는다',
+    ['선생님 하고 싶은 대로 해도 돼요.', '오늘은 선생님 하고 싶은 거 해요.',
+     '선생님이 말하고 싶을 때요.', '힘들면 말해요.'].filter(seesUserWrite), []);
+  eq('기억인지 날조인지 모르는 것은 안 잡는다',
+    ['선생님이 먼저 모르는 척했잖아요.', '선생님도 일찍 자라고 했잖아요.'].filter(seesUserWrite), []);
+
+  /* ── 부정은 방향을 지킨다 ──
+     둘을 한 자루에 넣었더니 「민현이한테 잘해준 적 없다니까요」가
+     선물 부정으로 세어졌다 — 선물과 아무 상관 없는 말이다. */
+  eq('받은 것을 부정하면 잡는다',
+    (seesDenial('그런 거 받은 적 없는데요.', '머그컵', 'to_char') || {}).code, 'DENY_VAGUE');
+  eq('물건 이름을 대면 갈래가 다르다',
+    (seesDenial('머그컵은 받은 적 없어요.', '머그컵', 'to_char') || {}).code, 'DENY_NAMED');
+  eq('준 것을 부정하는 말은 받은 쪽으로 안 센다',
+    seesDenial('준 적 없어요.', '머그컵', 'to_char'), null);
+  eq('다른 동사의 활용은 안 잡는다',
+    seesDenial('민현이한테 잘해준 적 없다니까요.', '', 'from_char'), null);
+
+  /* ── 오탐 시험대 ──
+     작가가 쓴 문구집은 전부 정답이다. 하나라도 걸리면 자가 틀린 것이다.
+     골든이 「잡아야 할 것」을 재고 이게 「잡으면 안 되는 것」을 잰다. */
+  eq('작가 문구집에서 하나도 안 걸린다', (() => {
+    const md = readFileSync(join(ROOT, 'docs/dialogue-corpus.md'), 'utf8');
+    const bad = [];
+    for (const raw of md.split('\n')) {
+      const m = raw.match(/^　(재언|민현|둘|해설)\s*—\s*(.+?)\\?$/);
+      if (!m) continue;
+      const t = m[2];
+      if (seesLeak(t) || seesTail(t) || seesUserWrite(t)) bad.push(t.slice(0, 40));
+    }
+    return bad;
+  })(), []);
+
+  /* ── 분모 ──
+     「100발화 줄당」은 줄바꿈을 적게 하는 모델이 유리해진다. */
+  eq('턴당으로 나눈다', /턴당/.test(ev) && /응답 턴/.test(ev), true);
+  eq('줄당은 참고로만 남긴다', /\(참고\) 100줄당/.test(ev), true);
+  eq('방별로 가른다', /방별 —/.test(ev) && /ROOM_KEY/.test(ev), true);
+  /* 지문을 버리면 사건 분모가 없어진다. 시각을 버리면 F단계에서 다시 만든다 */
+  eq('지문을 안 버린다', /kind: 'stage'/.test(ev), true);
+  eq('줄머리 시각을 안 버린다', /const TS = /.test(ev) && /dated:/.test(ev), true);
+  /* 조사 하나로 방향이 갈린다. 「에게 받았다」를 먼저 안 걸면 전부 섞인다 */
+  eq('주고받은 방향이 안 섞인다',
+    ev.indexOf("'item_from_char'") < ev.indexOf("'gift_to_char'"), true);
+  /* 내보내기가 현실 시각이라 지금 재면 잘못 잰다 */
+  eq('시각 어긋남은 아직 안 잰다', /F단계 뒤|F단계\)/.test(ev), true);
+  /* 텍스트 기록에 없는 것을 재는 척하지 않는다 */
+  eq('못 재는 것을 적어둔다', /아직 안 재는 것/.test(ev) && /trace JSON/.test(ev), true);
+
+  /* ── 생산 필터는 이번에 안 건드린다 ── */
+  eq('생산 hardFilter는 그대로다', (() => {
+    const f = workerSrc.slice(workerSrc.indexOf('function hardFilter('),
+                              workerSrc.indexOf('/* ── Soft Signal ──'));
+    return /EMPTY/.test(f) && /LEAK/.test(f) && /SENDER/.test(f) && !/eval-eye/.test(workerSrc);
+  })(), true);
+}
+
 /* ══════════ 공통 계약 ══════════
    모든 단계가 같은 세계를 보게 하는 모양. 사실을 하나씩 덧붙이기 전에
    구조를 먼저 못박는다 — 그러지 않으면 단계마다 다른 세계를 본다.
