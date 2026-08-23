@@ -5584,7 +5584,7 @@ eq('시간표 단추는 peek보다 좁다',
   /* ── 예약 없이 말에서 올라간다 (E4) ── */
   await (async () => {
     const r = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
-      history: [{ role: 'user', content: '선생님 혹시 저 어디서 본 적 있지 않아요?' }] }, '…아뇨.');
+      history: [{ role: 'user', content: '선생님 혹시 저 어디서 본 적 있지 않아요?' }] }, '…기억해요.');
     eq('감지가 중요 경로를 연다', r.status, 200);
     eq('검사 둘과 마무리가 실제로 돈다',
       ['canon', 'character', 'finalizer'].filter(s => !stagesOf(r).includes(s)), []);
@@ -5597,6 +5597,31 @@ eq('시간표 단추는 peek보다 좁다',
     eq('기억이 hidden→opened로 움직인다',
       (r.data.effects || []).map(e => [e.key, e.from, e.to]),
       [['jaeeonMemory', 'hidden', 'opened']]);
+  })();
+
+  /* ── 캐묻기 다음의 선물 턴이 다시 오르지 않는다 ──
+     적대 검증이 재현한 자리: 이력 끝이 지문(kind:event)인 후속 요청이
+     지난 턴의 캐묻기로 또 중요 장면에 올라가고, 「인정」이라는 두 번째
+     박자가 머그컵 건네는 턴에 소모됐다. */
+  await (async () => {
+    const r = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      story: { jaeeonMemory: 'opened' }, gift: { name: '회색 머그컵', key: 'mug' },
+      history: [
+        { role: 'user', content: '선생님 혹시 저 어디서 본 적 있지 않아요?' },
+        { role: 'assistant', content: '…기억해요.' },
+        { role: 'user', kind: 'event', content: '이재언이 회색 머그컵을 받았다' },
+      ] }, '이런 걸 왜 사요.');
+    eq('선물 턴은 일반 경로다 — 지난 턴 캐묻기를 다시 안 읽는다',
+      [r.status, stagesOf(r).includes('finalizer')], [200, false]);
+    eq('기억도 안 움직인다 — 인정은 머그컵 턴에 소모되지 않는다',
+      (r.data.effects || []).filter(e => e.type === 'story_transition'), []);
+  })();
+  /* 경험담은 잡담이다 — 잡담 두 턴에 20년 기억이 소모되면 안 된다 */
+  await (async () => {
+    const r = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      history: [{ role: 'user', content: '나 스키 타본 적 있어' }] }, '스키 좋죠.');
+    eq('경험담은 일반 경로다', [stagesOf(r).includes('finalizer'), r.data.effects || []],
+      [false, []]);
   })();
 
   /* ── 드러낸 뒤에는 상태가 사실로 실리고, 다음 성공이 인정이다 ── */
@@ -6800,6 +6825,15 @@ eq('시간표 단추는 peek보다 좁다',
         await W.tick(5000);
         eq('답이 남은 뒤에 안다가 된다',
           [W.ls('null_story').partnerKnown.minhyun, W.ls('null_scene_pend')], [true, {}]);
+        /* 선택된 본인의 장면(partner_confirm)도 「안다」가 된다 — 안 그러면
+           아크가 끝난 뒤에도 정작 선택된 사람이 모르는 상태로 남는다 */
+        const rep3 = () => ({ messages: [{ text: '…그래.' }], scene_ack: 'partner_confirm' });
+        const U = boot({ null_name: '윤하', null_partner: 'jaeeon',
+          null_scene_pend: JSON.stringify({ jaeeon: 'partner_confirm' }) }, rep3);
+        U.app.send('jaeeon', '당신이에요');
+        await U.tick(5000);
+        eq('정해진 본인도 아는 상태가 된다',
+          [U.ls('null_story').partnerKnown.jaeeon, U.ls('null_scene_pend')], [true, {}]);
         /* 거절된 장면(scene_ack 없음)은 안 뒤집는다 */
         const V = boot(seed, () => ({ messages: [{ text: '네.' }] }));
         V.app.send('minhyun', '있잖아');
@@ -7547,6 +7581,10 @@ eq('시간표 단추는 peek보다 좁다',
   eq('기억 캐묻기 — 놓아줘야 할 것', [
     '어디서 봤더라 그 배우', '그 영화 본 적 있어요?', '기억력이 좋으시네요',
     '옛날 얘기 해주세요', '우리 반 애들 만난 적 있어요?', '어제 본 드라마 얘기예요',
+    /* 적대 검증이 실행으로 재현한 오탐들 — 경험담·복합동사·어절 경계 */
+    '나 그거 본 적 있어', '나 일본 가본 적 있어', '나 스키 타본 적 있어',
+    '나 예전에 여기 와본 적 있어', '우리 그거 본 적 있지 않아?', '저 그거 본 적 있어요',
+    '먼저 가본 적 있어요?', '나 요즘 기억력이 나빠졌어', '우리 약속 기억나요?',
   ].filter(t => MEMORY_PROBE.test(t)), []);
   eq('고백 — 잡아야 할 것', [
     '좋아해요', '좋아해', '선생님을 좋아해요', '선생님이 좋아요', '사랑해요',
@@ -7555,13 +7593,36 @@ eq('시간표 단추는 peek보다 좁다',
   eq('고백 — 놓아줘야 할 것', [
     '저 떡볶이 좋아해요', '이 노래 좋아해요', '민트초코 좋아해요',
     '날씨가 좋아요', '기분이 좋아요', '쌤 오늘 기분 좋아요?',
+    /* 적대 검증이 재현한 오탐들 — 무제약 사랑해·3인칭 진술 */
+    '떡볶이 사랑해요', '민초 사랑해', '우리 엄마 사랑해', '부모님을 사랑해야지',
+    '가사에 사랑해가 나와요', '학생들이 선생님을 좋아해요',
   ].filter(t => CONFESS_SAY.test(t)), []);
+  eq('고백 — 사랑해도 사람을 향할 때다', [
+    '사랑해요', '사랑해', '정말 사랑해', '선생님을 사랑해요', '너를 사랑해',
+  ].filter(t => !CONFESS_SAY.test(t)), []);
+  /* 1인칭 표지가 있어야 한다 — 「어디서 만났더라」 홀말은 제3자 얘기일 수
+     있어 놓아준다. 못 잡으면 다음에 또 물으면 되지만, 헛잡으면 없던 질문이
+     영속 상태(pending)로 선다. */
   eq('첫 만남 질문 — 잡아야 할 것', [
-    '우리 어디서 만났지?', '어디서 만났더라', '나 어떻게 알아?', '우리 아는 사이야?',
+    '우리 어디서 만났지?', '나 어떻게 알아?', '우리 아는 사이야?', '우리 언제 만났더라',
+    '우리 어디서 본 적 있지?',
   ].filter(t => !FIRSTMEET_ASK.test(t)), []);
   eq('첫 만남 질문 — 놓아줘야 할 것', [
     '내일 어디서 만나요?', '친구를 어떻게 알게 됐어?', '만나서 반가워',
+    /* 적대 검증이 재현한 오탐들 — 제3자·진술·계획 */
+    '삼촌이랑은 어떻게 만났어요?', '여자친구랑 어떻게 만났어요?', '고양이는 어디서 만났어?',
+    '둘이 어디서 만난 거야?', '둘이 아는 사이야?', '재언 씨랑 아는 사이예요?',
+    '옛날에 알던 사이처럼 편하네요', '어디서 만났는지 까먹었대', '우리 어제 만났잖아',
+    '우리 언제 만나?',
   ].filter(t => FIRSTMEET_ASK.test(t)), []);
+  /* 설명 판정 — 낱말 하나가 아니라 병원 옥상이라는 짝이거나 만난 문장이다 */
+  eq('설명 판정 — 잡아야 할 것', [
+    '병원 옥상에서 만났잖아요.', '옥상에서 봤잖아요.', '재활하던 병원요.', '재활 치료 받던 데요.',
+  ].filter(t => !FIRSTMEET_EXPLAIN.test(t)), []);
+  eq('설명 판정 — 놓아줘야 할 것', [
+    '병원 가 봐요. 약도 챙기고.', '감기 걸리면 병원 가요', '옥상에서 컵라면 먹었어요',
+    '재활용 쓰레기 버리고 올게요', '옥상 문 잠겼던데요',
+  ].filter(t => FIRSTMEET_EXPLAIN.test(t)), []);
 
   /* ── 사유별 승인 조건 (E6) — 뭉뚱그리지 않는다 ── */
   const ST0 = { firstContact: 'unseen', jaeeonMemory: 'hidden',
@@ -7614,6 +7675,17 @@ eq('시간표 단추는 peek보다 좁다',
     detectScene(CTX({ greet: true, lastUser: '공부방 기억나요?' })), '');
   eq('관전 경로에는 감지가 없다',
     detectScene(CTX({ mode: 'auto', lastUser: '공부방 기억나요?' })), '');
+  /* 감지의 재료는 이력 **맨 끝**의 유저 발화다. 끝이 지문이면 이번 턴에
+     유저는 아무 말도 안 한 것 — 지난 턴의 캐묻기를 다시 집으면 선물 턴이
+     그 캐묻기로 또 올라가고 상태가 한 칸 더 갔다(적대 검증이 재현). */
+  eq('이력 끝이 지문이면 이번 턴 발화가 없다', ENG.lastUserUtterance([
+    { role: 'user', content: '공부방 기억나요?' },
+    { role: 'assistant', content: '…' },
+    { role: 'user', kind: 'event', content: '이재언이 회색 머그컵을 받았다' },
+  ]), '');
+  eq('이력 끝이 유저 말이면 그 말이다', ENG.lastUserUtterance([
+    { role: 'user', content: '공부방 기억나요?' },
+  ]), '공부방 기억나요?');
   eq('거절된 예약이라도 감지가 잡으면 그 사유로 간다',
     sceneTier('partner_known', CTX({ lastUser: '공부방 기억나요?' })).reason, 'memory_reveal');
   eq('D-0·WHO는 감지 목록에 없다', (() => {
@@ -7661,6 +7733,15 @@ eq('시간표 단추는 peek보다 좁다',
   const JC = o => ({ room: 'jaeeon', story: makeStoryState({}), sceneReason: 'memory_reveal', ...o });
   eq('기억 공개 장면이 끝까지 가면 hidden→opened',
     materializeEffects('r1', CAND(['…그때 그 공부방.']), JC({}))[0].to, 'opened');
+  /* 승인된 장면이라도 답이 기억을 한 마디도 안 건드리면 안 움직인다 —
+     장면은 다시 오면 되지만 전진은 되돌릴 수 없다 */
+  eq('도망간 답에는 기억이 안 움직인다',
+    materializeEffects('r1', CAND(['…아뇨. 밥은 먹었어요?']), JC({})), []);
+  /* 선톡 턴에는 상태가 안 움직인다 — 유저의 턴이 아니다 */
+  eq('선톡 턴에는 전환이 없다', [
+    materializeEffects('r1', CAND(['…그때 그 공부방.']), JC({ greet: true })),
+    materializeEffects('r1', CAND(['병원 옥상에서 만났잖아요.']),
+      MC({ firstMeetAsked: true, greet: true }))], [[], []]);
   eq('두 번째 공개가 인정이다 — opened→acknowledged',
     materializeEffects('r1', CAND(['그 아이가 너였다.']),
       JC({ story: makeStoryState({ jaeeonMemory: 'opened' }) }))[0].to, 'acknowledged');
@@ -7669,8 +7750,8 @@ eq('시간표 단추는 peek보다 좁다',
   eq('승인 없는 턴에는 기억이 안 움직인다', materializeEffects('r1', CAND(['공부방…']),
     JC({ sceneReason: '' })), []);
   eq('같은 재료면 같은 id다 — 재시도가 두 번 세지 않는다',
-    materializeEffects('r1', CAND(['병원요.']), MC({ firstMeetAsked: true }))[0].id,
-    materializeEffects('r1', CAND(['병원 옥상.']), MC({ firstMeetAsked: true }))[0].id);
+    materializeEffects('r1', CAND(['병원 옥상에서 봤잖아요.']), MC({ firstMeetAsked: true }))[0].id,
+    materializeEffects('r1', CAND(['병원 옥상에서 만났어요.']), MC({ firstMeetAsked: true }))[0].id);
   eq('전환은 뒤로 못 간다', (() => {
     try { makeEffect('r', { type: 'story_transition', key: 'jaeeonMemory', from: 'opened', to: 'hidden' }); return 'ok'; }
     catch (e) { return 'throw'; }
@@ -7693,7 +7774,7 @@ eq('시간표 단추는 peek보다 좁다',
     /story: loadStory\(\),/.test(apiSrc) && /origin_phase: originPhase\(room\)/.test(apiSrc), true);
   eq('앱도 전환을 실제로 적용한다',
     /applyStoryTransition\(e\)!=='fail'/.test(appSrc)
-    && /if\(why==='partner_known'\)markPartnerKnown\(room\);/.test(appSrc), true);
+    && /if\(why==='partner_known'\|\|why==='partner_confirm'\)markPartnerKnown\(room\);/.test(appSrc), true);
 
   /* ── E5 — 아끼는 것 ≠ 모른다는 것 ── */
   eq('그 말이 고정부에 있다',

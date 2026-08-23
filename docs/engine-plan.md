@@ -446,9 +446,13 @@ partnerKnown은 Effect가 아니라 `partner_known` 장면의 scene_ack이 성�
 | 전환 | 언제 |
 |---|---|
 | firstContact `unseen→pending` | 민현 방에서 첫 만남 질문 감지 + 답이 설명이 아니다 |
-| `unseen→explained` / `pending→explained` | 검증된 답에 정사 낱말(병원·옥상·재활)이 있다 |
-| jaeeonMemory `hidden→opened` | 승인된 memory_reveal 장면이 끝까지 갔다 |
+| `unseen→explained` / `pending→explained` | 검증된 답이 실제로 설명이다 — 「병원 옥상」 짝이거나 그 자리에서 만났다는 문장. 낱말 하나(병원 가 봐요·재활용)로는 안 닫힌다 |
+| jaeeonMemory `hidden→opened` | 승인된 memory_reveal 장면이 끝까지 갔고 **답이 기억을 실제로 건드렸다** — 도망간 턴에는 안 움직인다 |
 | `opened→acknowledged` | 두 번째 성공 — 한 턴에 한 칸씩만 간다 |
+
+선톡(greet) 턴에는 어느 전환도 안 나간다 — 유저의 턴이 아니다.
+partnerKnown은 partner_known(다른 쪽이 처음 아는 자리)만이 아니라
+partner_confirm(본인이 정해지는 자리)의 scene_ack에서도 뒤집힌다.
 
 상태는 `storyFacts`로 사실이 되어 화자별 투영을 그대로 탄다 — pending은
 민현·유저만, 재언의 기억은 재언·유저만 본다. `factLines`가 story.* 는 값을
@@ -460,7 +464,12 @@ partnerKnown은 Effect가 아니라 `partner_known` 장면의 scene_ack이 성�
 정체 되물음(`NULL_PROBE`)은 워커의 정규식 한 벌뿐이다. 클라이언트가 예약하는
 것은 화면의 선택(D-0 `dday_choice` · WHO `partner_confirm`/`partner_known`)뿐.
 좁게 잡는다 — 오탐이 미탐보다 비싸다(B단계의 교훈): 「어디서 봤더라 그 배우」
-「저 떡볶이 좋아해요」는 안 걸리고, 감지 못 하면 일반 턴으로 흐를 뿐이다.
+「저 떡볶이 좋아해요」「나 스키 타본 적 있어」「삼촌이랑은 어떻게 만났어요?」는
+안 걸리고, 감지 못 하면 일반 턴으로 흐를 뿐이다. 그리고 **감지의 재료는 이력
+맨 끝의 유저 발화뿐이다** — 끝이 지문(사건)이면 이번 턴에 유저는 아무 말도
+안 한 것이다. 지난 턴 말을 거슬러 읽으면 캐묻기 다음의 선물 턴이 그 캐묻기로
+다시 올라가고, 되돌릴 수 없는 상태가 머그컵 건네는 턴에 소모됐다(적대 검증이
+실행으로 재현한 결함 — 커밋 전에 잡았다).
 
 ### 사유별 승인 조건 (E6) — 뭉뚱그리지 않는다
 

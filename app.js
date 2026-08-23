@@ -549,11 +549,13 @@ function App(){
     for(const o of b.local_ops||[]) if(!applyOp(o))ok=false;
     if(b.toast)setToast(b.toast);
     /* ⑥ 중요 장면 소모.
-       partner_known이 실제로 성공했으면 그 사람은 이제 안다 — 상태도 같이
-       뒤집는다. 안 뒤집히면 장부를 안 지운다: 아는 사람에게 「처음 안다」
-       장면이 또 열리는 것이 그 갈림이다. */
+       그 장면이 실제로 성공했으면 그 사람은 이제 안다 — 상태도 같이 뒤집는다.
+       partner_known(다른 쪽이 처음 아는 자리)만이 아니라 partner_confirm
+       (본인이 정해지는 자리)도다 — 안 뒤집으면 아크가 끝난 뒤에도 정작
+       선택된 사람이 「모르는」 상태로 남는다. 안 뒤집히면 장부를 안 지운다. */
     if(b.scene_ack){
-      if(b.scene_ack==="partner_known"&&!markPartnerKnown(b.room))ok=false;
+      if((b.scene_ack==="partner_known"||b.scene_ack==="partner_confirm")
+        &&!markPartnerKnown(b.room))ok=false;
       if(ok){
         ackScene(b.room,b.scene_ack);
         if(peekScene(b.room)===b.scene_ack)ok=false;

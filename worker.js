@@ -385,7 +385,8 @@ function materializeEffects(requestId, picked, ctx) {
      적용은 클라이언트 장부가 한다 — 워커는 아무것도 기억하지 않는다. */
   const st = g.story;
   const saidByChar = (picked.messages || []).map(m => (m && m.text) || "").join(" ");
-  if (st && g.room === "minhyun") {
+  /* 선톡 턴에는 상태가 안 움직인다 — 유저의 턴이 아니다 */
+  if (st && g.room === "minhyun" && !g.greet) {
     /* 민현의 첫 만남 설명. 물었는데(pending) 답에 정사 낱말(병원·옥상·재활)이
        없으면 설명이 아니라 도망이다 — 상태가 pending에 남아 다음 턴에도
        「아직 설명 안 했다」가 실린다. 그게 이 상태 기계가 있는 이유다. */
@@ -397,8 +398,11 @@ function materializeEffects(requestId, picked, ctx) {
       out.push(makeEffect(requestId, { type: "story_transition", key: "firstContact",
         from: "pending", to: "explained" }));
   }
-  if (st && g.room === "jaeeon" && g.sceneReason === "memory_reveal") {
-    /* 승인된 기억 공개 장면이 끝까지 갔다. 첫 번째 성공이 「드러냈다」(opened),
+  if (st && g.room === "jaeeon" && !g.greet && g.sceneReason === "memory_reveal"
+      && MEMORY_TOUCH.test(saidByChar)) {
+    /* 승인된 기억 공개 장면이 끝까지 갔고, **답이 기억을 실제로 건드렸다.**
+       모델이 도망간 턴에는 상태가 안 움직인다 — 장면은 다시 오면 되지만
+       전진은 되돌릴 수 없다. 첫 번째 성공이 「드러냈다」(opened),
        그 다음 성공이 「인정했다」(acknowledged)다 — 한 턴에 한 칸씩만 간다. */
     if (st.jaeeonMemory === "hidden")
       out.push(makeEffect(requestId, { type: "story_transition", key: "jaeeonMemory",
@@ -3907,15 +3911,27 @@ const CRITICAL_REASONS = {
 /* 재언에게 「나를 아느냐」를 강하게 묻는 말. 정사 토큰(공부방·사탕 목걸이·
    20년)은 그 자체로 강하고, 「봤다/만났다」는 저·나·우리가 붙을 때만이다 —
    「어디서 봤더라 그 배우」가 여기 걸리면 안 된다. */
-const MEMORY_PROBE = /공부방|사탕\s*목걸이|20년\s*전|(저|나|우리)를?\s*(어디서|어디선가|예전에|전에)?\s*.{0,4}(본\s*적|만난\s*적|기억)|어디서\s*(저|나)를?\s*봤|(저|나)를?\s*(아세요|알죠|아시)/;
-/* 민현에게 처음 만난 자리를 묻는 말 */
-const FIRSTMEET_ASK = /(우리|저랑|나랑)\s*.{0,6}(어디서|어떻게|언제)?\s*.{0,4}(만났|만난\s*적|봤|본\s*적)|(어디서|어떻게)\s*.{0,4}(만났|만난)|(나|저)를?\s*(어떻게|왜)\s*알|아는\s*사이|알던\s*사이/;
+const MEMORY_PROBE = /공부방|사탕\s*목걸이|20년\s*전|(^|\s)(저|나|우리)를?\s*(어디서|어디선가|예전에|전에)?\s*(본\s*적|만난\s*적|기억)|어디서\s*(저|나)를?\s*봤|(^|\s)(저|나)를?\s*(아세요|알죠|아시)/;
+/* ↑ 사람 앞에는 어절 경계가 있어야 한다 — 「먼저」의 '저'가 걸리면 안 된다.
+   사람과 「본 적/기억」 사이에 임의 낱말을 허용하지 않는다 — 「나 스키 타본 적
+   있어」 「나 그거 본 적 있어」 같은 경험담이 전부 걸렸다. 복합동사(가본·타본·
+   와본)의 「본」은 이 조임으로 같이 떨어진다. */
+/* 민현에게 처음 만난 자리를 묻는 말 — 1인칭 표지가 있어야 한다.
+   「삼촌이랑은 어떻게 만났어요?」 같은 제3자 질문이 우리 얘기가 되면 안 된다 */
+const FIRSTMEET_ASK = /(^|\s)(우리|저랑|나랑)\s*(어디서|어떻게|언제)?\s*(만났|만난\s*적|본\s*적)|(^|\s)(나|저)를?\s*(어떻게|왜)\s*알|(^|\s)우리\s*(아는|알던)\s*사이/;
 /* 민현이 실제로 설명했는가 — 정사는 재활 치료 중인 병원 옥상이다.
-   이 낱말이 답에 없으면 설명이 아니라 도망이다. */
-const FIRSTMEET_EXPLAIN = /병원|옥상|재활/;
-/* 고백. 「저 떡볶이 좋아해요」가 걸리면 안 된다 — 좋아해는 사람을 향하거나
-   문장이 그 말 하나일 때만이다. */
-const CONFESS_SAY = /사랑해|사귀(자|어\s*줄|어\s*줘|고\s*싶)|고백(할|하고|인데|이에요|할래)|(너|널|당신|선생님|쌤)(이|가|을|를)?\s*좋(아해|아한다|아요)|^\s*(진짜\s*|정말\s*)?좋아해요?[.!?~…\s]*$/;
+   낱말 하나로는 안 된다: 「병원 가 봐요」 「옥상에서 컵라면」 「재활용」이
+   설명이 되면, 서 있던 질문이 설명 없이 조용히 닫힌다. 병원 옥상이라는
+   짝이거나, 그 자리에서 만났다는 문장이어야 한다. */
+const FIRSTMEET_EXPLAIN = /병원\s*옥상|(옥상|병원)에서\s*.{0,6}(만났|봤|마주쳤)|재활[가-힣]{0,3}\s*병원|재활\s*치료/;
+/* 고백. 「저 떡볶이 좋아해요」 「민초 사랑해」가 걸리면 안 된다 — 좋아해와
+   사랑해는 사람을 향해 문장을 열거나, 문장이 그 말 하나일 때만이다.
+   「학생들이 선생님을 좋아해요」 같은 3인칭 진술도 고백이 아니다. */
+const CONFESS_SAY = /(^|\s)사귀(자|어\s*줄|어\s*줘|고\s*싶)|고백(할|하고|인데|이에요|할래)|^\s*(저는\s*|나는\s*|난\s*|전\s*)?(너|널|당신|선생님|쌤)(이|가|을|를)?\s*(좋(아해|아한다|아요)|사랑해)|^\s*(진짜\s*|정말\s*)?(좋아해요?|사랑해요?)[.!?~…\s]*$/;
+/* 재언의 답이 기억을 실제로 건드렸는가 — 승인된 장면이라도 답이 기억을
+   한 마디도 안 건드리면 상태를 전진시키지 않는다. 장면은 다시 올 수 있지만
+   전진은 되돌릴 수 없다. */
+const MEMORY_TOUCH = /기억|공부방|사탕|목걸이|20년|그때|그\s*아이/;
 /* NULL 출처를 파고드는 말. 「무슨 말이에요」는 어디서나 나오는 말이라
    이것 하나로는 못 쓴다 — 직전 문답 조건(마지막 인물 발화가 「처음부터」)이
    같이 맞아야 한다. approveReason이 그 둘을 본다. */
@@ -3925,15 +3941,17 @@ const NULL_PROBE = /처음부터|무슨\s*(말|뜻|소리)|어떻게\s*(알|안)
 const JAEEON_MEMORY_KEYS = ["hidden-jaeeon-diary-200x-03-07", "hidden-jaeeon-diary-200x-04-12",
   "hidden-jaeeon-diary-201x-07-11", "hidden-jaeeon-diary-202x-start"];
 
-/* 이력에서 유저의 마지막 실제 발화. 지문(kind:event)과 병합된 시스템 줄은
-   발화가 아니다 — 감지가 지문을 읽으면 코드가 적은 사건에 코드가 반응한다. */
+/* 이번 턴에 유저가 실제로 친 말 — 이력의 **맨 끝**이 유저 발화일 때만이다.
+   끝이 지문(kind:event)이나 인물 말이면 이번 턴에 유저는 아무 말도 안 한
+   것이다(선물·자리 이동·초대 답의 후속 요청이 그렇다). 거꾸로 거슬러 올라가
+   지난 턴의 말을 집으면, 캐묻기 다음의 선물 턴이 그 캐묻기로 **다시** 중요
+   장면에 올라가고, 되돌릴 수 없는 이야기 상태가 머그컵 건네는 턴에 한 칸
+   더 갔다. */
 function lastUserUtterance(history) {
-  for (let i = (history || []).length - 1; i >= 0; i--) {
-    const m = history[i];
-    if (m && m.role === "user" && m.kind !== "event" && m.content)
-      return String(m.content).slice(0, 500);
-  }
-  return "";
+  const h = history || [];
+  const m = h[h.length - 1];
+  return m && m.role === "user" && m.kind !== "event" && m.content
+    ? String(m.content).slice(0, 500) : "";
 }
 /* 인물의 마지막 발화 — null_identity의 「직전 문답」이 이걸 본다 */
 function lastCharUtterance(history) {
@@ -4916,7 +4934,7 @@ export default {
                         /* 이야기 전환의 재료. 감지는 위(E4)에서 한 번만 했고,
                            여기는 그 결과만 든다 — materializeEffects가 검증된
                            후보에서 story_transition을 낼 때 본다. */
-                        story, sceneReason: routed.reason,
+                        story, sceneReason: routed.reason, greet: body.greet === true,
                         firstMeetAsked: mode === "chat" && room === "minhyun"
                           && body.greet !== true && FIRSTMEET_ASK.test(lastUser) };
 
@@ -5257,7 +5275,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          directorPacket, readDecision, DIRECTOR_RULES,
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts,
-         MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE,
+         MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
          JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,
          sceneHead, criticPacket, finalizerPacket, readProblems,
          CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES,

@@ -1946,7 +1946,7 @@ function Root() {
       if(why&&data&&data.scene_ack===why){
         /* partner_known이 실제로 성공했으면 그 사람은 이제 안다 —
            웹 장부의 scene_ack 단계와 같은 규칙이다 */
-        if(why==='partner_known')markPartnerKnown(room);
+        if(why==='partner_known'||why==='partner_confirm')markPartnerKnown(room);
         ackScene(room,why);
       }
       logUsage(data); rollLater(room);
