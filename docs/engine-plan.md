@@ -572,19 +572,52 @@ env로 고른다). 프롬프트 조립·parse·hardFilter·Effect·scene_ack이 
 
 **staged의 anchor는 코드가 정한다.** 허용 사유는 셋뿐이다:
 - `opening` — 각 1:1방의 첫 두 모델 생성 응답. 코드 고정 첫 선톡은 안 센다.
-- `summary_rollover` — 요약(upto)이 갱신된 직후 첫 응답 딱 한 번.
-  실사용 창은 클라이언트의 12,000자다 — 초반 Sonnet 대사가 원문 이력에서
-  빠지고 요약문으로 압축되는 순간이 실제 재정착 지점이다.
-- `stage_enter` — 관계 단계가 직전 packet과 달라진 직후 첫 응답 딱 한 번.
+- `summary_rollover` — **요약 upto의 전진**으로 판정한다. 같은 요약문이어도
+  upto가 전진했으면 원문 창이 실제로 밀린 것이고, 문장만 바뀌고 upto가
+  같으면 굴림이 아니다. 실사용 창은 클라이언트의 12,000자다 — 초반 Sonnet
+  대사가 원문 이력에서 빠지고 요약문으로 압축되는 순간이 실제 재정착 지점이다.
+- `stage_enter` — 관계 단계가 직전 관찰과 달라진 직후 첫 응답 딱 한 번.
 
 우선순위는 중요 장면 → opening → summary_rollover → stage_enter, 한 턴에
 하나다. **중요 장면이면 기존 경로(쓰기→검사 둘→Sonnet 마무리)가 이긴다** —
-한 턴에 Sonnet을 Writer와 Finalizer 두 자리에 사지 않는다. 하네스가 먼저
-거르고, 워커 감지로 오르는 장면은 워커의 `anchor_declined`가 이중으로 지킨다.
+한 턴에 Sonnet을 Writer와 Finalizer 두 자리에 사지 않는다. 판정은 워커가
+한다: 하네스는 anchor 후보를 그대로 보내고, **워커가 실제로 critical로
+승인했을 때만** `anchor_declined`가 작동한다 — 승인 안 된 낡은 scene_reason
+예약이 anchor를 막으면 안 된다. **물린 anchor는 소진되지 않는다** — 관찰이
+전진하지 않아서 다음 적격 턴에 같은 사유가 다시 선다. 실패한 턴도 세 사유
+모두 소진하지 않는다 — 계약의 「직후 첫 응답」에서 응답이 없던 턴은 직후가
+아니다. 높은 사유가 그 턴을 **실제로 썼으면** 낮은 사유의 「직후 한 턴」은
+지나간 것으로 본다 — 그 턴도 이미 Sonnet이다.
 캐시 hit/miss·`cache_read_input_tokens`·경과 시간은 조건이 아니다 — 캐시는
 가격·지연의 문제지 품질의 문제가 아니고, 호출한 뒤에야 알 수 있다.
-높은 사유가 그 턴을 쓰면 낮은 사유의 「직후 한 턴」은 지나간 것으로 본다 —
-그 턴도 이미 Sonnet이다. 단톡·관전은 anchor 대상이 아니다.
+단톡·관전은 anchor 대상이 아니다.
+
+**청한 후보 수는 강제다.** 모든 Writer 경로에서 온 후보 수가 청한 수와
+다르면(WRITER_SCHEMA) 자르거나 고르지 않고 재시도로 보낸다 — one·single·
+anchor는 정확히 1, pair는 정확히 2. 모델이 후보 둘을 내면 one이 몰래 pair가
+되고 single이 청하지 않은 후보를 집는다 — 경로의 정체가 무너진다.
+
+**측정기의 공정 계약.**
+- 실행 순서는 고정하지 않는다 — packet과 세션 턴마다 결정적 회전(Latin
+  square)으로 균형화한다. 뒤에 도는 경로가 앞 경로가 데운 프롬프트 캐시를
+  받는 편향을 없앤다. 각 경로가 1·2·3·4번째에 서는 횟수 차는 최대 1이고,
+  보고에 경로별 캐시 쓰기/읽기 토큰이 따로 실린다.
+- 대화 턴과 요약 호출은 따로 센다 — 지금 fixture 기준 경로당 대화 42턴,
+  대화 trace는 네 경로 합계 168개다. 요약 호출도 model/usage/latency/비용
+  trace를 따로 남긴다.
+- 연속 세션에서 실패한 턴 뒤로는 진행하지 않는다 — 같은 body·같은
+  request_id로 한 번 UI 재시도하고, 그래도 실패면 그 경로의 세션은
+  incomplete로 끝난다. 실패 뒤 유저 발화가 연달아 쌓인 기록은 실제 앱에
+  존재할 수 없다. UI 재시도와 모델 내부 attempt는 따로 센다.
+- 예상 밖의 UI Effect(초대·물건)가 나오면 그 세션은 invalid로 끝난다 —
+  하네스는 그 창에 답할 수 없으므로 무시하고 진행하면 앱과 다른 기록이 된다.
+- 비용은 워커의 캐시 계약(TTL 1h)과 같은 단일 계약으로 잰다 — 쓰기 2×,
+  읽기 0.1×. Sonnet 5는 $2/$10 per MTok. 단가를 모르는 모델이 나오면 $0으로
+  조용히 새지 않고 보고가 INVALID가 되며 비정상 종료한다.
+- 모르는/중복/빈 `--paths`, 없는/빈 packet·session 디렉터리, 비어 있지 않은
+  `--out`은 전부 비정상 종료다 — 지난 실행의 trace가 새 보고에 섞이지 않는다.
+- B 세션 대본의 유저 발화는 전부 자립 문장이다 — 직전 모델 답이 무엇이었든
+  자연스러워야 경로 비교가 오염되지 않는다.
 
 **이번 G에서 staged는 배포하지 않는다.** anchor 조건은 replay에서만 계산해
 비교한다. staged가 이긴 뒤에 웹·Expo의 영속 one-shot 상태를 배선한다(H 뒤).
@@ -615,7 +648,7 @@ turnContext·selectedCandidate·effects·finalMessages. 대사 비교는 경로
 ```
 ANTHROPIC_API_KEY=<키> node tools/replay.mjs      # 실제 재생
 node tools/replay.mjs --fake                       # 모델 없이 하네스 점검
-node test/engine-pipeline.test.mjs                 # 네 갈래 회귀 86개
+node test/engine-pipeline.test.mjs                 # 네 갈래 회귀 113개
 ```
 
 TRACE 응답은 replay 전용이다 — 운영 env에는 TRACE가 없고, turnContext와

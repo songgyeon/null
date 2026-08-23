@@ -9,24 +9,34 @@
 
    경로는 워커 코드 그대로다 — 여기서 프롬프트를 다시 조립하지 않는다.
    worker.js를 프로세스 안에서 부르고(env로 경로를 고른다), 워커가 만든
-   프롬프트·후처리·Effect를 그대로 탄다. 하네스가 하는 일은 셋뿐이다:
-   packet을 나르고, staged의 anchor를 **코드로** 판정하고, 결과를 적는다.
+   프롬프트·후처리·Effect를 그대로 탄다. 하네스가 하는 일은 넷뿐이다:
+   packet을 나르고, staged의 anchor를 **코드로** 판정하고, 실행 순서를
+   균형화하고, 결과를 적는다.
+
+   ── 측정기의 공정 계약 ──
+   · 실행 순서는 고정하지 않는다 — packet과 세션 턴마다 결정적 회전
+     (Latin square)으로 균형화한다. 뒤에 도는 경로가 앞 경로가 데운 프롬프트
+     캐시를 받는 편향을 없앤다. 각 경로가 1·2·3·4번째에 서는 횟수 차는
+     최대 1이다.
+   · 대화 턴과 요약 호출은 따로 센다 — 섞으면 경로당 턴 수가 거짓말이 된다.
+   · 비용은 usage 실측 × 단가다. 캐시 쓰기는 워커의 TTL 계약(1h)대로 2×,
+     읽기는 0.1×. 단가를 모르는 모델이 하나라도 나오면 보고는 INVALID이고
+     비정상 종료한다 — $0으로 조용히 새지 않는다.
+   · 연속 세션에서 실패한 턴 뒤로는 진행하지 않는다 — 같은 body·같은
+     request_id로 한 번 UI 재시도하고, 그래도 실패면 그 경로의 세션은
+     incomplete로 끝난다. 실패 뒤에 유저 발화가 연달아 쌓인 기록은 실제
+     앱에 존재할 수 없다.
+   · 예상 밖의 UI Effect(초대·물건)가 나오면 그 세션은 invalid로 끝난다 —
+     하네스는 그 창에 답할 수 없으므로 무시하고 진행하면 앱과 다른 기록이 된다.
 
    ── 평가 두 층 ──
-   A. 동일 TurnPacket 비교 — test/packets/*.json 하나하나를 네 경로에
-      각각 넣는다. 사실 위반·말맛·비용·지연을 같은 입력 위에서 비교한다.
-   B. 연속 세션 비교 — test/sessions/*.json 의 같은 초기 세이브와 같은
-      유저 입력 순서를 쓰되, **경로마다 독립 세션**으로 굴린다. 자기 출력이
-      자기 다음 history에 들어간다 — 한 경로의 출력을 다른 경로 history에
-      섞지 않는다. Sonnet이 초반에 만든 말맛을 Haiku가 실제로 이어가는지는
-      이 층만 답할 수 있다.
+   A. 동일 TurnPacket 비교 — test/packets/*.json 하나하나를 네 경로에.
+   B. 연속 세션 비교 — test/sessions/*.json 을 **경로마다 독립 세션**으로,
+      턴 단위로 교차 실행한다. 자기 출력이 자기 다음 history에만 들어간다.
 
    ── 블라인드 ──
-   결과 대사는 경로 이름을 가린 채(갑·을·병·정) blind/ 아래 적는다.
+   대사는 경로 이름을 가린 채(갑·을·병·정) blind/ 아래 적는다.
    짝은 blind-key.json에만 있다 — 읽기 전에 열지 않는다.
-
-   ── 비용 ──
-   호출 수로 추측하지 않는다. 단계별 usage 실측(stages)에 단가를 곱한다.
 
    쓰는 법:
      ANTHROPIC_API_KEY=<키> node tools/replay.mjs
@@ -35,6 +45,8 @@
      --paths=hybrid-one,hybrid-pair,single-sonnet,staged   (기본: 넷 다)
      --staged-base=pair|one     staged의 비anchor 턴이 탈 hybrid (기본 pair)
      --packets=DIR  --sessions=DIR  --out=DIR  --seed=N
+   모르는 경로·중복·빈 목록, 없는/빈 packet·session 디렉터리, 비어 있지
+   않은 --out은 전부 비정상 종료다 — 반쯤 도는 것보다 안 도는 게 낫다.
 
    §12 — 키는 env로만 받고 아무 데도 안 적는다. 자물쇠 값은 프로세스 안
    전용이다. 대화 원문은 replay 산출물(로컬 파일)에만 남는다. */
@@ -70,6 +82,13 @@ export const buildHistory = ms => {
   return out;
 };
 const sinceSum = (upto, ms) => ms.filter(m => m.ts > (upto || 0));
+/* app.js recentPhotos의 사본 — 최근 24개에서 뒤부터, 겹치지 않게 넷까지 */
+const recentPhotosOf = ms => {
+  const tail = (ms || []).slice(-24), out = [];
+  for (let i = tail.length - 1; i >= 0 && out.length < 4; i--)
+    if (tail[i].photo && !out.includes(tail[i].photo)) out.push(tail[i].photo);
+  return out;
+};
 
 /* ── 경로 → env ──
    ENGINE_MODE=legacy는 안 쓴다 — MODELS의 4.6→5→4.5 폴백을 타서 깨끗한
@@ -79,58 +98,60 @@ export const pathEnv = (path, base, anchor) => {
   if (path === "hybrid-one") return { CANDIDATE_MODE: "one" };
   if (path === "hybrid-pair") return { CANDIDATE_MODE: "pair" };
   if (path === "single-sonnet") return { ENGINE_MODE: "single" };
-  /* staged — anchor 턴만 Sonnet single. CANDIDATE_MODE는 늘 싣는다:
-     워커가 중요 장면에서 anchor를 물리면(anchor_declined) 그 턴은 이 값의
-     hybrid 경로로 돈다. */
   const b = { CANDIDATE_MODE: base === "one" ? "one" : "pair" };
   return anchor ? { ...b, ENGINE_MODE: "single", ANCHOR_REASON: anchor } : b;
 };
+/* 실행 순서 균형 — 결정적 회전. k번째 항목은 k만큼 돌린 순서로 돈다 */
+export const rotated = (paths, k) => {
+  const n = paths.length, s = ((k % n) + n) % n;
+  return paths.slice(s).concat(paths.slice(0, s));
+};
 
 /* ── staged의 anchor 판정 — 모델이 아니라 코드가 정한다 ──
-   prev = 직전까지의 관찰 { responses, summary, stageIdx }.
-     responses  이 방에서 지금까지 나온 **모델 생성 응답** 수.
-                코드 고정 첫 선톡(각본)은 세지 않는다 — 하네스가 만든 응답만
-                센다. 중요 장면 경로의 응답도 모델 응답이므로 센다.
-     summary    직전 턴에 보낸 요약문. undefined면 「모른다」 — 안 쏜다.
-     stageIdx   직전 packet의 관계 단계. undefined면 「모른다」.
+   prev = 직전까지의 관찰 { responses, summaryUpto, stageIdx }.
+     responses   이 방에서 지금까지 나온 **모델 생성 응답** 수. 각본 선톡은
+                 안 세고, 실패한 턴도 안 센다.
+     summaryUpto 직전 성공 턴에 쓰인 요약의 upto. **rollover는 문장이 아니라
+                 upto의 전진으로 판정한다** — 같은 요약문이어도 upto가
+                 전진했으면 원문 창이 실제로 밀린 것이고, 문장만 바뀌고
+                 upto가 같으면 굴림이 아니다.
+     stageIdx    직전 성공 턴의 관계 단계.
    우선순위는 opening → summary_rollover → stage_enter 하나만이다.
-   중요 장면(예약 scene_reason)은 기존 중요 장면 경로가 이긴다 — 여기서
-   먼저 거르고, 워커 감지로 오르는 장면은 워커의 anchor_declined가 이중으로
-   지킨다. 한 턴에 anchor는 한 번이다: 더 높은 사유가 그 턴을 쓰면 낮은
-   사유의 「직후 한 턴」은 지나간 것으로 본다 — 그 턴도 이미 Sonnet이다.
-   단톡(group)과 관전(auto/health)은 대상이 아니다 — 스테이지 가설은 1:1
-   관계의 정착을 재는 것이다.
+   중요 장면 여부는 여기서 선제 차단하지 않는다 — anchor 후보를 워커에
+   보내고, **워커가 실제로 critical로 승인했을 때만** anchor_declined가
+   작동한다. 승인 안 된 낡은 scene_reason이 anchor를 막으면 안 된다.
+   물린 anchor는 소진되지 않는다 — noteTurn이 관찰을 안 전진시켜서 다음
+   적격 턴에 다시 선다. 단톡(group)과 관전(auto/health)은 대상이 아니다.
    캐시 hit/miss·cache_read_input_tokens·경과 시간은 조건이 아니다. */
-export function decideAnchor(prev, body) {
+export function decideAnchor(prev, body, curUpto) {
   const p = prev || {};
   const room = (body || {}).room;
   if ((body || {}).mode !== "chat") return null;
   if (room !== "jaeeon" && room !== "minhyun") return null;   // group·health 제외
-  if ((body || {}).scene_reason) return null;                 // 예약된 중요 장면
   if ((p.responses || 0) < 2) return "opening";
-  if (p.summary !== undefined && String((body || {}).summary || "") !== String(p.summary))
+  if (p.summaryUpto !== undefined && Number(curUpto || 0) > Number(p.summaryUpto))
     return "summary_rollover";
   if (p.stageIdx !== undefined && stageIdxOf(body) !== p.stageIdx) return "stage_enter";
   return null;
 }
-/* 워커 4898줄과 같은 식 — 관계 단계 index */
+/* 워커와 같은 식 — 관계 단계 index */
 export const stageIdxOf = body => ENG.STAGES.indexOf(
   ENG.stageOf(Number(((body || {}).counts || {})[(body || {}).room]) || 0,
               Math.max(0, Math.floor(Number((body || {}).days) || 0))));
 
 /* ── 단가 — usage 실측 × $/1M ──
-   2026-08 API 단가. 캐시 쓰기는 5분 TTL 1.25×(워커의 ephemeral 기본값),
-   읽기는 0.1×. 호출 수만 보고 비용을 추측하지 않는다. */
+   캐시 쓰기는 **워커의 캐시 계약(CACHE ttl "1h")과 같은 2×**다 — 5분 TTL의
+   1.25×를 쓰면 실제 청구보다 싸게 잰다. 읽기는 0.1×. */
 export const PRICES = {
   "claude-haiku-4-5":  { in: 1.00, out: 5.00 },
   "claude-sonnet-4-5": { in: 3.00, out: 15.00 },
-  /* 요약의 폴백(askClaude의 MODELS)까지 — 폴백이 탄 호출이 0원으로 새면
-     제일 비싼 요약이 공짜로 집계된다 */
+  /* 요약의 폴백(askClaude의 MODELS)까지 — 폴백이 탄 호출이 새면 안 된다 */
   "claude-sonnet-4-6": { in: 3.00, out: 15.00 },
-  "claude-sonnet-5":   { in: 3.00, out: 15.00 },
+  "claude-sonnet-5":   { in: 2.00, out: 10.00 },
 };
-/* API는 날짜 붙은 id(claude-sonnet-4-5-20250929)를 돌려줄 수 있다 —
-   접미를 떼고 찾는다. 그래도 모르는 모델은 0원으로 조용히 새지 않고 적는다. */
+export const CACHE_WRITE_X = 2.0;      // 워커 CACHE ttl "1h"의 쓰기 배율
+/* 날짜 접미(claude-…-20250929)는 떼고 찾는다. 그래도 모르는 모델은 적어
+   두고, 보고 시점에 INVALID + 비정상 종료다 — $0으로 조용히 안 샌다. */
 export const unknownModels = new Set();
 export const priceFor = model => {
   const id = String(model || "");
@@ -138,7 +159,7 @@ export const priceFor = model => {
   if (hit) return hit;
   if (id && !unknownModels.has(id)) {
     unknownModels.add(id);
-    console.warn(`[replay] 단가를 모르는 모델 — ${id} (0원으로 집계됨, PRICES에 추가하라)`);
+    console.error(`[replay] 단가를 모르는 모델 — ${id}. 보고는 INVALID다. PRICES에 추가하라.`);
   }
   return { in: 0, out: 0 };
 };
@@ -146,14 +167,16 @@ export const costOf = rows => (rows || []).reduce((c, r) => {
   const p = priceFor(r.model);
   return c + (r.input_tokens || 0) * p.in / 1e6
            + (r.output_tokens || 0) * p.out / 1e6
-           + (r.cache_creation_input_tokens || 0) * p.in * 1.25 / 1e6
+           + (r.cache_creation_input_tokens || 0) * p.in * CACHE_WRITE_X / 1e6
            + (r.cache_read_input_tokens || 0) * p.in * 0.1 / 1e6;
 }, 0);
 /* 요약 응답에는 stages가 없다(usage 하나뿐) — 그 한 호출을 usage로 잰다.
-   워커 callModel이 usage.model을 늘 실어 보내므로 그것이 이긴다. 기본값은
-   usage에 model이 없을 때(옛 응답)의 안전망일 뿐이다. */
+   워커 callModel이 usage.model을 늘 실어 보내므로 그것이 이긴다. */
 export const usageCost = (u, model = "claude-haiku-4-5") =>
   costOf([{ model, ...(u || {}) }]);
+const cacheSums = rows => (rows || []).reduce((a, r) => ({
+  w: a.w + (r.cache_creation_input_tokens || 0),
+  r: a.r + (r.cache_read_input_tokens || 0) }), { w: 0, r: 0 });
 
 /* ── 워커를 프로세스 안에서 부른다 ── */
 const LOCK = "replay-local";                 // 프로세스 안 전용 — 밖에 안 적는다
@@ -170,23 +193,24 @@ export async function callWorker(envExtra, body, key) {
   return { ok: res.ok, status: res.status, data, latency_ms: Date.now() - t0 };
 }
 
-/* ── 세션 기억 — staged의 prev 관찰과 미니 클라이언트 상태 ── */
-export const newMemory = () => ({ responses: {}, lastSummary: {}, lastStageIdx: {} });
+/* ── 세션 기억 — staged의 prev 관찰 ── */
+export const newMemory = () => ({ responses: {}, lastSummaryUpto: {}, lastStageIdx: {} });
 export const snapshot = (mem, room) => ({
   responses: mem.responses[room] || 0,
-  summary: mem.lastSummary[room],
+  summaryUpto: mem.lastSummaryUpto[room],
   stageIdx: mem.lastStageIdx[room],
 });
-export const noteTurn = (mem, room, body, gotResponse) => {
-  /* 관찰은 **응답이 실제로 나온 턴만** 갱신한다 — 세 사유 모두다.
-     실패한 턴에 lastSummary·lastStageIdx를 덮으면, rollover/단계 전환 직후의
-     「첫 응답」이 아직 안 나왔는데 anchor 기회가 소진된다. opening이 실패
-     턴을 안 세는 것과 같은 원칙이다: 계약의 「직후 첫 응답 딱 한 번」에서
-     응답이 없던 턴은 직후가 아니다. */
+export const noteTurn = (mem, room, gotResponse, obs) => {
+  /* 관찰은 **응답이 실제로 나온 턴만** 갱신한다 — 실패한 턴은 opening도
+     rollover도 stage_enter도 소진하지 않는다. 그리고 **물린 anchor도
+     소진되지 않는다**: 워커가 중요 장면으로 anchor를 물렸으면(declined)
+     upto·단계 관찰을 전진시키지 않아서, 다음 적격 턴에 같은 사유가 다시
+     선다. 응답 수는 물려도 센다 — 그 턴의 응답은 실제로 나왔다. */
   if (!gotResponse) return;
   mem.responses[room] = (mem.responses[room] || 0) + 1;
-  mem.lastSummary[room] = String(body.summary || "");
-  mem.lastStageIdx[room] = stageIdxOf(body);
+  if (obs && obs.declined) return;
+  mem.lastSummaryUpto[room] = obs ? obs.upto : 0;
+  mem.lastStageIdx[room] = obs ? obs.stageIdx : undefined;
 };
 
 /* ── 이야기 상태 — 클라이언트 applyStoryTransition과 같은 앞으로만 ── */
@@ -197,9 +221,168 @@ const applyTransition = (story, fx) => {
   return s;
 };
 
+/* ══════════════ B층 — 연속 세션 실행기 ══════════════
+   경로마다 독립 상태를 들고 **턴 단위로 교차** 실행한다. 턴마다 회전된
+   순서(rotBase부터)라 캐시를 먼저 데우는 경로가 고정되지 않는다.
+   opts.call(env, body) → {ok, status, data, latency_ms} — 주입 가능해서
+   테스트가 실패를 심을 수 있다. 반환: 경로별 상태(rows·transcript·status). */
+export async function runSession(ses, paths, opts) {
+  const { call, stagedBase = "pair", uiRetries = 1, rotBase = 0, onTurn } = opts;
+  const room0 = ses.turns[0].room;
+  const seed = ses.seed || {};
+  const states = {};
+  for (const path of paths) {
+    const mem = newMemory();
+    if (seed.responses) Object.assign(mem.responses, seed.responses);
+    states[path] = {
+      path, msgs: JSON.parse(JSON.stringify(seed.msgs || {})),
+      sums: JSON.parse(JSON.stringify(seed.sum || {})),
+      story: { firstContact: "unseen", jaeeonMemory: "hidden",
+               partnerKnown: { jaeeon: false, minhyun: false }, ...(seed.story || {}) },
+      mem, alive: true, status: "complete", rows: [], sumRows: [], transcript: [],
+    };
+  }
+  for (let i = 0; i < ses.turns.length; i++) {
+    const t = ses.turns[i];
+    const room = t.room;
+    const order = rotated(paths, rotBase + i);
+    for (const path of order) {
+      const st = states[path];
+      if (!st.alive) continue;
+      st.msgs[room] = st.msgs[room] || [];
+      st.msgs[room].push({ sender: "user", text: t.text, ts: t.ts });
+      const sum = st.sums[room] || { text: "", upto: 0 };
+      /* 클라이언트가 chat 턴마다 상시로 싣는 것들 — fixture의 met/refused/
+         bag/gifts를 보존한다. 시계·해금 규칙이 필요한 것(states·closed·
+         can_go)은 지어내지 않는다 — 필요한 대본은 t.extra로 선언한다. */
+      const midnight = t.ts - ((t.ts + 9 * 3600e3) % 86400e3);
+      const signals = {};
+      ["jaeeon", "minhyun", "group"].forEach(r => {
+        if (r === room) return;
+        const ms = st.msgs[r] || []; if (!ms.length) return;
+        signals[r] = { count: ms.filter(m => m.ts >= midnight).length,
+          minsAgo: Math.max(0, Math.floor((t.ts - ms[ms.length - 1].ts) / 60000)) };
+      });
+      const body = {
+        mode: "chat", room, user_name: ses.user_name || "선생님",
+        history: buildHistory(sinceSum(sum.upto, st.msgs[room])),
+        counts: Object.fromEntries(["jaeeon", "minhyun", "group", "health"]
+          .map(r => [r, (st.msgs[r] || []).length])),
+        days: t.days ?? 0, now: t.now, day: t.day,
+        gifts: seed.gifts || {}, bag: seed.bag || [],
+        met: seed.met || [], refused: seed.refused || [],
+        recent_photos: recentPhotosOf(st.msgs[room]),
+        ...(Object.keys(signals).length ? { signals } : {}),
+        origin_phase: ses.origin_phase || "unasked",
+        story: st.story, request_id: `rp-B-${ses.label}-${path}-${i}`,
+        ...(sum.text ? { summary: sum.text } : {}),
+        ...(ses.partner ? { partner: ses.partner } : {}),
+        ...(t.greet ? { greet: true } : {}),
+        ...(t.scene_reason ? { scene_reason: t.scene_reason } : {}),
+        ...(t.extra || {}),
+      };
+      const anchor = path === "staged"
+        ? decideAnchor(snapshot(st.mem, room), body, sum.upto) : null;
+      const env = pathEnv(path, stagedBase, anchor);
+      /* UI 재시도 — 실제 앱처럼 같은 body·같은 request_id로, 제한적으로.
+         모델 내부 attempt(stages의 attempt)와는 따로 센다. 비용은 실패한
+         시도 것까지 전부 합산한다 — 실제로 청구된 돈이다. */
+      let r = await call(env, body), ui = 0;
+      let allStages = (r.data && r.data.stages) || [];
+      let latency = r.latency_ms;
+      while (!r.ok && ui < uiRetries) {
+        ui++;
+        r = await call(env, body);
+        allStages = allStages.concat((r.data && r.data.stages) || []);
+        latency += r.latency_ms;
+      }
+      const declined = !!(r.ok && r.data.trace && r.data.trace.anchor_declined);
+      const row = {
+        item: ses.label, kind: "chat", path, turn: i, ok: r.ok, status: r.status,
+        anchor: anchor || null,
+        ranAnchor: !!(r.ok && r.data.trace && r.data.trace.anchor_reason),
+        declined, ui_retries: ui,
+        rounds: allStages.length ? Math.max(...allStages.map(s => s.attempt || 1)) - 1 : 0,
+        calls: allStages.length, cost: costOf(allStages), latency,
+        cache: cacheSums(allStages),
+        trace: {
+          item: ses.label, kind: "chat", path, turn: i, anchor_reason: anchor || null,
+          ok: r.ok, status: r.status, ui_retries: ui, latency_ms: latency,
+          engine: (r.data && r.data.trace) || null,
+          stages: allStages, usage_total: r.data && r.data.usage_total,
+          usage: r.data && r.data.usage, effects: (r.data && r.data.effects) || [],
+          finalMessages: (r.data && r.data.messages) || [],
+          error: r.ok ? null : (r.data && (r.data.detail || r.data.error)) || String(r.status),
+        },
+      };
+      st.rows.push(row);
+      if (onTurn) onTurn(row);
+      if (!r.ok) {
+        /* 실패한 턴 뒤로는 진행하지 않는다 — 유저 발화가 연달아 쌓인 기록은
+           실제 앱에 존재할 수 없다. 유저 말은 남고(재시도 UI의 모습) 세션은
+           여기서 incomplete로 끝난다. */
+        st.alive = false; st.status = "incomplete"; st.stoppedAt = i;
+        st.transcript.push({ user: t.text, reply: "(실패 — 세션 중단)" });
+        continue;
+      }
+      /* 예상 밖의 UI Effect — 초대·물건 창에 하네스는 답할 수 없다.
+         무시하고 진행하면 앱에 존재할 수 없는 기록이 되므로 invalid로 끝낸다 */
+      const fx = (r.data.effects || []);
+      const uiFx = fx.find(f => f && f.type !== "story_transition");
+      if (uiFx) {
+        st.alive = false; st.status = "invalid"; st.stoppedAt = i;
+        st.invalidWhy = `예상 밖 Effect: ${uiFx.type}`;
+        st.transcript.push({ user: t.text,
+          reply: (r.data.messages || []).map(m => m.text || "").join("\n") + "\n(세션 중단)" });
+        noteTurn(st.mem, room, true, { upto: sum.upto, stageIdx: stageIdxOf(body), declined });
+        continue;
+      }
+      (r.data.messages || []).forEach((m, k) => st.msgs[room].push({
+        sender: m.sender || room, text: m.text || "",
+        ...(m.photo ? { photo: m.photo } : {}), ts: t.ts + 1000 + k }));
+      fx.forEach(f => { st.story = applyTransition(st.story, f); });
+      if (r.data.scene_ack === "partner_confirm" || r.data.scene_ack === "partner_known")
+        st.story = { ...st.story, partnerKnown: { ...st.story.partnerKnown, [room]: true } };
+      st.transcript.push({ user: t.text,
+        reply: (r.data.messages || []).map(m =>
+          `${m.sender ? m.sender + ": " : ""}${m.photo ? "(사진) " : ""}${m.text || ""}`).join("\n") });
+      noteTurn(st.mem, room, true, { upto: sum.upto, stageIdx: stageIdxOf(body), declined });
+      /* 요약 굴리기 — 클라이언트 rollSummary와 같은 문턱·같은 꼬리·같은
+         실행 조건(성공 경로에서만). 요약 호출은 대화 턴과 **따로** 센다. */
+      const un = sinceSum(sum.upto, st.msgs[room]);
+      const total = un.reduce((n, m) => n + ((m.text || "").length), 0);
+      if (total >= SUM_AT) {
+        let keep = 0, cut = un.length;
+        for (let k = un.length - 1; k >= 0; k--) {
+          keep += (un[k].text || "").length;
+          if (keep >= TAIL_KEEP) { cut = k; break; }
+        }
+        const chunk = un.slice(0, cut);
+        if (chunk.length) {
+          const sr = await call({}, { mode: "summarize", room,
+            user_name: ses.user_name || "선생님", summary: sum.text,
+            history: buildHistory(chunk) });
+          const su = sr.data && sr.data.usage;
+          st.sumRows.push({ item: ses.label, kind: "summary", path, turn: i,
+            ok: sr.ok, cost: usageCost(su), latency: sr.latency_ms, calls: 1,
+            trace: { item: ses.label, kind: "summary", path, turn: i, ok: sr.ok,
+              model: (su && su.model) || "claude-haiku-4-5", usage: su,
+              latency_ms: sr.latency_ms, cost: usageCost(su) } });
+          if (sr.ok && sr.data && sr.data.summary) {
+            st.sums[room] = { text: sr.data.summary, upto: chunk[chunk.length - 1].ts };
+            console.log(`B ${ses.label} · ${path} · 요약 갱신 (${total}자 → ${sr.data.summary.length}자)`);
+          }
+        }
+      }
+    }
+  }
+  return states;
+}
+
 /* ── 가짜 API — 하네스 자체 점검(--fake)과 파이프라인 테스트가 같이 쓴다 ──
-   단계는 프롬프트의 고정 문구로 가른다(test/run.mjs와 같은 방식). usage는
-   단계마다 다른 값을 줘서 비용 집계가 실제로 굴러가는지 보이게 한다. */
+   단계는 프롬프트의 고정 문구로 가른다. 답 길이는 실측(두 덩이, 출력
+   60~110토큰)과 비슷하게 준다 — 짧은 가짜 답이면 요약 문턱 같은 누적
+   조건이 fake 모드에서 영영 안 밟힌다. */
 export const fakeFetch = (replies) => async (url, init) => {
   const c = JSON.parse(init.body);
   const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
@@ -208,22 +391,18 @@ export const fakeFetch = (replies) => async (url, init) => {
     ? m.content.map(b => b.text || "").join("\n") : m.content).join("\n");
   let text;
   if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
-    /* 후보가 하나면 ACCEPT, 둘이면 id로 답해야 한다 — readDecision의 계약 */
     text = JSON.stringify({ decision: msgsText.includes("후보 B") ? "A" : "ACCEPT",
                             reject_codes: {} });
   else if (sys.includes("너는 이 세계의 사실만 본다") || sys.includes("이 사람이 이 사람다운지만 본다"))
     text = '{"problems":[]}';
   else if (sys.includes("이 장면의 마지막 손이다"))
-    text = JSON.stringify({ messages: [{ text: "…그 얘기는, 조금만 이따가 해요." }] });
+    text = JSON.stringify({ messages: [{ text: "…그 얘기는 이따가 해요." }] });
   else if (sys.includes("너는 대화 기록을 압축한다"))
     text = "유저와 짧게 안부를 주고받았다. 특별한 사건은 없었다.";
   else {
     const want = (replies && replies.shift());
     if (want) text = want;
     else {
-      /* 실측 답 길이(두 덩이, 출력 60~110토큰)와 비슷하게 준다 — 짧은 가짜
-         답이면 요약 문턱(12,000자) 같은 누적 조건이 fake 모드에서 영영 안
-         밟혀서, 하네스 점검이 실제 경로를 안 지나간다. */
       const A = [{ text: "오늘은 조용했어요. 애들도 얌전했고요." },
                  { text: "선생님 하루는 어땠어요. 밥은 챙겨 먹었고요?" }];
       const B = [{ text: "별일 없었어요. 늘 하던 대로요." },
@@ -235,7 +414,7 @@ export const fakeFetch = (replies) => async (url, init) => {
   }
   return { ok: true, status: 200, headers: { get: () => null },
     json: async () => ({ content: [{ type: "text", text }],
-      usage: { input_tokens: 1000, output_tokens: 80,
+      usage: { model: "claude-haiku-4-5", input_tokens: 1000, output_tokens: 80,
                cache_read_input_tokens: 200, cache_creation_input_tokens: 100 },
       stop_reason: "end_turn" }),
     text: async () => "" };
@@ -264,6 +443,7 @@ const argOf = (name, dflt) => {
   return hit ? hit.split("=").slice(1).join("=") : dflt;
 };
 const has = name => process.argv.includes(`--${name}`);
+const die = msg => { console.error(`[replay] ${msg}`); process.exit(1); };
 
 async function main() {
   const FAKE = has("fake");
@@ -276,164 +456,120 @@ async function main() {
   }
   if (FAKE) globalThis.fetch = fakeFetch();
 
-  const paths = argOf("paths", PATHS.join(",")).split(",").map(s => s.trim())
-    .map(s => ({ one: "hybrid-one", pair: "hybrid-pair", single: "single-sonnet" }[s] || s))
-    .filter(s => PATHS.includes(s));
-  const stagedBase = argOf("staged-base", "pair") === "one" ? "one" : "pair";
+  /* ── 입력 검증 — 모르면 죽는다. 반쯤 도는 것이 제일 나쁘다 ── */
+  const ALIAS = { one: "hybrid-one", pair: "hybrid-pair", single: "single-sonnet" };
+  const rawPaths = argOf("paths", PATHS.join(",")).split(",").map(s => s.trim());
+  const paths = rawPaths.map(s => ALIAS[s] || s);
+  if (!paths.length || rawPaths.some(s => !s)) die("--paths가 비었다");
+  for (const p of paths) if (!PATHS.includes(p)) die(`모르는 경로 — ${p} (허용: ${PATHS.join(", ")})`);
+  if (new Set(paths).size !== paths.length) die("--paths에 같은 경로가 두 번 있다");
+  const stagedBase = argOf("staged-base", "pair");
+  if (stagedBase !== "pair" && stagedBase !== "one") die(`모르는 staged-base — ${stagedBase}`);
   const seed = argOf("seed", "7");
-  const outDir = join(ROOT, argOf("out", FAKE ? "replay-out-fake" : "replay-out"));
-  const packetsDir = join(ROOT, argOf("packets", "test/packets"));
-  const sessionsDir = join(ROOT, argOf("sessions", "test/sessions"));
+  const outDir = resolve(ROOT, argOf("out", FAKE ? "replay-out-fake" : "replay-out"));
+  if (existsSync(outDir) && readdirSync(outDir).length)
+    die(`--out 디렉터리가 비어 있지 않다 — ${outDir}\n지난 실행의 trace가 새 보고에 섞인다. 지우거나 다른 --out을 써라.`);
+  const loadDir = (dir, what) => {
+    if (!existsSync(dir)) die(`${what} 디렉터리가 없다 — ${dir}`);
+    const files = readdirSync(dir).filter(f => f.endsWith(".json")).sort();
+    if (!files.length) die(`${what} 디렉터리가 비어 있다 — ${dir}`);
+    return files.map(f => ({ file: f, ...JSON.parse(readFileSync(join(dir, f), "utf8")) }));
+  };
+  const packets = loadDir(join(ROOT, argOf("packets", "test/packets")), "packet");
+  const sessions = loadDir(join(ROOT, argOf("sessions", "test/sessions")), "session");
   mkdirSync(join(outDir, "trace"), { recursive: true });
   mkdirSync(join(outDir, "blind"), { recursive: true });
 
-  const loadDir = dir => !existsSync(dir) ? [] :
-    readdirSync(dir).filter(f => f.endsWith(".json")).sort()
-      .map(f => ({ file: f, ...JSON.parse(readFileSync(join(dir, f), "utf8")) }));
-
   const key = FAKE ? "sk-fake" : KEY;
-  const results = [];           // { item, kind, path, turn, ok, status, cost, latency, calls, retries, messages, trace }
-  const blindItems = [];        // { item, kind, context, byPath: {path: text} }
+  const call = (env, body) => callWorker(env, body, key);
+  const rows = [];        // chat rows (packet + session)
+  const sumRows = [];     // summary rows — 따로 센다
+  const blindItems = [];
+  let rot = 0;            // 실행 순서 회전 — packet과 세션 턴이 같은 바퀴를 쓴다
 
-  /* ── A층 — 동일 TurnPacket을 네 경로에 각각 ── */
-  for (const pkt of loadDir(packetsDir)) {
+  /* ── A층 — 동일 TurnPacket을 네 경로에 각각 (회전된 순서로) ── */
+  for (const pkt of packets) {
     const label = pkt.label || basename(pkt.file, ".json");
     const byPath = {};
-    for (const path of paths) {
-      const prev = pkt.meta && pkt.meta.prev
-        ? { responses: pkt.meta.prev.responses ?? 99,
-            summary: pkt.meta.prev.summary,
-            stageIdx: pkt.meta.prev.stage_idx }
-        : { responses: 99 };            // prev를 모르면 anchor는 안 선다
-      const anchor = path === "staged" ? decideAnchor(prev, pkt.body) : null;
+    const order = rotated(paths, rot++);
+    for (const path of order) {
+      const meta = pkt.meta || {};
+      const prev = meta.prev
+        ? { responses: meta.prev.responses ?? 99,
+            summaryUpto: meta.prev.summary_upto,
+            stageIdx: meta.prev.stage_idx }
+        : { responses: 99 };
+      const curUpto = meta.summary_upto ?? 0;
+      const anchor = path === "staged" ? decideAnchor(prev, pkt.body, curUpto) : null;
       const body = { ...pkt.body, request_id: `rp-A-${label}-${path}` };
-      const r = await callWorker(pathEnv(path, stagedBase, anchor), body, key);
-      const row = record(results, { item: label, kind: "packet", path, turn: 0 }, r, anchor);
-      byPath[path] = row.rendered;
+      const r = await call(pathEnv(path, stagedBase, anchor), body);
+      const stages = (r.data && r.data.stages) || [];
+      const row = {
+        item: label, kind: "chat", path, turn: 0, ok: r.ok, status: r.status,
+        anchor: anchor || null,
+        ranAnchor: !!(r.ok && r.data.trace && r.data.trace.anchor_reason),
+        declined: !!(r.ok && r.data.trace && r.data.trace.anchor_declined),
+        ui_retries: 0,
+        rounds: stages.length ? Math.max(...stages.map(s => s.attempt || 1)) - 1 : 0,
+        calls: stages.length, cost: costOf(stages), latency: r.latency_ms,
+        cache: cacheSums(stages),
+        trace: { item: label, kind: "chat", path, turn: 0, anchor_reason: anchor || null,
+          ok: r.ok, status: r.status, ui_retries: 0, latency_ms: r.latency_ms,
+          engine: (r.data && r.data.trace) || null, stages,
+          usage_total: r.data && r.data.usage_total, usage: r.data && r.data.usage,
+          effects: (r.data && r.data.effects) || [],
+          finalMessages: (r.data && r.data.messages) || [],
+          error: r.ok ? null : (r.data && (r.data.detail || r.data.error)) || String(r.status) },
+      };
+      rows.push(row);
       writeFileSync(join(outDir, "trace", `A-${label}-${path}.json`),
         JSON.stringify(row.trace, null, 2));
+      byPath[path] = ((r.data && r.data.messages) || []).map(m =>
+        `${m.sender ? m.sender + ": " : ""}${m.photo ? "(사진) " : ""}${m.text || ""}`).join("\n")
+        || "(실패)";
       console.log(`A ${label} · ${path}${anchor ? ` · anchor:${anchor}` : ""} → ${r.status}`);
     }
-    /* blurb는 trace·보고용이다 — 블라인드에는 중립 문맥만 싣는다. 「staged라면
-       여기서 Sonnet」 같은 말이 들어가면 읽는 눈이 그걸 찾기 시작한다. */
-    blindItems.push({ item: `A-${label}`, kind: "packet",
-      context: contextOf(pkt.body), byPath });
+    blindItems.push({ item: `A-${label}`, context: contextOf(pkt.body), byPath });
   }
 
-  /* ── B층 — 같은 세이브·같은 입력 순서를 경로마다 독립 세션으로 ── */
-  for (const ses of loadDir(sessionsDir)) {
+  /* ── B층 — 경로마다 독립 세션, 턴 단위 교차 실행 ── */
+  for (const ses of sessions) {
     const label = ses.label || basename(ses.file, ".json");
+    const states = await runSession({ ...ses, label }, paths, {
+      call, stagedBase, rotBase: rot,
+      onTurn: row => console.log(`B ${label} · ${row.path} · #${row.turn}`
+        + `${row.anchor ? ` · anchor:${row.anchor}` : ""}`
+        + `${row.ui_retries ? ` · UI재시도 ${row.ui_retries}` : ""} → ${row.status}`),
+    });
+    rot += ses.turns.length;
+    const byPath = {};
     for (const path of paths) {
-      /* 경로마다 처음부터 다시 — 다른 경로의 출력을 절대 섞지 않는다 */
-      const msgs = JSON.parse(JSON.stringify((ses.seed && ses.seed.msgs) || {}));
-      const sums = JSON.parse(JSON.stringify((ses.seed && ses.seed.sum) || {}));
-      let story = { firstContact: "unseen", jaeeonMemory: "hidden",
-                    partnerKnown: { jaeeon: false, minhyun: false },
-                    ...(ses.seed && ses.seed.story || {}) };
-      const mem = newMemory();
-      /* 오래된 세이브에서 시작하는 대본은 그 방이 이미 산 응답 수를 선언한다 —
-         안 그러면 3주째 방에서 opening이 다시 선다. opening은 「그 방의 첫 두
-         모델 생성 응답」이지 「이 재생의 첫 두 턴」이 아니다. */
-      if (ses.seed && ses.seed.responses) Object.assign(mem.responses, ses.seed.responses);
-      const transcript = [];
-      for (let i = 0; i < (ses.turns || []).length; i++) {
-        const t = ses.turns[i];
-        const room = t.room;
-        msgs[room] = msgs[room] || [];
-        msgs[room].push({ sender: "user", text: t.text, ts: t.ts });
-        const sum = sums[room] || { text: "", upto: 0 };
-        /* 클라이언트가 chat 턴마다 상시로 싣는 것들을 같이 싣는다 — 없는
-           필드로 워커를 부르면 운영에서 절대 안 나가는 프롬프트가 된다.
-           signals는 buildSignals(app.js) 복제: 다른 방의 오늘 대화 수와
-           마지막 말로부터의 분. 「오늘」의 자정은 KST로 잰다(작품의 시간대).
-           시계·해금 규칙이 필요한 것(states·closed·can_go)은 여기서 지어내지
-           않는다 — 필요한 대본은 t.extra로 직접 선언한다. */
-        const midnight = t.ts - ((t.ts + 9 * 3600e3) % 86400e3);
-        const signals = {};
-        ["jaeeon", "minhyun", "group"].forEach(r => {
-          if (r === room) return;
-          const ms = msgs[r] || []; if (!ms.length) return;
-          signals[r] = { count: ms.filter(m => m.ts >= midnight).length,
-            minsAgo: Math.max(0, Math.floor((t.ts - ms[ms.length - 1].ts) / 60000)) };
-        });
-        const body = {
-          mode: "chat", room, user_name: ses.user_name || "선생님",
-          history: buildHistory(sinceSum(sum.upto, msgs[room])),
-          counts: Object.fromEntries(["jaeeon", "minhyun", "group", "health"]
-            .map(r => [r, (msgs[r] || []).length])),
-          days: t.days ?? 0, now: t.now, day: t.day,
-          gifts: {}, bag: [], met: [], refused: [], recent_photos: [],
-          ...(Object.keys(signals).length ? { signals } : {}),
-          origin_phase: ses.origin_phase || "unasked",
-          story, request_id: `rp-B-${label}-${path}-${i}`,
-          ...(sum.text ? { summary: sum.text } : {}),
-          ...(ses.partner ? { partner: ses.partner } : {}),
-          ...(t.greet ? { greet: true } : {}),
-          ...(t.scene_reason ? { scene_reason: t.scene_reason } : {}),
-          ...(t.extra || {}),
-        };
-        const anchor = path === "staged" ? decideAnchor(snapshot(mem, room), body) : null;
-        const r = await callWorker(pathEnv(path, stagedBase, anchor), body, key);
-        const row = record(results, { item: label, kind: "session", path, turn: i }, r, anchor);
-        writeFileSync(join(outDir, "trace", `B-${label}-${path}-${String(i).padStart(2, "0")}.json`),
+      const st = states[path];
+      st.rows.forEach(row => {
+        rows.push(row);
+        writeFileSync(join(outDir, "trace",
+          `B-${label}-${path}-${String(row.turn).padStart(2, "0")}.json`),
           JSON.stringify(row.trace, null, 2));
-        transcript.push({ user: t.text, reply: row.rendered, anchor });
-        noteTurn(mem, room, body, r.ok);
-        if (r.ok && r.data) {
-          (r.data.messages || []).forEach((m, k) => msgs[room].push({
-            sender: m.sender || room, text: m.text || "",
-            ...(m.photo ? { photo: m.photo } : {}), ts: t.ts + 1000 + k }));
-          (r.data.effects || []).forEach(fx => { story = applyTransition(story, fx); });
-          if (r.data.scene_ack) {
-            /* partner 계열 장면이 승인되면 **그 방 사람이** 알게 된다 —
-               partner_confirm은 상대 본인 방, partner_known은 다른 사람 방.
-               둘 다 그 방의 인물이 아는 쪽이다(클라이언트 markPartnerKnown 방향). */
-            if (r.data.scene_ack === "partner_confirm" || r.data.scene_ack === "partner_known") {
-              story = { ...story, partnerKnown: { ...story.partnerKnown, [room]: true } };
-            }
-          }
-        }
-        /* 요약 굴리기 — 클라이언트 rollSummary와 같은 문턱·같은 꼬리.
-           실행 조건도 같다: 클라이언트는 성공 경로에서만 예약한다(app.js의
-           setTimeout(rollSummary)) — 실패한 턴 뒤에 굴리면 클라이언트가
-           그 시점에 만들 수 없는 upto가 생긴다. */
-        if (!r.ok) { console.log(`B ${label} · ${path} · #${i}${anchor ? ` · anchor:${anchor}` : ""} → ${r.status}`); continue; }
-        const un = sinceSum(sum.upto, msgs[room]);
-        const total = un.reduce((n, m) => n + ((m.text || "").length), 0);
-        if (total >= SUM_AT) {
-          let keep = 0, cut = un.length;
-          for (let k = un.length - 1; k >= 0; k--) {
-            keep += (un[k].text || "").length;
-            if (keep >= TAIL_KEEP) { cut = k; break; }
-          }
-          const chunk = un.slice(0, cut);
-          if (chunk.length) {
-            const sr = await callWorker({}, { mode: "summarize", room,
-              user_name: ses.user_name || "선생님", summary: sum.text,
-              history: buildHistory(chunk) }, key);
-            /* 요약도 그 경로 세션의 실제 비용이다 — 경로마다 답 길이가 달라
-               굴림 시점이 갈릴 수 있으니 따로 재서 합에 넣는다 */
-            results.push({ item: label, kind: "summary", path, turn: i,
-              ok: sr.ok, cost: usageCost(sr.data && sr.data.usage),
-              latency: sr.latency_ms, calls: 1, retries: 0, anchor: null });
-            if (sr.ok && sr.data && sr.data.summary) {
-              sums[room] = { text: sr.data.summary, upto: chunk[chunk.length - 1].ts };
-              console.log(`B ${label} · ${path} · 요약 갱신 (${total}자 → ${sr.data.summary.length}자)`);
-            }
-          }
-        }
-        console.log(`B ${label} · ${path} · #${i}${anchor ? ` · anchor:${anchor}` : ""} → ${r.status}`);
-      }
-      /* 세션도 중립 문맥만 — blurb의 anchor 얘기는 블라인드 읽기를 오염시킨다 */
-      blindItems.push({ item: `B-${label}`, kind: "session",
-        context: `${{ jaeeon: "이재언", minhyun: "이민현", group: "단톡" }[ses.turns[0].room] || ""} — ${ses.turns.length}턴 연속 세션`,
-        byPath: { [path]: transcript }, partial: path });
+      });
+      st.sumRows.forEach(row => {
+        sumRows.push(row);
+        writeFileSync(join(outDir, "trace",
+          `B-${label}-${path}-sum${String(row.turn).padStart(2, "0")}.json`),
+          JSON.stringify(row.trace, null, 2));
+      });
+      byPath[path] = st.transcript;
+      if (st.status !== "complete")
+        console.log(`B ${label} · ${path} · 세션 ${st.status}`
+          + `${st.invalidWhy ? ` (${st.invalidWhy})` : ""} — #${st.stoppedAt}에서 중단`);
     }
+    blindItems.push({ item: `B-${label}`,
+      context: `${{ jaeeon: "이재언", minhyun: "이민현", group: "단톡" }[ses.turns[0].room] || ""} — ${ses.turns.length}턴 연속 세션`,
+      byPath });
   }
 
   /* ── 블라인드 묶기 ── */
   const key2blind = {};
-  for (const item of dedupBlind(blindItems)) {
+  for (const item of blindItems) {
     const order = shuffled(Object.keys(item.byPath).sort(), seed + item.item);
     const tags = ["갑", "을", "병", "정"];
     const lines = [`# ${item.item}`, "", item.context ? `상황: ${item.context}` : "", ""];
@@ -451,69 +587,49 @@ async function main() {
   }
   writeFileSync(join(outDir, "blind-key.json"), JSON.stringify(key2blind, null, 2));
 
-  /* ── 비용·지연 보고 (경로 이름이 있다 — 블라인드 읽기 뒤에 본다) ── */
+  /* ── 보고 — 대화 턴과 요약 호출을 따로, 캐시 실측을 따로 ── */
   const per = {};
-  for (const r of results) {
-    const p = per[r.path] = per[r.path] || { calls: 0, cost: 0, latency: 0, turns: 0,
-      retries: 0, fails: 0, anchors: 0, declined: 0 };
-    p.turns++; p.cost += r.cost; p.latency += r.latency; p.calls += r.calls;
-    p.retries += r.retries; if (!r.ok) p.fails++;
-    if (r.ranAnchor) p.anchors++; if (r.declined) p.declined++;
+  for (const r of rows) {
+    const p = per[r.path] = per[r.path] || { chat: 0, calls: 0, rounds: 0, ui: 0,
+      fails: 0, anchors: 0, declined: 0, cost: 0, latency: 0, cw: 0, cr: 0 };
+    p.chat++; p.calls += r.calls; p.rounds += r.rounds; p.ui += r.ui_retries;
+    p.cost += r.cost; p.latency += r.latency;
+    p.cw += r.cache.w; p.cr += r.cache.r;
+    if (!r.ok) p.fails++; if (r.ranAnchor) p.anchors++; if (r.declined) p.declined++;
   }
+  const sper = {};
+  for (const r of sumRows) {
+    const p = sper[r.path] = sper[r.path] || { calls: 0, cost: 0, latency: 0, fails: 0 };
+    p.calls++; p.cost += r.cost; p.latency += r.latency; if (!r.ok) p.fails++;
+  }
+  const invalid = unknownModels.size > 0;
   const fmt = n => n.toFixed(4);
   const rep = ["# G replay 보고", "",
+    invalid ? `**INVALID — 단가를 모르는 모델이 있다: ${[...unknownModels].join(", ")}. 비용 합계를 믿지 마라.**` : "",
     FAKE ? "**--fake 모드 — 모델 없이 하네스만 굴렸다. 숫자는 배선 점검용이다.**" : "",
-    "", "| 경로 | 턴 | 호출 | 재시도 | 실패 | anchor | anchor 물림 | 비용($) | 지연 합(ms) |",
-    "|---|---|---|---|---|---|---|---|---|"];
+    "", "## 대화 턴 (packet + 세션)",
+    "| 경로 | 대화 턴 | 호출 | 모델 재시도 | UI 재시도 | 실패 | anchor | anchor 물림 | 캐시 쓰기 tok | 캐시 읽기 tok | 비용($) | 지연 합(ms) |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|"];
   for (const [path, p] of Object.entries(per))
-    rep.push(`| ${path} | ${p.turns} | ${p.calls} | ${p.retries} | ${p.fails} | ${p.anchors} | ${p.declined} | ${fmt(p.cost)} | ${p.latency} |`);
-  rep.push("", "턴별 상세는 trace/, 대사 비교는 blind/ (이름표는 blind-key.json).");
-  writeFileSync(join(outDir, "report.md"), rep.join("\n"));
-  console.log(`\n끝 — ${results.length}턴. 보고: ${join(outDir, "report.md")}`);
-}
-
-/* 세션 blind 조각(경로별로 따로 만든 것)을 한 item으로 합친다 */
-function dedupBlind(items) {
-  const map = new Map();
-  for (const it of items) {
-    if (!map.has(it.item)) map.set(it.item, { ...it, byPath: { ...it.byPath } });
-    else Object.assign(map.get(it.item).byPath, it.byPath);
+    rep.push(`| ${path} | ${p.chat} | ${p.calls} | ${p.rounds} | ${p.ui} | ${p.fails} | ${p.anchors} | ${p.declined} | ${p.cw} | ${p.cr} | ${fmt(p.cost)} | ${p.latency} |`);
+  rep.push("", "## 요약 호출 (대화 턴과 따로 센다)",
+    "| 경로 | 요약 호출 | 실패 | 비용($) | 지연 합(ms) |", "|---|---|---|---|---|");
+  for (const path of paths) {
+    const p = sper[path] || { calls: 0, cost: 0, latency: 0, fails: 0 };
+    rep.push(`| ${path} | ${p.calls} | ${p.fails} | ${fmt(p.cost)} | ${p.latency} |`);
   }
-  return [...map.values()];
+  rep.push("", "실행 순서는 packet·세션 턴마다 회전(Latin square)돼 있다 — 캐시를",
+    "먼저 데우는 경로가 고정되지 않는다. 턴별 상세는 trace/, 대사 비교는",
+    "blind/ (이름표는 blind-key.json — 읽기 전에 열지 않는다).");
+  writeFileSync(join(outDir, "report.md"), rep.join("\n"));
+  console.log(`\n끝 — 대화 ${rows.length}턴 · 요약 ${sumRows.length}호출. 보고: ${join(outDir, "report.md")}`);
+  if (invalid) die("단가를 모르는 모델이 나왔다 — 보고는 INVALID다.");
 }
 
 function contextOf(body) {
   const r = { jaeeon: "이재언 1:1", minhyun: "이민현 1:1", group: "단톡", health: "관전" }[body.room] || body.room;
   const last = [...(body.history || [])].reverse().find(m => m.role === "user");
   return `${r}${body.now ? ` · ${body.now}` : ""} — 유저: 「${(last && last.content || "").slice(0, 60)}」`;
-}
-
-function record(results, base, r, anchor) {
-  const stages = (r.data && r.data.stages) || [];
-  const messages = (r.data && r.data.messages) || [];
-  const trace = {
-    ...base, anchor_reason: anchor || null,
-    ok: r.ok, status: r.status, latency_ms: r.latency_ms,
-    engine: (r.data && r.data.trace) || null,      // engine_mode·candidate_mode·writer_model·route·turnContext·selectedCandidate
-    stages, usage_total: r.data && r.data.usage_total, usage: r.data && r.data.usage,
-    effects: (r.data && r.data.effects) || [],
-    finalMessages: messages,
-    error: r.ok ? null : (r.data && (r.data.detail || r.data.error)) || String(r.status),
-  };
-  /* 제안한 anchor와 실제로 선 anchor는 다르다 — 중요 장면과 겹치면 워커가
-     물린다(anchor_declined). 보고에는 실제로 선 것을 센다. */
-  const ranAnchor = !!(r.data && r.data.trace && r.data.trace.anchor_reason);
-  /* 재시도는 「몇 라운드 더 돌았나」다 — 한 라운드의 모든 단계가 같은
-     attempt를 찍으므로 행 수로 세면 경로 구조(1단·2단·4단)에 비례해 부푼다.
-     같은 재시도 한 번이 single에서 1, 중요 장면에서 4-5로 집계되면 안 된다. */
-  const row = { ...base, ok: r.ok, cost: costOf(stages), latency: r.latency_ms,
-    calls: stages.length,
-    retries: stages.length ? Math.max(...stages.map(s => s.attempt || 1)) - 1 : 0,
-    anchor: anchor || null, ranAnchor,
-    declined: !!(r.data && r.data.trace && r.data.trace.anchor_declined), trace,
-    rendered: messages.map(m => `${m.sender ? m.sender + ": " : ""}${m.photo ? "(사진) " : ""}${m.text || ""}`).join("\n") };
-  results.push(row);
-  return row;
 }
 
 /* 곧장 실행됐을 때만 CLI로 돈다 — 테스트는 위 함수들만 들여온다 */

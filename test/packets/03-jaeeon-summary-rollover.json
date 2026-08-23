@@ -4,9 +4,10 @@
   "meta": {
     "prev": {
       "responses": 24,
-      "summary": "유저가 이민현의 담임 이재언과 알게 됐다. 저녁마다 짧은 안부를 주고받았고, 유저가 요즘 잠을 잘 못 잔다는 얘기를 했다.",
+      "summary_upto": 1755856800000,
       "stage_idx": 1
-    }
+    },
+    "summary_upto": 1756029600000
   },
   "body": {
     "mode": "chat",

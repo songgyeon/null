@@ -7149,8 +7149,10 @@ eq('시간표 단추는 peek보다 좁다',
   })(), [1, 'plain', '']);
   eq('읽을 것이 없으면 빈 묶음이다', parseMessages('{"messages":[', 'minhyun', MH).parseStatus, 'empty');
   /* pair는 한 호출에서 둘을 받기로 한 것이다. 하나만 오면 조용히 넘어가지 않는다 */
+  /* 모든 경로에서다 — pair에 하나가 와도, one·single에 둘이 와도 스키마
+     위반이다. 조건이 pair에만 걸려 있던 때는 one이 몰래 pair처럼 돌 수 있었다 */
   eq('후보 수가 안 맞으면 다시 쓴다', (() => {
-    const i = wk.indexOf('if (cMode === "pair" && pieces.length !== nCand)');
+    const i = wk.indexOf('if (pieces.length !== nCand)');
     return i > 0 && wk.slice(i, i + 200).includes('WRITER_SCHEMA');
   })(), true);
   /* 자리가 아니라 id로 가린다 */

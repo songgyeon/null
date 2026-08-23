@@ -5202,9 +5202,12 @@ export default {
            자리(배열 index)가 아니라 id로 가린다. A가 떨어지고 B만 남아도
            B는 B다. */
         const pieces = raws.flatMap(splitCandidates);
-        /* pair는 한 호출에서 둘을 받기로 한 것이다. 하나만 왔는데 둘 받은
-           것처럼 넘어가면 후보가 하나인 줄 아무도 모른 채 A만 계속 나간다. */
-        if (cMode === "pair" && pieces.length !== nCand) {
+        /* 청한 수와 온 수가 다르면 스키마 위반이다 — 모든 경로에서.
+           pair에 하나만 오면 A만 계속 나가는 문제였고, 반대로 one·single·
+           anchor에 둘이 오면 자르지도 고르지도 않는다: one은 Director가
+           A/B를 고르는 몰래 pair가 되고, single은 청하지 않은 후보를 조용히
+           집는다 — G 비교에서 경로의 정체가 무너진다. 재시도로 보낸다. */
+        if (pieces.length !== nCand) {
           lastCodes = ["WRITER_SCHEMA"];
           console.log(`[NULL] 후보 수가 안 맞는다 — ${pieces.length}/${nCand}`);
           continue;

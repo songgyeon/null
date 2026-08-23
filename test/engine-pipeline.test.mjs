@@ -186,30 +186,55 @@ const PROBE = { ...BASE,
 {
   const D = RP.decideAnchor;
   const body = (over = {}) => ({ mode: "chat", room: "jaeeon", counts: { jaeeon: 10 }, days: 2, ...over });
-  eq("첫 두 응답은 opening이다", [D({ responses: 0 }, body()), D({ responses: 1 }, body())],
+  eq("첫 두 응답은 opening이다", [D({ responses: 0 }, body(), 0), D({ responses: 1 }, body(), 0)],
     ["opening", "opening"]);
-  eq("셋째부터는 아니다", D({ responses: 2 }, body()), null);
-  eq("요약이 갱신된 직후 한 번이다",
-    D({ responses: 9, summary: "옛 요약" }, body({ summary: "새 요약" })), "summary_rollover");
-  eq("요약이 그대로면 아니다",
-    D({ responses: 9, summary: "같음" }, body({ summary: "같음" })), null);
-  eq("요약을 모르면 안 쏜다", D({ responses: 9 }, body({ summary: "무엇" })), null);
+  eq("셋째부터는 아니다", D({ responses: 2 }, body(), 0), null);
+  /* rollover는 문장이 아니라 **upto의 전진**이다 — 같은 요약문이어도 upto가
+     전진했으면 원문 창이 실제로 밀린 것이고, 문장만 바뀌고 upto가 같으면
+     굴림이 아니다 */
+  eq("upto가 전진하면 rollover다 — 요약문이 같아도",
+    D({ responses: 9, summaryUpto: 100 }, body({ summary: "같은 문장" }), 200), "summary_rollover");
+  eq("문장만 바뀌고 upto가 같으면 아니다",
+    D({ responses: 9, summaryUpto: 100 }, body({ summary: "바뀐 문장" }), 100), null);
+  eq("upto를 모르면 안 쏜다", D({ responses: 9 }, body(), 200), null);
   eq("단계가 오른 직후 한 번이다",
-    D({ responses: 9, summary: "", stageIdx: 0 },
-      body({ summary: "", counts: { jaeeon: 16 }, days: 4 })), "stage_enter");
+    D({ responses: 9, summaryUpto: 0, stageIdx: 0 },
+      body({ counts: { jaeeon: 16 }, days: 4 }), 0), "stage_enter");
   eq("단계가 그대로면 아니다",
-    D({ responses: 9, summary: "", stageIdx: 0 }, body({ summary: "" })), null);
-  eq("우선순위는 opening이 먼저다",
-    D({ responses: 1, summary: "옛", stageIdx: 0 },
-      body({ summary: "새", counts: { jaeeon: 16 }, days: 4 })), "opening");
-  eq("예약된 중요 장면은 기존 경로가 이긴다",
-    D({ responses: 0 }, body({ scene_reason: "memory_reveal" })), null);
-  eq("단톡은 대상이 아니다", D({ responses: 0 }, body({ room: "group" })), null);
-  eq("관전은 대상이 아니다", [D({ responses: 0 }, body({ room: "health" })),
-    D({ responses: 0 }, body({ mode: "auto", room: "health" }))], [null, null]);
+    D({ responses: 9, summaryUpto: 0, stageIdx: 0 }, body(), 0), null);
+  eq("우선순위는 opening → rollover → stage다",
+    [D({ responses: 1, summaryUpto: 0, stageIdx: 0 },
+       body({ counts: { jaeeon: 16 }, days: 4 }), 100),
+     D({ responses: 9, summaryUpto: 0, stageIdx: 0 },
+       body({ counts: { jaeeon: 16 }, days: 4 }), 100)],
+    ["opening", "summary_rollover"]);
+  /* scene_reason은 선제 차단 사유가 아니다 — 승인 안 된 낡은 예약이 anchor를
+     막으면 안 된다. anchor 후보는 워커로 가고, 워커가 실제로 critical로
+     승인했을 때만 anchor_declined가 작동한다(아래 워커 테스트) */
+  eq("낡은 scene_reason은 anchor를 안 막는다",
+    D({ responses: 0 }, body({ scene_reason: "memory_reveal" }), 0), "opening");
+  eq("단톡은 대상이 아니다", D({ responses: 0 }, body({ room: "group" }), 0), null);
+  eq("관전은 대상이 아니다", [D({ responses: 0 }, body({ room: "health" }), 0),
+    D({ responses: 0 }, body({ mode: "auto", room: "health" }), 0)], [null, null]);
   eq("허용된 사유는 셋뿐이다", ENG.ANCHOR_REASONS, ["opening", "summary_rollover", "stage_enter"]);
   eq("캐시류는 사유가 아니다", ["cache_miss", "cache_read", "hour_passed"]
     .some(s => ENG.ANCHOR_REASONS.includes(s)), false);
+}
+
+/* ══════════ 5.5 승인이 갈린다 — 낡은 예약은 무시, 진짜 중요 장면만 물린다 ══════════ */
+{
+  /* 낡은 scene_reason(상태가 안 받쳐줌 — acknowledged인데 memory_reveal 예약)
+     은 워커가 승인하지 않는다 → 일반 턴 → anchor가 그대로 선다 */
+  const stale = { ...BASE, scene_reason: "memory_reveal",
+    story: { ...BASE.story, jaeeonMemory: "acknowledged" } };
+  const r1 = await run({ ENGINE_MODE: "single", ANCHOR_REASON: "opening" }, stale);
+  eq("승인 안 된 예약은 anchor를 안 물린다",
+    [stagesOf(r1), r1.data.trace.anchor_reason, r1.data.trace.route.tier],
+    [["anchor_writer"], "opening", "normal"]);
+  /* 진짜 중요 장면(워커 감지)만 물린다 — 4절에서 이미 검증, 여기서는 대비만 */
+  const r2 = await run({ ENGINE_MODE: "single", ANCHOR_REASON: "opening", CANDIDATE_MODE: "pair" }, PROBE);
+  eq("승인된 중요 장면만 물린다", [r2.data.trace.anchor_declined, r2.data.trace.route.tier],
+    ["opening", "critical"]);
 }
 
 /* ══════════ 6. 설정 표류 — 하네스가 실사용과 같은 창을 본다 ══════════ */
@@ -243,10 +268,10 @@ const PROBE = { ...BASE,
   eq("비용표가 네 경로의 모델을 다 안다",
     [ENG.ENGINE.writer.id, ENG.ENGINE.finalizer.id, ENG.ENGINE.singleWriter.id]
       .every(id => RP.usageCost({ model: id, input_tokens: 1000000 }) > 0), true);
-  eq("비용은 실측에 단가를 곱한다 — 캐시 쓰기 1.25배·읽기 0.1배",
+  eq("비용은 실측에 단가를 곱한다 — 1h 캐시 쓰기 2배·읽기 0.1배",
     RP.costOf([{ model: "claude-haiku-4-5", input_tokens: 1000000, output_tokens: 1000000,
       cache_creation_input_tokens: 1000000, cache_read_input_tokens: 1000000 }]).toFixed(2),
-    (1 + 5 + 1.25 + 0.1).toFixed(2));
+    (1 + 5 + 2.0 + 0.1).toFixed(2));
 }
 
 /* ══════════ 7. 운영 기본은 그대로다 ══════════ */
@@ -261,23 +286,41 @@ const PROBE = { ...BASE,
 /* ══════════ 7.5 적대 검증이 잡은 것들 — 재발 방지 ══════════ */
 {
   /* 실패한 턴은 anchor를 소진하지 않는다 — 세 사유가 같은 원칙을 탄다.
-     실패 턴에 lastSummary를 덮으면 rollover 직후의 「첫 응답」이 안 나왔는데
-     기회가 사라진다. */
+     그리고 **물린 anchor도 소진되지 않는다** — 중요 장면이 이긴 턴의
+     rollover·단계 관찰은 전진하지 않아서 다음 적격 턴에 다시 선다. */
   const mem = RP.newMemory();
-  const b1 = { mode: "chat", room: "jaeeon", counts: { jaeeon: 20 }, days: 5, summary: "옛" };
-  RP.noteTurn(mem, "jaeeon", b1, true); RP.noteTurn(mem, "jaeeon", b1, true);
-  const b2 = { ...b1, summary: "새" };
-  eq("요약이 갈리면 anchor가 선다", RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b2), "summary_rollover");
-  RP.noteTurn(mem, "jaeeon", b2, false);           // 그 턴이 502로 죽었다
-  eq("실패한 턴은 rollover를 안 소진한다", RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b2), "summary_rollover");
-  RP.noteTurn(mem, "jaeeon", b2, true);            // 이번엔 답이 나왔다
-  eq("성공하면 딱 한 번으로 닫힌다", RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b2), null);
+  const b1 = { mode: "chat", room: "jaeeon", counts: { jaeeon: 20 }, days: 5 };
+  RP.noteTurn(mem, "jaeeon", true, { upto: 100, stageIdx: 1 });
+  RP.noteTurn(mem, "jaeeon", true, { upto: 100, stageIdx: 1 });
+  eq("upto가 전진하면 anchor가 선다",
+    RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b1, 200), "summary_rollover");
+  RP.noteTurn(mem, "jaeeon", false, { upto: 200, stageIdx: 1 });   // 그 턴이 502로 죽었다
+  eq("실패한 턴은 rollover를 안 소진한다",
+    RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b1, 200), "summary_rollover");
+  RP.noteTurn(mem, "jaeeon", true, { upto: 200, stageIdx: 1, declined: true });   // 중요 장면이 이겼다
+  eq("물린 anchor도 소진되지 않는다",
+    RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b1, 200), "summary_rollover");
+  RP.noteTurn(mem, "jaeeon", true, { upto: 200, stageIdx: 1 });    // 드디어 anchor가 돌았다
+  eq("성공하면 딱 한 번으로 닫힌다",
+    RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b1, 200), null);
   const mem2 = RP.newMemory();
-  RP.noteTurn(mem2, "jaeeon", b1, false);
+  RP.noteTurn(mem2, "jaeeon", false, { upto: 0, stageIdx: 0 });
   eq("실패는 opening도 안 센다", RP.snapshot(mem2, "jaeeon").responses, 0);
   /* 오래된 세이브는 기왕의 응답 수를 선언한다 — 3주째 방에서 opening이 다시 서면 안 된다 */
   const mem3 = RP.newMemory(); mem3.responses.jaeeon = 200;
-  eq("씨앗 응답 수가 opening을 막는다", RP.decideAnchor(RP.snapshot(mem3, "jaeeon"), b1), null);
+  eq("씨앗 응답 수가 opening을 막는다", RP.decideAnchor(RP.snapshot(mem3, "jaeeon"), b1, 0), null);
+
+  /* 청한 후보 수와 온 수가 다르면 어느 경로든 스키마 위반이다 — one이 몰래
+     pair가 되거나 single이 청하지 않은 후보를 집으면 경로의 정체가 무너진다 */
+  const two = JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] });
+  const oneMsg = JSON.stringify({ messages: [{ text: "네." }] });
+  const sTwo = await run({ ENGINE_MODE: "single" }, BASE, [two, oneMsg]);
+  eq("single에 둘이 오면 스키마 재시도다", sTwo.data.stages.map(s => [s.stage, s.attempt]),
+    [["single_writer", 1], ["single_writer", 2]]);
+  const oTwo = await run({ CANDIDATE_MODE: "one" }, BASE, [two, two]);
+  eq("one에 둘이 계속 오면 502다 — 몰래 pair가 되지 않는다", oTwo.status, 502);
+  const pOne = await run({ CANDIDATE_MODE: "pair" }, BASE, [oneMsg, oneMsg]);
+  eq("pair에 하나만 계속 오면 502다", pOne.status, 502);
 
   /* API 오류로 죽은 턴에도 trace가 실린다 — 물린 anchor 집계가 유실되면 안 된다 */
   const err = await (async () => {
@@ -315,6 +358,115 @@ const PROBE = { ...BASE,
     JSON.stringify({ messages: [{ text: "먹었어요." }] })]);
   eq("한 번 재시도는 어느 경로에서든 1이다",
     Math.max(...rt.data.stages.map(s => s.attempt)) - 1, 1);
+
+  /* 비용 계약 — 워커의 캐시 TTL과 같은 배율, 지금 단가 */
+  const wk = readFileSync(join(ROOT, "worker.js"), "utf8");
+  eq("캐시 쓰기 배율이 워커 TTL 계약과 같다 — 1h면 2배",
+    [/ttl: "1h"/.test(wk), RP.CACHE_WRITE_X], [true, 2.0]);
+  eq("Sonnet 5 단가는 $2/$10이다",
+    RP.usageCost({ model: "claude-sonnet-5", input_tokens: 1000000, output_tokens: 1000000 }).toFixed(2),
+    "12.00");
+}
+
+/* ══════════ 7.55 실행 순서 균형 — 뒤에 도는 경로가 캐시를 공짜로 받지 않는다 ══════════ */
+{
+  eq("회전 0은 원래 순서다", RP.rotated(RP.PATHS, 0), RP.PATHS);
+  const N = 42;                      // 지금 fixture의 대화 턴 수
+  const count = {};                  // path → 자리별 등장 수
+  for (let k = 0; k < N; k++)
+    RP.rotated(RP.PATHS, k).forEach((p, pos) => {
+      count[p] = count[p] || [0, 0, 0, 0]; count[p][pos]++;
+    });
+  eq("각 경로가 각 자리에 서는 횟수 차는 최대 1이다",
+    Object.values(count).every(a => Math.max(...a) - Math.min(...a) <= 1), true);
+  eq("자리 합이 맞다", Object.values(count).every(a => a.reduce((x, y) => x + y) === N), true);
+}
+
+/* ══════════ 7.57 연속 세션 실행기 — 실패 뒤로 안 간다, 예상 밖 Effect는 invalid ══════════ */
+{
+  const mini = { label: "T", user_name: "연",
+    seed: { msgs: { jaeeon: [{ sender: "jaeeon", text: "새로 오셨죠.", ts: 1000 }] } },
+    turns: [
+      { room: "jaeeon", text: "안녕하세요", ts: 2000, days: 0, now: "저녁", day: "목요일" },
+      { room: "jaeeon", text: "질문이 있어요", ts: 3000, days: 0, now: "저녁", day: "목요일" },
+      { room: "jaeeon", text: "이 말은 오면 안 된다", ts: 4000, days: 0, now: "저녁", day: "목요일" },
+    ] };
+  const okReply = { ok: true, status: 200, latency_ms: 1, data: {
+    messages: [{ sender: "jaeeon", text: "네." }], effects: [], stages: [
+      { stage: "writer", model: "claude-haiku-4-5", attempt: 1, input_tokens: 10, output_tokens: 5,
+        cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }], trace: {} } };
+  /* hybrid-one만 #1에서 두 번(원호출+UI 재시도) 다 죽는다 */
+  const sent = [];
+  const call = async (env, body) => {
+    sent.push(JSON.stringify(body));
+    if (body.request_id === "rp-B-T-hybrid-one-1")
+      return { ok: false, status: 502, latency_ms: 1, data: { error: "생성 실패", stages: [] } };
+    return JSON.parse(JSON.stringify(okReply));
+  };
+  const states = await RP.runSession(mini, ["hybrid-one", "hybrid-pair"], { call, rotBase: 0 });
+  const bad = states["hybrid-one"], good = states["hybrid-pair"];
+  eq("실패한 세션은 incomplete로 끝난다", [bad.status, bad.stoppedAt], ["incomplete", 1]);
+  eq("실패 뒤 다음 유저 턴으로 진행하지 않는다", bad.rows.length, 2);
+  eq("실패 뒤 연속 유저 발화가 history에 없다",
+    bad.msgs.jaeeon.filter(m => m.sender === "user").map(m => m.text),
+    ["안녕하세요", "질문이 있어요"]);
+  eq("UI 재시도는 같은 body·같은 이름표다", (() => {
+    const tries = sent.filter(s => s.includes("rp-B-T-hybrid-one-1"));
+    return tries.length === 2 && tries[0] === tries[1];
+  })(), true);
+  eq("UI 재시도와 모델 내부 재시도는 따로 센다",
+    [bad.rows[1].ui_retries, bad.rows[1].rounds], [1, 0]);
+  eq("다른 경로는 끝까지 돈다", [good.status, good.rows.length], ["complete", 3]);
+
+  /* 예상 밖의 UI Effect(초대·물건) — 하네스는 그 창에 답할 수 없다 → invalid */
+  const fxCall = async (env, body) => {
+    const r = JSON.parse(JSON.stringify(okReply));
+    if (body.request_id.endsWith("-0"))
+      r.data.effects = [{ id: "e1", type: "invite", place: "편의점", char: "jaeeon" }];
+    return r;
+  };
+  const st2 = await RP.runSession(mini, ["hybrid-one"], { call: fxCall, rotBase: 0 });
+  eq("예상 밖 Effect는 세션을 invalid로 끝낸다",
+    [st2["hybrid-one"].status, st2["hybrid-one"].rows.length, st2["hybrid-one"].invalidWhy],
+    ["invalid", 1, "예상 밖 Effect: invite"]);
+}
+
+/* ══════════ 7.58 CLI — 반쯤 도는 것보다 안 도는 게 낫다 ══════════ */
+{
+  const { execSync } = await import("node:child_process");
+  const { mkdtempSync, readdirSync: rd } = await import("node:fs");
+  const os = await import("node:os");
+  const tmp = mkdtempSync(join(os.tmpdir(), "replay-test-"));
+  const sh = args => {
+    try {
+      execSync(`node tools/replay.mjs ${args}`, { cwd: ROOT, stdio: "pipe", maxBuffer: 64e6 });
+      return 0;
+    } catch (e) { return e.status || 1; }
+  };
+  /* 전수 fake 실행 — 측정 단위가 계약과 맞는지 실측으로 */
+  const out1 = join(tmp, "run1");
+  eq("전수 fake 실행이 성공한다", sh(`--fake --out=${out1}`), 0);
+  const report = readFileSync(join(out1, "report.md"), "utf8");
+  eq("경로당 대화 턴이 42다 — 요약이 안 섞인다", (() => {
+    const rows = report.split("\n").filter(l => /^\| (hybrid|single|staged)/.test(l));
+    const chat = rows.slice(0, 4).map(l => Number(l.split("|")[2]));
+    return chat.every(n => n === 42);
+  })(), true);
+  eq("요약 호출은 따로 센다", /## 요약 호출/.test(report), true);
+  const traces = rd(join(out1, "trace"));
+  /* 요약 trace 이름은 -sum<NN>.json 꼴이다 — 「summary-rollover」 같은 라벨
+     문자열에 걸리지 않게 정확한 꼬리로 가른다 */
+  const isSum = f => /-sum\d+\.json$/.test(f);
+  eq("대화 trace가 네 경로 합계 168개다", traces.filter(f => !isSum(f)).length, 168);
+  eq("요약 trace도 따로 남는다", traces.some(isSum), true);
+  /* 같은 outDir 재사용 — 이전 trace가 새 보고에 섞이면 안 된다 → 거부 */
+  eq("비어 있지 않은 outDir은 거부한다", sh(`--fake --out=${out1}`) !== 0, true);
+  /* 모르는 경로는 0턴 성공이 아니라 비정상 종료다 */
+  eq("모르는 --paths는 비정상 종료다", sh(`--fake --paths=typo --out=${join(tmp, "run2")}`) !== 0, true);
+  eq("중복 --paths도 비정상 종료다",
+    sh(`--fake --paths=hybrid-one,one --out=${join(tmp, "run3")}`) !== 0, true);
+  eq("없는 packet 디렉터리는 비정상 종료다",
+    sh(`--fake --packets=/no/such/dir --out=${join(tmp, "run4")}`) !== 0, true);
 }
 
 /* ══════════ 7.6 재생 자료가 실사용 모양이다 — packet·세션 lint ══════════ */
