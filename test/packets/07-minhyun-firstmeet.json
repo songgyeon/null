@@ -1,0 +1,19 @@
+{
+  "label": "07-minhyun-firstmeet",
+  "blurb": "이민현 1:1 — 「우리 어디서 만났더라?」(firstMeetAsked 프롬프트 재료가 서는 턴). 옛 로그에서 「그럼 그냥 모르는 사람이네요」로 도망갔던 자리 — 병원 옥상을 바로 대는지 본다.",
+  "meta": { "prev": { "responses": 9, "summary": "", "stage_idx": 0 } },
+  "body": {
+    "mode": "chat", "room": "minhyun", "user_name": "연",
+    "history": [
+      { "role": "assistant", "sender": "minhyun", "content": "쌤은 진짜 신기하단 말이지" },
+      { "role": "user", "content": "뭐가?" },
+      { "role": "assistant", "sender": "minhyun", "content": "그냥. 첨 봤을 때부터 그랬음" },
+      { "role": "user", "content": "우리 어디서 만났더라? 기억이 가물가물하네" }
+    ],
+    "counts": { "jaeeon": 4, "minhyun": 12, "group": 0, "health": 0 },
+    "days": 3, "now": "밤", "day": "월요일",
+    "gifts": {},
+    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
+               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+  }
+}

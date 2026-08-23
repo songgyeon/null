@@ -1,0 +1,20 @@
+{
+  "label": "05-minhyun-normal",
+  "blurb": "이민현 1:1 — 하교 후 평범한 장난기 대화.",
+  "meta": { "prev": { "responses": 10, "summary": "", "stage_idx": 0 } },
+  "body": {
+    "mode": "chat", "room": "minhyun", "user_name": "연",
+    "history": [
+      { "role": "assistant", "sender": "minhyun", "content": "쌤 오늘 급식 최악이었음" },
+      { "role": "user", "content": "뭐 나왔는데?" },
+      { "role": "assistant", "sender": "minhyun", "content": "콩자반. 콩. 자. 반." },
+      { "role": "user", "content": "콩이 뭐 어때서ㅋㅋ 몸에 좋잖아" },
+      { "role": "user", "content": "야자 끝나고 뭐 먹을 거야?" }
+    ],
+    "counts": { "jaeeon": 6, "minhyun": 14, "group": 0, "health": 0 },
+    "days": 3, "now": "저녁", "day": "수요일",
+    "gifts": {},
+    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
+               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+  }
+}

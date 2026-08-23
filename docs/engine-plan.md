@@ -551,6 +551,70 @@ Expo는 자체 `fmtTime`을 버리고 rules의 시계를 들여온다(`tools/bui
 
 지금 경로를 바로 지우지 말고 기능 플래그 뒤에 기준선으로 남긴다.
 ✅ `ENGINE_MODE=legacy`. 같은 대화를 두 길로 굴려서 나란히 볼 수 있다.
+단 **legacy는 깨끗한 Sonnet 4.5 기준선이 아니다** — MODELS의 4.6→5→4.5
+폴백을 타서 턴마다 답한 모델이 다를 수 있다. G 비교의 single·anchor에는
+재사용하지 않고 고정 `singleWriter`/`anchorWriter`를 쓴다.
+
+### 네 갈래 replay — G (구현됨)
+
+무엇이 실제로 나은지는 같은 입력을 네 경로에 **독립 재생**해서 정한다.
+
+| 경로 | 모양 |
+|---|---|
+| `hybrid-one` | Haiku Writer 후보 1 → Haiku Director ACCEPT/RETRY |
+| `hybrid-pair` | Haiku Writer 한 호출 후보 2 → Haiku Director 선택/RETRY (운영 기본) |
+| `single-sonnet` | 고정 Sonnet 4.5 Writer 한 호출 — 같은 사실·같은 후처리, 중요 장면도 한 호출 |
+| `staged` | anchor 턴만 Sonnet 4.5 single Writer, 나머지는 고른 Haiku hybrid |
+
+넷 다 **워커 코드 그대로**다(`ENGINE_MODE`·`CANDIDATE_MODE`·`ANCHOR_REASON`
+env로 고른다). 프롬프트 조립·parse·hardFilter·Effect·scene_ack이 전부 같은
+줄이라, 갈리는 것은 모델 배치뿐이다 — 후처리 차이가 비교를 오염시키지 않는다.
+
+**staged의 anchor는 코드가 정한다.** 허용 사유는 셋뿐이다:
+- `opening` — 각 1:1방의 첫 두 모델 생성 응답. 코드 고정 첫 선톡은 안 센다.
+- `summary_rollover` — 요약(upto)이 갱신된 직후 첫 응답 딱 한 번.
+  실사용 창은 클라이언트의 12,000자다 — 초반 Sonnet 대사가 원문 이력에서
+  빠지고 요약문으로 압축되는 순간이 실제 재정착 지점이다.
+- `stage_enter` — 관계 단계가 직전 packet과 달라진 직후 첫 응답 딱 한 번.
+
+우선순위는 중요 장면 → opening → summary_rollover → stage_enter, 한 턴에
+하나다. **중요 장면이면 기존 경로(쓰기→검사 둘→Sonnet 마무리)가 이긴다** —
+한 턴에 Sonnet을 Writer와 Finalizer 두 자리에 사지 않는다. 하네스가 먼저
+거르고, 워커 감지로 오르는 장면은 워커의 `anchor_declined`가 이중으로 지킨다.
+캐시 hit/miss·`cache_read_input_tokens`·경과 시간은 조건이 아니다 — 캐시는
+가격·지연의 문제지 품질의 문제가 아니고, 호출한 뒤에야 알 수 있다.
+높은 사유가 그 턴을 쓰면 낮은 사유의 「직후 한 턴」은 지나간 것으로 본다 —
+그 턴도 이미 Sonnet이다. 단톡·관전은 anchor 대상이 아니다.
+
+**이번 G에서 staged는 배포하지 않는다.** anchor 조건은 replay에서만 계산해
+비교한다. staged가 이긴 뒤에 웹·Expo의 영속 one-shot 상태를 배선한다(H 뒤).
+
+**평가는 두 층이다.**
+- A. 동일 TurnPacket(`test/packets/*.json`, 14개)을 네 경로에 각각 —
+  사실 위반·말맛·비용·지연을 같은 입력 위에서.
+- B. 같은 초기 세이브·같은 유저 입력 순서(`test/sessions/*.json`)를 경로마다
+  **독립 세션**으로 — 자기 출력이 자기 다음 history에 들어간다. Sonnet이
+  초반에 만든 말맛을 Haiku가 실제로 이어가는지는 이 층만 답한다. 한 경로의
+  출력을 다른 경로 history에 섞지 않는다. 하네스는 클라이언트의 이력 창
+  (12,000자)·요약 굴림(12,000자 문턱·꼬리 4,000자)을 그대로 복제해 돈다.
+  B층에서 summary_rollover까지 밟으려면 실제 세이브에서 뽑은 긴 세션을
+  `test/sessions/`에 놓으면 된다 — 굴림은 하네스가 이미 한다.
+
+**trace와 블라인드.** 턴마다 구조화 trace JSON을 남긴다 — engine_mode·
+candidate_mode·anchor_reason·writer_model·stage별 usage/latency·route·
+turnContext·selectedCandidate·effects·finalMessages. 대사 비교는 경로
+이름을 가린 채(갑·을·병·정, 씨앗 있는 결정적 섞기) `blind/`에 적고 짝은
+`blind-key.json`에만 둔다 — 읽기 전에 열지 않는다. 비용은 호출 수가 아니라
+단계별 usage 실측 × 단가로 잰다(캐시 쓰기 1.25×·읽기 0.1×).
+
+```
+ANTHROPIC_API_KEY=<키> node tools/replay.mjs      # 실제 재생
+node tools/replay.mjs --fake                       # 모델 없이 하네스 점검
+node test/engine-pipeline.test.mjs                 # 네 갈래 회귀 61개
+```
+
+TRACE 응답은 replay 전용이다 — 운영 env에는 TRACE가 없고, turnContext와
+후보 원문이 실리므로 §12에 따라 운영 로그·기본 응답에는 싣지 않는다.
 
 명백한 것은 `node tools/eval.mjs`가 센다 — 앱에서 내보낸 기록을 읽어
 안이 비친 줄·상담사 말투·메아리·금지한 어미·긴 줄·유저 속을 단정한 것·

@@ -1,0 +1,19 @@
+{
+  "label": "09-group",
+  "blurb": "단톡 — 셋이 같이 있는 방. staged anchor 대상 제외를 확인하는 자리.",
+  "meta": { "prev": { "responses": 0 } },
+  "body": {
+    "mode": "chat", "room": "group", "user_name": "연",
+    "history": [
+      { "role": "assistant", "sender": "minhyun", "content": "쌤들 주말에 뭐 함" },
+      { "role": "user", "content": "난 집 청소하려고. 왜?" },
+      { "role": "assistant", "sender": "minhyun", "content": "아니 그냥. 심심해서" },
+      { "role": "user", "content": "둘 다 주말에 특별한 계획 없어요?" }
+    ],
+    "counts": { "jaeeon": 20, "minhyun": 24, "group": 10, "health": 0 },
+    "days": 6, "now": "저녁", "day": "금요일",
+    "gifts": {},
+    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
+               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+  }
+}

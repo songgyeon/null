@@ -1,0 +1,15 @@
+{
+  "label": "10-health-watch",
+  "blurb": "관전(두 사람) — 유저 부재 중 둘의 대화. staged anchor 대상 제외.",
+  "meta": { "prev": { "responses": 0 } },
+  "body": {
+    "mode": "auto", "room": "health", "user_name": "연",
+    "history": [
+      { "role": "assistant", "sender": "jaeeon", "content": "이민현. 보건실은 침대가 아니라고 했다." },
+      { "role": "assistant", "sender": "minhyun", "content": "5분만요 진짜 5분만" }
+    ],
+    "counts": { "jaeeon": 20, "minhyun": 24, "group": 10, "health": 4 },
+    "days": 6, "now": "낮", "day": "화요일",
+    "gifts": {}
+  }
+}

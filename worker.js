@@ -89,7 +89,22 @@ const ENGINE = {
   character: { id: "claude-haiku-4-5",            effort: null, noThinking: true },
   /* 위를 쓰는 자리는 여기 하나다 */
   finalizer: { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
+  /* ── G 비교 전용 — 운영 기본 경로가 아니다 ──
+     single-sonnet 경로(ENGINE_MODE=single)와 staged의 anchor 턴이 쓰는
+     고정 Sonnet 4.5 Writer. legacy는 깨끗한 기준선이 아니다 — MODELS의
+     4.6→5→4.5 폴백을 타므로 어느 모델이 답했는지가 턴마다 다를 수 있다.
+     여기는 폴백 없이 이 모델 하나다.
+     finalizer와 같은 모델이지만 역할이 다르다 — 마무리는 검사 결과를 들고
+     고쳐 쓰는 자리고, 이쪽은 처음부터 쓰는 자리다. trace의 stage 이름도
+     가른다(single_writer·anchor_writer) — Writer 호출을 finalizer로 적으면
+     비용 집계가 두 역할을 한 덩어리로 잰다. */
+  anchorWriter: { id: "claude-sonnet-4-5-20250929", effort: null, noThinking: true },
+  singleWriter: { id: "claude-sonnet-4-5-20250929", effort: null, noThinking: true },
 };
+/* trace의 stage 이름 ↔ ENGINE 열쇠. 호출 자리에서는 trace에 남을 이름으로
+   부르고, 모델은 이 표로 찾는다 — 이름 둘이 같은 자리를 가리킨다는 것을
+   코드 모양으로 못박는다. */
+const STAGE_ENGINE = { single_writer: "singleWriter", anchor_writer: "anchorWriter" };
 /* ── 후보를 몇 개, 어떻게 뽑나 ──
    후보 두 개가 무조건 한 개보다 낫다고 가정하지 않는다. 세 가지를 바꿔
    끼울 수 있게 둔다. 값이 다르고 지연이 다르고 후보의 다양성이 다르다 —
@@ -117,7 +132,20 @@ const RETRY_MAX = 1;           // 계속 실패하면 각본으로 덮지 않고
    고를 수 있으면 그건 깃발이 아니라 구멍이다. */
 function engineMode(env) {
   const v = String((env && (env.ENGINE_MODE || env.engine_mode)) || "").trim().toLowerCase();
-  return v === "legacy" ? "legacy" : "hybrid";
+  /* single은 G 비교의 세 번째 갈래다 — Sonnet 4.5 Writer 한 호출, 고르기도
+     검사도 없이 같은 후처리만 탄다. replay 도구가 env로 켠다. 운영 대시보드
+     기본값은 hybrid 그대로다. */
+  return v === "legacy" ? "legacy" : v === "single" ? "single" : "hybrid";
+}
+/* staged의 anchor 사유. **코드가 정한다** — 모델이 판단하지 않고, replay
+   하네스가 packet 순서에서 계산해 env로 실어 보낸다. 허용 값은 셋뿐이다.
+   캐시 hit/miss·cache_read_input_tokens·한 시간 경과는 조건이 아니다 —
+   캐시는 가격·지연의 문제지 품질의 문제가 아니고, 무엇보다 호출한 뒤에야
+   알 수 있어서 라우팅 조건이 될 수 없다. */
+const ANCHOR_REASONS = ["opening", "summary_rollover", "stage_enter"];
+function anchorReason(env) {
+  const v = String((env && (env.ANCHOR_REASON || env.anchor_reason)) || "").trim().toLowerCase();
+  return ANCHOR_REASONS.includes(v) ? v : "";
 }
 function candidateMode(env) {
   const v = String((env && (env.CANDIDATE_MODE || env.candidate_mode)) || "").trim().toLowerCase();
@@ -3192,7 +3220,7 @@ function stageStamp(meter, stage, model, usage, ms, attempt, tier, status, candi
 /* 한 단계를 부른다. 실패하면 다른 모델로 넘어가지 않는다 — 진짜 오류를
    그대로 올린다. 말맛이 바뀌는 것보다 안 되는 게 보이는 편이 낫다. */
 async function callStage(env, meter, stage, system, messages, maxTokens, attempt, tier, candidate) {
-  const m = ENGINE[stage];
+  const m = ENGINE[STAGE_ENGINE[stage] || stage];
   if (!m) throw new Error(`모르는 단계: ${stage}`);
   const t0 = Date.now();
   const res = await callModel(env, m, system, messages, maxTokens);
@@ -3202,7 +3230,9 @@ async function callStage(env, meter, stage, system, messages, maxTokens, attempt
     throw new Error(`${stage} 실패 — ${m.id} → ${res.status}: ${String(res.body).slice(0, 200)}`);
   }
   stageStamp(meter, stage, m.id, res.usage, ms, attempt, tier, "ok", candidate);
-  if (stage === "writer" && meter) meter.writerUsage = res.usage;   // 화면 콘솔이 보던 자리
+  /* single·anchor도 「쓰는 쪽 한 번의 실측」이다 — usage 필드의 뜻이 경로에
+     따라 달라지면 네 갈래의 비용 비교가 같은 자리를 재지 않게 된다. */
+  if ((stage === "writer" || STAGE_ENGINE[stage]) && meter) meter.writerUsage = res.usage;   // 화면 콘솔이 보던 자리
   return res.text;
 }
 
@@ -5076,9 +5106,39 @@ export default {
          값을 그대로 넣어 뜻이 뒤집혀 있었다. */
       if (placeItemAvailable) here.push("이 자리에 건넬 수 있는 물건이 있다");
       const budget = mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET;
+      /* ── G 비교: single-sonnet 경로 ──
+         Sonnet 4.5 Writer 한 호출. Director도 검사도 마무리도 안 탄다 —
+         같은 TurnContext·같은 파싱·같은 hardFilter·같은 Effect 후처리만 탄다.
+         후처리가 다르면 G에서 비교되는 것이 모델이 아니라 후처리 차이가 된다.
+
+         staged의 anchor 턴도 이 길이다(ANCHOR_REASON). 단 anchor가 중요
+         장면과 겹치면 기존 중요 장면 경로(쓰기→검사 둘→마무리)가 이긴다 —
+         한 턴에 Sonnet을 Writer와 Finalizer 두 자리에 사지 않는다.
+         anchor 없는 순수 single은 중요 장면도 한 호출로 쓴다 — 그게
+         「항상 Sonnet 하나」라는 갈래의 실제 모습이다. */
+      const anchorWhy = engineMode(env) === "single" ? anchorReason(env) : "";
+      const anchorDeclined = !!anchorWhy && tier === "critical";
+      const singleNow = engineMode(env) === "single" && !anchorDeclined;
+      const writerStage = singleNow ? (anchorWhy ? "anchor_writer" : "single_writer") : "writer";
+      /* ── trace는 replay 도구 전용이다 ──
+         TurnContext와 고른 후보의 원문이 실린다. §12에 따라 운영 로그와 기본
+         응답에는 안 싣는다 — 운영 env에는 TRACE가 없고, 켜는 것은 replay
+         하네스가 자기 env로 워커를 부를 때뿐이다. */
+      const traceOn = String((env && env.TRACE) || "") === "1";
+      const traceOf = picked => !traceOn ? {} : { trace: {
+        engine_mode: engineMode(env),
+        candidate_mode: cMode,
+        anchor_reason: singleNow && anchorWhy ? anchorWhy : null,
+        ...(anchorDeclined ? { anchor_declined: anchorWhy } : {}),
+        writer_model: ENGINE[STAGE_ENGINE[writerStage] || writerStage].id,
+        route: { tier, reason: routed.reason },
+        turnContext: turnCtx,
+        selectedCandidate: picked
+          ? { id: picked.id, originalMessages: picked.originalMessages } : null,
+      } };
       /* 후보를 담을 자리를 넉넉히 준다. 천장이지 청구서가 아니라서 열어둔다고
          값이 오르지 않는다 — 실제로 뽑은 만큼만 낸다. */
-      const cMode = mode === "auto" ? "one" : candidateMode(env);
+      const cMode = mode === "auto" || singleNow ? "one" : candidateMode(env);
       const nCand = CANDIDATE_N[cMode];
       /* parallel은 같은 입력을 두 번 내고 각각 하나씩 받는다 — 지시를 안 붙인다.
          pair는 한 번 내고 둘을 받으므로 그 모양을 못박아야 한다. */
@@ -5126,7 +5186,7 @@ export default {
         const raws = cMode === "parallel"
           ? await Promise.all([1, 2].map(i =>
               callStage(env, meter, "writer", system, tries, budget, attempt, tier, "AB"[i - 1])))
-          : [await callStage(env, meter, "writer", system, tries,
+          : [await callStage(env, meter, writerStage, system, tries,
               budget * (nCand > 1 ? nCand : 1), attempt, tier, "")];
         devLog(`[NULL] 응답 ▶ ${mode}/${room}/${cMode} ▶ ${raws.join(" ⋯ ").slice(0, 600)}`);
 
@@ -5174,8 +5234,10 @@ export default {
         if (!cands.length) { console.log(`[NULL] 후보가 다 떨어졌다 — ${lastCodes.join(",")}`); continue; }
 
         /* 관전방은 고르는 단계를 안 탄다 — 한 번에 여러 발화라 A/B가 아니라
-           장면 전체가 다르고, 여기서 값을 두 배로 낼 자리가 아니다. */
-        if (mode === "auto" || cands.length === 0) { picked = cands[0]; break; }
+           장면 전체가 다르고, 여기서 값을 두 배로 낼 자리가 아니다.
+           single도 여기서 끝난다 — 한 호출이 계약이다. hardFilter는 위에서
+           이미 탔고, 떨어졌으면 lastCodes를 들고 재시도로 돌아갔다. */
+        if (mode === "auto" || singleNow || cands.length === 0) { picked = cands[0]; break; }
 
         /* facts는 **Fact[]**다. 이 꾸러미가 Director·Canon·Character·
            Finalizer로 그대로 간다 — 문장은 sceneHead가 마지막에 만든다. */
@@ -5280,7 +5342,8 @@ export default {
         return new Response(JSON.stringify({ error: "생성 실패",
           detail: "쓸 만한 응답을 못 받았습니다" + (lastCodes.length ? ` (${lastCodes.join(", ")})` : ""),
           stages: meter.rows, usage_total: meterTotal(meter),
-          ...(reqId ? { request_id: reqId } : {}) }),
+          ...(reqId ? { request_id: reqId } : {}),
+          ...traceOf(null) }),
           { status: 502, headers: { ...CORS, "content-type": "application/json" } });
       }
       /* ── 제안이 여기서 사건이 된다 ──
@@ -5307,6 +5370,7 @@ export default {
         /* 상태를 바꾸는 정식 경로는 이것 하나다. give/invite를 따로 실어
            두면 클라이언트가 둘 다 적용해 두 번 일어난다. */
         effects,
+        ...traceOf(picked),
         /* ── 승인된 장면만 지울 수 있다 ──
            프론트가 보낸 사유를 워커가 거절하고 일반 턴으로 내릴 때가 있다
            (상태가 그 사유를 안 받쳐줄 때). 그런데 클라이언트는 200이면
@@ -5349,6 +5413,8 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
+         /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
+         STAGE_ENGINE, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
          directorPacket, readDecision, DIRECTOR_RULES,
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
