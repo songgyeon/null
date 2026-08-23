@@ -445,7 +445,7 @@ partnerKnown은 Effect가 아니라 `partner_known` 장면의 scene_ack이 성�
 
 | 전환 | 언제 |
 |---|---|
-| firstContact `unseen→pending` | 민현 방에서 첫 만남 질문 감지 + 답이 설명이 아니다 |
+| firstContact `unseen→pending` | 민현 방에서 첫 만남 질문 감지 + 답이 설명이 아니다. 질문에는 직접 문형(「우리 어디서 만났지?」)만이 아니라 **첫 선톡(「저 알죠? / 책임진다면서요」) 바로 뒤의 정식 답들**(무슨 말이에요·누구세요·무슨 책임이요·네?…)도 든다 — 문구집 그대로, 직전 인물 발화가 그 선톡일 때만 |
 | `unseen→explained` / `pending→explained` | 검증된 답이 실제로 설명이다 — 「병원 옥상」 짝이거나 그 자리에서 만났다는 문장. 낱말 하나(병원 가 봐요·재활용)로는 안 닫힌다 |
 | jaeeonMemory `hidden→opened` | 승인된 memory_reveal 장면이 끝까지 갔고 **답이 기억을 실제로 건드렸다** — 도망간 턴에는 안 움직인다 |
 | `opened→acknowledged` | 두 번째 성공 — 한 턴에 한 칸씩만 간다 |
@@ -453,6 +453,14 @@ partnerKnown은 Effect가 아니라 `partner_known` 장면의 scene_ack이 성�
 선톡(greet) 턴에는 어느 전환도 안 나간다 — 유저의 턴이 아니다.
 partnerKnown은 partner_known(다른 쪽이 처음 아는 자리)만이 아니라
 partner_confirm(본인이 정해지는 자리)의 scene_ack에서도 뒤집힌다.
+
+**「안다」에는 누구인지가 들어 있다.** partnerId가 이야기 상태로 같이 실려,
+지속 사실이 「이민현은 유저가 이재언을 상대로 정했다는 것을 안다」처럼
+정체를 품는다 — 최근 대화가 잘려도 남는 유일한 근거다. 둘 다 알게 되면
+공유 사실 하나(`story.partner_known.both`)가 되어 단톡·관전의 교집합 투영에
+실리고, 한쪽만 알 때는 그 사람에게만 간다. 장면이 벌어지는 턴에는
+partnerKnown이 아직 안 뒤집혀 있으므로 `partnerSceneFacts`가 이번 턴의
+사실(누가 정해졌는지)을 따로 얹는다 — 쓰는 쪽·검사·마무리가 다 받는다.
 
 상태는 `storyFacts`로 사실이 되어 화자별 투영을 그대로 탄다 — pending은
 민현·유저만, 재언의 기억은 재언·유저만 본다. `factLines`가 story.* 는 값을
@@ -478,8 +486,10 @@ partner_confirm(본인이 정해지는 자리)의 scene_ack에서도 뒤집힌�
 | memory_reveal | 재언 방 · 아직 acknowledged 아님 · (감지 성공 **또는** 재언 일기 히든 키). 민현의 히든이나 무관한 해금은 근거가 아니다 |
 | null_identity | 출처 상태 `revealed_from_start` · 직전 인물 발화가 「처음부터」 · 유저가 그걸 파고든다 |
 | confession | 1:1 방 · 관계 단계 ≥ 익숙 · 실제 유저 발화가 고백이다 |
-| partner_known | 실제 partnerId 존재 · **그 방 사람이 아직 모른다**(partnerKnown) |
-| partner_confirm · partner_first_reaction | partnerId 존재 |
+| partner_known | 실제 partnerId 존재 · **다른 쪽 방**(room ≠ partner) · 그 사람이 아직 모른다 |
+| partner_confirm | partnerId 존재 · **본인 방**(room = partner) |
+| partner_first_reaction | partnerId 존재 |
+| irreversible · conflict_result | **승인 안 함** — 아직 코드가 확인할 상태 근거가 없다. 근거 없이 올리지 않는다 |
 | dday_choice · ending · parting | 실습 만료일 도달 |
 
 판정(`sceneTier`)은 **프롬프트를 만들기 전에** 돈다 — 승인된 사유만

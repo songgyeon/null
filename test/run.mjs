@@ -5284,7 +5284,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('사실은 요청 진입에서 한 번 만든다',
     (workerSrc.match(/buildFacts\(/g) || []).length, 2);      // 정의 하나 + 호출 하나
   eq('사실 원본이 TurnContext로 들어간다',
-    /const turnCtx = makeTurnContext\([\s\S]{0,500}facts: \[\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\)\]/.test(workerSrc), true);
+    /const turnCtx = makeTurnContext\([\s\S]{0,600}facts: \[\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\),\s*\n\s*\.\.\.partnerSceneFacts\(routed\.reason, room, body\.partner\)\]/.test(workerSrc), true);
   eq('고르는 쪽도 같은 원본에서 받는다',
     /const stageFacts = factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
   eq('재시도해도 같은 이름이다', (() => {
@@ -5649,6 +5649,78 @@ eq('시간표 단추는 peek보다 좁다',
       history: [{ role: 'user', content: '배고파' }] }, '저도요.');
     eq('서 있는 질문이 사실로 실린다', writerSaw().includes('아직 설명하지 않았다'), true);
     eq('딴 얘기 중에는 안 움직인다', c.data.effects || [], []);
+  })();
+
+  /* ── 정식 첫 연락이 상태기에 걸린다 — 문구집의 실제 흐름 그대로 ── */
+  await (async () => {
+    const opener = [
+      { role: 'assistant', sender: 'minhyun', content: '선생님.' },
+      { role: 'assistant', sender: 'minhyun', content: '저 알죠?' },
+      { role: 'assistant', sender: 'minhyun', content: '선생님이 저 책임진다면서요.' },
+    ];
+    const asked = reply => ({ mode: 'chat', room: 'minhyun', user_name: '선생님',
+      history: [...opener, { role: 'user', content: reply }] });
+    /* 문구집 4028의 정식 설명으로 답하면 explained까지 간다 */
+    const a = await runScene(asked('무슨 책임이요?'),
+      '우리 저번에 병원 옥상에서 만났는데. 제가 학생이 담배 피우는데 왜 뭐라고 안 하냐니까.');
+    eq('정식 답 뒤에 설명하면 unseen→explained',
+      (a.data.effects || []).map(e => [e.key, e.from, e.to]),
+      [['firstContact', 'unseen', 'explained']]);
+    /* 회피하면 질문이 서 있는다 */
+    const b = await runScene(asked('누구세요?'), '그럼 그냥 모르는 사람이네요.');
+    eq('정식 답에 회피하면 unseen→pending',
+      (b.data.effects || []).map(e => e.to), ['pending']);
+    /* 같은 「네?」가 평범한 대화 뒤에서는 아무것도 안 세운다 */
+    const c = await runScene({ mode: 'chat', room: 'minhyun', user_name: '선생님',
+      history: [{ role: 'assistant', sender: 'minhyun', content: '내일 시험이에요.' },
+                { role: 'user', content: '네?' }] }, '수학요.');
+    eq('평범한 대화 뒤의 「네?」는 안 세운다', c.data.effects || [], []);
+  })();
+
+  /* ── 선택의 정체가 프롬프트에 실린다 — 두 방향 다 ── */
+  await (async () => {
+    /* 정해지는 턴(본인 방) — 아직 partnerKnown이 안 뒤집힌 상태에서도 안다 */
+    const a = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      partner: 'jaeeon', scene_reason: 'partner_confirm',
+      history: [{ role: 'user', content: '당신이에요.' }] }, '…그래.');
+    eq('정해지는 턴에 누구인지가 실린다',
+      [a.data.scene_ack, writerSaw().includes('유저가 이재언을 상대로 정했다')],
+      ['partner_confirm', true]);
+    /* 본인 방이 아니면 그 사유는 안 열린다 */
+    const w = await runScene({ mode: 'chat', room: 'minhyun', user_name: '선생님',
+      partner: 'jaeeon', scene_reason: 'partner_confirm',
+      history: [{ role: 'user', content: '있잖아' }] }, '네.');
+    eq('남의 방에서는 정해지는 장면이 안 열린다',
+      [w.data.scene_ack, stagesOf(w).includes('finalizer')], [undefined, false]);
+    /* 처음 아는 턴(다른 쪽 방) — 누구인지까지 */
+    const b = await runScene({ mode: 'chat', room: 'minhyun', user_name: '선생님',
+      partner: 'jaeeon', scene_reason: 'partner_known',
+      history: [{ role: 'user', content: '있잖아' }] }, '…알아요.');
+    eq('처음 아는 턴에 누가 선택됐는지가 실린다',
+      [b.data.scene_ack, writerSaw().includes('이재언을 상대로 정했다')],
+      ['partner_known', true]);
+    /* ack 뒤 — 지속 사실이 같은 정체를 유지한다. 반대 방향으로 확인 */
+    await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      partner: 'minhyun', story: { partnerKnown: { jaeeon: true, minhyun: false } },
+      history: [{ role: 'user', content: '안녕' }] }, '네.');
+    eq('ack 뒤에도 누구인지가 남는다 — 반대 방향',
+      writerSaw().includes('이재언은 유저가 이민현을 상대로 정했다는 것을 안다'), true);
+    /* 한쪽만 알 때 다른 쪽 방에는 안 샌다 */
+    await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      partner: 'jaeeon', story: { partnerKnown: { jaeeon: false, minhyun: true } },
+      history: [{ role: 'user', content: '안녕' }] }, '네.');
+    eq('한쪽만 알 때 다른 방에 안 샌다', writerSaw().includes('상대로 정했다'), false);
+    /* 둘 다 알면 단톡이 공유 사실로 받는다 */
+    await runScene({ mode: 'chat', room: 'group', user_name: '선생님',
+      partner: 'jaeeon', story: { partnerKnown: { jaeeon: true, minhyun: true } },
+      history: [{ role: 'user', content: '안녕' }] }, '[이재언] 네.');
+    eq('둘 다 알면 단톡에 공유 사실로 실린다',
+      writerSaw().includes('두 사람 다 그 사실을 안다'), true);
+    /* 한쪽만 알면 단톡에도 없다 */
+    await runScene({ mode: 'chat', room: 'group', user_name: '선생님',
+      partner: 'jaeeon', story: { partnerKnown: { jaeeon: true, minhyun: false } },
+      history: [{ role: 'user', content: '안녕' }] }, '[이재언] 네.');
+    eq('한쪽만 알면 단톡에도 없다', writerSaw().includes('상대로 정했다'), false);
   })();
 
   /* ── 예약된 WHO 장면 — 승인과 ack, 그리고 이미 아는 사람 ── */
@@ -7349,7 +7421,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('상태가 받쳐줘야 올라간다',
     sceneTier('partner_confirm', { partner: null, days: 40, unlocked: ['x'] }).tier, 'normal');
   eq('둘 다 맞으면 올라간다',
-    sceneTier('partner_confirm', { partner: 'minhyun', days: 40, unlocked: [] }).tier, 'critical');
+    sceneTier('partner_confirm', { room: 'minhyun', partner: 'minhyun', days: 40, unlocked: [] }).tier, 'critical');
   eq('떠나는 날은 날짜가 받쳐줘야 한다',
     sceneTier('dday_choice', { partner: null, days: 3, unlocked: [] }).tier, 'normal');
   eq('해금이 없으면 기억 공개도 아니다',
@@ -7615,6 +7687,23 @@ eq('시간표 단추는 peek보다 좁다',
     '옛날에 알던 사이처럼 편하네요', '어디서 만났는지 까먹었대', '우리 어제 만났잖아',
     '우리 언제 만나?',
   ].filter(t => FIRSTMEET_ASK.test(t)), []);
+  /* ── 첫 선톡 바로 뒤의 정식 답들 (문구집 4019의 게이트) ──
+     민현의 「저 알죠? / 책임진다면서요」 뒤에 유저가 실제로 치는 답은
+     질문 문형이 아니다. 직전 발화가 그 선톡일 때만 질문으로 센다. */
+  {
+    const OPEN = '선생님이 저 책임진다면서요.';
+    const REPLIES = ['무슨 말이에요', '뭔 소리예요', '무슨 소리야', '네?', '누구세요',
+      '기억 안 나는데', '무슨 책임이요', '뭘 책임져요', '제가요?'];
+    eq('첫 선톡 뒤의 정식 답이 전부 걸린다', REPLIES.filter(t =>
+      !(ENG.FIRSTMEET_OPEN.test(OPEN) && ENG.FIRSTMEET_REPLY.test(t))), []);
+    eq('「저 알죠?」 뒤에도 걸린다',
+      ENG.FIRSTMEET_OPEN.test('저 알죠?'), true);
+    /* 같은 말이 평범한 대화 뒤에서는 질문이 아니다 */
+    eq('평범한 말 뒤의 「네?」는 질문이 아니다', REPLIES.filter(t =>
+      ENG.FIRSTMEET_OPEN.test('내일 시험이에요.') && ENG.FIRSTMEET_REPLY.test(t)), []);
+    eq('직접 질문 경로는 그대로다', FIRSTMEET_ASK.test('우리 어디서 만났지?'), true);
+  }
+
   /* 설명 판정 — 낱말 하나가 아니라 병원 옥상이라는 짝이거나 만난 문장이다 */
   eq('설명 판정 — 잡아야 할 것', [
     '병원 옥상에서 만났잖아요.', '옥상에서 봤잖아요.', '재활하던 병원요.', '재활 치료 받던 데요.',
@@ -7655,11 +7744,20 @@ eq('시간표 단추는 peek보다 좁다',
        lastChar: '네.', lastUser: '무슨 말이에요?' })),
      approveReason('null_identity', CTX({ originPhase: 'claimed_told',
        lastChar: '처음부터.', lastUser: '무슨 말이에요?' }))], [true, false, false]);
-  eq('처음 아는 자리 — 상대가 있고 아직 모를 때만',
-    [approveReason('partner_known', CTX({ partner: 'jaeeon' })),
-     approveReason('partner_known', CTX({ partner: 'jaeeon',
+  /* CTX 기본 방이 jaeeon이다 — 다른 쪽 방에서만 「처음 안다」가 열린다 */
+  eq('처음 아는 자리 — 상대가 있고, 다른 쪽 방이고, 아직 모를 때만',
+    [approveReason('partner_known', CTX({ partner: 'minhyun' })),
+     approveReason('partner_known', CTX({ partner: 'minhyun',
        story: { ...ST0, partnerKnown: { jaeeon: true, minhyun: false } } })),
-     approveReason('partner_known', CTX({}))], [true, false, false]);
+     approveReason('partner_known', CTX({ partner: 'jaeeon' })),   // 본인 방이다
+     approveReason('partner_known', CTX({}))], [true, false, false, false]);
+  eq('정해지는 자리는 본인 방에서만',
+    [approveReason('partner_confirm', CTX({ partner: 'jaeeon' })),
+     approveReason('partner_confirm', CTX({ partner: 'minhyun' }))], [true, false]);
+  /* 아직 코드가 확인할 상태 근거가 없는 사유는 안 올린다 */
+  eq('근거 없는 사유는 예약해도 안 올라간다',
+    [approveReason('irreversible', CTX({})), approveReason('conflict_result', CTX({}))],
+    [false, false]);
 
   /* ── 감지는 예약 없이도 올린다. 화면 선택 사유는 감지로 안 올린다 ── */
   eq('예약이 없어도 말이 그 장면이면 올라간다',
@@ -7711,6 +7809,37 @@ eq('시간표 단추는 peek보다 좁다',
     eq('상대를 아는 것도 그 사람만',
       [factsForSpeaker(ctx, 'jaeeon').some(f => f.fact_id === 'story.partner_known.jaeeon'),
        factsForSpeaker(ctx, 'minhyun').some(f => f.fact_id === 'story.partner_known.minhyun')], [true, false]);
+  }
+
+  /* ── 「안다」에는 누구인지가 들어 있어야 한다 ──
+     최근 대화가 잘리면 이 사실이 유일한 근거다. 정해졌다는 것만 남고
+     누구인지가 없으면, 재언은 자기가 선택됐는지도 모른다. */
+  {
+    const one = who => storyFacts(makeStoryState({ partnerId: 'jaeeon',
+      partnerKnown: { [who]: true } })).map(f => f.value).join(' ');
+    eq('본인은 자신이 선택된 것을 안다', one('jaeeon').includes('유저가 자신을 상대로 정했다'), true);
+    eq('다른 쪽은 누가 선택됐는지 안다', one('minhyun').includes('유저가 이재언을 상대로 정했다'), true);
+    const rev = storyFacts(makeStoryState({ partnerId: 'minhyun',
+      partnerKnown: { jaeeon: true } })).map(f => f.value).join(' ');
+    eq('반대 방향도 정확하다', rev.includes('유저가 이민현을 상대로 정했다'), true);
+    /* 둘 다 알면 공유 사실 하나가 되어 단톡 교집합에 실린다 */
+    const both = storyFacts(makeStoryState({ partnerId: 'jaeeon',
+      partnerKnown: { jaeeon: true, minhyun: true } }));
+    const ctx2 = makeTurnContext({}, { facts: both });
+    eq('둘 다 알면 공유 사실이 된다',
+      [both.map(f => f.fact_id), ENG.sharedFactsForRoom(ctx2, ['jaeeon', 'minhyun']).length],
+      [['story.partner_known.both'], 1]);
+    /* 한쪽만 알 때는 교집합에 없다 — 공동방에 새지 않는다 */
+    const half = makeTurnContext({}, { facts: storyFacts(makeStoryState({ partnerId: 'jaeeon',
+      partnerKnown: { minhyun: true } })) });
+    eq('한쪽만 알면 공동방에 없다', ENG.sharedFactsForRoom(half, ['jaeeon', 'minhyun']), []);
+    /* 그 장면이 벌어지는 턴 — 아직 안 뒤집힌 상태에서도 누구인지가 실린다 */
+    eq('정해지는 턴의 사실', ENG.partnerSceneFacts('partner_confirm', 'jaeeon', 'jaeeon')
+      .map(f => [f.fact_id, f.known_by.join('·')]),
+      [['story.partner_choice.confirm', 'jaeeon·user']]);
+    eq('처음 아는 턴의 사실은 누구인지를 말한다',
+      ENG.partnerSceneFacts('partner_known', 'minhyun', 'jaeeon')[0].value.includes('이재언을 상대로 정했다'), true);
+    eq('상대가 없으면 장면 사실도 없다', ENG.partnerSceneFacts('partner_confirm', 'jaeeon', null), []);
   }
 
   /* ── 전환은 검증된 응답 뒤에만, 코드가 만든다 (E3) ── */

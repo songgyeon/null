@@ -2738,13 +2738,49 @@ function storyFacts(st) {
     F.push(makeFact("story.jaeeon_memory.acknowledged",
       "이재언이 유저가 공부방의 그 아이였다는 것을 인정했다",
       "state", ["jaeeon", "user"]));
-  if ((st.partnerKnown || {}).jaeeon)
-    F.push(makeFact("story.partner_known.jaeeon",
-      "이재언은 유저의 상대가 정해졌다는 것을 안다", "state", ["jaeeon"]));
-  if ((st.partnerKnown || {}).minhyun)
-    F.push(makeFact("story.partner_known.minhyun",
-      "이민현은 유저의 상대가 정해졌다는 것을 안다", "state", ["minhyun"]));
+  /* ── 누구인지까지 적는다 ──
+     「정해졌다는 것을 안다」만으로는 최근 대화가 잘린 뒤 재언이 자기가
+     선택됐는지조차 구별할 수 없다. partnerKnown(안다)과 partnerId(누구)를
+     조합해 정확한 사실을 만든다. 둘 다 알게 되면 두 사람이 공유하는
+     사실 하나가 된다 — 단톡·관전은 교집합 투영이라 그래야 실린다.
+     한쪽만 알 때는 그 사람에게만 — 다른 방·공동방에 새지 않는다. */
+  const P = { jaeeon: "이재언", minhyun: "이민현" };
+  const pk = st.partnerKnown || {};
+  const pid = st.partnerId;
+  if (pid && pk.jaeeon && pk.minhyun) {
+    F.push(makeFact("story.partner_known.both",
+      `유저는 ${P[pid]}을 상대로 정했고, 두 사람 다 그 사실을 안다`,
+      "state", ["jaeeon", "minhyun", "user"]));
+  } else {
+    for (const who of ["jaeeon", "minhyun"]) {
+      if (!pk[who]) continue;
+      const line = !pid ? `${P[who]}은 유저의 상대가 정해졌다는 것을 안다`
+        : who === pid ? `${P[who]}은 유저가 자신을 상대로 정했다는 것을 안다`
+        : `${P[who]}은 유저가 ${P[pid]}을 상대로 정했다는 것을 안다`;
+      F.push(makeFact(`story.partner_known.${who}`, line, "state", [who, "user"]));
+    }
+  }
   return F;
+}
+
+/* ── 그 장면이 벌어지는 턴의 사실 ──
+   partner_confirm 턴에는 아직 partnerKnown이 안 뒤집혀 있다(성공 저장 뒤에
+   뒤집힌다). 그러면 위 지속 사실이 없어서 쓰는 쪽·검사·마무리가 정작
+   그 장면에서 누가 선택됐는지 모른 채 쓴다. 승인된 사유가 있을 때 이번
+   턴의 사실을 따로 얹는다 — 이 방 사람만 안다. */
+function partnerSceneFacts(reason, room, partner) {
+  const p = partner === "jaeeon" || partner === "minhyun" ? partner : null;
+  if (!p || (room !== "jaeeon" && room !== "minhyun")) return [];
+  const P = { jaeeon: "이재언", minhyun: "이민현" };
+  if (reason === "partner_confirm" || reason === "partner_first_reaction")
+    return [makeFact("story.partner_choice.confirm",
+      `유저가 ${P[p]}을 상대로 정했다. 본인의 일이다 — 지금 이 자리가 그 확인이다`,
+      "state", [room, "user"])];
+  if (reason === "partner_known")
+    return [makeFact("story.partner_choice.known",
+      `유저가 ${P[p]}을 상대로 정했다. ${P[room]}은 지금 이 자리에서 처음 그 사실을 안다`,
+      "state", [room, "user"])];
+  return [];
 }
 
 /* ── 자연어는 여기가 마지막 경계다 ──
@@ -3919,6 +3955,14 @@ const MEMORY_PROBE = /공부방|사탕\s*목걸이|20년\s*전|(^|\s)(저|나|�
 /* 민현에게 처음 만난 자리를 묻는 말 — 1인칭 표지가 있어야 한다.
    「삼촌이랑은 어떻게 만났어요?」 같은 제3자 질문이 우리 얘기가 되면 안 된다 */
 const FIRSTMEET_ASK = /(^|\s)(우리|저랑|나랑)\s*(어디서|어떻게|언제)?\s*(만났|만난\s*적|본\s*적)|(^|\s)(나|저)를?\s*(어떻게|왜)\s*알|(^|\s)우리\s*(아는|알던)\s*사이/;
+/* ── 첫 선톡 바로 뒤의 답도 그 질문이다 ──
+   민현은 「저 알죠? / 선생님이 저 책임진다면서요.」로 연다(문구집이 못박은
+   대목). 그 말에 유저가 실제로 치는 답은 「무슨 말이에요」 「누구세요」
+   「무슨 책임이요」 「네?」다 — 어디서 만났냐고 묻는 문장이 아니다.
+   그래서 이 답들은 **직전 인물 발화가 그 첫 선톡일 때만** 첫 만남 질문으로
+   센다. 평범한 대화 뒤의 「네?」가 여기 걸리면 없던 질문이 서 버린다. */
+const FIRSTMEET_OPEN = /저\s*알죠|책임진다(면서|고)/;
+const FIRSTMEET_REPLY = /무슨\s*(말|소리)|뭔\s*소리|누구(세요|야|시|신데)|기억\s*안\s*나|무슨\s*책임|뭘\s*책임|제가요|^\s*네+\s*\?/;
 /* 민현이 실제로 설명했는가 — 정사는 재활 치료 중인 병원 옥상이다.
    낱말 하나로는 안 된다: 「병원 가 봐요」 「옥상에서 컵라면」 「재활용」이
    설명이 되면, 서 있던 질문이 설명 없이 조용히 닫힌다. 병원 옥상이라는
@@ -3973,12 +4017,15 @@ function approveReason(r, ctx) {
   const said = String(ctx.lastUser || "");
   switch (r) {
     case "partner_confirm":
+      /* 정해지는 것은 본인의 방에서만 일어난다 */
+      return !!partner && ctx.room === partner;
     case "partner_first_reaction":
       return !!partner;
     case "partner_known":
-      /* 실제 상대가 있고, 이 방의 사람이 **아직 모를 때만**. 이미 아는
-         사람에게 「처음 안다」 장면을 두 번 열 수는 없다. */
-      return !!partner && !((st.partnerKnown || {})[ctx.room]);
+      /* 실제 상대가 있고, **다른 쪽** 방이고, 그 사람이 아직 모를 때만.
+         본인 방에서 「처음 안다」가 열리면 정해진 사람이 남 얘기를 듣는
+         그림이 되고, 이미 아는 사람에게 두 번 열 수도 없다. */
+      return !!partner && ctx.room !== partner && !((st.partnerKnown || {})[ctx.room]);
     case "dday_choice": case "ending": case "parting":
       return days >= ENROLL_DAYS;
     case "memory_reveal":
@@ -3999,7 +4046,9 @@ function approveReason(r, ctx) {
       return (ctx.room === "jaeeon" || ctx.room === "minhyun")
         && Number(ctx.stageIdx) >= 1 && CONFESS_SAY.test(said);
     default:
-      return true;   // irreversible · conflict_result — 아직 상태 근거가 없다
+      /* irreversible·conflict_result — 아직 코드가 확인할 상태 근거가 없다.
+         근거 없이 올리지 않는다. 근거가 생기면 그때 조건을 단다. */
+      return false;
   }
 }
 
@@ -4830,7 +4879,11 @@ export default {
     const story = makeStoryState({
       firstContact: (body.story || {}).firstContact,
       jaeeonMemory: (body.story || {}).jaeeonMemory,
-      partnerKnown: (body.story || {}).partnerKnown });
+      partnerKnown: (body.story || {}).partnerKnown,
+      /* 누구를 골랐는지도 이야기 상태다. 이게 빠지면 「상대가 정해졌다는
+         것을 안다」만 남고 **누구인지**가 없다 — 최근 대화가 잘리는 순간
+         재언은 자기가 선택됐는지도 모르게 된다. */
+      partnerId: body.partner });
     /* ── 중요한 장면인지는 코드가 정한다. **프롬프트를 만들기 전에** ──
        전에는 volatile을 다 지은 뒤에 판정했다. 그러면 승인된 사유를
        프롬프트에 실을 수가 없다 — 쓰는 쪽이 지금이 어떤 장면인지 모른 채
@@ -4855,7 +4908,8 @@ export default {
         partnerKnown: story.partnerKnown, originPhase: body.origin_phase },
       { place, came, giftNow: gift, givenHistory, now, day, season,
         sceneReason: routed.reason,
-        facts: [...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story)] });
+        facts: [...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story),
+                ...partnerSceneFacts(routed.reason, room, body.partner)] });
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
 
@@ -4936,7 +4990,9 @@ export default {
                            후보에서 story_transition을 낼 때 본다. */
                         story, sceneReason: routed.reason, greet: body.greet === true,
                         firstMeetAsked: mode === "chat" && room === "minhyun"
-                          && body.greet !== true && FIRSTMEET_ASK.test(lastUser) };
+                          && body.greet !== true
+                          && (FIRSTMEET_ASK.test(lastUser)
+                              || (FIRSTMEET_OPEN.test(lastChar) && FIRSTMEET_REPLY.test(lastUser))) };
 
       if (engineMode(env) === "legacy") {
         const t0 = Date.now();
@@ -5274,7 +5330,8 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          directorPacket, readDecision, DIRECTOR_RULES,
-         CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts,
+         CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
+         FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
          JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,
          sceneHead, criticPacket, finalizerPacket, readProblems,
