@@ -134,11 +134,15 @@ const EVENTS = [
 ];
 
 function eventOf(row) {
+  /* 어느 갈래에 맞는지 **전부** 세어둔다. 하나도 안 맞으면(other) 사건
+     분모가 조용히 모자라고, 둘 이상 맞으면 순서가 바뀔 때 방향이 뒤집힌다 —
+     「이재언에게 받았다」와 「이재언이 받았다」가 그 자리다. 둘 다 보고한다. */
+  const fit = EVENTS.filter(([, re]) => re.test(row.text)).map(([k]) => k);
   for (const [kind, re, pick] of EVENTS) {
     const m = row.text.match(re);
-    if (m) return { kind, ...pick(m), row };
+    if (m) return { kind, ...pick(m), row, fit };
   }
-  return { kind: 'other', row };
+  return { kind: 'other', row, fit };
 }
 
 /* ── 응답 턴 ──
@@ -285,8 +289,13 @@ function report(name, M) {
   /* 지문이 사건이다. 안 읽히는 지문이 있으면 사건 분모가 조용히 틀린다 */
   const ek = {};
   for (const e of M.stages) ek[e.kind] = (ek[e.kind] || 0) + 1;
-  console.log('  사건 — ' + Object.entries(ek).map(([k, v]) => `${k} ${v}`).join(' · ')
-    + (ek.other ? '   ← other가 있으면 지문 갈래를 못 읽은 것이다' : ''));
+  console.log('  사건 — ' + Object.entries(ek).map(([k, v]) => `${k} ${v}`).join(' · '));
+  const unread = M.stages.filter(e => e.kind === 'other');
+  const twice = M.stages.filter(e => (e.fit || []).length > 1);
+  console.log(`  지문 분류 — 미분류 ${unread.length} · 중복 ${twice.length}`
+    + (unread.length || twice.length ? '   ← 0이 아니면 사건 분모를 믿지 마라' : ''));
+  unread.forEach(e => console.log(`      ✗ 못 읽은 지문 ${e.row.line}줄 — ${cut(e.row.text, 60)}`));
+  twice.forEach(e => console.log(`      ✗ 두 갈래에 걸린다 ${e.row.line}줄 [${e.fit.join(', ')}] ${cut(e.row.text, 50)}`));
 
   /* ── 분모를 먼저 적는다 ──
      수치보다 분모가 먼저다. 무엇으로 나눴는지 모르면 수치는 아무 말도 아니다. */
@@ -357,12 +366,38 @@ function scoreGolden(name, M, gold) {
    작가가 쓴 문구집은 전부 정답이다. 여기서 하나라도 걸리면 그건 자가 틀린
    것이지 대사가 틀린 것이 아니다. 규칙을 넓힐 때마다 여기를 먼저 본다 —
    골든은 「잡아야 할 것」을 재고 이건 「잡으면 안 되는 것」을 잰다. */
+/* ── 정상 반례 ──
+   적대 검증이 지어낸 「아직 안 쓰였지만 실제로 나올 만한 정상 대사」를
+   파일로 박아뒀다. 문구집만으로는 **없는 것을 안 잡는다**까지만 알 수 있다.
+   여기 한 줄이라도 걸리면 대사가 아니라 자가 틀린 것이다. */
+function normalLines() {
+  const p = join(ROOT, 'docs/golden/_normal.tsv');
+  if (!existsSync(p)) return [];
+  const out = [];
+  for (const [i, raw] of readFileSync(p, 'utf8').split('\n').entries()) {
+    if (!raw.trim() || raw.startsWith('#')) continue;
+    const [kind, text, why] = raw.split('\t');
+    if (!kind || !text) continue;
+    out.push({ line: i + 1, kind: kind.trim(), t: text.trim(), why: (why || '').trim() });
+  }
+  return out;
+}
+
 const CORPUS_LINE = /^　(재언|민현|둘|해설)\s*—\s*(.+?)\\?$/;
 function corpusFalsePositives() {
   const p = join(ROOT, 'docs/dialogue-corpus.md');
   if (!existsSync(p)) return null;
   const bad = [];
   let n = 0;
+  const extra = normalLines();
+  for (const x of extra) {
+    const leak = seesLeak(x.t);
+    if (leak) bad.push({ line: `반례 ${x.line}`, code: leak.code, why: leak.why, t: x.t });
+    else if (seesTail(x.t)) bad.push({ line: `반례 ${x.line}`, code: 'BANNED_TAIL', t: x.t });
+    else if (seesHelper(x.t)) bad.push({ line: `반례 ${x.line}`, code: 'HELPER', t: x.t });
+    else if (seesUserWrite(x.t)) bad.push({ line: `반례 ${x.line}`, code: 'USER_WRITE', t: x.t });
+  }
+  n += extra.length;
   for (const [i, raw] of readFileSync(p, 'utf8').split('\n').entries()) {
     const m = raw.match(CORPUS_LINE);
     if (!m) continue;
@@ -394,7 +429,7 @@ if (!files.length) {
    그 아래 수치는 전부 못 믿는다. */
 const fp = corpusFalsePositives();
 if (fp) {
-  console.log(`\n──── 오탐 시험대 — 작가 문구집 ${fp.n}줄`);
+  console.log(`\n──── 오탐 시험대 — 작가 문구집 + 적대 반례 ${fp.n}줄`);
   if (!fp.bad.length) console.log('  ✓ 0건. 자가 멀쩡한 대사를 안 잡는다');
   else {
     console.log(`  ✗ ${fp.bad.length}건 — 아래 수치를 믿지 마라`);

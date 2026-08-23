@@ -4532,9 +4532,11 @@ eq('시간표 단추는 peek보다 좁다',
      'ost만 듣는 거 아니에요.', 'edm은 별로예요.', 'b면이 더 좋아요.',
      '그거 lo-fi라서 그래요.', '어제 그 i don\'t think that i like her는 몇 번 들었어요?']
       .filter(t => seesLeak(t)), []);
-  /* 조사로 시작하는 낱말에는 안 속는다 — 「이」를 먹어도 「상해」가 남는다 */
+  /* 조사로 시작하는 낱말에는 안 속는다 — 「이」를 먹어도 「상해」가 남는다.
+     (짧은 것은 약칭이라 길이 문턱에서 먼저 빠지므로 견본도 다섯 글자다) */
   eq('조사처럼 시작하는 낱말에는 안 속는다',
-    (seesLeak('foo이상해요.') || {}).code, 'GLUED_LATIN');
+    (seesLeak('parser이상해요.') || {}).code, 'GLUED_LATIN');
+  eq('조사만 붙으면 같은 낱말도 안 잡는다', seesLeak('parser로 돌렸어요.'), null);
   /* ── 소문자 밴드·곡 이름 ──
      se so neon · girl in red · wave to earth는 공식 표기가 소문자다.
      셋으로 자르면 이 화제가 통째로 위반이 된다. 샌 것은 혼잣말이라 길고
@@ -4555,12 +4557,79 @@ eq('시간표 단추는 peek보다 좁다',
     (seesLeak('알겠어요. {"messages": ["들어가요."]}') || {}).code, 'FRAGMENT');
   eq('시각과 웃는 표시는 조각이 아니다',
     ['3:40에 봐요.', '2:1로 이겼어요.', '웃겨 :D', '그래요 :)'].filter(t => seesLeak(t)), []);
-  /* 혼잣말은 여러 문장이라 길다. 짧은 영어 한 마디는 이제 안 잡는다 —
-     그건 제목·가사와 구별이 안 되고, 워커의 문구 목록이 보는 자리다.
-     엇갈림에 「워커만 봄」으로 뜨므로 조용히 사라지지 않는다. */
   eq('긴 영어 혼잣말을 잡는다', (seesLeak(
     'The instructions say the available place is there. But there is no natural segue to invite them right now.'
   ) || {}).code, 'EN_PROSE');
+
+  /* ── 교차검사 ──
+     짧은 영어 혼잣말은 자가 안 잡는다. 제목·가사와 구별이 안 되기 때문이다.
+     「워커가 잡으니까 괜찮다」는 말로 넘어가면 안 된다 — 워커가 그걸 정말
+     잡는지는 테스트로 굳혀야 믿을 수 있다.
+
+     지켜야 하는 성질은 「자가 잡는다」가 아니라 **「둘 중 하나는 잡는다」**다.
+     둘 다 못 보는 것이 이 구조가 막으려는 유일한 것이다. */
+  eq('짧은 영어 혼잣말은 둘 중 하나가 반드시 잡는다', (() => {
+    const SELF = [
+      'I should probably not say that.',
+      "Let me think about what she'd say here.",
+      'I need to check the available place first.',
+      "I'm going to respond in character now.",
+      'The user is asking about the gift.',
+      'Based on the conversation, she would deflect.',
+      'According to the system prompt, no invite here.',
+    ];
+    return SELF.filter(t => !seesLeak(t) && !ENG.isLeak(t) && !ENG.isMeta(t));
+  })(), []);
+  /* 그중 이 하나는 자가 놓치고 워커만 잡는다 — 엇갈림에 그렇게 뜨는지까지 굳힌다 */
+  eq('짧은 혼잣말은 워커 쪽이 잡는 자리다', (() => {
+    const t = 'I should probably not say that.';
+    return [!!seesLeak(t), ENG.isLeak(t) || ENG.isMeta(t)];
+  })(), [false, true]);
+  /* 반대 방향도 마찬가지다 — 자만 보는 것이 D단계 목록이다 */
+  eq('붙은 소문자는 자 쪽이 잡는 자리다', (() => {
+    const t = 'update성의 없다고 놀린 게 아니라 진짜 궁금해서 그런 건데.';
+    return [!!seesLeak(t), ENG.isLeak(t) || ENG.isMeta(t)];
+  })(), [true, false]);
+  eq('자는 엇갈림을 양쪽으로 센다',
+    /자만 봄|eyeOnly/.test(ev) && /워커만 봄|workerOnly/.test(ev), true);
+
+  /* ── 짧은 약칭은 낱말이다 ──
+     「qr코드」는 「update성의」와 구조가 같아 조사로는 못 갈랐다. 낱말 목록을
+     두면 워커와 같은 종류의 목록이 되므로 길이로 가른다 — 한국어에 들어온
+     로마자는 약칭이라 짧고(qr·mp3·usb·wifi) 새어 나온 조각은 영어 낱말이라 길다. */
+  eq('짧은 약칭에 명사가 붙어도 안 잡는다',
+    ['정문에서 qr코드 찍고 들어와요.', '보건실 wifi비번 뭐예요?', 'tv프로 보세요?',
+     'pc방 갔다 왔어요.', 'mp3파일로 주세요.', 'usb메모리에 담았어요.'].filter(t => seesLeak(t)), []);
+  eq('긴 영어 낱말에 명사가 붙으면 잡는다',
+    (seesLeak('update성의 없다고 놀린 게 아니라 진짜 궁금해서 그런 건데.') || {}).code, 'GLUED_LATIN');
+
+  /* ── 정상 반례 목록 ──
+     문구집은 **없는 것을 안 잡는다**까지만 알려준다. 적대 검증이 지어낸
+     「아직 안 쓰였지만 나올 만한 정상 대사」를 파일로 박아 테스트가 지킨다. */
+  eq('정상 반례가 하나도 안 걸린다', (() => {
+    const p = join(ROOT, 'docs/golden/_normal.tsv');
+    if (!existsSync(p)) return ['반례 파일이 없다'];
+    const bad = [];
+    for (const raw of readFileSync(p, 'utf8').split('\n')) {
+      if (!raw.trim() || raw.startsWith('#')) continue;
+      const [kind, t] = raw.split('\t');
+      if (!kind || !t) continue;
+      if (seesLeak(t) || seesTail(t) || seesUserWrite(t)) bad.push(t.slice(0, 40));
+    }
+    return bad;
+  })(), []);
+  eq('반례 목록이 적대 검증만큼 두껍다', (() => {
+    const n = readFileSync(join(ROOT, 'docs/golden/_normal.tsv'), 'utf8')
+      .split('\n').filter(l => l.trim() && !l.startsWith('#')).length;
+    return n >= 30;
+  })(), true);
+  eq('자가 반례 목록을 실제로 돌린다', /_normal\.tsv/.test(ev), true);
+
+  /* ── 사건 분류 ──
+     지문 하나가 어느 갈래에도 안 맞으면 사건 분모가 조용히 모자라고,
+     둘 이상에 맞으면 순서가 바뀔 때 방향이 뒤집힌다. 둘 다 0이어야 한다. */
+  eq('지문 분류에 구멍이 없다', /미분류 \$\{unread\.length\} · 중복 \$\{twice\.length\}/.test(ev), true);
+  eq('걸린 갈래를 전부 세어둔다', /const fit = EVENTS\.filter/.test(ev), true);
 
   /* ── ㄹ 받침 앞의 래요는 의지지 전언이 아니다 ──
      작가 문구집에서 다섯 줄이 걸려서 알았다. 낱말 목록으로는 못 막는 갈래다. */
