@@ -1,7 +1,7 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
 /* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
-import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner } from './rules';
+import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner, loadStory, originPhase } from './rules';
 import { loadGifts } from './profiles';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
@@ -245,6 +245,12 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     ...(reqId ? { request_id: reqId } : {}),
     ...(sceneReason ? { scene_reason: sceneReason } : {}),
     ...(loadPartner() ? { partner: loadPartner() } : {}),
+    /* ── 이야기 상태 (E3·E4) ──
+       워커는 아무것도 기억하지 않아서 이야기가 어디까지 왔는지도 실어
+       보낸다. 감지(기억·고백·정체)는 워커가 한다 — 정규식을 여기 복제하지
+       않는다. 출처 문답 단계는 그 방 사람 것이라 1:1에서만 보낸다. */
+    story: loadStory(),
+    ...(room === 'jaeeon' || room === 'minhyun' ? { origin_phase: originPhase(room) } : {}),
     ...(extra || {}),
   });
 }

@@ -1153,6 +1153,45 @@ const didOnce=id=>loadEvDone().indexOf(id)>=0;
 const SCENE_REASONS = ["memory_reveal","null_identity","confession","irreversible",
   "partner_confirm","dday_choice","partner_first_reaction","partner_known",
   "parting","ending","conflict_result"];
+/* ── 이야기 상태 (E3) ──
+   이야기가 어디까지 왔나. 워커는 아무것도 기억하지 않으므로 여기가 원본이고,
+   매 요청에 실어 보낸다. 바뀌는 길은 하나다 — 워커가 검증된 응답 뒤에 낸
+   story_transition Effect를 장부가 적용하는 것. 클라이언트가 제 손으로
+   explained/acknowledged를 찍는 자리는 없다.
+     firstContact  unseen → pending → explained   민현의 병원 옥상 설명
+     jaeeonMemory  hidden → opened → acknowledged 재언의 20년 기억
+     partnerKnown  {jaeeon,minhyun}               상대가 정해진 걸 아는가 */
+const STORY_FC=["unseen","pending","explained"];
+const STORY_JM=["hidden","opened","acknowledged"];
+const loadStory=()=>{try{
+  const o=JSON.parse(localStorage.getItem("null_story"))||{};
+  const pk=o.partnerKnown||{};
+  return{firstContact:STORY_FC.includes(o.firstContact)?o.firstContact:"unseen",
+    jaeeonMemory:STORY_JM.includes(o.jaeeonMemory)?o.jaeeonMemory:"hidden",
+    partnerKnown:{jaeeon:!!pk.jaeeon,minhyun:!!pk.minhyun}};
+}catch(e){return{firstContact:"unseen",jaeeonMemory:"hidden",partnerKnown:{jaeeon:false,minhyun:false}}}};
+const saveStory=v=>{try{localStorage.setItem("null_story",JSON.stringify(v));return true}catch(e){return false}};
+/* 앞으로만 간다. 이미 지나 있으면 한 것으로 친다 — 두 번 적용해도 같다.
+   저장은 쓰고 나서 다시 읽어 확인한다(장부의 규칙 그대로). */
+const applyStoryTransition=e=>{
+  const list=e&&e.key==="firstContact"?STORY_FC:e&&e.key==="jaeeonMemory"?STORY_JM:null;
+  if(!list||!list.includes(e.to))return"skip";
+  const s=loadStory();
+  if(list.indexOf(s[e.key])>=list.indexOf(e.to))return"done";   // 이미 지났다
+  const next={...s,[e.key]:e.to};
+  if(!saveStory(next)||loadStory()[e.key]!==e.to)return"fail";
+  return"done";
+};
+/* partner_known 장면이 실제로 성공했을 때만 뒤집힌다 — 장부의 scene_ack
+   단계가 부른다. 되풀이해도 같다. */
+const markPartnerKnown=char=>{
+  if(char!=="jaeeon"&&char!=="minhyun")return true;
+  const s=loadStory();
+  if(s.partnerKnown[char])return true;
+  const next={...s,partnerKnown:{...s.partnerKnown,[char]:true}};
+  return !!saveStory(next)&&loadStory().partnerKnown[char]===true;
+};
+
 const loadScenePend=()=>{try{return JSON.parse(localStorage.getItem("null_scene_pend"))||{}}catch(e){return{}}};
 const saveScenePend=o=>{try{localStorage.setItem("null_scene_pend",JSON.stringify(o));return true}catch(e){return false}};
 const markScene=(room,reason)=>{

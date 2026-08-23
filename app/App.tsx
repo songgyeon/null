@@ -35,7 +35,7 @@ import {
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
-  talkedEnoughIn,
+  talkedEnoughIn, applyStoryTransition, markPartnerKnown,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
 } from './lib/rules';
@@ -1695,8 +1695,13 @@ function Root() {
       }else if(e.type==='invite'){
         if(e.place&&e.char){ setInvite({place:e.place,char:e.char}); ok=true; }
       }
-      /* story_transition은 E-B에서 낸다. 스키마는 받아두되 여기서는 안 만든다 */
-      if(ok||e.type==='story_transition'){ done.push(e.id); changed=true; }
+      else if(e.type==='story_transition'){
+        /* 이야기 상태가 실제로 움직이는 유일한 자리 (E3). 앞으로만 옮기고,
+           이미 지나 있으면 한 것으로 친다. 저장이 안 되면 표를 안 찍는다 —
+           다음 응답에서 같은 id가 다시 와서 마저 간다. */
+        ok=applyStoryTransition(e)!=='fail';
+      }
+      if(ok){ done.push(e.id); changed=true; }
     }
     if(changed)await setMeta('null_eff_done',JSON.stringify(done.slice(-200)));
   };
@@ -1938,7 +1943,12 @@ function Root() {
       /* ── 승인된 장면만 지운다 ──
          워커가 사유를 거절하고 일반 턴으로 내려도 전에는 지웠다.
          실제로 올라가서 답까지 낸 경우에만 scene_ack가 온다. */
-      if(why&&data&&data.scene_ack===why) ackScene(room,why);
+      if(why&&data&&data.scene_ack===why){
+        /* partner_known이 실제로 성공했으면 그 사람은 이제 안다 —
+           웹 장부의 scene_ack 단계와 같은 규칙이다 */
+        if(why==='partner_known')markPartnerKnown(room);
+        ackScene(room,why);
+      }
       logUsage(data); rollLater(room);
     }catch(e:any){
       if(stale(room,rid))return;

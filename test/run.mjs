@@ -2522,9 +2522,10 @@ eq('자리에 있을 때는 현장이라고 설명해뒀다',
    「반응 안 했는데 / 했는데」 네 턴. 문장은 그대로 두고 자리만 옮겼다. */
 eq('유저 말을 되받아 옮기지 말라고 적어뒀다',
   /유저의 단어를 어미만 바꿔 반복하는 대신/.test(workerSrc), true);
+/* 장면 줄(승인된 사유)까지 실은 뒤가 TURN이다 — TURN은 여전히 맨 뒤 */
 eq('그 말은 가변부 맨 뒤에 있다',
   /const TURN = `\n## 이 턴\n유저의 가장 최근 발화가 짧더라도/.test(workerSrc)
-  && /\+ \(place \? "" : buildCanGo\(canGo\)\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
+  && /\? `\\n## \[지금 장면\]\\n\$\{CRITICAL_REASONS\[ctx\.sceneReason\]\}[^`]*`\s*\n\s*: ""\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
 /* 세계관에 두고 왔으면 두 군데에 같은 말이 남는다 */
 eq('세계관에는 안 남겼다',
   (workerSrc.match(/유저의 단어를 어미만 바꿔 반복하는 대신/g) || []).length, 1);
@@ -5283,7 +5284,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('사실은 요청 진입에서 한 번 만든다',
     (workerSrc.match(/buildFacts\(/g) || []).length, 2);      // 정의 하나 + 호출 하나
   eq('사실 원본이 TurnContext로 들어간다',
-    /const turnCtx = makeTurnContext\([\s\S]{0,300}facts: buildFacts\(/.test(workerSrc), true);
+    /const turnCtx = makeTurnContext\([\s\S]{0,500}facts: \[\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\)\]/.test(workerSrc), true);
   eq('고르는 쪽도 같은 원본에서 받는다',
     /const stageFacts = factsForSpeaker\(turnCtx, fallbackSender\);/.test(workerSrc), true);
   eq('재시도해도 같은 이름이다', (() => {
@@ -5551,6 +5552,112 @@ eq('시간표 단추는 peek보다 좁다',
   eq('목록을 읊지 말라고 적는다',
     renderFacts(giftFacts('jaeeon', 'mug', false), '선생님').includes('읊지 않는다'), true);
   eq('사실이 없으면 블록도 없다', renderFacts([], '선생님'), '');
+
+  /* ══════ E-B — 감지·장면·전환을 요청 진입부터 끝까지 굴린다 ══════
+     중요 장면은 쓰는 쪽 → 검사 둘 → 마무리를 탄다. 가짜가 단계마다 제
+     역할로 답해야 502가 안 난다. */
+  let sceneIp = 0;   // 요청마다 다른 IP — 레이트리밋 통을 나눠 쓴다
+  const runScene = async (body, say) => {
+    sent = [];
+    globalThis.fetch = async (url, init) => {
+      const c = JSON.parse(init.body);
+      sent.push(c);
+      const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
+        .map(b => b.text || '').join('');
+      if (sys.includes('대사를 쓰지 않는다 — 고르기만 한다'))
+        return fakeReply(JSON.stringify({ decision: 'ACCEPT', reject_codes: {} }));
+      if (sys.includes('너는 이 세계의 사실만 본다') || sys.includes('이 사람이 이 사람다운지만 본다'))
+        return fakeReply(JSON.stringify({ problems: [] }));
+      /* 마무리(FINALIZER_RULES가 system 배열 끝에 붙는다)와 쓰는 쪽 */
+      return fakeReply(JSON.stringify({ messages: [{ text: say || '네.' }] }));
+    };
+    try {
+      const res = await worker.fetch(
+        new Request('https://x/?k=열쇠', { method: 'POST', body: JSON.stringify(body),
+          headers: { 'CF-Connecting-IP': '7.7.7.' + (++sceneIp) } }),
+        { ANTHROPIC_API_KEY: 'sk-테스트', ACCESS_KEY: '열쇠', CANDIDATE_MODE: 'one' });
+      return { status: res.status, data: await res.json() };
+    } finally { globalThis.fetch = realFetch; }
+  };
+  const stagesOf = r => (r.data.stages || []).map(s => s.stage);
+
+  /* ── 예약 없이 말에서 올라간다 (E4) ── */
+  await (async () => {
+    const r = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      history: [{ role: 'user', content: '선생님 혹시 저 어디서 본 적 있지 않아요?' }] }, '…아뇨.');
+    eq('감지가 중요 경로를 연다', r.status, 200);
+    eq('검사 둘과 마무리가 실제로 돈다',
+      ['canon', 'character', 'finalizer'].filter(s => !stagesOf(r).includes(s)), []);
+    /* 예약이 아니므로 지울 것도 없다 */
+    eq('감지로 올라간 장면에는 scene_ack가 없다', r.data.scene_ack, undefined);
+    /* 승인된 사유가 쓰는 쪽 프롬프트에 실린다 (E6) */
+    eq('쓰는 쪽이 지금 장면을 안다',
+      writerSaw().includes('[지금 장면]') && writerSaw().includes('핵심 기억이 처음 공개된다'), true);
+    /* 검증된 응답 뒤 전환이 나간다 (E3) */
+    eq('기억이 hidden→opened로 움직인다',
+      (r.data.effects || []).map(e => [e.key, e.from, e.to]),
+      [['jaeeonMemory', 'hidden', 'opened']]);
+  })();
+
+  /* ── 드러낸 뒤에는 상태가 사실로 실리고, 다음 성공이 인정이다 ── */
+  await (async () => {
+    const r = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      story: { jaeeonMemory: 'opened' },
+      history: [{ role: 'user', content: '공부방 얘기 더 해주세요' }] }, '그 아이가 너였다.');
+    eq('드러낸 기억이 사실로 실린다', writerSaw().includes('이제 와서 모른다고 할 수 없다'), true);
+    eq('두 번째 성공이 인정이다',
+      (r.data.effects || []).map(e => e.to), ['acknowledged']);
+  })();
+
+  /* ── 민현의 첫 만남 — 설명했는지는 답을 보고 정한다 ── */
+  await (async () => {
+    const asked = { mode: 'chat', room: 'minhyun', user_name: '선생님',
+      history: [{ role: 'user', content: '우리 어디서 만났지?' }] };
+    const a = await runScene(asked, '병원 옥상에서 만났잖아요.');
+    eq('물었고 설명했으면 explained까지 간다',
+      (a.data.effects || []).map(e => [e.from, e.to]), [['unseen', 'explained']]);
+    const b = await runScene(asked, '그럼 그냥 모르는 사람이네요.');
+    eq('도망가면 질문이 서 있는다 — pending',
+      (b.data.effects || []).map(e => e.to), ['pending']);
+    /* 서 있는 질문은 다음 턴 프롬프트에 실린다 — 이게 원래 잡으려던 버그다 */
+    const c = await runScene({ ...asked, story: { firstContact: 'pending' },
+      history: [{ role: 'user', content: '배고파' }] }, '저도요.');
+    eq('서 있는 질문이 사실로 실린다', writerSaw().includes('아직 설명하지 않았다'), true);
+    eq('딴 얘기 중에는 안 움직인다', c.data.effects || [], []);
+  })();
+
+  /* ── 예약된 WHO 장면 — 승인과 ack, 그리고 이미 아는 사람 ── */
+  await (async () => {
+    const base = { mode: 'chat', room: 'minhyun', user_name: '선생님', partner: 'jaeeon',
+      scene_reason: 'partner_known', history: [{ role: 'user', content: '있잖아' }] };
+    const a = await runScene(base, '…알아요.');
+    eq('예약이 승인되면 그 사유가 ack로 돌아온다', a.data.scene_ack, 'partner_known');
+    const b = await runScene({ ...base,
+      story: { partnerKnown: { jaeeon: false, minhyun: true } } }, '네.');
+    eq('이미 아는 사람에게는 그 장면이 다시 없다',
+      [b.data.scene_ack, stagesOf(b).includes('finalizer')], [undefined, false]);
+  })();
+
+  /* ── 선톡·관전은 감지가 없다 ── */
+  await (async () => {
+    const g = await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님', greet: true,
+      history: [{ role: 'user', content: '공부방 기억나요?' },
+                { role: 'user', content: '(지금 시각에 맞는 안부를 한 줄)' }] }, '네.');
+    eq('선톡 턴은 일반 경로다', stagesOf(g).includes('finalizer'), false);
+    const w = await runScene({ mode: 'auto', room: 'health', user_name: '선생님',
+      scene_reason: 'partner_known', partner: 'jaeeon',
+      history: [{ role: 'user', content: '공부방 기억나요?' }] }, '[이재언] 네.');
+    eq('관전은 항상 일반 경로다', [w.status, stagesOf(w).includes('finalizer')], [200, false]);
+  })();
+
+  /* ── E5는 고정부에 산다 — 캐시를 다시 깨지 않는 자리다 ── */
+  await (async () => {
+    await runScene({ mode: 'chat', room: 'jaeeon', user_name: '선생님',
+      history: [{ role: 'user', content: '안녕' }] }, '네.');
+    eq('아끼는 것 ≠ 모른다는 것이 캐시된 고정부에 있다',
+      cachedPart().includes('아끼는 것 ≠ 모른다는 것'), true);
+    eq('일반 턴에는 장면 줄이 없다', writerSaw().includes('[지금 장면]'), false);
+  })();
 }
 
 /* 파이프라인을 실제로 굴려 본다 — 조각이 다 맞아도 이어붙인 데서 새는 것은
@@ -6621,11 +6728,93 @@ eq('시간표 단추는 peek보다 좁다',
       eq('저장이 실패하면 사건이 안 소모된다',
         (V.ls('null_auto_q') || []).map(x => x.kind), ['gift']);
     }
+
+    /* ══════ 이야기 상태 — E-B의 클라이언트 절반 ══════
+       전환은 워커가 내고, 적용은 장부가 한다. 다른 Effect와 같은 규칙이다:
+       저장이 남은 뒤에만 표를 찍고, 되풀이해도 결과가 같다. */
+    {
+      const TR = { id: 'r|story_transition|jaeeonMemory|opened', type: 'story_transition',
+        key: 'jaeeonMemory', from: 'hidden', to: 'opened' };
+      const rep = () => ({ messages: [{ text: '…그때 그 공부방.' }], effects: [TR] });
+
+      /* 요청이 상태를 실어 나른다 — 워커는 아무것도 기억하지 않는다 */
+      {
+        const W = boot({ null_name: '윤하' }, rep);
+        W.app.send('jaeeon', '저 어디서 본 적 있지 않아요?');
+        await W.tick(0);
+        eq('요청에 이야기 상태가 실린다', W.sent[0].story,
+          { firstContact: 'unseen', jaeeonMemory: 'hidden', partnerKnown: { jaeeon: false, minhyun: false } });
+        eq('출처 문답 단계도 실린다', W.sent[0].origin_phase, 'unasked');
+        await W.tick(5000);
+        eq('전환이 장부를 거쳐 적용된다', W.ls('null_story').jaeeonMemory, 'opened');
+        eq('표도 찍혔다', W.ls('null_eff_done'), [TR.id]);
+        /* 다음 요청은 움직인 상태를 나른다 */
+        W.app.send('jaeeon', '더 얘기해줘요');
+        await W.tick(0);
+        eq('다음 요청이 새 상태를 나른다',
+          W.sent[W.sent.length - 1].story.jaeeonMemory, 'opened');
+      }
+      /* 첫 말풍선 전에 꺼도 전환은 안 사라진다 — 장부가 들고 있다 */
+      {
+        const W = boot({ null_name: '윤하' }, rep);
+        W.app.send('jaeeon', '저 아세요?');
+        await W.tick(0);                      // 답은 왔고 아무것도 안 바뀌었다
+        eq('그 시점엔 아직 hidden이다', [W.ls('null_story'), W.ls('null_eff_done')], [undefined, undefined]);
+        const V = boot(W.dump(), rep);        // ← 새로고침
+        await V.tick(5000);
+        eq('껐다 켜도 전환이 정확히 한 번 적용된다',
+          [V.ls('null_story').jaeeonMemory, V.ls('null_eff_done')], ['opened', [TR.id]]);
+      }
+      /* 상태 저장이 실패하면 표를 안 찍는다 — 다음에 마저 간다 */
+      {
+        const W = boot({ null_name: '윤하' }, rep, { failKeys: ['null_story'] });
+        W.app.send('jaeeon', '저 아세요?');
+        await W.tick(5000);
+        eq('상태가 안 남으면 표도 없다',
+          [W.ls('null_story'), W.ls('null_eff_done')], [undefined, undefined]);
+        eq('장부가 남아 이어서 할 수 있다', (W.ls('null_batch') || []).length, 1);
+        const V = boot(W.dump(), rep);        // ← 고치고 이어서
+        await V.tick(5000);
+        eq('고치면 상태와 표가 정확히 한 번',
+          [V.ls('null_story').jaeeonMemory, V.ls('null_eff_done'), (V.ls('null_batch') || []).length],
+          ['opened', [TR.id], 0]);
+      }
+      /* 이미 지나 있으면 한 것으로 친다 — 두 번 적용해도 같다 */
+      {
+        const W = boot({ null_name: '윤하',
+          null_story: JSON.stringify({ jaeeonMemory: 'acknowledged' }) }, rep);
+        W.app.send('jaeeon', '저 아세요?');
+        await W.tick(5000);
+        eq('뒤로 안 돌아간다', W.ls('null_story').jaeeonMemory, 'acknowledged');
+        eq('그래도 표는 찍힌다 — 같은 id가 다시 안 온다', W.ls('null_eff_done'), [TR.id]);
+      }
+      /* WHO 장면이 실제로 성공해야 「안다」가 뒤집힌다 */
+      {
+        const rep2 = () => ({ messages: [{ text: '…알아요.' }], scene_ack: 'partner_known' });
+        const seed = { null_name: '윤하', null_partner: 'jaeeon',
+          null_scene_pend: JSON.stringify({ minhyun: 'partner_known' }) };
+        const W = boot(seed, rep2);
+        W.app.send('minhyun', '있잖아');
+        await W.tick(0);
+        eq('답이 오기만 해서는 안 뒤집힌다', W.ls('null_story'), undefined);
+        await W.tick(5000);
+        eq('답이 남은 뒤에 안다가 된다',
+          [W.ls('null_story').partnerKnown.minhyun, W.ls('null_scene_pend')], [true, {}]);
+        /* 거절된 장면(scene_ack 없음)은 안 뒤집는다 */
+        const V = boot(seed, () => ({ messages: [{ text: '네.' }] }));
+        V.app.send('minhyun', '있잖아');
+        await V.tick(5000);
+        eq('거절되면 예약도 상태도 남는다',
+          [V.ls('null_story'), V.ls('null_scene_pend')], [undefined, { minhyun: 'partner_known' }]);
+      }
+    }
   }
 
   /* ── 워커가 승인한 것만 scene_ack로 돌려준다 ── */
+  /* 예약한 그 사유가 올라갔을 때만 ack다. 워커가 스스로 감지해 올린
+     장면은 예약이 아니라서 ack가 없다 — 지울 예약 자체가 없다 */
   eq('거절하면 scene_ack가 없다',
-    /tier === "critical" && routed\.reason \? \{ scene_ack: routed\.reason \}/.test(workerSrc), true);
+    /tier === "critical" && routed\.reason\s*\n\s*&& routed\.reason === String\(body\.scene_reason \|\| ""\)\.trim\(\)\s*\n\s*\? \{ scene_ack: routed\.reason \}/.test(workerSrc), true);
   eq('웹·앱이 일치할 때만 지운다',
     /data\.scene_ack===payload\.scene_reason/.test(web)
     && /data\.scene_ack===why/.test(appSrc), true);
@@ -7332,6 +7521,196 @@ eq('시간표 단추는 peek보다 좁다',
   eq('앱도 같은 이름으로 보낸다',
     /sceneReason \? \{ scene_reason: sceneReason \} : \{\}/.test(apiSrc)
     && /loadPartner\(\) \? \{ partner: loadPartner\(\) \} : \{\}/.test(apiSrc), true);
+}
+
+/* ══════════ 이야기 상태와 장면 감지 — E-B ══════════
+   ── 왜 상태 기계인가 ──
+   「어디서 만났지」를 물었는데 민현이 「그럼 그냥 모르는 사람이네요」로
+   도망갔다가 두 턴 뒤에야 설명했다. 규칙은 프롬프트에 있었다 — 없던 것은
+   「질문이 아직 서 있다」는 상태다. 상태가 사실로 실려야 다음 턴에도
+   압력이 남는다.
+   ── 왜 감지가 워커에만 있나 (E4) ──
+   기억·고백 정규식을 웹과 앱에 복제하면 두 판정이 갈리고, 갈린 것을
+   아무도 모른다. 클라이언트는 화면의 선택(D-0·WHO)만 예약한다. */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  const { approveReason, detectScene, sceneTier, storyFacts, materializeEffects,
+          makeStoryState, factsForSpeaker, makeTurnContext, mintEffectId, makeEffect,
+          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE } = ENG;
+
+  /* ── 감지 정밀도 — 오탐이 미탐보다 비싸다 (B단계의 교훈 그대로) ── */
+  eq('기억 캐묻기 — 잡아야 할 것', [
+    '선생님 혹시 저 어디서 본 적 있지 않아요?', '우리 전에 만난 적 있죠',
+    '공부방 다니셨어요?', '사탕 목걸이 기억나요?', '20년 전에 무슨 일 있었어요?',
+    '저 기억 안 나세요?', '저 아세요?',
+  ].filter(t => !MEMORY_PROBE.test(t)), []);
+  eq('기억 캐묻기 — 놓아줘야 할 것', [
+    '어디서 봤더라 그 배우', '그 영화 본 적 있어요?', '기억력이 좋으시네요',
+    '옛날 얘기 해주세요', '우리 반 애들 만난 적 있어요?', '어제 본 드라마 얘기예요',
+  ].filter(t => MEMORY_PROBE.test(t)), []);
+  eq('고백 — 잡아야 할 것', [
+    '좋아해요', '좋아해', '선생님을 좋아해요', '선생님이 좋아요', '사랑해요',
+    '사귀자', '사귀고 싶어요', '고백할 게 있어요', '너를 좋아해',
+  ].filter(t => !CONFESS_SAY.test(t)), []);
+  eq('고백 — 놓아줘야 할 것', [
+    '저 떡볶이 좋아해요', '이 노래 좋아해요', '민트초코 좋아해요',
+    '날씨가 좋아요', '기분이 좋아요', '쌤 오늘 기분 좋아요?',
+  ].filter(t => CONFESS_SAY.test(t)), []);
+  eq('첫 만남 질문 — 잡아야 할 것', [
+    '우리 어디서 만났지?', '어디서 만났더라', '나 어떻게 알아?', '우리 아는 사이야?',
+  ].filter(t => !FIRSTMEET_ASK.test(t)), []);
+  eq('첫 만남 질문 — 놓아줘야 할 것', [
+    '내일 어디서 만나요?', '친구를 어떻게 알게 됐어?', '만나서 반가워',
+  ].filter(t => FIRSTMEET_ASK.test(t)), []);
+
+  /* ── 사유별 승인 조건 (E6) — 뭉뚱그리지 않는다 ── */
+  const ST0 = { firstContact: 'unseen', jaeeonMemory: 'hidden',
+                partnerKnown: { jaeeon: false, minhyun: false } };
+  const CTX = o => ({ room: 'jaeeon', mode: 'chat', greet: false, partner: null,
+    days: 10, unlocked: [], story: ST0, originPhase: '', lastUser: '', lastChar: '',
+    stageIdx: 1, ...o });
+  eq('기억 공개 — 캐묻는 말이면 승인',
+    approveReason('memory_reveal', CTX({ lastUser: '저 어디서 본 적 있지 않아요?' })), true);
+  eq('기억 공개 — 민현 방에서는 아니다',
+    approveReason('memory_reveal', CTX({ room: 'minhyun', lastUser: '저 어디서 본 적 있지 않아요?' })), false);
+  eq('기억 공개 — 재언 일기가 열렸으면 승인',
+    approveReason('memory_reveal', CTX({ unlocked: ['hidden-jaeeon-diary-200x-03-07'] })), true);
+  /* 다른 캐릭터의 히든이나 무관한 해금은 승인 근거가 아니다 */
+  eq('기억 공개 — 무관한 해금으로는 안 열린다',
+    approveReason('memory_reveal', CTX({ unlocked: ['minhyun-bag', 'jaeeon-playlist', 'hidden-minhyun-sns-1'] })), false);
+  eq('기억 공개 — 이미 인정했으면 다시 없다',
+    approveReason('memory_reveal', CTX({ lastUser: '공부방 기억나요?',
+      story: { ...ST0, jaeeonMemory: 'acknowledged' } })), false);
+  eq('고백 — 처음 단계에서는 장면이 아니다',
+    approveReason('confession', CTX({ stageIdx: 0, lastUser: '좋아해요' })), false);
+  eq('고백 — 단계가 차고 실제 발화면 승인',
+    approveReason('confession', CTX({ lastUser: '좋아해요' })), true);
+  eq('고백 — 떡볶이는 고백이 아니다',
+    approveReason('confession', CTX({ lastUser: '저 떡볶이 좋아해요' })), false);
+  eq('정체 — 출처 상태·직전 문답·되물음 셋이 다 맞아야 한다',
+    [approveReason('null_identity', CTX({ originPhase: 'revealed_from_start',
+       lastChar: '처음부터.', lastUser: '처음부터라니 무슨 말이에요?' })),
+     approveReason('null_identity', CTX({ originPhase: 'revealed_from_start',
+       lastChar: '네.', lastUser: '무슨 말이에요?' })),
+     approveReason('null_identity', CTX({ originPhase: 'claimed_told',
+       lastChar: '처음부터.', lastUser: '무슨 말이에요?' }))], [true, false, false]);
+  eq('처음 아는 자리 — 상대가 있고 아직 모를 때만',
+    [approveReason('partner_known', CTX({ partner: 'jaeeon' })),
+     approveReason('partner_known', CTX({ partner: 'jaeeon',
+       story: { ...ST0, partnerKnown: { jaeeon: true, minhyun: false } } })),
+     approveReason('partner_known', CTX({}))], [true, false, false]);
+
+  /* ── 감지는 예약 없이도 올린다. 화면 선택 사유는 감지로 안 올린다 ── */
+  eq('예약이 없어도 말이 그 장면이면 올라간다',
+    sceneTier('', CTX({ lastUser: '공부방 기억나요?' })), { tier: 'critical', reason: 'memory_reveal' });
+  /* 히든 키는 문을 열어두는 것이지 문을 지나는 것이 아니다 — 감지에 쓰면
+     일기가 열린 날부터 「점심 뭐 먹지」까지 전부 중요 장면이 된다 */
+  eq('상태만으로는 감지가 안 오른다',
+    detectScene(CTX({ unlocked: ['hidden-jaeeon-diary-200x-03-07'], lastUser: '점심 뭐 먹지' })), '');
+  eq('그 상태에서 예약하면 오른다',
+    sceneTier('memory_reveal', CTX({ unlocked: ['hidden-jaeeon-diary-200x-03-07'],
+      lastUser: '점심 뭐 먹지' })).tier, 'critical');
+  eq('선톡 턴에는 감지가 없다',
+    detectScene(CTX({ greet: true, lastUser: '공부방 기억나요?' })), '');
+  eq('관전 경로에는 감지가 없다',
+    detectScene(CTX({ mode: 'auto', lastUser: '공부방 기억나요?' })), '');
+  eq('거절된 예약이라도 감지가 잡으면 그 사유로 간다',
+    sceneTier('partner_known', CTX({ lastUser: '공부방 기억나요?' })).reason, 'memory_reveal');
+  eq('D-0·WHO는 감지 목록에 없다', (() => {
+    const t = wk.slice(wk.indexOf('function detectScene('), wk.indexOf('function sceneTier('));
+    return t.includes('"memory_reveal"') && t.includes('["confession", "null_identity"]')
+      && !/dday_choice|partner_confirm|partner_known/.test(t);
+  })(), true);
+
+  /* ── 이야기 상태는 사실이 되어 화자별로 투영된다 ── */
+  eq('기본값은 사실을 안 만든다 — 없는 것은 unknown이다', storyFacts(makeStoryState({})), []);
+  {
+    const F = storyFacts(makeStoryState({ firstContact: 'pending', jaeeonMemory: 'acknowledged',
+      partnerKnown: { jaeeon: true, minhyun: false } }));
+    const ctx = makeTurnContext({}, { facts: F });
+    eq('민현의 서 있는 질문은 민현이 안다',
+      factsForSpeaker(ctx, 'minhyun').map(f => f.fact_id).includes('story.first_contact.pending'), true);
+    eq('재언은 그 질문을 모른다 — 방이 다르다',
+      factsForSpeaker(ctx, 'jaeeon').map(f => f.fact_id).includes('story.first_contact.pending'), false);
+    eq('재언의 인정은 재언이 안다',
+      factsForSpeaker(ctx, 'jaeeon').map(f => f.fact_id).includes('story.jaeeon_memory.acknowledged'), true);
+    eq('민현은 삼촌의 기억을 모른다',
+      factsForSpeaker(ctx, 'minhyun').some(f => f.fact_id.startsWith('story.jaeeon_memory')), false);
+    eq('상대를 아는 것도 그 사람만',
+      [factsForSpeaker(ctx, 'jaeeon').some(f => f.fact_id === 'story.partner_known.jaeeon'),
+       factsForSpeaker(ctx, 'minhyun').some(f => f.fact_id === 'story.partner_known.minhyun')], [true, false]);
+  }
+
+  /* ── 전환은 검증된 응답 뒤에만, 코드가 만든다 (E3) ── */
+  const CAND = texts => ({ id: 'A', originalMessages: [], messages: texts.map(t => ({ text: t })),
+    invite: '', give: '', photo: '', parseStatus: 'json', signals: [] });
+  const MC = o => ({ room: 'minhyun', story: makeStoryState({}), sceneReason: '', firstMeetAsked: false, ...o });
+  eq('물었고 설명했으면 unseen→explained', materializeEffects('r1',
+    CAND(['병원 옥상에서 만났잖아요.']), MC({ firstMeetAsked: true })),
+    [{ id: mintEffectId('r1', 'story_transition', 'firstContact', 'explained'),
+       type: 'story_transition', key: 'firstContact', from: 'unseen', to: 'explained' }]);
+  eq('물었는데 도망갔으면 unseen→pending — 질문이 서 있는다', materializeEffects('r1',
+    CAND(['그럼 그냥 모르는 사람이네요.']), MC({ firstMeetAsked: true }))[0].to, 'pending');
+  eq('서 있던 질문에 설명하면 pending→explained', materializeEffects('r1',
+    CAND(['재활하던 병원요.']), MC({ story: makeStoryState({ firstContact: 'pending' }) })),
+    [{ id: mintEffectId('r1', 'story_transition', 'firstContact', 'explained'),
+       type: 'story_transition', key: 'firstContact', from: 'pending', to: 'explained' }]);
+  eq('서 있는데 또 딴소리면 그대로 남는다', materializeEffects('r1',
+    CAND(['배고파요.']), MC({ story: makeStoryState({ firstContact: 'pending' }) })), []);
+  eq('안 물었으면 아무것도 안 움직인다', materializeEffects('r1', CAND(['안녕하세요.']), MC({})), []);
+  const JC = o => ({ room: 'jaeeon', story: makeStoryState({}), sceneReason: 'memory_reveal', ...o });
+  eq('기억 공개 장면이 끝까지 가면 hidden→opened',
+    materializeEffects('r1', CAND(['…그때 그 공부방.']), JC({}))[0].to, 'opened');
+  eq('두 번째 공개가 인정이다 — opened→acknowledged',
+    materializeEffects('r1', CAND(['그 아이가 너였다.']),
+      JC({ story: makeStoryState({ jaeeonMemory: 'opened' }) }))[0].to, 'acknowledged');
+  eq('인정한 뒤에는 더 갈 데가 없다', materializeEffects('r1', CAND(['네.']),
+    JC({ story: makeStoryState({ jaeeonMemory: 'acknowledged' }) })), []);
+  eq('승인 없는 턴에는 기억이 안 움직인다', materializeEffects('r1', CAND(['공부방…']),
+    JC({ sceneReason: '' })), []);
+  eq('같은 재료면 같은 id다 — 재시도가 두 번 세지 않는다',
+    materializeEffects('r1', CAND(['병원요.']), MC({ firstMeetAsked: true }))[0].id,
+    materializeEffects('r1', CAND(['병원 옥상.']), MC({ firstMeetAsked: true }))[0].id);
+  eq('전환은 뒤로 못 간다', (() => {
+    try { makeEffect('r', { type: 'story_transition', key: 'jaeeonMemory', from: 'opened', to: 'hidden' }); return 'ok'; }
+    catch (e) { return 'throw'; }
+  })(), 'throw');
+
+  /* ── E4 — 감지는 워커에만 있다 ── */
+  eq('클라이언트에 기억·고백 정규식이 없다',
+    [/공부방|사탕\s*목걸이/.test(web), /공부방|사탕/.test(appSrc),
+     /MEMORY_PROBE|CONFESS_SAY|FIRSTMEET_ASK/.test(web + appSrc)], [false, false, false]);
+  eq('클라이언트가 예약하는 것은 화면의 선택뿐이다',
+    [...web.matchAll(/markScene\([^,]+,"([a-z_]+)"\)/g)].map(m => m[1])
+      .filter(r => !['dday_choice', 'partner_confirm', 'partner_known'].includes(r)), []);
+  eq('관전방 예약이 사라졌다 — 죽은 배선이었다',
+    /markScene\("health"/.test(web), false);
+  /* 상태는 클라이언트가 나르고, 판정은 워커가 한다 */
+  eq('웹이 이야기 상태를 실어 보낸다',
+    /payload\.story=loadStory\(\);/.test(web)
+    && /payload\.origin_phase=originPhase\(bucket\)/.test(web), true);
+  eq('앱도 같은 이름으로 실어 보낸다',
+    /story: loadStory\(\),/.test(apiSrc) && /origin_phase: originPhase\(room\)/.test(apiSrc), true);
+  eq('앱도 전환을 실제로 적용한다',
+    /applyStoryTransition\(e\)!=='fail'/.test(appSrc)
+    && /if\(why==='partner_known'\)markPartnerKnown\(room\);/.test(appSrc), true);
+
+  /* ── E5 — 아끼는 것 ≠ 모른다는 것 ── */
+  eq('그 말이 고정부에 있다',
+    wk.includes('아끼는 것 ≠ 모른다는 것')
+    && wk.includes('"기억 안 나요" "그런 일 없어요" "우연이겠죠"는 20년째 기억하는 사람이 할 수 없는 말')
+    && wk.includes('말이 짧아지는 것, 화제를 옮기는 것, 확인해주지 않는 것'), true);
+
+  /* ── E6 — 판정이 프롬프트보다 먼저다 ── */
+  eq('판정 → 사실 원본 → 프롬프트 순서다', (() => {
+    const i = wk.indexOf('const routed = mode !== "chat"');
+    const j = wk.indexOf('const turnCtx = makeTurnContext(');
+    const k = wk.indexOf('const volatile = buildVolatile(');
+    return i > 0 && i < j && j < k;
+  })(), true);
+  eq('승인된 사유만 장면 줄이 된다',
+    /ctx && ctx\.sceneReason && CRITICAL_REASONS\[ctx\.sceneReason\]/.test(wk)
+    && /if \(ctx\.scene && CRITICAL_REASONS\[ctx\.scene\]\) L\.push\(`\[장면\]/.test(wk), true);
 }
 
 /* ══════════ 시그니처 문장과 한 번짜리 사건 ══════════

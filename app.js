@@ -342,8 +342,14 @@ function App(){
       if(!loadInvites().some(x=>x.place===e.place&&x.char===e.char))
         return{status:"storage_error",key:"null_invite"};
       setInvite(headInvite());
-    }else if(e.type!=="story_transition"){
-      /* story_transition은 E-B에서 낸다. 스키마는 받아두되 여기서는 안 만든다 */
+    }else if(e.type==="story_transition"){
+      /* 이야기 상태가 실제로 움직이는 유일한 자리 (E3). 워커가 검증된
+         응답 뒤에만 내고, 여기서는 앞으로만 옮긴다 — 이미 지나 있으면
+         한 것으로 친다. 안 남았으면 표도 안 찍는다. */
+      const r=applyStoryTransition(e);
+      if(r==="fail")return{status:"storage_error",key:"null_story"};
+      if(r==="skip")return{status:"not_applicable"};
+    }else{
       return{status:"not_applicable"};
     }
     return markDone(e);
@@ -542,10 +548,16 @@ function App(){
     /* ⑤ 이 판의 상태 — 자리·도장·선물 */
     for(const o of b.local_ops||[]) if(!applyOp(o))ok=false;
     if(b.toast)setToast(b.toast);
-    /* ⑥ 중요 장면 소모 */
+    /* ⑥ 중요 장면 소모.
+       partner_known이 실제로 성공했으면 그 사람은 이제 안다 — 상태도 같이
+       뒤집는다. 안 뒤집히면 장부를 안 지운다: 아는 사람에게 「처음 안다」
+       장면이 또 열리는 것이 그 갈림이다. */
     if(b.scene_ack){
-      ackScene(b.room,b.scene_ack);
-      if(peekScene(b.room)===b.scene_ack)ok=false;
+      if(b.scene_ack==="partner_known"&&!markPartnerKnown(b.room))ok=false;
+      if(ok){
+        ackScene(b.room,b.scene_ack);
+        if(peekScene(b.room)===b.scene_ack)ok=false;
+      }
     }
     /* ⑦ 관전 사건 소모 */
     if(b.auto_event_id){
@@ -948,6 +960,14 @@ function App(){
     }
     const pid=loadPartner();
     if(pid)payload.partner=pid;
+    /* ── 이야기 상태를 실어 보낸다 (E3·E4) ──
+       워커는 아무것도 기억하지 않아서, 이야기가 어디까지 왔는지도 여기서
+       말해줘야 한다. 감지는 워커가 한다 — 여기서는 상태만 나른다.
+       출처 문답 단계는 그 방 사람 것이다. 단톡·관전에는 그 사람이 없다. */
+    if(payload.mode==="chat"){
+      payload.story=loadStory();
+      if(CHARS[bucket])payload.origin_phase=originPhase(bucket);
+    }
     inflightRef.current[bucket]=rid;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
@@ -1506,7 +1526,8 @@ function App(){
     const other=(got||id)==="jaeeon"?"minhyun":"jaeeon";
     markScene(got||id,"partner_confirm");
     markScene(other,"partner_known");
-    markScene("health","partner_known");
+    /* 관전방은 예약하지 않는다 — 워커가 auto를 무조건 일반 경로로 내리므로
+       이 예약은 영영 안 쓰이는 죽은 배선이었다. 관전은 항상 일반 경로다. */
     setWhoAsk(false); setWhoDone(got||id);
   };
 

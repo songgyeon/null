@@ -8,7 +8,8 @@
 |---|---|
 | 일반 턴 | ✅ 쓰는 쪽 후보 → 코드 검사 → 고르는 쪽 선택 |
 | 중요 장면 | ✅ 쓰는 쪽 → 검사 둘 병렬 → 마무리 |
-| 라우팅 | ✅ 코드가 열거형 사유 + 상태로 승인 |
+| 라우팅 | ✅ 사유별 승인 조건 + 워커 텍스트 감지(E4·E6) |
+| 이야기 상태 | ✅ firstContact·jaeeonMemory·partnerKnown — story_transition으로만 움직인다(E3) |
 | 폴백 금지 | ✅ 대사 길에서 목록 폴백 제거 |
 | 후보 수 | ✅ one / pair / parallel 교체 가능 |
 | 단계별 실측 | ✅ 응답의 `stages`, 화면 콘솔에도 |
@@ -419,7 +420,78 @@ local batch 복구 뒤 fetch 1회·캐릭터 답 1회 (여덟 경로 전부)
 | 🟠 | Expo의 `null_eff_done` 저장이 비동기라 같은 턴에 두 Effect가 겹치면 경쟁이 난다. 웹은 동기라 해당 없음 |
 | 🟠 | 관전 자동 사건 큐 `null_auto_q`의 `slice(-20)`이 밀린 옛 사건을 조용히 버린다 |
 | 🟠 | Expo는 아직 이 장부를 안 쓴다. 웹을 기준으로 삼기로 한 범위 결정(E 절) 그대로다 |
-| 🔴 | **`story_transition`은 실제 상태 적용을 만든 뒤에만 방출한다.** 지금 클라이언트는 스키마만 받고 id를 적을 뿐이다 — E-B에서 워커가 이걸 내기 전에 적용부터 만든다 |
+| ✅ | `story_transition` — E-B에서 적용(웹 장부·Expo)과 방출을 같이 구현했다. §8.7 |
+| 🟡 | **hard crash의 바깥 경계** — 장부를 지운 직후 이어 부르는 API 직전에 프로세스가 죽거나, API 요청 도중 새로고침하면 그 후속 답은 유실된다. 완전한 exactly-once는 서버 멱등성과 persistent outbox가 필요하다 — 로컬 저장 실패 복구(위)의 범위 밖 잔여 위험으로 기록한다 |
+
+## 8.7 이야기 상태와 장면 감지 — E-B (구현됨)
+
+### 상태 기계 셋 (E3)
+
+```
+firstContact  unseen → pending → explained    민현의 병원 옥상 설명
+jaeeonMemory  hidden → opened → acknowledged  재언의 20년 기억
+partnerKnown  {jaeeon, minhyun}               상대가 정해진 걸 아는가
+```
+
+원본은 클라이언트다(`null_story`, 워커는 무상태) — 매 chat 요청에 `story`와
+그 방 사람의 `origin_phase`가 실린다. **바뀌는 길은 하나다**: 워커가 검증된
+최종 응답 뒤에만 내는 `story_transition` Effect를 장부가 적용한다. 모델 호출
+전에 explained/acknowledged를 찍는 자리는 없다. 적용은 앞으로만 가는
+멱등이고(`applyStoryTransition`), 이미 지나 있으면 한 것으로 친다.
+partnerKnown은 Effect가 아니라 `partner_known` 장면의 scene_ack이 성공
+저장된 뒤 장부의 그 단계에서 뒤집힌다.
+
+전환의 방출 조건 — 전부 코드가 값으로 확인한 것이다:
+
+| 전환 | 언제 |
+|---|---|
+| firstContact `unseen→pending` | 민현 방에서 첫 만남 질문 감지 + 답이 설명이 아니다 |
+| `unseen→explained` / `pending→explained` | 검증된 답에 정사 낱말(병원·옥상·재활)이 있다 |
+| jaeeonMemory `hidden→opened` | 승인된 memory_reveal 장면이 끝까지 갔다 |
+| `opened→acknowledged` | 두 번째 성공 — 한 턴에 한 칸씩만 간다 |
+
+상태는 `storyFacts`로 사실이 되어 화자별 투영을 그대로 탄다 — pending은
+민현·유저만, 재언의 기억은 재언·유저만 본다. `factLines`가 story.* 는 값을
+그대로 문장으로 낸다(자연어의 마지막 경계는 여전히 거기 한 곳이다).
+
+### 텍스트 감지는 워커에만 있다 (E4)
+
+기억 캐묻기(`MEMORY_PROBE`)·첫 만남 질문(`FIRSTMEET_ASK`)·고백(`CONFESS_SAY`)·
+정체 되물음(`NULL_PROBE`)은 워커의 정규식 한 벌뿐이다. 클라이언트가 예약하는
+것은 화면의 선택(D-0 `dday_choice` · WHO `partner_confirm`/`partner_known`)뿐.
+좁게 잡는다 — 오탐이 미탐보다 비싸다(B단계의 교훈): 「어디서 봤더라 그 배우」
+「저 떡볶이 좋아해요」는 안 걸리고, 감지 못 하면 일반 턴으로 흐를 뿐이다.
+
+### 사유별 승인 조건 (E6) — 뭉뚱그리지 않는다
+
+| 사유 | 조건 |
+|---|---|
+| memory_reveal | 재언 방 · 아직 acknowledged 아님 · (감지 성공 **또는** 재언 일기 히든 키). 민현의 히든이나 무관한 해금은 근거가 아니다 |
+| null_identity | 출처 상태 `revealed_from_start` · 직전 인물 발화가 「처음부터」 · 유저가 그걸 파고든다 |
+| confession | 1:1 방 · 관계 단계 ≥ 익숙 · 실제 유저 발화가 고백이다 |
+| partner_known | 실제 partnerId 존재 · **그 방 사람이 아직 모른다**(partnerKnown) |
+| partner_confirm · partner_first_reaction | partnerId 존재 |
+| dday_choice · ending · parting | 실습 만료일 도달 |
+
+판정(`sceneTier`)은 **프롬프트를 만들기 전에** 돈다 — 승인된 사유만
+turnCtx에 실려 volatile의 `[지금 장면]` 줄과 검사·마무리의 `[장면]` 줄이
+된다. 거절된 사유는 프롬프트에 못 온다. 예약 없이도 감지가 잡으면 그
+사유로 올라가되, **scene_ack는 예약한 그 사유가 올라갔을 때만** 돌아온다 —
+감지로 올라간 장면에는 지울 예약 자체가 없다. 관전(auto)은 항상 일반
+경로이고, 죽은 배선이던 `markScene("health", …)`는 걷었다.
+
+E5 — 「아끼는 것 ≠ 모른다는 것」은 재언 고정부(캐시 블록)에 산다:
+기억 안 나요·그런 일 없어요·우연이겠죠는 20년째 기억하는 사람이 할 수 없는
+말이고, 아끼는 방식은 짧아지는 것·화제를 옮기는 것·확인해주지 않는 것이다.
+
+**이 단계의 가정 (검토용)**
+- 재언 기억의 두 박자(opened→acknowledged)는 둘 다 memory_reveal 사유를
+  탄다 — 별도 사유를 만들지 않았다.
+- 「설명했다」의 판정은 답 속 정사 낱말(병원·옥상·재활)이다 — 코드가 값으로
+  확인할 수 있는 유일한 자다.
+- 고백의 관계 단계 문턱은 익숙(둘째 단계)이다 — 처음 단계의 「좋아해요」는
+  설렘이지 갈림길이 아니다.
+- 재언 기억과 직접 관련된 히든 키 = 재언의 일기 넷. 졸업사진·티켓은 아니다.
 
 ## 9. 품질 비교
 

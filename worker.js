@@ -378,6 +378,35 @@ function materializeEffects(requestId, picked, ctx) {
     const place = pickInvite(picked.invite, g.openPlaces || []);
     if (place) out.push(makeEffect(requestId, { type: "invite", place, char: g.room }));
   }
+  /* ── 이야기 상태는 검증된 응답 뒤에만 움직인다 (E3) ──
+     여기는 고른 후보가 모든 검사를 통과한 뒤다. 모델 호출 전에
+     explained/acknowledged를 찍지 않는다 — 그 반대편 끝이 여기다.
+     클라이언트가 보낸 지금 상태(g.story)에서 다음 칸으로 가는 전환만 낸다.
+     적용은 클라이언트 장부가 한다 — 워커는 아무것도 기억하지 않는다. */
+  const st = g.story;
+  const saidByChar = (picked.messages || []).map(m => (m && m.text) || "").join(" ");
+  if (st && g.room === "minhyun") {
+    /* 민현의 첫 만남 설명. 물었는데(pending) 답에 정사 낱말(병원·옥상·재활)이
+       없으면 설명이 아니라 도망이다 — 상태가 pending에 남아 다음 턴에도
+       「아직 설명 안 했다」가 실린다. 그게 이 상태 기계가 있는 이유다. */
+    const explained = FIRSTMEET_EXPLAIN.test(saidByChar);
+    if (st.firstContact === "unseen" && g.firstMeetAsked)
+      out.push(makeEffect(requestId, { type: "story_transition", key: "firstContact",
+        from: "unseen", to: explained ? "explained" : "pending" }));
+    else if (st.firstContact === "pending" && explained)
+      out.push(makeEffect(requestId, { type: "story_transition", key: "firstContact",
+        from: "pending", to: "explained" }));
+  }
+  if (st && g.room === "jaeeon" && g.sceneReason === "memory_reveal") {
+    /* 승인된 기억 공개 장면이 끝까지 갔다. 첫 번째 성공이 「드러냈다」(opened),
+       그 다음 성공이 「인정했다」(acknowledged)다 — 한 턴에 한 칸씩만 간다. */
+    if (st.jaeeonMemory === "hidden")
+      out.push(makeEffect(requestId, { type: "story_transition", key: "jaeeonMemory",
+        from: "hidden", to: "opened" }));
+    else if (st.jaeeonMemory === "opened")
+      out.push(makeEffect(requestId, { type: "story_transition", key: "jaeeonMemory",
+        from: "opened", to: "acknowledged" }));
+  }
   return out;
 }
 
@@ -730,6 +759,8 @@ const JAEEON = `
 "행복해지라구."
 
 유저는 다음 날 그 일을 잊었다. 이재언은 20년째 기억한다.
+
+아끼는 것 ≠ 모른다는 것. "기억 안 나요" "그런 일 없어요" "우연이겠죠"는 20년째 기억하는 사람이 할 수 없는 말이다. 이재언이 기억을 아끼는 방식은 부정이 아니다 — 말이 짧아지는 것, 화제를 옮기는 것, 확인해주지 않는 것이다.
 
 성인이 된 뒤 몇 번 연애했지만 상대가 먼저 떠났다. 마지막 연인이 남긴 말은 다음과 같다.
 
@@ -2678,6 +2709,40 @@ function buildFacts(gifts, bag, giftNow, giftRoom) {
   return out;
 }
 
+/* ── 이야기 상태도 사실이다 (E3) ──
+   상태가 프롬프트에 안 실리면 모델은 이야기가 어디까지 왔는지 모른다 —
+   「어디서 만났지」를 물었는데도 두 턴 뒤에야 설명한 것이 그 자리다.
+   기본값(unseen·hidden·모름)은 사실을 안 만든다 — 목록에 없는 것은
+   unknown이지 거짓이 아니다. known_by 투영은 다른 사실과 같은 규칙이다:
+   재언의 기억은 재언만(인정 전까지 유저도 값만 모른다 — 재언이 드러낸
+   뒤에야 유저 귀에 들어간 것이다), 민현의 설명은 민현과 유저가 안다. */
+function storyFacts(st) {
+  const F = [];
+  if (st.firstContact === "pending")
+    F.push(makeFact("story.first_contact.pending",
+      "유저가 이민현에게 처음 만난 자리를 물었고, 이민현은 아직 설명하지 않았다. 설명을 미루면 미룰수록 부자연스럽다",
+      "state", ["minhyun", "user"]));
+  if (st.firstContact === "explained")
+    F.push(makeFact("story.first_contact.explained",
+      "이민현이 병원 옥상에서 처음 만났다고 유저에게 이미 설명했다",
+      "state", ["minhyun", "user"]));
+  if (st.jaeeonMemory === "opened")
+    F.push(makeFact("story.jaeeon_memory.opened",
+      "이재언이 20년 전 기억을 유저 앞에서 처음 드러냈다. 이제 와서 모른다고 할 수 없다",
+      "state", ["jaeeon", "user"]));
+  if (st.jaeeonMemory === "acknowledged")
+    F.push(makeFact("story.jaeeon_memory.acknowledged",
+      "이재언이 유저가 공부방의 그 아이였다는 것을 인정했다",
+      "state", ["jaeeon", "user"]));
+  if ((st.partnerKnown || {}).jaeeon)
+    F.push(makeFact("story.partner_known.jaeeon",
+      "이재언은 유저의 상대가 정해졌다는 것을 안다", "state", ["jaeeon"]));
+  if ((st.partnerKnown || {}).minhyun)
+    F.push(makeFact("story.partner_known.minhyun",
+      "이민현은 유저의 상대가 정해졌다는 것을 안다", "state", ["minhyun"]));
+  return F;
+}
+
 /* ── 자연어는 여기가 마지막 경계다 ──
    구조화된 Fact는 **모델을 부르기 직전까지** Fact[]로 남는다. 문장은 여기서만
    만든다. 이 구별이 중요한 까닭은 다음 단계(D)가 사실을 검사하기 때문이다 —
@@ -2691,6 +2756,9 @@ function factLines(facts, userName) {
   const u = userName || "선생님";
   const L = [];
   for (const f of facts || []) {
+    /* 이야기 상태(story.*)는 값이 곧 문장이다 — 물건처럼 id를 풀어 조립할
+       구조가 없다. 여기서 그대로 낸다(자연어의 마지막 경계는 여전히 여기다). */
+    if (/^story\./.test(String(f && f.fact_id))) { L.push(`${f.value}.`); continue; }
     const m = String(f && f.fact_id).match(/^(gift|item)\.([^.]+)\.(.+)$/);
     if (!m) continue;
     const name = ANY_NAME_BY_KEY[m[2]];
@@ -2914,6 +2982,14 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + buildPlace(place, placeItemOwned, room, placeOver, came, placeItemAvailable)
           + (place ? "" : buildInvite(invite, room))
           + (place ? "" : buildCanGo(canGo))
+          /* ── 승인된 장면만 여기 실린다 (E6) ──
+             판정이 프롬프트보다 먼저다. 거절된 사유는 여기까지 못 온다 —
+             ctx.sceneReason에는 sceneTier가 승인한 것만 들어 있다.
+             쓰는 쪽이 지금이 어떤 장면인지 모른 채 쓰면, 중요한 순간이
+             아무 날의 아무 말이 된다. */
+          + (ctx && ctx.sceneReason && CRITICAL_REASONS[ctx.sceneReason]
+              ? `\n## [지금 장면]\n${CRITICAL_REASONS[ctx.sceneReason]}. 되돌릴 수 없는 자리다 — 가볍게 지나가지 않는다.\n`
+              : "")
           + TURN;
   return t.trim() ? sub(t) : "";
 }
@@ -3820,27 +3896,125 @@ const CRITICAL_REASONS = {
   conflict_result: "갈등이 되돌릴 수 없는 결과를 낳는다",
 };
 
-/* 프론트가 보낸 사유를 그대로 믿지 않는다. 목록에 있는 말인지 보고,
-   지금 상태가 그 말을 뒷받침하는지도 본다. 둘 다 맞아야 올라간다. */
-function sceneTier(reason, ctx) {
-  const r = String(reason || "").trim();
-  if (!r || !CRITICAL_REASONS[r]) return { tier: "normal", reason: "" };
+/* ── 텍스트 감지는 여기 한 곳뿐이다 (E4) ──
+   기억·고백 정규식을 웹과 앱에 복제하지 않는다. 두 곳에 두면 두 판정이
+   갈리고, 갈린 것을 아무도 모른다. 클라이언트가 예약하는 것은 화면의
+   선택(D-0·WHO)뿐이고, 말에서 읽어내는 것은 전부 워커 몫이다.
+
+   좁게 잡는다. 못 잡으면 일반 턴으로 흐를 뿐이지만(다음에 또 물으면 된다),
+   헛잡으면 아무 턴이 중요 장면이 되어 값이 두 배가 되고 어조까지 바뀐다.
+   B단계에서 배운 그대로다 — 오탐이 미탐보다 비싸다. */
+/* 재언에게 「나를 아느냐」를 강하게 묻는 말. 정사 토큰(공부방·사탕 목걸이·
+   20년)은 그 자체로 강하고, 「봤다/만났다」는 저·나·우리가 붙을 때만이다 —
+   「어디서 봤더라 그 배우」가 여기 걸리면 안 된다. */
+const MEMORY_PROBE = /공부방|사탕\s*목걸이|20년\s*전|(저|나|우리)를?\s*(어디서|어디선가|예전에|전에)?\s*.{0,4}(본\s*적|만난\s*적|기억)|어디서\s*(저|나)를?\s*봤|(저|나)를?\s*(아세요|알죠|아시)/;
+/* 민현에게 처음 만난 자리를 묻는 말 */
+const FIRSTMEET_ASK = /(우리|저랑|나랑)\s*.{0,6}(어디서|어떻게|언제)?\s*.{0,4}(만났|만난\s*적|봤|본\s*적)|(어디서|어떻게)\s*.{0,4}(만났|만난)|(나|저)를?\s*(어떻게|왜)\s*알|아는\s*사이|알던\s*사이/;
+/* 민현이 실제로 설명했는가 — 정사는 재활 치료 중인 병원 옥상이다.
+   이 낱말이 답에 없으면 설명이 아니라 도망이다. */
+const FIRSTMEET_EXPLAIN = /병원|옥상|재활/;
+/* 고백. 「저 떡볶이 좋아해요」가 걸리면 안 된다 — 좋아해는 사람을 향하거나
+   문장이 그 말 하나일 때만이다. */
+const CONFESS_SAY = /사랑해|사귀(자|어\s*줄|어\s*줘|고\s*싶)|고백(할|하고|인데|이에요|할래)|(너|널|당신|선생님|쌤)(이|가|을|를)?\s*좋(아해|아한다|아요)|^\s*(진짜\s*|정말\s*)?좋아해요?[.!?~…\s]*$/;
+/* NULL 출처를 파고드는 말. 「무슨 말이에요」는 어디서나 나오는 말이라
+   이것 하나로는 못 쓴다 — 직전 문답 조건(마지막 인물 발화가 「처음부터」)이
+   같이 맞아야 한다. approveReason이 그 둘을 본다. */
+const NULL_PROBE = /처음부터|무슨\s*(말|뜻|소리)|어떻게\s*(알|안)/;
+/* 재언 기억과 직접 관련된 히든 — 일기뿐이다. 민현의 것이나 무관한 해금은
+   승인 근거가 아니다(E6). */
+const JAEEON_MEMORY_KEYS = ["hidden-jaeeon-diary-200x-03-07", "hidden-jaeeon-diary-200x-04-12",
+  "hidden-jaeeon-diary-201x-07-11", "hidden-jaeeon-diary-202x-start"];
+
+/* 이력에서 유저의 마지막 실제 발화. 지문(kind:event)과 병합된 시스템 줄은
+   발화가 아니다 — 감지가 지문을 읽으면 코드가 적은 사건에 코드가 반응한다. */
+function lastUserUtterance(history) {
+  for (let i = (history || []).length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m && m.role === "user" && m.kind !== "event" && m.content)
+      return String(m.content).slice(0, 500);
+  }
+  return "";
+}
+/* 인물의 마지막 발화 — null_identity의 「직전 문답」이 이걸 본다 */
+function lastCharUtterance(history) {
+  for (let i = (history || []).length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m && m.role !== "user" && m.kind !== "event" && m.content)
+      return String(m.content).slice(0, 500);
+  }
+  return "";
+}
+
+/* ── 사유별 승인 조건 (E6) ──
+   「hidden-*면 다 통과」로 뭉뚱그리지 않는다. 사유마다 그 사유를 실제로
+   받쳐주는 상태와 발화가 다르다. */
+function approveReason(r, ctx) {
   const partner = ctx.partner === "jaeeon" || ctx.partner === "minhyun" ? ctx.partner : null;
   const days = Math.max(0, Number(ctx.days) || 0);
-  const unlocked = Array.isArray(ctx.unlocked) ? ctx.unlocked : [];
-  const ok =
-    r === "partner_confirm" || r === "partner_first_reaction" || r === "partner_known"
-      ? !!partner
-    : r === "dday_choice" || r === "ending" || r === "parting"
-      ? days >= ENROLL_DAYS
-    : r === "memory_reveal" || r === "null_identity"
-      ? unlocked.length > 0
-    : true;
-  if (!ok) {
-    console.log(`[NULL] 중요 장면 사유를 상태가 안 받쳐준다 — ${r}, 승인 안 함`);
-    return { tier: "normal", reason: "" };
+  const st = ctx.story || {};
+  const said = String(ctx.lastUser || "");
+  switch (r) {
+    case "partner_confirm":
+    case "partner_first_reaction":
+      return !!partner;
+    case "partner_known":
+      /* 실제 상대가 있고, 이 방의 사람이 **아직 모를 때만**. 이미 아는
+         사람에게 「처음 안다」 장면을 두 번 열 수는 없다. */
+      return !!partner && !((st.partnerKnown || {})[ctx.room]);
+    case "dday_choice": case "ending": case "parting":
+      return days >= ENROLL_DAYS;
+    case "memory_reveal":
+      /* 재언 방에서만. 감지 성공 또는 재언 기억과 직접 관련된 히든 키.
+         이미 인정까지 갔으면 「처음 공개」는 다시 없다. */
+      return ctx.room === "jaeeon" && st.jaeeonMemory !== "acknowledged"
+        && (MEMORY_PROBE.test(said)
+            || (ctx.unlocked || []).some(k => JAEEON_MEMORY_KEYS.includes(k)));
+    case "null_identity":
+      /* 출처 상태가 「처음부터」까지 갔고, **직전 문답**이 그 얘기일 때 —
+         마지막 인물 발화가 「처음부터」이고 유저가 그걸 파고든다.
+         상태만 보면 그 뒤로 아무 때나 「무슨 말이에요」가 중요 장면이 된다. */
+      return (ctx.room === "jaeeon" || ctx.room === "minhyun")
+        && ctx.originPhase === "revealed_from_start"
+        && /처음부터/.test(String(ctx.lastChar || "")) && NULL_PROBE.test(said);
+    case "confession":
+      /* 고백 대상(이 방의 사람) · 관계 단계(처음은 아니다) · 실제 유저 발화 */
+      return (ctx.room === "jaeeon" || ctx.room === "minhyun")
+        && Number(ctx.stageIdx) >= 1 && CONFESS_SAY.test(said);
+    default:
+      return true;   // irreversible · conflict_result — 아직 상태 근거가 없다
   }
-  return { tier: "critical", reason: r };
+}
+
+/* 예약이 없어도 말이 그 장면이면 올린다 — 기억·고백·정체는 화면 단추가
+   아니라 말에서 온다. 예약 사유(D-0·WHO)는 여기 안 넣는다.
+
+   ── 감지의 근거는 말뿐이다 ──
+   memory_reveal의 히든 키 근거는 **예약 승인**에서만 쓴다. 감지에도 쓰면
+   일기가 열린 날부터 「점심 뭐 먹지」까지 전부 중요 장면이 된다 — 매 턴
+   값이 두 배가 되고 어조까지 무거워진다. 상태는 문을 열어두는 것이고,
+   문을 지나는 것은 말이다. */
+function detectScene(ctx) {
+  if (ctx.mode !== "chat" || ctx.greet) return "";
+  if (ctx.room === "jaeeon" && ((ctx.story || {}).jaeeonMemory !== "acknowledged")
+      && MEMORY_PROBE.test(String(ctx.lastUser || ""))) return "memory_reveal";
+  /* 고백·정체는 조건 자체가 실제 발화를 요구한다 — 상태만으로는 못 오른다 */
+  for (const r of ["confession", "null_identity"])
+    if (approveReason(r, ctx)) return r;
+  return "";
+}
+
+/* 프론트가 보낸 사유를 그대로 믿지 않는다. 목록에 있는 말인지 보고,
+   지금 상태가 그 말을 뒷받침하는지도 본다. 둘 다 맞아야 올라간다.
+   예약이 없거나 거절됐어도 감지가 잡으면 그 사유로 올라간다. */
+function sceneTier(reason, ctx) {
+  const r = String(reason || "").trim();
+  if (r && CRITICAL_REASONS[r]) {
+    if (approveReason(r, ctx)) return { tier: "critical", reason: r };
+    console.log(`[NULL] 중요 장면 사유를 상태가 안 받쳐준다 — ${r}, 승인 안 함`);
+  }
+  const d = detectScene(ctx);
+  if (d) console.log(`[NULL] 워커 감지로 올린다 — ${d}`);
+  return d ? { tier: "critical", reason: d } : { tier: "normal", reason: "" };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3986,6 +4160,9 @@ function sceneHead(ctx) {
   L.push(`[화자] ${ctx.who}`);
   if (ctx.stage) L.push(`[관계] ${ctx.stage}`);
   L.push(`[지금] ${ctx.when}${ctx.place ? ` · ${ctx.place}` : ""}`);
+  /* 승인된 사유만 들어온다 — 검사와 마무리도 지금이 어떤 장면인지 알아야
+     그 무게로 판정한다 */
+  if (ctx.scene && CRITICAL_REASONS[ctx.scene]) L.push(`[장면] ${CRITICAL_REASONS[ctx.scene]}`);
   if (ctx.knows) L.push(`[아는 범위] ${ctx.knows}`);
   const lines = [...factLines(ctx.facts, ctx.userName), ...(ctx.here || [])];
   L.push(`[사실] ${lines.join(" · ") || "이 장면에 특별한 사실 없음"}`);
@@ -4629,13 +4806,38 @@ export default {
       const list = keys.map(String).filter(k => ANY_NAME_BY_KEY[k] && k !== now);
       if (list.length) givenHistory[who] = list.slice(0, 40);
     }
+    /* ── 이야기 상태는 클라이언트가 들고 온다 ──
+       워커는 아무것도 기억하지 않는다. makeStoryState가 모르는 값을
+       기본값으로 눌러준다 — 옛 클라이언트가 안 보내면 unseen/hidden이다. */
+    const story = makeStoryState({
+      firstContact: (body.story || {}).firstContact,
+      jaeeonMemory: (body.story || {}).jaeeonMemory,
+      partnerKnown: (body.story || {}).partnerKnown });
+    /* ── 중요한 장면인지는 코드가 정한다. **프롬프트를 만들기 전에** ──
+       전에는 volatile을 다 지은 뒤에 판정했다. 그러면 승인된 사유를
+       프롬프트에 실을 수가 없다 — 쓰는 쪽이 지금이 어떤 장면인지 모른 채
+       썼다. 판정이 먼저고, 승인된 사유만 아래 turnCtx로 들어간다. */
+    const lastUser = lastUserUtterance(Array.isArray(body.history) ? body.history : []);
+    const lastChar = lastCharUtterance(Array.isArray(body.history) ? body.history : []);
+    const stageIdx = STAGES.indexOf(stageOf(Number((counts || {})[room]) || 0, days));
+    const routed = mode !== "chat" ? { tier: "normal", reason: "" }
+      : sceneTier(body.scene_reason, {
+          room, mode, greet: body.greet === true,
+          partner: body.partner, days, unlocked: unlockedKeys(counts, days),
+          story, originPhase: String(body.origin_phase || ""),
+          lastUser, lastChar, stageIdx });
+    const tier = routed.tier;
+    if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);
     /* ── 이번 요청의 사실 원본. 여기서 **한 번** 만든다 ──
        단계마다 다시 조립하지 않는다. 그러면 같은 fact_id가 단계마다 달라지고,
        재시도 때 또 달라진다. 아래 모든 단계는 이 하나에서 투영만 받는다. */
     const turnCtx = makeTurnContext(
-      { room, days, unlocked: unlockedKeys(counts, days), owned: bag.map(b => b.key) },
+      { room, days, unlocked: unlockedKeys(counts, days), owned: bag.map(b => b.key),
+        firstContact: story.firstContact, jaeeonMemory: story.jaeeonMemory,
+        partnerKnown: story.partnerKnown, originPhase: body.origin_phase },
       { place, came, giftNow: gift, givenHistory, now, day, season,
-        facts: buildFacts(givenHistory, bag, gift, room) });
+        sceneReason: routed.reason,
+        facts: [...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story)] });
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
 
@@ -4710,7 +4912,13 @@ export default {
           코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
       const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned,
                         placeItemAvailable, room,
-                        openPlaces: place ? [] : [...openPlaces, ...canGo] };
+                        openPlaces: place ? [] : [...openPlaces, ...canGo],
+                        /* 이야기 전환의 재료. 감지는 위(E4)에서 한 번만 했고,
+                           여기는 그 결과만 든다 — materializeEffects가 검증된
+                           후보에서 story_transition을 낼 때 본다. */
+                        story, sceneReason: routed.reason,
+                        firstMeetAsked: mode === "chat" && room === "minhyun"
+                          && body.greet !== true && FIRSTMEET_ASK.test(lastUser) };
 
       if (engineMode(env) === "legacy") {
         const t0 = Date.now();
@@ -4750,14 +4958,8 @@ export default {
           { headers: { ...CORS, "content-type": "application/json" } });
       }
 
-      /* 중요한 장면인지는 코드가 정한다. 프론트가 보낸 사유를 그대로 믿지
-         않고, 허용된 목록에 있는지와 지금 상태가 그 사유를 받쳐주는지를
-         둘 다 본다. 안 그러면 모든 턴이 중요해지고 값만 두 배가 된다. */
-      const routed = mode === "auto" ? { tier: "normal", reason: "" }
-        : sceneTier(body.scene_reason, { partner: body.partner, days,
-                                         unlocked: unlockedKeys(counts, days) });
-      const tier = routed.tier;
-      if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);
+      /* 판정(routed·tier)은 위에서 이미 끝났다 — turnCtx와 volatile이
+         승인된 사유를 이미 실은 뒤다(E6). 여기서 다시 정하지 않는다. */
       const relLabel = stageOf(Number((counts || {})[room]) || 0, days).name + ` · ${days}일째`;
       const knowsLabel = room === "jaeeon"
         ? "20년 전 공부방 아이를 안다. 유저가 그 아이라는 것은 자기만 안다"
@@ -4886,7 +5088,7 @@ export default {
         const sceneCtx = {
           who: fallbackSender, when: now, place, userName,
           stage: relLabel, knows: knowsLabel, facts: stageFacts, here,
-          recent: recentForDirector,
+          recent: recentForDirector, scene: routed.reason,
         };
 
         /* ── 중요한 장면 ──
@@ -5015,9 +5217,12 @@ export default {
            프론트가 보낸 사유를 워커가 거절하고 일반 턴으로 내릴 때가 있다
            (상태가 그 사유를 안 받쳐줄 때). 그런데 클라이언트는 200이면
            무조건 지웠다 — 한 번뿐인 장면이 쓰이지도 않고 사라졌다.
-           **실제로 중요 장면으로 올라가서 답까지 나온 경우에만** 돌려준다.
-           프론트는 제가 보낸 사유와 같을 때만 지운다. */
-        ...(tier === "critical" && routed.reason ? { scene_ack: routed.reason } : {}) }),
+           **예약한 그 사유가 실제로 올라가서 답까지 나온 경우에만** 돌려준다.
+           워커가 스스로 감지해 올린 장면(E4)은 예약이 아니므로 ack가 없다 —
+           지울 예약 자체가 없다. 프론트는 제가 보낸 사유와 같을 때만 지운다. */
+        ...(tier === "critical" && routed.reason
+            && routed.reason === String(body.scene_reason || "").trim()
+          ? { scene_ack: routed.reason } : {}) }),
         { headers: { ...CORS, "content-type": "application/json" } });
     } catch (e) {
       /* 이름표는 실패한 답에도 실어야 한다. 프론트가 「이게 지금 것이 맞나」를
@@ -5051,7 +5256,10 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          directorPacket, readDecision, DIRECTOR_RULES,
-         CRITICAL_REASONS, sceneTier, sceneHead, criticPacket, finalizerPacket, readProblems,
+         CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts,
+         MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE,
+         JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,
+         sceneHead, criticPacket, finalizerPacket, readProblems,
          CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES,
          /* 축약 성격표 — 사실은 fact_id로, 사람 규칙은 rule_id로 가린다 */
          CHAR_RULES, RULE_IDS, rulesFor, ruleSheet, CANON_CODES, CHAR_CODES };
