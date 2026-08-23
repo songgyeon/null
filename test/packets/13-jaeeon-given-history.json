@@ -1,18 +1,55 @@
 {
   "label": "13-jaeeon-given-history",
   "blurb": "이재언 1:1 — 예전에 준 머그컵을 다시 언급. 선물 기억(givenHistory)이 실제로 갈리는 자리.",
-  "meta": { "prev": { "responses": 20, "summary": "", "stage_idx": 1 } },
+  "meta": {
+    "prev": {
+      "responses": 20,
+      "summary": "",
+      "stage_idx": 1
+    }
+  },
   "body": {
-    "mode": "chat", "room": "jaeeon", "user_name": "연",
-    "gifts": { "jaeeon": ["mug"] },
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "gifts": {
+      "jaeeon": [
+        "mug"
+      ]
+    },
     "history": [
-      { "role": "user", "content": "선생님 커피 드셨어요?" },
-      { "role": "assistant", "sender": "jaeeon", "content": "마시는 중이에요." },
-      { "role": "user", "content": "혹시 제가 드린 머그컵에요?" }
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님 커피 드셨어요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "마시는 중이에요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "혹시 제가 드린 머그컵에요?"
+      }
     ],
-    "counts": { "jaeeon": 30, "minhyun": 10, "group": 4, "health": 0 },
-    "days": 9, "now": "아침", "day": "수요일",
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "counts": {
+      "jaeeon": 30,
+      "minhyun": 10,
+      "group": 4,
+      "health": 0
+    },
+    "days": 9,
+    "now": "아침",
+    "day": "수요일",
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }

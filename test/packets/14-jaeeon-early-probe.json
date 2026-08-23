@@ -1,16 +1,18 @@
 {
   "label": "14-jaeeon-early-probe",
-  "blurb": "이재언 1:1 — 두 번째 응답 자리(opening anchor 대상)에서 기억 탐침이 터진 턴. staged는 anchor를 물리고(anchor_declined) 기존 중요 장면 경로를 타야 한다 — 한 턴에 Sonnet을 두 자리에 사지 않는다.",
+  "blurb": "이재언 1:1 — 두 번째 응답 자리(opening anchor 대상)에서 기억 탐침이 터진 턴. staged는 anchor를 물리고(anchor_declined) 기존 중요 장면 경로를 타야 한다 — 한 턴에 Sonnet을 두 자리에 사지 않는다. 첫 선톡은 코드 고정 각본 세 줄이다.",
   "meta": { "prev": { "responses": 1 } },
   "body": {
     "mode": "chat", "room": "jaeeon", "user_name": "연",
     "history": [
-      { "role": "assistant", "sender": "jaeeon", "content": "이민현 담임입니다. 급한 일은 아니고요." },
-      { "role": "user", "content": "안녕하세요. 그런데 선생님 목소리가 낯익어요" },
-      { "role": "assistant", "sender": "jaeeon", "content": "…그래요. 민현이 일로 연락드렸어요." },
-      { "role": "user", "content": "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?" }
+      { "role": "assistant", "sender": "jaeeon", "content": "새로 오셨죠." },
+      { "role": "assistant", "sender": "jaeeon", "content": "애들 때문에 정신 없으시겠네요." },
+      { "role": "assistant", "sender": "jaeeon", "content": "저한테는 편하게 메세지 주셔도 됩니다." },
+      { "role": "user", "sender": "user", "content": "감사해요. 그런데 선생님, 목소리가 어디서 들어본 것 같아요" },
+      { "role": "assistant", "sender": "jaeeon", "content": "…그런가요. 처음 뵙는 걸 텐데요." },
+      { "role": "user", "sender": "user", "content": "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?" }
     ],
-    "counts": { "jaeeon": 4, "minhyun": 0, "group": 0, "health": 0 },
+    "counts": { "jaeeon": 6, "minhyun": 0, "group": 0, "health": 0 },
     "days": 0, "now": "저녁", "day": "목요일",
     "gifts": {},
     "story": { "firstContact": "unseen", "jaeeonMemory": "hidden",

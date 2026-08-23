@@ -1,20 +1,61 @@
 {
   "label": "11-jaeeon-gift-now",
   "blurb": "이재언 1:1 — 이번 턴에 머그컵을 건넸다. FACT_DENIAL 계열이 실제로 갈리는 자리.",
-  "meta": { "prev": { "responses": 14, "summary": "", "stage_idx": 1 } },
+  "meta": {
+    "prev": {
+      "responses": 14,
+      "summary": "",
+      "stage_idx": 1
+    }
+  },
   "body": {
-    "mode": "chat", "room": "jaeeon", "user_name": "연",
-    "gift": { "key": "mug", "name": "머그컵" },
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "gift": {
+      "key": "mug",
+      "name": "머그컵"
+    },
     "history": [
-      { "role": "user", "content": "선생님 잠깐 시간 되세요?" },
-      { "role": "assistant", "sender": "jaeeon", "content": "네. 왜요." },
-      { "role": "user", "kind": "event", "content": "연이 이재언에게 머그컵을 건넸다" },
-      { "role": "user", "content": "보건실에 컵이 하나뿐이길래요. 쓰세요" }
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님 잠깐 시간 되세요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "네. 왜요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "kind": "event",
+        "content": "연이 이재언에게 머그컵을 건넸다"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "보건실에 컵이 하나뿐이길래요. 쓰세요"
+      }
     ],
-    "counts": { "jaeeon": 22, "minhyun": 8, "group": 2, "health": 0 },
-    "days": 6, "now": "낮", "day": "목요일",
+    "counts": {
+      "jaeeon": 22,
+      "minhyun": 8,
+      "group": 2,
+      "health": 0
+    },
+    "days": 6,
+    "now": "낮",
+    "day": "목요일",
     "gifts": {},
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }

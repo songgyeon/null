@@ -597,8 +597,13 @@ env로 고른다). 프롬프트 조립·parse·hardFilter·Effect·scene_ack이 
   초반에 만든 말맛을 Haiku가 실제로 이어가는지는 이 층만 답한다. 한 경로의
   출력을 다른 경로 history에 섞지 않는다. 하네스는 클라이언트의 이력 창
   (12,000자)·요약 굴림(12,000자 문턱·꼬리 4,000자)을 그대로 복제해 돈다.
-  B층에서 summary_rollover까지 밟으려면 실제 세이브에서 뽑은 긴 세션을
-  `test/sessions/`에 놓으면 된다 — 굴림은 하네스가 이미 한다.
+  세 대본이 세 사유를 나눠 밟는다: S1·S2가 opening과 stage_enter를,
+  S3(3주치 긴 세이브, 미요약 약 1만1천 자)가 세션 중간의 실제 요약 굴림과
+  그 직후의 summary_rollover anchor를 밟는다. 오래된 세이브 대본은
+  `seed.responses`로 그 방이 이미 산 응답 수를 선언한다 — 안 그러면 3주째
+  방에서 opening이 다시 선다. 실패한 턴은 세 사유 모두 anchor를 소진하지
+  않는다 — 계약의 「직후 첫 응답」에서 응답이 없던 턴은 직후가 아니다.
+  실제 세이브에서 뽑은 세션을 추가로 놓아도 그대로 돈다.
 
 **trace와 블라인드.** 턴마다 구조화 trace JSON을 남긴다 — engine_mode·
 candidate_mode·anchor_reason·writer_model·stage별 usage/latency·route·
@@ -610,7 +615,7 @@ turnContext·selectedCandidate·effects·finalMessages. 대사 비교는 경로
 ```
 ANTHROPIC_API_KEY=<키> node tools/replay.mjs      # 실제 재생
 node tools/replay.mjs --fake                       # 모델 없이 하네스 점검
-node test/engine-pipeline.test.mjs                 # 네 갈래 회귀 61개
+node test/engine-pipeline.test.mjs                 # 네 갈래 회귀 86개
 ```
 
 TRACE 응답은 replay 전용이다 — 운영 env에는 TRACE가 없고, turnContext와

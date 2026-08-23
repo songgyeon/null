@@ -1,19 +1,56 @@
 {
   "label": "06-minhyun-sick",
   "blurb": "이민현 1:1 — 유저가 「나 아파」. 옛 로그에서 「뭐라고 해야 해요.」로 무너졌던 자리.",
-  "meta": { "prev": { "responses": 12, "summary": "", "stage_idx": 1 } },
+  "meta": {
+    "prev": {
+      "responses": 12,
+      "summary": "",
+      "stage_idx": 1
+    }
+  },
   "body": {
-    "mode": "chat", "room": "minhyun", "user_name": "연",
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
     "history": [
-      { "role": "assistant", "sender": "minhyun", "content": "쌤 왜 오늘 답 늦었어" },
-      { "role": "user", "content": "미안 좀 누워 있었어" },
-      { "role": "assistant", "sender": "minhyun", "content": "??? 왜" },
-      { "role": "user", "content": "나 아파. 감기인가 봐" }
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤 왜 오늘 답 늦었어"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "미안 좀 누워 있었어"
+      },
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "??? 왜"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "나 아파. 감기인가 봐"
+      }
     ],
-    "counts": { "jaeeon": 8, "minhyun": 20, "group": 2, "health": 0 },
-    "days": 5, "now": "밤", "day": "금요일",
+    "counts": {
+      "jaeeon": 8,
+      "minhyun": 20,
+      "group": 2,
+      "health": 0
+    },
+    "days": 5,
+    "now": "밤",
+    "day": "금요일",
     "gifts": {},
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }

@@ -1,20 +1,61 @@
 {
   "label": "02-jaeeon-normal",
   "blurb": "이재언 1:1 — 자리 잡힌 평범한 저녁 잡담. anchor 없음.",
-  "meta": { "prev": { "responses": 6, "summary": "", "stage_idx": 0 } },
+  "meta": {
+    "prev": {
+      "responses": 6,
+      "summary": "",
+      "stage_idx": 0
+    }
+  },
   "body": {
-    "mode": "chat", "room": "jaeeon", "user_name": "연",
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
     "history": [
-      { "role": "user", "content": "퇴근하셨어요?" },
-      { "role": "assistant", "sender": "jaeeon", "content": "방금요. 오늘은 별일 없었어요." },
-      { "role": "user", "content": "저녁은요?" },
-      { "role": "assistant", "sender": "jaeeon", "content": "아직요. 생각 중이에요." },
-      { "role": "user", "content": "라면 드시게요? 저번에도 라면이라면서요" }
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "퇴근하셨어요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "방금요. 오늘은 별일 없었어요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "저녁은요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "아직요. 생각 중이에요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "라면 드시게요? 저번에도 라면이라면서요"
+      }
     ],
-    "counts": { "jaeeon": 12, "minhyun": 4, "group": 0, "health": 0 },
-    "days": 2, "now": "저녁", "day": "화요일",
+    "counts": {
+      "jaeeon": 12,
+      "minhyun": 4,
+      "group": 0,
+      "health": 0
+    },
+    "days": 2,
+    "now": "저녁",
+    "day": "화요일",
     "gifts": {},
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }

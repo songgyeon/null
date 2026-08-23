@@ -1,18 +1,51 @@
 {
   "label": "08-jaeeon-memory-probe",
   "blurb": "이재언 1:1 — 「저 기억 안 나세요?」. 워커 감지 memory_reveal 후보 턴. staged라도 중요 장면이면 기존 경로가 이겨야 한다.",
-  "meta": { "prev": { "responses": 30, "summary": "", "stage_idx": 2 } },
+  "meta": {
+    "prev": {
+      "responses": 30,
+      "summary": "",
+      "stage_idx": 2
+    }
+  },
   "body": {
-    "mode": "chat", "room": "jaeeon", "user_name": "연",
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
     "history": [
-      { "role": "user", "content": "선생님, 이상한 거 물어봐도 돼요?" },
-      { "role": "assistant", "sender": "jaeeon", "content": "물어보세요." },
-      { "role": "user", "content": "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?" }
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님, 이상한 거 물어봐도 돼요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "물어보세요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?"
+      }
     ],
-    "counts": { "jaeeon": 48, "minhyun": 20, "group": 8, "health": 0 },
-    "days": 12, "now": "밤", "day": "일요일",
+    "counts": {
+      "jaeeon": 48,
+      "minhyun": 20,
+      "group": 8,
+      "health": 0
+    },
+    "days": 12,
+    "now": "밤",
+    "day": "일요일",
     "gifts": {},
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }

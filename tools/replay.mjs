@@ -122,18 +122,36 @@ export const stageIdxOf = body => ENG.STAGES.indexOf(
    2026-08 API 단가. 캐시 쓰기는 5분 TTL 1.25×(워커의 ephemeral 기본값),
    읽기는 0.1×. 호출 수만 보고 비용을 추측하지 않는다. */
 export const PRICES = {
-  "claude-haiku-4-5":           { in: 1.00, out: 5.00 },
-  "claude-sonnet-4-5-20250929": { in: 3.00, out: 15.00 },
+  "claude-haiku-4-5":  { in: 1.00, out: 5.00 },
+  "claude-sonnet-4-5": { in: 3.00, out: 15.00 },
+  /* 요약의 폴백(askClaude의 MODELS)까지 — 폴백이 탄 호출이 0원으로 새면
+     제일 비싼 요약이 공짜로 집계된다 */
+  "claude-sonnet-4-6": { in: 3.00, out: 15.00 },
+  "claude-sonnet-5":   { in: 3.00, out: 15.00 },
+};
+/* API는 날짜 붙은 id(claude-sonnet-4-5-20250929)를 돌려줄 수 있다 —
+   접미를 떼고 찾는다. 그래도 모르는 모델은 0원으로 조용히 새지 않고 적는다. */
+export const unknownModels = new Set();
+export const priceFor = model => {
+  const id = String(model || "");
+  const hit = PRICES[id] || PRICES[id.replace(/-\d{8}$/, "")];
+  if (hit) return hit;
+  if (id && !unknownModels.has(id)) {
+    unknownModels.add(id);
+    console.warn(`[replay] 단가를 모르는 모델 — ${id} (0원으로 집계됨, PRICES에 추가하라)`);
+  }
+  return { in: 0, out: 0 };
 };
 export const costOf = rows => (rows || []).reduce((c, r) => {
-  const p = PRICES[r.model] || { in: 0, out: 0 };
+  const p = priceFor(r.model);
   return c + (r.input_tokens || 0) * p.in / 1e6
            + (r.output_tokens || 0) * p.out / 1e6
            + (r.cache_creation_input_tokens || 0) * p.in * 1.25 / 1e6
            + (r.cache_read_input_tokens || 0) * p.in * 0.1 / 1e6;
 }, 0);
 /* 요약 응답에는 stages가 없다(usage 하나뿐) — 그 한 호출을 usage로 잰다.
-   요약은 늘 Haiku다(SUMMARY_MODEL). */
+   워커 callModel이 usage.model을 늘 실어 보내므로 그것이 이긴다. 기본값은
+   usage에 model이 없을 때(옛 응답)의 안전망일 뿐이다. */
 export const usageCost = (u, model = "claude-haiku-4-5") =>
   costOf([{ model, ...(u || {}) }]);
 
@@ -160,7 +178,13 @@ export const snapshot = (mem, room) => ({
   stageIdx: mem.lastStageIdx[room],
 });
 export const noteTurn = (mem, room, body, gotResponse) => {
-  if (gotResponse) mem.responses[room] = (mem.responses[room] || 0) + 1;
+  /* 관찰은 **응답이 실제로 나온 턴만** 갱신한다 — 세 사유 모두다.
+     실패한 턴에 lastSummary·lastStageIdx를 덮으면, rollover/단계 전환 직후의
+     「첫 응답」이 아직 안 나왔는데 anchor 기회가 소진된다. opening이 실패
+     턴을 안 세는 것과 같은 원칙이다: 계약의 「직후 첫 응답 딱 한 번」에서
+     응답이 없던 턴은 직후가 아니다. */
+  if (!gotResponse) return;
+  mem.responses[room] = (mem.responses[room] || 0) + 1;
   mem.lastSummary[room] = String(body.summary || "");
   mem.lastStageIdx[room] = stageIdxOf(body);
 };
@@ -196,9 +220,18 @@ export const fakeFetch = (replies) => async (url, init) => {
   else {
     const want = (replies && replies.shift());
     if (want) text = want;
-    else text = msgsText.includes('"candidates"')
-      ? JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] })
-      : JSON.stringify({ messages: [{ text: "네." }] });
+    else {
+      /* 실측 답 길이(두 덩이, 출력 60~110토큰)와 비슷하게 준다 — 짧은 가짜
+         답이면 요약 문턱(12,000자) 같은 누적 조건이 fake 모드에서 영영 안
+         밟혀서, 하네스 점검이 실제 경로를 안 지나간다. */
+      const A = [{ text: "오늘은 조용했어요. 애들도 얌전했고요." },
+                 { text: "선생님 하루는 어땠어요. 밥은 챙겨 먹었고요?" }];
+      const B = [{ text: "별일 없었어요. 늘 하던 대로요." },
+                 { text: "그쪽 얘기나 해봐요. 뭔가 있어 보이는데." }];
+      text = msgsText.includes('"candidates"')
+        ? JSON.stringify({ candidates: [{ messages: A }, { messages: B }] })
+        : JSON.stringify({ messages: A });
+    }
   }
   return { ok: true, status: 200, headers: { get: () => null },
     json: async () => ({ content: [{ type: "text", text }],
@@ -298,6 +331,10 @@ async function main() {
                     partnerKnown: { jaeeon: false, minhyun: false },
                     ...(ses.seed && ses.seed.story || {}) };
       const mem = newMemory();
+      /* 오래된 세이브에서 시작하는 대본은 그 방이 이미 산 응답 수를 선언한다 —
+         안 그러면 3주째 방에서 opening이 다시 선다. opening은 「그 방의 첫 두
+         모델 생성 응답」이지 「이 재생의 첫 두 턴」이 아니다. */
+      if (ses.seed && ses.seed.responses) Object.assign(mem.responses, ses.seed.responses);
       const transcript = [];
       for (let i = 0; i < (ses.turns || []).length; i++) {
         const t = ses.turns[i];
@@ -305,13 +342,30 @@ async function main() {
         msgs[room] = msgs[room] || [];
         msgs[room].push({ sender: "user", text: t.text, ts: t.ts });
         const sum = sums[room] || { text: "", upto: 0 };
+        /* 클라이언트가 chat 턴마다 상시로 싣는 것들을 같이 싣는다 — 없는
+           필드로 워커를 부르면 운영에서 절대 안 나가는 프롬프트가 된다.
+           signals는 buildSignals(app.js) 복제: 다른 방의 오늘 대화 수와
+           마지막 말로부터의 분. 「오늘」의 자정은 KST로 잰다(작품의 시간대).
+           시계·해금 규칙이 필요한 것(states·closed·can_go)은 여기서 지어내지
+           않는다 — 필요한 대본은 t.extra로 직접 선언한다. */
+        const midnight = t.ts - ((t.ts + 9 * 3600e3) % 86400e3);
+        const signals = {};
+        ["jaeeon", "minhyun", "group"].forEach(r => {
+          if (r === room) return;
+          const ms = msgs[r] || []; if (!ms.length) return;
+          signals[r] = { count: ms.filter(m => m.ts >= midnight).length,
+            minsAgo: Math.max(0, Math.floor((t.ts - ms[ms.length - 1].ts) / 60000)) };
+        });
         const body = {
           mode: "chat", room, user_name: ses.user_name || "선생님",
           history: buildHistory(sinceSum(sum.upto, msgs[room])),
           counts: Object.fromEntries(["jaeeon", "minhyun", "group", "health"]
             .map(r => [r, (msgs[r] || []).length])),
           days: t.days ?? 0, now: t.now, day: t.day,
-          gifts: {}, story, request_id: `rp-B-${label}-${path}-${i}`,
+          gifts: {}, bag: [], met: [], refused: [], recent_photos: [],
+          ...(Object.keys(signals).length ? { signals } : {}),
+          origin_phase: ses.origin_phase || "unasked",
+          story, request_id: `rp-B-${label}-${path}-${i}`,
           ...(sum.text ? { summary: sum.text } : {}),
           ...(ses.partner ? { partner: ses.partner } : {}),
           ...(t.greet ? { greet: true } : {}),
@@ -339,7 +393,11 @@ async function main() {
             }
           }
         }
-        /* 요약 굴리기 — 클라이언트 rollSummary와 같은 문턱·같은 꼬리 */
+        /* 요약 굴리기 — 클라이언트 rollSummary와 같은 문턱·같은 꼬리.
+           실행 조건도 같다: 클라이언트는 성공 경로에서만 예약한다(app.js의
+           setTimeout(rollSummary)) — 실패한 턴 뒤에 굴리면 클라이언트가
+           그 시점에 만들 수 없는 upto가 생긴다. */
+        if (!r.ok) { console.log(`B ${label} · ${path} · #${i}${anchor ? ` · anchor:${anchor}` : ""} → ${r.status}`); continue; }
         const un = sinceSum(sum.upto, msgs[room]);
         const total = un.reduce((n, m) => n + ((m.text || "").length), 0);
         if (total >= SUM_AT) {
@@ -445,8 +503,12 @@ function record(results, base, r, anchor) {
   /* 제안한 anchor와 실제로 선 anchor는 다르다 — 중요 장면과 겹치면 워커가
      물린다(anchor_declined). 보고에는 실제로 선 것을 센다. */
   const ranAnchor = !!(r.data && r.data.trace && r.data.trace.anchor_reason);
+  /* 재시도는 「몇 라운드 더 돌았나」다 — 한 라운드의 모든 단계가 같은
+     attempt를 찍으므로 행 수로 세면 경로 구조(1단·2단·4단)에 비례해 부푼다.
+     같은 재시도 한 번이 single에서 1, 중요 장면에서 4-5로 집계되면 안 된다. */
   const row = { ...base, ok: r.ok, cost: costOf(stages), latency: r.latency_ms,
-    calls: stages.length, retries: stages.filter(s => s.attempt > 1).length,
+    calls: stages.length,
+    retries: stages.length ? Math.max(...stages.map(s => s.attempt || 1)) - 1 : 0,
     anchor: anchor || null, ranAnchor,
     declined: !!(r.data && r.data.trace && r.data.trace.anchor_declined), trace,
     rendered: messages.map(m => `${m.sender ? m.sender + ": " : ""}${m.photo ? "(사진) " : ""}${m.text || ""}`).join("\n") };

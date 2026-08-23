@@ -238,10 +238,11 @@ const PROBE = { ...BASE,
     && ENG.STAGE_ENGINE.anchor_writer === "anchorWriter", true);
   const rp = readFileSync(join(ROOT, "tools/replay.mjs"), "utf8");
   eq("재생이 legacy를 안 탄다", /ENGINE_MODE:\s*"legacy"/.test(rp), false);
-  /* 비용표가 실제 쓰는 모델을 다 안다 — 모르는 모델은 0원으로 새는 구멍이다 */
+  /* 비용표가 실제 쓰는 모델을 다 안다 — 모르는 모델은 0원으로 새는 구멍이다.
+     날짜 접미(-20250929)는 priceFor가 떼고 찾는다 */
   eq("비용표가 네 경로의 모델을 다 안다",
     [ENG.ENGINE.writer.id, ENG.ENGINE.finalizer.id, ENG.ENGINE.singleWriter.id]
-      .every(id => RP.PRICES[id]), true);
+      .every(id => RP.usageCost({ model: id, input_tokens: 1000000 }) > 0), true);
   eq("비용은 실측에 단가를 곱한다 — 캐시 쓰기 1.25배·읽기 0.1배",
     RP.costOf([{ model: "claude-haiku-4-5", input_tokens: 1000000, output_tokens: 1000000,
       cache_creation_input_tokens: 1000000, cache_read_input_tokens: 1000000 }]).toFixed(2),
@@ -255,6 +256,111 @@ const PROBE = { ...BASE,
   eq("기본 쓰는 쪽은 Haiku다", prod.data.stages[0].model, "claude-haiku-4-5");
   const noTrace = await run({ TRACE: "" }, BASE);
   eq("TRACE 없이는 trace가 안 실린다 — 운영 응답 불변", "trace" in noTrace.data, false);
+}
+
+/* ══════════ 7.5 적대 검증이 잡은 것들 — 재발 방지 ══════════ */
+{
+  /* 실패한 턴은 anchor를 소진하지 않는다 — 세 사유가 같은 원칙을 탄다.
+     실패 턴에 lastSummary를 덮으면 rollover 직후의 「첫 응답」이 안 나왔는데
+     기회가 사라진다. */
+  const mem = RP.newMemory();
+  const b1 = { mode: "chat", room: "jaeeon", counts: { jaeeon: 20 }, days: 5, summary: "옛" };
+  RP.noteTurn(mem, "jaeeon", b1, true); RP.noteTurn(mem, "jaeeon", b1, true);
+  const b2 = { ...b1, summary: "새" };
+  eq("요약이 갈리면 anchor가 선다", RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b2), "summary_rollover");
+  RP.noteTurn(mem, "jaeeon", b2, false);           // 그 턴이 502로 죽었다
+  eq("실패한 턴은 rollover를 안 소진한다", RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b2), "summary_rollover");
+  RP.noteTurn(mem, "jaeeon", b2, true);            // 이번엔 답이 나왔다
+  eq("성공하면 딱 한 번으로 닫힌다", RP.decideAnchor(RP.snapshot(mem, "jaeeon"), b2), null);
+  const mem2 = RP.newMemory();
+  RP.noteTurn(mem2, "jaeeon", b1, false);
+  eq("실패는 opening도 안 센다", RP.snapshot(mem2, "jaeeon").responses, 0);
+  /* 오래된 세이브는 기왕의 응답 수를 선언한다 — 3주째 방에서 opening이 다시 서면 안 된다 */
+  const mem3 = RP.newMemory(); mem3.responses.jaeeon = 200;
+  eq("씨앗 응답 수가 opening을 막는다", RP.decideAnchor(RP.snapshot(mem3, "jaeeon"), b1), null);
+
+  /* API 오류로 죽은 턴에도 trace가 실린다 — 물린 anchor 집계가 유실되면 안 된다 */
+  const err = await (async () => {
+    sent = [];
+    globalThis.fetch = async () => ({ ok: false, status: 500, headers: { get: () => null },
+      json: async () => ({}), text: async () => "서버 오류" });
+    try {
+      const res = await worker.fetch(
+        new Request("https://x/?k=열쇠", { method: "POST", body: JSON.stringify(BASE),
+          headers: { "CF-Connecting-IP": `9.8.9.${(ipN++ % 250) + 1}` } }),
+        { ANTHROPIC_API_KEY: "sk-테스트", ACCESS_KEY: "열쇠", TRACE: "1",
+          ENGINE_MODE: "single", ANCHOR_REASON: "opening" });
+      return { status: res.status, data: await res.json() };
+    } finally { globalThis.fetch = realFetch; }
+  })();
+  eq("API 오류 502에도 trace가 실린다", [err.status, err.data.trace.anchor_reason,
+    err.data.trace.writer_model, err.data.trace.selectedCandidate],
+    [502, "opening", "claude-sonnet-4-5-20250929", null]);
+
+  /* 단가 — 날짜 접미는 떼고 찾고, 요약 폴백 모델도 0원으로 안 샌다 */
+  eq("날짜 붙은 id도 단가를 찾는다",
+    RP.usageCost({ model: "claude-haiku-4-5-20251001", input_tokens: 1000000 }) > 0
+    && RP.usageCost({ model: "claude-sonnet-4-5-20250929", input_tokens: 1000000 }) > 0, true);
+  eq("요약 폴백 모델도 단가가 있다",
+    ["claude-sonnet-4-6", "claude-sonnet-5", "claude-sonnet-4-5"]
+      .every(m => RP.usageCost({ model: m, output_tokens: 1000000 }) > 0), true);
+  eq("모르는 모델은 조용히 새지 않고 적힌다", (() => {
+    RP.usageCost({ model: "claude-unknown-9", input_tokens: 5 });
+    return RP.unknownModels.has("claude-unknown-9");
+  })(), true);
+
+  /* 재시도는 라운드 수다 — 경로의 단계 수(1단·2단·4단)에 비례해 부풀면 안 된다 */
+  const rt = await run({ ENGINE_MODE: "single" }, BASE, [
+    JSON.stringify({ messages: [{ sender: "minhyun", text: "쌤!" }] }),
+    JSON.stringify({ messages: [{ text: "먹었어요." }] })]);
+  eq("한 번 재시도는 어느 경로에서든 1이다",
+    Math.max(...rt.data.stages.map(s => s.attempt)) - 1, 1);
+}
+
+/* ══════════ 7.6 재생 자료가 실사용 모양이다 — packet·세션 lint ══════════ */
+{
+  const { readdirSync } = await import("node:fs");
+  const load = dir => readdirSync(join(ROOT, dir)).filter(f => f.endsWith(".json"))
+    .map(f => [f, JSON.parse(readFileSync(join(ROOT, dir, f), "utf8"))]);
+  const TIME = ["새벽", "아침", "낮", "저녁", "밤"];
+  const DAYS = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  const OPENER = { jaeeon: ["새로 오셨죠.", "애들 때문에 정신 없으시겠네요.", "저한테는 편하게 메세지 주셔도 됩니다."],
+                   minhyun: ["선생님.", "저 알죠?", "선생님이 저 책임진다면서요."] };
+
+  const pk = load("test/packets");
+  eq("packet의 모든 이력 행에 화자가 있다 — buildHistory 출력형",
+    pk.every(([, p]) => (p.body.history || []).every(m => m.sender
+      && (m.role !== "user" || m.sender === "user"))), true);
+  eq("packet의 때·요일 낱말이 워커 목록에 있다",
+    pk.every(([, p]) => (!p.body.now || TIME.includes(p.body.now))
+      && (!p.body.day || DAYS.includes(p.body.day))), true);
+  /* 첫 선톡은 코드 고정 각본 그대로다 — 지어낸 첫 연락 위에서 opening의
+     말맛을 재면 제품이 절대 만들지 않는 입력을 재는 것이 된다 */
+  const opens = pk.filter(([f]) => f.startsWith("01-") || f.startsWith("14-"));
+  eq("opening packet의 선톡이 각본 세 줄 그대로다", opens.every(([, p]) =>
+    p.body.history.slice(0, 3).map(m => m.content).join("|") === OPENER.jaeeon.join("|")), true);
+
+  const ss = load("test/sessions");
+  eq("세션 셋이 다 있다", ss.map(([f]) => f),
+    ["S1-jaeeon.json", "S2-minhyun.json", "S3-jaeeon-long.json"]);
+  const kstDay = ts => DAYS[new Date(ts + 9 * 3600e3).getUTCDay()];
+  for (const [f, s] of ss) {
+    const room = s.turns[0].room, seed = s.seed.msgs[room];
+    const label = f.replace(".json", "");
+    eq(`${label}의 선톡이 각본 세 줄 그대로다`,
+      seed.slice(0, 3).map(m => m.text), OPENER[room]);
+    eq(`${label}의 경과일이 클라이언트 셈과 같다 — floor(경과/24h)`,
+      s.turns.every(t => Math.floor((t.ts - seed[0].ts) / 864e5) === t.days), true);
+    eq(`${label}의 요일이 ts와 맞는다 (KST)`,
+      s.turns.every(t => kstDay(t.ts) === t.day)
+      && s.turns.every(t => TIME.includes(t.now)), true);
+  }
+  /* S3 — 요약 문턱을 세션 **중간**에 실제로 넘는 크기여야 한다 */
+  const s3 = ss.find(([f]) => f.startsWith("S3"))[1];
+  const total = s3.seed.msgs.jaeeon.reduce((a, m) => a + m.text.length, 0);
+  eq("S3 씨앗이 문턱 바로 아래다 (11,000~11,950자)", total >= 11000 && total <= 11950, true);
+  eq("S3는 기왕의 응답 수를 선언한다 — opening 재발 방지",
+    (s3.seed.responses || {}).jaeeon >= 2, true);
 }
 
 /* ══════════ 8. 블라인드 섞기 — 결정적이고, 자리로 못 맞힌다 ══════════ */

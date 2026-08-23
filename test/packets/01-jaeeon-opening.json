@@ -1,14 +1,16 @@
 {
   "label": "01-jaeeon-opening",
-  "blurb": "이재언 1:1 — 각본 선톡에 유저가 처음 답한 직후. staged라면 opening anchor.",
+  "blurb": "이재언 1:1 — 코드 고정 각본 선톡 세 줄에 유저가 처음 답한 직후. staged라면 opening anchor.",
   "meta": { "prev": { "responses": 0 } },
   "body": {
     "mode": "chat", "room": "jaeeon", "user_name": "연",
     "history": [
-      { "role": "assistant", "sender": "jaeeon", "content": "이민현 담임입니다. 급한 일은 아니고요." },
-      { "role": "user", "content": "아 네, 안녕하세요. 민현이한테 무슨 일 있나요?" }
+      { "role": "assistant", "sender": "jaeeon", "content": "새로 오셨죠." },
+      { "role": "assistant", "sender": "jaeeon", "content": "애들 때문에 정신 없으시겠네요." },
+      { "role": "assistant", "sender": "jaeeon", "content": "저한테는 편하게 메세지 주셔도 됩니다." },
+      { "role": "user", "sender": "user", "content": "아 네, 안녕하세요 선생님! 감사합니다. 잘 부탁드려요" }
     ],
-    "counts": { "jaeeon": 2, "minhyun": 0, "group": 0, "health": 0 },
+    "counts": { "jaeeon": 4, "minhyun": 0, "group": 0, "health": 0 },
     "days": 0, "now": "저녁", "day": "목요일",
     "gifts": {},
     "story": { "firstContact": "unseen", "jaeeonMemory": "hidden",

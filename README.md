@@ -10,7 +10,7 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 
 ```
 node test/run.mjs                   # 1858개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
-node test/engine-pipeline.test.mjs  # 생성 경로 네 갈래(G) 회귀 61개 — 역시 키 없이 돈다
+node test/engine-pipeline.test.mjs  # 생성 경로 네 갈래(G) 회귀 86개 — 역시 키 없이 돈다
 node tools/eval.mjs                 # 대사 품질 자 — 내보낸 기록에서 명백한 것을 센다
 node tools/replay.mjs --fake        # 네 갈래 replay 하네스 자체 점검 (실제 재생은 ANTHROPIC_API_KEY로)
 ```

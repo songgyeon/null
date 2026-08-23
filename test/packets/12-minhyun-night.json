@@ -1,19 +1,56 @@
 {
   "label": "12-minhyun-night",
   "blurb": "이민현 1:1 — 밤. 생활리듬 톤이 갈리는 자리(옛 로그의 「학교 가세요」류 오류 지점).",
-  "meta": { "prev": { "responses": 16, "summary": "", "stage_idx": 1 } },
+  "meta": {
+    "prev": {
+      "responses": 16,
+      "summary": "",
+      "stage_idx": 1
+    }
+  },
   "body": {
-    "mode": "chat", "room": "minhyun", "user_name": "연",
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
     "history": [
-      { "role": "assistant", "sender": "minhyun", "content": "쌤 안 자?" },
-      { "role": "user", "content": "응 아직. 너는 왜 안 자" },
-      { "role": "assistant", "sender": "minhyun", "content": "몰라 그냥 잠이 안 옴" },
-      { "role": "user", "content": "내일 학교잖아. 무슨 생각 하는데?" }
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤 안 자?"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "응 아직. 너는 왜 안 자"
+      },
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "몰라 그냥 잠이 안 옴"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "내일 학교잖아. 무슨 생각 하는데?"
+      }
     ],
-    "counts": { "jaeeon": 10, "minhyun": 26, "group": 4, "health": 0 },
-    "days": 7, "now": "밤", "day": "일요일",
+    "counts": {
+      "jaeeon": 10,
+      "minhyun": 26,
+      "group": 4,
+      "health": 0
+    },
+    "days": 7,
+    "now": "밤",
+    "day": "일요일",
     "gifts": {},
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }

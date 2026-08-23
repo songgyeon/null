@@ -1,19 +1,52 @@
 {
   "label": "03-jaeeon-summary-rollover",
   "blurb": "이재언 1:1 — 요약이 방금 갱신돼 초반 대화가 요약문으로만 남은 첫 턴. staged라면 summary_rollover anchor.",
-  "meta": { "prev": { "responses": 24, "summary": "유저가 이민현의 담임 이재언과 알게 됐다. 저녁마다 짧은 안부를 주고받았고, 유저가 요즘 잠을 잘 못 잔다는 얘기를 했다.", "stage_idx": 1 } },
+  "meta": {
+    "prev": {
+      "responses": 24,
+      "summary": "유저가 이민현의 담임 이재언과 알게 됐다. 저녁마다 짧은 안부를 주고받았고, 유저가 요즘 잠을 잘 못 잔다는 얘기를 했다.",
+      "stage_idx": 1
+    }
+  },
   "body": {
-    "mode": "chat", "room": "jaeeon", "user_name": "연",
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
     "summary": "유저가 이민현의 담임 이재언과 알게 됐다. 저녁마다 짧은 안부를 주고받았고, 유저가 요즘 잠을 잘 못 잔다는 얘기를 했다. 유저가 학교 앞 편의점에서 이재언과 우연히 마주쳐 같이 컵라면을 먹었다. 이재언은 유저에게 무리하지 말라는 말을 여러 번 했다.",
     "history": [
-      { "role": "assistant", "sender": "jaeeon", "content": "늦었어요. 자요." },
-      { "role": "user", "content": "네 이제 잘게요. 선생님도 주무세요" },
-      { "role": "user", "content": "아 맞다, 저번에 편의점에서 먹던 라면 이름이 뭐였죠?" }
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "늦었어요. 자요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "네 이제 잘게요. 선생님도 주무세요"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "아 맞다, 저번에 편의점에서 먹던 라면 이름이 뭐였죠?"
+      }
     ],
-    "counts": { "jaeeon": 52, "minhyun": 10, "group": 4, "health": 0 },
-    "days": 8, "now": "밤", "day": "수요일",
+    "counts": {
+      "jaeeon": 52,
+      "minhyun": 10,
+      "group": 4,
+      "health": 0
+    },
+    "days": 8,
+    "now": "밤",
+    "day": "수요일",
     "gifts": {},
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }

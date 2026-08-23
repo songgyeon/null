@@ -4994,6 +4994,10 @@ export default {
     // 사진 허용 대상. auto(「두 사람」방)는 빈 배열이라 모델이 지어내도 전부 걸러진다.
     const photoChars = mode === "auto" ? [] : chars;
 
+    /* catch에서도 trace를 실으려면 try 안의 traceOf를 여기서 잡아둬야 한다 —
+       API 오류로 죽은 턴이 trace 없이 나가면 replay가 그 턴의 경로·anchor를
+       복원할 수 없다(중요 장면과 겹쳐 물린 anchor의 집계가 유실된다). */
+    let traceOfRef = null;
     try {
       // Sonnet 5는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
       /* 채팅도 high다. 비용 때문에 medium으로 내렸다가 하루 만에 되돌렸다 —
@@ -5136,6 +5140,7 @@ export default {
         selectedCandidate: picked
           ? { id: picked.id, originalMessages: picked.originalMessages } : null,
       } };
+      traceOfRef = traceOf;
       /* 후보를 담을 자리를 넉넉히 준다. 천장이지 청구서가 아니라서 열어둔다고
          값이 오르지 않는다 — 실제로 뽑은 만큼만 낸다. */
       const cMode = mode === "auto" || singleNow ? "one" : candidateMode(env);
@@ -5388,7 +5393,8 @@ export default {
          지금 도는 요청 위에 재시도를 띄운다. */
       return new Response(JSON.stringify({ error: "생성 실패", detail: String(e).slice(0, 200),
         stages: meter.rows, usage_total: meterTotal(meter),
-        ...(reqId ? { request_id: reqId } : {}) }),
+        ...(reqId ? { request_id: reqId } : {}),
+        ...(traceOfRef ? traceOfRef(null) : {}) }),
         { status: 502, headers: { ...CORS, "content-type": "application/json" } });
     }
   },

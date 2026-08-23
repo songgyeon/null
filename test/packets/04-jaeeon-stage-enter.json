@@ -1,20 +1,61 @@
 {
   "label": "04-jaeeon-stage-enter",
   "blurb": "이재언 1:1 — 관계 단계가 처음→익숙으로 방금 오른 직후의 첫 턴. staged라면 stage_enter anchor.",
-  "meta": { "prev": { "responses": 8, "summary": "", "stage_idx": 0 } },
+  "meta": {
+    "prev": {
+      "responses": 8,
+      "summary": "",
+      "stage_idx": 0
+    }
+  },
   "body": {
-    "mode": "chat", "room": "jaeeon", "user_name": "연",
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
     "history": [
-      { "role": "user", "content": "선생님은 쉬는 날 뭐 하세요?" },
-      { "role": "assistant", "sender": "jaeeon", "content": "빨래요. 밀린 거." },
-      { "role": "user", "content": "그게 다예요?" },
-      { "role": "assistant", "sender": "jaeeon", "content": "산책도 해요. 가끔." },
-      { "role": "user", "content": "다음에 산책하실 때 저도 껴주세요" }
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님은 쉬는 날 뭐 하세요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "빨래요. 밀린 거."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "그게 다예요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "산책도 해요. 가끔."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "다음에 산책하실 때 저도 껴주세요"
+      }
     ],
-    "counts": { "jaeeon": 16, "minhyun": 6, "group": 0, "health": 0 },
-    "days": 4, "now": "낮", "day": "토요일",
+    "counts": {
+      "jaeeon": 16,
+      "minhyun": 6,
+      "group": 0,
+      "health": 0
+    },
+    "days": 4,
+    "now": "낮",
+    "day": "토요일",
     "gifts": {},
-    "story": { "firstContact": "explained", "jaeeonMemory": "hidden",
-               "partnerKnown": { "jaeeon": false, "minhyun": false } }
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
   }
 }
