@@ -3449,6 +3449,7 @@ function unlabel(list, allowed) {
    그래서 이름표가 붙은 줄은 화자별 말풍선으로 풀어준다. 모델이 형식을 어겨도
    화면은 멀쩡하게 나오도록. 이름표가 하나도 없으면 null을 돌려 원래대로 둔다. */
 function parseTagged(text, allowed) {
+  parseTagged.intruder = false;
   const lines = String(text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   if (!lines.length) return null;
   const out = [];
@@ -3458,8 +3459,10 @@ function parseTagged(text, allowed) {
     const m = line.match(/^\[\s*([^\]]{1,20})\s*\]\s*(.*)$/) ||
               line.match(/^([가-힣A-Za-z]{2,10})\s*[:：]\s*(.*)$/);
     let id = m && NAME_TO_ID[m[1].trim()];
-    // 이 방에 없는 사람은 말하지 않는다. 1:1 방에 상대가 끼어드는 걸 막는다
-    if (id && !allowed.includes(id)) id = null;
+    /* 이 방에 없는 사람은 말하지 않는다. 줄은 버리되 **버렸다고 신고한다** —
+       조용히 버리면 SENDER 검사가 이름표 형식에서 영영 발화하지 못하고,
+       모든 줄이 난입이면 이름표째 평문 말풍선으로 나간다. */
+    if (id && !allowed.includes(id)) { parseTagged.intruder = true; id = null; }
     if (id) {
       tagged++;
       const t = m[2].trim();
@@ -3548,19 +3551,74 @@ const HARD_CODES = {
   LEAK: "안이 비침",
   SENDER: "허용되지 않은 화자",
 };
-function hardFilter(kept, allowed) {
-  if (!kept || !kept.length) return ["EMPTY"];
+/* ── 받은 것을 없던 일로 만드는 말 ──
+   이 턴에 유저가 건넨 **그 물건**을 그 **받은 사람**이 직접 부정할 때만이다.
+   넓게 잡으면 「안 받은 게 아니라 아직 안 쓴 거예요」까지 걸려 재시도가
+   폭주한다. 물건 이름이 그 문장 안에 실제로 있어야 한다. */
+const DENY_RECEIVE = /(받은 적(?:이)? 없|안 받았|못 받았|받지 않았|받은 기억(?:이)? 없|그런 거 받은 적)/;
+/* 부정을 다시 뒤집는 말. 「안 받은 게 아니라」는 받았다는 말이다 */
+const DENY_UNDO = /(?:안 받았|받은 적 없|못 받았)[^.!?]{0,6}(?:게 아니|것이 아니|건 아니)/;
+
+/* ── 명백한 것만 자른다 ──
+   hard는 **코드가 값으로 들고 있는 이번 턴의 사건**을 후보가 직접 뒤집는
+   것이다. 수상한 것은 여기서 안 자르고 신호로 넘긴다 — 자연어의 뜻을
+   정규식이 확정한다고 가정하는 순간 멀쩡한 대사가 사라진다.
+
+   ctx는 코드가 확실히 아는 현재 값이다:
+     giftNow{key,name} · giftRoom · place · placeItemOwned · openPlaces · room */
+function hardFilter(cand, allowed, ctx) {
+  /* 옛 호출부(kept 배열)도 받는다 — 검사줄 자체를 시험하는 자리가 많다 */
+  const c = Array.isArray(cand) ? { messages: cand } : (cand || {});
+  const kept = c.messages || [];
+  if (!kept.length) return ["EMPTY"];
   const codes = [];
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [];
-  for (const m of kept) {
-    const t = (m && m.text) || "";
-    if (isLeak(t)) { codes.push("LEAK"); break; }
-  }
+  const push = k => { if (codes.indexOf(k) < 0) codes.push(k); };
+
+  for (const m of kept) if (isLeak((m && m.text) || "")) { push("LEAK"); break; }
+
+  /* ── SENDER ──
+     모델이 **명시한** 화자만 본다. 생략한 것은 잘못 쓴 것이 아니라 안 쓴
+     것이라 fallbackSender로 채워도 된다. 전에는 parseMessages가 명시된
+     것까지 갈아버려서 이 검사가 한 번도 발화하지 못했다. */
   if (ok.length) {
     for (const m of kept) {
-      if (m && m.sender && ok.indexOf(m.sender) < 0) { codes.push("SENDER"); break; }
+      const given = m && (m.senderGiven === undefined ? !!m.sender : m.senderGiven);
+      if (given && m.sender && ok.indexOf(m.sender) < 0) { push("SENDER"); break; }
     }
   }
+
+  /* 이름표 형식에서 난입 줄이 있었다. 줄은 파서가 버렸지만 모델이 이 방에
+     없는 사람을 말하게 한 것은 그대로 잘못이다. */
+  if (c.intruder) push("SENDER");
+
+  const g = ctx || {};
+  /* ── FACT_DENIAL — 다섯이 다 맞을 때만 ──
+     ① 이번 턴에 실제로 건넨 것이 있다
+     ② 물건이 정해져 있다
+     ③ 받은 사람이 정해져 있다
+     ④ 방향이 유저→인물이다
+     ⑤ **그 받은 사람의 말**이 **그 물건**을 받은 적 없다고 한다
+     같은 gift.key를 재언과 민현이 각각 가질 수 있으므로, 물건만 보지 않고
+     늘 (수신자, 종류)를 함께 본다. */
+  const now = g.giftNow;
+  const item = now && (now.name || "").toString().trim();
+  const to = (g.giftRoom || "").toString().trim();
+  if (now && item && to && ok.indexOf(to) >= 0) {
+    for (const m of kept) {
+      if (!m || m.sender !== to) continue;              // 그 받은 사람의 말만
+      const t = String(m.text || "");
+      if (!t.includes(item)) continue;                  // 물건 이름을 대야 한다
+      if (DENY_UNDO.test(t)) continue;                  // 부정을 뒤집은 말이다
+      if (DENY_RECEIVE.test(t)) { push("FACT_DENIAL"); break; }
+    }
+  }
+
+  /* ── 후보가 낸 제안이 지금 조건을 어긴다 ──
+     상태를 고치지 않는다. 어겼는지만 본다 — 커밋은 E다.
+     제안을 안 낸 것은 어긴 것이 아니다. */
+  if (c.invite && !pickInvite(c.invite, g.openPlaces || [])) push("INVALID_INVITE");
+  if (c.give && !pickGive(c.give, g.place, g.placeItemOwned, g.room)) push("INVALID_GIVE");
   return codes;
 }
 
@@ -3606,7 +3664,11 @@ function softSignals(kept, recent) {
    전체 세계관도, 전체 기록도 안 넣는다 — 그걸 다시 주면 값만 두 배가 되고
    판단은 안 좋아진다. 이 장면과 무관한 과거도 뺀다.
    대신 정사를 추측하게 만들 만큼 굶기지도 않는다. */
-const DIRECTOR_RULES = `너는 두 사람이 사는 세계의 연출자다. 대사를 쓰지 않는다 — 고르기만 한다.
+const DIRECTOR_RULES = `[사실이 먼저다]
+코드가 준 [이번 턴 사실]과 [성격 규칙]을 어기는 후보는 말맛이 좋아도 고르지 않는다.
+둘 다 어기면 RETRY다. 고쳐서 내보내지 않는다 — 너는 한 글자도 쓰지 않는다.
+
+너는 두 사람이 사는 세계의 연출자다. 대사를 쓰지 않는다 — 고르기만 한다.
 
 후보 중 어느 쪽이 「지금 이 사람」에 가까운지 고른다. 친절한 쪽도, 자세한 쪽도,
 도움이 되는 쪽도 기준이 아니다. 일반 챗봇의 좋은 답이 여기서는 나쁜 답이다.
@@ -3637,16 +3699,22 @@ function directorPacket(ctx, cands) {
   if (ctx.stage) L.push(`[관계] ${ctx.stage}`);
   L.push(`[지금] ${ctx.when}${ctx.place ? ` · ${ctx.place}` : ""}`);
   if (ctx.knows) L.push(`[아는 범위] ${ctx.knows}`);
-  if (ctx.facts && ctx.facts.length) L.push(`[이번 턴 사실] ${ctx.facts.join(" · ")}`);
+  /* Fact[]를 여기서 문장으로 바꾼다. here는 사실이 아니라 이번 턴 조건이다 */
+  const fl = [...factLines(ctx.facts, ctx.userName), ...(ctx.here || [])];
+  if (fl.length) L.push(`[이번 턴 사실] ${fl.join(" · ")}`);
+  /* 그 화자의 축약 성격표. 인물 프롬프트 전체를 다시 주지 않는다 —
+     값이 두 배가 되고 정작 판정할 축이 이만 줄 사이에 묻힌다. */
+  if (ctx.who) L.push(`[성격 규칙]\n${ruleSheet(ctx.who)}`);
   if (ctx.recent && ctx.recent.length) {
     L.push(`[최근 대화]`);
     for (const m of ctx.recent) L.push(`${m.role === "user" ? "유저" : ctx.who}: ${String(m.content).slice(0, 160)}`);
   }
   L.push(``);
-  cands.forEach((c, i) => {
-    const tag = cands.length === 1 ? "후보" : `후보 ${"AB"[i]}`;
-    L.push(`${tag}`);
-    c.kept.forEach(m => L.push(`  ${m.text}`));
+  /* 자리가 아니라 id로 적는다. A가 떨어지고 B만 남아도 B는 B다 —
+     자리로 적으면 남은 하나가 「후보 A」가 되어 고르는 쪽이 딴것을 고른다. */
+  cands.forEach(c => {
+    L.push(cands.length === 1 ? `후보 ${c.id}` : `후보 ${c.id}`);
+    c.messages.forEach(m => L.push(`  ${m.text}`));
     if (c.signals.length) L.push(`  (코드 신호: ${c.signals.join(", ")})`);
   });
   return L.join("\n");
@@ -3654,17 +3722,23 @@ function directorPacket(ctx, cands) {
 
 /* 고르는 쪽의 답을 읽는다. 못 읽으면 RETRY로 본다 — 모양이 어긋난 판정을
    억지로 해석해서 엉뚱한 후보를 내보내느니 한 번 다시 쓰는 편이 낫다. */
-function readDecision(raw, n) {
+/* ids — 실제로 살아남은 후보의 id. 자리 수(n)가 아니라 id로 가린다.
+   A가 떨어지고 B만 남았을 때 「후보 하나니까 ACCEPT」로 받으면 고르는 쪽이
+   B를 봤는지 A를 봤는지 알 수 없다. 없는 후보를 고르면 RETRY다 —
+   조용히 첫 후보로 떨어뜨리지 않는다. */
+function readDecision(raw, ids) {
+  const list = Array.isArray(ids) ? ids : (ids === 1 ? ["ONE"] : ["A", "B"]);
+  const one = list.length === 1;
+  const no = why => ({ decision: "RETRY", reject_codes: {}, why });
   const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
-  if (!body) return { decision: "RETRY", reject_codes: {} };
+  if (!body) return no("JSON이 아니다");
   let j;
-  try { j = JSON.parse(body); } catch (e) { return { decision: "RETRY", reject_codes: {} }; }
+  try { j = JSON.parse(body); } catch (e) { return no("JSON을 못 읽었다"); }
   const d = String(j && j.decision || "").toUpperCase();
-  const allowed = n === 1 ? ["ACCEPT", "RETRY"] : ["A", "B", "RETRY"];
-  return {
-    decision: allowed.indexOf(d) >= 0 ? d : "RETRY",
-    reject_codes: (j && j.reject_codes) || {},
-  };
+  if (d === "RETRY") return { decision: "RETRY", reject_codes: (j && j.reject_codes) || {}, why: "" };
+  const allowed = one ? ["ACCEPT"] : list;
+  if (allowed.indexOf(d) < 0) return no(`고를 수 없는 판정: ${d || "(빈칸)"}`);
+  return { decision: d, reject_codes: (j && j.reject_codes) || {}, why: "" };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3715,37 +3789,116 @@ function sceneTier(reason, ctx) {
   return { tier: "critical", reason: r };
 }
 
+/* ══════════════════════════════════════════════════════════════
+   축약 성격표 — rule_id
+
+   ── 왜 id가 필요한가 ──
+   사람 검사가 「말투가 좀 이상해요」라고 자유 문장으로 답하면 코드가 그것을
+   판정할 수도, 재시도하는 쪽에 짧게 전할 수도 없다. 사실은 fact_id로 가리듯
+   사람 규칙은 rule_id로 가린다. 목록에 없는 id는 무효다 — 모델이 새 id를
+   지어내면 그건 「문제 없음」이 아니라 다시 쓰라는 뜻이다.
+
+   ── 새 설정을 만들지 않는다 ──
+   전부 JAEEON·MINHYUN·WORLD에 이미 있는 문장을 옮긴 것이다. 여기서 인물을
+   새로 정하면 프롬프트와 검사가 서로 다른 사람을 보게 된다.
+
+   ── 왜 프롬프트를 통째로 안 주나 ──
+   사람 검사와 고르는 쪽에 인물 프롬프트 전체를 다시 주면 그 자체로 값이
+   두 배가 되고, 정작 판정에 쓸 축이 이만 줄 사이에 묻힌다. 축만 준다. */
+const CHAR_RULES = [
+  /* 둘 다 */
+  { rule_id: "both.voice.no_counselor",
+    text: "상담사나 비서처럼 공감·정리·해결책을 세트로 주지 않는다" },
+  { rule_id: "both.user.no_puppetry",
+    text: "유저의 행동이나 감정을 대신 써주지 않는다. 유저의 속은 볼 수 없다" },
+  { rule_id: "both.voice.no_exposition",
+    text: "세계관이나 제 설정을 길게 설명하지 않는다. 아는 채로 굴기만 한다" },
+  { rule_id: "both.canon.no_invention",
+    text: "정해지지 않은 사실을 임의로 만들지 않는다. 없었던 말을 있었다고 하지 않는다" },
+  { rule_id: "both.taste.no_listing",
+    text: "취향을 물었을 때만 목록에서 하나 고른다. 목록을 한꺼번에 읊지 않는다" },
+  { rule_id: "both.relation.no_rush",
+    text: "관계 단계보다 앞서 나가지 않는다. 아직 그 사이가 아닌데 그 사이처럼 굴지 않는다" },
+
+  /* 이재언 — 정돈이 갑옷인 사람 */
+  { rule_id: "jaeeon.voice.dry_haeyo",
+    text: "격식이 아니라 피곤하고 건조한 해요체다. 짧지만 모든 말을 한 단어로 자르지는 않는다" },
+  { rule_id: "jaeeon.voice.banmal_to_minhyun",
+    text: "이민현에게는 반말이다. 한 대화 안에서 존댓말과 섞지 않는다" },
+  { rule_id: "jaeeon.desire.acts_not_says",
+    text: "사랑이 동사로 나온다 — 죽을 끓이고 약을 채우는 것으로. 그 동사를 사랑이라고 읽지 않는다" },
+  { rule_id: "jaeeon.voice.indirect_curiosity",
+    text: "궁금해도 곧바로 캐묻지 않는다. 묻는다고 나아질 것이 없다고 생각한다" },
+  { rule_id: "jaeeon.feeling.no_naming",
+    text: "제 감정에 이름을 붙이지 않는다. 질투를 질투라고 읽지 않는다" },
+
+  /* 이민현 — 지쳐서 가버릴까 봐 무서운 아이 */
+  { rule_id: "minhyun.voice.wrap_not_deny",
+    text: "속을 포장하되 유저 말을 「아니고요」로 받아치며 열지 않는다. 포장이지 부정이 아니다" },
+  { rule_id: "minhyun.ask.short_check",
+    text: "불안한 핵심을 짧게 확인한다 — 「진짜죠?」 「내일도 있죠?」" },
+  { rule_id: "minhyun.ask.stops_at_two",
+    text: "같은 말을 세 번 하지 않는다. 두 번째에 안 받아지면 거기서 접고 말이 줄어든다" },
+  { rule_id: "minhyun.uncle.no_belittle",
+    text: "삼촌에게 시큰둥하게 굴되 깎아내리거나 나쁜 사람으로 만들지 않는다" },
+  { rule_id: "minhyun.uncle.not_first",
+    text: "유저가 먼저 꺼내지 않는 이상 이재언을 화제로 열지 않는다" },
+  { rule_id: "minhyun.change.shows_not_tells",
+    text: "달라진 것을 설명하지 않는다. 사탕을 물고 아침에 일어나는 것으로 드러난다" },
+];
+const RULE_IDS = new Set(CHAR_RULES.map(r => r.rule_id));
+/* 그 화자에게 해당하는 것만. 「both.」는 둘 다 본다 */
+const rulesFor = who =>
+  CHAR_RULES.filter(r => r.rule_id.startsWith("both.") || r.rule_id.startsWith(`${who}.`));
+const ruleSheet = who =>
+  rulesFor(who).map(r => `- ${r.rule_id} — ${r.text}`).join("\n");
+
+/* 검사가 쓸 수 있는 코드. 자유 문자열로 두면 재시도하는 쪽에 뭘 전할지
+   정할 수가 없다. */
+const CANON_CODES = ["FACT_DENIAL", "FACT_INVENTED", "KNOWLEDGE_LEAK", "OWNER_SWAPPED", "USER_ACT_INVENTED"];
+const CHAR_CODES = ["VOICE_BREAK", "RELATIONSHIP_SPEED", "COUNSELOR_TONE", "USER_PUPPETRY", "EXPOSITION", "DESIRE_BREAK"];
+
 /* ── 두 검사 ──
    하나는 정사를 붙잡고, 하나는 관계 속도와 캐릭터 붕괴를 본다.
    둘 다 짧게 답한다 — 길게 답하면 그 자체가 마무리하는 쪽의 프롬프트가 된다. */
-const CANON_CRITIC = `너는 이 세계의 사실만 본다. 아래 [사실]에 없는 것을 후보가 지어냈는지만 답한다.
-
-이런 것을 잡는다.
-- [사실]에 없는 사건·날짜·과거를 말한 것
-- 그 화자가 알 수 없는 것을 아는 것처럼 말한 것
-- 물건의 주인이나 소유가 뒤바뀐 것
-- 유저가 한 적 없는 행동을 했다고 말한 것
+const CANON_CRITIC = `너는 이 세계의 사실만 본다. 아래 [사실]에 적힌 것과 후보가 어긋나는지만 답한다.
 
 문장이 좋은지 나쁜지는 보지 않는다. 사실만 본다.
 
-후보가 여럿이면 **한 번에 다 본다.** 어느 후보 얘기인지 반드시 표시한다 —
-표시가 없으면 마무리하는 쪽이 어느 쪽을 고쳐야 하는지 알 수 없다.
-출력은 이 모양 하나뿐이다.
-{"problems":[{"candidate":"A","note":"짧게 무엇이 틀렸는지"}]}
+## 코드
+- FACT_DENIAL — 사실에 적힌 일을 후보가 부정한다
+- FACT_INVENTED — 사실에 없는 사건·날짜·과거를 지어냈다
+- KNOWLEDGE_LEAK — 그 화자가 알 수 없는 사실을 아는 것처럼 말한다
+- OWNER_SWAPPED — 물건의 주인이나 준 방향이 뒤바뀌었다
+- USER_ACT_INVENTED — 유저가 한 적 없는 행동을 했다고 말한다
+
+## 반드시
+- **fact_id는 아래 [사실 목록]에 실제로 적힌 것만 쓴다.** 지어내지 않는다.
+- 목록에 없는 것은 **모르는 것**이지 거짓이 아니다. 후보가 모르는 것을
+  짐작하는 것은 위반이 아니다. **명시적으로 반대로 말할 때만** 위반이다.
+- 후보가 여럿이면 **한 번에 다 본다.** 어느 후보인지 반드시 적는다.
+
+출력은 이 모양 하나뿐이다. 다른 말을 붙이지 않는다.
+{"problems":[{"candidate":"A","critic":"canon","fact_id":"gift.mug.user_to_jaeeon","code":"FACT_DENIAL"}]}
 잡을 것이 없으면 {"problems":[]}`;
 
 const CHAR_CRITIC = `너는 이 사람이 이 사람다운지만 본다. 사실 관계는 보지 않는다.
 
-이런 것을 잡는다.
-- 관계 단계보다 앞서 나간 말 (아직 그 사이가 아닌데 그 사이처럼 구는 것)
-- 그 사람 말투가 아닌 것 (두 사람이 같은 다정한 챗봇으로 수렴하는 것)
-- 상담사나 비서처럼 정리·공감·해결책을 세트로 주는 것
-- 유저의 감정이나 행동을 대신 써준 것
-- 세계관을 길게 설명하는 것
+## 코드
+- VOICE_BREAK — 그 사람 말투가 아니다 (둘이 같은 다정한 챗봇으로 수렴한다)
+- RELATIONSHIP_SPEED — 관계 단계보다 앞서 나갔다
+- COUNSELOR_TONE — 상담사처럼 정리·공감·해결책을 세트로 준다
+- USER_PUPPETRY — 유저의 감정이나 행동을 대신 써줬다
+- EXPOSITION — 세계관이나 제 설정을 길게 설명한다
+- DESIRE_BREAK — 이 사람이 마음을 드러내는 방식이 아니다
 
-후보가 여럿이면 **한 번에 다 본다.** 어느 후보 얘기인지 반드시 표시한다.
-출력은 이 모양 하나뿐이다.
-{"problems":[{"candidate":"A","note":"짧게 무엇이 어긋났는지"}]}
+## 반드시
+- **rule_id는 아래 [성격 규칙]에 실제로 적힌 것만 쓴다.** 지어내지 않는다.
+- 사실 관계는 다른 검사가 본다. 여기서 fact_id를 쓰지 않는다.
+- 후보가 여럿이면 **한 번에 다 본다.** 어느 후보인지 반드시 적는다.
+
+출력은 이 모양 하나뿐이다. 다른 말을 붙이지 않는다.
+{"problems":[{"candidate":"B","critic":"character","rule_id":"both.voice.no_counselor","code":"COUNSELOR_TONE"}]}
 잡을 것이 없으면 {"problems":[]}`;
 
 const FINALIZER_RULES = `너는 이 장면의 마지막 손이다. 유저가 실제로 읽을 대사를 완성한다.
@@ -3792,12 +3945,21 @@ function sceneHead(ctx) {
 /* 후보를 한 꾸러미에 담는다. 전에는 후보마다 검사를 따로 불러서 중요
    장면 한 번에 여섯 호출이 났고, 결과를 합치면서 어느 후보 문제인지도
    사라졌다. 한 번에 보여주고 표식을 달아 받는다 — 네 호출이 된다. */
-function criticPacket(ctx, cands) {
+/* which — "canon"이면 사실 목록을, "character"면 성격 규칙을 준다.
+   검사마다 판정 근거가 다르므로 둘 다 주면 서로의 영역을 침범한다. */
+function criticPacket(ctx, cands, which) {
   const L = sceneHead(ctx);
+  if (which === "canon") {
+    L.push(``, `[사실 목록] — fact_id는 여기 있는 것만 쓴다`);
+    for (const f of ctx.facts || []) L.push(`- ${f.fact_id}`);
+    if (!(ctx.facts || []).length) L.push(`- (없음. 없는 것은 모르는 것이지 거짓이 아니다)`);
+  } else if (which === "character") {
+    L.push(``, `[성격 규칙] — rule_id는 여기 있는 것만 쓴다`, ruleSheet(ctx.who));
+  }
   L.push(``);
-  cands.forEach((c, i) => {
-    L.push(cands.length === 1 ? `[후보]` : `[후보 ${"AB"[i]}]`);
-    c.kept.forEach(m => L.push(`  ${m.text}`));
+  cands.forEach(c => {
+    L.push(`[후보 ${c.id}]`);
+    c.messages.forEach(m => L.push(`  ${m.text}`));
   });
   return L.join("\n");
 }
@@ -3805,26 +3967,58 @@ function criticPacket(ctx, cands) {
 /* 검사 답을 읽는다. 후보 표식을 살린다 — {candidate, note}.
    옛 모양(문자열 배열)도 읽는다: 표식이 없으면 후보를 안 가린 것으로 본다.
    (파싱 실패를 RETRY로 올리는 것은 D단계다. 여기서는 모양만 바꾼다.) */
-function readProblems(raw, critic) {
+/* ── 못 읽은 것은 「문제 없음」이 아니다 ──
+   전에는 파싱이 실패하면 빈 배열을 돌려줬다. 그러면 검사가 헛소리를 해도
+   **깨끗하다고 보고**하고 그대로 마무리로 넘어간다 — 검사가 있는데 없는
+   것과 같다. 지금은 ok:false로 올리고 부르는 쪽이 다시 쓰게 한다.
+
+   지어낸 id도 마찬가지다. Canon이 없는 fact_id를 대면 그건 사실을 본 것이
+   아니라 문장을 보고 지어낸 것이다. 허용 목록은 **Fact[]에서 직접** 만든
+   것을 받는다 — 문장을 다시 파싱해 복원하지 않는다. */
+function readProblems(raw, critic, allowed) {
+  const bad = why => ({ ok: false, why, problems: [] });
   const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
-  if (!body) return [];
+  if (!body) return bad("JSON이 아니다");
   let j;
-  try { j = JSON.parse(body); } catch (e) { return []; }
-  if (!Array.isArray(j.problems)) return [];
-  return j.problems.map(x => {
-    const note = String((x && x.note) != null ? x.note : x).slice(0, 120).trim();
-    if (!note) return null;
-    const c = String((x && x.candidate) || "").toUpperCase();
-    return { candidate: c === "A" || c === "B" ? c : "", note, critic: critic || "" };
-  }).filter(Boolean);
+  try { j = JSON.parse(body); } catch (e) { return bad("JSON을 못 읽었다"); }
+  if (!Array.isArray(j.problems)) return bad("problems가 배열이 아니다");
+
+  const A = allowed || {};
+  const ids = A.candidates instanceof Set ? A.candidates : new Set(["A", "B"]);
+  const facts = A.facts instanceof Set ? A.facts : new Set();
+  const codes = critic === "canon" ? CANON_CODES : CHAR_CODES;
+  const out = [];
+  for (const x of j.problems) {
+    if (!x || typeof x !== "object") return bad("문제가 객체가 아니다");
+    const cand = String(x.candidate || "").toUpperCase();
+    if (!ids.has(cand)) return bad(`없는 후보: ${cand || "(빈칸)"}`);
+    if (x.critic && x.critic !== critic) return bad(`검사 이름이 다르다: ${x.critic}`);
+    const code = String(x.code || "");
+    if (codes.indexOf(code) < 0) return bad(`모르는 코드: ${code || "(빈칸)"}`);
+    if (critic === "canon") {
+      /* 사실 문제에는 fact_id가 있어야 한다. 없으면 무엇을 어겼는지가 없다 */
+      const fid = String(x.fact_id || "");
+      if (!fid) return bad("fact_id가 없다");
+      if (!facts.has(fid)) return bad(`없는 fact_id: ${fid}`);
+      if (x.rule_id) return bad("사실 문제에 rule_id를 쓸 수 없다");
+      out.push({ candidate: cand, critic, fact_id: fid, code });
+    } else {
+      const rid = String(x.rule_id || "");
+      if (!rid) return bad("rule_id가 없다");
+      if (!RULE_IDS.has(rid)) return bad(`없는 rule_id: ${rid}`);
+      if (x.fact_id) return bad("사람 문제에 fact_id를 쓸 수 없다");
+      out.push({ candidate: cand, critic, rule_id: rid, code });
+    }
+  }
+  return { ok: true, why: "", problems: out };
 }
 
 function finalizerPacket(ctx, cands, notes) {
   const L = sceneHead(ctx);
   L.push(``, `[후보]`);
-  cands.forEach((c, i) => {
-    L.push(cands.length === 1 ? `후보` : `후보 ${"AB"[i]}`);
-    c.kept.forEach(m => L.push(`  ${m.text}`));
+  cands.forEach(c => {
+    L.push(`후보 ${c.id}`);
+    c.messages.forEach(m => L.push(`  ${m.text}`));
     if (c.signals.length) L.push(`  (코드 신호: ${c.signals.join(", ")})`);
   });
   /* 어느 후보의 어느 검사가 잡은 것인지 남긴다. 표식 없이 합치면
@@ -3832,43 +4026,68 @@ function finalizerPacket(ctx, cands, notes) {
   if (notes && notes.length) {
     L.push(``, `[검사가 잡은 것]`);
     notes.forEach(n => L.push(
-      `- ${n.candidate ? `후보 ${n.candidate} · ` : ""}${n.critic === "canon" ? "사실" : "사람"} — ${n.note}`));
+      `- 후보 ${n.candidate} · ${n.critic === "canon" ? "사실" : "사람"} · ${n.code}`
+      + ` — ${n.fact_id || n.rule_id}`));
   }
   return L.join("\n");
 }
 
 
 
+/* ── 파싱 결과는 반환한다. 함수에 매달지 않는다 ──
+   전에는 parseMessages.invite / parseMessages.give였다. 후보의 부수 출력이
+   **함수 객체에 걸려 있으면** 후보를 둘 파싱하는 순간 뒤엣것이 앞엣것을
+   덮는다. 그래서 A의 대사를 고르고 B의 give를 가져오는 사고가 구조적으로
+   가능했다. 대사·초대·물건·사진을 한 묶음으로 돌려준다.
+
+   ── 잘못된 화자를 몰래 갈지 않는다 ──
+   여기서 `ok.includes(m.sender) ? m : {...m, sender: fallbackSender}`를 했다.
+   그러면 hardFilter의 SENDER 검사가 **영영 발동하지 않는다** — 검사에 닿기
+   전에 이미 고쳐졌기 때문이다. 민현 방에서 모델이 `sender:"jaeeon"`을 내도
+   조용히 민현 말이 됐다.
+   모델이 **명시한** 화자는 그대로 둔다(senderGiven). 아예 생략한 것만
+   fallbackSender로 채운다 — 그건 잘못 쓴 것이 아니라 안 쓴 것이다.
+   판정은 hardFilter가 하고, 통과한 뒤에는 고칠 것이 남지 않는다. */
 function parseMessages(text, fallbackSender, allowed) {
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [fallbackSender];
-  parseMessages.invite = "";   // 이번 응답에서 모델이 고른 자리. 없으면 빈 문자열
-  parseMessages.give = "";     // 이번 응답에서 건넨 물건. 없으면 빈 문자열
+  const bundle = (messages, parseStatus, extra) => ({
+    messages, invite: "", give: "", photo: "", parseStatus, ...(extra || {}) });
   try {
     const cleaned = text.replace(/```json|```/g, "").trim();
     const body = carveJson(cleaned);
     if (body) {
       const j = JSON.parse(body);
       if (Array.isArray(j.messages)) {
-        // 모델이 같이 가자고 하기로 했으면 여기 장소 이름이 온다. 부수적으로 넘긴다
-        parseMessages.invite = typeof j.invite === "string" ? j.invite : "";
-        parseMessages.give = typeof j.give === "string" ? j.give : "";
-        const out = j.messages.map(m =>
-          typeof m === "string" ? { sender: fallbackSender, text: m } : m
-        ).filter(m => m && m.text)
-         // 이 방에 없는 사람 이름이 오면 그 방 주인의 말로 돌린다 (1:1에 난입 방지)
-         .map(m => ok.includes(m.sender) ? m : { ...m, sender: fallbackSender });
+        const out = j.messages.map(m => typeof m === "string"
+          ? { sender: fallbackSender, text: m, senderGiven: false }
+          : { ...m, sender: (m && m.sender) || fallbackSender,
+              senderGiven: !!(m && m.sender) })
+         .filter(m => m && m.text);
         /* 사진은 말풍선 안이 아니라 밖에 온다. 안에 두면 모델이 객체를 통째로
            문자열로 만들어 text에 처넣는 사고가 난다 — {"text":"이거요","photo":...}가
            그대로 말풍선에 찍혔다. 밖으로 빼면 messages는 그냥 말의 목록이 된다.
            한 응답에 하나뿐이고 마지막 말풍선에 붙는다. */
-        if (typeof j.photo === "string" && j.photo && out.length) out[out.length - 1].photo = j.photo;
-        return out;
+        const photo = typeof j.photo === "string" ? j.photo : "";
+        if (photo && out.length) out[out.length - 1].photo = photo;
+        return bundle(out, "json", {
+          // 모델이 같이 가자고 하기로 했으면 여기 장소 이름이 온다
+          invite: typeof j.invite === "string" ? j.invite : "",
+          give: typeof j.give === "string" ? j.give : "",
+          photo,
+        });
       }
     }
   } catch (e) { /* fall through */ }
   // JSON이 아니다 — 이름표 형식이면 화자별로 풀어준다
   const tagged = parseTagged(text, ok);
-  if (tagged) return tagged;
+  /* 이름표는 모델이 화자를 **명시한** 것이다. 잘못된 이름표도 검사에 올린다 */
+  if (tagged) return bundle(tagged.map(m => ({ ...m, senderGiven: true })), "tagged",
+    parseTagged.intruder ? { intruder: true } : {});
+  /* 이름표 형식인데 모든 줄이 난입이라 남은 것이 없다. 평문으로 떨어뜨리면
+     「[이재언] 앉으세요.」가 통째로 말풍선이 된다 — 검사에 올린다. */
+  if (parseTagged.intruder)
+    return bundle([{ sender: fallbackSender, text: String(text || "").trim(), senderGiven: false }],
+      "tagged", { intruder: true });
   /* 그것도 아니면 원문을 한 덩어리로 내보낸다. 평문 한 줄로 답하는 턴이
      실제로 있어서 이 길은 열어둔다.
 
@@ -3882,8 +4101,8 @@ function parseMessages(text, fallbackSender, allowed) {
       오탐이 없는 것을 확인하고 넣었다.)
      버려서 빈 목록이 되면 handler가 502로 바꾼다. */
   const raw = String(text || "").trim();
-  if (!raw || LEAK_SHAPE.test(raw)) return [];
-  return [{ sender: fallbackSender, text: raw }];
+  if (!raw || LEAK_SHAPE.test(raw)) return bundle([], "empty");
+  return bundle([{ sender: fallbackSender, text: raw, senderGiven: false }], "plain");
 }
 
 // ─────────────────────────────────────────────
@@ -4431,10 +4650,10 @@ export default {
                    Date.now() - t0, 1, "legacy", "ok", "");
         devLog(`[NULL] 기준선 응답 ▶ ${mode}/${room} ▶ ${raw.slice(0, 600)}`);
         const p0 = parseMessages(raw, fallbackSender, chars);
-        const inv0 = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
-        const giv0 = pickGive(parseMessages.give, place, placeItemOwned, room);
+        const inv0 = pickInvite(p0.invite, place ? [] : [...openPlaces, ...canGo]);
+        const giv0 = pickGive(p0.give, place, placeItemOwned, room);
         const kept0 = dropEcho(
-          trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(p0)), chars), photoChars, fallbackSender, recentPhotos)),
+          trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(p0.messages)), chars), photoChars, fallbackSender, recentPhotos)),
           lastSaid(msgs, mode));
         if (!kept0.length) {
           return new Response(JSON.stringify({ error: "생성 실패", detail: "모델 응답을 읽지 못했습니다",
@@ -4500,32 +4719,87 @@ export default {
         content: Array.isArray(m.content) ? m.content.map(b => b.text || "").join(" ") : m.content,
       }));
 
+      /* 코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
+      const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned, room,
+                        openPlaces: place ? [] : [...openPlaces, ...canGo] };
+
       let picked = null, lastCodes = [];
       for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked; attempt++) {
         /* parallel은 두 번 나란히 부른다. 한쪽이 실패하면 그건 진짜 실패다 —
            남은 한쪽으로 조용히 때우면 두 배 값을 내고 한 개를 받은 것을
            아무도 모른다. */
+        /* ── 재시도는 같은 프롬프트를 두 번 보내지 않는다 ──
+           전에는 첫 시도와 글자까지 같은 것을 다시 보냈다. 같은 입력에
+           같은 모델이면 같은 실수를 다시 한다 — 값만 두 배다.
+           무엇 때문에 떨어졌는지를 짧게 얹는다. **유효한 코드와 id만**
+           올린다: 검사의 자유 문장이나 못 읽은 원문을 얹으면 그게 다음
+           프롬프트가 되어 버린다.
+
+           ── 원본을 안 건드린다 ──
+           msgs에 push하면 그 오염이 다음 시도에, 그리고 이 요청 뒤에도
+           남는다. 시도마다 마지막 발화만 복사해 붙인다. 고정부와 저장된
+           이력은 손대지 않는다 — 가변부(uncached)에만 붙는다. */
+        const tries = attempt > 1 && lastCodes.length
+          ? (() => {
+              const copy = msgs.slice();
+              const t = copy[copy.length - 1];
+              const blocks = Array.isArray(t.content) ? t.content.slice()
+                : [{ type: "text", text: t.content }];
+              blocks.push({ type: "text",
+                text: `\n[이전 시도 탈락]\n${lastCodes.slice(0, 6).map(c => `- ${c}`).join("\n")}\n`
+                    + `같은 실수를 반복하지 않는다. 위 표시가 붙은 후보의 문제만 고친다.\n` });
+              copy[copy.length - 1] = { ...t, content: blocks };
+              return copy;
+            })()
+          : msgs;
         const raws = cMode === "parallel"
           ? await Promise.all([1, 2].map(i =>
-              callStage(env, meter, "writer", system, msgs, budget, attempt, tier, "AB"[i - 1])))
-          : [await callStage(env, meter, "writer", system, msgs,
+              callStage(env, meter, "writer", system, tries, budget, attempt, tier, "AB"[i - 1])))
+          : [await callStage(env, meter, "writer", system, tries,
               budget * (nCand > 1 ? nCand : 1), attempt, tier, "")];
         devLog(`[NULL] 응답 ▶ ${mode}/${room}/${cMode} ▶ ${raws.join(" ⋯ ").slice(0, 600)}`);
 
-        /* 후보마다 지금까지 쓰던 검사줄을 그대로 태운다. 새 검사를 만들지
-           않는다 — 사진·초대·물건·메아리·말버릇은 이미 여기서 걸러진다. */
-        const cands = [];
-        for (const one of raws.flatMap(splitCandidates)) {
-          const parsed = parseMessages(one, fallbackSender, chars);
-          const invite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
-          const give = pickGive(parseMessages.give, place, placeItemOwned, room);
-          const kept = dropEcho(
-            trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed)), chars), photoChars, fallbackSender, recentPhotos)),
-            lastSaid(msgs, mode));
-          const codes = hardFilter(kept, chars);
-          if (codes.length) { lastCodes = codes; continue; }      // 명백한 것만 떨어뜨린다
-          cands.push({ kept, invite, give, signals: softSignals(kept, recentForDirector) });
+        /* ── 후보 하나가 한 묶음이다 ──
+           대사·초대·물건·사진이 같은 객체에 붙어 다닌다. 전에는 부수 출력이
+           parseMessages 함수에 매달려 있어서, 후보를 둘 파싱하면 뒤엣것이
+           앞엣것을 덮었다 — A의 대사를 고르고 B의 give를 가져올 수 있었다.
+           자리(배열 index)가 아니라 id로 가린다. A가 떨어지고 B만 남아도
+           B는 B다. */
+        const pieces = raws.flatMap(splitCandidates);
+        /* pair는 한 호출에서 둘을 받기로 한 것이다. 하나만 왔는데 둘 받은
+           것처럼 넘어가면 후보가 하나인 줄 아무도 모른 채 A만 계속 나간다. */
+        if (cMode === "pair" && pieces.length !== nCand) {
+          lastCodes = ["WRITER_SCHEMA"];
+          console.log(`[NULL] 후보 수가 안 맞는다 — ${pieces.length}/${nCand}`);
+          continue;
         }
+        /* 이번 시도의 탈락 코드를 모은다. 후보마다 덮어쓰면 마지막 것만
+           남아서, A와 B가 서로 다른 이유로 떨어져도 재시도하는 쪽은 하나만
+           본다 — 안 고친 쪽이 다음에도 똑같이 떨어진다. */
+        const fell = [];
+        const cands = [];
+        pieces.forEach((one, i) => {
+          const id = "AB"[i] || `C${i}`;
+          const parsed = parseMessages(one, fallbackSender, chars);
+          const messages = dropEcho(
+            trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed.messages)), chars), photoChars, fallbackSender, recentPhotos)),
+            lastSaid(msgs, mode));
+          const cand = { id, originalMessages: parsed.messages, messages,
+                         invite: parsed.invite, give: parsed.give, photo: parsed.photo,
+                         parseStatus: parsed.parseStatus, signals: [] };
+          const codes = hardFilter(cand, chars, hardCtx);
+          if (codes.length) {
+            fell.push(...codes.map(c => `${id}:${c}`));
+            console.log(`[NULL] 후보 ${id} 탈락 — ${codes.join(",")}`);
+            return;                                     // 명백한 것만 떨어뜨린다
+          }
+          /* 검사를 통과한 뒤에야 제안을 확정한다. 어긴 것은 위에서 잘렸다 */
+          cand.invite = pickInvite(cand.invite, place ? [] : [...openPlaces, ...canGo]);
+          cand.give = pickGive(cand.give, place, placeItemOwned, room);
+          cand.signals = softSignals(messages, recentForDirector);
+          cands.push(cand);
+        });
+        if (fell.length) lastCodes = fell;
         if (!cands.length) { console.log(`[NULL] 후보가 다 떨어졌다 — ${lastCodes.join(",")}`); continue; }
 
         /* 관전방은 고르는 단계를 안 탄다 — 한 번에 여러 발화라 A/B가 아니라
@@ -4548,15 +4822,35 @@ export default {
         if (tier === "critical") {
           /* 검사는 둘이고, 각각 후보 전부를 한 번에 본다. 후보마다 부르면
              여섯 호출이 나고 결과를 합치면서 표식이 사라진다. */
-          const pk = criticPacket(sceneCtx, cands);
+          const allowed = { candidates: new Set(cands.map(c => c.id)), facts: factIds(stageFacts) };
           const [canonRaw, charRaw] = await Promise.all([
             callStage(env, meter, "canon", CANON_CRITIC,
-              [{ role: "user", content: pk }], 400, attempt, tier, ""),
+              [{ role: "user", content: criticPacket(sceneCtx, cands, "canon") }], 400, attempt, tier, ""),
             callStage(env, meter, "character", CHAR_CRITIC,
-              [{ role: "user", content: pk }], 400, attempt, tier, ""),
+              [{ role: "user", content: criticPacket(sceneCtx, cands, "character") }], 400, attempt, tier, ""),
           ]);
-          const notes = [...readProblems(canonRaw, "canon"), ...readProblems(charRaw, "character")];
-          console.log(`[NULL] 검사 ▶ ${notes.length}건`);
+          const canonRes = readProblems(canonRaw, "canon", allowed);
+          const charRes = readProblems(charRaw, "character", allowed);
+          /* 못 읽은 것은 「문제 없음」이 아니다. 검사가 헛소리를 했는데
+             깨끗하다고 넘어가면 검사가 있는데 없는 것과 같다. */
+          if (!canonRes.ok || !charRes.ok) {
+            lastCodes = ["CRITIC_SCHEMA"];
+            console.log(`[NULL] 검사 스키마 어긋남 — ${canonRes.why || charRes.why}`);
+            continue;
+          }
+          const notes = [...canonRes.problems, ...charRes.problems];
+          /* ── 사실을 어긴 후보는 마무리 재료에서 뺀다 ──
+             위를 쓰는 자리에 틀린 것을 재료로 주면 그걸 고쳐 쓰거나 그대로
+             고른다. 사람 문제는 남긴다 — 그건 고치라고 주는 경계다. */
+          const denied = new Set(notes.filter(n => n.critic === "canon").map(n => n.candidate));
+          const survivors = cands.filter(c => !denied.has(c.id));
+          console.log(`[NULL] 검사 ▶ ${notes.length}건 · 남은 후보 ${survivors.length}/${cands.length}`);
+          if (!survivors.length) {
+            lastCodes = notes.filter(n => n.critic === "canon")
+              .map(n => `${n.candidate}:${n.code}:${n.fact_id}`);
+            console.log(`[NULL] 사실을 어겨 후보가 다 빠졌다 — 마무리를 안 부른다`);
+            continue;                                  // Sonnet을 안 부른다
+          }
           /* ── 마무리에게 세계를 준다 ──
              전에는 `system + "\n\n" + FINALIZER_RULES`였다. buildSystem은
              블록 배열이라 문자열과 더하면 "[object Object],…"가 됐다 —
@@ -4568,32 +4862,44 @@ export default {
           const finalizerSystem = [...system, { type: "text", text: FINALIZER_RULES }];
           const finRaw = await callStage(env, meter, "finalizer",
             finalizerSystem,
-            [{ role: "user", content: finalizerPacket(sceneCtx, cands, notes) }],
+            [{ role: "user", content: finalizerPacket(sceneCtx, survivors, notes.filter(n => !denied.has(n.candidate))) }],
             budget, attempt, tier, "");
-          /* 마무리한 것도 같은 검사줄을 다시 통과해야 한다 — 위를 썼다고
-             빠져나가면 여기가 유일하게 안 걸러지는 자리가 된다 */
+          /* 마무리도 제 묶음을 만든다. **원래 후보의 부수 출력을 물려받지
+             않는다** — A를 뼈대로 고쳐 썼다고 A의 give가 따라오면, 고친
+             대사와 건넨 물건이 갈린다. */
           const fp = parseMessages(finRaw, fallbackSender, chars);
-          const fInvite = pickInvite(parseMessages.invite, place ? [] : [...openPlaces, ...canGo]);
-          const fGive = pickGive(parseMessages.give, place, placeItemOwned, room);
-          const fKept = dropEcho(
-            trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(fp)), chars), photoChars, fallbackSender, recentPhotos)),
-            lastSaid(msgs, mode));
-          const fCodes = hardFilter(fKept, chars);
-          if (fCodes.length) { lastCodes = fCodes; continue; }   // 다시 쓴다
-          picked = { kept: fKept, invite: fInvite, give: fGive, signals: [] };
+          const fCand = { id: "F", originalMessages: fp.messages,
+            messages: dropEcho(
+              trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(fp.messages)), chars), photoChars, fallbackSender, recentPhotos)),
+              lastSaid(msgs, mode)),
+            invite: fp.invite, give: fp.give, photo: fp.photo,
+            parseStatus: fp.parseStatus, signals: [] };
+          /* 마무리한 것도 같은 검사줄을 다시 통과한다 — 위를 썼다고 빠져나가면
+             여기가 유일하게 안 걸러지는 자리가 된다 */
+          const fCodes = hardFilter(fCand, chars, hardCtx);
+          if (fCodes.length) { lastCodes = fCodes.map(c => `F:${c}`); continue; }
+          fCand.invite = pickInvite(fCand.invite, place ? [] : [...openPlaces, ...canGo]);
+          fCand.give = pickGive(fCand.give, place, placeItemOwned, room);
+          picked = fCand;
           break;
         }
 
         const packet = directorPacket(sceneCtx, cands);
         const decRaw = await callStage(env, meter, "director", DIRECTOR_RULES,
           [{ role: "user", content: packet }], 300, attempt, tier, "");
-        const dec = readDecision(decRaw, cands.length);
-        console.log(`[NULL] 고름 ▶ ${dec.decision} ${JSON.stringify(dec.reject_codes).slice(0, 200)}`);
+        const dec = readDecision(decRaw, cands.map(c => c.id));
+        console.log(`[NULL] 고름 ▶ ${dec.decision}${dec.why ? ` (${dec.why})` : ""}`
+          + ` ${JSON.stringify(dec.reject_codes).slice(0, 200)}`);
         if (dec.decision === "RETRY") {
-          lastCodes = Object.values(dec.reject_codes || {}).flat().filter(Boolean);
+          lastCodes = Object.entries(dec.reject_codes || {})
+            .flatMap(([id, cs]) => (Array.isArray(cs) ? cs : [cs]).filter(Boolean).map(c => `${id}:${c}`));
+          if (!lastCodes.length) lastCodes = ["DIRECTOR_RETRY"];
           continue;                                   // 실패 코드만 들고 한 번 더
         }
-        picked = dec.decision === "B" ? (cands[1] || cands[0]) : cands[0];
+        /* id로 찾는다. 자리로 찾으면 A가 떨어진 뒤 남은 B가 cands[0]이라
+           「B를 골랐다」가 조용히 A 자리를 집는다. */
+        picked = dec.decision === "ACCEPT" ? cands[0] : cands.find(c => c.id === dec.decision);
+        if (!picked) { lastCodes = ["DIRECTOR_GHOST"]; continue; }   // 없는 후보는 안 집는다
       }
 
       /* 계속 실패하면 가짜 각본으로 덮지 않는다. 덮으면 화면에는 대화가
@@ -4606,8 +4912,10 @@ export default {
           ...(reqId ? { request_id: reqId } : {}) }),
           { status: 502, headers: { ...CORS, "content-type": "application/json" } });
       }
-      const { kept, invite, give } = picked;
-      const messages = dropSleepers(kept, place ? null : states);
+      /* 고른 후보의 부수 출력만 나간다. 묶음째 골랐으므로 여기서 다른
+         후보의 것을 집어올 길이 없다. */
+      const { invite, give } = picked;
+      const messages = dropSleepers(picked.messages, place ? null : states);
       /* ── 이름표를 되돌려준다 ──
          한 턴이 모델 여러 번을 타게 되면 답이 늦어지고, 그 사이 프론트에서
          새 요청이 나갈 수 있다. 프론트가 「이게 지금 것이 맞나」를 스스로
@@ -4658,4 +4966,6 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          directorPacket, readDecision, DIRECTOR_RULES,
          CRITICAL_REASONS, sceneTier, sceneHead, criticPacket, finalizerPacket, readProblems,
-         CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES };
+         CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES,
+         /* 축약 성격표 — 사실은 fact_id로, 사람 규칙은 rule_id로 가린다 */
+         CHAR_RULES, RULE_IDS, rulesFor, ruleSheet, CANON_CODES, CHAR_CODES };

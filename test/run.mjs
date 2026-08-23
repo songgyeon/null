@@ -38,7 +38,9 @@ const section = t => console.log(`\n── ${t}`);
 section('말풍선 파싱 — 모델이 형식을 어겨도 화면은 깨지지 않는다');
 // ─────────────────────────────────────────────
 const BOTH = ['jaeeon', 'minhyun'], JE = ['jaeeon'], MH = ['minhyun'];
-const texts = (raw, fb, allowed) => parseMessages(raw, fb, allowed).map(m => `${m.sender}|${m.text}`);
+/* parseMessages는 이제 묶음을 돌려준다 — 대사·초대·물건·사진이 한 객체다.
+   부수 출력이 함수에 매달려 있으면 후보 둘을 파싱할 때 뒤엣것이 앞엣것을 덮는다. */
+const texts = (raw, fb, allowed) => parseMessages(raw, fb, allowed).messages.map(m => `${m.sender}|${m.text}`);
 
 /* 단톡방은 이력을 "[이재언] 말" 형태로 모델에게 준다. 모델이 JSON 대신 그 형식을
    그대로 따라 쓴 적이 있고, 그때 세 사람 대사가 말풍선 하나로 뭉쳐 나갔다. */
@@ -60,7 +62,7 @@ eq('코드펜스로 감싸도 읽는다',
 /* 다 실패했을 때 원문을 내보내던 것이 누출 경로였다. 조용히 가짜를
    내보내느니 빈 손으로 돌아가서 화면에 실패를 띄우는 편이 낫다. */
 eq('안 닫힌 JSON 조각도 안 내보낸다',
-  parseMessages('{"messages":["가요."', 'jaeeon', JE), []);
+  parseMessages('{"messages":["가요."', 'jaeeon', JE).messages, []);
 eq('평범한 한 줄은 그대로 나간다',
   texts('보리차 마셔요.', 'jaeeon', JE), ['jaeeon|보리차 마셔요.']);
 
@@ -71,8 +73,20 @@ eq('정상 JSON은 그대로 통과',
 eq('1:1 방에 없는 사람 줄은 버린다',
   texts('[이민현] 삼촌 뭐해요\n[이재언] 일한다', 'jaeeon', JE), ['jaeeon|일한다']);
 
-eq('1:1 JSON의 엉뚱한 sender는 방 주인으로 교정',
-  texts('{"messages":[{"sender":"jaeeon","text":"앉으세요."}]}', 'minhyun', MH), ['minhyun|앉으세요.']);
+/* ── 명시한 화자는 몰래 안 고친다 ──
+   전에는 여기서 방 주인으로 교정했다. 그러면 hardFilter의 SENDER 검사가
+   **영영 발동하지 않는다** — 검사에 닿기 전에 이미 고쳐졌기 때문이다.
+   민현 방에서 모델이 sender:"jaeeon"을 내도 조용히 민현 말이 됐다.
+   명시한 것은 그대로 두고 검사가 판정한다. 생략한 것만 채운다. */
+eq('명시한 화자는 그대로 남는다',
+  texts('{"messages":[{"sender":"jaeeon","text":"앉으세요."}]}', 'minhyun', MH), ['jaeeon|앉으세요.']);
+eq('명시한 화자에는 표식이 붙는다',
+  parseMessages('{"messages":[{"sender":"jaeeon","text":"앉으세요."}]}', 'minhyun', MH)
+    .messages[0].senderGiven, true);
+eq('생략한 화자는 채우고 표식은 안 붙인다', (() => {
+  const m = parseMessages('{"messages":["앉으세요."]}', 'minhyun', MH).messages[0];
+  return [m.sender, m.senderGiven];
+})(), ['minhyun', false]);
 
 eq('유저 이름표가 붙은 줄은 캐릭터가 말하지 않는다',
   texts('[R] 좋아 좋아\n[이민현] 뭐가 좋은데요', 'minhyun', BOTH), ['minhyun|뭐가 좋은데요']);
@@ -695,7 +709,8 @@ eq('점이 꺼진 사람은 안 건다',
   /* 억제와 검증이 같은 규칙을 봐야 한다. 유저가 가자고 해서 연 자리가
      검증에서 걸리면 화면에는 아무 일도 안 일어나고 말만 남는다 */
   eq('검증도 두 목록을 같이 본다',
-    /pickInvite\(parseMessages\.invite, place \? \[\] : \[\.\.\.openPlaces, \.\.\.canGo\]\)/.test(wSrc), true);
+    /openPlaces: place \? \[\] : \[\.\.\.openPlaces, \.\.\.canGo\]/.test(wSrc)
+    && /pickInvite\(cand\.invite, place \? \[\] : \[\.\.\.openPlaces, \.\.\.canGo\]\)/.test(wSrc), true);
   /* 인물이 먼저 꺼내는 사다리(INVITES)와는 따로 둔다 — 그쪽은 관계가 쌓여야
      열리고, 이쪽은 유저가 이미 열어둔 문이다 */
   eq('두 목록은 따로 선다',
@@ -1871,10 +1886,14 @@ eq('지어낸 장소는 통과 못 한다', INV.pickInvite('한강', ['옥상', 
 eq('열린 자리는 통과한다', INV.pickInvite('옥상', ['옥상', '도서관']), '옥상');
 eq('안 골랐으면 없다', [INV.pickInvite('', ['옥상']), INV.pickInvite(null, ['옥상'])], [null, null]);
 /* 모델이 JSON 맨 위에 쓴 것을 읽어온다 */
-parseMessages('{"invite":"옥상","messages":["갈래요?"]}', 'jaeeon', ['jaeeon']);
-eq('모델이 고른 자리를 읽는다', parseMessages.invite, '옥상');
-parseMessages('{"messages":["아뇨."]}', 'jaeeon', ['jaeeon']);
-eq('안 고른 턴은 비어 있다', parseMessages.invite, '');
+/* 부수 출력은 묶음에 들어 있다. 함수 객체에 매달지 않는다 —
+   후보를 둘 파싱하면 뒤엣것이 앞엣것을 덮어서 A 대사에 B의 자리가 붙는다. */
+eq('모델이 고른 자리를 읽는다',
+  parseMessages('{"invite":"옥상","messages":["갈래요?"]}', 'jaeeon', ['jaeeon']).invite, '옥상');
+eq('안 고른 턴은 비어 있다',
+  parseMessages('{"messages":["아뇨."]}', 'jaeeon', ['jaeeon']).invite, '');
+eq('함수에 부수 출력이 안 남는다',
+  [parseMessages.invite, parseMessages.give], [undefined, undefined]);
 
 /* ── 제 이름을 호칭 자리에 ──
    「식사 맛있게 하세요」에 「이재언도요.」가 돌아왔다. 「선생님도요」가
@@ -2467,7 +2486,7 @@ eq('신호로만 짐작한다고 적어뒀다',
 eq('사진은 messages 밖에서 온다',
   /"photo": "사진키"\]?\}/.test(workerSrc) && /messages 안에는 문자열만 넣는다/.test(workerSrc), true);
 {
-  const got = parseMessages('{"messages":["지금요?","이거 보세요."],"photo":"minhyun-mirror"}', 'minhyun', ['minhyun']);
+  const got = parseMessages('{"messages":["지금요?","이거 보세요."],"photo":"minhyun-mirror"}', 'minhyun', ['minhyun']).messages;
   eq('마지막 말풍선에 사진이 붙는다',
     [got.length, got[0].photo, got[1].photo], [2, undefined, 'minhyun-mirror']);
 }
@@ -3622,7 +3641,7 @@ eq('워커가 때를 받으면 일어서라고 말한다',
      '오늘은 못 함', '그럼 자요'].filter(t => !keep(t)), ['오늘은 못 함']);
   /* 줄을 가르기 전에 걸러야 한 말풍선에 섞여 온 것도 통째로 잡힌다 */
   eq('말버릇 필터보다 앞에 있다',
-    /trimTics\(sanitizePhotos\(unlabel\(splitLines\(dropMeta\(parsed\)\)/.test(workerSrc), true);
+    /trimTics\(sanitizePhotos\(unlabel\(splitLines\(dropMeta\(parsed\.messages\)\)/.test(workerSrc), true);
   eq('버릴 때 로그를 남긴다', /dropped\("사고 유출"/.test(workerSrc), true);
 
   /* ── 없는 말 하나 ──
@@ -4935,9 +4954,12 @@ eq('시간표 단추는 peek보다 좁다',
   eq('고르는 쪽은 대사를 안 쓴다',
     /대사를 쓰지 않는다 — 고르기만 한다/.test(wk)
     && /후보를 고치거나, 둘을 합치거나, 새로 쓰지 않는다/.test(wk), true);
+  /* 자리 수가 아니라 **실제 남은 후보 id**로 가린다. A가 떨어지고 B만
+     남았을 때 「후보 하나니까 ACCEPT」로 받으면 어느 쪽을 봤는지 모른다. */
   eq('허용되는 판정만 받는다', (() => {
     const f = wk.slice(wk.indexOf('function readDecision('), wk.indexOf('/* 안이 비치는 모양'));
-    return /n === 1 \? \["ACCEPT", "RETRY"\] : \["A", "B", "RETRY"\]/.test(f);
+    return /const allowed = one \? \["ACCEPT"\] : list;/.test(f)
+        && /if \(allowed\.indexOf\(d\) < 0\) return no/.test(f);
   })(), true);
   /* 재생성은 최대 한 번이다. 계속 실패하면 각본으로 덮지 않는다 */
   eq('재생성은 한 번뿐이다', /const RETRY_MAX = 1;/.test(wk), true);
@@ -4986,8 +5008,8 @@ eq('시간표 단추는 peek보다 좁다',
     return /EMPTY/.test(f) && /LEAK/.test(f) && /SENDER/.test(f);
   })(), true);
   eq('신호는 자르지 않고 넘긴다', (() => {
-    const i = wk.indexOf('cands.push({ kept, invite, give, signals: softSignals(');
-    return i > 0 && !wk.slice(i, i + 200).includes('return');   // 신호로 후보를 버리지 않는다
+    const i = wk.indexOf('cand.signals = softSignals(messages, recentForDirector);');
+    return i > 0 && !wk.slice(i, i + 120).includes('return');   // 신호로 후보를 버리지 않는다
   })(), true);
 
   /* ── 고르는 쪽에 큰 프롬프트를 다시 안 준다 ──
@@ -5509,18 +5531,265 @@ eq('시간표 단추는 peek보다 좁다',
     softSignals([{ text: '오늘 학교 갔다 왔어요.' }], [{ role: 'assistant', content: '학교 갔다 왔어요' }])
       .includes('REPEATS_RECENT'), true);
 
-  eq('판정을 읽는다', readDecision(JSON.stringify({ decision: 'B', reject_codes: {} }), 2).decision, 'B');
-  eq('못 읽으면 다시 쓴다', readDecision('어느 쪽이 좋을까요', 2).decision, 'RETRY');
-  eq('후보 하나에 A는 무효다', readDecision(JSON.stringify({ decision: 'A' }), 1).decision, 'RETRY');
-  eq('후보 하나면 ACCEPT다', readDecision(JSON.stringify({ decision: 'ACCEPT' }), 1).decision, 'ACCEPT');
+  eq('판정을 읽는다', readDecision(JSON.stringify({ decision: 'B', reject_codes: {} }), ['A', 'B']).decision, 'B');
+  eq('못 읽으면 다시 쓴다', readDecision('어느 쪽이 좋을까요', ['A', 'B']).decision, 'RETRY');
+  eq('후보 하나에 A는 무효다', readDecision(JSON.stringify({ decision: 'A' }), ['ONE']).decision, 'RETRY');
+  eq('후보 하나면 ACCEPT다', readDecision(JSON.stringify({ decision: 'ACCEPT' }), ['ONE']).decision, 'ACCEPT');
+  /* A가 떨어지고 B만 남았다. 「B」는 유효하고 「A」는 없는 후보다 */
+  /* A가 떨어지고 B만 남았다. 후보가 하나면 판정은 ACCEPT/RETRY다 —
+     그래도 그 하나는 B고, 고르는 자리에서 A 자리를 집지 않는다. */
+  eq('하나 남으면 ACCEPT로 받는다',
+    [readDecision(JSON.stringify({ decision: 'ACCEPT' }), ['B']).decision,
+     readDecision(JSON.stringify({ decision: 'A' }), ['B']).decision], ['ACCEPT', 'RETRY']);
+  /* 없는 후보를 고르면 조용히 첫 후보로 떨어뜨리지 않는다 */
+  eq('없는 후보는 안 집는다', (() => {
+    const i = workerSrc.indexOf('picked = dec.decision === "ACCEPT" ? cands[0] : cands.find(c => c.id === dec.decision);');
+    return i > 0 && workerSrc.slice(i, i + 220).includes('DIRECTOR_GHOST');
+  })(), true);
 
   /* 꾸러미에 세계관이 통째로 들어가면 안 된다 */
   const pk = directorPacket({ who: 'minhyun', when: '저녁', place: '편의점', stage: '익숙 · 6일째',
-    knows: '병원 옥상', facts: [], recent: [{ role: 'user', content: '뭐 해?' }] },
-    [{ kept: [{ text: '골라요.' }], signals: [] }, { kept: [{ text: '아직요.' }], signals: ['TOO_EXPLANATORY'] }]);
+    knows: '병원 옥상', facts: [], here: [], recent: [{ role: 'user', content: '뭐 해?' }] },
+    [{ id: 'A', messages: [{ text: '골라요.' }], signals: [] },
+     { id: 'B', messages: [{ text: '아직요.' }], signals: ['TOO_EXPLANATORY'] }]);
   eq('꾸러미에 후보 둘이 들어간다', pk.includes('후보 A') && pk.includes('후보 B'), true);
   eq('꾸러미에 코드 신호가 실린다', pk.includes('코드 신호: TOO_EXPLANATORY'), true);
-  eq('꾸러미가 짧다', pk.length < 900, true);
+  /* 성격표가 붙어 길어졌다. 그래도 인물 프롬프트 전체(이만 줄)보다는 훨씬 작다 */
+  eq('꾸러미가 인물 프롬프트보다 훨씬 작다', pk.length < 2200, true);
+  eq('꾸러미에 성격표가 실린다', pk.includes('minhyun.ask.short_check'), true);
+  eq('꾸러미에 남의 성격표는 없다', pk.includes('jaeeon.voice.dry_haeyo'), false);
+}
+
+/* ══════════ 후보 묶음과 검사 — D단계 ══════════
+   ── 왜 묶음인가 ──
+   전에는 후보의 부수 출력이 parseMessages 함수에 매달려 있었다. 후보를
+   둘 파싱하면 뒤엣것이 앞엣것을 덮는다 — A의 대사를 고르고 B의 give를
+   가져오는 사고가 **구조적으로 가능**했다. 대사와 효과가 한 덩어리로
+   움직여야 그 사고가 문법 오류가 된다. */
+{
+  const { parseMessages, hardFilter, readDecision, readProblems,
+          criticPacket, finalizerPacket, directorPacket, sceneHead,
+          CHAR_RULES, RULE_IDS, CANON_CODES, CHAR_CODES, rulesFor, makeFact, factIds } = ENG;
+  const wk = workerSrc;
+  const MH = ['minhyun'], BOTH = ['jaeeon', 'minhyun'];
+
+  /* ── D0 후보 묶음 ── */
+  eq('파싱은 묶음을 돌려준다', (() => {
+    const b = parseMessages('{"messages":["가요."],"invite":"옥상","give":"can","photo":"minhyun-neon"}',
+      'minhyun', MH);
+    return [b.messages.length, b.invite, b.give, b.photo, b.parseStatus];
+  })(), [1, '옥상', 'can', 'minhyun-neon', 'json']);
+  eq('부수 출력이 함수에 안 남는다',
+    [parseMessages.invite, parseMessages.give, parseMessages.photo], [undefined, undefined, undefined]);
+  /* 두 후보를 잇달아 파싱해도 앞엣것이 안 덮인다 — 이게 옛 구조의 사고였다 */
+  eq('두 후보의 부수 출력이 안 섞인다', (() => {
+    const a = parseMessages('{"messages":["ㄱ"],"give":"can"}', 'minhyun', MH);
+    const b = parseMessages('{"messages":["ㄴ"]}', 'minhyun', MH);
+    return [a.give, b.give];
+  })(), ['can', '']);
+  eq('평문도 묶음이다', (() => {
+    const b = parseMessages('그냥 한 줄', 'minhyun', MH);
+    return [b.messages.length, b.parseStatus, b.invite];
+  })(), [1, 'plain', '']);
+  eq('읽을 것이 없으면 빈 묶음이다', parseMessages('{"messages":[', 'minhyun', MH).parseStatus, 'empty');
+  /* pair는 한 호출에서 둘을 받기로 한 것이다. 하나만 오면 조용히 넘어가지 않는다 */
+  eq('후보 수가 안 맞으면 다시 쓴다', (() => {
+    const i = wk.indexOf('if (cMode === "pair" && pieces.length !== nCand)');
+    return i > 0 && wk.slice(i, i + 200).includes('WRITER_SCHEMA');
+  })(), true);
+  /* 자리가 아니라 id로 가린다 */
+  eq('후보를 id로 만든다', /const id = "AB"\[i\] \|\| `C\$\{i\}`;/.test(wk), true);
+  eq('고를 때도 id로 찾는다',
+    /cands\.find\(c => c\.id === dec\.decision\)/.test(wk), true);
+  eq('고른 묶음에서 부수 출력을 꺼낸다',
+    /const \{ invite, give \} = picked;/.test(wk)
+    && /dropSleepers\(picked\.messages/.test(wk), true);
+
+  /* ── D1 SENDER 복구 ──
+     전에는 parseMessages가 정규화를 **먼저** 해서 이 검사가 영영 발화하지
+     못했다. 민현 방에서 sender:"jaeeon"이 조용히 민현 말이 됐다. */
+  eq('1:1의 명시적 오답 화자는 떨어진다', (() => {
+    const b = parseMessages('{"messages":[{"sender":"jaeeon","text":"앉으세요."}]}', 'minhyun', MH);
+    return hardFilter(b, MH, {});
+  })(), ['SENDER']);
+  eq('생략한 화자는 안 떨어진다', (() => {
+    const b = parseMessages('{"messages":["앉으세요."]}', 'minhyun', MH);
+    return hardFilter(b, MH, {});
+  })(), []);
+  eq('이름표 형식의 오답 화자도 떨어진다', (() => {
+    const b = parseMessages('[이재언] 앉으세요.', 'minhyun', MH);
+    return [b.parseStatus, hardFilter(b, MH, {})];
+  })(), ['tagged', ['SENDER']]);
+  eq('단톡의 허용 화자는 통과한다', (() => {
+    const b = parseMessages('{"messages":[{"sender":"jaeeon","text":"ㄱ"},{"sender":"minhyun","text":"ㄴ"}]}',
+      'minhyun', BOTH);
+    return hardFilter(b, BOTH, {});
+  })(), []);
+  /* 정규화가 검사보다 앞서면 안 된다 — 소스로도 굳힌다 */
+  eq('파서가 명시된 화자를 안 갈아치운다',
+    /ok\.includes\(m\.sender\) \? m : \{ \.\.\.m, sender: fallbackSender \}/.test(wk), false);
+  eq('검사가 명시 여부를 본다', /m\.senderGiven === undefined \? !!m\.sender : m\.senderGiven/.test(wk), true);
+
+  /* ── D2 FACT_DENIAL — 다섯이 다 맞을 때만 ── */
+  const GIFT = { giftNow: { key: 'mug', name: '회색 머그컵' }, giftRoom: 'jaeeon' };
+  const say = (t, who) => ({ messages: [{ sender: who || 'jaeeon', text: t, senderGiven: true }] });
+  eq('그 물건을 그 사람이 부정하면 hard다',
+    hardFilter(say('회색 머그컵 받은 적 없어요.'), ['jaeeon'], GIFT), ['FACT_DENIAL']);
+  eq('이번 턴 선물이 없으면 같은 말도 hard가 아니다',
+    hardFilter(say('회색 머그컵 받은 적 없어요.'), ['jaeeon'], {}), []);
+  eq('물건 이름이 없으면 hard가 아니다',
+    hardFilter(say('그런 거 받은 적 없어요.'), ['jaeeon'], GIFT), []);
+  eq('부정을 뒤집은 말은 hard가 아니다',
+    hardFilter(say('회색 머그컵 안 받은 게 아니라 아직 안 썼어요.'), ['jaeeon'], GIFT), []);
+  eq('다른 사람이 말하면 hard가 아니다',
+    hardFilter(say('회색 머그컵 받은 적 없어요.', 'minhyun'), BOTH, GIFT), []);
+  /* 같은 종류를 재언과 민현이 각각 가진 정상 상태 — 남의 것을 부정한 것이
+     내 것 부정으로 세면 안 된다. 늘 (수신자, 종류)를 함께 본다. */
+  eq('남의 같은 물건과 안 섞인다',
+    hardFilter(say('민현이 회색 머그컵은 저한테 없어요.', 'minhyun'), BOTH,
+      { giftNow: { key: 'mug', name: '회색 머그컵' }, giftRoom: 'jaeeon' }), []);
+  eq('멀쩡한 감사는 hard가 아니다',
+    hardFilter(say('회색 머그컵 잘 쓸게요.'), ['jaeeon'], GIFT), []);
+
+  /* ── D2 초대·지급 제안 검사 ── */
+  eq('지어낸 자리 제안은 떨어진다',
+    hardFilter({ messages: [{ text: 'ㄱ' }], invite: '한강' }, MH, { openPlaces: ['옥상'] }),
+    ['INVALID_INVITE']);
+  eq('열린 자리 제안은 통과한다',
+    hardFilter({ messages: [{ text: 'ㄱ' }], invite: '옥상' }, MH, { openPlaces: ['옥상'] }), []);
+  eq('제안을 안 낸 것은 어긴 것이 아니다',
+    hardFilter({ messages: [{ text: 'ㄱ' }] }, MH, { openPlaces: [] }), []);
+  eq('자리 밖에서 건네겠다는 것은 떨어진다',
+    hardFilter({ messages: [{ text: 'ㄱ' }], give: 'can' }, MH, { place: null, room: 'minhyun' }),
+    ['INVALID_GIVE']);
+  eq('이미 가진 물건을 또 건네면 떨어진다',
+    hardFilter({ messages: [{ text: 'ㄱ' }], give: 'can' }, MH,
+      { place: '옥상', placeItemOwned: true, room: 'minhyun' }), ['INVALID_GIVE']);
+  eq('그 자리의 물건은 통과한다',
+    hardFilter({ messages: [{ text: 'ㄱ' }], give: 'can' }, MH,
+      { place: '옥상', placeItemOwned: false, room: 'minhyun' }), []);
+
+  /* ── D4 성격표 ── */
+  eq('성격표에 새 인물이 없다',
+    CHAR_RULES.filter(r => !/^(both|jaeeon|minhyun)\./.test(r.rule_id)), []);
+  eq('성격표에 최소 축이 다 있다',
+    ['no_counselor', 'no_puppetry', 'no_exposition', 'no_invention', 'no_rush']
+      .filter(k => !CHAR_RULES.some(r => r.rule_id.includes(k))), []);
+  eq('두 사람의 묻는 방식이 갈려 있다',
+    [RULE_IDS.has('jaeeon.voice.indirect_curiosity'), RULE_IDS.has('minhyun.ask.short_check')],
+    [true, true]);
+  eq('제 화자 것과 공통만 받는다', (() => {
+    const r = rulesFor('minhyun').map(x => x.rule_id);
+    return [r.some(x => x.startsWith('both.')), r.some(x => x.startsWith('minhyun.')),
+            r.some(x => x.startsWith('jaeeon.'))];
+  })(), [true, true, false]);
+  eq('rule_id에 중복이 없다', CHAR_RULES.length, RULE_IDS.size);
+
+  /* ── D5·D6 Critic 스키마 ── */
+  const FACTS = [makeFact('gift.mug.user_to_jaeeon', true, 'state', ['user', 'jaeeon'])];
+  const AL = { candidates: new Set(['A', 'B']), facts: factIds(FACTS) };
+  const canon = o => readProblems(JSON.stringify({ problems: [o] }), 'canon', AL);
+  const chara = o => readProblems(JSON.stringify({ problems: [o] }), 'character', AL);
+  eq('유효한 사실 문제는 통과한다',
+    canon({ candidate: 'A', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_DENIAL' }).ok, true);
+  eq('없는 fact_id는 다시 쓴다',
+    canon({ candidate: 'A', critic: 'canon', fact_id: 'gift.없는.것', code: 'FACT_DENIAL' }).ok, false);
+  eq('fact_id가 없으면 다시 쓴다',
+    canon({ candidate: 'A', critic: 'canon', code: 'FACT_DENIAL' }).ok, false);
+  eq('사실 문제에 rule_id를 쓰면 다시 쓴다',
+    canon({ candidate: 'A', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon',
+            rule_id: 'both.voice.no_counselor', code: 'FACT_DENIAL' }).ok, false);
+  eq('유효한 사람 문제는 통과한다',
+    chara({ candidate: 'B', critic: 'character', rule_id: 'both.voice.no_counselor',
+            code: 'COUNSELOR_TONE' }).ok, true);
+  eq('없는 rule_id는 다시 쓴다',
+    chara({ candidate: 'B', critic: 'character', rule_id: 'minhyun.없는규칙', code: 'VOICE_BREAK' }).ok, false);
+  eq('사람 문제에 fact_id를 쓰면 다시 쓴다',
+    chara({ candidate: 'B', critic: 'character', rule_id: 'both.voice.no_counselor',
+            fact_id: 'gift.mug.user_to_jaeeon', code: 'VOICE_BREAK' }).ok, false);
+  eq('없는 후보는 다시 쓴다',
+    canon({ candidate: 'C', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_DENIAL' }).ok, false);
+  eq('모르는 코드는 다시 쓴다',
+    canon({ candidate: 'A', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: '이상함' }).ok, false);
+  eq('검사 이름이 다르면 다시 쓴다',
+    canon({ candidate: 'A', critic: 'character', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_DENIAL' }).ok, false);
+  eq('문제가 없으면 통과하고 비어 있다',
+    (() => { const r = readProblems('{"problems":[]}', 'canon', AL); return [r.ok, r.problems.length]; })(),
+    [true, 0]);
+  /* 표식은 끝까지 남는다 — .flat()으로 뭉개지 않는다 */
+  eq('후보 표식이 끝까지 남는다',
+    readProblems(JSON.stringify({ problems: [
+      { candidate: 'A', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_DENIAL' },
+      { candidate: 'B', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_INVENTED' }] }),
+      'canon', AL).problems.map(x => `${x.candidate}:${x.code}`),
+    ['A:FACT_DENIAL', 'B:FACT_INVENTED']);
+  /* 허용 목록은 Fact[]에서 직접 온다 — 문장을 파싱해 만들지 않는다 */
+  eq('허용 fact_id를 구조에서 받는다',
+    /const allowed = \{ candidates: new Set\(cands\.map\(c => c\.id\)\), facts: factIds\(stageFacts\) \}/.test(wk), true);
+
+  /* 검사마다 다른 것을 준다 — 사실 목록과 성격표를 둘 다 주면 영역이 섞인다 */
+  {
+    const ctx = { who: 'minhyun', when: '저녁', place: null, stage: '익숙', knows: '',
+      facts: FACTS, here: [], userName: '선생님', recent: [] };
+    const cs = [{ id: 'A', messages: [{ text: 'ㄱ' }], signals: [] }];
+    const pkC = criticPacket(ctx, cs, 'canon'), pkH = criticPacket(ctx, cs, 'character');
+    eq('사실 검사는 fact_id 목록을 받는다',
+      [pkC.includes('gift.mug.user_to_jaeeon'), pkC.includes('minhyun.ask.short_check')], [true, false]);
+    eq('사람 검사는 rule_id 목록을 받는다',
+      [pkH.includes('minhyun.ask.short_check'), pkH.includes('[사실 목록]')], [true, false]);
+    eq('사실이 없으면 모르는 것이라고 적는다',
+      criticPacket({ ...ctx, facts: [] }, cs, 'canon').includes('없는 것은 모르는 것이지 거짓이 아니다'), true);
+  }
+
+  /* ── D7 호출 수 ── */
+  eq('검사를 후보마다 안 부른다', /cands\.map\([\s\S]{0,80}callStage\(env, meter, "(canon|character)"/.test(wk), false);
+  eq('검사는 각각 한 번씩이다',
+    [(wk.match(/callStage\(env, meter, "canon"/g) || []).length,
+     (wk.match(/callStage\(env, meter, "character"/g) || []).length], [1, 1]);
+  /* 사실을 어긴 후보가 다 빠지면 위를 안 부른다 — 틀린 재료로 값비싼 호출을
+     하지 않는다 */
+  eq('사실을 다 어기면 마무리를 안 부른다', (() => {
+    const i = wk.indexOf('if (!survivors.length)');
+    return i > 0 && wk.slice(i, i + 300).includes('continue;')
+        && wk.indexOf('callStage(env, meter, "finalizer"') > i;
+  })(), true);
+  eq('마무리는 살아남은 후보만 받는다',
+    /finalizerPacket\(sceneCtx, survivors, notes\.filter/.test(wk), true);
+
+  /* ── D10 마무리 묶음 ── */
+  eq('마무리도 제 묶음을 만든다',
+    /const fCand = \{ id: "F"/.test(wk), true);
+  eq('마무리가 원래 후보의 부수 출력을 안 물려받는다', (() => {
+    const i = wk.indexOf('const fCand = { id: "F"');
+    const box = wk.slice(i, i + 600);
+    return box.includes('invite: fp.invite') && box.includes('give: fp.give')
+        && !box.includes('picked.invite') && !box.includes('cands[0]');
+  })(), true);
+  eq('마무리 system은 비변이 복사 그대로다',
+    /const finalizerSystem = \[\.\.\.system, \{ type: "text", text: FINALIZER_RULES \}\]/.test(wk), true);
+
+  /* ── D11 재시도 피드백 ── */
+  eq('재시도에 탈락 코드를 얹는다', /\[이전 시도 탈락\]/.test(wk), true);
+  eq('재시도는 원본 이력을 안 건드린다', (() => {
+    const i = wk.indexOf('const tries = attempt > 1 && lastCodes.length');
+    const box = wk.slice(i, i + 700);
+    /* 복사본을 만들고 마지막 발화만 갈아 끼운다. msgs.push가 있으면 오염이다 */
+    return box.includes('const copy = msgs.slice();')
+        && box.includes('copy[copy.length - 1] = { ...t, content: blocks };')
+        && !box.includes('msgs.push(') && !box.includes('t.content.push(');
+  })(), true);
+  eq('첫 시도에는 안 붙는다', /attempt > 1 && lastCodes\.length/.test(wk), true);
+  /* 검사의 자유 문장이나 못 읽은 원문을 넣지 않는다 — 유효한 코드·id만 */
+  eq('탈락 코드는 id와 코드뿐이다', (() => {
+    const i = wk.indexOf('lastCodes = notes.filter(n => n.critic === "canon")');
+    return wk.slice(i, i + 160).includes('`${n.candidate}:${n.code}:${n.fact_id}`');
+  })(), true);
+  eq('후보 탈락도 id를 달고 간다', /fell\.push\(\.\.\.codes\.map\(c => `\$\{id\}:\$\{c\}`\)\)/.test(wk), true);
+  /* 후보마다 덮어쓰면 마지막 것만 남아 안 고친 쪽이 다음에도 똑같이 떨어진다 */
+  eq('탈락 코드를 후보마다 안 덮어쓴다',
+    /const fell = \[\];/.test(wk) && /if \(fell\.length\) lastCodes = fell;/.test(wk), true);
+  /* 검사가 헛소리를 하면 「문제 없음」이 아니라 다시 쓴다 */
+  eq('검사 스키마가 어긋나면 다시 쓴다', /lastCodes = \["CRITIC_SCHEMA"\]/.test(wk), true);
 }
 
 /* ══════════ 첫 자리의 첫 마디 ══════════
@@ -5718,7 +5987,7 @@ eq('시간표 단추는 peek보다 좁다',
   /* 검사도 마무리도 같은 장면을 봐야 한다 — 다른 장면을 보면 검사가 잡은
      것을 마무리가 이해할 수 없다 */
   eq('검사와 마무리가 같은 머리를 쓴다', (() => {
-    const a = wk.slice(wk.indexOf('function criticPacket('), wk.indexOf('function readProblems('));
+    const a = wk.slice(wk.indexOf('function criticPacket('), wk.indexOf('/* ── 못 읽은 것은'));
     const b = wk.slice(wk.indexOf('function finalizerPacket('), wk.indexOf('/* 안이 비치는 모양'));
     return a.includes('sceneHead(ctx)') && b.includes('sceneHead(ctx)');
   })(), true);
@@ -5730,12 +5999,12 @@ eq('시간표 단추는 peek보다 좁다',
     const i = wk.indexOf('const fp = parseMessages(finRaw, fallbackSender, chars);');
     const box = wk.slice(i, i + 700);
     return box.includes('dropEcho(') && box.includes('sanitizePhotos(')
-        && box.includes('hardFilter(fKept, chars)');
+        && box.includes('hardFilter(fCand, chars, hardCtx)');
   })(), true);
   /* 위를 썼다고 빠져나가면 여기가 유일하게 안 걸러지는 자리가 된다 */
   eq('마무리가 걸리면 다시 쓴다', (() => {
-    const i = wk.indexOf('const fCodes = hardFilter(fKept, chars);');
-    return wk.slice(i, i + 120).includes('continue;');
+    const i = wk.indexOf('const fCodes = hardFilter(fCand, chars, hardCtx);');
+    return i > 0 && wk.slice(i, i + 140).includes('continue;');
   })(), true);
   eq('중요 장면은 고르는 단계를 안 탄다', (() => {
     const i = wk.indexOf('if (tier === "critical") {');
@@ -5745,15 +6014,18 @@ eq('시간표 단추는 peek보다 좁다',
 
   /* 검사는 후보 전부를 한 번에 본다 — 어느 후보 것인지가 답에 남아야 한다.
      `.flat()`으로 합치던 때는 표식이 사라져 마무리가 어느 쪽을 고칠지 몰랐다. */
+  const ALLOW = { candidates: new Set(['A', 'B']), facts: new Set(['gift.mug.user_to_jaeeon']) };
   eq('검사 답이 후보 표식을 지킨다',
     readProblems(JSON.stringify({ problems: [
-      { candidate: 'A', note: '앞서 나감' }, { candidate: 'B', note: '설명이 길다' }] }), 'canon'),
-    [{ candidate: 'A', note: '앞서 나감', critic: 'canon' },
-     { candidate: 'B', note: '설명이 길다', critic: 'canon' }]);
-  /* 후보가 하나인 턴에는 표식이 없다 — 없다고 버리지 않는다 */
-  eq('표식 없는 답도 읽는다', readProblems(JSON.stringify({ problems: ['앞서 나감'] }), 'character'),
-    [{ candidate: '', note: '앞서 나감', critic: 'character' }]);
-  eq('못 읽으면 잡을 것이 없는 것으로 본다', readProblems('음 글쎄요', 'canon'), []);
+      { candidate: 'A', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_DENIAL' }] }),
+      'canon', ALLOW).problems,
+    [{ candidate: 'A', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_DENIAL' }]);
+  /* ── 못 읽은 것은 「문제 없음」이 아니다 ──
+     전에는 파싱 실패에 빈 배열을 돌려줬다. 검사가 헛소리를 해도 깨끗하다고
+     보고하고 넘어간다 — 검사가 있는데 없는 것과 같다. */
+  eq('못 읽으면 다시 쓴다', readProblems('음 글쎄요', 'canon', ALLOW).ok, false);
+  eq('problems가 배열이 아니면 다시 쓴다',
+    readProblems(JSON.stringify({ problems: '없음' }), 'canon', ALLOW).ok, false);
 
   /* facts는 Fact[]다 — sceneHead가 마지막에 문장으로 바꾼다.
      here는 사실이 아니라 이번 턴의 조건이라 따로 담는다. */
@@ -5761,21 +6033,22 @@ eq('시간표 단추는 peek보다 좁다',
     knows: '병원 옥상', userName: '선생님',
     facts: [ENG.makeFact('item.mug.with_jaeeon', true, 'state', ['minhyun'])],
     here: ['상대가 정해졌다'], recent: [{ role: 'user', content: '너로 할게' }] };
-  const cands = [{ kept: [{ text: '진짜요?' }], signals: [] },
-                 { kept: [{ text: '알았어요.' }], signals: ['TOO_EXPLANATORY'] }];
+  const cands = [{ id: 'A', messages: [{ text: '진짜요?' }], signals: [] },
+                 { id: 'B', messages: [{ text: '알았어요.' }], signals: ['TOO_EXPLANATORY'] }];
   eq('꾸러미에 사실이 실린다',
     sceneHead(ctx).join('\n').includes('[사실] 이재언에게 회색 머그컵이 있다. · 상대가 정해졌다'), true);
   /* 꾸러미가 받는 것은 Fact[]다. 문장은 여기서 처음 만들어진다 —
      그래서 다음 단계가 fact_id를 그대로 들고 검사할 수 있다. */
   eq('꾸러미는 구조를 들고 있다', typeof ctx.facts[0].fact_id, 'string');
-  const notes1 = [{ candidate: 'A', note: '앞서 나감', critic: 'canon' }];
+  const notes1 = [{ candidate: 'A', critic: 'canon', fact_id: 'gift.mug.user_to_jaeeon', code: 'FACT_DENIAL' }];
   eq('마무리 꾸러미에 검사 결과가 실린다',
-    finalizerPacket(ctx, cands, notes1).includes('[검사가 잡은 것]\n- 후보 A · 사실 — 앞서 나감'), true);
-  /* 사실이 틀린 것과 사람이 틀린 것은 고치는 법이 다르다 — 어느 검사가
-     잡았는지를 지운 채 넘기면 마무리가 같은 것으로 본다 */
+    finalizerPacket(ctx, cands, notes1)
+      .includes('- 후보 A · 사실 · FACT_DENIAL — gift.mug.user_to_jaeeon'), true);
+  /* 사실이 틀린 것과 사람이 틀린 것은 고치는 법이 다르다 */
   eq('어느 검사가 잡았는지도 실린다',
-    finalizerPacket(ctx, cands, [{ candidate: 'B', note: '말투가 상담사다', critic: 'character' }])
-      .includes('- 후보 B · 사람 — 말투가 상담사다'), true);
+    finalizerPacket(ctx, cands, [{ candidate: 'B', critic: 'character',
+      rule_id: 'both.voice.no_counselor', code: 'COUNSELOR_TONE' }])
+      .includes('- 후보 B · 사람 · COUNSELOR_TONE — both.voice.no_counselor'), true);
   eq('마무리 꾸러미도 짧다', finalizerPacket(ctx, cands, notes1).length < 900, true);
 
   /* ── 예약은 한 번짜리다 ──
