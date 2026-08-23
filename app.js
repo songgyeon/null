@@ -39,11 +39,27 @@ function App(){
   useEffect(()=>{saveUnlocked(unlocked)},[unlocked]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2600);return()=>clearTimeout(t)},[toast]);
 
-  /* 메시지 추가 (+현재 안 보고 있는 방이면 unread 증가) */
-  const appendMsg=(room,msg)=>setStore(s=>({
-    msgs:{...s.msgs,[room]:[...(s.msgs[room]||[]),msg]},
-    unread:viewRef.current!==room?{...s.unread,[room]:(s.unread[room]||0)+1}:s.unread
-  }));
+  /* 메시지 추가 (+현재 안 보고 있는 방이면 unread 증가)
+     ── 그 자리에서 저장한다 ──
+     전에는 setStore만 하고 저장은 리액트가 그림을 그린 뒤 effect가 했다.
+     그러면 「그렸다」와 「남았다」 사이에 틈이 생긴다 — 재생 기록에서
+     그 줄을 빼는 것은 즉시인데 줄 자체는 아직 안 남아 있는 순간. 지금
+     쓰고, ref도 같이 앞세운다(가방이 하는 것과 같다). */
+  const appendMsg=(room,msg)=>{
+    const s=storeRef.current;
+    const next={msgs:{...s.msgs,[room]:[...(s.msgs[room]||[]),msg]},
+      unread:viewRef.current!==room?{...s.unread,[room]:(s.unread[room]||0)+1}:s.unread};
+    storeRef.current=next; saveStore(next); setStore(next);
+    return next;
+  };
+  /* ── 같은 줄을 두 번 붙이지 않는다 ──
+     재생은 끊길 수 있다. 덩어리에 적힌 id는 저장할 때 이미 박은 것이라,
+     저장이 어디서 끊겼든 「이미 있는지」만 보면 두 번 붙는 일이 없다. */
+  const appendOnce=(room,msg)=>{
+    const ms=storeRef.current.msgs[room]||[];
+    if(ms.some(m=>m&&m.id===msg.id))return false;
+    appendMsg(room,msg); return true;
+  };
 
   /* 대기열 처리: 0.6초 간격 순차 등장 */
   const pump=()=>{
@@ -52,39 +68,44 @@ function App(){
     const step=()=>{
       const it=queueRef.current.shift();
       if(!it){runningRef.current=false;return}
-      appendMsg(it.room,{id:Date.now()+Math.random(),sender:it.sender,text:it.text,photo:it.photo,ts:Date.now()});
+      paintQueued(it);
       if(!queueRef.current.some(q=>q.room===it.room)&&!inflightRef.current[it.room])
         setBusy(b=>({...b,[it.room]:false}));
       setTimeout(step,600);
     };
     setTimeout(step,500); // 타이핑 인디케이터를 잠깐 보여준 뒤 첫 버블
   };
-  const enqueue=(room,messages)=>{
-    /* 넣을 게 하나도 없으면 여기서 타이핑 표시를 끈다.
-       큐에 안 들어가면 pump가 돌지 않고, 그러면 표시가 영영 안 꺼진다 —
-       데이터가 비었다고 화면이 멈추면 안 된다. */
-    const before=queueRef.current.length;
-    (messages||[]).forEach(m=>{
-      if(!m)return;
-      const photo=photoSrc(m.photo)?m.photo:null;   // 없는 파일이면 사진은 버리고 말만 남긴다
-      const text=(m.text||"").trim();
-      if(text||photo)queueRef.current.push({room,sender:m.sender||room,text,photo});
-    });
-    if(queueRef.current.length===before){ setBusy(b=>({...b,[room]:false})); return; }
-    /* 그 자리에서 그 사람이 처음 입을 열면 화면이 그 사람으로 바뀐다.
-       한 장면에 한 번만 — 열 번 주고받는 동안 얼굴이 계속 바뀌면 어지럽다 */
-    const sc=sceneRef.current;
-    if(sc&&sc.room===room&&!sc.shot){
-      const shot=sceneShot(sc.place,room);
-      if(shot){
-        const next={...sc,shot}; setScene(next); saveScene(next);
-        /* 본 것도 사진첩에 꽂는다. 이건 말풍선이 아니라 배경이라 대화
-           기록에 안 남는다 — 여기서 적어두지 않으면 영영 안 모인다 */
-        stampShot(shot);
-      }
-    }
-    pump();
+  /* 한 개를 그리고, 적어둔 기록에서도 뺀다. 그 덩어리의 마지막이었으면
+     거기 매달린 것(지문·초대·자리 닫기)을 그 자리에서 낸다.
+     ── 시간으로 재지 않는 이유 ──
+     큐는 방마다가 아니라 하나뿐이다. 다른 방 말풍선이 앞에 쌓여 있으면
+     「몇 개니까 몇 초」로 잡은 짐작은 어긋난다 — 물건을 건네는 대사보다
+     「받았다」가 먼저 뜨는 게 그거였다. 마지막 말풍선이 실제로 뜬 자리가
+     그 시점이다. */
+  const paintQueued=it=>{
+    if(it.text||it.photo)
+      appendOnce(it.room,{id:it.id,sender:it.sender,text:it.text,photo:it.photo,ts:Date.now()});
+    if(!it.batch)return;
+    const left=dropBatchItem(it.batch,it.id);
+    if(left&&(left.items||[]).length)return;
+    finishBatch(it.batch);
   };
+  /* 그 자리에서 그 사람이 처음 입을 열면 화면이 그 사람으로 바뀐다.
+     한 장면에 한 번만 — 열 번 주고받는 동안 얼굴이 계속 바뀌면 어지럽다 */
+  const swapShot=room=>{
+    const sc=sceneRef.current;
+    if(!sc||sc.room!==room||sc.shot)return;
+    const shot=sceneShot(sc.place,room);
+    if(!shot)return;
+    const next={...sc,shot}; setScene(next); saveScene(next);
+    /* 본 것도 사진첩에 꽂는다. 이건 말풍선이 아니라 배경이라 대화
+       기록에 안 남는다 — 여기서 적어두지 않으면 영영 안 모인다 */
+    stampShot(shot);
+  };
+  /* 모델을 안 타는 줄(등록값 문답·데모)도 같은 길로 보낸다. 화면에
+     뜨는 방식이 같으면 끊겼을 때 살아남는 방식도 같아야 한다. */
+  const enqueue=(room,messages)=>
+    playBatch(commitTurn("local|"+room+"|"+Date.now()+"|"+Math.random(),room,messages));
 
   /* history / signals / counts / user_profile 구성 */
   /* 이전에 한 얘기를 기억하려면 이전에 한 얘기를 보내야 한다. 전에는 서른
@@ -162,7 +183,9 @@ function App(){
   /* 같이 가자는 제안이 오면 답을 받는다. 수락하면 그 자리에 다녀온 것이 되고,
      한 시간 뒤 관전방에서 다른 한 사람이 그 얘기를 꺼낸다. 거절하면 안 간다 —
      그리고 그 자리는 다시 안 나온다. 두 번 조르지 않는 것이 이 두 사람의 성격이다. */
-  const [invite,setInvite]=useState(null);
+  /* 저장소에서 읽어 시작한다. 창이 떠 있는 채로 껐다 켜도 물음은 남아야
+     한다 — 워커는 초대한 걸로 아는데 유저에게는 물어본 적이 없으면 안 된다 */
+  const [invite,setInvite]=useState(loadInvite);
   /* 지금 어느 자리에 있나. 새로고침해도 그 자리에 남아 있게 저장해 둔다 */
   const [scene,setScene]=useState(loadScene);
   /* 다녀온 자리. 지도가 열리는 유일한 근거라서 저장소에만 두면 안 된다 —
@@ -228,16 +251,16 @@ function App(){
      같은 응답을 두 번 처리해도(재시도·늦게 온 답·새로고침) 결과는 한 번과
      같아야 한다. id는 워커가 만든 것을 그대로 쓴다 — 같은 요청의 같은
      사건은 늘 같은 id다. */
-  /* ── 커밋은 지금, 보이는 것은 나중에 ──
-     전에는 통째로 타이머 뒤에 뒀다. 말풍선이 다 뜬 뒤에 「받았다」가 떠야
-     순서가 맞아서였는데, 그 사이에 새로고침하면 물건도 초대도 통째로
-     사라졌다 — 워커는 이미 준 것으로 알고 있는데.
-     남는 것(가방·적용한 id)은 답을 받는 즉시 저장하고, 화면에 보이는 것
-     (지문 한 줄·토스트·초대창)만 늦춘다. */
-  const applyEffects=(fx,delay)=>{
-    if(!Array.isArray(fx)||!fx.length)return;
+  /* ── 남는 것을 먼저, 보이는 것을 나중에 ──
+     워커가 검증한 Effect만 온다. 여기서 하는 일은 「무엇이 남을지」를
+     정해 이번 덩어리(b)에 담는 것뿐이다. 표(effect_done)는 안 찍는다 —
+     남을 것이 **다 저장된 뒤에** commitTurn이 찍는다. 표를 먼저 찍으면
+     그 사이의 새로고침에 「처리했다는 표만 있고 아무것도 안 남은」 상태가
+     된다. 가방만은 지금 저장한다: 자리를 닫는 손이 그 자리에서 바로
+     워커를 부르므로 늦추면 방금 받은 것이 빠진 채로 나간다. */
+  const applyEffects=(fx,b)=>{
+    if(!Array.isArray(fx)||!fx.length)return null;
     const done=loadEffDone(); let changed=false;
-    const show=[];
     for(const e of fx){
       if(!e||typeof e!=="object"||!e.id||!e.type)continue;
       if(done.indexOf(e.id)>=0)continue;                       // 이미 새겼다
@@ -245,26 +268,23 @@ function App(){
       if(e.type==="item_transfer"){
         /* 방향을 본다. 유저가 받는 것만 가방에 들어간다 */
         if(e.to==="user"&&e.item&&ITEMS[e.item]){
-          ok=takeItem(e.item,e.from,(sceneRef.current||{}).place,show);
+          ok=takeItem(e.item,e.from,(sceneRef.current||{}).place,b,e.id);
         }
       }else if(e.type==="invite"){
-        if(e.place&&e.char){ show.push(()=>setInvite({place:e.place,char:e.char})); ok=true; }
+        if(e.place&&e.char){ b.invite={place:e.place,char:e.char}; ok=true; }
       }
       /* story_transition은 E-B에서 낸다. 스키마는 받아두되 여기서는 안 만든다 */
       if(ok||e.type==="story_transition"){ done.push(e.id); changed=true; }
     }
-    if(changed)saveEffDone(done);                              // ← 즉시 저장
-    if(show.length){
-      const run=()=>show.forEach(f=>f());
-      delay>0?setTimeout(run,delay):run();
-    }
+    return changed?done:null;
   };
 
-  /* show를 주면 화면에 보이는 것(지문·토스트)만 거기 담아 나중에 돌린다.
-     가방은 늘 지금 저장한다 — 늦추면 그 사이 새로고침에 사라진다. */
-  const takeItem=(key,from,where,show)=>{
+  /* b를 주면 화면에 보이는 것(지문·토스트)은 그 덩어리에 적어 나중에 낸다.
+     적어두는 것이지 늦추는 것이 아니다 — 끊겨도 남는다.
+     가방은 늘 지금 저장한다. */
+  const takeItem=(key,from,where,b,effId)=>{
     const it=ITEMS[key]; if(!it)return false;
-    if(bagRef.current.some(b=>b.key===key))return false;
+    if(bagRef.current.some(x=>x.key===key))return false;
     /* ref를 여기서 같이 앞세운다. setBag은 다음 그림에서야 반영되는데,
        자리를 닫는 손(closeScene)은 그 자리에서 바로 워커를 부른다 —
        그 사이 bagOut()이 읽는 것은 아직 옛 가방이라, 방금 받은 것이 빠진
@@ -273,11 +293,13 @@ function App(){
     const next=[...bagRef.current,{key,from,where,ts:Date.now()}];
     bagRef.current=next; setBag(next); saveBag(next);
     const line=`${CHARS[from]?CHARS[from].name:from}에게 ${jos(it.name,"을/를")} 받았다`;
-    const paint=()=>{
+    /* 가방에는 들어갔는데 「누구에게 받았다」가 사라지면, 물건에서 얼굴이
+       떨어진다. 지문도 가방과 같이 남긴다 — 덩어리에 적으니 같이 남는다. */
+    if(b){ b.sys.push({id:(effId||key)+"#got",room:from,text:line}); b.toast=`bag — ${it.name}`; }
+    else{
       appendMsg(from,{id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()});
       setToast(`bag — ${it.name}`);
-    };
-    show?show.push(paint):paint();
+    }
     return true;
   };
   /* 야자 감독인 주에 하나. 사람이 준 게 아니라 시간표가 쥐여주는 것이라
@@ -302,6 +324,68 @@ function App(){
      방금 친 말이 빠져 있다. 보내는 자리에서는 갓 만든 배열을 직접 넘긴다. */
   const talkedEnough=(sc,list)=>talkedEnoughIn(sc,list||storeRef.current.msgs[(sc||{}).room]||[]);
   const closeScene=()=>{ setScene(null); saveScene(null); };
+
+  /* ── 답 하나를 통째로 먼저 적는다 ──
+     말풍선·Effect·장면 소모가 따로 놀면 그 사이의 새로고침이 셋을 갈라놓는다.
+     여기서 한 덩어리로 만들어 저장하고, 그 뒤에야 장면을 지우고, 화면은
+     적힌 것을 재생만 한다. 저장 순서가 곧 안전 순서다:
+       가방 → 덩어리(말풍선·지문·초대·자리 닫기) → effect_done
+     effect_done이 제일 마지막이라, 어디서 끊겨도 「표만 남는」 일은 없다. */
+  const commitTurn=(id,room,messages,effects,over)=>{
+    const items=[];
+    (messages||[]).forEach((m,i)=>{
+      if(!m)return;
+      const photo=photoSrc(m.photo)?m.photo:null;  // 없는 파일이면 사진은 버리고 말만 남긴다
+      const text=(m.text||"").trim();
+      if(text||photo)items.push({id:batchItemId(id,i),room,sender:m.sender||room,text,photo});
+    });
+    const b={id,room,items,sys:[],invite:null,toast:"",over:over||null};
+    const done=applyEffects(effects,b);            // 가방은 여기서 저장된다
+    if(items.length||b.sys.length||b.invite||b.over)putBatch(b);
+    if(done)saveEffDone(done);                     // ← 남을 것이 다 남은 뒤에만
+    return b;
+  };
+  /* 적힌 덩어리를 화면에 푼다. 큐는 방마다가 아니라 하나뿐이므로 다른 방의
+     말풍선이 앞에 있을 수 있다 — 순서는 큐가 정하고, 뒤따르는 것은 이
+     덩어리의 마지막 말풍선이 정한다(paintQueued). */
+  const playBatch=b=>{
+    if(!b)return b;
+    /* 넣을 게 하나도 없으면 여기서 타이핑 표시를 끈다. 큐에 안 들어가면
+       pump가 돌지 않고, 그러면 표시가 영영 안 꺼진다 —
+       데이터가 비었다고 화면이 멈추면 안 된다. */
+    if(!b.items.length){ setBusy(x=>({...x,[b.room]:false})); finishBatch(b.id); return b; }
+    b.items.forEach(it=>queueRef.current.push({...it,batch:b.id}));
+    swapShot(b.room);
+    pump();
+    return b;
+  };
+  /* 말풍선이 다 떴다. 이제 뒤따르는 것을 낸다 — 초대를 먼저 옮겨 적고
+     (덩어리를 지우기 전에), 지문을 붙이고, 마지막에 기록을 지운다.
+     중간에 끊겨도 덩어리가 남아 있으므로 다시 낸다. id가 박혀 있어서
+     두 번 붙지는 않는다. */
+  const finishBatch=id=>{
+    const b=getBatch(id); if(!b)return;
+    if(b.invite){ saveInvite(b.invite); setInvite(b.invite); }
+    (b.sys||[]).forEach(s=>{ if(s&&s.id)
+      appendOnce(s.room,{id:s.id,sender:"user",sys:true,text:s.text,ts:Date.now()}); });
+    if(b.toast)setToast(b.toast);
+    /* 때가 지난 자리였다 — 방금 온 답이 마무리 인사다. 인사가 다 뜬 뒤에
+       자리를 닫는다. 답을 기다리는 사이 유저가 나가고 다른 자리를 열었을
+       수 있으니 그때 그 자리인지 본다. */
+    if(b.over){
+      const sc=sceneRef.current;
+      if(sc&&sc.room===b.over.room&&sc.since===b.over.since){
+        closeScene();
+        appendOnce(b.over.room,{id:id+"#out",sender:"user",sys:true,
+          text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
+      }
+    }
+    dropBatch(id);
+  };
+  /* ── 끊긴 재생을 잇는다 ──
+     첫 말풍선 전에 껐든 타이핑 도중에 껐든, 남아 있는 덩어리부터 다시 푼다.
+     그래서 「장면은 소모됐는데 답이 없다」가 안 생긴다. */
+  useEffect(()=>{ loadBatches().forEach(playBatch) },[]);
   /* ── 접어둔 자리는 시간에 맞춰 끝난다 ──
      X는 나가기가 아니라 접어두기다. 그런데 유효기간이 없어서, 낮에 보건실을
      접어두고 저녁에 열어도 아직 보건실에 앉아 있었다 — 재언은 다섯 시에
@@ -405,7 +489,7 @@ function App(){
       place:WAY,bag:bagOut()});
   };
   const answerInvite=ok=>{
-    const iv=invite; setInvite(null); if(!iv)return;
+    const iv=invite; setInvite(null); saveInvite(null); if(!iv)return;
     const line=ok?`${jos(CHARS[iv.char].name,"과/와")} ${iv.place}에 가기로 했다`:`${jos(iv.place,"은/는")} 다음에 가기로 했다`;
     const sys={id:Date.now()+Math.random(),sender:"user",sys:true,text:line,ts:Date.now()};
     appendMsg(iv.char,sys);
@@ -684,9 +768,16 @@ function App(){
         setBusy(b=>({...b,[bucket]:false}));
         return;
       }
-      const list=(data&&data.messages)||[];
-      if(list.length)enqueue(bucket,list);
-      else setBusy(b=>({...b,[bucket]:false}));
+      /* ── 저장이 먼저, 연출이 나중 ──
+         이 답이 남길 것을 통째로 적는다: 말풍선·검증된 Effect·닫을 자리.
+         적고 나서 장면을 지우고(ackScene), 그 다음에 화면을 튼다(playBatch).
+         전에는 이 셋이 각자 놀았다 — 첫 말풍선이 뜨기도 전에 장면은
+         소모되고 초대는 타이머 뒤에만 있어서, 그 사이에 새로고침하면
+         「썼는데 아무것도 안 남은」 턴이 됐다. */
+      const batch=commitTurn(rid+"|"+bucket,bucket,(data&&data.messages)||[],
+        data&&data.effects,
+        payload.place_over
+          ?{room:bucket,since:sceneRef.current&&sceneRef.current.since}:null);
       applyUnlocked(data&&data.unlocked);
       /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가
          안 맞고 있다는 뜻인데, 그건 오류를 안 내고 조용히 정가를 문다 */
@@ -718,34 +809,15 @@ function App(){
           "color:#7a6cc4");
       }
       setTimeout(()=>rollSummary(bucket),1200);
-      /* ── 상태를 바꾸는 길은 이것 하나다 ──
-         전에는 data.give와 data.invite를 따로 봤다. 그건 모델의 **제안**이지
-         일어난 일이 아니었고, 같은 응답을 두 번 처리하면 두 번 일어났다.
-         이제 워커가 검증한 Effect만 온다.
-         말풍선이 다 뜬 뒤에 적용한다 — 「받았다」 줄이 주는 말보다 먼저 뜨면
-         순서가 거꾸로 보인다. */
-      if(data&&Array.isArray(data.effects)&&data.effects.length)
-        applyEffects(data.effects,Math.max(900,((data.messages||[]).length+1)*600));
-      /* ── 승인된 장면만 지운다 ──
+      /* ── 승인된 장면만, 답이 남은 뒤에 지운다 ──
          전에는 200이면 무조건 지웠다. 워커가 사유를 거절하고 일반 턴으로
          내려도 지워져서, 한 번뿐인 장면이 쓰이지도 않고 사라졌다.
-         워커가 실제로 올려서 답까지 낸 경우에만 scene_ack가 온다. */
+         워커가 실제로 올려서 답까지 낸 경우에만 scene_ack가 온다.
+         그리고 그 답이 **이미 저장된 뒤에만** 지운다 — 위의 commitTurn이
+         끝나 있어야 한다. */
       if(payload.scene_reason&&data&&data.scene_ack===payload.scene_reason)
         ackScene(bucket,payload.scene_reason);
-      /* 때가 지난 자리였다 — 방금 온 답이 마무리 인사다. 말풍선이 다 뜬 뒤에
-         자리를 닫는다. 인사보다 「나왔다」 줄이 먼저 뜨면 순서가 거꾸로다.
-         답을 기다리는 사이 유저가 나가고 다른 자리(귀갓길 등)를 열었을 수
-         있다 — 방만 보고 닫으면 새 자리가 죽는다. 그때 그 자리인지 본다. */
-      if(payload.place_over){
-        const s0=sceneRef.current&&sceneRef.current.since;
-        setTimeout(()=>{
-          const sc=sceneRef.current;
-          if(!sc||sc.room!==bucket||sc.since!==s0)return;
-          closeScene();
-          appendMsg(bucket,{id:Date.now()+Math.random(),sender:"user",sys:true,
-            text:sc.place===WAY?"집에 도착했다":`${sc.place}에서 나왔다`,ts:Date.now()});
-        },Math.max(1500,((data.messages||[]).length+2)*600));
-      }
+      playBatch(batch);
     }catch(e){
       clearTimeout(killer);
       /* ── 오류와 사용자 취소를 가른다 ──

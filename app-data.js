@@ -1039,6 +1039,46 @@ const EFF_MAX=200;
 const loadEffDone=()=>{try{const a=JSON.parse(localStorage.getItem("null_eff_done"));return Array.isArray(a)?a:[]}catch(e){return[]}};
 const saveEffDone=a=>{try{localStorage.setItem("null_eff_done",JSON.stringify((a||[]).slice(-EFF_MAX)))}catch(e){}};
 
+/* ── 답 하나는 한 덩어리다 ──
+   전에는 말풍선을 0.6초마다 하나씩 화면 상태에 붙였고, 저장은 리액트가
+   그림을 그린 뒤에야 따라왔다. 그런데 Effect 표(effect_done)와 장면 소모
+   (ackScene)는 답이 오자마자 찍혔다. 그 사이에 새로고침하면 **장면은
+   소모됐는데 답은 한 줄도 안 남은** 세이브가 된다. 초대는 더 나빴다 —
+   표만 즉시 찍고 창은 타이머 뒤에 열어서, 그 전에 껐다 켜면 완료 표시만
+   남고 초대는 영영 안 왔다.
+
+   순서를 뒤집는다. 답이 오면 **먼저** 통째로 여기 적는다: 말풍선 전부,
+   뒤따를 지문, 열어야 할 초대, 닫아야 할 자리. 그 다음에 장면을 지우고,
+   화면은 적힌 것을 재생할 뿐이다. 재생 도중 꺼도 남은 것부터 다시 푼다.
+
+   말풍선마다 id를 **적을 때** 박는다. 저장이 어디서 끊겨도 같은 id가 두
+   번 붙지는 않는다 — 재생하기 전에 그 방에 이미 있는지 보면 된다.
+   상한 여덟은 방 넷이 동시에 밀려도 남는 수다. */
+const BATCH_MAX=8;
+const loadBatches=()=>{try{const a=JSON.parse(localStorage.getItem("null_batch"));return Array.isArray(a)?a:[]}catch(e){return[]}};
+const saveBatches=a=>{try{localStorage.setItem("null_batch",JSON.stringify((a||[]).slice(-BATCH_MAX)))}catch(e){}};
+const putBatch=b=>{const a=loadBatches().filter(x=>x&&x.id!==b.id);a.push(b);saveBatches(a);return b};
+const getBatch=id=>loadBatches().find(x=>x&&x.id===id)||null;
+/* 그린 것 하나를 기록에서 뺀다. 남은 덩어리를 돌려준다 —
+   items가 비었으면 이 덩어리의 마지막 말풍선이 방금 떴다는 뜻이다.
+   없는 덩어리면 null: 이미 끝난 것을 두 번 끝내지 않게 하는 자물쇠다. */
+const dropBatchItem=(id,itemId)=>{
+  const a=loadBatches(),b=a.find(x=>x&&x.id===id);
+  if(!b)return null;
+  b.items=(b.items||[]).filter(i=>i&&i.id!==itemId);
+  saveBatches(a); return b;
+};
+const dropBatch=id=>{saveBatches(loadBatches().filter(x=>x&&x.id!==id))};
+/* 한 덩어리에 든 말풍선의 id. 재생 전에 그 방에 이미 있는지 보는 자 */
+const batchItemId=(id,i)=>id+"#"+i;
+
+/* ── 초대는 화면 상태가 아니라 남는 상태다 ──
+   effect_done은 즉시 찍는데 초대는 setInvite()만 했다. 새로고침 한 번에
+   「이미 처리했다」는 표만 남고 창은 사라진다 — 워커는 초대한 걸로 아는데
+   유저에게는 물어본 적이 없는 게 된다. 답할 때까지 여기 남는다. */
+const loadInvite=()=>{try{return JSON.parse(localStorage.getItem("null_invite"))||null}catch(e){return null}};
+const saveInvite=v=>{try{v?localStorage.setItem("null_invite",JSON.stringify(v)):localStorage.removeItem("null_invite")}catch(e){}};
+
 const loadEvDone=()=>{try{return JSON.parse(localStorage.getItem("null_ev_done"))||[]}catch(e){return[]}};
 const saveEvDone=a=>{try{localStorage.setItem("null_ev_done",JSON.stringify(a))}catch(e){}};
 /* ── 한 번만 할 일에 이름표 ──

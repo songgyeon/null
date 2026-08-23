@@ -474,7 +474,8 @@ for (const r of ['jaeeon', 'minhyun'])
                    '...', ' ', '1', 'ok', 'zzz', '네?', '네?', '네?'])
     if (!demo.demoAnswer(r, t, '윤하').length) empties++;
 eq('짧은 입력에도 빈 답이 없다', empties, 0);
-eq('큐가 비면 타이핑 표시를 끈다', /queueRef\.current\.length===before/.test(web), true);
+eq('큐가 비면 타이핑 표시를 끈다',
+  /if\(!b\.items\.length\)\{ setBusy\(x=>\(\{\.\.\.x,\[b\.room\]:false\}\)\); finishBatch\(b\.id\); return b; \}/.test(web), true);
 /* 모듈 바깥에서 App 안의 것(storeRef 같은)을 참조하면 부를 때마다 터진다.
    그러면 콜백이 죽고 타이핑 표시가 영영 안 꺼진다. 실제로 그렇게 났다. */
 const outside = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('function App()'));
@@ -2807,7 +2808,7 @@ eq('세계관에는 안 남겼다',
   eq('자리 사진이 다 gallery에 있다',
     자리사진.filter(k => !web.includes(`"${k}.webp"`)), []);
   /* 배경을 켜는 그 자리에서 적어야 한다 — 웹·앱 둘 다 */
-  eq('웹이 본 것을 적어둔다', /if\(shot\)\{[\s\S]{0,200}stampShot\(shot\);/.test(web), true);
+  eq('웹이 본 것을 적어둔다', /if\(!shot\)return;[\s\S]{0,300}stampShot\(shot\);/.test(web), true);
   eq('앱이 본 것을 적어둔다',
     (appSrc.match(/if\(shot\)stampShot\(shot\);/g) || []).length, 2);
   /* 앱이 손으로 앨범을 다시 만들면 웹과 어긋난다 — 같은 함수를 쓴다 */
@@ -3313,7 +3314,7 @@ eq('아래쪽에 어둠막을 깐다',
 /* 들어간 순간엔 빈 방이고 그 사람이 입을 열면 그 사람이 화면이 된다.
    짝은 지어내지 않았다 — 사진 설명이 이미 어디인지 말하고 있다 */
 eq('첫 답에 배경이 그 사람으로 바뀐다',
-  /if\(sc&&sc\.room===room&&!sc\.shot\)\{/.test(web)
+  /if\(!sc\|\|sc\.room!==room\|\|sc\.shot\)return;/.test(web)
   && /const shot=sceneShot\(sc\.place,room\)/.test(web), true);
 eq('자리마다 그 사람 사진이 짝지어져 있다', (() => {
   const t = web.slice(web.indexOf('const SCENE_SHOT={'));
@@ -3590,8 +3591,10 @@ eq('자리가 열릴 때부터 잔 사람은 안 쫓아낸다',
 eq('귀갓길은 안 본다 — 원래 곧 끝나는 자리다',
   /if\(!sc\|\|sc\.place===WAY\)return false;/.test(web), true);
 eq('때가 지나면 보내는 말에 실린다', /sceneOver\(sc\)\?\{place_over:true\}/.test(web), true);
+/* 시간으로 재지 않는다 — 그 답 덩어리의 마지막 말풍선이 뜬 자리에 매단다 */
 eq('답이 다 뜬 뒤에 자리가 닫힌다 — 인사보다 「나왔다」가 먼저면 거꾸로다',
-  /if\(payload\.place_over\)\{/.test(web), true);
+  /payload\.place_over\s*\n?\s*\?\{room:bucket,since:sceneRef\.current&&sceneRef\.current\.since\}:null/.test(web)
+  && /if\(b\.over\)\{[\s\S]{0,400}closeScene\(\);/.test(web), true);
 eq('접어두고 떠난 자리도 때가 지나면 닫힌다',
   /Date\.now\(\)-last<AUTO_AWAY&&!sceneOver\(sc\)/.test(web), true);
 eq('워커가 때를 받으면 일어서라고 말한다',
@@ -3875,7 +3878,7 @@ eq('물건마다 그림이 있다', (() => {
   return keys.filter(k => !existsSync(join(ROOT, `item-${k}.webp`)));
 })(), []);
 eq('같은 것은 가방에 두 번 안 들어간다',
-  /if\(bagRef\.current\.some\(b=>b\.key===key\)\)return false/.test(web), true);
+  /if\(bagRef\.current\.some\(x=>x\.key===key\)\)return false/.test(web), true);
 eq('자리에 있으면 place를 같이 보낸다',
   /\.\.\.\(at\?\{place:at,/.test(web) && /\n      bag:bagOut\(\),/.test(web), true);
 eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true);
@@ -3973,8 +3976,10 @@ eq('모델이 첫 턴에 건네도 안 받는다', (() => {
 })(), 0);
 /* 상태를 바꾸는 길은 effects 하나다 */
 eq('상태 경로가 하나다',
-  /Array\.isArray\(data\.effects\)&&data\.effects\.length/.test(web)
-  && /applyEffects\(data\.effects,Math\.max/.test(web), true);
+  /const batch=commitTurn\(rid\+"\|"\+bucket,bucket,\(data&&data\.messages\)\|\|\[\],\s*\n?\s*data&&data\.effects,/.test(web)
+  /* 부르는 자리는 commitTurn 하나뿐이다 — 응답 처리기가 직접 안 부른다 */
+  && (web.match(/applyEffects\(/g) || []).length === 1
+  && /const done=applyEffects\(effects,b\);/.test(web), true);
 /* 표제를 「여기서 건넬 것」이라고 달아놨더니 첫 마디부터 건네줬다 */
 eq('언젠가 건넨다고 적는다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
@@ -5698,8 +5703,8 @@ eq('시간표 단추는 peek보다 좁다',
      같은 최종 상태가 나와야 한다 — 아니면 기기마다 다른 가방을 든다. */
   {
     /* 두 적용 함수의 뼈대를 소스에서 그대로 뽑아 나란히 돌린다 */
-    const webBody = web.slice(web.indexOf('const applyEffects=(fx,delay)=>{'),
-                              web.indexOf('const takeItem=(key,from,where)=>{'));
+    const webBody = web.slice(web.indexOf('const applyEffects=(fx,b)=>{'),
+                              web.indexOf('const takeItem=(key,from,where,b,effId)=>{'));
     const appStart = appSrc.indexOf('const applyEffects=async(fx:any)=>{');
     const appBody = appSrc.slice(appStart, appSrc.indexOf('\n  };', appStart));
     /* 같은 판정을 하는지 문장으로 맞춘다 — 둘 다 id 중복·방향·갈래를 본다 */
@@ -5723,7 +5728,7 @@ eq('시간표 단추는 peek보다 좁다',
     })(), [true, true]);
     /* 가방에도 같은 물건을 두 번 안 넣는다 — id 검사와 별개의 두 번째 자물쇠 */
     eq('가방에도 두 번 안 넣는다',
-      /bagRef\.current\.some\(b=>b\.key===key\)/.test(web)
+      /bagRef\.current\.some\(x=>x\.key===key\)/.test(web)
       && /!bagRef\.current\.some\(\(b:any\)=>b\.key===e\.item\)/.test(appSrc), true);
   }
 
@@ -5796,6 +5801,183 @@ eq('시간표 단추는 peek보다 좁다',
     D.ackScene('minhyun', 'partner_known');
   }
 
+  /* ══════════ 웹 lifecycle · 앱을 진짜로 굴린다 ══════════
+     여기까지의 검사는 소스 모양을 봤다. 그런데 남은 버그는 전부 **시간**에
+     있었다 — 첫 말풍선이 뜨기 전에 껐다 켰을 때, 타이핑 도중에 껐을 때,
+     다른 방 말풍선이 큐에 먼저 쌓여 있을 때. 그건 정규식으로 안 보인다.
+
+     app.js의 논리부(화면 그리는 자리 앞까지)를 최소 리액트·가짜 시계·가짜
+     저장소 위에서 실제로 돌린다. 새로고침은 **같은 저장소로 다시 켜는 것**
+     으로 흉내낸다 — 그게 실제로 일어나는 일이다. */
+  {
+    const dataSrc = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+    const CUT = '  const cameBack=cameBackOf(store);';   // 여기부터는 화면 조각(app-ui)을 부른다
+    eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes('function App(){'), true);
+    const APP_SRC = 'function App(){'
+      + web.slice(web.indexOf('function App(){') + 'function App(){'.length, web.indexOf(CUT))
+      + `\n  return { send, request, enqueue, answerInvite, invite,
+        get store(){ return storeRef.current }, get bag(){ return bagRef.current } };\n}`;
+
+    /* 저장소 하나를 두고 앱을 켠다. 같은 저장소로 다시 켜면 그게 새로고침이다 */
+    const boot = (seed, reply) => {
+      const mem = new Map(Object.entries(seed || {}));
+      const localStorage = { getItem: k => mem.has(k) ? mem.get(k) : null,
+        setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k),
+        clear: () => mem.clear(), get length() { return mem.size }, key: i => [...mem.keys()][i] };
+      let now = 1e12, seq = 0;
+      const timers = [];
+      const setT = (fn, ms) => { timers.push({ at: now + (ms || 0), n: seq++, fn }); return seq };
+      const cells = []; let idx = 0, dirty = false, effects = [], probe = null;
+      const React = {
+        useState(init) {
+          const k = idx++;
+          if (!cells[k]) cells[k] = { v: typeof init === 'function' ? init() : init };
+          const c = cells[k];
+          return [c.v, nv => { c.v = typeof nv === 'function' ? nv(c.v) : nv; dirty = true }];
+        },
+        useRef(init) { const k = idx++; if (!cells[k]) cells[k] = { current: init }; return cells[k] },
+        useEffect(fn, deps) {
+          const k = idx++, prev = cells[k];
+          const same = prev && prev.deps && deps && prev.deps.length === deps.length
+            && deps.every((d, j) => Object.is(d, prev.deps[j]));
+          cells[k] = { deps };
+          if (!same) effects.push(fn);
+        },
+      };
+      const sent = [];
+      const App = new Function('React', 'localStorage', 'location', 'fetch',
+        'setTimeout', 'clearTimeout', 'console', 'crypto',
+        dataSrc + '\n' + APP_SRC + '\nreturn App;')(
+        React, localStorage, { search: '' },
+        async (url, opt) => {
+          const body = JSON.parse(opt.body); sent.push(body);
+          return { ok: true, status: 200, json: async () => (reply ? reply(body) : { messages: [] }) };
+        },
+        setT, () => {}, { log() {}, error() {}, warn() {} }, globalThis.crypto);
+      const render = () => {
+        let guard = 0;
+        do {
+          if (++guard > 60) throw new Error('render loop');
+          dirty = false; idx = 0; effects = [];
+          probe = App();
+          const fx = effects; effects = [];
+          fx.forEach(f => f());
+        } while (dirty);
+      };
+      /* 가짜 시계를 ms만큼 앞으로 감는다. fetch가 promise라 사이사이 비워준다 */
+      const tick = async ms => {
+        const end = now + ms;
+        for (;;) {
+          for (let i = 0; i < 4; i++) await Promise.resolve();
+          timers.sort((a, b) => a.at - b.at || a.n - b.n);
+          if (!timers.length || timers[0].at > end) break;
+          const t = timers.shift(); now = t.at; t.fn(); render();
+        }
+        now = end;
+        for (let i = 0; i < 4; i++) await Promise.resolve();
+        render();
+      };
+      render();
+      return { get app() { return probe }, tick, render, sent,
+        ls: k => { const v = mem.get(k); try { return JSON.parse(v) } catch (e) { return v } },
+        dump: () => Object.fromEntries(mem) };
+    };
+    const said = W => (W.app.store.msgs.minhyun || []).map(m => (m.sys ? '· ' : '') + m.text);
+
+    /* ── 첫 말풍선 전에 껐다 켠다 ──
+       전에는 장면(scene_pend)이 답이 저장되기도 전에 지워졌다. 그 사이에
+       새로고침하면 「한 번뿐인 고백은 소모됐는데 답은 한 줄도 없는」
+       세이브가 남았다. 이제 답이 통째로 적힌 뒤에만 지운다. */
+    {
+      const rep = () => ({ messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }, { text: 'ㄷ' }], scene_ack: 'confession' });
+      const W = boot({ null_name: '윤하', null_scene_pend: JSON.stringify({ minhyun: 'confession' }) }, rep);
+      W.app.send('minhyun', '있잖아');
+      await W.tick(0);                       // 답은 왔고 첫 말풍선은 아직
+      eq('장면은 답이 저장된 뒤에 지워진다', W.ls('null_scene_pend'), {});
+      eq('그 시점에 답은 통째로 남아 있다',
+        (W.ls('null_batch') || []).map(b => b.items.map(i => i.text)), [['ㄱ', 'ㄴ', 'ㄷ']]);
+      eq('아직 화면에는 안 떴다', said(W), ['있잖아']);
+      const W2 = boot(W.dump(), rep);        // ← 새로고침
+      await W2.tick(5000);
+      eq('첫 말풍선 전에 꺼도 답이 다 온다',
+        (W2.app.store.msgs.minhyun || []).map(m => m.text), ['있잖아', 'ㄱ', 'ㄴ', 'ㄷ']);
+    }
+
+    /* ── 타이핑 도중에 껐다 켠다 ── */
+    {
+      const rep = () => ({ messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }, { text: 'ㄷ' }] });
+      const W = boot({ null_name: '윤하' }, rep);
+      W.app.send('minhyun', '안녕');
+      await W.tick(1200);
+      eq('도중까지는 나온 만큼만 남는다', said(W), ['안녕', 'ㄱ', 'ㄴ']);
+      eq('남은 것은 기록에 그대로 있다',
+        (W.ls('null_batch') || []).map(b => b.items.map(i => i.text)), [['ㄷ']]);
+      const W2 = boot(W.dump(), rep);        // ← 새로고침
+      await W2.tick(5000);
+      eq('끊긴 재생이 이어지고 두 번 안 붙는다',
+        (W2.app.store.msgs.minhyun || []).map(m => m.text), ['안녕', 'ㄱ', 'ㄴ', 'ㄷ']);
+    }
+
+    /* ── 큐에 다른 방 말풍선이 먼저 쌓여 있다 ──
+       큐는 방마다가 아니라 하나뿐이다. 전에는 「말 수 × 600ms」로 짐작해
+       연출을 걸었는데, 앞에 넷이 쌓여 있으면 그 짐작은 어긋난다 —
+       건네는 대사가 뜨기도 전에 「받았다」가 먼저 떴다. */
+    {
+      const eff = [{ id: 'e1', type: 'item_transfer', from: 'minhyun', to: 'user', item: 'can' }];
+      const W = boot({ null_name: '윤하' }, b => b.room === 'minhyun'
+        ? { messages: [{ text: '이거 드세요' }, { text: '따뜻해요' }], effects: eff }
+        : { messages: [] });
+      W.app.enqueue('jaeeon', [{ text: 'ja1' }, { text: 'ja2' }, { text: 'ja3' }, { text: 'ja4' }]);
+      W.app.send('minhyun', '뭐해요');
+      await W.tick(0);
+      /* 남을 것은 지금 남는다 — 가방도, 「받았다」도 */
+      eq('가방은 답을 받는 즉시 저장된다', (W.ls('null_bag') || []).map(x => x.key), ['can']);
+      eq('받았다 지문도 같이 남는다',
+        (W.ls('null_batch') || []).flatMap(b => b.sys.map(s => s.text)),
+        ['이민현에게 캔커피를 받았다']);
+      eq('표는 그 뒤에 찍혀 있다', W.ls('null_eff_done'), ['e1']);
+      await W.tick(9000);
+      eq('건네는 대사가 먼저, 받았다가 나중이다',
+        said(W), ['뭐해요', '이거 드세요', '따뜻해요', '· 이민현에게 캔커피를 받았다']);
+    }
+
+    /* ── 초대는 답할 때까지 남는다 ──
+       전에는 표만 즉시 찍고 창은 타이머 뒤에 열었다. 그 사이에 껐다 켜면
+       「이미 초대했다」는 표만 남고 물음은 영영 안 왔다. */
+    {
+      const eff = [{ id: 'i1', type: 'invite', place: '옥상', char: 'minhyun' }];
+      const rep = () => ({ messages: [{ text: '같이 갈래요' }], effects: eff });
+      const W = boot({ null_name: '윤하' }, rep);
+      W.app.send('minhyun', '뭐해요');
+      await W.tick(0);
+      eq('타이머 전이면 초대는 기록에 있다',
+        (W.ls('null_batch') || []).map(b => b.invite), [{ place: '옥상', char: 'minhyun' }]);
+      const W2 = boot(W.dump(), rep);        // ← 창 열리기 전에 새로고침
+      await W2.tick(5000);
+      eq('껐다 켜도 초대는 온다', [W2.ls('null_invite'), W2.app.invite],
+        [{ place: '옥상', char: 'minhyun' }, { place: '옥상', char: 'minhyun' }]);
+      /* 창이 떠 있는 채로 또 껐다 켜도 물음은 남는다 */
+      const W3 = boot(W2.dump(), rep);
+      eq('창이 떠 있는 채로 꺼도 남는다', W3.app.invite, { place: '옥상', char: 'minhyun' });
+      W3.app.answerInvite(false); W3.render();
+      eq('답하면 그때 지워진다', [W3.ls('null_invite'), W3.app.invite], [undefined, null]);
+    }
+
+    /* ── 같은 답을 두 번 재생해도 한 번이다 ── */
+    {
+      const eff = [{ id: 'e9', type: 'item_transfer', from: 'minhyun', to: 'user', item: 'can' }];
+      const rep = () => ({ messages: [{ text: 'ㄱ' }], effects: eff });
+      const W = boot({ null_name: '윤하' }, rep);
+      W.app.send('minhyun', '뭐해요');
+      await W.tick(2000);
+      const once = W.dump();
+      const W2 = boot(once, rep);            // 다 끝난 뒤 새로고침
+      await W2.tick(5000);
+      eq('끝난 답은 다시 재생 안 된다', said(W2), ['뭐해요', 'ㄱ', '· 이민현에게 캔커피를 받았다']);
+      eq('가방에도 하나뿐이다', (W2.ls('null_bag') || []).map(x => x.key), ['can']);
+    }
+  }
+
   /* ── 워커가 승인한 것만 scene_ack로 돌려준다 ── */
   eq('거절하면 scene_ack가 없다',
     /tier === "critical" && routed\.reason \? \{ scene_ack: routed\.reason \}/.test(workerSrc), true);
@@ -5806,18 +5988,23 @@ eq('시간표 단추는 peek보다 좁다',
   /* ── 커밋과 연출을 가른다 ──
      웹: 타이머만으로 커밋하면 그 사이 새로고침에 사라진다.
      앱: 인물의 말이 먼저 저장돼야 「받았다」가 뒤에 온다. */
-  eq('웹은 커밋을 즉시 한다', (() => {
-    const i = web.indexOf('const applyEffects=(fx,delay)=>{');
-    const box = web.slice(i, i + 1600);
-    /* saveEffDone과 saveBag이 타이머 밖에 있고, 화면에 보이는 것만 show에 담긴다 */
-    return box.includes('if(changed)saveEffDone(done);')
-        && box.includes('delay>0?setTimeout(run,delay):run();')
-        && box.indexOf('saveEffDone(done)') < box.indexOf('setTimeout(run,delay)');
+  /* 표(effect_done)는 남을 것이 다 저장된 뒤에 찍는다.
+     순서가 곧 안전이다: 가방 → 덩어리 → effect_done */
+  eq('표는 저장이 끝난 뒤에 찍는다', (() => {
+    const i = web.indexOf('const commitTurn=(id,room,messages,effects,over)=>{');
+    const box = web.slice(i, web.indexOf('const playBatch=', i));
+    return box.indexOf('applyEffects(effects,b)') < box.indexOf('putBatch(b)')
+        && box.indexOf('putBatch(b)') < box.indexOf('saveEffDone(done)');
   })(), true);
-  eq('가방은 타이머 밖에서 저장한다', (() => {
-    const i = web.indexOf('const takeItem=(key,from,where,show)=>{');
-    const box = web.slice(i, i + 900);
-    return box.indexOf('saveBag(next)') < box.indexOf('show?show.push(paint):paint()');
+  eq('적용 함수는 표를 안 찍는다',
+    /const applyEffects=\(fx,b\)=>\{[\s\S]*?return changed\?done:null;\n  \};/.test(web)
+    && !/const applyEffects=\(fx,b\)=>\{[\s\S]*?saveEffDone/.test(
+      web.slice(web.indexOf('const applyEffects=(fx,b)=>{'),
+                web.indexOf('const takeItem=(key,from,where,b,effId)=>{'))), true);
+  eq('가방은 지금 저장한다', (() => {
+    const i = web.indexOf('const takeItem=(key,from,where,b,effId)=>{');
+    const box = web.slice(i, i + 1200);
+    return box.indexOf('saveBag(next)') < box.indexOf('b.sys.push(');
   })(), true);
   eq('앱은 인물 말을 먼저 저장한다', (() => {
     const i = appSrc.indexOf('const data=await sendChat(room,name,hist,{reqId:rid');
