@@ -5083,8 +5083,11 @@ eq('시간표 단추는 peek보다 좁다',
      ENGINE_MODE=hybrid로 명시해야 나온다. 소스에 그 순서가 박혀 있다. */
   eq('기본 경로가 solo다 — 고르는 단계가 없다', (() => {
     const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-    return /: v === "hybrid" \? "hybrid" : "solo";/.test(wk3)
-      && /const soloNow = em === "solo";/.test(wk3)
+    /* 실험 깃발이 늘어도 **아무것도 안 준 env는 solo**여야 한다 —
+       문자열 모양이 아니라 함수를 직접 불러 잰다. */
+    return ENG.engineMode({}) === 'solo'
+      && ENG.engineMode({ ENGINE_MODE: 'hybrid' }) === 'hybrid'
+      && /const soloNow = em === "solo" \|\| em === "gpt41";/.test(wk3)
       && /if \(soloNow\) \{ picked = cands\[0\]; break; \}/.test(wk3);
   })(), true);
   eq('solo는 후보를 하나만 청한다', (() => {
@@ -5095,7 +5098,7 @@ eq('시간표 단추는 peek보다 좁다',
      바뀌는 순간 그 장면이 통째로 죽는다 */
   eq('발견 갈래가 기본 경로에서도 돈다', (() => {
     const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-    return /engineMode\(env\) === "solo" \|\| engineMode\(env\) === "hybrid"/.test(wk3);
+    return /\["solo", "gpt41", "hybrid"\]\.includes\(engineMode\(env\)\)/.test(wk3);
   })(), true);
   /* 행동 규칙과 이번 턴 재료도 기본값이다 — 실험 깃발 뒤가 아니다 */
   eq('행동 규칙이 기본으로 켜진다', (() => {

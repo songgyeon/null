@@ -409,10 +409,17 @@ export const fakeFetch = (replies) => {
   let t10Directors = 0;
   return async (url, init) => {
   const c = JSON.parse(init.body);
-  const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
-    .map(b => b.text || "").join("\n");
-  const msgsText = (c.messages || []).map(m => Array.isArray(m.content)
-    ? m.content.map(b => b.text || "").join("\n") : m.content).join("\n");
+  /* 도전자 진영은 요청 모양이 다르다 — system이 messages 맨 앞 한 장이다.
+     단계 판별은 **같은 문구**로 한다(프롬프트 원문이 같으니까). */
+  const oai = String(url).includes("api.openai.com");
+  const oaiRole = r => (c.messages || []).filter(m => m.role === r)
+    .map(m => m.content).join("\n");
+  const sys = oai ? oaiRole("system")
+    : (Array.isArray(c.system) ? c.system : [{ text: c.system }])
+        .map(b => b.text || "").join("\n");
+  const msgsText = oai ? [oaiRole("user"), oaiRole("assistant")].join("\n")
+    : (c.messages || []).map(m => Array.isArray(m.content)
+        ? m.content.map(b => b.text || "").join("\n") : m.content).join("\n");
   let text;
   if (sys.includes('{"choice"'))
     /* G3 판정기 — 살아 있는 후보 중 앞엣것을 고른다(출력 모양이 다르다).
@@ -463,6 +470,12 @@ export const fakeFetch = (replies) => {
       }
     }
   }
+  if (oai) return { ok: true, status: 200, headers: { get: () => null },
+    json: async () => ({ model: c.model,
+      choices: [{ message: { content: text } }],
+      usage: { prompt_tokens: 1200, completion_tokens: 80,
+               prompt_tokens_details: { cached_tokens: 200 } } }),
+    text: async () => "" };
   return { ok: true, status: 200, headers: { get: () => null },
     json: async () => ({ content: [{ type: "text", text }],
       /* 부른 모델을 그대로 비춘다 — fake로도 모델별 집계 배선이 검증되게 */

@@ -83,6 +83,12 @@ const MODELS = [
    넘어가지 않고 실제 오류를 돌려준다. 화면에는 재시도가 뜬다.
    MODELS의 순차 폴백은 이 엔진을 안 탄다 — 요약처럼 말맛과 무관한
    뒷일에만 남는다. */
+/* replay 전용 도전자의 모델 snapshot과 주소. 별칭이 아니라 날짜가 박힌
+   판이다 — 별칭은 조용히 갈아타서 「같은 조건」이 깨진다. 클라이언트
+   입력이 이 값을 바꿀 길은 없다(요청 본문을 안 본다). */
+const OPENAI_MODEL = "gpt-4.1-2025-04-14";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+
 const ENGINE = {
   /* ── 쓰는 자리는 상급이다 ──
      블라인드 평가에서 사용자가 고른 47개 중 38개가 상급 이상이 쓴 것이었다.
@@ -115,6 +121,11 @@ const ENGINE = {
      thinking과 비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다(G2 스윕과 같다). */
   pairWriter5: { id: (MODELS.find(m => m.id === "claude-sonnet-5") || {}).id,
                  effort: null, noThinking: false },
+  /* ── replay 전용 도전자 ──
+     ENGINE_MODE=gpt41을 명시했을 때만 쓰인다. openai 표지가 붙은 자리는
+     callModel이 다른 진영으로 보낸다 — 열쇠도 주소도 다르다.
+     운영 기본 경로(solo)는 이 자리를 한 번도 안 본다. */
+  gptWriter: { id: OPENAI_MODEL, openai: true, effort: null, noThinking: true },
 };
 /* trace의 stage 이름 ↔ ENGINE 열쇠. 호출 자리에서는 trace에 남을 이름으로
    부르고, 모델은 이 표로 찾는다 — 이름 둘이 같은 자리를 가리킨다는 것을
@@ -176,6 +187,9 @@ function engineMode(env) {
   return v === "legacy" ? "legacy" : v === "single" ? "single"
        : v === "single5" ? "single5"
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku"
+       /* gpt41 — replay 전용 도전자. solo와 **같은 배선**이고 생성 자리
+          (Writer·Finalizer)만 다른 진영이다. 검사 둘은 그대로 남는다. */
+       : v === "gpt41" ? "gpt41"
        : v === "hybrid" ? "hybrid" : "solo";
 }
 /* G5 — 행동 규칙 프로필. hybrid-pair 구조 자체는 그대로고, Writer에 행동
@@ -3357,7 +3371,89 @@ function isEdgeBlock(status, headers) {
 }
 
 // 모델 하나로 한 번 호출한다. 성공하면 {ok:true, text}, 실패하면 {ok:false, status, body}.
+/* ══════════════════════════════════════════════════════════════
+   OpenAI 도전자 — replay 전용
+
+   ── 무엇인가 ──
+   운영은 건드리지 않는다. `ENGINE_MODE=gpt41`을 **명시했을 때만** 생성
+   자리(Writer·Finalizer)가 이 길로 간다. 검사 둘(Canon·Character)은
+   기존 모델·기존 규칙 그대로다 — 바뀌는 것은 「쓰는 손」뿐이고, 그래야
+   나온 대사의 차이를 모델 탓으로 읽을 수 있다.
+
+   ── 무엇을 안 바꾸나 ──
+   같은 system 원문·같은 블록 순서·같은 TurnContext·같은 사실 투영·같은
+   행동 규칙·같은 history·같은 출력 형식·같은 hardFilter와 후처리.
+   프롬프트를 이 모델에 맞게 다시 쓰지 않는다. 새 규칙도 안 만든다.
+   변환은 **결합**뿐이다: 블록의 text를 순서대로 이어 붙인다. 요약하거나
+   빼거나 순서를 바꾸지 않는다(테스트가 내용 동일성을 강제한다).
+
+   ── 열쇠 ──
+   env.OPENAI_API_KEY에서만 읽는다. 클라이언트 입력으로 모델을 바꿀 수
+   없고, 열쇠는 응답·오류·trace 어디에도 안 실린다. */
+/* 블록 배열을 한 문자열로 잇는다 — 이것이 변환의 전부다 */
+function joinBlocks(v) {
+  if (typeof v === "string") return v;
+  return (Array.isArray(v) ? v : []).map(b => (b && b.text) || "").join("\n");
+}
+/* Anthropic 요청을 OpenAI messages로 옮긴다. system은 맨 앞 한 장이고,
+   나머지는 역할·순서 그대로다. 내용은 한 글자도 안 바꾼다. */
+function toOpenAIMessages(system, messages) {
+  const sys = joinBlocks(system);
+  const out = sys ? [{ role: "system", content: sys }] : [];
+  for (const m of (messages || [])) {
+    out.push({ role: m.role === "assistant" ? "assistant" : "user",
+               content: joinBlocks(m.content) });
+  }
+  return out;
+}
+/* usage를 운영 계측(meter)이 읽는 이름으로 맞춘다. OpenAI의 prompt_tokens는
+   캐시 적중분을 **포함한** 총합이라, 캐시분을 빼야 두 진영의 「새로 읽은
+   입력」이 같은 자리를 잰다. 캐시 쓰기 비용은 없다(자동 캐싱). */
+function openAIUsage(u, model) {
+  if (!u) return null;
+  const cached = (u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0;
+  return {
+    input_tokens: Math.max(0, (u.prompt_tokens || 0) - cached),
+    output_tokens: u.completion_tokens || 0,
+    cache_read_input_tokens: cached,
+    cache_creation_input_tokens: 0,
+    model, stop_reason: null,
+  };
+}
+async function callOpenAI(env, system, messages, maxTokens) {
+  const key = (env && env.OPENAI_API_KEY ? String(env.OPENAI_API_KEY) : "").trim();
+  /* 열쇠가 없으면 **부르기 전에** 멈춘다. 없는 채로 나가면 401 본문이
+     오류 메시지가 되고, 그게 산출물에 실린다. */
+  if (!key) return { ok: false, status: 0, body: "OPENAI_API_KEY가 없다 (replay 전용 경로)" };
+  let r;
+  try {
+    r = await fetch(OPENAI_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,          // 별칭이 아니라 snapshot 고정. 요청 본문이 못 바꾼다
+        max_tokens: maxTokens,
+        messages: toOpenAIMessages(system, messages),
+      }),
+    });
+  } catch (e) {
+    return { ok: false, status: 0, body: `네트워크 실패: ${String(e && e.message).slice(0, 200)}` };
+  }
+  if (!r.ok) {
+    /* 본문에 열쇠가 되비치는 일이 없게 잘라 담는다 — 그래도 혹시 몰라
+       열쇠 문자열이 보이면 지운다. */
+    const raw = (await r.text()).slice(0, 300);
+    return { ok: false, status: r.status, body: raw.split(key).join("<키>") };
+  }
+  const data = await r.json();
+  const text = (((data.choices || [])[0] || {}).message || {}).content || "";
+  return { ok: true, text: String(text).trim(),
+           usage: openAIUsage(data.usage, data.model || OPENAI_MODEL) };
+}
+
 async function callModel(env, m, system, messages, maxTokens, effort) {
+  /* 도전자 경로 — 생성 자리만 갈아탄다(m.openai가 붙은 단계) */
+  if (m && m.openai) return await callOpenAI(env, system, messages, maxTokens);
   const body = {
     model: m.id,
     max_tokens: maxTokens,
@@ -3489,10 +3585,16 @@ function sonnetOverride(env) {
   const v = String((env && (env.SONNET_WRITER_MODEL || env.sonnet_writer_model)) || "").trim();
   return v.startsWith("claude-sonnet-") ? v : "";
 }
+/* 도전자가 가져가는 자리 — **쓰는 손**뿐이다. 검사 둘(canon·character)은
+   기존 모델·기존 규칙 그대로 남는다: 바뀌는 것이 하나여야 나온 대사의
+   차이를 그 하나 탓으로 읽을 수 있다. */
+const GPT_STAGES = new Set(["writer", "finalizer"]);
 function stageModel(env, stage) {
   const key = STAGE_ENGINE[stage];
   const m = ENGINE[key || stage];
   if (!m) return null;
+  /* ENGINE_MODE=gpt41을 **명시했을 때만**. 운영 기본(solo)은 여기 안 온다 */
+  if (engineMode(env) === "gpt41" && GPT_STAGES.has(stage)) return ENGINE.gptWriter;
   /* override는 G2 스윕의 두 자리(single/anchor)에만 닿는다 — G3의
      sonnet45_fallback이 singleWriter 설정을 재사용해도 갈아끼워지지 않고,
      haiku_director는 더더욱 아니다. */
@@ -5737,7 +5839,7 @@ export default {
     /* 발견 갈래는 기본 경로(solo)와 옛 hybrid 둘 다에서 돈다. 여기를
        hybrid로만 두면 기본값이 바뀌는 순간 이 장면이 통째로 죽는다. */
     const discloseNow = !!disclose
-      && (engineMode(env) === "solo" || engineMode(env) === "hybrid");
+      && ["solo", "gpt41", "hybrid"].includes(engineMode(env));
     if (discloseNow) console.log(`[NULL] 선물 관측 사건 ▶ ${disclose.observer}→${disclose.owner}`);
     /* 방금 자리에서 나왔다. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다.
        turnCtx **앞에서** 계산한다 — 구조 필드와 런타임 값이 같아야 한다(E4). */
@@ -6121,7 +6223,9 @@ export default {
          관전·단톡·중요 장면 포함 모든 생성이 이 한 호출이다. */
       const single5Now = em === "single5";
       /* solo — 후보 하나, 고르는 단계 없음. 검사·마무리는 그대로다 */
-      const soloNow = em === "solo";
+      /* gpt41은 solo와 **같은 배선**이다 — 후보 하나, 고르는 단계 없음.
+         다른 것은 생성 자리의 진영뿐이다(stageModel이 가른다). */
+      const soloNow = em === "solo" || em === "gpt41";
       const singleNow = (em === "single" || single5Now) && !anchorDeclined;
       const writerStage = singleNow
         ? (anchorWhy ? "anchor_writer" : single5Now ? "single5_writer" : "single_writer")
@@ -6736,6 +6840,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          S5PAIR_DIRECTOR_RULES, s5DirectorPacket, readS5Choice,
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
          userLine,
+         OPENAI_MODEL, GPT_STAGES, joinBlocks, toOpenAIMessages, openAIUsage, callOpenAI, stageModel,
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,

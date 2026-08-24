@@ -35,6 +35,9 @@ const SONNET46 = Object.keys(RP.PRICES).find(m => m.endsWith("-4-6"));
 /* ── 가짜 API — 요청을 다 적어두고, 단계를 프롬프트 문구로 가른다 ── */
 const realFetch = globalThis.fetch;
 let sent = [];
+/* 요청이 **어디로** 갔는지와 어떤 머리를 달았는지. 도전자 경로가 다른
+   진영의 주소로 나가는지, 열쇠가 어디에 실리는지를 재려면 본문만으론 모자란다. */
+let sentReq = [];
 let ipN = 0;
 const flatSys = c => (Array.isArray(c.system) ? c.system : [{ text: c.system }])
   .map(b => b.text || "").join("\n");
@@ -42,6 +45,7 @@ const flatMsgs = c => (c.messages || []).map(m => Array.isArray(m.content)
   ? m.content.map(b => b.text || "").join("\n") : m.content).join("\n");
 async function run(envExtra, body, replies, hooks) {
   sent = [];
+  sentReq = [];
   const queue = replies ? replies.slice() : null;
   /* hooks — 단계별 응답 주입 큐. 검사·고르기의 특정 답(무효 fact_id,
      RETRY 판정 등)을 시험이 심을 때 쓴다. 큐가 비면 기본 답으로 돌아간다. */
@@ -49,7 +53,14 @@ async function run(envExtra, body, replies, hooks) {
   globalThis.fetch = async (url, init) => {
     const c = JSON.parse(init.body);
     sent.push(c);
-    const sys = flatSys(c), msgs = flatMsgs(c);
+    sentReq.push({ url: String(url), headers: (init && init.headers) || {}, body: c });
+    /* 도전자 진영은 요청 모양이 다르다 — system이 messages 맨 앞 한 장이다.
+       단계 판별은 **같은 문구**로 한다: 프롬프트 원문이 같아야 하니까. */
+    const oai = String(url).includes("api.openai.com");
+    const oaiRole = r => (c.messages || []).filter(m => m.role === r)
+      .map(m => m.content).join("\n");
+    const sys = oai ? oaiRole("system") : flatSys(c);
+    const msgs = oai ? [oaiRole("user"), oaiRole("assistant")].join("\n") : flatMsgs(c);
     let text;
     if (sys.includes("SELECT_A · SELECT_B · RETRY"))
       text = hk("director") || JSON.stringify({ decision: msgs.includes("후보 B") ? "SELECT_A" : "SELECT_A",
@@ -75,6 +86,11 @@ async function run(envExtra, body, replies, hooks) {
         ? JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] })
         : JSON.stringify({ messages: [{ text: "네." }] });
     }
+    if (oai) return { ok: true, status: 200, headers: { get: () => null },
+      json: async () => ({ model: c.model, choices: [{ message: { content: text } }],
+        usage: { prompt_tokens: 100, completion_tokens: 10,
+                 prompt_tokens_details: { cached_tokens: 0 } } }),
+      text: async () => "" };
     return { ok: true, status: 200, headers: { get: () => null },
       json: async () => ({ content: [{ type: "text", text }],
         usage: { input_tokens: 100, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
@@ -1884,6 +1900,145 @@ const PROBE = { ...BASE,
     const body = { ...t14.body, gifts: {} };
     return stagesOf(await run({}, body));
   })(), ["writer"]);
+}
+
+/* ══════════ 15. 도전자 경로 — replay 전용 GPT-4.1 ══════════
+   운영 기본(Sonnet 4.5 solo)은 한 글자도 안 움직인다. 도전자는 명시한
+   깃발에서만 살고, 가져가는 자리는 「쓰는 손」 둘뿐이며, 열쇠는 머리
+   한 곳에만 실린다. 아래는 그 넷을 실행으로 잰다. */
+const ENGINE_ID = k => ENG.ENGINE[k].id;
+const OAI = u => String(u).includes("api.openai.com");
+const oaiReqs = () => sentReq.filter(r => OAI(r.url));
+const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠" };
+
+/* ── 15.1 기본 경로는 그대로 Sonnet 4.5 solo다 ── */
+{
+  eq("기본 엔진 모드가 solo다", ENG.engineMode({}), "solo");
+  const r = await run({}, BASE);
+  eq("기본 턴은 쓰기 한 번이다", stagesOf(r), ["writer"]);
+  eq("기본 턴의 쓰는 자리는 상급 Sonnet이다",
+    r.data.stages[0].model, "claude-sonnet-4-5-20250929");
+  eq("기본 턴은 다른 진영으로 안 나간다", oaiReqs().length, 0);
+  /* 도전자 설정이 기본 배치를 오염시키지 않았다 */
+  eq("기본 모델 배치가 그대로다",
+    [ENGINE_ID("writer"), ENGINE_ID("canon"), ENGINE_ID("character"), ENGINE_ID("director")],
+    ["claude-sonnet-4-5-20250929", "claude-haiku-4-5", "claude-haiku-4-5", "claude-haiku-4-5"]);
+}
+
+/* ── 15.2 깃발을 명시했을 때만 도전자가 뜬다 ── */
+{
+  const r = await run(GPT, BASE);
+  eq("도전자도 배선은 같다 — 쓰기 한 번", stagesOf(r), ["writer"]);
+  eq("쓰는 자리만 다른 진영으로 나간다", oaiReqs().length, 1);
+  eq("주소가 그 진영의 것이다", oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
+  eq("계측에 남는 모델도 도전자다", r.data.stages[0].model, "gpt-4.1-2025-04-14");
+
+  /* 클라이언트 입력은 진영도 모델도 못 바꾼다 — env만이 정한다 */
+  const spoof = await run({}, { ...BASE, engine_mode: "gpt41", ENGINE_MODE: "gpt41",
+    model: "gpt-4.1", engine: { writer: "gpt-4.1" } });
+  eq("요청 본문으로는 진영을 못 바꾼다", oaiReqs().length, 0);
+  eq("요청 본문으로는 모델도 못 바꾼다", spoof.data.stages[0].model, "claude-sonnet-4-5-20250929");
+}
+
+/* ── 15.3 별칭이 아니라 snapshot이다 ── */
+{
+  eq("snapshot 문자열이 박혀 있다", ENG.OPENAI_MODEL, "gpt-4.1-2025-04-14");
+  eq("날짜가 붙은 고정 판이다", /^gpt-4\.1-\d{4}-\d{2}-\d{2}$/.test(ENG.OPENAI_MODEL), true);
+  await run(GPT, BASE);
+  eq("요청 본문의 모델이 그 snapshot이다", oaiReqs()[0].body.model, "gpt-4.1-2025-04-14");
+}
+
+/* ── 15.4 열쇠가 없으면 부르기 전에 멈춘다 ──
+   없는 채로 나가면 401 본문이 오류 메시지가 되고 그게 산출물에 실린다. */
+{
+  let called = 0;
+  const keep = globalThis.fetch;
+  globalThis.fetch = async () => { called++; throw new Error("불렀다"); };
+  let out;
+  try { out = await ENG.callOpenAI({}, "세계", [{ role: "user", content: "안녕" }], 100); }
+  finally { globalThis.fetch = keep; }
+  eq("열쇠가 없으면 실패로 돌아온다", [out.ok, out.status], [false, 0]);
+  eq("무엇이 없는지 말한다", out.body.includes("OPENAI_API_KEY"), true);
+  eq("부르지 않고 멈춘다", called, 0);
+
+  const r = await run({ ENGINE_MODE: "gpt41" }, BASE);
+  eq("턴 전체도 나가지 않는다", oaiReqs().length, 0);
+  eq("성공으로 위장하지 않는다", r.status === 200, false);
+}
+
+/* ── 15.5 열쇠는 머리 한 곳에만 있다 ── */
+{
+  const KEY = "sk-proj-테스트열쇠-절대노출금지";
+  const r = await run({ ENGINE_MODE: "gpt41", OPENAI_API_KEY: KEY }, PROBE);
+  const req = oaiReqs()[0];
+  eq("열쇠는 authorization 머리로만 간다", req.headers.authorization, `Bearer ${KEY}`);
+  eq("요청 본문에는 없다", JSON.stringify(req.body).includes(KEY), false);
+  eq("응답 어디에도 없다", JSON.stringify(r.data).includes(KEY), false);
+  eq("trace에도 없다", JSON.stringify(r.data.trace || {}).includes(KEY), false);
+  eq("계측에도 없다", JSON.stringify(r.data.stages || []).includes(KEY), false);
+
+  /* 상대가 열쇠를 되비쳐도 오류 문자열에 안 남는다 */
+  const keep = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 401, headers: { get: () => null },
+    text: async () => `invalid api key: ${KEY}`, json: async () => ({}) });
+  let err;
+  try { err = await ENG.callOpenAI({ OPENAI_API_KEY: KEY }, "세계", [], 100); }
+  finally { globalThis.fetch = keep; }
+  eq("오류 본문에서 열쇠를 지운다", [err.ok, err.status, err.body.includes(KEY)],
+    [false, 401, false]);
+  eq("지웠다는 표시는 남는다", err.body.includes("<키>"), true);
+}
+
+/* ── 15.6 변환은 결합뿐이다 — 내용이 빠지지 않는다 ── */
+{
+  /* 단위: 블록 순서·역할·원문이 그대로다 */
+  const conv = ENG.toOpenAIMessages(
+    [{ type: "text", text: "세계" }, { type: "text", text: "인물" }],
+    [{ role: "user", content: [{ type: "text", text: "안녕" }, { type: "text", text: "가변부" }] },
+     { role: "assistant", content: "네." }]);
+  eq("system은 맨 앞 한 장으로 잇는다", conv[0], { role: "system", content: "세계\n인물" });
+  eq("이력은 역할·순서·원문 그대로다", conv.slice(1),
+    [{ role: "user", content: "안녕\n가변부" }, { role: "assistant", content: "네." }]);
+
+  /* 실행: 같은 입력을 두 진영에 돌리면 프롬프트 원문이 한 글자도 안 다르다 */
+  await run({}, BASE);
+  const base = sentReq[0].body;
+  await run(GPT, BASE);
+  const gpt = oaiReqs()[0].body;
+  const gsys = gpt.messages.filter(m => m.role === "system").map(m => m.content).join("\n");
+  eq("고정부+가변부 원문이 같다", gsys, flatSys(base));
+  eq("이력의 역할 차례가 같다",
+    gpt.messages.slice(1).map(m => m.role), base.messages.map(m => m.role));
+  eq("이력의 원문도 같다",
+    gpt.messages.slice(1).map(m => m.content),
+    base.messages.map(m => (Array.isArray(m.content)
+      ? m.content.map(b => b.text || "").join("\n") : m.content)));
+  eq("사실과 이력이 실제로 실려 있다",
+    [gsys.includes("이재언"), gpt.messages.some(m => m.content.includes("저녁은요?"))],
+    [true, true]);
+  eq("상한도 그대로 넘어간다", typeof gpt.max_tokens, "number");
+}
+
+/* ── 15.7 가져가는 자리는 쓰는 손 둘뿐이다 ── */
+{
+  eq("도전자 단계가 둘이다", [...ENG.GPT_STAGES].sort(), ["finalizer", "writer"]);
+  const same = ["director", "canon", "character", "single_writer", "anchor_writer"]
+    .map(s => [s, ENG.stageModel(GPT, s).id === ENG.stageModel({}, s).id,
+               !ENG.stageModel(GPT, s).openai]);
+  eq("나머지 단계는 모델도 진영도 그대로다", same,
+    [["director", true, true], ["canon", true, true], ["character", true, true],
+     ["single_writer", true, true], ["anchor_writer", true, true]]);
+
+  const r = await run(GPT, PROBE);
+  eq("중요 장면의 단계 구성이 같다", stagesOf(r),
+    ["writer", "canon", "character", "finalizer"]);
+  eq("쓰기·마무리만 도전자다",
+    r.data.stages.map(s => s.model === "gpt-4.1-2025-04-14"), [true, false, false, true]);
+  eq("검사 둘은 기존 저비용 그대로다",
+    [r.data.stages[1].model, r.data.stages[2].model], [MID.canon, MID.character]);
+  eq("다른 진영으로 나간 것은 둘뿐이다", oaiReqs().length, 2);
+  eq("검사 둘은 기존 진영 주소로 갔다",
+    sentReq.filter(q => !OAI(q.url)).length, 2);
 }
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);
