@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* ── G2. Sonnet 4.5 · 4.6 · 5 — single 모델 스윕 ──
+/* ── G2. 비교 모델 셋(SINGLE_SWEEP_MODELS 표) — single 모델 스윕 ──
    구조 비교가 아니라 배우 교체다: 동일한 NULL 세계관·TurnContext·프롬프트·
    후처리(single 경로 그대로)에서 **모델 ID만** 바꿔 셋을 나란히 세운다.
    이 결과로 운영 모델 하나를 확정하고 엔진 실험을 끝낸다.
@@ -7,9 +7,9 @@
    ── 호출 계약 ──
    세 모델 모두 ENGINE_MODE=single + SWEEP_BARE=1 로 부른다. payload는
    model·max_tokens·system·messages 넷뿐이다 — temperature·top_p·top_k·
-   수동 thinking·budget_tokens·effort 전부 안 실린다(Sonnet 5가 비기본
-   샘플링에 400을 내므로, 4.5·4.6에도 똑같이 빼서 모델 외 변수를 없앤다).
-   각 모델의 기본 동작 자체가 비교 대상이다 — 5의 adaptive thinking도
+   수동 thinking·budget_tokens·effort 전부 안 실린다(셋 중 최신 세대 모델이
+   비기본 샘플링에 400을 내므로, 나머지 둘에도 똑같이 빼서 모델 외 변수를 없앤다).
+   각 모델의 기본 동작 자체가 비교 대상이다 — 최신 세대의 adaptive thinking도
    사용량·지연에 그대로 포함된다.
 
    ── 실험량 ──
@@ -66,7 +66,7 @@ export const sweepEnv = key => {
   if (!id) throw new Error(`허용되지 않은 모델 키 — ${key}`);
   return { ENGINE_MODE: "single", SONNET_WRITER_MODEL: id, SWEEP_BARE: "1" };
 };
-/* 4.5 ID는 저장소의 검증된 고정 ID와 글자까지 같아야 한다 — 별칭 대체 금지 */
+/* sonnet45 항목의 ID는 저장소의 검증된 고정 ID와 글자까지 같아야 한다 — 별칭 대체 금지 */
 export function validateModels() {
   if (SINGLE_SWEEP_MODELS.sonnet45 !== ENG.ENGINE.singleWriter.id)
     throw new Error(`sonnet45 ID가 저장소 검증 ID와 다르다 — ${SINGLE_SWEEP_MODELS.sonnet45} ≠ ${ENG.ENGINE.singleWriter.id}`);
@@ -269,7 +269,7 @@ async function main() {
   }
   const invalid = unknownModels.size > 0 || usageMissing > 0;
   const fmt = n => n.toFixed(4);
-  const rep = ["# G2 모델 스윕 보고 — Sonnet 4.5 · 4.6 · 5 (single)", "",
+  const rep = ["# G2 모델 스윕 보고 — 비교 모델 셋 (single)", "",
     invalid ? `**INVALID — ${unknownModels.size ? `단가 모르는 모델: ${[...unknownModels].join(", ")}` : ""} ${usageMissing ? `usage 없는 성공 턴 ${usageMissing}` : ""}**` : "",
     FAKE ? "**--fake 모드 — 배선 점검용 숫자다.**" : "",
     "", "## 대화 턴",

@@ -4,49 +4,50 @@
 // ============================================================
 
 // 위에서부터 차례로 시도한다. 계정에서 못 쓰는 모델(404)이거나 파라미터를
-// 거부하면(400) 다음 것으로 자동으로 내려간다.
-// - thinking: Sonnet 5는 사고가 기본으로 켜져 있고 max_tokens가 사고+응답을
+// 거부하면(400) 다음 것으로 자동으로 내려간다. (모델 역할·세대 표기는
+// 상급/차상급/최상급 — 정확한 id는 아래 MODELS 표가 정본이다.)
+// - thinking: 최상급 세대는 사고가 기본으로 켜져 있고 max_tokens가 사고+응답을
 //   함께 제한한다. 짧은 말풍선만 뽑으므로 명시적으로 끈다.
-// - effort: Sonnet 4.5는 이 파라미터 자체를 거부하므로 보내지 않는다.
+// - effort: 상급 세대는 이 파라미터 자체를 거부하므로 보내지 않는다.
 /* noThinking을 켜두고 있었다. 빠르고 싸지만, 판단이 필요한 자리에서 제일 먼저
    무너진다 — 유저 오타를 자기 이름으로 받아들이고, 지금 어디에 있는지 놓치고,
    설명이 궁했을 때 「이건 그냥 텍스트니까요」로 빠져나갔다. 한 박자 생각하면
-   안 할 실수들이라 켠다. Sonnet 5는 thinking을 안 적으면 알아서 조절한다. */
+   안 할 실수들이라 켠다. 최상급 세대는 thinking을 안 적으면 알아서 조절한다. */
 /* effort — 프롬프트가 15,000자인데 그 중 대화 규칙은 몇 줄이다. 설정(외형·과거·
    취향)은 medium에서도 잘 지켰는데, 「유저 낱말을 어미만 바꿔 되돌리지 않는다」
    같은 미세한 줄에서 계속 미끄러졌다 — 같은 말 다시 하기, 정보 없는 턴으로
    채우기, 금지한 -대요. 규칙이 없어서가 아니라 묻혀서다. high로 올렸다. */
 
-/* ── 왜 4.6으로 내려왔나 ──
+/* ── 왜 차상급으로 내려왔나 ──
    max_tokens 900은 사고가 꺼져 있던 8월 11일에 정한 숫자다. 900 전부가 답
    몫이었고 말풍선 한둘에 넉넉했다. 그 뒤 사고를 켜고(noThinking false)
    effort를 high로 올리는 동안 900은 한 번도 안 건드렸다.
 
-   그런데 Sonnet 5는 사고와 답이 같은 통을 쓰고, 사고가 먼저 쓴다. 사고가
+   그런데 최상급 세대는 사고와 답이 같은 통을 쓰고, 사고가 먼저 쓴다. 사고가
    600을 먹으면 답에 300이 남는다. 배분이 아니라 선착순이다. 그래서 값은
    다 내면서 답은 쪼그라들었다 — 「비싼데 밋밋함」이 여기서 나왔다.
 
-   답 몫을 지키려면 사고에 상한을 걸어야 하는데, Sonnet 5는 그 파라미터
-   (budget_tokens)를 400으로 거부한다. 5 세대에서 없어졌다.
+   답 몫을 지키려면 사고에 상한을 걸어야 하는데, 최상급 세대는 그 파라미터
+   (budget_tokens)를 400으로 거부한다. 그 세대에서 없어졌다.
    통을 키우는 길도 있지만 그건 값을 늘리는 쪽이다.
 
-   4.6 세대에는 그 상한이 아직 살아 있다. 사고 500 · 답 500으로 못 박는다.
-   값은 Sonnet 5와 같고(입력 $3 / 출력 $15), 사고가 500에서 끊기므로 오히려
+   차상급 세대에는 그 상한이 아직 살아 있다. 사고 500 · 답 500으로 못 박는다.
+   값은 최상급과 같고(입력 $3 / 출력 $15), 사고가 500에서 끊기므로 오히려
    덜 나갈 수 있다. 무엇보다 답 몫이 줄 수 없다 — 그게 이 교체의 전부다.
-   Opus 4.6에도 같은 상한이 있고 대사는 더 좋지만 값이 1.7~2.5배다. */
+   최상위 제품군의 같은 세대에도 같은 상한이 있고 대사는 더 좋지만 값이 1.7~2.5배다. */
 
 /* ── 그런데 500은 넣을 수 없는 숫자였다 ──
-   budget_tokens의 API 최소가 1024다. 500은 미달이라 4.6이 매번 400으로
-   거절당했고, askClaude는 400을 「다음 모델」 신호로 읽어 조용히 sonnet-5로
+   budget_tokens의 API 최소가 1024다. 500은 미달이라 차상급이 매번 400으로
+   거절당했고, askClaude는 400을 「다음 모델」 신호로 읽어 조용히 최상급으로
    넘어가 workingModel로 굳었다. 화면은 멀쩡해서 아무도 몰랐다 —
-   콘솔에 모델 이름을 찍고 나서야 claude-sonnet-5가 답하고 있는 게 보였다.
+   콘솔에 모델 이름을 찍고 나서야 최상급 id가 답하고 있는 게 보였다.
 
    1024로 올리는 길도 있지만 그건 사고에 답의 두 배를 주는 것이다. 실측은
-   반대쪽을 가리킨다 — sonnet-5가 effort high로 답한 턴들의 thinking_tokens가
+   반대쪽을 가리킨다 — 최상급이 effort high로 답한 턴들의 thinking_tokens가
    전부 0이었다. 말풍선 한둘짜리 카톡 대화에 사고는 애초에 쓰이지 않는다.
    그래서 상한을 거는 대신 끈다. 끄면 max_tokens 전부가 답 몫이고,
    「사고가 답을 먹는다」는 구조 자체가 없어진다.
-   4.6이 404라면 여전히 5로 넘어간다 — 그때는 콘솔의 모델 이름이 말해준다. */
+   차상급이 404라면 여전히 최상급으로 넘어간다 — 그때는 콘솔의 모델 이름이 말해준다. */
 const ANSWER_BUDGET = 1000;    // 1:1·단톡 한 턴. 실측 출력은 60~110이다
 const AUTO_BUDGET = 2200;      // 관전방은 한 번에 4~8발화라 더 준다
 const MODELS = [
@@ -91,9 +92,9 @@ const ENGINE = {
   finalizer: { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
   /* ── G 비교 전용 — 운영 기본 경로가 아니다 ──
      single-sonnet 경로(ENGINE_MODE=single)와 staged의 anchor 턴이 쓰는
-     고정 Sonnet 4.5 Writer. legacy는 깨끗한 기준선이 아니다 — MODELS의
-     4.6→5→4.5 폴백을 타므로 어느 모델이 답했는지가 턴마다 다를 수 있다.
-     여기는 폴백 없이 이 모델 하나다.
+     고정 상급 Writer. legacy는 깨끗한 기준선이 아니다 — MODELS의
+     차상급→최상급→상급 폴백을 타므로 어느 모델이 답했는지가 턴마다 다를 수
+     있다. 여기는 폴백 없이 이 모델 하나다.
      finalizer와 같은 모델이지만 역할이 다르다 — 마무리는 검사 결과를 들고
      고쳐 쓰는 자리고, 이쪽은 처음부터 쓰는 자리다. trace의 stage 이름도
      가른다(single_writer·anchor_writer) — Writer 호출을 finalizer로 적으면
@@ -101,10 +102,10 @@ const ENGINE = {
   anchorWriter: { id: "claude-sonnet-4-5-20250929", effort: null, noThinking: true },
   singleWriter: { id: "claude-sonnet-4-5-20250929", effort: null, noThinking: true },
   /* ── G3 비교 전용 — sonnet5-pair-haiku 경로의 쓰는 자리 ──
-     후보 A·B를 한 호출로 쓰는 Sonnet 5. 모델 id는 MODELS에 이미 등록된
-     sonnet-5 항목을 그대로 재사용한다 — 새 id를 지어내지 않는다.
-     payload는 맨몸이다(effort·thinking·budget 없음) — 5는 수동 thinking과
-     비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다(G2 스윕과 같다). */
+     후보 A·B를 한 호출로 쓰는 최상급 Writer. 모델 id는 MODELS에 이미 등록된
+     최상급 항목을 그대로 재사용한다 — 새 id를 지어내지 않는다.
+     payload는 맨몸이다(effort·thinking·budget 없음) — 최상급 세대는 수동
+     thinking과 비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다(G2 스윕과 같다). */
   pairWriter5: { id: (MODELS.find(m => m.id === "claude-sonnet-5") || {}).id,
                  effort: null, noThinking: false },
 };
@@ -112,7 +113,7 @@ const ENGINE = {
    부르고, 모델은 이 표로 찾는다 — 이름 둘이 같은 자리를 가리킨다는 것을
    코드 모양으로 못박는다. */
 const STAGE_ENGINE = { single_writer: "singleWriter", anchor_writer: "anchorWriter",
-  /* G3 — sonnet5-pair-haiku의 세 자리. 폴백은 singleWriter와 같은 4.5 설정을
+  /* G3 — sonnet5-pair-haiku의 세 자리. 폴백은 singleWriter와 같은 상급 설정을
      재사용하되 trace 이름으로 역할을 가른다 — 비용 집계가 역할별로 갈라진다.
      haiku_director도 모델은 운영 director 그대로다. */
   sonnet5_pair_writer: "pairWriter5", haiku_director: "director",
@@ -150,14 +151,14 @@ const RETRY_MAX = 1;           // 계속 실패하면 각본으로 덮지 않고
    고를 수 있으면 그건 깃발이 아니라 구멍이다. */
 function engineMode(env) {
   const v = String((env && (env.ENGINE_MODE || env.engine_mode)) || "").trim().toLowerCase();
-  /* single은 G 비교의 세 번째 갈래다 — Sonnet 4.5 Writer 한 호출, 고르기도
+  /* single은 G 비교의 세 번째 갈래다 — 상급 Writer 한 호출, 고르기도
      검사도 없이 같은 후처리만 탄다. replay 도구가 env로 켠다. 운영 대시보드
      기본값은 hybrid 그대로다. */
-  /* sonnet5-pair-haiku는 G3 비교의 실험 갈래다 — Sonnet 5가 한 호출로 후보
-     A·B를 쓰고, Haiku Director가 고르고, 못 고를 때만 Sonnet 4.5가 한 번
-     폴백한다. replay 도구가 env로 켠다. 운영 대시보드 기본값은 hybrid다. */
+  /* sonnet5-pair-haiku는 G3 비교의 실험 갈래다 — 최상급 Writer가 한 호출로
+     후보 A·B를 쓰고, 저비용 Director가 고르고, 못 고를 때만 상급 Writer가 한
+     번 폴백한다. replay 도구가 env로 켠다. 운영 대시보드 기본값은 hybrid다. */
   /* single5는 G4의 실험 갈래다 — single과 같은 배선(한 호출·같은 검사·
-     재시도 1회·폴백 없음)에서 Writer 자리만 Sonnet 5다. replay 도구가
+     재시도 1회·폴백 없음)에서 Writer 자리만 최상급이다. replay 도구가
      env로 켠다. 운영 대시보드 기본값은 hybrid 그대로다. */
   return v === "legacy" ? "legacy" : v === "single" ? "single"
        : v === "single5" ? "single5"
@@ -285,7 +286,8 @@ function factsForSpeaker(ctx, speaker) {
    단톡·관전은 한 호출로 두 사람 대사를 낸다. 「재언이 아는 것 / 민현이 아는
    것」을 딱지 붙여 나란히 넣으면 같은 모델이 둘 다 읽는다 — 그건 차단이
    아니라 부탁이다. 둘 다 아는 것만 준다. 한 사람만 아는 사실이 필요한
-   장면은 화자를 갈라 따로 부른다(E단계). */
+   장면은 화자를 갈라 따로 부른다 — 선물 관측 사건(discloseEvent)이 그
+   자리다: 요청 처리부의 disclose 갈래가 화자 순차 두 호출로 간다(§8.5). */
 function sharedFactsForRoom(ctx, speakers) {
   const who = (speakers || []).map(String).filter(Boolean);
   if (!who.length) return [];
@@ -491,7 +493,7 @@ function budgetHistory(list, budget) {
 }
 
 /* 요약은 유저가 읽는 글이 아니라 압축이다. 말투도 감정도 필요 없다.
-   그래서 여기가 작은 모델 자리다 — 대화는 하이쿠로 내리면 티가 나지만
+   그래서 여기가 작은 모델 자리다 — 대화는 하급으로 내리면 티가 나지만
    요약은 안 난다. 300턴에 한 번 도는 호출이라 값도 사실상 0이다. */
 const SUMMARY_MODEL = { id: "claude-haiku-4-5", effort: null, noThinking: false };
 const SUMMARY_MAX = 1200;          // 요약이 길어지면 그게 다시 이력이 된다
@@ -514,11 +516,11 @@ const SUMMARIZE = `
 /* ── 되는 모델을 기억하되, 영영 굳지는 않는다 ──
    한 번 성공하면 그 모델을 계속 쓴다. 매 턴 1순위에 400을 맞아가며 버리는
    왕복을 안 하려는 것이다. 그런데 그게 한쪽으로만 굳었다 —
-   budget_tokens 500이 API 최소(1024) 미달이라 4.6이 매번 400을 맞았고,
-   400은 「다음 모델」 신호라 조용히 sonnet-5로 넘어가 그대로 눌러앉았다.
+   budget_tokens 500이 API 최소(1024) 미달이라 차상급이 매번 400을 맞았고,
+   400은 「다음 모델」 신호라 조용히 최상급으로 넘어가 그대로 눌러앉았다.
    화면은 멀쩡해서 아무도 몰랐다. 고른 모델이 아닌 게 답하고 있었다.
-   그 원인은 고쳤지만 구조는 그대로였다 — 4.6이 무슨 이유로든 **한 번**
-   거절당하면 그 아이솔레이트가 죽을 때까지 5가 답한다.
+   그 원인은 고쳤지만 구조는 그대로였다 — 차상급이 무슨 이유로든 **한 번**
+   거절당하면 그 아이솔레이트가 죽을 때까지 최상급이 답한다.
    그래서 기억에 시효를 건다. 십 분이 지나면 고른 모델을 다시 불러본다.
    실패가 계속되면 다시 굳고, 잠깐이었으면 제자리로 돌아온다. */
 let workingModel = null;
@@ -2823,6 +2825,60 @@ function storyFacts(st) {
   return F;
 }
 
+/* ── 고정 정사 Fact (B1) ──
+   세계관 산문 전체를 사실로 바꾸지 않는다. **명시적인 반대 값이 존재해서
+   Critic이 위반을 fact_id로 지목할 수 있어야 하는 고정 불변식만** 구조화한다.
+   목록에 없는 것은 unknown이지 거짓이 아니다 — 그 원칙은 여기서도 같다.
+
+   known_by는 「그 인물이 원래 아는 것」이다. 재언의 과거는 기억 공개 전까지
+   재언만 안다 — 공개 뒤의 「유저도 안다」는 storyFacts(state)가 나른다.
+   여기 문장은 산문 프롬프트(WORLD·인물)와 같은 내용의 구조화지, 새 설정이
+   아니다 — 값이 곧 문장이라 factLines가 그대로 낸다. */
+function canonFacts() {
+  return [
+    makeFact("canon.study_room.owner",
+      "공부방을 운영한 사람은 유저의 어머니다",
+      "canon", ["jaeeon", "user"]),
+    makeFact("canon.jaeeon.study_room_attended",
+      "이재언은 그 공부방에 다닌 아이다 — 운영한 사람이 아니다",
+      "canon", ["jaeeon"]),
+    makeFact("canon.jaeeon.knows_user_20y",
+      "이재언은 유저를 20년 전 공부방에서 알았다",
+      "canon", ["jaeeon"]),
+    makeFact("canon.minhyun.first_meet_rooftop",
+      "이민현과 유저가 처음 만난 곳은 병원 옥상이다",
+      "canon", ["minhyun", "user"]),
+    makeFact("canon.minhyun.responsibility_smoking",
+      "병원 옥상에서 유저가 금연을 요구했고, 이민현의 「책임」 발언은 그 요구에서 나왔다",
+      "canon", ["minhyun", "user"]),
+  ];
+}
+
+/* ── 선물 관측 사건 (§8.5) ──
+   유저→인물 선물 하나가 사람마다 다른 사실을 낳는다: 출처는 유저와 받은
+   사람만, 보유는 같이 사는 둘 다. 그 비대칭이 실제로 있을 때만 관전 턴을
+   화자 순차 두 호출로 가른다 — 일반 관전은 그대로 한 호출이다.
+   판정 재료는 전부 이번 요청의 Fact[]다. 사건 이름(event.name)은 키로
+   되돌려서 사실과 맞춰본다 — 이름이 사실과 안 맞으면 사건이 아니다. */
+function discloseEvent(event, facts, room) {
+  const owner = event && (event.to === "jaeeon" || event.to === "minhyun") ? event.to : null;
+  if (!owner) return null;
+  const speakers = ROOM_SPEAKERS[room] || [];
+  if (!speakers.includes(owner)) return null;
+  const observer = speakers.find(s => s !== owner);
+  if (!observer) return null;
+  const name = String(event.name || "").trim();
+  const key = Object.keys(ANY_NAME_BY_KEY).find(k => ANY_NAME_BY_KEY[k] === name);
+  if (!key) return null;
+  const src = (facts || []).find(f => f && f.fact_id === `gift.${key}.user_to_${owner}`);
+  const item = (facts || []).find(f => f && f.fact_id === `item.${key}.with_${owner}`);
+  /* 비대칭 조건: 출처는 관측자가 모르고, 물건이 있다는 것은 안다 */
+  if (!src || src.known_by.includes(observer)) return null;
+  if (!item || !item.known_by.includes(observer)) return null;
+  return { owner, observer, key, name: ANY_NAME_BY_KEY[key],
+           fact_id: src.fact_id, item_fact_id: item.fact_id };
+}
+
 /* ── 그 장면이 벌어지는 턴의 사실 ──
    partner_confirm 턴에는 아직 partnerKnown이 안 뒤집혀 있다(성공 저장 뒤에
    뒤집힌다). 그러면 위 지속 사실이 없어서 쓰는 쪽·검사·마무리가 정작
@@ -2856,9 +2912,10 @@ function factLines(facts, userName) {
   const u = userName || "선생님";
   const L = [];
   for (const f of facts || []) {
-    /* 이야기 상태(story.*)는 값이 곧 문장이다 — 물건처럼 id를 풀어 조립할
-       구조가 없다. 여기서 그대로 낸다(자연어의 마지막 경계는 여전히 여기다). */
-    if (/^story\./.test(String(f && f.fact_id))) { L.push(`${f.value}.`); continue; }
+    /* 이야기 상태(story.*)와 고정 정사(canon.*)는 값이 곧 문장이다 — 물건처럼
+       id를 풀어 조립할 구조가 없다. 여기서 그대로 낸다(자연어의 마지막 경계는
+       여전히 여기다). */
+    if (/^(story|canon)\./.test(String(f && f.fact_id))) { L.push(`${f.value}.`); continue; }
     const m = String(f && f.fact_id).match(/^(gift|item)\.([^.]+)\.(.+)$/);
     if (!m) continue;
     const name = ANY_NAME_BY_KEY[m[2]];
@@ -2902,6 +2959,22 @@ function renderFacts(facts, userName) {
   return `\n## [지금 아는 것]\n${L.join("\n")}\n`
        + `- 여기 없는 것은 네가 아직 모르는 것이다. 없다고 단정하지 않는다.\n`
        + `- 이 목록을 읊지 않는다. 아는 채로 굴기만 한다.\n`;
+}
+
+/* ── 준 기록의 파생 (C1·E3) ──
+   buildBag 바로 옆이다 — 방향이 갈리면 눈에 띄라고 나란히 둔다.
+   bag은 인물→유저(b.from===room), 이것은 유저→인물(gifts의 수신자별)이다.
+   수신자별 구조를 지키고, 이번 턴에 방금 건넨 것(giftNow)은 뺀다 —
+   현재는 gift 블록이, 과거는 이 목록이 맡는다. 겹치면 두 번 센다. */
+function buildGiven(gifts, giftNow, giftRoom) {
+  const gh = {};
+  for (const [who, keys] of Object.entries(gifts && typeof gifts === "object" ? gifts : {})) {
+    if (!ITEM_WITNESS[who] || !Array.isArray(keys)) continue;
+    const now = giftNow && giftNow.key && who === giftRoom ? String(giftNow.key) : "";
+    const list = keys.map(String).filter(k => ANY_NAME_BY_KEY[k] && k !== now);
+    if (list.length) gh[who] = list.slice(0, 40);
+  }
+  return gh;
 }
 
 function buildBag(bag, room, userName) {
@@ -3046,7 +3119,11 @@ const TURN = `
 /* ctx — 이번 요청의 TurnContext. 사실은 **여기서만** 렌더링한다.
    고정부(buildSystem)에는 한 글자도 안 들어간다 — 선물 하나에 캐시가
    통째로 다시 쓰이면 안 된다. 인자로 넘기는 것 자체는 캐시와 무관하다. */
-function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, ctx, placeItemAvailable) {
+/* disclose — 선물 관측 사건(§8.5)의 화자 순차 호출 전용. {speaker, text}가
+   오면 사실 투영을 공동 교집합 대신 **그 화자의 known_by**로 갈고, 사건
+   목적을 [지금 장면]으로 얹는다. 일반 호출은 이 인자가 없다 — 기존 투영
+   규칙이 그대로다. */
+function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, ctx, placeItemAvailable, disclose) {
   const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
   const exclude = recent.length
@@ -3073,9 +3150,13 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
              한 사람만 아는 사실에 딱지를 붙여 공동 Writer에 같이 넣지 않는다 —
              같은 모델이 둘 다 읽으므로 그건 차단이 아니라 부탁이다. */
           + renderFacts(
-              (mode === "auto" || room === "group")
-                ? sharedFactsForRoom(ctx, ROOM_SPEAKERS[room] || [])
-                : factsForSpeaker(ctx, room),
+              disclose && disclose.speaker
+                /* 화자 순차 호출 — 그 화자가 아는 것만. 교집합이 아니라
+                   비대칭 그대로다: 출처는 아는 쪽 호출에만 실린다. */
+                ? factsForSpeaker(ctx, disclose.speaker)
+                : (mode === "auto" || room === "group")
+                  ? sharedFactsForRoom(ctx, ROOM_SPEAKERS[room] || [])
+                  : factsForSpeaker(ctx, room),
               userName)
           + buildBag(bag || [], room, userName)
           + buildLeft(left, userName)
@@ -3090,6 +3171,9 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + (ctx && ctx.sceneReason && CRITICAL_REASONS[ctx.sceneReason]
               ? `\n## [지금 장면]\n${CRITICAL_REASONS[ctx.sceneReason]}. 되돌릴 수 없는 자리다 — 가볍게 지나가지 않는다.\n`
               : "")
+          /* 화자 순차 호출의 사건 목적 — 대사는 고정하지 않는다. 코드가
+             강제하는 것은 사건 목적·지식 범위·발화 순서뿐이다(§8.5). */
+          + (disclose && disclose.text ? `\n## [지금 장면]\n${disclose.text}\n` : "")
           + TURN;
   return t.trim() ? sub(t) : "";
 }
@@ -3133,7 +3217,7 @@ async function callModel(env, m, system, messages, maxTokens, effort) {
   const body = {
     model: m.id,
     max_tokens: maxTokens,
-    // temperature는 Sonnet 5/4.6에서 거부된다(400). 문체의 변주는 시스템 프롬프트가 맡는다.
+    // temperature는 최상급·차상급 세대에서 거부된다(400). 문체의 변주는 시스템 프롬프트가 맡는다.
     system,
     messages,
   };
@@ -3253,7 +3337,7 @@ function stageStamp(meter, stage, model, usage, ms, attempt, tier, status, candi
    그대로 올린다. 말맛이 바뀌는 것보다 안 되는 게 보이는 편이 낫다. */
 /* ── G 비교 전용 — single/anchor Writer의 모델만 env로 바꿔 끼운다 ──
    같은 자리(single_writer·anchor_writer)에 4.5와 4.6을 나란히 세워 보는
-   동세대 비교용이다. Sonnet 계열 id만 받고, 다른 단계(writer·director·
+   동세대 비교용이다. 상급 계열 id만 받고, 다른 단계(writer·director·
    critic·finalizer)에는 절대 안 닿는다. 운영 env에는 이 변수가 없다 —
    ENGINE 표의 「대사 경로에 폴백 없음」 계약은 그대로다: 이건 폴백이
    아니라 replay의 비교 팔이다. */
@@ -3273,7 +3357,7 @@ function stageModel(env, stage) {
   if (!ov) return m;
   /* SWEEP_BARE — G2 모델 스윕 전용. thinking·budget·effort를 아무것도 안
      실어서 payload가 model·max_tokens·system·messages 넷뿐이 된다.
-     Sonnet 5는 비기본 샘플링·수동 thinking에 400을 내므로, 세 모델 모두
+     최상급 세대는 비기본 샘플링·수동 thinking에 400을 내므로, 세 모델 모두
      같은 맨몸 payload로 **각자의 기본 동작**을 비교한다(5는 adaptive
      thinking이 기본으로 켜지고, 4.5·4.6은 꺼진 채 답한다 — 그것까지가
      모델의 기본 특성이다). 운영 env에는 이 변수가 없다. */
@@ -3307,7 +3391,7 @@ function cacheNote(u) {
   return `  캐시 씀 ${w} / 읽음 ${r}`;
 }
 
-/* 요약은 하이쿠로 돈다. 계정에서 못 쓰면(404) 쓰던 모델로 넘어간다 —
+/* 요약은 하급 모델로 돈다. 계정에서 못 쓰면(404) 쓰던 모델로 넘어간다 —
    요약이 아예 안 되는 것보다는 비싸게라도 되는 편이 낫다. */
 async function askSummary(env, meter, system, messages, maxTokens) {
   const r = await callModel(env, SUMMARY_MODEL, system, messages, maxTokens);
@@ -3805,6 +3889,7 @@ const HARD_CODES = {
   EMPTY: "빈 응답",
   LEAK: "안이 비침",
   SENDER: "허용되지 않은 화자",
+  SPEAKERS: "필수 화자 계약 위반",
 };
 /* ── 받은 것을 없던 일로 만드는 말 ──
    이 턴에 유저가 건넨 **그 물건**을 그 **받은 사람**이 직접 부정할 때만이다.
@@ -3851,6 +3936,29 @@ function hardFilter(cand, allowed, ctx) {
   /* 이름표 형식에서 난입 줄이 있었다. 줄은 파서가 버렸지만 모델이 이 방에
      없는 사람을 말하게 한 것은 그대로 잘못이다. */
   if (c.intruder) push("SENDER");
+
+  /* ── requiredSpeakers (A2) ──
+     코드가 둘의 반응을 요구한 사건에서만 배열이 차 있다(기본은 빈 배열 —
+     일반 단톡·관전에 두 사람을 강제하지 않는다). 최종 후보에 필수 화자가
+     전부, 정한 순서대로, 허용된 화자만으로 나와야 한다. 원래 화자 기준이다:
+     명시된 화자(senderGiven)는 위 SENDER가 걸렀고, 여기는 남은 발화의
+     화자 나열이 계약과 맞는지를 본다. 누락·순서 역전·목록 밖 화자면
+     탈락이고 부르는 쪽이 재시도한다. */
+  const req = Array.isArray((ctx || {}).requiredSpeakers)
+    ? (ctx || {}).requiredSpeakers.map(String).filter((s, i, a) => s && a.indexOf(s) === i)
+    : [];
+  if (req.length) {
+    const seen = [];
+    for (const m of kept) {
+      const s = m && m.sender;
+      if (s && seen.indexOf(s) < 0) seen.push(s);
+    }
+    const missing = req.some(s => seen.indexOf(s) < 0);
+    const order = seen.filter(s => req.indexOf(s) >= 0);
+    const inverted = !missing && order.join("|") !== req.join("|");
+    const outsider = ok.length ? seen.some(s => ok.indexOf(s) < 0) : false;
+    if (missing || inverted || outsider) push("SPEAKERS");
+  }
 
   const g = ctx || {};
   /* ── FACT_DENIAL — 다섯이 다 맞을 때만 ──
@@ -3928,7 +4036,7 @@ function softSignals(kept, recent) {
    판단은 안 좋아진다. 이 장면과 무관한 과거도 뺀다.
    대신 정사를 추측하게 만들 만큼 굶기지도 않는다. */
 /* ── G4: single5 전용 행동 규칙 ──
-   Sonnet 5 단일 Writer 실험에만 붙는 한 장이다. 공용 프롬프트(세계·인물)는
+   최상급 단일 Writer 실험에만 붙는 한 장이다. 공용 프롬프트(세계·인물)는
    바꾸지 않는다 — 실험이 끝나고 채택된 것만 공용으로 옮긴다.
    행동 원칙과 예시다 — 실패 문장들을 금칙어 정규식으로 옮기지 않는다(계약).
    말투·감정·자연스러움의 판정은 replay에서 사람이 한다.
@@ -4085,19 +4193,33 @@ rule_id — 성격 관련 탈락이면 해당 rule_id. 아니면 null.
 function readGoldenDecision(raw, ids) {
   const list = Array.isArray(ids) ? ids : ["A", "B"];
   const no = why => ({ decision: "RETRY", reject_codes: {}, why, fact_id: null, rule_id: null });
+  /* ── 코드도 허용 목록으로 거른다 ──
+     reject_codes는 재시도 노트를 거쳐 다음 Writer 프롬프트가 된다. 판정이
+     지어낸 자유 문장 코드나 없는 후보 키를 무검증 통과시키면 그게 그대로
+     프롬프트에 오른다 — 열 개의 코드(GOLDEN_REJECT_CODES)와 실제 후보
+     id만 남긴다. */
+  const cleanCodes = rc => {
+    const out = {};
+    for (const [id, cs] of Object.entries(rc && typeof rc === "object" ? rc : {})) {
+      if (!list.includes(id)) continue;
+      out[id] = (Array.isArray(cs) ? cs : [cs])
+        .map(String).filter(c => GOLDEN_REJECT_CODES.has(c));
+    }
+    return out;
+  };
   const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
   if (!body) return no("JSON이 아니다");
   let j;
   try { j = JSON.parse(body); } catch (e) { return no("JSON을 못 읽었다"); }
   const d = String(j && j.decision || "").toUpperCase();
   if (d === "RETRY") return { decision: "RETRY",
-    reject_codes: (j && j.reject_codes) || {},
+    reject_codes: cleanCodes(j && j.reject_codes),
     fact_id: (j && j.fact_id) || null,
     rule_id: (j && j.rule_id) || null, why: "" };
   const map = {};
   list.forEach(id => { map[`SELECT_${id}`] = id; });
   if (!map[d]) return no(`고를 수 없는 판정: ${d || "(빈칸)"}`);
-  return { decision: map[d], reject_codes: (j && j.reject_codes) || {},
+  return { decision: map[d], reject_codes: cleanCodes(j && j.reject_codes),
     fact_id: (j && j.fact_id) || null, rule_id: (j && j.rule_id) || null, why: "" };
 }
 
@@ -5214,17 +5336,9 @@ export default {
        모르는 채로 주는 것보다 낫다. */
     const talkedEnough = body.talked_enough === true;
     const placeItemAvailable = !!place && !!PLACE_ITEMS[place] && !placeItemOwned && talkedEnough;
-    /* ── 준 기록은 수신자를 지킨다 ──
-       평면 배열로 합치면 단톡·관전에서 누구에게 준 것인지가 사라진다.
-       이번 턴에 건넨 것(giftNow)은 여기서 뺀다 — 현재는 gift가, 과거는
-       이것이 맡는다. 둘을 겹치면 같은 선물이 두 번 센다. */
-    const givenHistory = {};
-    for (const [who, keys] of Object.entries(body.gifts && typeof body.gifts === "object" ? body.gifts : {})) {
-      if (!ITEM_WITNESS[who] || !Array.isArray(keys)) continue;
-      const now = gift && gift.key && who === room ? String(gift.key) : "";
-      const list = keys.map(String).filter(k => ANY_NAME_BY_KEY[k] && k !== now);
-      if (list.length) givenHistory[who] = list.slice(0, 40);
-    }
+    /* 준 기록은 수신자를 지킨다 — 조립은 buildGiven(buildBag 옆)이 한다.
+       이번 턴에 건넨 것(giftNow)은 뺀다: 현재는 gift가, 과거는 이것이 맡는다. */
+    const givenHistory = buildGiven(body.gifts, gift, room);
     /* ── 이야기 상태는 클라이언트가 들고 온다 ──
        워커는 아무것도 기억하지 않는다. makeStoryState가 모르는 값을
        기본값으로 눌러준다 — 옛 클라이언트가 안 보내면 unseen/hidden이다. */
@@ -5257,7 +5371,23 @@ export default {
     if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);
     /* ── 이번 요청의 사실 원본. 여기서 **한 번** 만든다 ──
        단계마다 다시 조립하지 않는다. 그러면 같은 fact_id가 단계마다 달라지고,
-       재시도 때 또 달라진다. 아래 모든 단계는 이 하나에서 투영만 받는다. */
+       재시도 때 또 달라진다. 아래 모든 단계는 이 하나에서 투영만 받는다.
+       고정 정사(canon)가 맨 앞이다 — Canon Critic이 「원래 그런 것」과
+       「이번 판에서 그렇게 된 것」을 같은 목록에서 받는다(B1·B2). */
+    const allFacts = [...canonFacts(),
+                      ...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story),
+                      ...partnerSceneFacts(routed.reason, room, story.partnerId)];
+    /* ── 선물 관측 사건 판정 (§8.5) ──
+       관전 턴에 gift 사건이 실려 왔고 사실이 실제로 비대칭일 때만 선다.
+       화자 순차 경로는 hybrid 전용이다 — single·single5는 「모든 생성이 한
+       호출」이 계약이고, s5pair·legacy는 각자의 갈래를 그대로 탄다. */
+    const disclose = mode === "auto" && event && event.kind === "gift"
+      ? discloseEvent(event, allFacts, room) : null;
+    const discloseNow = !!disclose && engineMode(env) === "hybrid";
+    if (discloseNow) console.log(`[NULL] 선물 관측 사건 ▶ ${disclose.observer}→${disclose.owner}`);
+    /* 방금 자리에서 나왔다. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다.
+       turnCtx **앞에서** 계산한다 — 구조 필드와 런타임 값이 같아야 한다(E4). */
+    const left = mode === "chat" && !place ? (body.left || "").toString().slice(0, 20).trim() : "";
     const turnCtx = makeTurnContext(
       { room, days, unlocked: unlockedKeys(counts, days), owned: bag.map(b => b.key),
         firstContact: story.firstContact, jaeeonMemory: story.jaeeonMemory,
@@ -5266,10 +5396,15 @@ export default {
            (jaeeon·minhyun 밖의 값은 null). 여기 빠지면 TurnContext만
            상대를 모르는 반쪽이 된다. */
         partnerId: story.partnerId },
-      { place, came, giftNow: gift, givenHistory, now, day, season,
+      { place, came, left, giftNow: gift, givenHistory, now, day, season,
         sceneReason: routed.reason,
-        facts: [...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story),
-                ...partnerSceneFacts(routed.reason, room, story.partnerId)] });
+        /* 두 사람의 반응이 계약인 사건에만 채운다 — 기본은 빈 배열이다.
+           일반 단톡·관전에 두 사람을 강제하지 않는다(0단계 계약). */
+        requiredSpeakers: discloseNow ? [disclose.observer, disclose.owner] : [],
+        facts: allFacts,
+        /* 최근 대화 — 이미 정규화된 msgs에서 자른다. 프롬프트에는 history가
+           따로 실리므로 이 필드를 다시 렌더하지 않는다(E4). */
+        recent: msgs.slice(-6).map(m => ({ role: m.role, content: String(m.content) })) });
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
       (body.summary || "").toString().slice(0, 4000));
 
@@ -5283,9 +5418,11 @@ export default {
        되짚기는 스무 블록까지인데 한 턴에 두세 블록만 늘어나므로 넉넉하다. */
     /* 자리의 때가 지났다는 표시. 자리가 있어야만 의미가 있다 */
     const placeOver = !!place && body.place_over === true;
-    /* 방금 자리에서 나왔다. 자리를 먼저 닫고 부르므로 place와 같이 오지 않는다 */
-    const left = mode === "chat" && !place ? (body.left || "").toString().slice(0, 20).trim() : "";
-    const volatile = buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, turnCtx, placeItemAvailable);
+    /* left는 turnCtx 앞에서 이미 계산했다(E4) — 여기서는 그대로 쓴다.
+       화자 순차 사건이면 공동 가변부를 안 붙인다: 호출마다 그 화자의
+       투영으로 가변부를 새로 지어 비변이로 얹는다(아래 disclose 갈래). */
+    const volatile = discloseNow ? ""
+      : buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, turnCtx, placeItemAvailable);
     const tail = msgs[msgs.length - 1];
     if (tail) {
       /* 선톡 턴(greet)에는 이력 캐시 지점을 안 찍는다. 마지막 턴이 저장 안
@@ -5316,7 +5453,7 @@ export default {
        복원할 수 없다(중요 장면과 겹쳐 물린 anchor의 집계가 유실된다). */
     let traceOfRef = null;
     try {
-      // Sonnet 5는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
+      // 최상급 세대는 토크나이저가 바뀌어 같은 한국어도 토큰이 더 나온다 — 여유를 준다
       /* 채팅도 high다. 비용 때문에 medium으로 내렸다가 하루 만에 되돌렸다 —
          medium은 이미 해본 실험이고 결과가 00d2221에 적혀 있다: 설정은 잘
          지키는데 미세한 줄(어미만 바꿔 되돌리기, 같은 말 반복, -대요)에서
@@ -5348,6 +5485,10 @@ export default {
           코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
       const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned,
                         placeItemAvailable, room,
+                        /* 두 사람의 반응이 계약인 사건의 필수 화자(A2).
+                           모든 경로(critical의 마무리 후보 포함)가 같은
+                           hardFilter 입구를 타므로 여기 실으면 다 받는다. */
+                        requiredSpeakers: turnCtx.requiredSpeakers,
                         openPlaces: place ? [] : [...openPlaces, ...canGo],
                         /* 이야기 전환의 재료. 감지는 위(E4)에서 한 번만 했고,
                            여기는 그 결과만 든다 — materializeEffects가 검증된
@@ -5430,10 +5571,10 @@ export default {
 
       /* ── G3 비교: sonnet5-pair-haiku 경로 ──
          모든 모델 응답 턴(normal·group·auto·critical)이 이 한 갈래를 탄다:
-         ① Sonnet 5가 한 호출로 후보 A·B → ② 후보마다 기존 코드 검사
-         (parse→sender→sanitize→hardFilter→Effect) → ③ Haiku Director가
-         고른다 → ④ 못 고르는 모든 갈래에서 Sonnet 4.5가 **한 번** 폴백.
-         Sonnet 5 재호출은 없다. critical의 검사·마무리 경로는 여기서 안
+         ① 최상급 Writer가 한 호출로 후보 A·B → ② 후보마다 기존 코드 검사
+         (parse→sender→sanitize→hardFilter→Effect) → ③ 저비용 Director가
+         고른다 → ④ 못 고르는 모든 갈래에서 폴백 Writer(상급)가 **한 번** 선다.
+         최상급 재호출은 없다. critical의 검사·마무리 경로는 여기서 안
          탄다 — 라우팅(tier)·Fact 투영·Effect 검증·scene_ack 계약은 그대로다.
          운영 기본값(hybrid)에는 아무 영향이 없다 — env로만 켜진다. */
       if (engineMode(env) === "sonnet5-pair-haiku") {
@@ -5492,7 +5633,7 @@ export default {
 
         let picked = null;
         const alive = [];
-        /* ① Sonnet 5 — 한 호출, 실패해도 재호출하지 않는다 */
+        /* ① 최상급 Writer — 한 호출, 실패해도 재호출하지 않는다 */
         try {
           const raw5 = await callStage(env, meter, "sonnet5_pair_writer",
             system, withNote5(writerAsk(2)), budget * 2, 1, tier, "");
@@ -5530,7 +5671,7 @@ export default {
           console.log(`[NULL] s5pair 쓰기 실패 — ${String(e).slice(0, 160)}`);
         }
 
-        /* ② Haiku Director — 살아남은 후보가 있을 때만. 하나여도 판정을
+        /* ② 저비용 Director — 살아남은 후보가 있을 때만. 하나여도 판정을
            맡긴다(그 id 또는 RETRY). 하나도 없으면 호출을 생략한다. */
         if (alive.length && !s5.fallbackWhy.length) {
           try {
@@ -5553,7 +5694,7 @@ export default {
           }
         }
 
-        /* ③ Sonnet 4.5 폴백 — 위가 실패한 모든 갈래에서, 최대 한 번.
+        /* ③ 폴백 Writer(상급) — 위가 실패한 모든 갈래에서, 최대 한 번.
            같은 TurnContext에 탈락 코드·RETRY 사유를 짧게 얹는다. 폴백도
            같은 검사줄을 탄다 — 여기서 떨어지면 가짜 대사로 덮지 않고 그
            턴은 실패다. */
@@ -5603,22 +5744,22 @@ export default {
       }
 
       /* ── G 비교: single-sonnet 경로 ──
-         Sonnet 4.5 Writer 한 호출. Director도 검사도 마무리도 안 탄다 —
+         상급 Writer 한 호출. Director도 검사도 마무리도 안 탄다 —
          같은 TurnContext·같은 파싱·같은 hardFilter·같은 Effect 후처리만 탄다.
          후처리가 다르면 G에서 비교되는 것이 모델이 아니라 후처리 차이가 된다.
 
          staged의 anchor 턴도 이 길이다(ANCHOR_REASON). 단 anchor가 중요
          장면과 겹치면 기존 중요 장면 경로(쓰기→검사 둘→마무리)가 이긴다 —
-         한 턴에 Sonnet을 Writer와 Finalizer 두 자리에 사지 않는다.
+         한 턴에 상급 모델을 Writer와 Finalizer 두 자리에 사지 않는다.
          anchor 없는 순수 single은 중요 장면도 한 호출로 쓴다 — 그게
-         「항상 Sonnet 하나」라는 갈래의 실제 모습이다. */
+         「항상 상급 하나」라는 갈래의 실제 모습이다. */
       const em = engineMode(env);
       const anchorWhy = em === "single" ? anchorReason(env) : "";
       const anchorDeclined = !!anchorWhy && tier === "critical";
-      /* ── G4: single5 — Sonnet 5 단일 Writer ──
+      /* ── G4: single5 — 최상급 단일 Writer ──
          single과 완전히 같은 배선이다: 한 호출·후보 하나·Director/검사/
          마무리 없음·같은 후처리·탈락시 재시도 한 번·폴백 없음. Writer
-         자리만 Sonnet 5다. anchor는 single(4.5 staged) 전용이라 안 탄다.
+         자리만 최상급이다. anchor는 single(상급 staged) 전용이라 안 탄다.
          관전·단톡·중요 장면 포함 모든 생성이 이 한 호출이다. */
       const single5Now = em === "single5";
       const singleNow = (em === "single" || single5Now) && !anchorDeclined;
@@ -5637,7 +5778,13 @@ export default {
          모든 후보의 원문과 Director 판정을 trace에 담아야 한다. 운영에서는
          traceOn이 꺼져 있어 아무 부담이 없다. */
       const allCandsLog = [];
-      let directorDecisionLog = null;
+      /* ── attempt별로 쌓는다. 덮어쓰지 않는다 (C) ──
+         전에는 단일 변수라 attempt 1의 RETRY 판정이 attempt 2에 덮여
+         유실됐다 — answers·attempts·trace의 시도 수가 서로 안 맞았다.
+         directorDecision(마지막 판정)은 읽던 쪽과의 호환으로 남긴다. */
+      const directorDecisionLog = [];
+      let criticNotesLog = [];       // 중요 장면 검사 결과 — attempt별 (trace 전용)
+      let discloseLog = null;        // 선물 관측 사건의 disclosure 기록 (trace 전용)
       const traceOf = picked => !traceOn ? {} : { trace: {
         engine_mode: engineMode(env),
         candidate_mode: cMode,
@@ -5649,7 +5796,11 @@ export default {
         turnContext: turnCtx,
         ...(rejectedLog.length ? { rejected: rejectedLog } : {}),
         ...(allCandsLog.length ? { allCandidates: allCandsLog } : {}),
-        ...(directorDecisionLog ? { directorDecision: directorDecisionLog } : {}),
+        ...(directorDecisionLog.length ? {
+          directorDecision: directorDecisionLog[directorDecisionLog.length - 1],
+          directorDecisions: directorDecisionLog } : {}),
+        ...(criticNotesLog.length ? { criticNotes: criticNotesLog } : {}),
+        ...(discloseLog ? { disclosure: discloseLog } : {}),
         selectedCandidate: picked
           ? { id: picked.id, originalMessages: picked.originalMessages } : null,
       } };
@@ -5687,7 +5838,106 @@ export default {
         ? [...system, { type: "text", text: goldenV1Rules(mode, room) }]
         : system;
       let picked = null, lastCodes = [];
-      for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked; attempt++) {
+
+      /* ── 선물 관측 사건 — 화자 순차 두 호출 (§8.5·A1) ──
+         정보가 비대칭인 사건만 이 갈래를 탄다. 일반 관전은 아래 한 호출
+         그대로다. 코드가 강제하는 것은 사건 목적·지식 범위·발화 순서뿐이고
+         대사는 고정하지 않는다.
+           ① 관측자 — 자기 known_by만(출처 없음) + 「처음 눈에 띈다」
+           ② 소유자 — 자기 known_by(출처 있음) + 관측자의 실제 대사 +
+                      「상대는 출처를 모른다」
+         실패하면 picked가 비어 502로 나간다 — 성공 저장 뒤에만 사건이
+         소모되므로(관전 사건 큐의 ack 계약) pending이 남는다. */
+      if (discloseNow) {
+        const NAME = { jaeeon: "이재언", minhyun: "이민현" };
+        const partVol = (speaker, text) => buildVolatile(mode, room, userName, signals,
+          recentPhotos, userProfile, counts, gift, event, openPlaces, days, place,
+          placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came,
+          turnCtx, placeItemAvailable, { speaker, text });
+        /* 비변이 — msgs를 안 건드린다. 시도·호출마다 마지막 발화 사본에만 얹는다 */
+        const withBlocks = (base, texts) => {
+          const copy = base.slice();
+          const t = copy[copy.length - 1];
+          const blocks = Array.isArray(t.content) ? t.content.slice()
+            : [{ type: "text", text: t.content }];
+          for (const x of texts) if (x) blocks.push({ type: "text", text: x });
+          copy[copy.length - 1] = { ...t, content: blocks };
+          return copy;
+        };
+        const runPart = async (speaker, text, base) => {
+          for (let attempt = 1; attempt <= RETRY_MAX + 1; attempt++) {
+            const note = attempt > 1 && lastCodes.length
+              ? `\n[이전 시도 탈락]\n${lastCodes.slice(0, 6).map(c => `- ${c}`).join("\n")}\n`
+                + `같은 실수를 반복하지 않는다.\n` : "";
+            /* ── 지시는 언제나 user 턴에 싣는다 ──
+               소유자 호출의 base는 관측자 대사(assistant)로 끝난다. 거기에
+               블록을 얹으면 지시·가변부가 assistant prefill 안으로 들어가고,
+               개행으로 끝나는 prefill은 API가 400으로 거절한다 — fake는
+               모양을 안 보므로 통과하고 생산만 죽는 배선이 된다. 마지막이
+               assistant면 새 user 턴으로 잇는다(역할 교대도 지켜진다). */
+            const last = base[base.length - 1];
+            const partMsgs = last && last.role === "assistant"
+              ? [...base, { role: "user", content: [
+                  ...(note ? [{ type: "text", text: note }] : []),
+                  { type: "text", text: partVol(speaker, text) }] }]
+              : withBlocks(base, [note, partVol(speaker, text)]);
+            const raw = await callStage(env, meter, "writer", writerSystem,
+              partMsgs, budget, attempt, tier, speaker);
+            devLog(`[NULL] 응답(공개 ${speaker}) ▶ ${raw.slice(0, 600)}`);
+            const parsed = parseMessages(raw, speaker, [speaker]);
+            const messages = dropEcho(
+              trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed.messages)), [speaker]), photoChars, speaker, recentPhotos)),
+              lastSaid(msgs, mode));
+            const cand = { id: speaker, originalMessages: parsed.messages, messages,
+              invite: null, give: null, photo: null,
+              parseStatus: parsed.parseStatus, intruder: parsed.intruder, signals: [] };
+            /* 부분 호출은 그 화자만 허용 — 필수 화자 검사는 합친 뒤에 한다 */
+            const codes = hardFilter(cand, [speaker], { ...hardCtx, requiredSpeakers: [] });
+            if (traceOn) allCandsLog.push({ attempt, id: speaker, originalMessages: parsed.messages });
+            if (!codes.length) return cand;
+            lastCodes = codes.map(c => `${speaker}:${c}`);
+            if (traceOn) rejectedLog.push({ attempt, id: speaker, codes,
+              originalMessages: parsed.messages });
+            console.log(`[NULL] 공개 장면 ${speaker} 탈락 — ${codes.join(",")}`);
+          }
+          return null;
+        };
+        const obs = disclose.observer, own = disclose.owner;
+        const obsText = `${NAME[own]}에게 ${jos(disclose.name, "이/가")} 있는 것이 처음 눈에 띈다.\n`
+          + `어디서 났는지는 모른다 — 아는 척하지 않는다. 궁금하면 짐작해서 물어도 된다.\n`
+          + `이번 응답은 ${jos(NAME[obs], "이/가")} 말하는 차례다. ${NAME[obs]}의 발화만 쓴다.`;
+        const c1 = await runPart(obs, obsText, msgs);
+        if (c1) {
+          /* 관측자의 실제 대사가 소유자 호출의 이력이 된다 — §8.5 ② */
+          const obsLines = c1.messages.map(m => `[${NAME[obs]}] ${m.text}`).join("\n");
+          const base2 = [...msgs, { role: "assistant", content: obsLines }];
+          const ownText = `${jos(NAME[obs], "이/가")} 방금 위와 같이 말했다.\n`
+            + `${NAME[obs]}은 이 ${jos(disclose.name, "이/가")} 어디서 났는지 **모른다**. 너는 안다 — 목록에 있다.\n`
+            + `바로 말할지, 돌려 말할지, 아직 말하지 않을지는 네 몫이다. 아는 것을 통째로 읊지 않는다.\n`
+            + `이번 응답은 ${jos(NAME[own], "이/가")} 말하는 차례다. ${NAME[own]}의 발화만 쓴다.`;
+          const c2 = await runPart(own, ownText, base2);
+          if (c2) {
+            const merged = { id: "D",
+              originalMessages: [...c1.originalMessages, ...c2.originalMessages],
+              messages: [...c1.messages, ...c2.messages],
+              invite: null, give: null, photo: null, parseStatus: "ok", signals: [] };
+            /* 합친 것이 계약대로인지 — 필수 화자 전부·순서·허용 화자만(A2) */
+            const mCodes = hardFilter(merged, chars, hardCtx);
+            if (!mCodes.length) {
+              picked = merged;
+              if (traceOn) discloseLog = { fact_id: disclose.fact_id, by: own,
+                heard_by: ROOM_EARS[room] || [], room, at: null };
+            } else {
+              lastCodes = mCodes.map(c => `D:${c}`);
+              if (traceOn) rejectedLog.push({ attempt: RETRY_MAX + 1, id: "D",
+                codes: mCodes, originalMessages: merged.originalMessages });
+              console.log(`[NULL] 공개 장면 합침 탈락 — ${mCodes.join(",")}`);
+            }
+          }
+        }
+      }
+
+      for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked && !discloseNow; attempt++) {
         /* parallel은 두 번 나란히 부른다. 한쪽이 실패하면 그건 진짜 실패다 —
            남은 한쪽으로 조용히 때우면 두 배 값을 내고 한 개를 받은 것을
            아무도 모른다. */
@@ -5808,10 +6058,16 @@ export default {
              깨끗하다고 넘어가면 검사가 있는데 없는 것과 같다. */
           if (!canonRes.ok || !charRes.ok) {
             lastCodes = ["CRITIC_SCHEMA"];
+            /* 파싱 실패도 탈락 기록이다 (C) — 원문 없이 코드만 남긴다 */
+            if (traceOn) rejectedLog.push({ attempt, id: "critic",
+              codes: ["CRITIC_SCHEMA"] });
             console.log(`[NULL] 검사 스키마 어긋남 — ${canonRes.why || charRes.why}`);
             continue;
           }
           const notes = [...canonRes.problems, ...charRes.problems];
+          /* 검사 결과를 attempt별로 남긴다 (C·D1) — 평가기가 「기억 공개
+             사건당 정사 부정」을 세려면 이게 trace에 있어야 한다. */
+          if (traceOn) criticNotesLog.push({ attempt, notes });
           /* ── 사실을 어긴 후보는 마무리 재료에서 뺀다 ──
              위를 쓰는 자리에 틀린 것을 재료로 주면 그걸 고쳐 쓰거나 그대로
              고른다. 사람 문제는 남긴다 — 그건 고치라고 주는 경계다. */
@@ -5821,8 +6077,13 @@ export default {
           if (!survivors.length) {
             lastCodes = notes.filter(n => n.critic === "canon")
               .map(n => `${n.candidate}:${n.code}:${n.fact_id}`);
+            /* 전멸도 탈락 기록이다 (C) — 어느 후보가 어떤 사실을 어겼는지까지 */
+            if (traceOn) for (const c of cands) rejectedLog.push({ attempt, id: c.id,
+              codes: notes.filter(n => n.critic === "canon" && n.candidate === c.id)
+                .map(n => `${n.code}:${n.fact_id}`),
+              critic: true, originalMessages: c.originalMessages });
             console.log(`[NULL] 사실을 어겨 후보가 다 빠졌다 — 마무리를 안 부른다`);
-            continue;                                  // Sonnet을 안 부른다
+            continue;                                  // 마무리를 안 부른다
           }
           /* ── 마무리에게 세계를 준다 ──
              전에는 `system + "\n\n" + FINALIZER_RULES`였다. buildSystem은
@@ -5864,14 +6125,32 @@ export default {
         const dec = goldenNow
           ? readGoldenDecision(decRaw, cands.map(c => c.id))
           : readDecision(decRaw, cands.map(c => c.id));
-        if (traceOn) directorDecisionLog = dec;
+        if (traceOn) directorDecisionLog.push({ attempt, ...dec });
         console.log(`[NULL] 고름 ▶ ${dec.decision}${dec.why ? ` (${dec.why})` : ""}`
           + ` ${JSON.stringify(dec.reject_codes).slice(0, 200)}`);
         if (dec.decision === "RETRY") {
           lastCodes = Object.entries(dec.reject_codes || {})
             .flatMap(([id, cs]) => (Array.isArray(cs) ? cs : [cs]).filter(Boolean).map(c => `${id}:${c}`));
           if (!lastCodes.length) lastCodes = ["DIRECTOR_RETRY"];
-          continue;                                   // 실패 코드만 들고 한 번 더
+          /* ── 탈락의 근거 id를 버리지 않는다 (B3) ──
+             코드만 넘기면 다음 시도가 「무엇을 어겼는지」 없이 다시 쓴다.
+             **유효한 id만** 얹는다 — 허용 목록에 없는 id는 판정이 지어낸
+             것이라 다음 프롬프트에 올리지 않는다.
+             **맨 앞에 세운다** — 재시도 노트는 lastCodes 앞 여섯만 싣는데,
+             코드가 여섯을 채우면 뒤에 붙인 id가 통째로 잘린다. 근거 id가
+             코드 나열보다 먼저다. */
+          const fid = dec.fact_id && factIds(stageFacts).has(String(dec.fact_id))
+            ? String(dec.fact_id) : null;
+          const rid = dec.rule_id && RULE_IDS.has(String(dec.rule_id))
+            ? String(dec.rule_id) : null;
+          if (rid) lastCodes.unshift(`rule:${rid}`);
+          if (fid) lastCodes.unshift(`fact:${fid}`);
+          /* Director RETRY도 탈락 기록이다 (C) — 전에는 lastCodes만 갱신해
+             attempt 1의 원문·판정이 산출물 어디에도 안 남았다. */
+          if (traceOn) for (const c of cands) rejectedLog.push({ attempt, id: c.id,
+            codes: [].concat((dec.reject_codes || {})[c.id] || []).filter(Boolean),
+            director: true, originalMessages: c.originalMessages });
+          continue;                                   // 실패 코드·id를 들고 한 번 더
         }
         /* id로 찾는다. 자리로 찾으면 A가 떨어진 뒤 남은 B가 cands[0]이라
            「B를 골랐다」가 조용히 A 자리를 집는다. */
@@ -5951,6 +6230,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          makeFact, factsForSpeaker, sharedFactsForRoom, factValue, contradicts,
          ROOM_EARS, ROOM_SPEAKERS, FACT_SOURCES, KNOWERS,
          buildFacts, giftFacts, handedFacts, renderFacts, factLines, factIds,
+         canonFacts, discloseEvent, buildGiven,
          materializeEffects,
          ITEM_WITNESS, ANY_NAME_BY_KEY,
          buildEvent,
@@ -5967,6 +6247,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          /* G3 — sonnet5-pair-haiku */
          S5PAIR_DIRECTOR_RULES, s5DirectorPacket, readS5Choice,
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
+         unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
          JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,

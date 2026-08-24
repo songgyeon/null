@@ -13,6 +13,7 @@
     "room": "minhyun",
     "user_name": "연",
     "partner": "jaeeon",
+    "scene_reason": "partner_known",
     "history": [
       {
         "role": "assistant",

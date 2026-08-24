@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/* ── G4. single5 replay — Sonnet 5 단일 Writer 실험 ──
-   ENGINE_MODE=single5: 성공한 턴의 모델 호출은 Sonnet 5 Writer 한 번이
+/* ── G4. single5 replay — 상급 모델 단일 Writer 실험 ──
+   ENGINE_MODE=single5: 성공한 턴의 모델 호출은 단일 Writer 한 번이
    전부다(후보 하나, Director·Canon·Character·Finalizer 0회). 검사는 기존
    경로 그대로고, 결정적 검사에서 탈락한 턴만 워커가 정확히 한 번 재호출한다
    (한 턴 최대 2회). 두 번째도 실패하면 폴백 없이 그 턴은 실패다.
@@ -137,7 +137,7 @@ async function main() {
     : c.rounds ? `재시도 후 성공 (첫 시도 탈락: ${[...new Set(c.rejected.filter(x => x.attempt === 1).flatMap(x => x.codes || []))].join(", ")})`
     : "첫 시도 통과";
   const ans = ["# single5 — 최종 대사 (18항목)", "",
-    "Sonnet 5 단일 Writer 한 호출(탈락시 한 번 재시도)의 최종 결과다.", ""];
+    "단일 Writer 한 호출(탈락시 한 번 재시도)의 최종 결과다.", ""];
   for (const item of items) {
     const c = first[item.label];
     ans.push(`## A-${item.label}`, "",

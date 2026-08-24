@@ -1286,6 +1286,10 @@ function App(){
               history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
               ...(loadSum("health").text?{summary:loadSum("health").text}:{}),
               signals:buildSignals(null),
+              /* 준 기록도 싣는다 — 선물 관측 사건(§8.5)은 워커가 이걸로
+                 출처·보유 사실을 만들어 비대칭을 판정한다. 안 실으면
+                 발견 장면이 영영 못 선다. request()의 888줄과 같은 원본이다. */
+              gifts:giftsRef.current||{},
               ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
           const data=await res.json().catch(()=>null);
           if(res.ok&&data) list=data.messages;

@@ -5,7 +5,7 @@
 
      hybrid-one     Writer(후보 1) → Director
      hybrid-pair    Writer(후보 2, 한 호출) → Director
-     single-sonnet  Sonnet 4.5 Writer 한 호출 — 같은 사실·같은 후처리
+     single-sonnet  고정 기준선 Writer 한 호출 — 같은 사실·같은 후처리
      staged         anchor 턴만 single, 중요 장면과 겹치면 기존 경로가 이긴다
 
    따로 돈다: node test/engine-pipeline.test.mjs
@@ -24,6 +24,14 @@ const eq = (name, got, want) => {
   else { fail++; console.log(`  FAIL ${name}\n       실제 ${g}\n       기대 ${w}`); }
 };
 
+/* 정확한 ID는 실행 설정(worker.js ENGINE·MODELS)에서 가져온다 — 테스트에 다시 적지 않는다 */
+const MID = { writer: ENG.ENGINE.writer.id, director: ENG.ENGINE.director.id,
+  canon: ENG.ENGINE.canon.id, character: ENG.ENGINE.character.id,
+  finalizer: ENG.ENGINE.finalizer.id, single: ENG.ENGINE.singleWriter.id,
+  anchor: ENG.ENGINE.anchorWriter.id, pair5: ENG.ENGINE.pairWriter5.id };
+/* SONNET_WRITER_MODEL 주입 시험용 비교 모델 — PRICES allowlist에서 찾는다 */
+const SONNET46 = Object.keys(RP.PRICES).find(m => m.endsWith("-4-6"));
+
 /* ── 가짜 API — 요청을 다 적어두고, 단계를 프롬프트 문구로 가른다 ── */
 const realFetch = globalThis.fetch;
 let sent = [];
@@ -32,23 +40,28 @@ const flatSys = c => (Array.isArray(c.system) ? c.system : [{ text: c.system }])
   .map(b => b.text || "").join("\n");
 const flatMsgs = c => (c.messages || []).map(m => Array.isArray(m.content)
   ? m.content.map(b => b.text || "").join("\n") : m.content).join("\n");
-async function run(envExtra, body, replies) {
+async function run(envExtra, body, replies, hooks) {
   sent = [];
   const queue = replies ? replies.slice() : null;
+  /* hooks — 단계별 응답 주입 큐. 검사·고르기의 특정 답(무효 fact_id,
+     RETRY 판정 등)을 시험이 심을 때 쓴다. 큐가 비면 기본 답으로 돌아간다. */
+  const hk = k => (hooks && Array.isArray(hooks[k]) && hooks[k].length ? hooks[k].shift() : null);
   globalThis.fetch = async (url, init) => {
     const c = JSON.parse(init.body);
     sent.push(c);
     const sys = flatSys(c), msgs = flatMsgs(c);
     let text;
     if (sys.includes("SELECT_A · SELECT_B · RETRY"))
-      text = JSON.stringify({ decision: msgs.includes("후보 B") ? "SELECT_A" : "SELECT_A",
+      text = hk("director") || JSON.stringify({ decision: msgs.includes("후보 B") ? "SELECT_A" : "SELECT_A",
         reject_codes: { A: [], B: [] }, fact_id: null, rule_id: null });
     else if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
-      text = JSON.stringify({ decision: msgs.includes("후보 B") ? "A" : "ACCEPT", reject_codes: {} });
-    else if (sys.includes("너는 이 세계의 사실만 본다") || sys.includes("이 사람이 이 사람다운지만 본다"))
-      text = '{"problems":[]}';
+      text = hk("director") || JSON.stringify({ decision: msgs.includes("후보 B") ? "A" : "ACCEPT", reject_codes: {} });
+    else if (sys.includes("너는 이 세계의 사실만 본다"))
+      text = hk("canon") || '{"problems":[]}';
+    else if (sys.includes("이 사람이 이 사람다운지만 본다"))
+      text = hk("character") || '{"problems":[]}';
     else if (sys.includes("이 장면의 마지막 손이다"))
-      text = JSON.stringify({ messages: [{ text: "…그 얘기는 이따가 해요." }] });
+      text = hk("finalizer") || JSON.stringify({ messages: [{ text: "…그 얘기는 이따가 해요." }] });
     else if (queue && queue.length) text = queue.shift();
     else text = msgs.includes('"candidates"')
       ? JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] })
@@ -90,7 +103,7 @@ const PROBE = { ...BASE,
 {
   const one = await run({ CANDIDATE_MODE: "one" }, BASE);
   eq("hybrid-one은 쓰기 하나·고르기 하나다", stagesOf(one), ["writer", "director"]);
-  eq("hybrid-one의 쓰는 쪽은 Haiku다", one.data.stages[0].model, "claude-haiku-4-5");
+  eq("hybrid-one의 쓰는 쪽은 저비용 Writer다", one.data.stages[0].model, MID.writer);
   eq("hybrid-one은 후보를 하나만 청한다", flatMsgs(writerReq()).includes('"candidates"'), false);
   eq("trace가 경로를 적는다", [one.data.trace.engine_mode, one.data.trace.candidate_mode], ["hybrid", "one"]);
 
@@ -101,16 +114,16 @@ const PROBE = { ...BASE,
 
   const single = await run({ ENGINE_MODE: "single" }, BASE);
   eq("single은 한 호출이 전부다", stagesOf(single), ["single_writer"]);
-  eq("single의 쓰는 쪽은 고정 Sonnet 4.5다", single.data.stages[0].model, "claude-sonnet-4-5-20250929");
+  eq("single의 쓰는 쪽은 고정 기준선 Writer다", single.data.stages[0].model, MID.single);
   eq("single은 후보를 하나만 청한다", flatMsgs(writerReq()).includes('"candidates"'), false);
   eq("single의 trace", [single.data.trace.engine_mode, single.data.trace.candidate_mode,
     single.data.trace.writer_model, single.data.trace.anchor_reason],
-    ["single", "one", "claude-sonnet-4-5-20250929", null]);
+    ["single", "one", MID.single, null]);
   eq("single의 usage도 쓰는 쪽 실측이다", single.data.usage.output_tokens, 10);
 
   const anchor = await run({ ENGINE_MODE: "single", ANCHOR_REASON: "opening" }, BASE);
   eq("anchor 턴은 anchor_writer로 적힌다", stagesOf(anchor), ["anchor_writer"]);
-  eq("anchor의 모델도 고정 Sonnet 4.5다", anchor.data.stages[0].model, "claude-sonnet-4-5-20250929");
+  eq("anchor의 모델도 고정 기준선 Writer다", anchor.data.stages[0].model, MID.anchor);
   eq("trace에 anchor_reason이 실린다", anchor.data.trace.anchor_reason, "opening");
 
   /* 캐시는 anchor 조건이 아니다 — 모르는 사유는 조용히 무시된다 */
@@ -168,7 +181,7 @@ const PROBE = { ...BASE,
   const hyb = await run({ CANDIDATE_MODE: "pair" }, PROBE);
   eq("hybrid의 중요 장면은 쓰기→검사 둘→마무리다", stagesOf(hyb),
     ["writer", "canon", "character", "finalizer"]);
-  eq("중요 장면 마무리만 Sonnet이다", hyb.data.stages.map(s => s.model.includes("sonnet")),
+  eq("중요 장면 마무리만 상위 Finalizer 모델이다", hyb.data.stages.map(s => s.model === MID.finalizer),
     [false, false, false, true]);
 
   const single = await run({ ENGINE_MODE: "single" }, PROBE);
@@ -181,7 +194,7 @@ const PROBE = { ...BASE,
   eq("anchor는 중요 장면에 진다", stagesOf(clash), ["writer", "canon", "character", "finalizer"]);
   eq("물린 anchor가 trace에 남는다", [clash.data.trace.anchor_reason, clash.data.trace.anchor_declined],
     [null, "opening"]);
-  eq("한 턴에 Sonnet Writer를 추가로 안 산다",
+  eq("한 턴에 기준선 Writer를 추가로 안 산다",
     clash.data.stages.filter(s => s.stage === "anchor_writer" || s.stage === "single_writer").length, 0);
 }
 
@@ -256,10 +269,9 @@ const PROBE = { ...BASE,
   eq("사진은 문구가 붙는다", h[2].content, "잘 쓸게요 (사진을 보냈다)");
   eq("역할이 갈린다", h.map(x => x.role), ["user", "user", "assistant"]);
 
-  /* 고정 Sonnet 4.5 — legacy(4.6→5→4.5 폴백)를 재사용하지 않는다 */
-  eq("anchor·single의 모델이 고정 Sonnet 4.5다",
-    [ENG.ENGINE.anchorWriter.id, ENG.ENGINE.singleWriter.id],
-    ["claude-sonnet-4-5-20250929", "claude-sonnet-4-5-20250929"]);
+  /* 고정 기준선 Writer — legacy(MODELS 폴백 사슬)를 재사용하지 않는다 */
+  eq("anchor·single의 모델이 같은 고정 기준선이다 — 날짜 고정판",
+    [MID.anchor === MID.single, /-\d{8}$/.test(MID.single)], [true, true]);
   eq("마무리와 같은 모델, 다른 역할이다",
     ENG.ENGINE.singleWriter.id === ENG.ENGINE.finalizer.id
     && ENG.STAGE_ENGINE.single_writer === "singleWriter"
@@ -269,19 +281,20 @@ const PROBE = { ...BASE,
   /* 비용표가 실제 쓰는 모델을 다 안다 — 모르는 모델은 0원으로 새는 구멍이다.
      날짜 접미(-20250929)는 priceFor가 떼고 찾는다 */
   eq("비용표가 네 경로의 모델을 다 안다",
-    [ENG.ENGINE.writer.id, ENG.ENGINE.finalizer.id, ENG.ENGINE.singleWriter.id]
+    [MID.writer, MID.finalizer, MID.single]
       .every(id => RP.usageCost({ model: id, input_tokens: 1000000 }) > 0), true);
+  const hp = RP.priceFor(MID.writer);
   eq("비용은 실측에 단가를 곱한다 — 1h 캐시 쓰기 2배·읽기 0.1배",
-    RP.costOf([{ model: "claude-haiku-4-5", input_tokens: 1000000, output_tokens: 1000000,
+    RP.costOf([{ model: MID.writer, input_tokens: 1000000, output_tokens: 1000000,
       cache_creation_input_tokens: 1000000, cache_read_input_tokens: 1000000 }]).toFixed(2),
-    (1 + 5 + 2.0 + 0.1).toFixed(2));
+    (hp.in + hp.out + hp.in * 2.0 + hp.in * 0.1).toFixed(2));
 }
 
 /* ══════════ 7. 운영 기본은 그대로다 ══════════ */
 {
   const prod = await run({}, BASE);           // ENGINE_MODE도 TRACE도 없는 운영 모양
   eq("기본 경로는 pair 그대로다", stagesOf(prod), ["writer", "director"]);
-  eq("기본 쓰는 쪽은 Haiku다", prod.data.stages[0].model, "claude-haiku-4-5");
+  eq("기본 쓰는 쪽은 저비용 Writer다", prod.data.stages[0].model, MID.writer);
   const noTrace = await run({ TRACE: "" }, BASE);
   eq("TRACE 없이는 trace가 안 실린다 — 운영 응답 불변", "trace" in noTrace.data, false);
 }
@@ -341,14 +354,14 @@ const PROBE = { ...BASE,
   })();
   eq("API 오류 502에도 trace가 실린다", [err.status, err.data.trace.anchor_reason,
     err.data.trace.writer_model, err.data.trace.selectedCandidate],
-    [502, "opening", "claude-sonnet-4-5-20250929", null]);
+    [502, "opening", MID.anchor, null]);
 
   /* 단가 — 날짜 접미는 떼고 찾고, 요약 폴백 모델도 0원으로 안 샌다 */
   eq("날짜 붙은 id도 단가를 찾는다",
-    RP.usageCost({ model: "claude-haiku-4-5-20251001", input_tokens: 1000000 }) > 0
-    && RP.usageCost({ model: "claude-sonnet-4-5-20250929", input_tokens: 1000000 }) > 0, true);
+    RP.usageCost({ model: MID.writer + "-20251001", input_tokens: 1000000 }) > 0
+    && RP.usageCost({ model: MID.single, input_tokens: 1000000 }) > 0, true);
   eq("요약 폴백 모델도 단가가 있다",
-    ["claude-sonnet-4-6", "claude-sonnet-5", "claude-sonnet-4-5"]
+    Object.keys(RP.PRICES)
       .every(m => RP.usageCost({ model: m, output_tokens: 1000000 }) > 0), true);
   eq("모르는 모델은 조용히 새지 않고 적힌다", (() => {
     RP.usageCost({ model: "claude-unknown-9", input_tokens: 5 });
@@ -366,8 +379,8 @@ const PROBE = { ...BASE,
   const wk = readFileSync(join(ROOT, "worker.js"), "utf8");
   eq("캐시 쓰기 배율이 워커 TTL 계약과 같다 — 1h면 2배",
     [/ttl: "1h"/.test(wk), RP.CACHE_WRITE_X], [true, 2.0]);
-  eq("Sonnet 5 단가는 $2/$10이다",
-    RP.usageCost({ model: "claude-sonnet-5", input_tokens: 1000000, output_tokens: 1000000 }).toFixed(2),
+  eq("상급 pair Writer 단가는 $2/$10이다",
+    RP.usageCost({ model: MID.pair5, input_tokens: 1000000, output_tokens: 1000000 }).toFixed(2),
     "12.00");
 }
 
@@ -396,7 +409,7 @@ const PROBE = { ...BASE,
     ] };
   const okReply = { ok: true, status: 200, latency_ms: 1, data: {
     messages: [{ sender: "jaeeon", text: "네." }], effects: [], stages: [
-      { stage: "writer", model: "claude-haiku-4-5", attempt: 1, input_tokens: 10, output_tokens: 5,
+      { stage: "writer", model: MID.writer, attempt: 1, input_tokens: 10, output_tokens: 5,
         cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }], trace: {} } };
   /* hybrid-one만 #1에서 두 번(원호출+UI 재시도) 다 죽는다 */
   const sent = [];
@@ -437,28 +450,28 @@ const PROBE = { ...BASE,
 /* ══════════ 7.57b 동세대 비교 팔 — 4.5 vs 4.6은 자리만 같고 모델만 다르다 ══════════ */
 {
   eq("46팔의 env가 모델만 바꾼다", RP.pathEnv("single-sonnet46"),
-    { ENGINE_MODE: "single", SONNET_WRITER_MODEL: "claude-sonnet-4-6" });
+    { ENGINE_MODE: "single", SONNET_WRITER_MODEL: SONNET46 });
   eq("staged-46의 anchor 턴도 모델만 다르다", RP.pathEnv("staged-46", "pair", "opening"),
     { CANDIDATE_MODE: "pair", ENGINE_MODE: "single", ANCHOR_REASON: "opening",
-      SONNET_WRITER_MODEL: "claude-sonnet-4-6" });
+      SONNET_WRITER_MODEL: SONNET46 });
   eq("staged 계열 판별", [RP.isStaged("staged"), RP.isStaged("staged-46"),
     RP.isStaged("single-sonnet46")], [true, true, false]);
   eq("기본 실행은 여전히 넷이다", RP.DEFAULT_PATHS,
     ["hybrid-one", "hybrid-pair", "single-sonnet", "staged"]);
   /* 워커 쪽 — 덮어쓰기는 single/anchor Writer 자리에만 닿는다 */
-  const ov = await run({ ENGINE_MODE: "single", SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, BASE);
+  const ov = await run({ ENGINE_MODE: "single", SONNET_WRITER_MODEL: SONNET46 }, BASE);
   eq("덮어쓴 모델로 부른다", [ov.data.stages[0].stage, ov.data.stages[0].model,
     ov.data.trace.writer_model],
-    ["single_writer", "claude-sonnet-4-6", "claude-sonnet-4-6"]);
-  const plain = await run({ CANDIDATE_MODE: "pair", SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, BASE);
+    ["single_writer", SONNET46, SONNET46]);
+  const plain = await run({ CANDIDATE_MODE: "pair", SONNET_WRITER_MODEL: SONNET46 }, BASE);
   eq("hybrid의 Writer에는 안 닿는다", plain.data.stages.map(s => s.model),
-    ["claude-haiku-4-5", "claude-haiku-4-5"]);
+    [MID.writer, MID.director]);
   const badOv = await run({ ENGINE_MODE: "single", SONNET_WRITER_MODEL: "gpt-x" }, BASE);
-  eq("Sonnet 계열이 아니면 무시한다", badOv.data.stages[0].model, "claude-sonnet-4-5-20250929");
+  eq("claude-sonnet- 계열이 아니면 무시한다", badOv.data.stages[0].model, MID.single);
   const crit = await run({ ENGINE_MODE: "single", ANCHOR_REASON: "opening",
-    CANDIDATE_MODE: "pair", SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, PROBE);
-  eq("물린 anchor 턴의 마무리는 여전히 4.5다 — 덮어쓰기가 finalizer에 안 닿는다",
-    crit.data.stages.map(s => s.model.includes("4-6")), [false, false, false, false]);
+    CANDIDATE_MODE: "pair", SONNET_WRITER_MODEL: SONNET46 }, PROBE);
+  eq("물린 anchor 턴의 마무리는 여전히 기본 모델이다 — 덮어쓰기가 finalizer에 안 닿는다",
+    crit.data.stages.map(s => s.model === SONNET46), [false, false, false, false]);
 }
 
 /* ══════════ 7.58 CLI — 반쯤 도는 것보다 안 도는 게 낫다 ══════════ */
@@ -563,7 +576,7 @@ const PROBE = { ...BASE,
     [{ in: 2.00, out: 10.00 }, { in: 3.00, out: 15.00 }]);
 
   /* ── 맨몸 payload — 세 모델 모두 model·max_tokens·system·messages 넷뿐 ──
-     Sonnet 5가 비기본 샘플링·수동 thinking에 400을 내므로 셋 다 같이 뺀다.
+     sonnet5 키의 모델이 비기본 샘플링·수동 thinking에 400을 내므로 셋 다 같이 뺀다.
      model 필드만 빼면 프롬프트가 바이트 단위로 같아야 한다. */
   const payloads = {};
   for (const mk of SW.MODEL_KEYS) {
@@ -587,7 +600,7 @@ const PROBE = { ...BASE,
     Array(3).fill("max_tokens,messages,model,system"));
   eq("모델 필드가 요청 그대로다 — 폴백 없음",
     SW.MODEL_KEYS.map(mk => payloads[mk].model),
-    ["claude-sonnet-4-5-20250929", "claude-sonnet-4-6", "claude-sonnet-5"]);
+    SW.MODEL_KEYS.map(mk => SW.SINGLE_SWEEP_MODELS[mk]));
   eq("model만 빼면 바이트까지 같다", (() => {
     const strip = p => JSON.stringify({ ...p, model: "X" });
     return strip(payloads.sonnet45) === strip(payloads.sonnet46)
@@ -600,7 +613,8 @@ const PROBE = { ...BASE,
     JSON.stringify({ messages: [{ text: "먹었어요." }] })]);
   eq("스윕도 같은 hardFilter를 탄다", rt.data.stages.map(s => [s.stage, s.attempt]),
     [["single_writer", 1], ["single_writer", 2]]);
-  eq("스윕 trace의 writer_model이 5다", rt.data.trace.writer_model, "claude-sonnet-5");
+  eq("스윕 trace의 writer_model이 주입 모델이다", rt.data.trace.writer_model,
+    SW.SINGLE_SWEEP_MODELS.sonnet5);
 
   /* ── 모델별 상태 격리 — 각 모델의 history에는 자기 답만 있다 ── */
   const mini = { label: "TT", user_name: "연",
@@ -678,9 +692,9 @@ const PROBE = { ...BASE,
 }
 
 /* ══════════ 10. G3 — sonnet5-pair-haiku 경로 ══════════
-   Sonnet 5가 한 호출로 후보 A·B → 후보별 코드 검사 → Haiku Director 선택 →
-   못 고르는 모든 갈래에서 Sonnet 4.5 한 번 폴백. 가짜 API 파이프라인으로
-   계약의 표적 열 가지를 실측한다. */
+   상급 pair Writer가 한 호출로 후보 A·B → 후보별 코드 검사 → 저비용
+   Director 선택 → 못 고르는 모든 갈래에서 고정 폴백 Writer 한 번.
+   가짜 API 파이프라인으로 계약의 표적 열 가지를 실측한다. */
 {
   const S5 = { ENGINE_MODE: "sonnet5-pair-haiku" };
   const okBody = (text, model) => ({ ok: true, status: 200, headers: { get: () => null },
@@ -700,9 +714,9 @@ const PROBE = { ...BASE,
     globalThis.fetch = async (url, init) => {
       const c = JSON.parse(init.body);
       sent.push(c);
-      if (c.model === "claude-sonnet-5")
+      if (c.model === MID.pair5)
         return o.writerErr ? errBody(o.writerErr) : okBody(o.writer || TWO, c.model);
-      if (String(c.model).startsWith("claude-sonnet-4-5"))
+      if (String(c.model).startsWith(MID.single.replace(/-\d{8}$/, "")))
         return o.fbErr ? errBody(o.fbErr)
           : okBody(o.fb || JSON.stringify({ messages: [{ text: "나중에요." }] }), c.model);
       if (flatSys(c).includes('{"choice"'))
@@ -727,23 +741,23 @@ const PROBE = { ...BASE,
   /* ① 한 호출에서 정확히 두 후보 */
   const base = await run5({}, BASE);
   eq("s5pair는 쓰기 하나·고르기 하나다", stagesOf(base), ["sonnet5_pair_writer", "haiku_director"]);
-  eq("쓰는 쪽은 Sonnet 5, 고르는 쪽은 Haiku다",
-    base.data.stages.map(s => s.model), ["claude-sonnet-5", "claude-haiku-4-5"]);
+  eq("쓰는 쪽은 상급 pair Writer, 고르는 쪽은 저비용 Director다",
+    base.data.stages.map(s => s.model), [MID.pair5, MID.director]);
   eq("한 호출에서 둘을 청한다", flatMsgs(writerReq()).includes('"candidates"'), true);
   eq("trace에 후보 둘이 다 실린다",
     [base.data.trace.engine_mode, Object.keys(base.data.trace.candidates).sort(),
      base.data.trace.director_choice, base.data.trace.fallback],
     ["sonnet5-pair-haiku", ["A", "B"], "A", false]);
-  eq("usage는 쓰는 쪽 실측이다", base.data.usage.model, "claude-sonnet-5");
+  eq("usage는 쓰는 쪽 실측이다", base.data.usage.model, MID.pair5);
 
   /* ② A·B가 개별로 hardFilter를 탄다 — 한쪽만 죽으면 남은 쪽을 판정한다 */
   const half = await run5({}, BASE, { writer: B_DEAD });
   eq("죽은 후보의 코드가 남는다", half.data.trace.candidate_checks.B, ["SENDER"]);
   eq("산 후보는 깨끗하다", half.data.trace.candidate_checks.A, []);
-  eq("한 후보만 남아도 Haiku가 판정한다 — 폴백이 아니다",
+  eq("한 후보만 남아도 Director가 판정한다 — 폴백이 아니다",
     [stagesOf(half), half.data.trace.fallback], [["sonnet5_pair_writer", "haiku_director"], false]);
 
-  /* ③ 탈락한 후보를 Haiku가 선택하면 그 판정은 무효 — 폴백 */
+  /* ③ 탈락한 후보를 Director가 선택하면 그 판정은 무효 — 폴백 */
   const dead = await run5({}, BASE, { writer: B_DEAD, dir: CHOOSE("B") });
   eq("탈락 후보 선택은 폴백이다",
     [stagesOf(dead), dead.data.trace.fallback,
@@ -763,16 +777,16 @@ const PROBE = { ...BASE,
   eq("B를 고르면 A의 give는 안 따라온다", (gaveB.data.effects || []).length, 0);
   eq("B의 대사가 나간다", gaveB.data.messages.map(m => m.text), ["이따 봐요."]);
 
-  /* ⑤ 둘 다 탈락 → Haiku를 부르지 않고 4.5로 */
+  /* ⑤ 둘 다 탈락 → Director를 부르지 않고 폴백 Writer로 */
   const both = await run5({}, BASE, { writer: BOTH_DEAD });
-  eq("둘 다 탈락이면 Haiku를 생략한다",
+  eq("둘 다 탈락이면 Director를 생략한다",
     stagesOf(both), ["sonnet5_pair_writer", "sonnet45_fallback"]);
   eq("탈락 코드가 폴백 사유에 남는다",
     both.data.trace.fallback_why.sort(), ["A:SENDER", "B:SENDER"]);
 
   /* ⑥ RETRY · 판정 파싱 실패 · 없는 id — 전부 폴백 */
   const retry = await run5({}, BASE, { dir: CHOOSE("RETRY") });
-  eq("Haiku RETRY는 폴백이다", [stagesOf(retry).at(-1), retry.data.trace.fallback_why],
+  eq("Director RETRY는 폴백이다", [stagesOf(retry).at(-1), retry.data.trace.fallback_why],
     ["sonnet45_fallback", ["DIRECTOR_RETRY"]]);
   const garbled = await run5({}, BASE, { dir: "이건 JSON이 아니다" });
   eq("판정 파싱 실패도 폴백이다", [stagesOf(garbled).at(-1),
@@ -788,9 +802,9 @@ const PROBE = { ...BASE,
   eq("없는 rule_id도 판정 무효다",
     badRule.data.trace.fallback_why.some(w => w.includes("없는 rule_id")), true);
 
-  /* ⑦ Sonnet 5는 실패해도 재호출하지 않는다 */
+  /* ⑦ pair Writer는 실패해도 재호출하지 않는다 */
   const s5err = await run5({}, BASE, { writerErr: 529 });
-  eq("호출 실패에도 Sonnet 5는 한 번뿐이다",
+  eq("호출 실패에도 pair Writer는 한 번뿐이다",
     [s5err.data.stages.filter(s => s.stage === "sonnet5_pair_writer").length,
      stagesOf(s5err).at(-1)], [1, "sonnet45_fallback"]);
   const oneCand = await run5({}, BASE,
@@ -801,7 +815,7 @@ const PROBE = { ...BASE,
     [1, ["WRITER_SCHEMA:1/2"], false]);
   const empty = await run5({}, BASE, { writer: JSON.stringify({ candidates: [
     { messages: [{ text: "네." }] }, { messages: [] }] }) });
-  eq("빈 후보도 곧장 폴백이다 — Haiku를 안 부른다",
+  eq("빈 후보도 곧장 폴백이다 — Director를 안 부른다",
     [stagesOf(empty).includes("haiku_director"),
      empty.data.trace.fallback_why.includes("B:EMPTY")], [false, true]);
 
@@ -824,17 +838,17 @@ const PROBE = { ...BASE,
   const single9 = await run({ ENGINE_MODE: "single" }, BASE);
   eq("single 경로도 그대로다", stagesOf(single9), ["single_writer"]);
   /* SONNET_WRITER_MODEL 덮어쓰기는 여전히 single/anchor에만 닿는다 */
-  const ovr = await run5({ SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, BASE, { dir: CHOOSE("RETRY") });
+  const ovr = await run5({ SONNET_WRITER_MODEL: SONNET46 }, BASE, { dir: CHOOSE("RETRY") });
   eq("스윕 덮어쓰기가 s5pair의 세 자리에 안 닿는다",
     ovr.data.stages.map(s => s.model),
-    ["claude-sonnet-5", "claude-haiku-4-5", "claude-sonnet-4-5-20250929"]);
+    [MID.pair5, MID.director, MID.single]);
 
   /* ⑩ 운영 기본값·판 번호가 안 변했다 */
-  eq("ENGINE 운영 자리가 그대로다",
-    [ENG.ENGINE.writer.id, ENG.ENGINE.director.id, ENG.ENGINE.finalizer.id, ENG.CANDIDATE_MODE],
-    ["claude-haiku-4-5", "claude-haiku-4-5", "claude-sonnet-4-5-20250929", "pair"]);
-  eq("Sonnet 5 id는 MODELS에 등록된 것을 재사용한다 — 추측·중복 하드코딩이 아니다",
-    ENG.ENGINE.pairWriter5.id, "claude-sonnet-5");
+  eq("ENGINE 운영 자리가 그대로다 — 쓰기·고르기는 저비용 하나, 마무리만 상위다",
+    [MID.writer === MID.director, MID.writer !== MID.finalizer, ENG.CANDIDATE_MODE],
+    [true, true, "pair"]);
+  eq("pair Writer id는 MODELS 등록 항목을 재사용한다 — 추측·중복 하드코딩이 아니다",
+    [!!MID.pair5, MID.pair5 in RP.PRICES], [true, true]);
   eq("기본 replay 경로 목록에 s5pair가 없다", RP.DEFAULT_PATHS.includes("sonnet5-pair-haiku"), false);
   eq("판 번호가 웹과 앱에서 같다 — H를 안 건드렸다", (() => {
     const web = (readFileSync(join(ROOT, "index.html"), "utf8").match(/NULL_STORY_REV\s*=\s*["'](\d+)["']/) || [])[1];
@@ -894,8 +908,8 @@ const PROBE = { ...BASE,
       && TIME.includes(p.body.now) && DAYS.includes(p.body.day)), true);
 }
 
-/* ══════════ 11. G4 — single5 (Sonnet 5 단일 Writer) ══════════
-   성공 턴 = Sonnet 5 Writer 1회, 후보 정확히 1개, Director·Canon·
+/* ══════════ 11. G4 — single5 (상급 단일 Writer) ══════════
+   성공 턴 = 상급 Writer 1회, 후보 정확히 1개, Director·Canon·
    Character·Finalizer 0회. 탈락시 정확히 한 번 재호출(턴당 최대 2회),
    폴백 없음. 검사·후처리는 기존 경로 그대로다. */
 {
@@ -910,12 +924,12 @@ const PROBE = { ...BASE,
 
   /* 성공 턴 — 한 호출이 전부다 */
   const one = await run(S5ONE, BASE, [GOOD]);
-  eq("single5 성공 턴은 Sonnet 5 한 호출이다", stagesOf(one), ["single5_writer"]);
-  eq("모델이 Sonnet 5다", one.data.stages[0].model, "claude-sonnet-5");
+  eq("single5 성공 턴은 Writer 한 호출이다", stagesOf(one), ["single5_writer"]);
+  eq("모델이 등록된 상급 Writer다", one.data.stages[0].model, MID.pair5);
   eq("후보를 하나만 청한다", flatMsgs(writerReq()).includes('"candidates"'), false);
   eq("고르기·검사·마무리 단계가 없다", otherStages(one), []);
   eq("trace의 경로·모델", [one.data.trace.engine_mode, one.data.trace.writer_model],
-    ["single5", "claude-sonnet-5"]);
+    ["single5", MID.pair5]);
 
   /* 첫 응답 hard reject → 정확히 한 번 재호출 → 성공 */
   const retry = await run(S5ONE, BASE, [BAD, GOOD]);
@@ -932,7 +946,7 @@ const PROBE = { ...BASE,
   eq("두 번 실패는 502다 — 가짜 대사·폴백 없음", twice.status, 502);
   eq("호출은 턴당 최대 2회다", stagesOf(twice), ["single5_writer", "single5_writer"]);
   eq("다른 모델이 전혀 안 불린다",
-    twice.data.stages.every(s => s.model === "claude-sonnet-5"), true);
+    twice.data.stages.every(s => s.model === MID.pair5), true);
 
   /* 후보가 둘 오면 스키마 탈락 → 한 번 재시도 */
   const sch = await run(S5ONE, BASE, [TWO, GOOD]);
@@ -980,7 +994,7 @@ const PROBE = { ...BASE,
   await run({ ENGINE_MODE: "single" }, BASE);
   eq("single(4.5 기준선)도 그대로다 — 규칙 장 없음·모델 4.5",
     [sysOf(writerReq()).includes("[이번 장면의 행동 원칙]"),
-     sent[0].model], [false, "claude-sonnet-4-5-20250929"]);
+     sent[0].model], [false, MID.single]);
   eq("정사 원본은 이미 구분돼 있다 — 재언은 다닌 사람",
     /아홉 살 때 동네 공부방에 맡겨졌다/.test(readFileSync(join(ROOT, "worker.js"), "utf8")), true);
 }
@@ -999,7 +1013,7 @@ const PROBE = { ...BASE,
   eq("single5 fake 실행이 성공한다", sh(`--fake --out=${out1}`), 0);
   const report = readFileSync(join(out1, "report.md"), "utf8");
   eq("36턴(18+18)이 다 돈다", /총 대화 턴: 36 \(1차 18 \+ 안정성 18\)/.test(report), true);
-  eq("모델이 하나뿐이다", /- 모델: claude-sonnet-5\n/.test(report), true);
+  eq("모델이 하나뿐이다", new RegExp(`- 모델: ${MID.pair5}\n`).test(report), true);
   const answers = readFileSync(join(out1, "answers.md"), "utf8");
   eq("answers가 18항목 전부다", (answers.match(/^## A-/gm) || []).length, 18);
   eq("고위험 두 fixture가 들어 있다",
@@ -1022,8 +1036,8 @@ const PROBE = { ...BASE,
 {
   const gv1 = await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" }, BASE);
   eq("golden-v1도 호출은 둘이다(Writer+Director)", stagesOf(gv1), ["writer", "director"]);
-  eq("golden-v1 Writer는 Haiku다", gv1.data.stages[0].model, "claude-haiku-4-5");
-  eq("golden-v1 Director는 Haiku다", gv1.data.stages[1].model, "claude-haiku-4-5");
+  eq("golden-v1 Writer는 저비용 모델이다", gv1.data.stages[0].model, MID.writer);
+  eq("golden-v1 Director는 저비용 모델이다", gv1.data.stages[1].model, MID.director);
   eq("trace에 dialogue_ruleset이 기록된다", gv1.data.trace.dialogue_ruleset, "golden-v1");
   eq("trace에 allCandidates가 기록된다", Array.isArray(gv1.data.trace.allCandidates), true);
   eq("trace에 directorDecision이 기록된다", gv1.data.trace.directorDecision != null, true);
@@ -1145,7 +1159,310 @@ const PROBE = { ...BASE,
       if (/sk-ant|x-api-key|api03/i.test(readFileSync(join(out1, f), "utf8"))) return f;
     return "깨끗";
   })(), "깨끗");
+  /* ── C — attempt 1·2가 두 보고서와 trace에 모두 남는다 ──
+     fake의 T10 강제 RETRY(닫힘 변수)로 재시도가 실제로 한 번 난다.
+     전에는 Director RETRY가 rejectedLog에 안 남아 셋 다 비었다. */
+  const att = readFileSync(join(out1, "attempts.md"), "utf8");
+  eq("T10의 attempt 1 판정이 answers에 남는다",
+    /attempt 1 판정: RETRY/.test(answers) && /attempt 2 판정: /.test(answers), true);
+  eq("T10의 attempt 1 원문·코드가 attempts에 남는다",
+    /1번째 시도 탈락 — 코드: QUESTION_SPAM/.test(att)
+    && /1번째 시도 탈락 — 코드: VOICE_BREAK/.test(att), true);
+  const t10tr = JSON.parse(readFileSync(join(out1, "trace", "A-T10-minhyun-sick-alone.json"), "utf8"));
+  eq("T10 trace에 attempt별 판정이 다 있다",
+    [t10tr.engine.directorDecisions.length,
+     t10tr.engine.directorDecisions[0].decision,
+     t10tr.engine.directorDecisions[0].rule_id,
+     t10tr.engine.directorDecisions[1].decision !== "RETRY"],
+    [2, "RETRY", "minhyun.ask.stops_at_two", true]);
+  eq("세 산출물의 시도 수가 서로 맞는다", (() => {
+    const attempts = Math.max(...t10tr.stages.map(s => s.attempt || 1));
+    const rejAtt = new Set((t10tr.engine.rejected || []).map(r => r.attempt));
+    return attempts === 2 && rejAtt.has(1)
+      && /재시도 후 성공 \(첫 시도 탈락: QUESTION_SPAM, VOICE_BREAK\)/.test(answers);
+  })(), true);
+  /* ── A1 — 화자 순차 사건이 CLI 산출물에도 그대로 남는다 ── */
+  const t14tr = JSON.parse(readFileSync(join(out1, "trace", "A-T14-health-mug-discovery.json"), "utf8"));
+  eq("T14 trace에 disclosure가 남는다",
+    [t14tr.engine.disclosure.fact_id, t14tr.engine.turnContext.requiredSpeakers],
+    ["gift.mug.user_to_jaeeon", ["minhyun", "jaeeon"]]);
+  /* ── A3 — T16 예약이 승격되고 ack까지 나온다 ── */
+  const t16tr = JSON.parse(readFileSync(join(out1, "trace", "A-T16-minhyun-partner-known.json"), "utf8"));
+  eq("T16이 critical로 가고 ack가 남는다",
+    [t16tr.engine.route.tier, t16tr.engine.route.reason, t16tr.scene_ack],
+    ["critical", "partner_known", "partner_known"]);
   eq("비어 있지 않은 outDir은 거부한다", sh(`--fake --out=${out1}`) !== 0, true);
+}
+
+/* ══════════ 13. 계약 누락 복구 — 런타임 검증 ══════════
+   감사(2026-08-24)가 확인한 누락 13건의 복구를 **실행으로** 잰다.
+   소스 문자열 핀은 run.mjs 몫이고, 여기는 가짜 API 파이프라인이 실제로
+   그렇게 도는지를 본다. */
+
+/* ── 13.1 §8.5 화자 순차 — T14: 관측자에 출처가 새지 않는다 ── */
+{
+  const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
+  const r = await run({}, t14.body);
+  eq("T14 — 화자 순차 두 호출이다", stagesOf(r), ["writer", "writer"]);
+  const obsReq = flatMsgs(sent[0]), ownReq = flatMsgs(sent[1]);
+  eq("T14 — 관측자 호출에 출처가 없다",
+    [obsReq.includes("회색 머그컵을 줬다"), obsReq.includes("이재언에게 회색 머그컵이 있다"),
+     obsReq.includes("[지금 장면]"), obsReq.includes("처음 눈에")],
+    [false, true, true, true]);
+  eq("T14 — 소유자 호출에 출처·관측자 대사·무지 조건이 있다",
+    [ownReq.includes("회색 머그컵을 줬다"), ownReq.includes("[이민현] 네."),
+     ownReq.includes("어디서 났는지"), ownReq.includes("모른다")],
+    [true, true, true, true]);
+  eq("T14 — 발화 순서가 관측자→소유자다",
+    r.data.messages.map(m => m.sender), ["minhyun", "jaeeon"]);
+  /* 적대 검증이 잡은 결함의 회귀 — 소유자 호출은 assistant(관측자 대사)로
+     끝나면 안 된다. 지시·가변부가 prefill 안에 들어가면 개행 끝 prefill을
+     API가 400으로 거절해 생산에서만 죽는다. 지시는 새 user 턴이다. */
+  eq("T14 — 소유자 호출이 user 턴으로 끝난다 (prefill 아님)", (() => {
+    const m = sent[1].messages;
+    const last = m[m.length - 1], prev = m[m.length - 2];
+    const lastText = Array.isArray(last.content)
+      ? last.content.map(b => b.text || "").join("\n") : String(last.content);
+    return [last.role, prev.role,
+      String(Array.isArray(prev.content) ? prev.content.map(b => b.text || "").join("\n") : prev.content).includes("[이민현]"),
+      lastText.includes("[지금 장면]")];
+  })(), ["user", "assistant", true, true]);
+  eq("T14 — requiredSpeakers·disclosure가 계약대로다",
+    [r.data.trace.turnContext.requiredSpeakers, r.data.trace.disclosure.fact_id,
+     r.data.trace.disclosure.heard_by],
+    [["minhyun", "jaeeon"], "gift.mug.user_to_jaeeon", ["jaeeon", "minhyun"]]);
+}
+
+/* ── 13.2 T15 — 반대 방향 대칭 ── */
+{
+  const t15 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T15-health-beanie-discovery.json"), "utf8"));
+  const r = await run({}, t15.body);
+  eq("T15 — 화자 순차 두 호출이다", stagesOf(r), ["writer", "writer"]);
+  const obsReq = flatMsgs(sent[0]), ownReq = flatMsgs(sent[1]);
+  eq("T15 — 이번엔 재언이 관측자다",
+    [obsReq.includes("남색 비니를 줬다"), obsReq.includes("이민현에게 남색 비니가 있다"),
+     ownReq.includes("남색 비니를 줬다")],
+    [false, true, true]);
+  eq("T15 — 발화 순서가 재언→민현이다",
+    r.data.messages.map(m => m.sender), ["jaeeon", "minhyun"]);
+}
+
+/* ── 13.3 requiredSpeakers 검사 — 누락·순서 역전·목록 밖 화자 ── */
+{
+  const mk = senders => ({ messages: senders.map(s => ({ sender: s, senderGiven: true, text: "말" })) });
+  const ctx = { requiredSpeakers: ["minhyun", "jaeeon"] };
+  eq("전부·순서대로면 통과", ENG.hardFilter(mk(["minhyun", "jaeeon"]), ["jaeeon", "minhyun"], ctx), []);
+  eq("한 명이 빠지면 SPEAKERS", ENG.hardFilter(mk(["minhyun"]), ["jaeeon", "minhyun"], ctx), ["SPEAKERS"]);
+  eq("순서가 뒤집히면 SPEAKERS", ENG.hardFilter(mk(["jaeeon", "minhyun"]), ["jaeeon", "minhyun"], ctx), ["SPEAKERS"]);
+  eq("빈 계약이면 검사 안 한다", ENG.hardFilter(mk(["jaeeon"]), ["jaeeon", "minhyun"], { requiredSpeakers: [] }), []);
+  /* 목록 밖 화자는 SENDER가 먼저 잡고, SPEAKERS도 겹쳐 잡는다 */
+  eq("목록 밖 화자가 끼면 탈락한다",
+    ENG.hardFilter(mk(["minhyun", "user", "jaeeon"]), ["jaeeon", "minhyun"], ctx).length > 0, true);
+}
+
+/* ── 13.4 비대칭 사건 실패 → 502 — 사건(pending)이 소모될 답을 안 준다 ── */
+{
+  const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
+  const badPart = JSON.stringify({ messages: [{ sender: "jaeeon", text: "내가 왜 여기서" }] });
+  const r = await run({}, t14.body, [badPart, badPart]);   // 관측자 호출 두 시도 다 SENDER
+  eq("관측자가 계속 틀리면 502다 — 각본으로 안 덮는다",
+    [r.status, !!(r.data && r.data.messages)], [502, false]);
+  eq("실패 응답에 scene_ack가 없다 — 사건이 남는다", r.data.scene_ack === undefined, true);
+}
+
+/* ── 13.5 T16 — 예약 승격·이번 턴 Fact·scene_ack ── */
+{
+  const t16 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T16-minhyun-partner-known.json"), "utf8"));
+  const r = await run({}, t16.body);
+  eq("T16 — critical로 간다", stagesOf(r), ["writer", "canon", "character", "finalizer"]);
+  eq("T16 — 라우팅·ack가 계약대로다",
+    [r.data.trace.route.tier, r.data.trace.route.reason, r.data.scene_ack],
+    ["critical", "partner_known", "partner_known"]);
+  eq("T16 — 이번 턴 Fact가 생긴다",
+    r.data.trace.turnContext.facts.some(f => f.fact_id === "story.partner_choice.known"), true);
+
+  /* 실패하면 ack가 없다 — 예약은 클라이언트에 그대로 남는다 */
+  const bad = await run({}, t16.body, null, { canon: ["엉망", "엉망"] });
+  eq("T16 — 검사가 계속 못 읽으면 502·ack 없음",
+    [bad.status, bad.data.scene_ack === undefined], [502, true]);
+}
+
+/* ── 13.6 Canon Critic — 고정 정사 fact_id의 실제 순환 ── */
+{
+  const hit = JSON.stringify({ problems: [{ candidate: "A", critic: "canon",
+    fact_id: "canon.jaeeon.knows_user_20y", code: "FACT_DENIAL" }] });
+  const r = await run({}, PROBE, null, { canon: [hit] });
+  eq("고정 정사 fact_id가 검사에서 돌아온다",
+    [r.status, r.data.trace.criticNotes[0].notes[0].fact_id],
+    [200, "canon.jaeeon.knows_user_20y"]);
+  eq("정사를 어긴 후보는 마무리 재료에서 빠진다", (() => {
+    const fin = sent.find(c => flatSys(c).includes("이 장면의 마지막 손이다"));
+    return fin ? !flatMsgs(fin).includes("[후보 A]") : "마무리 호출 없음";
+  })(), true);
+  /* 허용 목록에 없는 fact_id는 「문제 없음」이 아니라 RETRY다 */
+  const bad = JSON.stringify({ problems: [{ candidate: "A", critic: "canon",
+    fact_id: "canon.jaeeon.없는것", code: "FACT_DENIAL" }] });
+  const r2 = await run({}, PROBE, null, { canon: [bad] });
+  eq("무효 fact_id는 재시도로 간다",
+    [r2.status,
+     r2.data.stages.filter(s => s.stage === "canon").length,
+     (r2.data.trace.rejected || []).some(x => (x.codes || []).includes("CRITIC_SCHEMA"))],
+    [200, 2, true]);
+}
+
+/* ── 13.7 golden RETRY — fact_id·rule_id가 다음 Writer 입력에 오른다 ── */
+{
+  const retry = JSON.stringify({ decision: "RETRY",
+    reject_codes: { A: ["VOICE_BREAK"], B: ["QUESTION_SPAM"] },
+    fact_id: "canon.jaeeon.knows_user_20y", rule_id: "jaeeon.voice.dry_haeyo" });
+  const r = await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" },
+    BASE, null, { director: [retry] });
+  eq("golden RETRY 뒤에도 성공한다", r.status, 200);
+  const w2 = flatMsgs(sent[2]);          // writer#1, director#1, writer#2 …
+  eq("다음 Writer가 코드와 id를 다 받는다",
+    [w2.includes("[이전 시도 탈락]"), w2.includes("A:VOICE_BREAK"),
+     w2.includes("fact:canon.jaeeon.knows_user_20y"), w2.includes("rule:jaeeon.voice.dry_haeyo")],
+    [true, true, true, true]);
+  /* 지어낸 id는 안 올라간다 — 허용 목록 검증 */
+  const fake = JSON.stringify({ decision: "RETRY", reject_codes: { A: ["VOICE_BREAK"] },
+    fact_id: "gift.없는것.user_to_jaeeon", rule_id: "없는.규칙" });
+  await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" }, BASE, null, { director: [fake] });
+  const w2b = flatMsgs(sent[2]);
+  eq("무효 id는 다음 프롬프트에 안 오른다",
+    [w2b.includes("fact:"), w2b.includes("rule:")], [false, false]);
+
+  /* 적대 검증이 잡은 결함의 회귀 둘 —
+     ① 코드가 여섯을 채워도 근거 id는 잘리지 않는다(id가 노트 맨 앞).
+     ② 판정이 지어낸 자유 문장 코드·유령 후보 키는 열 개 허용 목록에서
+        걸러져 다음 프롬프트에 안 오른다. */
+  const six = JSON.stringify({ decision: "RETRY",
+    reject_codes: { A: ["FACT_BREAK", "KOREAN_BROKEN", "VOICE_BREAK"],
+                    B: ["QUESTION_SPAM", "COUNSELOR_TONE", "REPEATS_RECENT"] },
+    fact_id: "canon.jaeeon.knows_user_20y", rule_id: "jaeeon.voice.dry_haeyo" });
+  await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" }, BASE, null, { director: [six] });
+  const w2c = flatMsgs(sent[2]);
+  eq("코드 여섯이어도 id가 살아남는다",
+    [w2c.includes("fact:canon.jaeeon.knows_user_20y"), w2c.includes("rule:jaeeon.voice.dry_haeyo")],
+    [true, true]);
+  const junk = JSON.stringify({ decision: "RETRY",
+    reject_codes: { A: ["말투가 좀 이상함", "VOICE_BREAK"], C: ["QUESTION_SPAM"] },
+    fact_id: null, rule_id: null });
+  const rj = await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" }, BASE, null, { director: [junk] });
+  const w2d = flatMsgs(sent[2]);
+  eq("지어낸 코드·유령 후보 키는 걸러진다",
+    [w2d.includes("말투가 좀 이상함"), w2d.includes("C:QUESTION_SPAM"), w2d.includes("A:VOICE_BREAK"), rj.status],
+    [false, false, true, 200]);
+}
+
+/* ── 13.8 평가기 — 수기 계산과 일치 (D1·D2·D3) ── */
+{
+  const EV = await import("../tools/eval-scenes.mjs");
+  /* D1 — 사건 2 · 부정 3(그중 고른 후보에 붙은 것 1) — 손으로 센 값 */
+  const mem = EV.scoreMemoryReveal([
+    { label: "m1", engine: { route: { reason: "memory_reveal" },
+      criticNotes: [{ attempt: 1, notes: [
+        { candidate: "A", critic: "canon", fact_id: "canon.jaeeon.knows_user_20y", code: "FACT_DENIAL" },
+        { candidate: "B", critic: "canon", fact_id: "canon.study_room.owner", code: "OWNER_SWAPPED" }] }],
+      selectedCandidate: { id: "F" } } },
+    { label: "m2", engine: { route: { reason: "memory_reveal" },
+      criticNotes: [{ attempt: 1, notes: [
+        { candidate: "A", critic: "canon", fact_id: "canon.jaeeon.knows_user_20y", code: "FACT_DENIAL" }] }],
+      selectedCandidate: { id: "A" } } },
+    { label: "일반턴", engine: { route: { reason: "" } } },
+  ]);
+  eq("기억 공개 지표가 수기 계산과 같다",
+    [mem.events, mem.denials, mem.survived], [2, 3, 1]);
+
+  /* D2 — 다섯 갈래를 하나씩 심는다. 분모 5 · ok 1 */
+  const pkBody = ok => ({ mode: "chat", room: "minhyun", partner: "jaeeon",
+    scene_reason: "partner_known", days: 24, counts: { minhyun: 50 },
+    story: { partnerKnown: { jaeeon: true, minhyun: false } },
+    history: [{ role: "user", content: "할 말 있어" }] });
+  const tr = (tier, reason, ack, ok = true) =>
+    ({ ok, scene_ack: ack, engine: { route: { tier, reason } } });
+  const rt = EV.scoreRouting([
+    { label: "ok", body: pkBody(), trace: tr("critical", "partner_known", "partner_known") },
+    { label: "내려감", body: pkBody(), trace: tr("normal", "", null) },
+    { label: "딴사유", body: pkBody(), trace: tr("critical", "confession", null) },
+    { label: "ack없음", body: pkBody(), trace: tr("critical", "partner_known", null) },
+    { label: "실패", body: pkBody(), trace: tr("critical", "partner_known", null, false) },
+    { label: "분모밖", body: { mode: "chat", room: "jaeeon", history: [] },
+      trace: tr("normal", "", null) },
+  ]);
+  eq("라우팅 지표가 수기 계산과 같다",
+    [rt.total, rt.ok, rt.approved_but_normal, rt.wrong_reason, rt.critical_no_ack, rt.failed_no_ack],
+    [5, 1, 1, 1, 1, 1]);
+
+  /* D3 — 리얼: 표기 5 중 심은 오류 1 + epoch 밖 1(표기도 다름) = 어긋남 2.
+     스피드: 앵커+15분 = 게임 오전 9:00 — 심은 오류 1. 전부 손으로 센 값. */
+  const ts = new Date(2026, 0, 6, 14, 30).getTime();
+  const real = EV.scoreClock({ mode: "real", entries: [
+    { ts, surface: "clock", shown: "오후 2:30" },
+    { ts, surface: "divider", shown: "1월 6일 오후 2:30" },
+    { ts, surface: "prompt", shown: "낮" },
+    { ts, surface: "clock", shown: "오후 3:30" },
+    { ts: 123, surface: "clock", shown: "오전 9:00" },
+  ] });
+  eq("리얼 모드 시각 자가 수기 계산과 같다",
+    [real.total, real.mismatches, real.epochBad], [5, 2, 1]);
+  const anchor = Date.now() - 7 * 3600 * 1000;
+  const sp = EV.scoreClock({ mode: "speed", anchor, entries: [
+    { ts: anchor + 15 * 60 * 1000, surface: "clock", shown: "오전 9:00" },
+    { ts: anchor + 15 * 60 * 1000, surface: "prompt", shown: "아침" },
+    { ts: anchor + 15 * 60 * 1000, surface: "clock", shown: "오후 3:00" },
+  ] });
+  eq("스피드 모드 시각 자가 수기 계산과 같다",
+    [sp.total, sp.mismatches, sp.epochBad], [3, 1, 0]);
+}
+
+/* ── 13.9 buildGiven — 추출 전후가 같다 (E3) ── */
+{
+  /* 옛 인라인 코드의 동작을 손으로 옮긴 기대값 — 이번 턴 선물 제외,
+     모르는 사람·모르는 물건 제외, 수신자 보존 */
+  eq("추출 전후가 같다 — 이번 턴 선물은 빠진다",
+    ENG.buildGiven({ jaeeon: ["mug", "없는것"], minhyun: ["beanie"], 남: ["mug"] },
+      { key: "mug", name: "회색 머그컵" }, "jaeeon"),
+    { minhyun: ["beanie"] });
+  eq("추출 전후가 같다 — 선물이 없으면 전부 남는다",
+    ENG.buildGiven({ jaeeon: ["mug"], minhyun: ["letter"] }, null, ""),
+    { jaeeon: ["mug"], minhyun: ["letter"] });
+  eq("추출 전후가 같다 — 빈 입력", ENG.buildGiven(null, null, ""), {});
+}
+
+/* ── 13.10 left·recent — 구조 필드와 런타임 값이 일치한다 (E4) ── */
+{
+  const r = await run({ CANDIDATE_MODE: "one" }, { ...BASE, left: "보건실" });
+  eq("left가 TurnContext에 실린다", r.data.trace.turnContext.left, "보건실");
+  eq("recent가 정규화된 이력에서 찬다",
+    [r.data.trace.turnContext.recent.length > 0,
+     r.data.trace.turnContext.recent[r.data.trace.turnContext.recent.length - 1].content.includes("저녁은요?")],
+    [true, true]);
+  /* 프롬프트에 두 번 실리지 않는다 — buildVolatile은 인자 left만 쓰고
+     ctx.left·ctx.recent는 렌더하지 않는다 */
+  const wk = readFileSync(join(ROOT, "worker.js"), "utf8");
+  const bv = wk.slice(wk.indexOf("function buildVolatile("), wk.indexOf("// 사진 검증"));
+  eq("가변부가 ctx.left·ctx.recent를 렌더하지 않는다",
+    [/ctx\.left/.test(bv), /ctx\.recent/.test(bv)], [false, false]);
+}
+
+/* ── 13.11 운영 기본값 무변경 ── */
+{
+  eq("기본 경로·규칙·후보 수가 그대로다",
+    [ENG.engineMode({}), ENG.dialogueRuleset({}), ENG.candidateMode({})],
+    ["hybrid", "", ENG.CANDIDATE_MODE]);
+  eq("일반 관전(사건 없음)은 여전히 한 호출이다", await (async () => {
+    const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
+    const body = { ...t14.body }; delete body.event;
+    const r = await run({}, body);
+    return stagesOf(r);
+  })(), ["writer"]);
+  eq("비대칭이 아니면 사건이 있어도 일반 관전이다", await (async () => {
+    /* 선물 기록이 없으면 출처 사실이 없다 — 비대칭이 성립 안 한다 */
+    const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
+    const body = { ...t14.body, gifts: {} };
+    const r = await run({}, body);
+    return stagesOf(r);
+  })(), ["writer"]);
 }
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);

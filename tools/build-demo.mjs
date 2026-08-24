@@ -131,8 +131,15 @@ for (const c of ['jaeeon','minhyun']) {
 got += out.fallback.group.length + out.fallback.watch.length;
 for (const arr of [out.group, out.watch, out.multi])
   for (const e of arr) got += (e.script || []).filter(x => x.sender !== 'user').length;
-const want = readFileSync(SRC, 'utf8').split(/\r?\n/)
-  .filter(l => /^[\s　]*(재언|민현)\s*—/.test(l)).length;
+/* 「미사용」 절은 엔진이 일부러 안 옮긴다(발견 장면 견본 등 — 말하기
+   방식만 적는 자리). 분모에서도 빼야 흘림과 의도가 구별된다. */
+let want = 0, wantSec = '';
+for (const l of readFileSync(SRC, 'utf8').split(/\r?\n/)) {
+  const h = l.match(/^##\s+(.*)$/);
+  if (h) { wantSec = h[1]; continue; }
+  if (/미사용/.test(wantSec)) continue;
+  if (/^[\s　]*(재언|민현)\s*—/.test(l)) want++;
+}
 console.log(want === got ? `줄 수 맞음 ${got}` : `!! 흘린 줄이 있다 — 원본 ${want} / 옮긴 것 ${got}`);
 
 const n = o => JSON.stringify(o).length;

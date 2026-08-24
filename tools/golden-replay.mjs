@@ -74,6 +74,7 @@ async function main() {
     const rejected = tr.rejected || [];
     const allCandidates = tr.allCandidates || [];
     const directorDecision = tr.directorDecision || null;
+    const directorDecisions = tr.directorDecisions || (directorDecision ? [directorDecision] : []);
     const row = {
       label: item.label, blurb: item.blurb, body: item.body,
       ok: r.ok, status: r.status,
@@ -81,12 +82,16 @@ async function main() {
       codes: rejected.flatMap(x => x.codes || []),
       finalCodes: r.ok ? [] : rejected.filter(x => x.attempt === 2).flatMap(x => x.codes || []),
       stages, latency: r.latency_ms, rejected,
-      allCandidates, directorDecision,
+      allCandidates, directorDecision, directorDecisions,
+      disclosure: tr.disclosure || null,
+      route: tr.route || null,
+      scene_ack: (r.data && r.data.scene_ack) || null,
       final: r.ok ? linesOf(r.data.messages) : "",
       effects: (r.data && r.data.effects) || [],
       trace: { label: item.label, ok: r.ok, status: r.status,
         latency_ms: r.latency_ms, engine: tr, stages,
         usage_total: r.data && r.data.usage_total,
+        scene_ack: (r.data && r.data.scene_ack) || null,
         finalMessages: (r.data && r.data.messages) || [],
         effects: (r.data && r.data.effects) || [],
         error: r.ok ? null : (r.data && (r.data.detail || r.data.error)) || String(r.status) },
@@ -117,9 +122,8 @@ async function main() {
       return `  [후보 ${c.id}] (attempt ${c.attempt})\n${lines.split("\n").map(l => `  ${l}`).join("\n")}`;
     }).join("\n\n");
   };
-  const fmtDec = dec => {
-    if (!dec) return "  (Director 판정 없음)";
-    const parts = [`  판정: ${dec.decision}`];
+  const fmtOneDec = (dec, head) => {
+    const parts = [`  ${head}판정: ${dec.decision}`];
     if (dec.reject_codes && Object.keys(dec.reject_codes).length) {
       for (const [id, codes] of Object.entries(dec.reject_codes)) {
         const cs = Array.isArray(codes) ? codes : [codes];
@@ -131,6 +135,13 @@ async function main() {
     if (dec.why) parts.push(`  사유: ${dec.why}`);
     return parts.join("\n");
   };
+  /* attempt별 전부 — RETRY로 죽은 attempt 1 판정도 남는다(C) */
+  const fmtDec = c => {
+    if (c.disclosure) return "  (화자 순차 사건 — Director를 안 탄다. 발화 순서는 hardFilter의 필수 화자 검사가 지킨다)";
+    const decs = c.directorDecisions || [];
+    if (!decs.length) return "  (Director 판정 없음)";
+    return decs.map(d => fmtOneDec(d, d.attempt ? `attempt ${d.attempt} ` : "")).join("\n\n");
+  };
 
   const ans = ["# golden-v1 — hybrid-pair + 행동 규칙 (16항목)", "",
     "hybrid-pair Writer에 golden-v1 행동 규칙을 붙이고, Director에 구조화 판정",
@@ -140,8 +151,12 @@ async function main() {
     ans.push(`## A-${item.label}`, "",
       `상황: ${contextLine(item.body)}${item.blurb ? ` — ${item.blurb}` : ""}`, "",
       `유저: ${lastUserOf(item.body)}`, "");
+    if (c.disclosure) ans.push(`(선물 관측 사건 — 화자 순차: ${c.disclosure.by} 소유 · `
+      + `fact ${c.disclosure.fact_id})`, "");
+    if (c.route && c.route.tier === "critical")
+      ans.push(`(중요 장면 — ${c.route.reason}${c.scene_ack ? ` · scene_ack: ${c.scene_ack}` : " · scene_ack 없음"})`, "");
     ans.push("### 후보", "", fmtCands(c.allCandidates), "");
-    ans.push("### Director", "", fmtDec(c.directorDecision), "");
+    ans.push("### Director", "", fmtDec(c), "");
     ans.push("### 최종 대사", "",
       c.ok ? c.final : "(실패 — 최종 대사 없음)", "",
       `결과: ${resultOf(c)}`, "");

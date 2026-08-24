@@ -9,7 +9,7 @@ import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSyst
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -2605,10 +2605,10 @@ eq('자리에 있을 때는 현장이라고 설명해뒀다',
    「반응 안 했는데 / 했는데」 네 턴. 문장은 그대로 두고 자리만 옮겼다. */
 eq('유저 말을 되받아 옮기지 말라고 적어뒀다',
   /유저의 단어를 어미만 바꿔 반복하는 대신/.test(workerSrc), true);
-/* 장면 줄(승인된 사유)까지 실은 뒤가 TURN이다 — TURN은 여전히 맨 뒤 */
+/* 장면 줄(승인된 사유·화자 순차 사건)까지 실은 뒤가 TURN이다 — TURN은 여전히 맨 뒤 */
 eq('그 말은 가변부 맨 뒤에 있다',
   /const TURN = `\n## 이 턴\n유저의 가장 최근 발화가 짧더라도/.test(workerSrc)
-  && /\? `\\n## \[지금 장면\]\\n\$\{CRITICAL_REASONS\[ctx\.sceneReason\]\}[^`]*`\s*\n\s*: ""\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
+  && /disclose && disclose\.text \? `\\n## \[지금 장면\]\\n\$\{disclose\.text\}\\n` : ""\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
 /* 세계관에 두고 왔으면 두 군데에 같은 말이 남는다 */
 eq('세계관에는 안 남겼다',
   (workerSrc.match(/유저의 단어를 어미만 바꿔 반복하는 대신/g) || []).length, 1);
@@ -3114,7 +3114,7 @@ eq('요약이 없으면 그 대목도 없다',
   buildSystem('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 10 }, null, null, [], 5, '')
     .map(b => b.text).join('').includes('## [그동안 있었던 일]'), false);
 /* 요약은 압축이지 연기가 아니다. 여기가 작은 모델 자리다 */
-eq('요약은 하이쿠가 쓴다', /SUMMARY_MODEL = \{ id: "claude-haiku-4-5"/.test(workerSrc), true);
+eq('요약은 저비용 모델이 쓴다', /SUMMARY_MODEL = \{ id: "claude-haiku-4-5"/.test(workerSrc), true);
 /* 인물 프롬프트를 쓰면 압축하러 가서 2만 자를 다시 읽는 꼴이다 */
 eq('요약 호출은 인물 프롬프트를 안 쓴다',
   /askSummary\(env, meter,\s*\n?\s*\[\{ type: "text", text: SUMMARIZE/.test(workerSrc), true);
@@ -3254,7 +3254,7 @@ eq('어느 모델이 답했는지 usage에 실린다',
 eq('웹 콘솔이 멈춤 사유를 찍는다', /멈춤 "\+\(data\.usage\.stop_reason\|\|"\?"\)/.test(web), true);
 /* ── 사고를 끊는 대신 끈다 ──
    max_tokens 900은 사고가 꺼져 있던 때 정한 숫자다. 900 전부가 답 몫이었다.
-   그 뒤 사고를 켜고 effort를 올리는 동안 900은 안 건드렸고, Sonnet 5는
+   그 뒤 사고를 켜고 effort를 올리는 동안 900은 안 건드렸고, sonnet-5는
    사고와 답이 같은 통을 쓰며 사고가 먼저 쓴다 — 사고가 600을 먹으면 답에
    300이 남는다. 배분이 아니라 선착순이다.
    그래서 4.6의 사고 상한(budget_tokens)에 500을 걸었는데, 그 파라미터의 API
@@ -4853,10 +4853,36 @@ eq('시간표 단추는 peek보다 좁다',
   /* 조사 하나로 방향이 갈린다. 「에게 받았다」를 먼저 안 걸면 전부 섞인다 */
   eq('주고받은 방향이 안 섞인다',
     ev.indexOf("'item_from_char'") < ev.indexOf("'gift_to_char'"), true);
-  /* 내보내기가 현실 시각이라 지금 재면 잘못 잰다 */
-  eq('시각 어긋남은 아직 안 잰다', /F단계 뒤|F단계\)/.test(ev), true);
-  /* 텍스트 기록에 없는 것을 재는 척하지 않는다 */
-  eq('못 재는 것을 적어둔다', /아직 안 재는 것/.test(ev) && /trace JSON/.test(ev), true);
+  /* ── D3 — 시각 자는 이제 켜져 있다 ──
+     F(시계 통일)가 끝났으므로 「아직 안 잰다」 계약은 무효다. 시각·장면
+     지표는 trace·fixture를 읽는 별도 자(eval-scenes)가 재고, 텍스트 자는
+     그리로 가리킨다 — 꺼진 상태를 정답으로 고정하지 않는다. */
+  const evScenes = readFileSync(join(ROOT, 'tools/eval-scenes.mjs'), 'utf8');
+  eq('시각 어긋남 자가 켜져 있다',
+    /export function scoreClock/.test(evScenes) && /gameAt\(/.test(evScenes)
+    && !/아직 안 재는 것/.test(ev) && !/F단계 뒤/.test(ev), true);
+  eq('장면 지표도 trace 자가 잰다',
+    /export function scoreMemoryReveal/.test(evScenes)
+    && /export function scoreRouting/.test(evScenes)
+    && /eval-scenes/.test(ev), true);
+  /* 평가기가 승인 조건을 제 나름대로 다시 적지 않는다 — 워커 함수를 쓴다 */
+  eq('라우팅 자는 워커와 같은 판정을 쓴다',
+    /import \{ approveReason, detectScene/.test(evScenes), true);
+
+  /* ── F — 모델 식별자는 산문에 안 남긴다 ──
+     정확한 ID는 worker.js의 MODELS·ENGINE 표(실행 설정)에만 산다. README와
+     docs 산문에서는 역할명으로 쓴다. 엔진 모드·경로·디렉터리 이름은 코드와
+     짝인 기능 식별자라 지우고 잰다. docs/golden·docs/playlog는 기록 원본이라
+     검사 대상이 아니다. 과거 커밋 메시지 3건은 docs/known-gaps.md에 변경
+     불가 위반으로 기록돼 있다 — history는 다시 쓰지 않는다. */
+  eq('산문 파일에 모델 식별자가 없다', (() => {
+    const prose = ['README.md',
+      ...readdirSync(join(ROOT, 'docs')).filter(f => f.endsWith('.md')).map(f => join('docs', f))]
+      .map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n')
+      .replace(/sonnet5-pair-haiku|replay-s5-pair-haiku|single-sonnet(?:46)?|staged-46|sonnet5_pair_writer|haiku_director|sonnet45_fallback|pairWriter5|single5|sonnet45|sonnet46|sonnet5/g, '');
+    const hit = prose.match(/claude-(?:haiku|sonnet|opus)[\w.-]*|Sonnet|Haiku|Opus/i);
+    return hit ? hit[0] : '깨끗';
+  })(), '깨끗');
 
   /* ── 생산 필터는 이번에 안 건드린다 ── */
   eq('생산 hardFilter는 그대로다', (() => {
@@ -5029,7 +5055,7 @@ eq('시간표 단추는 peek보다 좁다',
     const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
     return id('writer') === id('canon') && id('writer') === id('character');
   })(), true);
-  /* 「중요할 때만 위를 쓴다」가 계약인데 고르는 쪽이 Sonnet이었다 —
+  /* 「중요할 때만 위를 쓴다」가 계약인데 고르는 쪽이 위였다 —
      일반 턴마다 위를 부르고 있었다. 위를 쓰는 자리는 마무리 하나뿐이다.
      이 테스트가 옛 구조를 강제하고 있었으므로 같이 고친다. */
   eq('마무리만 위를 쓴다', (() => {
@@ -5375,7 +5401,8 @@ eq('시간표 단추는 peek보다 좁다',
   eq('사실은 요청 진입에서 한 번 만든다',
     (workerSrc.match(/buildFacts\(/g) || []).length, 2);      // 정의 하나 + 호출 하나
   eq('사실 원본이 TurnContext로 들어간다',
-    /const turnCtx = makeTurnContext\([\s\S]{0,900}partnerId: story\.partnerId \},[\s\S]{0,300}facts: \[\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\),\s*\n\s*\.\.\.partnerSceneFacts\(routed\.reason, room, story\.partnerId\)\]/.test(workerSrc), true);
+    /const allFacts = \[\.\.\.canonFacts\(\),\s*\n\s*\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\),\s*\n\s*\.\.\.partnerSceneFacts\(routed\.reason, room, story\.partnerId\)\];/.test(workerSrc)
+    && /const turnCtx = makeTurnContext\([\s\S]{0,1400}facts: allFacts,/.test(workerSrc), true);
   /* 단톡·관전은 쓰는 쪽과 같은 교집합 투영이다 — 화자 투영을 그대로 쓰면
      민현만 아는 사실이 고르는 쪽·검사·마무리에 샌다 */
   eq('고르는 쪽도 같은 원본·같은 투영에서 받는다',
@@ -5413,8 +5440,25 @@ eq('시간표 단추는 peek보다 좁다',
   })(), [['gift.mug.user_to_jaeeon', 'item.mug.with_jaeeon', 'item.letter.with_minhyun'],
          ['item.mug.with_jaeeon', 'gift.letter.user_to_minhyun', 'item.letter.with_minhyun']]);
   eq('이번 턴 선물은 지난 기록에서 뺀다',
-    /k !== now/.test(workerSrc) && /const now = gift && gift\.key/.test(workerSrc), true);
+    /k !== now/.test(workerSrc) && /const now = giftNow && giftNow\.key/.test(workerSrc), true);
+  /* C1의 약속 — buildGiven이라는 이름으로, buildBag 옆에 있다.
+     방향이 갈리는 두 파생이 나란히 보여야 갈림이 눈에 띈다. */
+  eq('buildGiven이 buildBag 옆에 있다', (() => {
+    const i = workerSrc.indexOf('function buildGiven(');
+    const j = workerSrc.indexOf('function buildBag(');
+    return i > 0 && j > 0 && j - i < 900 && i < j;
+  })(), true);
+  eq('준 기록 조립은 buildGiven 하나다',
+    /const givenHistory = buildGiven\(body\.gifts, gift, room\);/.test(workerSrc), true);
   eq('웹이 준 기록을 수신자별로 보낸다', /payload\.gifts=giftsRef\.current/.test(web), true);
+  /* §8.5 — 관전 **사건** 호출은 request()를 안 타는 raw fetch다. 여기에
+     gifts가 안 실리면 워커가 출처·보유 사실을 못 만들어 발견 장면이
+     영영 안 선다. 실패 시 사건이 큐에 남는 계약(ackAutoEvent가 저장 뒤)은
+     기존 검사들이 지킨다 — 여기는 재료가 실리는 것만 본다. */
+  eq('관전 사건 호출도 준 기록을 싣는다', (() => {
+    const i = web.indexOf('mode:"auto",room:"health",user_name:name,counts:roomCounts()');
+    return i > 0 && web.slice(i, i + 900).includes('gifts:giftsRef.current');
+  })(), true);
   /* 앱도 같이 보낸다. 한쪽만 보내면 같은 세이브가 기기마다 다른 사실을 본다 */
   eq('앱도 준 기록을 보낸다', (apiSrc.match(/gifts: await loadGifts\(\)/g) || []).length, 2);
   eq('앱도 평면으로 안 뭉친다', /\.flat\(\)[\s\S]{0,40}gifts|gifts[\s\S]{0,20}\.flat\(\)/.test(apiSrc), false);
@@ -7249,11 +7293,14 @@ eq('시간표 단추는 peek보다 좁다',
   })(), false);
   eq('생산 호출이 전부 Candidate다', (() => {
     /* hardFilter(무엇, …) 의 첫 인자가 배열 리터럴이거나 messages 배열이면 옛 모양이다 */
-    return (wk.match(/hardFilter\(/g) || []).length === 6      // 정의 1 + 호출 5 (G3의 후보 루프·폴백 포함)
+    return (wk.match(/hardFilter\(/g) || []).length === 8      // 정의 1 + 호출 7 (G3 후보·폴백 + §8.5 부분·합침 포함)
         && /hardFilter\(cand, chars, hardCtx\)/.test(wk)      // 일반·pair·one·auto·중요 + G3 후보 루프
         && /hardFilter\(fCand, chars, hardCtx\)/.test(wk)     // 마무리
         && /hardFilter\(fbCand, chars, hardCtx\)/.test(wk)    // G3 폴백
         && /hardFilter\(c0, chars, hardCtx\)/.test(wk)        // 기준선
+        /* §8.5 화자 순차 — 부분 호출은 그 화자만, 필수 화자 검사는 합친 뒤 */
+        && /hardFilter\(cand, \[speaker\], \{ \.\.\.hardCtx, requiredSpeakers: \[\] \}\)/.test(wk)
+        && /hardFilter\(merged, chars, hardCtx\)/.test(wk)
         && !/hardFilter\(kept/.test(wk) && !/hardFilter\(\[/.test(wk);
   })(), true);
   /* 기준선도 같은 검사를 탄다. 전에는 아예 안 탔다 —
@@ -7390,7 +7437,7 @@ eq('시간표 단추는 peek보다 좁다',
      하지 않는다 */
   eq('사실을 다 어기면 마무리를 안 부른다', (() => {
     const i = wk.indexOf('if (!survivors.length)');
-    return i > 0 && wk.slice(i, i + 300).includes('continue;')
+    return i > 0 && wk.slice(i, i + 800).includes('continue;')
         && wk.indexOf('callStage(env, meter, "finalizer"') > i;
   })(), true);
   eq('마무리는 살아남은 후보만 받는다',
@@ -7615,7 +7662,7 @@ eq('시간표 단추는 peek보다 좁다',
      쓰는 쪽 응답 600자를 매 턴 찍고 있었다. 그건 대화 원문이다. */
   eq('응답 원문은 개발 플래그 뒤에 있다', (() => {
     const raw = wk.match(/^\s*(console\.log|devLog)\(`\[NULL\] (응답|기준선 응답)/gm) || [];
-    return raw.length === 2 && raw.every(x => x.includes('devLog('));
+    return raw.length === 3 && raw.every(x => x.includes('devLog('));   // 일반·기준선 + §8.5 부분 호출
   })(), true);
   eq('플래그는 기본으로 꺼져 있다', /let DEV_LOG = false;/.test(wk), true);
   eq('플래그는 요청 진입에서 읽는다', /DEV_LOG = devFlag\(env\);/.test(wk), true);
@@ -8091,7 +8138,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('판정 → 사실 원본 → 프롬프트 순서다', (() => {
     const i = wk.indexOf('const routed = mode !== "chat"');
     const j = wk.indexOf('const turnCtx = makeTurnContext(');
-    const k = wk.indexOf('const volatile = buildVolatile(');
+    const k = wk.indexOf('const volatile = discloseNow ? ""');
     return i > 0 && i < j && j < k;
   })(), true);
   eq('승인된 사유만 장면 줄이 된다',

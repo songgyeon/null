@@ -9,6 +9,7 @@
   "body": {
     "mode": "auto",
     "room": "health",
+    "event": { "kind": "gift", "to": "minhyun", "name": "남색 비니" },
     "user_name": "연",
     "history": [
       {

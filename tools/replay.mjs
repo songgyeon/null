@@ -2,10 +2,10 @@
 /* ── G. 네 갈래 replay 하네스 ──
    같은 입력을 네 경로에 독립 재생해서, 무엇이 실제로 나은지를 잰다.
 
-     hybrid-one     Haiku Writer 후보 1 → Haiku Director ACCEPT/RETRY
-     hybrid-pair    Haiku Writer 한 호출 후보 2 → Haiku Director 선택/RETRY
-     single-sonnet  Sonnet 4.5 Writer 한 호출 (같은 사실·같은 후처리)
-     staged         anchor 턴만 Sonnet 4.5 single Writer, 나머지는 Haiku hybrid
+     hybrid-one     저비용 Writer 후보 1 → 저비용 Director ACCEPT/RETRY
+     hybrid-pair    저비용 Writer 한 호출 후보 2 → 저비용 Director 선택/RETRY
+     single-sonnet  single 비교 Writer 한 호출 (같은 사실·같은 후처리)
+     staged         anchor 턴만 single 비교 Writer, 나머지는 저비용 hybrid
 
    경로는 워커 코드 그대로다 — 여기서 프롬프트를 다시 조립하지 않는다.
    worker.js를 프로세스 안에서 부르고(env로 경로를 고른다), 워커가 만든
@@ -91,14 +91,14 @@ const recentPhotosOf = ms => {
 };
 
 /* ── 경로 → env ──
-   ENGINE_MODE=legacy는 안 쓴다 — MODELS의 4.6→5→4.5 폴백을 타서 깨끗한
-   Sonnet 4.5 기준선이 아니다. single은 고정 singleWriter를 탄다. */
+   ENGINE_MODE=legacy는 안 쓴다 — MODELS 표의 폴백 사슬을 타서 깨끗한
+   single 비교 Writer 기준선이 아니다. single은 고정 singleWriter를 탄다. */
 export const PATHS = ["hybrid-one", "hybrid-pair", "single-sonnet", "staged",
-  /* 동세대 비교 팔 — single/anchor Writer만 Sonnet 4.6으로 바꿔 끼운다.
+  /* 동세대 비교 팔 — single/anchor Writer만 비교 모델(SONNET46)로 바꿔 끼운다.
      기본 실행(--paths 생략)에는 안 들어간다 — 명시로만 돈다. */
   "single-sonnet46", "staged-46",
-  /* G3 — Sonnet 5가 한 호출로 후보 A·B, Haiku Director가 선택, 못 고르면
-     Sonnet 4.5 한 번 폴백. 명시로만 돈다. 혼자 돌면 산출물이
+  /* G3 — 상급 Writer가 한 호출로 후보 A·B, 저비용 Director가 선택, 못 고르면
+     폴백 Writer 한 번. 명시로만 돈다. 혼자 돌면 산출물이
      selected-blind/·pair-blind/·pair-key.json으로 바뀐다. */
   "sonnet5-pair-haiku"];
 export const DEFAULT_PATHS = PATHS.slice(0, 4);
@@ -402,7 +402,12 @@ export async function runSession(ses, paths, opts) {
    단계는 프롬프트의 고정 문구로 가른다. 답 길이는 실측(두 덩이, 출력
    60~110토큰)과 비슷하게 준다 — 짧은 가짜 답이면 요약 문턱 같은 누적
    조건이 fake 모드에서 영영 안 밟힌다. */
-export const fakeFetch = (replies) => async (url, init) => {
+export const fakeFetch = (replies) => {
+  /* T10 강제 재시도 — Director RETRY가 attempt별 산출물에 남는지를 하네스가
+     실행으로 검증하려면, 한 턴은 실제로 RETRY를 겪어야 한다. Director 패킷은
+     attempt 1과 2가 같은 글자라 내용으로는 못 가르므로 닫힘 변수로 센다. */
+  let t10Directors = 0;
+  return async (url, init) => {
   const c = JSON.parse(init.body);
   const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
     .map(b => b.text || "").join("\n");
@@ -415,8 +420,12 @@ export const fakeFetch = (replies) => async (url, init) => {
     text = JSON.stringify({ choice: msgsText.includes("후보 A는 코드 검사에서 탈락")
         ? "B" : "A", reason_codes: [], fact_id: null, rule_id: null });
   else if (sys.includes("SELECT_A · SELECT_B · RETRY"))
-    text = JSON.stringify({ decision: msgsText.includes("후보 B") ? "SELECT_A" : "SELECT_A",
-                            reject_codes: { A: [], B: [] }, fact_id: null, rule_id: null });
+    text = msgsText.includes("나 아픈데 지금 혼자 있어") && ++t10Directors === 1
+      ? JSON.stringify({ decision: "RETRY",
+          reject_codes: { A: ["QUESTION_SPAM"], B: ["VOICE_BREAK"] },
+          fact_id: null, rule_id: "minhyun.ask.stops_at_two" })
+      : JSON.stringify({ decision: "SELECT_A",
+          reject_codes: { A: [], B: [] }, fact_id: null, rule_id: null });
   else if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
     text = JSON.stringify({ decision: msgsText.includes("후보 B") ? "A" : "ACCEPT",
                             reject_codes: {} });
@@ -446,6 +455,7 @@ export const fakeFetch = (replies) => async (url, init) => {
                cache_read_input_tokens: 200, cache_creation_input_tokens: 100 },
       stop_reason: "end_turn" }),
     text: async () => "" };
+  };
 };
 
 /* ── 결정적 섞기 — 블라인드 이름표는 자리로 못 맞히게 한다 ── */
@@ -555,6 +565,8 @@ async function main() {
           engine: (r.data && r.data.trace) || null, stages,
           usage_total: r.data && r.data.usage_total, usage: r.data && r.data.usage,
           effects: (r.data && r.data.effects) || [],
+          /* 라우팅 지표(D2)의 재료 — 예약이 실제로 승격돼 답까지 나왔는지 */
+          scene_ack: (r.data && r.data.scene_ack) || null,
           finalMessages: (r.data && r.data.messages) || [],
           error: r.ok ? null : (r.data && (r.data.detail || r.data.error)) || String(r.status) },
       };
@@ -673,10 +685,10 @@ async function main() {
 
 /* ══════════════ G3 산출물 — sonnet5-pair-haiku 혼자 도는 실행 ══════════════
    selected-blind/  최종 대사만 — 모델명·호출 수·선택 이유를 노출하지 않는다.
-   pair-blind/      Sonnet 5 후보 A·B를 둘 다 — Haiku가 뭘 골랐는지는 숨긴다.
+   pair-blind/      상급 Writer 후보 A·B를 둘 다 — 저비용 Director가 뭘 골랐는지는 숨긴다.
                     표시 순서(ㄱ·ㄴ)는 항목 순번 짝홀로 결정적으로 교차한다 —
                     A가 늘 위에 오는 위치 편향을 막는다.
-   pair-key.json    표시 이름표 ↔ 원래 Candidate id, Haiku 선택, 후보별 코드
+   pair-key.json    표시 이름표 ↔ 원래 Candidate id, Director 선택, 후보별 코드
                     탈락, Director 사유, 폴백 여부. 판정 전에 열지 않는다. */
 function writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE }) {
   const P = "sonnet5-pair-haiku";
@@ -713,7 +725,7 @@ function writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE }) {
     const L = [`# ${name}`, ""];
     const ctx = ctxByItem[r.layer === "B" ? `B-${r.item}` : `A-${r.item}`];
     if (ctx) L.push(`상황: ${ctx}${r.layer === "B" ? ` · #${r.turn}` : ""}`, "");
-    if (!cands) L.push(`(Sonnet 5 후보 없음 — ${r.ok ? "폴백으로 진행" : "턴 실패"})`, "");
+    if (!cands) L.push(`(상급 Writer 후보 없음 — ${r.ok ? "폴백으로 진행" : "턴 실패"})`, "");
     else order.forEach((cid, i) => {
       L.push(`## ${"ㄱㄴ"[i]}`, "");
       const ms = (cands[cid] && cands[cid].messages) || [];
@@ -760,11 +772,11 @@ function writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE }) {
   const route = r => {
     const e = (r.trace && r.trace.engine) || null;
     if (!e) return r.ok ? "?" : "실패(trace 없음)";
-    const p = [e.candidates ? "S5(A·B)" : "S5×"];
+    const p = [e.candidates ? "Writer(A·B)" : "Writer×"];
     if ((r.trace.stages || []).some(s => s.stage === "haiku_director"))
       p.push(`dir:${e.director_choice
         || (e.fallback_why || []).find(w => String(w).startsWith("DIRECTOR")) || "?"}`);
-    if (e.fallback) p.push(r.ok ? "4.5" : "4.5×");
+    if (e.fallback) p.push(r.ok ? "폴백" : "폴백×");
     return p.join(" → ");
   };
   const fmt = n => n.toFixed(4);
@@ -773,10 +785,10 @@ function writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE }) {
     FAKE ? "**--fake 모드 — 모델 없이 하네스만 굴렸다. 숫자는 배선 점검용이다.**" : "",
     "",
     `- 총 replay 턴: ${chat.length} · 성공 ${chat.filter(r => r.ok).length} · 실패 ${chat.filter(r => !r.ok).length}`,
-    `- Sonnet 5 호출: ${nStage("sonnet5_pair_writer")} · Haiku Director 호출: ${nStage("haiku_director")} · 4.5 폴백: ${nStage("sonnet45_fallback")} (폴백 턴 ${fallbacks})`,
+    `- 상급 Writer 호출: ${nStage("sonnet5_pair_writer")} · 저비용 Director 호출: ${nStage("haiku_director")} · 폴백 Writer 호출: ${nStage("sonnet45_fallback")} (폴백 턴 ${fallbacks})`,
     `- 후보 코드 탈락: A ${rejA} · B ${rejB} · 둘 다 ${rejBoth}`,
-    `- Haiku RETRY: ${retry} · 판정 무효/탈락 선택/판정 오류: ${dirBad} · Sonnet 5 스키마/호출 실패: ${schemaBad}`,
-    `- Haiku 선택: A ${chooseA} · B ${chooseB}${chooseA + chooseB ? ` (A ${Math.round(100 * chooseA / (chooseA + chooseB))}%)` : ""}`,
+    `- Director RETRY: ${retry} · 판정 무효/탈락 선택/판정 오류: ${dirBad} · 상급 Writer 스키마/호출 실패: ${schemaBad}`,
+    `- Director 선택: A ${chooseA} · B ${chooseB}${chooseA + chooseB ? ` (A ${Math.round(100 * chooseA / (chooseA + chooseB))}%)` : ""}`,
     `- 지연(턴): 평균 ${avg}ms · p50 ${pct(0.5)}ms · p95 ${pct(0.95)}ms`,
     `- 비용: 대화 ${fmt(chatCost)}$ · 요약 ${fmt(sumCost)}$ · 합 ${fmt(chatCost + sumCost)}$`,
     "", "## 모델별 실측 (대화 턴)",
@@ -786,7 +798,7 @@ function writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE }) {
   rep.push("", "## 턴별 route", "| 항목 | route | 상태 |", "|---|---|---|");
   chat.forEach(r => rep.push(`| ${r.layer === "B" ? `B-${r.item}-${r.turn}` : `A-${r.item}`} | ${route(r)} | ${r.ok ? "ok" : r.status} |`));
   rep.push("", "후보쌍 비교는 pair-blind/, 최종 대사는 selected-blind/,",
-    "이름표 대응·Haiku 선택은 pair-key.json — 판정 전에 열지 않는다.");
+    "이름표 대응·Director 선택은 pair-key.json — 판정 전에 열지 않는다.");
   writeFileSync(join(outDir, "report.md"), rep.filter(x => x !== null).join("\n"));
 }
 

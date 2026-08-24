@@ -38,27 +38,29 @@
 
 | 단계 | 모델 |
 |---|---|
-| Writer | `claude-haiku-4-5` |
-| Normal Director | `claude-haiku-4-5` |
-| Canon Critic | `claude-haiku-4-5` |
-| Character Critic | `claude-haiku-4-5` |
-| Critical Finalizer | `claude-sonnet-4-5-20250929` |
+| Writer | 하급 모델 |
+| Normal Director | 하급 모델 |
+| Canon Critic | 하급 모델 |
+| Character Critic | 하급 모델 |
+| Critical Finalizer | 상급 모델 |
 
-NULL은 Haiku 4.5 + Sonnet 4.5 하이브리드로 간다.
+정확한 ID는 `worker.js`의 `MODELS`·`ENGINE` 표(실행 설정 allowlist)에 있다.
+
+NULL은 하급 모델 + 상급 모델 하이브리드로 간다.
 **위를 쓰는 자리는 하나뿐이다 — 중요 장면의 마무리.**
 
-> Normal Director는 원래 Sonnet 4.5였다. 그러면 「중요할 때만 Sonnet」이 아니라
-> **일반 턴마다 Sonnet을 부르는 것**이 된다. 계약과 실제가 어긋나 있었고,
+> Normal Director는 원래 상급 모델이었다. 그러면 「중요할 때만 상급」이 아니라
+> **일반 턴마다 상급 모델을 부르는 것**이 된다. 계약과 실제가 어긋나 있었고,
 > `test/run.mjs`의 「고르는 쪽과 마무리는 같은 급이다」가 그 어긋남을 강제하고
 > 있었다. 코드·문서·테스트·비용식을 함께 고쳤다(테스트 이름은 「마무리만 위를 쓴다」).
 > 고르는 일은 **쓰는 일보다 쉬운 일**이다 — 후보 둘 중 하나를 고르고 코드를
 > 붙이는 데 위가 필요한지는 증명된 적이 없다. G의 세 갈래 비교가 답한다.
 
-Sonnet 4.6과 Sonnet 5는 이 엔진에서 쓰지 않는다. 실패했을 때 조용히 넘어가지도
-않는다. **모델이 바뀌면 캐릭터의 말맛이 바뀐다.** 4.5를 못 쓰면 실제 오류와
+차상급·최상급 모델은 이 엔진에서 쓰지 않는다. 실패했을 때 조용히 넘어가지도
+않는다. **모델이 바뀌면 캐릭터의 말맛이 바뀐다.** 확정 모델을 못 쓰면 실제 오류와
 재시도 상태를 돌려준다.
 
-모델 ID는 각 함수에 직접 쓰지 않는다. 설정 한곳에서 관리해서, 나중에 4.5가
+모델 ID는 각 함수에 직접 쓰지 않는다. 설정 한곳에서 관리해서, 나중에 확정 모델이
 종료되더라도 설정과 평가 자료만 갈아끼우면 되게 한다.
 
 > ✅ 걷었다. `MODELS`의 순차 폴백이 남은 데는 둘뿐이다 — 말맛과 무관한
@@ -71,11 +73,11 @@ Sonnet 4.6과 Sonnet 5는 이 엔진에서 쓰지 않는다. 실패했을 때 �
 
 ```
 TurnPacket 생성 — 코드
-→ Writer — Haiku 4.5
+→ Writer — 하급 모델
 → Hard Filter와 Soft Signal — 코드
-→ Director — Haiku 4.5
+→ Director — 하급 모델
 → 최종 검사 — 코드
-→ Director가 고른 Haiku 후보를 그대로 출력
+→ Director가 고른 Writer 후보를 그대로 출력
 ```
 
 일반 턴은 **호출 둘이 전부다.** Director는 **대사를 쓰지 않는다.** 후보를 비교해
@@ -113,12 +115,12 @@ Director에게 Writer의 프롬프트 전체를 다시 주지 않는다. 작은 
 
 ```
 CriticalScenePacket 생성 — 코드
-→ Writer — Haiku 4.5
+→ Writer — 하급 모델
 → Hard Filter — 코드
 → Canon Critic ┐
-               ├ Haiku 4.5 병렬 — 각각 한 호출로 후보 전부를 본다
+               ├ 하급 모델 병렬 — 각각 한 호출로 후보 전부를 본다
 → Character Critic ┘
-→ Finalizer — Sonnet 4.5
+→ Finalizer — 상급 모델
 → 최종 검사와 상태 반영 — 코드
 → 출력
 ```
@@ -128,10 +130,10 @@ CriticalScenePacket 생성 — 코드
 후보 표식(`candidate`)을 남긴다. 후보마다 부르면 여섯 호출이 나고, 결과를
 합치면서 어느 후보의 문제였는지가 사라진다.
 
-중요 장면에서는 일반 Director를 따로 부르지 않는다. Sonnet 4.5 Finalizer가 후보 선택과
+중요 장면에서는 일반 Director를 따로 부르지 않는다. 상위 Finalizer가 후보 선택과
 최종 문장 완성을 함께 맡는다.
 
-Finalizer를 Sonnet 4.5로 둔 까닭은, 중요한 장면에서는 정확성만큼 감정의 체온·서브텍스트·
+Finalizer를 상급 모델로 둔 까닭은, 중요한 장면에서는 정확성만큼 감정의 체온·서브텍스트·
 머뭇거림·미련·말하지 않은 부분이 중요하기 때문이다. 정사와 상태는 앞 단계의 코드와
 Canon Critic이 붙잡고, Character Critic은 관계 속도와 캐릭터 붕괴를 본다. Finalizer는
 그 경계 안에서 유저가 실제로 읽을 대사의 말맛을 완성한다.
@@ -162,7 +164,7 @@ partner_id 확정 / D-0 선택 / 선택 직후 첫 반응
 
 ## 5. Writer 프롬프트
 
-Haiku Writer에게 규칙만 더 쌓지 않는다. 선택 엔진은 두 후보에 없는 설렘을 만들 수 없다.
+저비용 Writer에게 규칙만 더 쌓지 않는다. 선택 엔진은 두 후보에 없는 설렘을 만들 수 없다.
 그래서 각 캐릭터가 지금 관계 단계에서 취할 수 있는 행동과 주목할 재료를 보강한다.
 
 재언:
@@ -183,7 +185,7 @@ Haiku Writer에게 규칙만 더 쌓지 않는다. 선택 엔진은 두 후보�
 상대 반응에 따라 철수하거나 한 번 더 다가가는 조건
 ```
 
-고정 대사를 대량 추가하는 작업이 아니다. 상황에 따라 Haiku가 즉흥적으로 조합할
+고정 대사를 대량 추가하는 작업이 아니다. 상황에 따라 저비용 Writer가 즉흥적으로 조합할
 **행동 어휘**를 주는 작업이다.
 
 ## 6. 후보 수
@@ -192,9 +194,9 @@ Haiku Writer에게 규칙만 더 쌓지 않는다. 선택 엔진은 두 후보�
 교체 가능하게 구현하고 최소한 이 셋을 비교한다.
 
 ```
-Haiku 한 호출에서 후보 1개
-Haiku 한 호출에서 후보 2개
-Haiku를 두 번 병렬 호출해 후보 하나씩
+저비용 Writer 한 호출에서 후보 1개
+저비용 Writer 한 호출에서 후보 2개
+저비용 Writer를 두 번 병렬 호출해 후보 하나씩
 ```
 
 한 후보 방식에서는 Director가 `ACCEPT` / `RETRY`를, 두 후보 방식에서는 `A` / `B` / `RETRY`를
@@ -228,7 +230,7 @@ n-gram, 물음표 비율, 문구 목록은 **참고 신호**다. 자연어 의�
 
 ## 8. 비용과 로그
 
-이 하이브리드가 지금의 단일 Sonnet 호출보다 싸다고 미리 단정하지 않는다.
+이 하이브리드가 지금의 단일 상급 모델 호출보다 싸다고 미리 단정하지 않는다.
 실험 전에 호출 단계별로 기록한다. ✅ 응답의 `stages`가 이 줄들이다.
 
 ```
@@ -257,9 +259,9 @@ latency_ms / attempt / status / scene_tier
 기본 로그에 남는 것은 단계·토큰·지연·오류 코드뿐이다.
 
 ```
-B = 현재 Sonnet 단일 생성 평균 비용
-N = 일반 턴 — Haiku Writer + Haiku Director 평균 비용   (호출 2)
-K = 중요 턴 — Haiku Writer + Haiku Critic ×2 + Sonnet 4.5 Finalizer 평균 비용   (호출 4)
+B = 현재 상급 모델 단일 생성 평균 비용
+N = 일반 턴 — 저비용 Writer + 일반 Director 평균 비용   (호출 2)
+K = 중요 턴 — 저비용 Writer + 검사(하급) ×2 + 상위 Finalizer 평균 비용   (호출 4)
 
 중요 턴 비율이 p일 때   NEW = (1 - p) × N + p × K
 ```
@@ -286,12 +288,12 @@ disclosure         {fact_id, by, heard_by, room, at}
 
 **모든 단톡 턴을 화자별 호출로 바꾸지 않는다.** 비용이 늘고 구조가 과해진다.
 일반 단톡·관전은 기존 한 호출을 유지하고, **정보가 비대칭인 사건만** 화자
-순차 경로를 쓴다. Sonnet까지 갈 자리가 아니다 — Haiku 두 호출이면 된다.
+순차 경로를 쓴다. 상급 모델까지 갈 자리가 아니다 — 하급 모델 두 호출이면 된다.
 
 ```
 선물 관측 사건일 때만
-  ① Haiku 민현   자기 known_by만 받는다        → 「삼촌, 그거 어디서 났어요?」
-  ② Haiku 재언   자기 known_by + 민현의 실제 대사  → 「책상 위에 있었으면 그냥 두지 그랬어요.」
+  ① 하급 모델 민현   자기 known_by만 받는다        → 「삼촌, 그거 어디서 났어요?」
+  ② 하급 모델 재언   자기 known_by + 민현의 실제 대사  → 「책상 위에 있었으면 그냥 두지 그랬어요.」
 반대 방향이면 순서와 말투가 바뀐다
   ① 재언 「그거 책상 위에 있던데.」 → ② 민현 「봤어요?」
 ```
@@ -551,7 +553,7 @@ Expo는 자체 `fmtTime`을 버리고 rules의 시계를 들여온다(`tools/bui
 
 지금 경로를 바로 지우지 말고 기능 플래그 뒤에 기준선으로 남긴다.
 ✅ `ENGINE_MODE=legacy`. 같은 대화를 두 길로 굴려서 나란히 볼 수 있다.
-단 **legacy는 깨끗한 Sonnet 4.5 기준선이 아니다** — MODELS의 4.6→5→4.5
+단 **legacy는 깨끗한 상급 모델 기준선이 아니다** — MODELS의 차상급→최상급→상급
 폴백을 타서 턴마다 답한 모델이 다를 수 있다. G 비교의 single·anchor에는
 재사용하지 않고 고정 `singleWriter`/`anchorWriter`를 쓴다.
 
@@ -561,10 +563,10 @@ Expo는 자체 `fmtTime`을 버리고 rules의 시계를 들여온다(`tools/bui
 
 | 경로 | 모양 |
 |---|---|
-| `hybrid-one` | Haiku Writer 후보 1 → Haiku Director ACCEPT/RETRY |
-| `hybrid-pair` | Haiku Writer 한 호출 후보 2 → Haiku Director 선택/RETRY (운영 기본) |
-| `single-sonnet` | 고정 Sonnet 4.5 Writer 한 호출 — 같은 사실·같은 후처리, 중요 장면도 한 호출 |
-| `staged` | anchor 턴만 Sonnet 4.5 single Writer, 나머지는 고른 Haiku hybrid |
+| `hybrid-one` | 저비용 Writer 후보 1 → 일반 Director ACCEPT/RETRY |
+| `hybrid-pair` | 저비용 Writer 한 호출 후보 2 → 일반 Director 선택/RETRY (운영 기본) |
+| `single-sonnet` | 고정 single 비교 Writer(상급 모델) 한 호출 — 같은 사실·같은 후처리, 중요 장면도 한 호출 |
+| `staged` | anchor 턴만 상급 모델 single Writer, 나머지는 고른 저비용 hybrid |
 
 넷 다 **워커 코드 그대로**다(`ENGINE_MODE`·`CANDIDATE_MODE`·`ANCHOR_REASON`
 env로 고른다). 프롬프트 조립·parse·hardFilter·Effect·scene_ack이 전부 같은
@@ -574,20 +576,20 @@ env로 고른다). 프롬프트 조립·parse·hardFilter·Effect·scene_ack이 
 - `opening` — 각 1:1방의 첫 두 모델 생성 응답. 코드 고정 첫 선톡은 안 센다.
 - `summary_rollover` — **요약 upto의 전진**으로 판정한다. 같은 요약문이어도
   upto가 전진했으면 원문 창이 실제로 밀린 것이고, 문장만 바뀌고 upto가
-  같으면 굴림이 아니다. 실사용 창은 클라이언트의 12,000자다 — 초반 Sonnet
+  같으면 굴림이 아니다. 실사용 창은 클라이언트의 12,000자다 — 초반 상급 모델
   대사가 원문 이력에서 빠지고 요약문으로 압축되는 순간이 실제 재정착 지점이다.
 - `stage_enter` — 관계 단계가 직전 관찰과 달라진 직후 첫 응답 딱 한 번.
 
 우선순위는 중요 장면 → opening → summary_rollover → stage_enter, 한 턴에
-하나다. **중요 장면이면 기존 경로(쓰기→검사 둘→Sonnet 마무리)가 이긴다** —
-한 턴에 Sonnet을 Writer와 Finalizer 두 자리에 사지 않는다. 판정은 워커가
+하나다. **중요 장면이면 기존 경로(쓰기→검사 둘→상급 마무리)가 이긴다** —
+한 턴에 상급 모델을 Writer와 Finalizer 두 자리에 사지 않는다. 판정은 워커가
 한다: 하네스는 anchor 후보를 그대로 보내고, **워커가 실제로 critical로
 승인했을 때만** `anchor_declined`가 작동한다 — 승인 안 된 낡은 scene_reason
 예약이 anchor를 막으면 안 된다. **물린 anchor는 소진되지 않는다** — 관찰이
 전진하지 않아서 다음 적격 턴에 같은 사유가 다시 선다. 실패한 턴도 세 사유
 모두 소진하지 않는다 — 계약의 「직후 첫 응답」에서 응답이 없던 턴은 직후가
 아니다. 높은 사유가 그 턴을 **실제로 썼으면** 낮은 사유의 「직후 한 턴」은
-지나간 것으로 본다 — 그 턴도 이미 Sonnet이다.
+지나간 것으로 본다 — 그 턴도 이미 상급 모델이다.
 캐시 hit/miss·`cache_read_input_tokens`·경과 시간은 조건이 아니다 — 캐시는
 가격·지연의 문제지 품질의 문제가 아니고, 호출한 뒤에야 알 수 있다.
 단톡·관전은 anchor 대상이 아니다.
@@ -612,7 +614,7 @@ anchor는 정확히 1, pair는 정확히 2. 모델이 후보 둘을 내면 one�
 - 예상 밖의 UI Effect(초대·물건)가 나오면 그 세션은 invalid로 끝난다 —
   하네스는 그 창에 답할 수 없으므로 무시하고 진행하면 앱과 다른 기록이 된다.
 - 비용은 워커의 캐시 계약(TTL 1h)과 같은 단일 계약으로 잰다 — 쓰기 2×,
-  읽기 0.1×. Sonnet 5는 $2/$10 per MTok. 단가를 모르는 모델이 나오면 $0으로
+  읽기 0.1×. 최상급 모델은 $2/$10 per MTok. 단가를 모르는 모델이 나오면 $0으로
   조용히 새지 않고 보고가 INVALID가 되며 비정상 종료한다.
 - 모르는/중복/빈 `--paths`, 없는/빈 packet·session 디렉터리, 비어 있지 않은
   `--out`은 전부 비정상 종료다 — 지난 실행의 trace가 새 보고에 섞이지 않는다.
@@ -626,8 +628,8 @@ anchor는 정확히 1, pair는 정확히 2. 모델이 후보 둘을 내면 one�
 - A. 동일 TurnPacket(`test/packets/*.json`, 14개)을 네 경로에 각각 —
   사실 위반·말맛·비용·지연을 같은 입력 위에서.
 - B. 같은 초기 세이브·같은 유저 입력 순서(`test/sessions/*.json`)를 경로마다
-  **독립 세션**으로 — 자기 출력이 자기 다음 history에 들어간다. Sonnet이
-  초반에 만든 말맛을 Haiku가 실제로 이어가는지는 이 층만 답한다. 한 경로의
+  **독립 세션**으로 — 자기 출력이 자기 다음 history에 들어간다. 상급 모델이
+  초반에 만든 말맛을 하급 모델이 실제로 이어가는지는 이 층만 답한다. 한 경로의
   출력을 다른 경로 history에 섞지 않는다. 하네스는 클라이언트의 이력 창
   (12,000자)·요약 굴림(12,000자 문턱·꼬리 4,000자)을 그대로 복제해 돈다.
   세 대본이 세 사유를 나눠 밟는다: S1·S2가 opening과 stage_enter를,
@@ -654,17 +656,18 @@ node test/engine-pipeline.test.mjs                 # 네 갈래 회귀 113개
 TRACE 응답은 replay 전용이다 — 운영 env에는 TRACE가 없고, turnContext와
 후보 원문이 실리므로 §12에 따라 운영 로그·기본 응답에는 싣지 않는다.
 
-### G2 — Sonnet 4.5 · 4.6 · 5 single 모델 스윕 (구현됨)
+### G2 — 상급·차상급·최상급 single 모델 스윕 (구현됨)
 
 구조 비교가 아니라 배우 교체다: 동일한 세계관·TurnContext·프롬프트·후처리
-(single 경로 그대로)에서 **모델 ID만** 셋을 바꿔 세운다. 이 결과로 운영
+(single 경로 그대로)에서 **모델 ID만** 셋을 바꿔 세운다(정확한 ID는
+`worker.js`의 `MODELS`·`ENGINE` 표에 있다). 이 결과로 운영
 모델 하나를 확정하고 엔진 실험을 끝낸다. 어느 모델이 이길지는 실험 전에
 적지 않는다.
 
 - 세 모델 모두 `ENGINE_MODE=single` + `SWEEP_BARE=1` — payload는
   model·max_tokens·system·messages 넷뿐이다. temperature·top_p·top_k·수동
-  thinking·budget·effort 전부 없음(Sonnet 5가 비기본 샘플링에 400을 내므로
-  셋 다 같이 뺀다). 각 모델의 **기본 동작**이 비교 대상이다 — 5의 adaptive
+  thinking·budget·effort 전부 없음(최상급 모델이 비기본 샘플링에 400을 내므로
+  셋 다 같이 뺀다). 각 모델의 **기본 동작**이 비교 대상이다 — 최상급의 adaptive
   thinking도 사용량·지연에 그대로 포함된다. model만 빼면 payload가 바이트
   단위로 같음을 테스트가 강제한다.
 - 실험량: 기본 42턴×3=126 + 안정성(문제 장면 10항목 × 추가 2회 × 3)=60,
@@ -672,7 +675,7 @@ TRACE 응답은 replay 전용이다 — 운영 env에는 TRACE가 없고, turnCo
   이상한 답」과 한 번의 운을 가르는 장치다.
 - 공정 계약은 G 그대로: 단위마다 순서 회전, 순차 호출, 모델별 상태 완전
   분리, 실패 시 같은 body·같은 이름표 UI 재시도 1회 후 incomplete, 폴백
-  없음, 모르는 모델/usage는 INVALID + 비정상 종료. Sonnet 5 비용은 문자
+  없음, 모르는 모델/usage는 INVALID + 비정상 종료. 최상급 모델 비용은 문자
   수 추정이 아니라 **실측 usage만** 쓴다(새 토크나이저).
 - 산출물 `replay-model-out/`: blind(갑·을·병, 항목별 독립 셔플) ·
   blind-stability(이름표당 같은 모델 sample 3) · blind-key · trace ·
@@ -686,15 +689,15 @@ node tools/model-sweep.mjs --fake              # 배선 전수 점검 (186턴)
 ANTHROPIC_API_KEY=<키> node tools/model-sweep.mjs   # 실제 스윕 1회
 ```
 
-### G3 — sonnet5-pair-haiku (구현됨, 실험 전용)
+### G3 — `sonnet5-pair-haiku` (구현됨, 실험 전용)
 
-모든 모델 응답 턴에서 **Sonnet 5가 한 호출로 후보 A·B**를 쓰고(MODELS에
+모든 모델 응답 턴에서 **최상급 모델이 한 호출로 후보 A·B**를 쓰고(MODELS에
 등록된 id 재사용, payload 맨몸), 후보마다 기존 코드 검사(같은 파서·같은
-hardFilter·같은 Effect 검증)를 태운 뒤 **Haiku Director가 하나를 고른다**
+hardFilter·같은 Effect 검증)를 태운 뒤 **일반 Director(하급)가 하나를 고른다**
 (`{"choice":"A|B|RETRY","reason_codes":[],"fact_id":null,"rule_id":null}` —
 없는 id를 대면 판정 무효). 스키마 위반·빈 후보·둘 다 탈락·RETRY·판정
-무효·탈락 후보 선택의 모든 갈래에서 **Sonnet 4.5가 딱 한 번 폴백**하고,
-그것도 걸리면 그 턴은 실패다. Sonnet 5 재호출은 없다. normal·group·관전·
+무효·탈락 후보 선택의 모든 갈래에서 **상급 모델이 딱 한 번 폴백**하고,
+그것도 걸리면 그 턴은 실패다. 최상급 모델 재호출은 없다. normal·group·관전·
 중요 장면 전부 이 한 갈래를 타되 라우팅·Fact 투영·scene_ack 계약은
 그대로다. 운영 기본값에는 아무 영향이 없다 — `ENGINE_MODE`로만 켜진다.
 trace stage 이름은 `sonnet5_pair_writer`·`haiku_director`·`sonnet45_fallback`.
@@ -706,17 +709,17 @@ node tools/replay.mjs --fake --paths=sonnet5-pair-haiku \
 
 혼자 돌면 산출물이 갈린다: `selected-blind/`(최종 대사만) ·
 `pair-blind/`(후보 A·B 둘 다, 표시 순서 ㄱ·ㄴ은 항목마다 결정적 교차) ·
-`pair-key.json`(이름표 대응·Haiku 선택·후보별 탈락·폴백 여부 — 판정 전에
+`pair-key.json`(이름표 대응·Director 선택·후보별 탈락·폴백 여부 — 판정 전에
 열지 않는다) · `report.md`(호출 수·탈락·RETRY·A/B 비율·모델별 토큰·비용·
 p50/p95·턴별 route). 평가 packet은 `test/packets-taste/` 16문항 —
 말맛·설렘·정사·관계성이 확실히 갈리게 유저가 직접 고른 질문들이다.
 
-### G4 — single5 (구현됨, 실험 전용)
+### G4 — `single5` (구현됨, 실험 전용)
 
-Sonnet 5 **단일 Writer** 실험이다. single(4.5 기준선)과 완전히 같은 배선 —
+최상급 모델 **단일 Writer** 실험이다. single(상급 모델 기준선)과 완전히 같은 배선 —
 한 호출·후보 하나·Director/Canon/Character/Finalizer 0회·같은 검사·같은
 후처리·탈락시 정확히 한 번 재호출(턴당 최대 2회)·폴백 없음 — 에서 Writer
-자리만 Sonnet 5다(`ENGINE_MODE=single5`, id는 pairWriter5 재사용). 관전·
+자리만 최상급 모델이다(`ENGINE_MODE=single5`, id는 pairWriter5 재사용). 관전·
 단톡·중요 장면 포함 모든 생성이 이 한 호출이다. single5에만 행동 규칙 한
 장(`single5Rules`)이 비변이 복사로 system 뒤에 붙는다 — 호의에 시비 걸지
 않기·질문 핵심에 먼저 답하기·없는 사건 안 만들기·공부방 정사(재언 1:1에만,
@@ -841,9 +844,9 @@ Director와 Finalizer의 판단 기준은 NULL 실제 대화로 조정한다.
 ## 10. 실패와 폴백
 
 ```
-Sonnet 4.5 실패
-→ Sonnet 4.6 자동 전환 금지
-→ Sonnet 5 자동 전환 금지
+상급 모델 실패
+→ 차상급 모델 자동 전환 금지
+→ 최상급 모델 자동 전환 금지
 → 데모 대사 출력 금지
 → 실제 오류 상태와 재시도
 ```
@@ -879,8 +882,8 @@ UI는 호출 횟수나 모델 종류를 전제하지 않고 최종 응답 하나
 
 ```
 코드가 세계의 사실을 결정한다.
-Haiku 4.5가 살아 있는 반응을 탐색하고, 그중 하나를 고른다.
-중요한 장면에서만 Sonnet 4.5가 직접 최종 대사를 완성한다.
+하급 모델이 살아 있는 반응을 탐색하고, 그중 하나를 고른다.
+중요한 장면에서만 상급 모델이 직접 최종 대사를 완성한다.
 위를 쓰는 자리는 그 하나뿐이다.
 모델의 우수성과 비용은 추측이 아니라 실제 NULL 대화와 usage로 판단한다.
 ```

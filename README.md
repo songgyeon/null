@@ -9,8 +9,8 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs                   # 1859개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
-node test/engine-pipeline.test.mjs  # 생성 경로 회귀 279개 (G 네 갈래 + G2 모델 스윕 + G3 sonnet5-pair-haiku + G4 single5 + G5 golden-v1) — 역시 키 없이 돈다
+node test/run.mjs                   # 1864개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/engine-pipeline.test.mjs  # 생성 경로 회귀 326개 (G 네 갈래 + G2 모델 스윕 + G3 sonnet5-pair-haiku + G4 single5 + G5 golden-v1 + §13 계약 복구) — 역시 키 없이 돈다
 node tools/eval.mjs                 # 대사 품질 자 — 내보낸 기록에서 명백한 것을 센다
 node tools/replay.mjs --fake        # 네 갈래 replay 하네스 자체 점검 (실제 재생은 ANTHROPIC_API_KEY로)
 ```
@@ -417,7 +417,7 @@ D-0에서 멈춰만 두는 것도 틀렸습니다. 백 일째에도 「잘 지�
 [웹]  GitHub Pages ── React (단일 HTML, 빌드 없음)
                           │
                           ▼
-[API] Cloudflare Workers ── Claude Sonnet 5
+[API] Cloudflare Workers ── Claude API (운영 모델)
                           │
 [앱]  Expo / React Native ── SQLite (로컬 영속)
                           └ Cloudflare R2 (오디오)
@@ -425,7 +425,7 @@ D-0에서 멈춰만 두는 것도 틀렸습니다. 백 일째에도 「잘 지�
 
 **백엔드 (Cloudflare Workers)**
 
-- **모델 폴백 체인** — Sonnet 5 → 4.6 → 4.5. 400/404는 다음 모델로, 401/429/5xx는 즉시 중단. 성공한 모델을 기억해 재사용
+- **모델 폴백 체인** — 최상급 → 차상급 → 상급 순(정확한 ID는 `worker.js`의 `MODELS` 표). 400/404는 다음 모델로, 401/429/5xx는 즉시 중단. 성공한 모델을 기억해 재사용
 - **실행 지역 고정** — `placement: { mode: "targeted", region: "azure:koreasouth" }`
 - **출처 제한 + 레이트리밋 + 진단 잠금** — 아래 참조
 
@@ -492,7 +492,7 @@ java.lang.NoClassDefFoundError: expo/modules/kotlin/types/AnyTypeCache
 교훈은 두 개입니다. 네이티브가 낀 문제에서 증상으로 원인을 찍는 것은 로그 한 번보다 항상 느립니다.
 그리고 Expo 프로젝트에서 네이티브 모듈은 `npm install`이 아니라 `expo install`로 깔아야 합니다.
 
-### Sonnet 5의 temperature 미지원
+### 최상급 모델의 temperature 미지원
 
 모델 업그레이드 후 400이 났습니다. `temperature`가 거부되는 것이 원인이었습니다. 제거하고 문체의 변주는 시스템 프롬프트가 담당하도록 이관했습니다. 이 경험이 모델 폴백 체인을 만든 계기입니다.
 
