@@ -2,7 +2,7 @@ import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, 
 /* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
 import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner, loadStory, originPhase } from './rules';
-import { loadGifts } from './profiles';
+import { loadGifts, loadDisclosed } from './profiles';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
 export const IMG = 'https://songgyeon.github.io/null/';
@@ -207,6 +207,8 @@ export async function sendChat(room: string, userName: string, history: Msg[],
        누구에게 준 것인지가 사라지고, 워커가 사실을 만들 수가 없다.
        이번 턴에 건넨 것은 워커가 gift와 겹치는 것을 빼준다. 웹과 같아야 한다. */
     gifts: await loadGifts(),
+    /* 공개 장부 — 출처가 말해진 사실의 known_by가 다음 턴 투영에서 넓어진다 (§8.5) */
+    disclosed: await loadDisclosed(),
     /* 지금이 언제인가. 워커는 UTC로 돌고 어느 엣지에 뜨는지도 그때그때라
        여기서 재서 보낸다 — 요일은 때보다 세다(주말이면 학교가 통째로 없다) */
     now: timeWord(),
@@ -295,6 +297,8 @@ export async function genAuto(userName: string, event?: any, reqId?: string) {
     history: buildHistory(healthMsgs),
     signals: await buildSignals(null),
     gifts: await loadGifts(),
+    /* 공개 장부 — 출처가 말해진 사실의 known_by가 다음 턴 투영에서 넓어진다 (§8.5) */
+    disclosed: await loadDisclosed(),
     // 「두 사람」방은 사진을 쓰지 않는다 — recent_photos를 보낼 이유가 없다
     counts: await buildCounts(),
     days: await buildDays(),

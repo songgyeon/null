@@ -439,13 +439,26 @@ export const fakeFetch = (replies) => {
     const want = (replies && replies.shift());
     if (want) text = want;
     else {
-      const A = [{ text: "오늘은 조용했어요. 애들도 얌전했고요." },
-                 { text: "선생님 하루는 어땠어요. 밥은 챙겨 먹었고요?" }];
-      const B = [{ text: "별일 없었어요. 늘 하던 대로요." },
-                 { text: "그쪽 얘기나 해봐요. 뭔가 있어 보이는데." }];
-      text = msgsText.includes('"candidates"')
-        ? JSON.stringify({ candidates: [{ messages: A }, { messages: B }] })
-        : JSON.stringify({ messages: A });
+      /* §8.5 화자 순차 — 발견 대사는 물건을 실제로 짚어야 한다(ITEM_MISS).
+         「네.」 같은 무관 대사로 통과시키면 하네스가 의미 검증을 영영 못
+         지나가 본다. 장면 지시에서 물건 이름을 읽어 그대로 짚는다.
+         소유자 기본 답은 출처를 **안** 밝힌다 — 공개 경로는 시험이
+         replies로 심는다. */
+      const obsHit = msgsText.match(/에게 (.+?)[이가] 있는 것이 처음 눈에/);
+      const ownHit = msgsText.match(/이 (.+?)[이가] 어디서 났는지/);
+      if (obsHit)
+        text = JSON.stringify({ messages: [{ text: `그 ${obsHit[1]} 어디서 났어요?` }] });
+      else if (ownHit && msgsText.includes("네 몫이다"))
+        text = JSON.stringify({ messages: [{ text: `${ownHit[1]}? 그냥 쓰던 거예요.` }] });
+      else {
+        const A = [{ text: "오늘은 조용했어요. 애들도 얌전했고요." },
+                   { text: "선생님 하루는 어땠어요. 밥은 챙겨 먹었고요?" }];
+        const B = [{ text: "별일 없었어요. 늘 하던 대로요." },
+                   { text: "그쪽 얘기나 해봐요. 뭔가 있어 보이는데." }];
+        text = msgsText.includes('"candidates"')
+          ? JSON.stringify({ candidates: [{ messages: A }, { messages: B }] })
+          : JSON.stringify({ messages: A });
+      }
     }
   }
   return { ok: true, status: 200, headers: { get: () => null },

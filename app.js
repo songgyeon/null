@@ -349,6 +349,12 @@ function App(){
       const r=applyStoryTransition(e);
       if(r==="fail")return{status:"storage_error",key:"null_story"};
       if(r==="skip")return{status:"not_applicable"};
+    }else if(e.type==="disclosure"){
+      /* 출처가 실제로 말해졌다 — 같은 저장 트랜잭션에서 장부에 적고,
+         다음 요청의 사실 투영이 이걸 받는다 (§8.5) */
+      const r=applyDisclosure(e);
+      if(r==="fail")return{status:"storage_error",key:"null_disclosed"};
+      if(r==="skip")return{status:"not_applicable"};
     }else{
       return{status:"not_applicable"};
     }
@@ -886,6 +892,9 @@ function App(){
        누구에게 준 것인지가 사라지고, 워커가 사실을 만들 수가 없다.
        이번 턴에 건넨 것은 워커가 gift와 겹치는 것을 빼준다. */
     payload.gifts=giftsRef.current||{};
+    /* 공개 장부도 싣는다 — 출처가 실제로 말해진 사실의 known_by가
+       다음 턴 투영에서 넓어진다 (§8.5 disclosure) */
+    payload.disclosed=loadDisclosed();
     // 다녀온 자리·거절한 자리 — 서버가 다음 제안을 고르는 근거
     if(payload.mode==="chat"){ payload.met=loadMet(); payload.refused=loadRefused();
       /* 지금 문 닫은 자리는 인물도 가자고 안 한다. 시간은 프론트만 안다 —
@@ -1290,6 +1299,7 @@ function App(){
                  출처·보유 사실을 만들어 비대칭을 판정한다. 안 실으면
                  발견 장면이 영영 못 선다. request()의 888줄과 같은 원본이다. */
               gifts:giftsRef.current||{},
+              disclosed:loadDisclosed(),
               ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
           const data=await res.json().catch(()=>null);
           if(res.ok&&data) list=data.messages;

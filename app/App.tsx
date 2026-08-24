@@ -14,7 +14,7 @@ import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoGreetWhen, demoWatchOpen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
-         loadGifts, saveGifts, bgFor, heartsOf } from './lib/profiles';
+         loadGifts, saveGifts, loadDisclosed, saveDisclosed, bgFor, heartsOf } from './lib/profiles';
 import { useAudioPlayer } from 'expo-audio';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -1697,6 +1697,18 @@ function Root() {
            이미 지나 있으면 한 것으로 친다. 저장이 안 되면 표를 안 찍는다 —
            다음 응답에서 같은 id가 다시 와서 마저 간다. */
         ok=applyStoryTransition(e)!=='fail';
+      }
+      else if(e.type==='disclosure'){
+        /* 출처가 실제로 말해졌다 — 같은 저장 트랜잭션에서 장부에 적고,
+           다음 요청의 사실 투영(payload.disclosed)이 받는다 (§8.5).
+           웹 app.js의 applyDisclosure와 같은 의미다. */
+        if(e.fact_id&&Array.isArray(e.heard_by)&&e.heard_by.length){
+          const d=await loadDisclosed();
+          const cur=d[e.fact_id]||[];
+          const next=Array.from(new Set([...cur,...e.heard_by.map(String)]));
+          if(next.length!==cur.length)await saveDisclosed({...d,[e.fact_id]:next});
+          ok=true;
+        }
       }
       if(ok){ done.push(e.id); changed=true; }
     }

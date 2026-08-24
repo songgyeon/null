@@ -94,6 +94,18 @@ export async function saveGifts(g: Record<string,string[]>) {
   await setMeta('null_gifts', JSON.stringify(g || {}));
 }
 
+/* ── 공개 장부 — 출처가 실제로 말해진 사실 (§8.5 disclosure) ──
+   웹의 null_disclosed와 같은 모양 {fact_id: ["jaeeon","minhyun"]}.
+   워커가 검증해 발행한 disclosure Effect가 저장될 때만 적히고, 다음
+   요청부터 payload.disclosed로 실려 그 사실의 known_by가 넓어진다. */
+export async function loadDisclosed(): Promise<Record<string,string[]>> {
+  try { return JSON.parse((await getMeta('null_disclosed')) || '{}') || {}; } catch (e) { return {}; }
+}
+export async function saveDisclosed(d: Record<string,string[]>) {
+  const { setMeta } = await import('./db');
+  await setMeta('null_disclosed', JSON.stringify(d || {}));
+}
+
 // at 값은 worker.js의 STAGES와 같아야 한다. 어긋나면 앱이 보여주는 단계와
 // 모델이 연기하는 단계가 따로 논다. (0=처음 / 16=익숙 / 40=균열 / 80=시한)
 //

@@ -63,9 +63,17 @@ async function run(envExtra, body, replies, hooks) {
     else if (sys.includes("이 장면의 마지막 손이다"))
       text = hk("finalizer") || JSON.stringify({ messages: [{ text: "…그 얘기는 이따가 해요." }] });
     else if (queue && queue.length) text = queue.shift();
-    else text = msgs.includes('"candidates"')
-      ? JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] })
-      : JSON.stringify({ messages: [{ text: "네." }] });
+    else {
+      /* §8.5 발견 대사는 물건을 짚어야 한다(ITEM_MISS) — replay fake와 같은 규칙 */
+      const obsHit = msgs.match(/에게 (.+?)[이가] 있는 것이 처음 눈에/);
+      const ownHit = msgs.match(/이 (.+?)[이가] 어디서 났는지/);
+      if (obsHit) text = JSON.stringify({ messages: [{ text: `그 ${obsHit[1]} 어디서 났어요?` }] });
+      else if (ownHit && msgs.includes("네 몫이다"))
+        text = JSON.stringify({ messages: [{ text: `${ownHit[1]}? 그냥 쓰던 거예요.` }] });
+      else text = msgs.includes('"candidates"')
+        ? JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] })
+        : JSON.stringify({ messages: [{ text: "네." }] });
+    }
     return { ok: true, status: 200, headers: { get: () => null },
       json: async () => ({ content: [{ type: "text", text }],
         usage: { input_tokens: 100, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
@@ -1183,9 +1191,10 @@ const PROBE = { ...BASE,
   })(), true);
   /* ── A1 — 화자 순차 사건이 CLI 산출물에도 그대로 남는다 ── */
   const t14tr = JSON.parse(readFileSync(join(out1, "trace", "A-T14-health-mug-discovery.json"), "utf8"));
-  eq("T14 trace에 disclosure가 남는다",
-    [t14tr.engine.disclosure.fact_id, t14tr.engine.turnContext.requiredSpeakers],
-    ["gift.mug.user_to_jaeeon", ["minhyun", "jaeeon"]]);
+  eq("T14 trace에 관측 기록이 남는다",
+    [t14tr.engine.observe.source_fact_id, t14tr.engine.observe.revealed,
+     t14tr.engine.turnContext.requiredSpeakers],
+    ["gift.mug.user_to_jaeeon", false, ["minhyun", "jaeeon"]]);
   /* ── A3 — T16 예약이 승격되고 ack까지 나온다 ── */
   const t16tr = JSON.parse(readFileSync(join(out1, "trace", "A-T16-minhyun-partner-known.json"), "utf8"));
   eq("T16이 critical로 가고 ack가 남는다",
@@ -1210,7 +1219,7 @@ const PROBE = { ...BASE,
      obsReq.includes("[지금 장면]"), obsReq.includes("처음 눈에")],
     [false, true, true, true]);
   eq("T14 — 소유자 호출에 출처·관측자 대사·무지 조건이 있다",
-    [ownReq.includes("회색 머그컵을 줬다"), ownReq.includes("[이민현] 네."),
+    [ownReq.includes("회색 머그컵을 줬다"), ownReq.includes("[이민현] 그 회색 머그컵 어디서 났어요?"),
      ownReq.includes("어디서 났는지"), ownReq.includes("모른다")],
     [true, true, true, true]);
   eq("T14 — 발화 순서가 관측자→소유자다",
@@ -1227,10 +1236,16 @@ const PROBE = { ...BASE,
       String(Array.isArray(prev.content) ? prev.content.map(b => b.text || "").join("\n") : prev.content).includes("[이민현]"),
       lastText.includes("[지금 장면]")];
   })(), ["user", "assistant", true, true]);
-  eq("T14 — requiredSpeakers·disclosure가 계약대로다",
-    [r.data.trace.turnContext.requiredSpeakers, r.data.trace.disclosure.fact_id,
-     r.data.trace.disclosure.heard_by],
-    [["minhyun", "jaeeon"], "gift.mug.user_to_jaeeon", ["jaeeon", "minhyun"]]);
+  eq("T14 — requiredSpeakers·관측 기록이 계약대로다",
+    [r.data.trace.turnContext.requiredSpeakers, r.data.trace.observe.source_fact_id,
+     r.data.trace.observe.observer, r.data.trace.observe.owner],
+    [["minhyun", "jaeeon"], "gift.mug.user_to_jaeeon", "minhyun", "jaeeon"]);
+  /* 관측 ≠ 공개 — 소유자 기본 답("그냥 쓰던 거예요")은 출처를 안 밝혔다.
+     disclosure Effect가 없고, 상대의 known_by는 다음 턴에도 그대로다. */
+  eq("T14 — 회피한 턴에는 disclosure Effect가 없다",
+    [r.data.trace.observe.revealed,
+     (r.data.effects || []).some(e => e.type === "disclosure")],
+    [false, false]);
 }
 
 /* ── 13.2 T15 — 반대 방향 대칭 ── */
@@ -1268,6 +1283,53 @@ const PROBE = { ...BASE,
   eq("관측자가 계속 틀리면 502다 — 각본으로 안 덮는다",
     [r.status, !!(r.data && r.data.messages)], [502, false]);
   eq("실패 응답에 scene_ack가 없다 — 사건이 남는다", r.data.scene_ack === undefined, true);
+
+  /* ── 의미 검증 — 물건을 안 짚는 대사는 200으로 못 지나간다 ──
+     「네.」로 두 번 지나가려 하면 ITEM_MISS로 두 번 떨어지고 502다.
+     사건은 소모되지 않고 큐에 남는다 — 이전 실패(물건 무시)의 재발 방지. */
+  const blank = JSON.stringify({ messages: [{ text: "네." }] });
+  const r2 = await run({}, t14.body, [blank, blank]);
+  eq("무관한 대사는 ITEM_MISS로 떨어진다 — 200 통과 금지",
+    [r2.status,
+     (r2.data.trace.rejected || []).filter(x => (x.codes || []).includes("ITEM_MISS")).length],
+    [502, 2]);
+}
+
+/* ── 13.4b 공개(disclosure) — 소유자가 실제로 밝힌 턴에만 상태가 생긴다 ── */
+{
+  const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
+  /* 소유자가 출처를 실제로 밝힌다 → disclosure Effect가 발행되고 at은
+     코드가 찍은 현실 epoch다 — null이 아니다 */
+  const goodObs = JSON.stringify({ messages: [{ text: "삼촌, 그 회색 머그컵 어디서 났어요?" }] });
+  const reveal = JSON.stringify({ messages: [{ text: "선생님이 준 거야. 따뜻하라고." }] });
+  const r = await run({}, t14.body, [goodObs, reveal]);
+  const d = (r.data.effects || []).find(e => e.type === "disclosure");
+  eq("공개한 턴에는 disclosure Effect가 발행된다",
+    [r.status, !!d, d && d.fact_id, d && d.by, d && d.heard_by, d && d.room],
+    [200, true, "gift.mug.user_to_jaeeon", "jaeeon", ["jaeeon", "minhyun"], "health"]);
+  eq("at은 코드가 찍는 현실 epoch다 — null 금지",
+    [typeof (d && d.at), (d && d.at) > 946684800000, r.data.trace.observe.revealed],
+    ["number", true, true]);
+
+  /* ── 다음 턴 투영 — 공개가 저장되면 상대가 출처를 안다 ──
+     클라이언트 장부(disclosed)를 실어 보내면 known_by가 넓어져 비대칭이
+     사라진다: 발견 장면이 다시 서지 않고 일반 관전 한 호출이다. */
+  const after = { ...t14.body, disclosed: { "gift.mug.user_to_jaeeon": ["jaeeon", "minhyun"] } };
+  const r2 = await run({}, after);
+  eq("공개 뒤에는 발견 장면이 다시 안 선다 — 일반 관전 한 호출",
+    stagesOf(r2), ["writer"]);
+  eq("공개 뒤에는 상대의 known_by에 출처가 있다",
+    r2.data.trace.turnContext.facts
+      .find(f => f.fact_id === "gift.mug.user_to_jaeeon").known_by.includes("minhyun"), true);
+
+  /* 회피가 저장된 것은 아무것도 없다 — 장부 없이 다시 부르면 여전히
+     비대칭이고 발견 장면이 선다(출처는 여전히 모른다) */
+  const r3 = await run({}, t14.body);
+  eq("회피 뒤에는 다음 턴에도 출처를 모른다 — 장면이 다시 선다",
+    [stagesOf(r3),
+     r3.data.trace.turnContext.facts
+       .find(f => f.fact_id === "gift.mug.user_to_jaeeon").known_by.includes("minhyun")],
+    [["writer", "writer"], false]);
 }
 
 /* ── 13.5 T16 — 예약 승격·이번 턴 Fact·scene_ack ── */
@@ -1393,8 +1455,11 @@ const PROBE = { ...BASE,
     [rt.total, rt.ok, rt.approved_but_normal, rt.wrong_reason, rt.critical_no_ack, rt.failed_no_ack],
     [5, 1, 1, 1, 1, 1]);
 
-  /* D3 — 리얼: 표기 5 중 심은 오류 1 + epoch 밖 1(표기도 다름) = 어긋남 2.
-     스피드: 앵커+15분 = 게임 오전 9:00 — 심은 오류 1. 전부 손으로 센 값. */
+  /* D3 — 리얼: 표기 5 중 심은 오류 1 = 어긋남 1, epoch 밖 1은 **독립
+     지표**다(깨진 ts의 표기 비교는 무의미하고 시간대 따라 우연히 맞는다 —
+     ts=123은 KST에서 정말 오전 9:00이다). 손으로 센 값이고, 어느
+     시간대에서 돌려도 같아야 한다. new Date(y,m,d,h,m)은 지역시라
+     표기 기대값이 시간대와 함께 움직인다. */
   const ts = new Date(2026, 0, 6, 14, 30).getTime();
   const real = EV.scoreClock({ mode: "real", entries: [
     { ts, surface: "clock", shown: "오후 2:30" },
@@ -1403,8 +1468,8 @@ const PROBE = { ...BASE,
     { ts, surface: "clock", shown: "오후 3:30" },
     { ts: 123, surface: "clock", shown: "오전 9:00" },
   ] });
-  eq("리얼 모드 시각 자가 수기 계산과 같다",
-    [real.total, real.mismatches, real.epochBad], [5, 2, 1]);
+  eq("리얼 모드 시각 자가 수기 계산과 같다 — 시간대 무관",
+    [real.total, real.mismatches, real.epochBad], [5, 1, 1]);
   const anchor = Date.now() - 7 * 3600 * 1000;
   const sp = EV.scoreClock({ mode: "speed", anchor, entries: [
     { ts: anchor + 15 * 60 * 1000, surface: "clock", shown: "오전 9:00" },

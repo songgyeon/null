@@ -269,7 +269,16 @@ K = 중요 턴 — 저비용 Writer + 검사(하급) ×2 + 상위 Finalizer 평�
 호출 수만 보고 비용을 추측하지 않는다. 후보 재입력, 캐시 쓰기·읽기, RETRY 비용까지 포함한다.
 재시도가 붙으면 중요 턴은 최대 여덟 호출이 되고, 그것도 `stages`에 그대로 잡힌다.
 
-## 8.5 지식 범위 — C·E단계 계약 (결정됨, 미구현)
+## 8.5 지식 범위 — C·E단계 계약 (구현됨 — worker.js의 disclose 갈래)
+
+> **구현 위치.** 사건 판정은 `discloseEvent`, 화자 순차 두 호출은 요청
+> 처리부의 disclose 갈래, 필수 화자는 `requiredSpeakers`+`hardFilter`의
+> SPEAKERS 검사, 물건 언급의 의미 검증은 `discloseMention`(ITEM_MISS)이다.
+> **관측 ≠ 공개**: 소유자가 출처를 실제로 밝힌 턴에만(`discloseRevealed`)
+> disclosure Effect `{fact_id, by, heard_by, room, at}`가 발행되고(at은
+> 코드가 찍는 현실 epoch), 클라이언트 장부(`null_disclosed`)에 저장돼
+> 다음 요청의 `payload.disclosed`로 투영(`applyDisclosed`)에 반영된다.
+> 회피하면 상대의 known_by는 다음 턴에도 그대로다.
 
 선물 하나가 사람마다 **다른 사실**을 낳는다. 유저와 재언은 출처까지 알고,
 민현은 물건이 거기 있다는 것만 안다. 그래야 「삼촌, 그거 어디서 났어요?」가
@@ -303,13 +312,13 @@ disclosure         {fact_id, by, heard_by, room, at}
 것이 아니라 **부탁**하는 것이고, 이 엔진의 원칙은 「중요한 세계의 사실은
 모델의 선의가 아니라 코드로 보장한다」다.
 
-**Fact 이전에 이미 새고 있는 것 셋** — C·E에서 같이 고친다.
+**Fact 이전에 새고 있던 것 셋** — C·E에서 같이 닫았다(과거 기록).
 
-| | 무엇 | 어디 |
+| | 무엇이었나 | 어떻게 닫았나 |
 |---|---|---|
-| 🔴 | `buildEvent(kind:"gift")`가 「선생님이 이재언에게 회색 머그컵을 줬다」를 관전방에 통째로 준다. Fact를 아무리 잘 가려도 이 줄이 살아 있으면 순효과가 0이다 | `worker.js` |
-| 🔴 | `ROOM_EARS.health`가 죽은 배선이다. 관전(auto)은 payload에 `room`을 안 싣고 `ROOMS_OK`가 생성 경로에서 health를 안 받아 `room="minhyun"`으로 떨어진다 | `worker.js` · `app.js` · `app/lib/api.ts` |
-| 🔴 | 테스트 「유저도 아는 일은 다른 방에서도 말할 수 있다」가 **그 누출을 정답으로 고정**해뒀다 | `test/run.mjs` |
+| ✅ | `buildEvent(kind:"gift")`가 출처를 관전방에 통째로 줬다 | 사건 블록이 물건과 보유자만 적는다 — 「어디서 났는지는 본 것만으로는 모른다」 |
+| ✅ | `ROOM_EARS.health`가 죽은 배선이었다 — 관전이 `room="minhyun"`으로 떨어졌다 | auto의 방은 health가 승인된 기본값이고, 웹·앱 모두 room을 싣는다 |
+| ✅ | 테스트가 그 누출을 정답으로 고정해뒀다 | 교집합 투영(`sharedFactsForRoom`)과 함께 테스트를 교체했다 |
 
 ## 8.6 저장과 연출의 경계 — 웹 (E-A에서 닫음)
 
@@ -779,15 +788,18 @@ D단계에서 고칠 목록이고, 반대면 자를 고칠 목록이다. `node t
 읽는 자(`readLog`)가 **지문과 줄머리 시각을 안 버린다.** 지문이 이 판에서
 실제로 일어난 사건이고(선물·자리 이동), 사건당으로 나누려면 그게 있어야 한다.
 
-### 아직 안 재는 것
+### 장면·시각 지표는 다른 자가 잰다
+
+텍스트 기록에는 장면 갈래도 라우팅 결과도 안 실린다 — 그 셋은
+`tools/eval-scenes.mjs`가 잰다(전부 켜져 있다):
 
 ```
-기억 공개 사건당 정사 부정     텍스트 기록에 장면 갈래가 안 실린다 → G3 trace JSON
-중요 장면당 올바른 라우팅       같은 이유 → G3 trace JSON
-시각 어긋남                     내보내기 시각이 게임 시계가 아니라 현실 시각이다 → F단계 뒤
+기억 공개 사건당 정사 부정     scoreMemoryReveal — G3 trace JSON 입력
+중요 장면당 올바른 라우팅       scoreRouting — 워커의 approveReason·detectScene을 그대로 import
+시각 어긋남 (리얼·스피드)       scoreClock — gameAt(ts) 기준, epoch 위반은 독립 지표
 ```
 
-억지로 재는 척하지 않는다. 못 재면 못 잰다고 적는다.
+억지로 재는 척하지 않는다 — 텍스트 자(eval.mjs)는 저쪽을 가리키기만 한다.
 
 ### 자를 먼저 잰다
 

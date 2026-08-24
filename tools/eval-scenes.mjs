@@ -145,8 +145,13 @@ export function scoreClock(fx) {
   for (const e of (fx && fx.entries) || []) {
     total++;
     /* 저장 ts는 현실 epoch다. 2000년 이전이거나 지금보다 이틀 넘게 미래면
-       번역된 값을 저장했거나 형식이 깨진 것이다. */
-    if (!(e.ts > 946684800000) || e.ts > Date.now() + 48 * 3600 * 1000) { epochBad++; }
+       번역된 값을 저장했거나 형식이 깨진 것이다.
+       ── epoch 위반과 표기 어긋남은 독립된 지표다 ──
+       깨진 ts의 표기를 비교하는 것은 무의미하고, 시간대에 따라 우연히
+       맞아떨어지기도 한다(예: ts=123은 KST에서 오전 9:00이다) — 그러면
+       같은 fixture가 시간대마다 다른 수를 낸다. epoch 위반 항목은 여기서
+       세고 표기 비교는 건너뛴다. */
+    if (!(e.ts > 946684800000) || e.ts > Date.now() + 48 * 3600 * 1000) { epochBad++; continue; }
     const expect = e.surface === "divider" ? F.fmtDivider(e.ts)
       : e.surface === "list" ? F.fmtListTime(e.ts)
       : e.surface === "clock" ? F.fmtClock(e.ts)

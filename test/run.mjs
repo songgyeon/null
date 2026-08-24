@@ -5401,7 +5401,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('사실은 요청 진입에서 한 번 만든다',
     (workerSrc.match(/buildFacts\(/g) || []).length, 2);      // 정의 하나 + 호출 하나
   eq('사실 원본이 TurnContext로 들어간다',
-    /const allFacts = \[\.\.\.canonFacts\(\),\s*\n\s*\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\),\s*\n\s*\.\.\.partnerSceneFacts\(routed\.reason, room, story\.partnerId\)\];/.test(workerSrc)
+    /const allFacts = applyDisclosed\(\s*\n\s*\[\.\.\.canonFacts\(\),\s*\n\s*\.\.\.buildFacts\([\s\S]{0,80}\.\.\.storyFacts\(story\),\s*\n\s*\.\.\.partnerSceneFacts\(routed\.reason, room, story\.partnerId\)\],\s*\n\s*body\.disclosed\);/.test(workerSrc)
     && /const turnCtx = makeTurnContext\([\s\S]{0,1400}facts: allFacts,/.test(workerSrc), true);
   /* 단톡·관전은 쓰는 쪽과 같은 교집합 투영이다 — 화자 투영을 그대로 쓰면
      민현만 아는 사실이 고르는 쪽·검사·마무리에 샌다 */

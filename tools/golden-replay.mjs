@@ -83,7 +83,7 @@ async function main() {
       finalCodes: r.ok ? [] : rejected.filter(x => x.attempt === 2).flatMap(x => x.codes || []),
       stages, latency: r.latency_ms, rejected,
       allCandidates, directorDecision, directorDecisions,
-      disclosure: tr.disclosure || null,
+      observe: tr.observe || null,
       route: tr.route || null,
       scene_ack: (r.data && r.data.scene_ack) || null,
       final: r.ok ? linesOf(r.data.messages) : "",
@@ -137,7 +137,7 @@ async function main() {
   };
   /* attempt별 전부 — RETRY로 죽은 attempt 1 판정도 남는다(C) */
   const fmtDec = c => {
-    if (c.disclosure) return "  (화자 순차 사건 — Director를 안 탄다. 발화 순서는 hardFilter의 필수 화자 검사가 지킨다)";
+    if (c.observe) return "  (화자 순차 사건 — Director를 안 탄다. 발화 순서는 hardFilter의 필수 화자 검사가 지킨다)";
     const decs = c.directorDecisions || [];
     if (!decs.length) return "  (Director 판정 없음)";
     return decs.map(d => fmtOneDec(d, d.attempt ? `attempt ${d.attempt} ` : "")).join("\n\n");
@@ -151,8 +151,8 @@ async function main() {
     ans.push(`## A-${item.label}`, "",
       `상황: ${contextLine(item.body)}${item.blurb ? ` — ${item.blurb}` : ""}`, "",
       `유저: ${lastUserOf(item.body)}`, "");
-    if (c.disclosure) ans.push(`(선물 관측 사건 — 화자 순차: ${c.disclosure.by} 소유 · `
-      + `fact ${c.disclosure.fact_id})`, "");
+    if (c.observe) ans.push(`(선물 관측 사건 — 화자 순차: ${c.observe.owner} 소유 · `
+      + `fact ${c.observe.source_fact_id} · 출처 ${c.observe.revealed ? "공개됨" : "안 밝힘"})`, "");
     if (c.route && c.route.tier === "critical")
       ans.push(`(중요 장면 — ${c.route.reason}${c.scene_ack ? ` · scene_ack: ${c.scene_ack}` : " · scene_ack 없음"})`, "");
     ans.push("### 후보", "", fmtCands(c.allCandidates), "");

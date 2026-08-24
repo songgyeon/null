@@ -375,7 +375,7 @@ function makeTurnContext(state, t) {
    선택이 끝난 뒤 코드가 `request_id + type + 대상 + item/key`로 만든다.
    모델이 임의 ID를 쓰거나 재시도마다 다른 ID를 내면 같은 선물이 두 번
    지급된다. 재시도해도 같은 재료면 같은 id가 나오는 것이 요점이다. */
-const EFFECT_TYPES = ["item_transfer", "invite", "story_transition"];
+const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure"];
 
 function mintEffectId(requestId, type, target, key) {
   return [String(requestId || ""), String(type || ""),
@@ -396,6 +396,20 @@ function makeEffect(requestId, e) {
     const place = String(o.place || ""), char = String(o.char || "");
     if (!place || !char) throw new Error("invite에 place/char가 없다");
     return { id: mintEffectId(requestId, type, char, place), type, place, char };
+  }
+  /* disclosure — 출처가 실제로 말해졌다(§8.5). at은 코드가 찍는 현실
+     epoch다 — 모델이 만들지 않고, null을 허용하지 않는다. heard_by는
+     KNOWERS 안에서만이다. id에 at을 안 넣으므로 재시도해도 같은 id다. */
+  if (type === "disclosure") {
+    const fact_id = String(o.fact_id || ""), by = String(o.by || "");
+    const heard = (Array.isArray(o.heard_by) ? o.heard_by : [])
+      .map(String).filter(w => KNOWERS.includes(w));
+    const at = Number(o.at);
+    if (!fact_id || !by || !heard.length) throw new Error("disclosure에 fact_id/by/heard_by가 없다");
+    if (!KNOWERS.includes(by)) throw new Error(`모르는 by: ${by}`);
+    if (!Number.isFinite(at) || at <= 0) throw new Error("disclosure의 at은 코드가 찍는 epoch다");
+    return { id: mintEffectId(requestId, type, by, fact_id),
+             type, fact_id, by, heard_by: heard, room: String(o.room || ""), at };
   }
   /* story_transition — 어디서 어디로 가는지를 둘 다 적는다. from을 안 적으면
      이미 지나간 상태를 다시 커밋해도 아무도 모른다. */
@@ -459,6 +473,19 @@ function materializeEffects(requestId, picked, ctx) {
     else if (st.firstContact === "pending" && explained)
       out.push(makeEffect(requestId, { type: "story_transition", key: "firstContact",
         from: "pending", to: "explained" }));
+  }
+  /* ── 공개(disclosure) — 소유자가 출처를 실제로 밝힌 턴에만 (§8.5) ──
+     제안은 disclose 갈래가 담고(picked.disclosure), 검증과 발행은 여기다:
+     by가 그 사실을 정말 아는지, 들은 사람들이 그 방에 실제로 있었는지를
+     확인하고, at은 코드가 현실 epoch로 찍는다. 회피한 턴에는 이 필드가
+     없어 아무 일도 안 일어난다 — 상대의 known_by는 다음 턴에도 그대로다. */
+  if (picked.disclosure && picked.disclosure.fact_id) {
+    const d = picked.disclosure;
+    const f = (g.facts || []).find(x => x && x.fact_id === d.fact_id);
+    const ears = (g.ears || []).filter(w => KNOWERS.includes(w));
+    if (f && Array.isArray(f.known_by) && f.known_by.includes(d.by) && ears.length)
+      out.push(makeEffect(requestId, { type: "disclosure", fact_id: d.fact_id,
+        by: d.by, heard_by: ears, room: d.room, at: Date.now() }));
   }
   if (st && g.room === "jaeeon" && !g.greet && g.sceneReason === "memory_reveal"
       && MEMORY_TOUCH.test(saidByChar)) {
@@ -2879,6 +2906,52 @@ function discloseEvent(event, facts, room) {
            fact_id: src.fact_id, item_fact_id: item.fact_id };
 }
 
+/* ── 발견 사건의 물건 언급 별칭 — 워커 한 곳에서만 관리한다 ──
+   관측자 발화가 그 물건을 실제로 짚어야 발견이다. 「네.」로 지나가도
+   성공으로 치면 사건이 소모되고 물건은 또 무시된다 — 관전방 실패의
+   원형이 그 자리다. 기본 별칭은 정식 이름과 이름의 마지막 낱말
+   (회색 머그컵 → 머그컵)이고, 이 표는 자연스러운 준말만 보탠다. */
+const DISCLOSE_ALIASES = {
+  mug: ["머그", "컵"], candy: ["캔디", "사탕"], ramen: ["라면"],
+  coffee: ["커피", "드립백"], beanie: ["모자"], earphone: ["이어폰"],
+  mixcd: ["시디", "씨디"], letter: ["편지"], photobook: ["앨범"],
+  camera: ["카메라"], umbrella: ["우산"], scarf: ["목도리"],
+  gloves: ["장갑"], hanky: ["손수건"], bandana: ["반다나"], hotpack: ["핫팩"],
+};
+function discloseMention(key) {
+  const name = String(ANY_NAME_BY_KEY[key] || "").trim();
+  const last = name.split(/\s+/).pop() || "";
+  return [...new Set([name, last, ...(DISCLOSE_ALIASES[key] || [])])].filter(Boolean);
+}
+
+/* ── 소유자가 출처를 실제로 밝혔는가 ──
+   준 사람(유저)을 가리키는 말과 주었다는 말이 같은 발화 묶음에 있어야
+   공개다. 좁게 잡는다: 헛잡으면 안 밝힌 턴에 상대의 known_by가 넘어가고,
+   놓치면 다음 관측에서 또 물으면 될 뿐이다. */
+function discloseRevealed(text, userName) {
+  const t = String(text || "");
+  const u = String(userName || "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const giver = new RegExp(`(${u ? u + "|" : ""}선생님|쌤)`);
+  return giver.test(t) && /(줬|주셨|주신|준 거|준 물건|선물)/.test(t);
+}
+
+/* ── 공개된 출처를 투영에 반영한다 ──
+   클라이언트 장부가 {fact_id: [들은 사람]}으로 나른다. 워커는 아무것도
+   기억하지 않는다 — 검증된 disclosure Effect가 **저장된 뒤에야** 이 목록에
+   올라, 다음 요청부터 known_by가 넓어진다. 소유자가 회피한 턴에는 Effect가
+   없으므로 목록도 안 변한다: 다음 턴에도 상대는 출처를 모른다.
+   모르는 fact_id·모르는 사람은 조용히 무시한다 — 없는 것은 거짓이 아니다. */
+function applyDisclosed(facts, disclosed) {
+  if (!disclosed || typeof disclosed !== "object") return facts;
+  return (facts || []).map(f => {
+    const heard = f && disclosed[f.fact_id];
+    if (!Array.isArray(heard)) return f;
+    const add = heard.map(String)
+      .filter(w => KNOWERS.includes(w) && !f.known_by.includes(w));
+    return add.length ? { ...f, known_by: [...f.known_by, ...add] } : f;
+  });
+}
+
 /* ── 그 장면이 벌어지는 턴의 사실 ──
    partner_confirm 턴에는 아직 partnerKnown이 안 뒤집혀 있다(성공 저장 뒤에
    뒤집힌다). 그러면 위 지속 사실이 없어서 쓰는 쪽·검사·마무리가 정작
@@ -3890,6 +3963,7 @@ const HARD_CODES = {
   LEAK: "안이 비침",
   SENDER: "허용되지 않은 화자",
   SPEAKERS: "필수 화자 계약 위반",
+  ITEM_MISS: "발견 사건의 물건을 언급하지 않음",
 };
 /* ── 받은 것을 없던 일로 만드는 말 ──
    이 턴에 유저가 건넨 **그 물건**을 그 **받은 사람**이 직접 부정할 때만이다.
@@ -5374,9 +5448,11 @@ export default {
        재시도 때 또 달라진다. 아래 모든 단계는 이 하나에서 투영만 받는다.
        고정 정사(canon)가 맨 앞이다 — Canon Critic이 「원래 그런 것」과
        「이번 판에서 그렇게 된 것」을 같은 목록에서 받는다(B1·B2). */
-    const allFacts = [...canonFacts(),
-                      ...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story),
-                      ...partnerSceneFacts(routed.reason, room, story.partnerId)];
+    const allFacts = applyDisclosed(
+      [...canonFacts(),
+       ...buildFacts(givenHistory, bag, gift, room), ...storyFacts(story),
+       ...partnerSceneFacts(routed.reason, room, story.partnerId)],
+      body.disclosed);
     /* ── 선물 관측 사건 판정 (§8.5) ──
        관전 턴에 gift 사건이 실려 왔고 사실이 실제로 비대칭일 때만 선다.
        화자 순차 경로는 hybrid 전용이다 — single·single5는 「모든 생성이 한
@@ -5489,6 +5565,10 @@ export default {
                            모든 경로(critical의 마무리 후보 포함)가 같은
                            hardFilter 입구를 타므로 여기 실으면 다 받는다. */
                         requiredSpeakers: turnCtx.requiredSpeakers,
+                        /* 공개(disclosure) 검증 재료 — by가 그 사실을 아는지
+                           (facts)와 들은 사람이 그 방에 있었는지(ears)를
+                           materializeEffects가 본다. */
+                        facts: turnCtx.facts, ears: ROOM_EARS[room] || [],
                         openPlaces: place ? [] : [...openPlaces, ...canGo],
                         /* 이야기 전환의 재료. 감지는 위(E4)에서 한 번만 했고,
                            여기는 그 결과만 든다 — materializeEffects가 검증된
@@ -5784,7 +5864,7 @@ export default {
          directorDecision(마지막 판정)은 읽던 쪽과의 호환으로 남긴다. */
       const directorDecisionLog = [];
       let criticNotesLog = [];       // 중요 장면 검사 결과 — attempt별 (trace 전용)
-      let discloseLog = null;        // 선물 관측 사건의 disclosure 기록 (trace 전용)
+      let discloseLog = null;        // 선물 관측 장면의 기록 — 관측(observe)과 공개 여부 (trace 전용)
       const traceOf = picked => !traceOn ? {} : { trace: {
         engine_mode: engineMode(env),
         candidate_mode: cMode,
@@ -5800,7 +5880,7 @@ export default {
           directorDecision: directorDecisionLog[directorDecisionLog.length - 1],
           directorDecisions: directorDecisionLog } : {}),
         ...(criticNotesLog.length ? { criticNotes: criticNotesLog } : {}),
-        ...(discloseLog ? { disclosure: discloseLog } : {}),
+        ...(discloseLog ? { observe: discloseLog } : {}),
         selectedCandidate: picked
           ? { id: picked.id, originalMessages: picked.originalMessages } : null,
       } };
@@ -5864,7 +5944,7 @@ export default {
           copy[copy.length - 1] = { ...t, content: blocks };
           return copy;
         };
-        const runPart = async (speaker, text, base) => {
+        const runPart = async (speaker, text, base, mustMention) => {
           for (let attempt = 1; attempt <= RETRY_MAX + 1; attempt++) {
             const note = attempt > 1 && lastCodes.length
               ? `\n[이전 시도 탈락]\n${lastCodes.slice(0, 6).map(c => `- ${c}`).join("\n")}\n`
@@ -5893,6 +5973,14 @@ export default {
               parseStatus: parsed.parseStatus, intruder: parsed.intruder, signals: [] };
             /* 부분 호출은 그 화자만 허용 — 필수 화자 검사는 합친 뒤에 한다 */
             const codes = hardFilter(cand, [speaker], { ...hardCtx, requiredSpeakers: [] });
+            /* ── 의미 검증 — 발견자는 그 물건을 실제로 짚어야 한다 ──
+               「네.」로 지나가도 성공 처리하면 사건이 소모되고 물건은 또
+               무시된다 — 이전 실패가 정확히 그 자리다. 별칭은 워커 한 곳
+               (discloseMention)에서만 관리한다. */
+            if (!codes.length && Array.isArray(mustMention) && mustMention.length) {
+              const said = cand.messages.map(m => (m && m.text) || "").join(" ");
+              if (!mustMention.some(w => said.includes(w))) codes.push("ITEM_MISS");
+            }
             if (traceOn) allCandsLog.push({ attempt, id: speaker, originalMessages: parsed.messages });
             if (!codes.length) return cand;
             lastCodes = codes.map(c => `${speaker}:${c}`);
@@ -5906,7 +5994,7 @@ export default {
         const obsText = `${NAME[own]}에게 ${jos(disclose.name, "이/가")} 있는 것이 처음 눈에 띈다.\n`
           + `어디서 났는지는 모른다 — 아는 척하지 않는다. 궁금하면 짐작해서 물어도 된다.\n`
           + `이번 응답은 ${jos(NAME[obs], "이/가")} 말하는 차례다. ${NAME[obs]}의 발화만 쓴다.`;
-        const c1 = await runPart(obs, obsText, msgs);
+        const c1 = await runPart(obs, obsText, msgs, discloseMention(disclose.key));
         if (c1) {
           /* 관측자의 실제 대사가 소유자 호출의 이력이 된다 — §8.5 ② */
           const obsLines = c1.messages.map(m => `[${NAME[obs]}] ${m.text}`).join("\n");
@@ -5924,9 +6012,20 @@ export default {
             /* 합친 것이 계약대로인지 — 필수 화자 전부·순서·허용 화자만(A2) */
             const mCodes = hardFilter(merged, chars, hardCtx);
             if (!mCodes.length) {
+              /* ── 관측 ≠ 공개 ──
+                 물건을 봤다는 것(observation)은 이 장면 자체다. 출처를
+                 들었다는 것(disclosure)은 소유자가 **실제로 말했을 때만**
+                 생긴다 — 회피하면 상대의 known_by는 다음 턴에도 그대로다.
+                 공개의 저장·투영은 검증된 Effect(materializeEffects)가 맡고,
+                 at은 코드가 찍는다. */
+              const ownerSaid = c2.messages.map(m => (m && m.text) || "").join(" ");
+              const revealed = discloseRevealed(ownerSaid, userName);
+              merged.disclosure = revealed
+                ? { fact_id: disclose.fact_id, by: own, room } : null;
               picked = merged;
-              if (traceOn) discloseLog = { fact_id: disclose.fact_id, by: own,
-                heard_by: ROOM_EARS[room] || [], room, at: null };
+              if (traceOn) discloseLog = { item_fact_id: disclose.item_fact_id,
+                source_fact_id: disclose.fact_id, observer: obs, owner: own,
+                room, revealed };
             } else {
               lastCodes = mCodes.map(c => `D:${c}`);
               if (traceOn) rejectedLog.push({ attempt: RETRY_MAX + 1, id: "D",
@@ -6231,6 +6330,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          ROOM_EARS, ROOM_SPEAKERS, FACT_SOURCES, KNOWERS,
          buildFacts, giftFacts, handedFacts, renderFacts, factLines, factIds,
          canonFacts, discloseEvent, buildGiven,
+         discloseMention, discloseRevealed, applyDisclosed,
          materializeEffects,
          ITEM_WITNESS, ANY_NAME_BY_KEY,
          buildEvent,

@@ -1221,6 +1221,24 @@ const markPartnerKnown=char=>{
   return !!saveStory(next)&&loadStory().partnerKnown[char]===true;
 };
 
+/* ── 공개 장부 — 출처가 실제로 말해진 사실 (§8.5 disclosure) ──
+   {fact_id: ["jaeeon","minhyun"]}. 워커가 검증해 발행한 disclosure Effect가
+   저장 트랜잭션(장부)에서만 여기 적히고, 다음 요청부터 payload.disclosed로
+   실려 그 사실의 known_by가 넓어진다. 관측(봤다)과 공개(들었다)는 다른
+   상태다 — 소유자가 회피한 턴에는 Effect가 없어 이 장부도 안 변한다. */
+const loadDisclosed=()=>{try{return JSON.parse(localStorage.getItem("null_disclosed"))||{}}catch(e){return{}}};
+const saveDisclosed=o=>{try{localStorage.setItem("null_disclosed",JSON.stringify(o));return true}catch(e){return false}};
+const applyDisclosure=e=>{
+  if(!e||e.type!=="disclosure"||!e.fact_id||!Array.isArray(e.heard_by)||!e.heard_by.length)return"skip";
+  const d=loadDisclosed();
+  const cur=d[e.fact_id]||[];
+  const next=[...new Set([...cur,...e.heard_by.map(String)])];
+  if(next.length===cur.length)return"done";            // 이미 반영 — 되풀이해도 같다
+  const nd={...d,[e.fact_id]:next};
+  if(!saveDisclosed(nd)||(loadDisclosed()[e.fact_id]||[]).length!==next.length)return"fail";
+  return"done";
+};
+
 const loadScenePend=()=>{try{return JSON.parse(localStorage.getItem("null_scene_pend"))||{}}catch(e){return{}}};
 const saveScenePend=o=>{try{localStorage.setItem("null_scene_pend",JSON.stringify(o));return true}catch(e){return false}};
 const markScene=(room,reason)=>{
@@ -1552,6 +1570,9 @@ return {
   saveStory,
   applyStoryTransition,
   markPartnerKnown,
+  loadDisclosed,
+  saveDisclosed,
+  applyDisclosure,
   loadScenePend,
   saveScenePend,
   markScene,
@@ -1781,6 +1802,9 @@ export const {
   saveStory,
   applyStoryTransition,
   markPartnerKnown,
+  loadDisclosed,
+  saveDisclosed,
+  applyDisclosure,
   loadScenePend,
   saveScenePend,
   markScene,
