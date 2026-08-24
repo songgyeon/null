@@ -26,6 +26,19 @@ Expo에 위 기능을 붙이는 것은 이번 범위 밖이다. 붙일 때는 �
 예약·ack 계약(peekScene/ackScene, 관전 사건 큐)을 그대로 쓴다 — 병렬
 계약을 새로 만들지 않는다.
 
+관전 장부는 이제 양쪽이 **같은 계약**이다: 방별 FIFO 줄, 말풍선 → Effect →
+사건 소모 순서, 실패하면 그 방 잠금, 재개는 저장된 장부로만(호출 없음).
+공용 엔진은 `app-data.js`의 `runAutoBatch`·`runAutoQueue` 하나이고
+`app/lib/rules.ts`로 건너간다 — 앱은 어댑터만 갈아 낀다.
+
+## 아직 사람이 판정하지 않은 것 — selected-v1의 대사 품질
+
+`DIALOGUE_RULESET=selected-v1`은 구현·테스트가 끝났지만 **운영 기본값이
+아니다**. 「설레는가 · 캐릭터가 맞는가 · 다음 말을 하고 싶은가」는 자동으로
+합격시키지 않는다 — `replay-out-selected/answers.md`를 사람이 읽고 정한다.
+그 판정 전에는 운영 전환·H(판 갈이)·Expo 미완성 기능·비공개 출시를 진행하지
+않는다.
+
 ## 커밋 메시지의 모델 식별자 — 과거 위반 기록
 
 규칙: 모델 식별자는 실행에 필요한 설정(worker.js의 MODELS·ENGINE 표)에만

@@ -4004,9 +4004,12 @@ eq('받은 날을 남은 날로 적는다',
 /* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */
 eq('준 사람 이름을 글로 또 안 적는다', /에게서/.test(web), false);
 /* 「누구에게 받았다」는 그 물건이 실제로 그 사람에게서 들어와 있을 때만 나온다 */
+/* need가 붙은 줄은 물건이 실제로 가방에 들어간 뒤에만 붙는다. 그리고
+   그 줄만 Effect 뒤로 미룬다 — 나머지 말풍선은 Effect보다 먼저다(장부 순서) */
 eq('가방과 지문이 갈리지 않는다',
   /need:\{key:e\.item,from:e\.from\}/.test(web)
-  && /if\(s\.need&&!loadBag\(\)\.some\(x=>x\.key===s\.need\.key&&x\.from===s\.need\.from\)\)continue;/.test(web), true);
+  && /if\(s\.need&&!loadBag\(\)\.some\(x=>x\.key===s\.need\.key&&x\.from===s\.need\.from\)\)return true;/.test(web)
+  && /for\(const s of b\.sys\|\|\[\]\) if\(s&&s\.need\) if\(!putLine\(s\)\)ok=false;/.test(web), true);
 /* 설명이 아니라 물건이 하는 한 마디 */
 eq('받은 것마다 한 마디가 있다', (() => {
   const t = web.slice(web.indexOf('const ITEMS={'));
@@ -6252,6 +6255,7 @@ eq('시간표 단추는 peek보다 좁다',
     const APP_SRC = 'function App(){'
       + web.slice(web.indexOf('function App(){') + 'function App(){'.length, web.indexOf(CUT))
       + `\n  return { send, request, enqueue, commitTurn, resumeBatch, retry, openRoom, runAutoEvent,
+        localBatch, headBatchOf,
         leaveScene, answerLeave, startWay: setWay, answerWay,
         openAsk, answerMove, answerAsk, answerInvite, giveGift, giveGiftAt,
         invite, busy, failed,
@@ -7190,6 +7194,68 @@ eq('시간표 단추는 peek보다 좁다',
         eq('회피여도 발견 장면은 한 번 소모된다 — 무한 반복하지 않는다',
           W.ls('null_auto_q'), []);
       }
+
+      /* ── ④ 말풍선 저장이 실패하면 공개까지 못 간다 ──
+         순서 계약: 말풍선 → Effect(공개) → 사건. 대사가 안 남았는데
+         「아는 사람」이 되는 길이 없어야 한다. */
+      {
+        const W = boot(seedQ, rep, { failKeys: ['null_store_v1'] });
+        await W.app.runAutoEvent(EV, T0 - 1000);
+        await W.tick(60000);
+        eq('대화가 안 남으면 공개도 없다',
+          [W.ls('null_disclosed') || {}, (W.ls('null_eff_done') || []).length], [{}, 0]);
+        eq('대화가 안 남으면 사건도 안 지운다', (W.ls('null_auto_q') || []).length, 1);
+        eq('장부는 남는다', (W.ls('null_batch') || []).length, 1);
+        /* 고치고 다시 켠다 — 저장된 장부로만 잇는다 */
+        const V = boot(JSON.parse(JSON.stringify(W.dump())), rep);
+        await V.tick(60000);
+        eq('재개가 API를 안 부른다', V.sent.length, 0);
+        eq('재개가 남은 것을 정확히 한 번 한다',
+          [(V.app.store.msgs.health || []).length, V.ls('null_disclosed'),
+           V.ls('null_auto_q'), (V.ls('null_batch') || []).length],
+          [2, { 'gift.mug.user_to_jaeeon': ['jaeeon', 'minhyun'] }, [], 0]);
+      }
+
+      /* ── ⑤ 장부가 남아 있으면 그 방은 잠긴다 — 새 관전을 안 부른다 ── */
+      {
+        const W = boot(seedQ, rep, { failKeys: ['null_disclosed'] });
+        await W.app.runAutoEvent(EV, T0 - 1000);
+        await W.tick(60000);
+        eq('막힌 뒤에도 장부가 남아 있다', (W.ls('null_batch') || []).length, 1);
+        const before = W.sent.length;
+        /* 관전방을 열어 배경 효과를 여러 번 돌린다 — 잠겼으면 호출이 없다 */
+        W.app.openRoom('health');
+        await W.tick(60000);
+        await W.tick(60000);
+        eq('잠긴 방에서는 모델을 다시 안 부른다', W.sent.length, before);
+      }
+
+      /* ── ⑥ 방별 FIFO — 앞 덩어리가 끝나기 전에 뒤가 먼저 적용되지 않는다 ──
+         전에는 부팅에서 전부 resume했다. 말풍선이 있는 앞 덩어리는 큐로
+         넘어가고, 말풍선이 없는 뒤 덩어리는 그 자리에서 끝나버렸다. */
+      {
+        const W = boot({ null_name: '연' }, rep);
+        /* 같은 방에 둘을 적는다: 앞은 말풍선(재생 큐), 뒤는 해금(즉시) */
+        W.app.enqueue('health', [{ sender: 'minhyun', text: 'ㄱ' }, { sender: 'jaeeon', text: 'ㄴ' }]);
+        W.app.localBatch('unlock|x', 'health', { unlocked: ['hidden-jaeeon-diary-200x-03-07'] });
+        eq('뒤엣것은 아직 안 풀렸다', (W.ls('null_unlocked') || []).length, 0);
+        eq('둘 다 장부에 남아 있다', (W.ls('null_batch') || []).length, 2);
+        await W.tick(60000);
+        eq('앞이 끝나면 뒤가 이어진다',
+          [(W.app.store.msgs.health || []).length, (W.ls('null_unlocked') || []).length,
+           (W.ls('null_batch') || []).length], [2, 1, 0]);
+      }
+
+      /* ── ⑦ 방이 다르면 서로 안 막는다 ── */
+      {
+        const W = boot({ null_name: '연' }, rep);
+        W.app.enqueue('health', [{ sender: 'minhyun', text: 'ㄱ' }]);
+        W.app.localBatch('unlock|y', 'jaeeon', { unlocked: ['hidden-jaeeon-diary-200x-03-07'] });
+        eq('다른 방 것은 그 자리에서 끝난다', (W.ls('null_unlocked') || []).length, 1);
+        await W.tick(60000);
+        eq('둘 다 끝난다',
+          [(W.app.store.msgs.health || []).length, (W.ls('null_batch') || []).length], [1, 0]);
+      }
     }
 
     /* ══════════ 앱 관전 장부 엔진 — runAutoBatch (웹·앱 공용) ══════════
@@ -7242,6 +7308,106 @@ eq('시간표 단추는 peek보다 좁다',
         const i = dataSrc.indexOf('const runAutoBatch');
         return /fetch|XMLHttpRequest/.test(dataSrc.slice(i, dataSrc.indexOf('const loadDisclosed', i)));
       })(), false);
+
+      /* ── 장부는 하나가 아니라 줄이다 (앱 쪽 FIFO) ──
+         값 하나로 두면 앞엣것이 실패로 남아 있을 때 새 관전이 덮는다:
+         아직 못 붙인 말풍선과 안 적힌 공개가 통째로 사라진다. */
+      {
+        const Q = new Function(
+          'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v},removeItem(k){delete this._v[k]}};'
+          + dataSrc + '\nreturn {readAutoQueue,pushAutoBatch,runAutoQueue};')();
+        eq('깨진 값에도 안 죽는다',
+          [Q.readAutoQueue(''), Q.readAutoQueue('{{'), Q.readAutoQueue('null'), Q.readAutoQueue('[1,2]')],
+          [[], [], [], []]);
+        eq('옛 단일 장부도 줄로 읽는다',
+          Q.readAutoQueue(JSON.stringify({ id: 'auto|a', messages: [] })).map(b => b.id), ['auto|a']);
+        eq('같은 id는 두 번 안 들어간다', (() => {
+          const one = Q.pushAutoBatch([], { id: 'auto|a' });
+          return Q.pushAutoBatch(one, { id: 'auto|a' }).length;
+        })(), 1);
+        eq('id 없는 것은 안 들어간다', Q.pushAutoBatch([], { messages: [] }).length, 0);
+
+        /* 줄을 순서대로 푼다. 실패하면 그 자리에서 멈추고 남은 줄을 준다 */
+        const mkQ = opts => {
+          const S = { msgs: [], fx: [], q: ['e1', 'e2'], left: null, log: [] };
+          const A = {
+            saveMsg: async m => { S.log.push('msg:' + m.id);
+              if (opts && opts.failMsg === m.id) return false;
+              if (!S.msgs.includes(m.id)) S.msgs.push(m.id); return true; },
+            applyEffect: async e => { S.log.push('fx:' + e.id);
+              if (opts && opts.failFx === e.id) return false;
+              if (!S.fx.includes(e.id)) S.fx.push(e.id); return true; },
+            ackEvent: async id => { S.log.push('ack:' + id); S.q = S.q.filter(x => x !== id); return true; },
+            /* 줄에서 그 항목만 뺀다 — 앱 어댑터와 같은 계약이다 */
+            dropBatch: async b => { S.log.push('drop:' + (b && b.id)); return true; },
+          };
+          return { S, A };
+        };
+        const B1 = { id: 'auto|e1', room: 'health', messages: [{ id: 'x#0' }],
+          effects: [{ id: 'f1' }], event_id: 'e1' };
+        const B2 = { id: 'auto|e2', room: 'health', messages: [{ id: 'y#0' }],
+          effects: [{ id: 'f2' }], event_id: 'e2' };
+        {
+          const t = mkQ();
+          eq('줄을 순서대로 푼다', [await Q.runAutoQueue([B1, B2], t.A), t.S.log],
+            [[], ['msg:x#0', 'fx:f1', 'ack:e1', 'drop:auto|e1',
+                  'msg:y#0', 'fx:f2', 'ack:e2', 'drop:auto|e2']]);
+        }
+        {
+          /* 앞엣것이 막히면 뒤엣것은 시작도 안 한다 */
+          const t = mkQ({ failFx: 'f1' });
+          const left = await Q.runAutoQueue([B1, B2], t.A);
+          eq('앞이 막히면 뒤는 안 푼다',
+            [left.map(b => b.id), t.S.msgs, t.S.fx, t.S.q],
+            [['auto|e1', 'auto|e2'], ['x#0'], [], ['e1', 'e2']]);
+          /* 고치고 다시 — 남은 줄만 정확히 한 번 더 */
+          const u = mkQ(); u.S.msgs = t.S.msgs.slice(); u.S.q = t.S.q.slice();
+          eq('고치면 남은 줄이 이어진다',
+            [await Q.runAutoQueue(left, u.A), u.S.msgs, u.S.fx, u.S.q],
+            [[], ['x#0', 'y#0'], ['f1', 'f2'], []]);
+        }
+        {
+          /* 대화가 안 남으면 그 덩어리의 공개·사건은 통째로 안 간다 */
+          const t = mkQ({ failMsg: 'x#0' });
+          eq('대화가 실패하면 공개·사건이 없다',
+            [(await Q.runAutoQueue([B1, B2], t.A)).length, t.S.fx, t.S.q],
+            [2, [], ['e1', 'e2']]);
+        }
+        /* ── 해금도 장부 안이다 ──
+           밖에 두면 장부가 한 번 막혔다 풀릴 때 말풍선·공개는 복구되는데
+           .hidden만 영영 안 열린다 — 기록에는 남았는데 열린 적이 없는 문. */
+        {
+          const R = new Function(
+            'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v},removeItem(k){delete this._v[k]}};'
+            + dataSrc + '\nreturn runAutoBatch;')();
+          const mkU = opts => {
+            const S = { unlocked: null, acked: false, dropped: false, log: [] };
+            return { S, A: {
+              saveMsg: async () => { S.log.push('msg'); return true },
+              applyEffect: async () => { S.log.push('fx'); return true },
+              applyUnlocked: async ks => { S.log.push('unlock');
+                if (opts && opts.failUnlock) return false;
+                S.unlocked = ks; return true },
+              ackEvent: async () => { S.log.push('ack'); S.acked = true; return true },
+              dropBatch: async () => { S.log.push('drop'); S.dropped = true; return true },
+            } };
+          };
+          const BU = { id: 'auto|u', room: 'health', messages: [{ id: 'u#0' }],
+            effects: [{ id: 'e' }], unlocked: ['hidden-x'], event_id: 'ev' };
+          const okU = mkU();
+          eq('해금은 말풍선·Effect 뒤, 사건 소모 앞이다',
+            [await R(BU, okU.A), okU.S.log, okU.S.unlocked],
+            [true, ['msg', 'fx', 'unlock', 'ack', 'drop'], ['hidden-x']]);
+          const badU = mkU({ failUnlock: true });
+          eq('해금이 실패하면 사건을 안 지운다',
+            [await R(BU, badU.A), badU.S.acked, badU.S.dropped], [false, false, false]);
+          /* 해금이 없는 장부는 그 단계를 아예 안 탄다 */
+          const noU = mkU();
+          eq('해금이 없으면 안 부른다',
+            [await R({ ...BU, unlocked: [] }, noU.A), noU.S.log],
+            [true, ['msg', 'fx', 'ack', 'drop']]);
+        }
+      }
     }
 
     /* ── 앱 배선 소스 검사 — 엔진이 실제 관전 경로에 물려 있다 ── */
@@ -7256,12 +7422,171 @@ eq('시간표 단추는 peek보다 좁다',
       eq('앱 관전에서 Effect가 대화보다 먼저 적히는 길이 없다',
         /genAuto\([\s\S]{0,400}applyExtras/.test(appTsx), false);
       eq('앱이 공용 엔진과 멱등 열쇠를 쓴다',
-        [/runAutoBatch\(b,autoAdapters\(\)\)/.test(appTsx), /hasMsgTrack\('health', m\.id\)/.test(appTsx)], [true, true]);
+        [/runAutoQueue\(list,autoAdapters\(\)\)/.test(appTsx), /hasMsgTrack\('health', m\.id\)/.test(appTsx)], [true, true]);
       eq('앱이 부팅에서 남은 장부를 잇는다',
         /if\(ready\) resumePendingAuto\(\)/.test(appTsx)
         && /getMeta\('null_auto_batch'\)/.test(appTsx), true);
-      eq('규칙층이 엔진을 나른다',
-        /const runAutoBatch=async\(b,A\)=>/.test(readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8')), true);
+      eq('규칙층이 엔진을 나른다', (() => {
+        const rules = readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8');
+        return /const runAutoBatch=async\(b,A\)=>/.test(rules)
+          && /const runAutoQueue=async\(list,A\)=>/.test(rules);
+      })(), true);
+      /* ── 줄에 붙이고, 줄에서 뺀다 ──
+         덮어쓰면 앞엣것의 말풍선·공개가 통째로 사라진다. 그리고 다 풀릴
+         때까지 그 방은 잠긴다 — 새 관전을 그 위에 얹지 않는다. */
+      eq('앱이 장부를 덮지 않고 줄에 붙인다',
+        /const queued=pushAutoBatch\(before,b\);/.test(appTsx)
+        && /const before=readAutoQueue\(await getMeta\('null_auto_batch'\)\);/.test(appTsx), true);
+      /* ── 장부를 만지는 일은 한 줄로 세운다 ──
+         await가 셋이라 읽고-고치고-쓰는 사이가 열린다. 배경 관전과 유저의
+         peek이 겹치면 둘 다 빈 줄을 읽고 각자 제 것만 써서 앞엣것이 통째로
+         사라진다 — 덮어쓰기를 막으려던 변경이 경합으로 옮겨갈 뿐이다. */
+      eq('앱이 장부 작업을 직렬화한다',
+        /const autoGate=useRef<Promise<any>>\(Promise\.resolve\(\)\);/.test(appTsx)
+        && /const inAutoGate=/.test(appTsx)
+        && /return inAutoGate\(async\(\)=>\{/.test(appTsx)
+        && /const drainAutoBatches=\(\):Promise<boolean>=>inAutoGate\(drainOnce\);/.test(appTsx), true);
+      /* 잠금 표시는 예외가 나도 반드시 갱신된다 — 안 그러면 다 푼 방이
+         잠긴 채 굳어 그 세션 내내 관전이 죽는다(catch{}가 삼킨다) */
+      eq('잠금 표시를 finally로 세운다',
+        /\}finally\{\s*\n\s*autoStuckRef\.current=leftN>0; setAutoStuck\(leftN>0\);/.test(appTsx), true);
+      /* id 없는 장부를 지웠다고 치면 조용한 가짜 성공이 된다 */
+      eq('앱이 id 없는 장부를 지웠다고 안 한다',
+        /if\(!b\|\|typeof b\.id!=='string'\|\|!b\.id\)return false;/.test(appTsx), true);
+      /* 해금이 장부 밖에 있으면 막혔다 풀릴 때 .hidden만 영영 안 열린다 */
+      eq('해금도 장부 안이다',
+        /if\(\(b\.unlocked\|\|\[\]\)\.length&&A\.applyUnlocked/.test(readFileSync(join(ROOT, 'app-data.js'), 'utf8'))
+        && /unlocked:Array\.isArray\(data\?\.unlocked\)\?data\.unlocked:\[\],/.test(appTsx)
+        && /applyUnlocked: async\(list:any\)=>/.test(appTsx), true);
+      eq('앱이 줄에서 그 항목만 뺀다',
+        /dropBatch: async\(b:any\)=>\{[\s\S]{0,300}filter\(\(x:any\)=>x&&x\.id!==id\)/.test(appTsx), true);
+      /* ref로도 본다 — state는 다음 그림에서야 바뀌는데 부팅 재개는
+         비동기라, 그 사이에 배경 효과가 동기적으로 가드를 지나 잠긴 방
+         위로 유료 호출을 낸다. 웹은 localStorage를 동기로 읽어(headBatchOf)
+         이 구멍이 없다. */
+      eq('앱도 남은 줄이 있으면 그 방을 잠근다',
+        /autoStuckRef\.current=leftN>0; setAutoStuck\(leftN>0\);/.test(appTsx)
+        && /autoBusy\.current\|\|autoStuck\|\|autoStuckRef\.current/.test(appTsx), true);
+      eq('잠긴 방에서는 모델 대신 남은 것을 잇는다',
+        /if\(autoStuck\|\|autoStuckRef\.current\)\{ await drainAutoBatches\(\); return; \}/.test(appTsx), true);
+      /* ══ 앱 관전 장부를 **실제로 굴린다** ══
+         위는 전부 소스 정규식이다. 「코드에 이 글자가 있다」는 「이 코드가
+         이 일을 한다」가 아니다 — 경합·고착·유실은 실행해야만 보인다.
+         App.tsx에서 관전 부분만 잘라 가짜 저장소를 물리고 돌린다. */
+      {
+        const Q = new Function(
+          'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v},removeItem(k){delete this._v[k]}};'
+          + readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+          + '\nreturn {readAutoQueue,pushAutoBatch,runAutoQueue};')();
+        const cut = (from, to) => {
+          const i = appSrc.indexOf(from);
+          const j = appSrc.indexOf(to, i);
+          return appSrc.slice(i, j);
+        };
+        /* 타입 주석만 벗긴다. 이 조각에 있는 것은 다섯 가지뿐이고
+           (아래 검사가 남은 게 없음을 강제한다), 객체 리터럴의 `키:값`과
+           겹치지 않는다 — `:any`·`:number`·`:Promise<…>`만 지운다. */
+        const body = cut('const autoGate=useRef', 'const resumePendingAuto=')
+          .replace('const inAutoGate=<T,>(fn:()=>Promise<T>):Promise<T>=>', 'const inAutoGate=(fn)=>')
+          .replace(/useRef<[^(]*>\(/g, 'useRef(')
+          .replace(/:Promise<boolean>/g, '')
+          .replace(/:any\[\]/g, '').replace(/:any/g, '').replace(/:number/g, '');
+        eq('앱 관전 조각에서 타입이 다 벗겨졌다',
+          /:(any|number|string|boolean|Promise<)/.test(body), false);
+        const mk = (opts = {}) => {
+          const S = { meta: {}, msgs: [], fx: [], unlocked: [], q: ['e1'], stuck: false,
+            calls: 0, reloads: 0 };
+          const env = {
+            useRef: v => ({ current: v }),
+            setAutoStuck: v => { S.stuck = v },
+            autoStuckRef: { current: false },
+            getMeta: async k => { if (opts.failGet) throw new Error('db'); return S.meta[k] ?? null },
+            setMeta: async (k, v) => { S.meta[k] = v },
+            reload: async () => { S.reloads++; if (opts.failReload) throw new Error('db') },
+            readAutoQueue: Q.readAutoQueue, pushAutoBatch: Q.pushAutoBatch,
+            runAutoQueue: async (list, A) => { S.calls++; return await Q.runAutoQueue(list, A) },
+            autoAdapters: () => ({
+              saveMsg: async m => { if (opts.failMsg) return false;
+                if (!S.msgs.includes(m.id)) S.msgs.push(m.id); return true },
+              applyEffect: async e => { if (opts.failFx) return false;
+                if (!S.fx.includes(e.id)) S.fx.push(e.id); return true },
+              /* 실제 applyUnlocked와 같은 멱등이다 — 이미 열린 것은 안 센다
+                 (App.tsx가 Set으로 합친다). 어댑터 멱등은 장부의 전제다 */
+              applyUnlocked: async ks => {
+                S.unlocked = [...new Set([...S.unlocked, ...ks])]; return true },
+              ackEvent: async id => { S.q = S.q.filter(x => x !== id); return true },
+              dropBatch: async b => {
+                if (!b || typeof b.id !== 'string' || !b.id) return false;
+                const next = Q.readAutoQueue(S.meta.null_auto_batch).filter(x => x && x.id !== b.id);
+                S.meta.null_auto_batch = JSON.stringify(next); return true },
+            }),
+          };
+          const keys = Object.keys(env);
+          const fn = new Function(...keys, `${body}\nreturn { commitAutoTurn, drainAutoBatches };`);
+          return { S, api: fn(...keys.map(k => env[k])) };
+        };
+        const DATA = { messages: [{ text: 'ㄱ' }, { text: 'ㄴ' }],
+          effects: [{ id: 'fx1' }], unlocked: ['hidden-x'] };
+        const EV1 = { id: 'e1', kind: 'gift' };
+
+        /* 성공 — 말풍선·Effect·해금·사건이 한 번에 */
+        {
+          const t = mk();
+          eq('앱 관전이 실제로 한 번에 반영된다',
+            [await t.api.commitAutoTurn(EV1, 1000, DATA), t.S.msgs.length,
+             t.S.fx, t.S.unlocked, t.S.q, t.S.stuck],
+            [true, 2, ['fx1'], ['hidden-x'], [], false]);
+          eq('다 풀면 줄이 빈다', Q.readAutoQueue(t.S.meta.null_auto_batch).length, 0);
+        }
+        /* ── 경합 — 서로 다른 두 관전이 겹쳐도 앞엣것이 안 사라진다 ──
+           읽고-고치고-쓰는 사이에 await가 셋이다. 직렬화가 없으면 둘 다 빈
+           줄을 읽고 각자 제 것만 써서 앞엣것이 통째로 증발한다. */
+        {
+          const t = mk();
+          const [a, b] = await Promise.all([
+            t.api.commitAutoTurn({ id: 'e1' }, 1000, { messages: [{ text: 'A0' }, { text: 'A1' }] }),
+            t.api.commitAutoTurn({ id: 'e2' }, 2000, { messages: [{ text: 'B0' }, { text: 'B1' }] }),
+          ]);
+          eq('겹쳐 들어와도 둘 다 남는다', [a, b, t.S.msgs.length], [true, true, 4]);
+          eq('겹쳐도 줄이 깨끗이 빈다', Q.readAutoQueue(t.S.meta.null_auto_batch).length, 0);
+        }
+        /* 같은 사건이 겹쳐 들어와도 아무것도 두 번 안 새겨진다.
+           둘째가 참을 돌려주는 것은 「그 응답도 반영돼 있다」는 뜻이라 맞다 —
+           재개가 멱등이라는 계약과 같은 말이다. 재는 것은 중복 0이다. */
+        {
+          const t = mk();
+          await Promise.all([
+            t.api.commitAutoTurn(EV1, 1000, DATA),
+            t.api.commitAutoTurn(EV1, 1000, DATA),
+          ]);
+          eq('같은 사건이 겹쳐도 중복이 0이다',
+            [t.S.msgs.length, t.S.fx, t.S.unlocked, t.S.q,
+             Q.readAutoQueue(t.S.meta.null_auto_batch).length],
+            [2, ['fx1'], ['hidden-x'], [], 0]);
+        }
+        /* ── 고착 — 예외가 나도 잠금 표시가 반드시 갱신된다 ── */
+        {
+          const t = mk({ failReload: true });
+          await t.api.drainAutoBatches();
+          eq('다 푼 방은 예외가 나도 안 잠긴다', [t.S.stuck, t.S.calls], [false, 0]);
+        }
+        {
+          const t = mk({ failFx: true });
+          await t.api.commitAutoTurn(EV1, 1000, DATA);
+          eq('막히면 잠긴다', [t.S.stuck, t.S.q, t.S.unlocked], [true, ['e1'], []]);
+          /* 고치고 다시 — 저장된 줄로만 잇는다 */
+          const u = mk(); u.S.meta = { ...t.S.meta }; u.S.msgs = t.S.msgs.slice(); u.S.q = t.S.q.slice();
+          eq('고치면 남은 것이 이어지고 잠금이 풀린다',
+            [await u.api.drainAutoBatches(), u.S.msgs.length, u.S.fx, u.S.unlocked, u.S.q, u.S.stuck],
+            [true, 2, ['fx1'], ['hidden-x'], [], false]);
+        }
+      }
+      /* 웹도 같은 계약이다 — 관전 장부가 남아 있으면 새로 안 부른다 */
+      eq('웹도 남은 관전 장부가 있으면 안 부른다',
+        /if\(headBatchOf\("health"\)\)return;/.test(web), true);
+      eq('웹이 방별로 머리부터 푼다',
+        /const head=headBatchOf\(b\.room\);\s*\n\s*if\(head&&head\.id!==b\.id\)return false;/.test(web)
+        && /const next=headBatchOf\(b\.room\);\s*\n\s*if\(next\)resumeBatch\(next\.id\);/.test(web), true);
     }
   }
 
@@ -7289,9 +7614,13 @@ eq('시간표 단추는 peek보다 좁다',
       && !/save(Bag|EffDone|Gifts|Scene|Invites|Unlocked)\(/.test(box)
       && !/applyEffect\(|applyOp\(|ackScene\(|ackAutoEvent\(/.test(box);
   })(), true);
-  /* 실행기는 장부가 남은 뒤에만 돈다 */
+  /* 실행기는 장부가 남은 뒤에만 돈다. 그리고 돌려주는 값은 「적혔나」다 —
+     정상 대기(방별 FIFO)를 실패로 읽으면 귀갓길 창이 안 뜨고 초대가
+     두 번 나간다. 거짓은 저장 자체가 안 됐을 때뿐이다. */
   eq('실행은 장부가 남은 뒤에만 한다',
-    /if\(!putBatch\(newBatch\(id,room,plan\)\)\)\{ saveFailed\(room\); return false \}\s*\n\s*return resumeBatch\(id\);/.test(web), true);
+    /if\(!putBatch\(newBatch\(id,room,plan\)\)\)\{ saveFailed\(room\); return false \}\s*\n\s*resumeBatch\(id\);\s*\n\s*return true;/.test(web), true);
+  eq('대기와 저장 실패를 가른다',
+    /if\(getBatch\(id\)\)\{ resumeBatch\(id\); return true \}/.test(web), true);
   /* 말이 안 남았으면 소모 단계로 안 넘어간다 */
   eq('대화가 안 남으면 아무것도 소모 안 한다', (() => {
     const i = web.indexOf('const finishBatch=id=>{');

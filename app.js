@@ -488,8 +488,20 @@ function App(){
   /* ── 장부를 실행한다. 되풀이해도 결과가 같다 ──
      말풍선이 남아 있으면 화면에 풀고(그리면서 하나씩 뺀다), 다 뜨면
      뒤따르는 것을 낸다. 목표 상태가 전부 확인된 뒤에만 장부를 지운다. */
+  /* ── 그 방에 적힌 첫 덩어리 ──
+     장부는 적은 차례대로 쌓인다(putBatch가 push한다). 방마다 그 방의
+     머리만 실행한다 — 뒤엣것이 먼저 풀리면 말과 상태의 차례가 갈린다. */
+  const headBatchOf=room=>loadBatches().find(b=>b.room===room)||null;
+  /* ── 같은 방에서는 적힌 차례대로 푼다 (방별 FIFO) ──
+     전에는 부팅에서 loadBatches().forEach로 전부 풀었다. 말풍선이 있는
+     덩어리는 큐로 넘어가고(false), 말풍선이 없는 뒤 덩어리는 그 자리에서
+     끝나버렸다 — 관전 대화가 아직 안 뜬 채로 뒤 덩어리의 해금·사건 소모가
+     먼저 일어났다. 머리가 아니면 아무것도 안 한다: 머리가 끝날 때
+     finishBatch가 다음을 이어 부른다. 방이 다르면 서로 안 막는다. */
   const resumeBatch=id=>{
     const b=getBatch(id); if(!b)return true;
+    const head=headBatchOf(b.room);
+    if(head&&head.id!==b.id)return false;             // 앞엣것이 아직 안 끝났다
     if((b.items||[]).length){ playItems(b); return false }
     return finishBatch(id);
   };
@@ -509,25 +521,37 @@ function App(){
   const finishBatch=id=>{
     const b=getBatch(id); if(!b)return true;
     let ok=true;
-    /* ① Effect — 가방·초대. 갈래를 셋으로 가른다 */
+    /* 줄 하나를 붙인다. 이미 있으면 성공이다(appendOnce가 본다) */
+    const putLine=s=>{
+      if(!s||!s.id)return true;
+      if(s.need&&!loadBag().some(x=>x.key===s.need.key&&x.from===s.need.from))return true;
+      const m={id:s.id,sender:s.sender||"user",text:s.text||"",ts:s.ts||Date.now()};
+      if(s.sys!==false)m.sys=true;
+      if(s.photo)m.photo=s.photo;
+      return appendOnce(s.room,m);
+    };
+    /* ── ① 말풍선이 먼저다 ──
+       전에는 Effect가 먼저였다. 관전 대사는 items가 아니라 sys로 오는데,
+       그 순서에서는 **화면에 말이 하나도 없는 채로** 공개(disclosure)가
+       먼저 장부에 적혔다. 저장이 거기서 끊기면 아무도 말한 적 없는 사실을
+       상대가 아는 상태가 남는다. 대화가 남은 뒤에만 상태가 움직인다.
+       need가 붙은 줄(「받았다」 같은 Effect 결과 지문)만 뒤로 미룬다 —
+       그건 물건이 실제로 가방에 들어간 뒤에 붙어야 한다. */
+    for(const s of b.sys||[]) if(!s||!s.need) if(!putLine(s))ok=false;
+    /* 말이 안 남았으면 Effect로 못 간다 */
+    if(!ok){ saveFailed(b.room,null,id); return false }
+    /* ② Effect — 가방·초대·공개. 갈래를 셋으로 가른다 */
     for(const e of b.effects||[]){
       const r=applyEffect(e);
       if(r.status==="storage_error")ok=false;
     }
-    /* ② 줄. need가 붙은 것은 그 조건이 실제로 이뤄졌을 때만 */
-    for(const s of b.sys||[]){
-      if(!s||!s.id)continue;
-      if(s.need&&!loadBag().some(x=>x.key===s.need.key&&x.from===s.need.from))continue;
-      const m={id:s.id,sender:s.sender||"user",text:s.text||"",ts:s.ts||Date.now()};
-      if(s.sys!==false)m.sys=true;
-      if(s.photo)m.photo=s.photo;
-      if(!appendOnce(s.room,m))ok=false;
-    }
-    /* 말이 안 남았으면 여기서 멈춘다. 아래는 전부 **소모하는** 일이라
+    /* ③ Effect 결과 지문. 그 조건이 실제로 이뤄졌을 때만 */
+    for(const s of b.sys||[]) if(s&&s.need) if(!putLine(s))ok=false;
+    /* 여기서 멈추면 아래는 전부 **소모하는** 일이라
        (초대를 줄에서 빼고, 장면을 쓰고, 관전 사건을 지운다) 대화가 없는
        채로 소모하면 유저가 한 일이 없던 일이 된다. */
     if(!ok){ saveFailed(b.room,null,id); return false }
-    /* ③ 해금 */
+    /* ④ 해금 */
     if((b.unlocked||[]).length){
       const now=loadUnlocked();
       const fresh=b.unlocked.filter(k=>HIDDEN_LABEL[k]&&!now.includes(k));
@@ -541,7 +565,7 @@ function App(){
         }
       }
     }
-    /* ④ 초대 줄에서 빼기 — 답한 것만 */
+    /* ⑤ 초대 줄에서 빼기 — 답한 것만 */
     for(const op of b.invite_ops||[]){
       if(op.op!=="shift")continue;
       const head=headInvite();
@@ -551,10 +575,10 @@ function App(){
       if(now&&now.place===op.place&&now.char===op.char)ok=false;
     }
     setInvite(headInvite());
-    /* ⑤ 이 판의 상태 — 자리·도장·선물 */
+    /* ⑥ 이 판의 상태 — 자리·도장·선물 */
     for(const o of b.local_ops||[]) if(!applyOp(o))ok=false;
     if(b.toast)setToast(b.toast);
-    /* ⑥ 중요 장면 소모.
+    /* ⑦ 중요 장면 소모.
        그 장면이 실제로 성공했으면 그 사람은 이제 안다 — 상태도 같이 뒤집는다.
        partner_known(다른 쪽이 처음 아는 자리)만이 아니라 partner_confirm
        (본인이 정해지는 자리)도다 — 안 뒤집으면 아크가 끝난 뒤에도 정작
@@ -567,7 +591,7 @@ function App(){
         if(peekScene(b.room)===b.scene_ack)ok=false;
       }
     }
-    /* ⑦ 관전 사건 소모 */
+    /* ⑧ 관전 사건 소모 */
     if(b.auto_event_id){
       ackAutoEvent(b.auto_event_id);
       if(loadAutoQ().some(x=>x.id===b.auto_event_id))ok=false;
@@ -580,8 +604,15 @@ function App(){
     if(!dropBatch(id)){ saveFailed(b.room,null,id); return false }
     settle(b.room);
     /* 모델을 아직 안 부른 일(초대·나가기·선물…)은 여기서 이어간다.
-       정확히 한 번이다 — 장부가 지워진 뒤이므로 다시 오지 않는다. */
+       정확히 한 번이다 — 장부가 지워진 뒤이므로 다시 오지 않는다.
+       **다음 덩어리를 잇기 전에** 낸다: 순서를 바꾸면 뒤 덩어리의
+       after_request가 먼저 나가고, 더 나쁘게는 아직 화면에 안 뜬
+       말풍선이 history에서 통째로 빠진 채 요청이 나간다. */
     runAfter(b.room,b.after_request);
+    /* ── 그 방에 적힌 다음 덩어리를 잇는다 (방별 FIFO) ──
+       머리가 끝나야 다음이 열린다. 모델은 안 부른다 — 적힌 것만 푼다. */
+    const next=headBatchOf(b.room);
+    if(next)resumeBatch(next.id);
     return true;
   };
   /* ── 이어서 부를 요청은 함수가 아니라 장부에 적는다 ──
@@ -601,10 +632,17 @@ function App(){
      자리 종료·귀갓길·초대 답·자리 이동·지도 방문·선물. 전에는 closeScene·
      stampGone·stampGift·goneTo·gifts를 메시지 저장 **전에** 했다 — 저장이
      실패하면 「간 것으로 찍혔는데 간 기록이 없는」 상태가 됐다. */
+  /* ── 돌려주는 값은 「적혔나」다. 「지금 다 풀었나」가 아니다 ──
+     방별 FIFO가 생기면서 정상 대기(그 방의 앞 덩어리가 아직 안 끝남)가
+     resumeBatch의 false와 같은 값이 됐다. 호출자는 그걸 실패로 읽는다 —
+     귀갓길 창이 안 뜨고, 초대가 두 번 나가는 자리가 거기였다.
+     적혔으면 참이다: 지금 못 푼 것은 장부가 들고 있고, 머리가 끝나면
+     finishBatch가 이어 부른다. 거짓은 **저장 자체가 안 됐을 때**뿐이다. */
   const localBatch=(id,room,plan)=>{
-    if(getBatch(id))return resumeBatch(id);
+    if(getBatch(id)){ resumeBatch(id); return true }
     if(!putBatch(newBatch(id,room,plan))){ saveFailed(room); return false }
-    return resumeBatch(id);
+    resumeBatch(id);
+    return true;
   };
   /* ── 모델의 답 하나를 장부로 옮긴다 ──
      여기서도 상태를 안 바꾼다. 계획만 적는다.
@@ -1236,6 +1274,11 @@ function App(){
        그 방은 죽은 방이다 — 유저 없이도 돌아간다는 게 이 앱의 전제인데
        정작 그 방만 유저가 뭘 해야 움직이고 있었다. */
     if(!name||(view!=="list"&&view!=="health")||autoBusy.current)return;
+    /* 아직 안 푼 관전 장부가 남아 있으면 그 방은 잠겼다 — 새로 부르지
+       않는다. 아직 안 뜬 말 위에 다음 장면을 얹으면 차례가 갈리고,
+       이력에는 안 뜬 말이 통째로 빠진 채 다음 요청이 나간다.
+       남은 것은 부팅 재개(resumeBatch)가 저장된 장부로만 잇는다. */
+    if(headBatchOf("health"))return;
     (async()=>{
       /* 사건이 있으면 그 일을 두고 얘기하고, 없으면 그냥 둘이 떠든다.
          전에는 사건이 없으면 아무것도 안 만들었다 — 선물도 안 주고 자리도
@@ -1294,9 +1337,10 @@ function App(){
      전에는 data.messages만 꺼내고 data.effects를 버렸다. 서버가 만든
      택배에서 대사만 꺼내고 송장(공개 Effect)을 버리는 짓이라, 소유자가
      출처를 밝혀도 null_disclosed가 영영 안 갱신됐다. 이제 말풍선·Effect·
-     사건 소모가 한 장부(localBatch)에 실린다 — finishBatch가 Effect와
-     말풍선을 전부 확인한 뒤에만(⑦) 사건을 지우고, 어느 저장이 실패하면
-     장부와 사건이 남아 **API 재호출 없이** 남은 것만 이어서 한다. */
+     사건 소모가 한 장부(localBatch)에 실린다 — finishBatch가 말풍선(①)을
+     남긴 뒤에야 Effect(②)를 적용하고, 그 둘이 다 확인된 뒤에만(⑧) 사건을
+     지운다. 어느 저장이 실패하면 장부와 사건이 남아 그 방이 잠기고,
+     **API 재호출 없이** 남은 것만 이어서 한다. */
   const runAutoEvent=async(ev,at)=>{
     let data=null;
     /* 고른 데모(?demo=1)만 각본이다. 실패해서 넘어가는 길은 이제 없다. */

@@ -1570,5 +1570,401 @@ const PROBE = { ...BASE,
   })(), ["writer"]);
 }
 
+/* ══════════ 14. selected-v1 — 견본·재료·말맛 분리 ══════════
+   틀린 사실을 만들지 않으면서 기본 생성이 자연스러워지게 하는 갈래다.
+   여기서 재는 것은 **정보 범위·프롬프트 계약·단계 순서·호출 수**다.
+   정확한 대사 문자열을 정답으로 박지 않는다 — 그건 고정 응답집이고,
+   견본은 고정 응답집이 아니다. */
+const SEL = { DIALOGUE_RULESET: "selected-v1", CANDIDATE_MODE: "pair" };
+
+/* ── 14.1 견본 데이터 자체 ── */
+{
+  const S = ENG.SELECTED_SAMPLES;
+  eq("견본이 모양을 지킨다", S.filter(s => !s.id || !s.speaker || !Array.isArray(s.stage)
+    || !s.intent || !Array.isArray(s.response) || !s.response.length
+    || !Array.isArray(s.required_fact_ids) || !Array.isArray(s.forbidden_before)).map(s => s.id), []);
+  eq("id가 안 겹친다", S.length - new Set(S.map(s => s.id)).size, 0);
+  eq("화자는 넷 중 하나다",
+    S.filter(s => !["jaeeon", "minhyun", "group", "health"].includes(s.speaker)).map(s => s.id), []);
+  eq("단계 이름이 실제 단계다",
+    S.filter(s => s.stage.some(x => !ENG.STAGES.some(g => g.name === x))).map(s => s.id), []);
+  /* 견본이 요구하는 fact_id는 실제로 만들어질 수 있는 것이어야 한다 */
+  {
+    const canon = new Set(ENG.canonFacts().map(f => f.fact_id));
+    const bad = S.flatMap(s => s.required_fact_ids)
+      .filter(f => !canon.has(f) && !/^(gift|item)\.[^.]+\.(user_to_|with_)/.test(f));
+    eq("required_fact_ids가 실제 사실 이름이다", [...new Set(bad)], []);
+  }
+  /* 사용자가 문제로 지목한 문장은 안 실린다 */
+  {
+    const txt = JSON.stringify(S);
+    eq("문제로 지목된 문장이 없다",
+      ["그러던지", "알았대", "공부방을 했", "공부방은 제가 다녔", "공부방은 한 적 없어요"]
+        .filter(w => txt.includes(w)), []);
+    eq("미수정본 「안 지시네」가 없다", /안 지시네[^요]/.test(txt), false);
+    eq("사용자 수정본이 실려 있다",
+      ["안 지시네요", "이게 좋아서요"].filter(w => !txt.includes(w)), []);
+  }
+  /* 기억 공개 견본에는 반드시 상태 잠금이 걸려 있다 */
+  eq("기억 공개 견본은 상태 잠금이 있다",
+    S.filter(s => s.intent === "memory_reveal" && !s.forbidden_before.length).map(s => s.id), []);
+}
+
+/* ── 14.2 투영 — 화자·단계·의도가 맞는 것만 ── */
+{
+  const F = ENG.canonFacts();
+  const ctxOpen = { firstContact: "explained", jaeeonMemory: "opened" };
+  const ctxHidden = { firstContact: "unseen", jaeeonMemory: "hidden" };
+  const pick = (speaker, stage, intent, facts, ctx) =>
+    ENG.examplesForTurn(ENG.SELECTED_SAMPLES, speaker, stage, intent, facts, ctx, 3).map(s => s.id);
+
+  eq("화자가 다르면 안 나간다",
+    pick("minhyun", "익숙", "gift_history", F, ctxOpen)
+      .filter(id => id.startsWith("S-jaeeon")), []);
+  eq("의도가 다르면 안 나간다",
+    pick("jaeeon", "익숙", "night", F, ctxOpen)
+      .filter(id => !id.includes("night")), []);
+  eq("단계가 안 맞으면 안 나간다",
+    pick("jaeeon", "시한", "opening", F, ctxOpen), []);
+  eq("최대 세 개다",
+    ENG.examplesForTurn(ENG.SELECTED_SAMPLES, "jaeeon", "익숙", "talk", F, ctxOpen, 3).length <= 3, true);
+
+  /* ── 이야기가 안 열렸으면 **공개** 견본은 하나도 안 나간다 ──
+     안 열린 자리에도 견본은 있다: 「아직 안 여는 답」(probe-early)이다.
+     코드가 그 자리에 매기는 의도는 memory_probe가 아니라 memory_reveal일
+     수 있다 — detectScene이 재언 방의 기억 질문을 상태와 무관하게
+     memory_reveal로 올리기 때문이다. 그래서 의도가 아니라 **어느 견본이
+     나가는지**로 잰다. */
+  eq("안 열렸으면 여는 견본이 안 샌다",
+    pick("jaeeon", "균열", "memory_reveal", F, ctxHidden).filter(id => id.includes("reveal")), []);
+  eq("안 열렸으면 아직 안 여는 답이 나간다",
+    pick("jaeeon", "균열", "memory_reveal", F, ctxHidden),
+    ["S-jaeeon-probe-early-1", "S-jaeeon-probe-early-2"]);
+  eq("열린 뒤에는 여는 견본이 나간다",
+    pick("jaeeon", "균열", "memory_reveal", F, ctxOpen),
+    ["S-jaeeon-reveal-1", "S-jaeeon-reveal-2", "S-jaeeon-reveal-3"]);
+  /* ── 정사는 뒤로 안 감긴다 ──
+     다 인정한 뒤에 또 물으면 「제가 한 건 아니에요」로 돌아가면 안 된다.
+     그 견본은 forbidden_after로 막힌다. */
+  eq("인정한 뒤에는 아직 안 여는 답이 안 나간다",
+    pick("jaeeon", "익숙", "memory_probe", F, { ...ctxOpen, jaeeonMemory: "acknowledged" })
+      .filter(id => id.includes("probe-early")), []);
+  eq("인정한 뒤에도 여는 견본은 나간다",
+    pick("jaeeon", "균열", "memory_probe", F, { ...ctxOpen, jaeeonMemory: "acknowledged" }).length > 0, true);
+  eq("첫 만남 견본도 상태를 본다", [
+    pick("minhyun", "익숙", "firstmeet", F, ctxHidden).length,
+    pick("minhyun", "익숙", "firstmeet", F, { ...ctxOpen, firstContact: "pending" }).length > 0,
+  ], [0, true]);
+
+  /* 재언만 아는 사실은 민현의 투영에 없다 → 그 사실을 요구하는 견본도 못 나간다 */
+  {
+    const ctxF = ENG.makeTurnContext({}, { facts: F });
+    const mine = ENG.factsForSpeaker(ctxF, "minhyun");
+    eq("민현 투영에 재언만 아는 과거가 없다",
+      [...ENG.factIds(mine)].filter(f => f.startsWith("canon.jaeeon")), []);
+    eq("민현 견본이 재언의 사실을 요구할 수 없다",
+      ENG.examplesForTurn(ENG.SELECTED_SAMPLES, "minhyun", "균열", "memory_reveal", mine, ctxOpen, 3), []);
+  }
+  /* 상태 잠금 판정 자체 */
+  eq("잠금은 「그 값 이상」이다", [
+    ENG.sampleGateOk("jaeeonMemory:opened", { jaeeonMemory: "hidden" }),
+    ENG.sampleGateOk("jaeeonMemory:opened", { jaeeonMemory: "opened" }),
+    ENG.sampleGateOk("jaeeonMemory:opened", { jaeeonMemory: "acknowledged" }),
+    ENG.sampleGateOk("모르는키:x", { jaeeonMemory: "acknowledged" }),
+  ], [false, true, true, false]);
+}
+
+/* ── 14.3 이번 턴 재료 — 하나이고, 직접 질문을 놓치지 않는다 ── */
+{
+  const ctx = ENG.makeTurnContext({}, { now: "저녁", facts: [] });
+  const mat = (said, extra) => ENG.turnMaterial("chat", "jaeeon",
+    { ...ctx, ...(extra || {}) }, said, {});
+  eq("직접 질문을 잡는다", mat("선생님 점심 드셨어요?").kind, "user_ask");
+  eq("물음표가 없어도 청하는 말을 잡는다", mat("다음에 산책할 때 저도 껴주세요").kind, "user_ask");
+  eq("고백도 잡는다", mat("저 선생님 좋아해요").kind, "user_ask");
+  eq("긴 토로에서는 마지막 문장을 준다",
+    mat("오늘 리허설을 했어요. 머리가 하얘졌어요. 실전에서 또 그러면 어떡하죠?").text,
+    "실전에서 또 그러면 어떡하죠?");
+  eq("재료는 언제나 하나다",
+    [mat("이거 쓰세요", { giftNow: "mug", sceneReason: "memory_reveal" })].length, 1);
+  eq("질문이 있으면 질문이 먼저다",
+    mat("이거 제가 드린 거 맞죠?", { giftNow: "mug" }).kind, "user_ask");
+  eq("질문이 없으면 이번 턴 물건이다",
+    mat("자, 받아요", { giftNow: "mug" }).kind, "gift_now");
+  eq("그다음이 승인된 장면이다",
+    mat("...", { sceneReason: "memory_reveal" }).kind, "scene");
+  eq("아무것도 없으면 지금 때다", mat("...").kind, "when");
+  /* 4순위 — 유저가 꺼냈는데 아직 아무도 안 받은 구체적인 것 */
+  eq("아직 안 받은 물건 이야기를 집는다",
+    ENG.turnMaterial("chat", "jaeeon", { ...ctx, recent: [
+      { role: "user", content: "머그컵 잘 쓰고 계세요?" },
+      { role: "assistant", content: "오늘 날씨가 좋네요." }] }, "...", {}).kind, "unanswered");
+  eq("이미 받은 이야기는 안 집는다",
+    ENG.turnMaterial("chat", "jaeeon", { ...ctx, recent: [
+      { role: "user", content: "머그컵 잘 쓰고 계세요?" },
+      { role: "assistant", content: "머그컵요. 잘 쓰고 있어요." }] }, "...", {}).kind, "when");
+}
+
+/* ── 14.4 의도 판정 — 코드가 아는 것으로만 가른다 ── */
+{
+  const ctx = ENG.makeTurnContext({}, { facts: [] });
+  eq("관전은 watch다", ENG.intentOf("auto", "health", ctx, "", {}), "watch");
+  eq("발견 사건은 watch_discovery다",
+    ENG.intentOf("auto", "health", ctx, "", { disclose: true }), "watch_discovery");
+  eq("단톡은 group이다", ENG.intentOf("chat", "group", ctx, "안녕", {}), "group");
+  eq("이번 턴 선물이 있으면 gift_now다",
+    ENG.intentOf("chat", "jaeeon", { ...ctx, giftNow: "mug" }, "쓰세요", {}), "gift_now");
+  eq("승인된 장면이 의도를 이긴다",
+    ENG.intentOf("chat", "minhyun", { ...ctx, sceneReason: "partner_known" }, "있잖아", {}),
+    "partner_known");
+  eq("준 물건을 되짚으면 gift_history다",
+    ENG.intentOf("chat", "jaeeon", { ...ctx, givenHistory: { jaeeon: ["mug"] } },
+      "혹시 제가 드린 머그컵이에요?", {}), "gift_history");
+  eq("안 준 물건 이름은 gift_history가 아니다",
+    ENG.intentOf("chat", "jaeeon", { ...ctx, givenHistory: {} },
+      "혹시 제가 드린 머그컵이에요?", {}), "talk");
+  eq("기존 감지기를 그대로 쓴다", [
+    ENG.intentOf("chat", "minhyun", ctx, "우리 어디서 만났더라?", {}),
+    ENG.intentOf("chat", "jaeeon", ctx, "선생님 혹시 옛날에 공부방 하셨어요?", {}),
+  ], ["firstmeet", "memory_probe"]);
+  eq("아무것도 아니면 talk다", ENG.intentOf("chat", "jaeeon", ctx, "네", {}), "talk");
+}
+
+/* ── 14.5 프롬프트 계약 — 복사 금지·재료 하나·붙는 자리 ── */
+{
+  const r = await run(SEL, BASE);
+  /* selected 장은 가변부(messages)에 있다 — system이 아니다(14.6 참고) */
+  const sys = flatMsgs(sent[0]);
+  eq("selected-v1 장이 Writer에 붙는다", sys.includes("[이 턴에 지켜야 할 것]"), true);
+  eq("고정부에는 안 붙는다", flatSys(sent[0]).includes("[이 턴에 지켜야 할 것]"), false);
+  eq("재료가 실린다", /\[이번 턴 재료\]/.test(sys), true);
+  eq("재료 절은 한 번뿐이다", (sys.match(/\[이번 턴 재료\]/g) || []).length, 1);
+  eq("복사를 금지한다", sys.includes("**문장을 그대로 쓰지 않는다.**"), true);
+  eq("견본에서 사실을 가져오지 못하게 한다",
+    sys.includes("견본에 나오는 사건·감정·관계·사실은 지금 입력에 없으면 없는 것이다"), true);
+  eq("핵심에 먼저 답하라고 적는다", sys.includes("**먼저** 반응한다"), true);
+  eq("질문만 하고 끝내지 말라고 적는다", sys.includes("질문만 던지고 끝내지 않는다"), true);
+  /* 견본을 고정 출력으로 강제하는 코드가 없다 — 검사도 후처리도 견본을 안 본다 */
+  {
+    const wk = readFileSync(join(ROOT, "worker.js"), "utf8");
+    /* 고른 뒤부터 export 목록 앞까지 — 견본은 Writer 프롬프트를 짓는
+       자리에서만 읽힌다. 후처리·Effect·응답 조립은 견본을 모른다. */
+    const after = wk.slice(wk.indexOf("const effects = materializeEffects(reqId, picked, hardCtx);"),
+      wk.lastIndexOf("export { parseMessages"));
+    eq("고른 뒤에 견본을 다시 보지 않는다",
+      /SELECTED_SAMPLES|examplesForTurn/.test(after), false);
+    eq("견본과 응답을 맞춰보는 코드가 없다",
+      /(response|견본)[^\n]{0,40}(includes|indexOf|===)\s*[^\n]{0,20}(picked|messages|cand)/.test(wk), false);
+    eq("hardFilter는 견본을 모른다", (() => {
+      const i = wk.indexOf("function hardFilter");
+      return /SELECTED|examplesForTurn|SAMPLES/.test(wk.slice(i, wk.indexOf("\n}", i)));
+    })(), false);
+  }
+  eq("trace에 쓴 재료·견본이 남는다",
+    [typeof r.data.trace.selected.intent, Array.isArray(r.data.trace.selected.sample_ids)],
+    ["string", true]);
+}
+
+/* ── 14.6 호출 수와 캐시 — 늘지도, 깨지도 않는다 ── */
+{
+  /* 요청 하나를 블록 순서 그대로 편다 — system 다음 messages */
+  const blocksOf = c => {
+    const out = [];
+    for (const b of (Array.isArray(c.system) ? c.system : [{ text: c.system }]))
+      out.push({ t: b.text || "", cached: !!b.cache_control, where: "system" });
+    for (const m of (c.messages || []))
+      for (const b of (Array.isArray(m.content) ? m.content : [{ text: m.content }]))
+        out.push({ t: b.text || "", cached: !!b.cache_control, where: "msg" });
+    return out;
+  };
+  const base = await run({ CANDIDATE_MODE: "pair" }, BASE);
+  const baseReq = sent[0];
+  const sel = await run(SEL, BASE);
+  const selReq = sent[0];
+  eq("일반 턴 호출 수가 그대로다", stagesOf(sel), stagesOf(base));
+  eq("일반 턴은 여전히 둘이다", stagesOf(sel), ["writer", "director"]);
+  /* 캐시 지점 수가 그대로여야 한다 — 늘면 5개째에서 실 API가 400을 낸다 */
+  const pts = c => blocksOf(c).filter(b => b.cached).length;
+  eq("캐시 지점 수가 안 늘어난다", pts(selReq), pts(baseReq));
+  eq("지점은 넷을 안 넘는다", pts(selReq) <= 4, true);
+  /* ── 여기가 핵심이다 ──
+     selected 장은 매 턴 바뀐다(재료가 유저의 이번 발화다). cached system에
+     넣으면 그 **뒤에** 찍히는 이력 꼬리 지점의 접두가 매 턴 갈려서, 이력
+     캐시를 쓰기만 하고 한 번도 못 읽는다. 지점보다 **뒤**에 있어야 한다.
+     블록 수만 세는 검사로는 이걸 못 잡는다 — 자리를 봐야 한다. */
+  eq("selected 장이 마지막 캐시 지점보다 뒤에 있다", (() => {
+    const bs = blocksOf(selReq);
+    let last = -1, sel2 = -1;
+    bs.forEach((b, i) => { if (b.cached) last = i; if (b.t.includes("[이 턴에 지켜야 할 것]")) sel2 = i; });
+    return sel2 > last && last >= 0;
+  })(), true);
+  eq("selected 장은 system이 아니라 가변부에 있다", (() => {
+    const bs = blocksOf(selReq);
+    const hit = bs.find(b => b.t.includes("[이 턴에 지켜야 할 것]"));
+    return hit ? [hit.where, hit.cached] : null;
+  })(), ["msg", false]);
+  eq("고정부는 켜기 전과 바이트가 같다",
+    JSON.stringify(selReq.system), JSON.stringify(baseReq.system));
+  /* 캐시 접두 연속성 — 두 턴을 굴려 앞턴 접두가 그대로 이어지는지 본다 */
+  eq("다음 턴이 앞턴 접두를 그대로 잇는다", await (async () => {
+    const prefixOf = c => {
+      const bs = blocksOf(c);
+      let last = -1;
+      bs.forEach((b, i) => { if (b.cached) last = i; });
+      return bs.slice(0, last + 1).map(b => b.t).join("");
+    };
+    const t1 = { ...BASE, history: [...BASE.history, { role: "assistant", sender: "jaeeon", content: "네." },
+      { role: "user", content: "내일 뵐게요" }] };
+    await run(SEL, BASE); const p1 = prefixOf(sent[0]);
+    await run(SEL, t1);   const p2 = prefixOf(sent[0]);
+    return p2.startsWith(p1);
+  })(), true);
+}
+
+/* ── 14.7 검사와 말맛의 역할 분리 ── */
+{
+  /* 고르는 쪽 규칙 자체 */
+  const D = ENG.SELECTED_DIRECTOR_RULES;
+  eq("사실을 다시 판정하지 말라고 적는다",
+    D.includes("네가 사실을 새로 판정하지 않는다"), true);
+  eq("직접 충돌만 버리라고 적는다",
+    D.includes("직접 충돌하는** 후보만 사실을 이유로 버린다"), true);
+  eq("없는 것은 거짓이 아니라고 적는다",
+    D.includes("목록에 없는 것은 모르는 것이지 거짓이 아니다"), true);
+  eq("고쳐 쓰지 말라고 적는다", D.includes("후보를 고치거나, 둘을 합치거나, 새로 쓰지 않는다"), true);
+  eq("하나 남으면 그걸 고르라고 적는다",
+    D.includes("후보가 하나만 살아남았으면 그것을 그대로 고른다"), true);
+  eq("말맛 축 일곱을 적는다",
+    [1, 2, 3, 4, 5, 6, 7].filter(n => !D.includes(`${n}. `)), []);
+
+  /* 앞 단계가 먼저다 — Fact를 어긴 후보는 고르는 쪽에 도달하지 못한다 */
+  {
+    /* 물건 이름을 그대로 대고 받은 적 없다고 한다 — FACT_DENIAL 다섯 조건 */
+    const denial = JSON.stringify({ candidates: [
+      { messages: [{ text: "회색 머그컵요? 받은 적 없는데요." }] },
+      { messages: [{ text: "잘 쓰고 있어요." }] }] });
+    const good = JSON.stringify({ candidates: [
+      { messages: [{ text: "네, 이거요." }] },
+      { messages: [{ text: "잘 쓰고 있어요." }] }] });
+    const body = { ...BASE, gift: { key: "mug", name: "회색 머그컵" },
+      history: [...BASE.history.slice(0, 2), { role: "user", content: "이거 쓰세요" }] };
+    const r = await run(SEL, body, [denial, good]);
+    /* 첫 시도의 A는 hardFilter(FACT_DENIAL)가 먼저 잘라낸다 — Director가
+       말맛으로 되살릴 길이 없다. 그 코드가 재시도 노트로 간다. */
+    const rej = (r.data.trace.rejected || []).filter(x => x.attempt === 1);
+    eq("사실을 어긴 후보는 고르기 전에 잘린다",
+      rej.some(x => (x.codes || []).includes("FACT_DENIAL")), true);
+    eq("살아남은 것만 고르는 쪽에 간다", r.status, 200);
+  }
+  /* 처리 순서 — hardFilter가 Director보다 먼저다 */
+  {
+    const wk = readFileSync(join(ROOT, "worker.js"), "utf8");
+    const iHard = wk.indexOf("const codes = hardFilter(cand, chars, hardCtx);");
+    const iCanon = wk.indexOf('callStage(env, meter, "canon", CANON_CRITIC');
+    const iChar = wk.indexOf('callStage(env, meter, "character", CHAR_CRITIC');
+    const iDir = wk.indexOf('callStage(env, meter, "director", dirRules');
+    eq("hardFilter → Canon → Character → Director 순이다",
+      iHard > 0 && iHard < iCanon && iCanon < iChar && iChar < iDir, true);
+  }
+}
+
+/* ── 14.8 운영 기본값은 아직 안 바뀐다 ── */
+{
+  eq("기본 규칙은 여전히 빈 문자열이다", ENG.dialogueRuleset({}), "");
+  eq("selected-v1은 env로만 켜진다",
+    [ENG.dialogueRuleset({ DIALOGUE_RULESET: "selected-v1" }),
+     ENG.dialogueRuleset({ dialogue_ruleset: "SELECTED-V1" })], ["selected-v1", "selected-v1"]);
+  eq("모델 배치는 그대로다",
+    [ENG.ENGINE.writer.id === ENG.ENGINE.director.id,
+     ENG.ENGINE.writer.id !== ENG.ENGINE.finalizer.id], [true, true]);
+  eq("기본 실행에는 selected 장이 안 붙는다", await (async () => {
+    await run({}, BASE);
+    return flatSys(sent[0]).includes("[이 턴에 지켜야 할 것]");
+  })(), false);
+  eq("기본 실행의 고르는 쪽은 옛 규칙이다", await (async () => {
+    await run({ CANDIDATE_MODE: "pair" }, BASE);
+    return sent.some(c => flatSys(c).includes("[사실이 먼저다]"));
+  })(), true);
+}
+
+/* ── 14.8b 검사·고르기가 「선생님 = 유저」를 안다 ──
+   사실 문장은 이름으로 적히는데(「연이 이민현에게 …를 줬다」) 인물은 유저를
+   「선생님」이라 부른다. 이 방에는 보건교사도 있어서, 그 둘이 같은 사람임을
+   검사가 모르면 **정확한 대사**를 사실 위반으로 떨어뜨린다 — 실제로
+   「선생님이 주셨어요」가 OWNER_SWAPPED가 되어 T15가 502로 죽었다.
+   가짜 API는 검사도 가짜라 이 구멍을 구조적으로 못 본다. */
+{
+  eq("유저 줄이 이름과 호칭을 잇는다", (() => {
+    const t = ENG.userLine("연");
+    return [t.includes("연"), t.includes("선생님"), t.includes("교생 선생님"),
+            t.includes("이재언과는 다른 사람")];
+  })(), [true, true, true, true]);
+  eq("이름이 없으면 줄도 없다", ENG.userLine(""), "");
+  const ctx = { who: "minhyun", when: "저녁", userName: "연", stage: "익숙",
+    facts: ENG.giftFacts("minhyun", "beanie"), here: [], recent: [] };
+  const cands = [{ id: "A", messages: [{ text: "선생님이 주셨어요." }], signals: [] }];
+  eq("사실 검사가 유저 줄을 받는다",
+    ENG.criticPacket(ctx, cands, "canon").includes("보건교사 이재언과는 다른 사람"), true);
+  eq("사람 검사도 받는다",
+    ENG.criticPacket(ctx, cands, "character").includes("보건교사 이재언과는 다른 사람"), true);
+  eq("고르는 쪽도 받는다",
+    ENG.directorPacket(ctx, cands).includes("보건교사 이재언과는 다른 사람"), true);
+  /* 사실 문장은 여전히 이름으로 적힌다 — 호칭으로 바꾸지 않는다 */
+  eq("사실 문장은 이름 그대로다",
+    ENG.factLines(ctx.facts, "연").some(t => t.includes("연이")), true);
+}
+
+/* ── 14.8c 화자 순차 호출은 고정부 지시를 이번 턴에만 취소한다 ──
+   관전 고정부에 「두 사람의 대화 4~8발화 · 첫 발화는 이민현」이 박혀 있다.
+   그 위에 「한 명만」을 얹는 구조라 실 API가 매번 두 사람 대화를 통째로
+   써서 SENDER로 전부 탈락, 502가 났다. 명시적으로 취소해야 한다. */
+{
+  const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
+  await run(SEL, t14.body);
+  const obsReq = flatMsgs(sent[0]), ownReq = flatMsgs(sent[1]);
+  eq("고정부 지시를 이번 턴에만 무효화한다",
+    [obsReq.includes("**이번 턴만은 위 [대화 생성 지시]가 적용되지 않는다.**"),
+     ownReq.includes("**이번 턴만은 위 [대화 생성 지시]가 적용되지 않는다.**")], [true, true]);
+  eq("4~8발화와 첫 발화 규칙을 콕 집어 끈다",
+    obsReq.includes("4~8발화도, 「첫 발화는 이민현」도 이번 턴에는 무효다"), true);
+  eq("상대 대사를 쓰지 말라고 못박는다", [
+    obsReq.includes("이재언의 말은 한 줄도 쓰지 않는다"),
+    ownReq.includes("이민현의 말은 한 줄도 쓰지 않는다"),
+  ], [true, true]);
+  /* 화자 지시가 **마지막**이어야 한다 — 뒤에 오는 것이 이긴다 */
+  eq("화자 지시가 selected 장보다 뒤다", (() => {
+    const i = obsReq.indexOf("[이 턴에 지켜야 할 것]");
+    const j = obsReq.indexOf("이번 턴만은 위 [대화 생성 지시]");
+    return i >= 0 && j > i;
+  })(), true);
+  /* 한 사람만 말하는 호출에는 그 사람의 목소리 줄만 준다 */
+  eq("상대의 목소리 줄이 안 실린다", [
+    obsReq.includes("이민현은 직접적이다") && !obsReq.includes("이재언은 짧고 간접적이다"),
+    ownReq.includes("이재언은 짧고 간접적이다") && !ownReq.includes("이민현은 직접적이다"),
+  ], [true, true]);
+  /* 일반 호출에는 둘 다 있다 */
+  eq("일반 호출에는 두 사람 다 있다", (() => {
+    const t = ENG.selectedRules(null, []);
+    return t.includes("이재언은 짧고 간접적이다") && t.includes("이민현은 직접적이다");
+  })(), true);
+}
+
+/* ── 14.9 selected-v1에서도 사실 계약이 그대로다 ── */
+{
+  /* 관전 발견 사건은 여전히 화자 순차 + 소유자 정사 검사 */
+  const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
+  const r = await run(SEL, t14.body);
+  eq("발견 장면의 단계 수가 그대로다", stagesOf(r), ["writer", "writer", "canon"]);
+  eq("관측 기록도 그대로다",
+    [r.data.trace.observe.observer, r.data.trace.observe.owner], ["minhyun", "jaeeon"]);
+  eq("발견 장면에는 견본이 없다 — 사용자가 고른 자료가 없는 자리다",
+    (r.data.trace.selected.sample_ids || []).length, 0);
+  eq("그래도 재료는 있다", r.data.trace.selected.material.kind, "event");
+  /* 중요 장면도 그대로 네 단계 */
+  const t16 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T16-minhyun-partner-known.json"), "utf8"));
+  const r16 = await run(SEL, t16.body);
+  eq("중요 장면 단계도 그대로다", stagesOf(r16), ["writer", "canon", "character", "finalizer"]);
+}
+
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);
 process.exit(fail ? 1 : 0);

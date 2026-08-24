@@ -2919,9 +2919,46 @@ const DISCLOSE_ALIASES = {
   gloves: ["장갑"], hanky: ["손수건"], bandana: ["반다나"], hotpack: ["핫팩"],
 };
 function discloseMention(key) {
-  const name = String(ANY_NAME_BY_KEY[key] || "").trim();
+  /* 표를 **제 것으로만** 뒤진다. key는 클라이언트가 보낸 gifts에서 오므로
+     "constructor"·"toString" 같은 이름이 들어올 수 있다 — 그때
+     DISCLOSE_ALIASES[key]는 함수라 스프레드가 TypeError를 내고 그 요청이
+     통째로 502가 된다. 모르는 열쇠는 빈 목록이다. */
+  const k = String(key || "");
+  if (!Object.hasOwn(ANY_NAME_BY_KEY, k)) return [];
+  const name = String(ANY_NAME_BY_KEY[k] || "").trim();
   const last = name.split(/\s+/).pop() || "";
-  return [...new Set([name, last, ...(DISCLOSE_ALIASES[key] || [])])].filter(Boolean);
+  const alias = Object.hasOwn(DISCLOSE_ALIASES, k) ? DISCLOSE_ALIASES[k] : [];
+  return [...new Set([name, last, ...(Array.isArray(alias) ? alias : [])])].filter(Boolean);
+}
+
+/* ── 이 말이 그 물건을 짚었나 (재료를 고르는 자) ──
+   ITEM_MISS 검증에 쓰는 discloseMention과 **다른 자다.** 검증에서는 넓은
+   것이 맞다 — 발견자가 「컵」이라고만 해도 물건을 짚은 것이다. 그런데
+   재료를 고를 때 넓으면 **없는 선물을 지어낸다**: 「컵라면 먹고 있어요」가
+   회색 머그컵이 되고 「책임진다면서요」가 책이 된다. 프롬프트는 같은
+   자리에서 「없는 사실을 보태지 마라」고 하는데 코드가 보태는 꼴이다.
+   여기서는 정식 이름과 **두 자 이상의** 마지막 낱말만 쓰고, 앞 글자가
+   한글·라틴이면 낱말 안쪽이라 안 친다(「캔커피」 속의 「커피」, 「HELP」
+   속의 「LP」). 한 자짜리 이름(책·줌)은 통째로 뺀다 — 놓치면 다음 순위
+   재료로 내려갈 뿐이지만, 헛잡으면 없는 물건이 이번 턴의 주제가 된다. */
+function itemWords(key) {
+  const k = String(key || "");
+  if (!Object.hasOwn(ANY_NAME_BY_KEY, k)) return [];
+  const name = String(ANY_NAME_BY_KEY[k] || "").trim();
+  if (name.length < 2) return [];
+  const last = name.split(/\s+/).pop() || "";
+  const out = [name];
+  if (last.length >= 2 && last !== name) out.push(last);
+  return out;
+}
+function mentionsItem(text, key) {
+  const t = String(text || "");
+  return itemWords(key).some(w => {
+    for (let i = t.indexOf(w); i >= 0; i = t.indexOf(w, i + 1)) {
+      if (!/[가-힣A-Za-z]/.test(i > 0 ? t[i - 1] : "")) return true;
+    }
+    return false;
+  });
 }
 
 /* ── 소유자가 출처를 실제로 밝혔는가 ──
@@ -4349,6 +4386,10 @@ decision은 A · B · RETRY 중 하나다. 후보가 하나면 ACCEPT · RETRY �
 function directorPacket(ctx, cands) {
   const L = [];
   L.push(`[화자] ${ctx.who}`);
+  /* 고르는 쪽도 「선생님 = 유저」를 알아야 한다 — 모르면 사실을 지킨 후보를
+     사실 위반으로 읽는다(sceneHead의 userLine과 같은 이유) */
+  const ul = userLine(ctx.userName);
+  if (ul) L.push(ul);
   if (ctx.stage) L.push(`[관계] ${ctx.stage}`);
   L.push(`[지금] ${ctx.when}${ctx.place ? ` · ${ctx.place}` : ""}`);
   if (ctx.knows) L.push(`[아는 범위] ${ctx.knows}`);
@@ -4653,6 +4694,464 @@ function sceneTier(reason, ctx) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   selected-v1 — 말투 견본과 이번 턴의 재료
+
+   ── 왜 견본인가 ──
+   「설레게 써라」는 하급 모델에게 거의 안 먹힌다. 형용사는 방향을 못 준다.
+   블라인드 평가에서 **사용자가 실제로 고른 대사**가 있으므로, 그 반응
+   방식과 온도를 견본으로 준다. 정답표가 아니다 — 고정 출력을 강제하는
+   코드는 이 파일 어디에도 없고, 프롬프트가 복사를 명시적으로 금지한다.
+
+   ── 왜 여기 있나 ──
+   worker.js는 단일 파일로 배포된다(import 없음). 평가용 사본(test/…)을
+   runtime이 읽는 길은 만들지 않는다.
+
+   ── 무엇을 뺐나 ──
+   사용자가 문제로 지목한 것은 안 싣는다: 「그러던지」(시비조), 무승자로
+   남은 S-A-14, 정사를 뒤집는 「공부방을 했어요」. 사용자가 직접 고친
+   문장은 수정본만 싣는다(「알았어요」·「안 지시네요」·머그컵 세 묶음).
+   전체 결과를 「다 별로」라고 판정한 사실은 지우지 않는다 — 이 목록은
+   운영 승인 대사가 아니라 **말투 선호 자료**다.
+
+   ── 필드 ──
+   speaker           jaeeon | minhyun | group | health
+   stage             쓸 수 있는 관계 단계 이름들 (STAGES.name)
+   intent            이번 턴 의도들 — 코드가 결정적으로 고른다(intentOf).
+                     하나가 여러 의도에 걸리는 이유: 같은 질문이라도 이야기
+                     상태에 따라 코드가 다른 의도를 매기기 때문이다
+   input             그때 유저가 한 말 (없으면 "")
+   response          고른 응답 — 줄 배열
+   required_fact_ids 이 견본이 성립하려면 **그 화자에게 투영된** 사실에
+                     반드시 있어야 하는 fact_id. 없으면 이 견본은 안 나간다
+   forbidden_before  이야기 상태가 여기 못 미치면 금지 ("key:value")
+   forbidden_after   이야기 상태가 여기까지 왔으면 금지 — 아직 안 여는
+                     답은 연 뒤에 쓰면 정사가 뒤로 감긴다
+   note              사람이 읽을 한 줄 */
+const SELECTED_SAMPLES = [
+  /* ── 재언 ── */
+  { id: "S-jaeeon-opening-1", speaker: "jaeeon", stage: ["처음"], intent: ["opening"],
+    input: "아 네, 안녕하세요 선생님! 감사합니다. 잘 부탁드려요",
+    response: ["네.", "한 달 동안 잘 지내봐요.", "보건실은 학교 본관 2층 끝이에요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "첫 인사는 짧게 받고 실무 하나를 얹는다 — 반가움을 말로 부풀리지 않는다" },
+  { id: "S-jaeeon-opening-2", speaker: "jaeeon", stage: ["처음"], intent: ["opening"],
+    input: "아 네, 안녕하세요 선생님! 감사합니다. 잘 부탁드려요",
+    response: ["네.", "필요한 거 있으면 언제든 말해요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "두 줄로 끝내도 된다. 여는 문은 열어둔다" },
+  { id: "S-jaeeon-talk-1", speaker: "jaeeon", stage: ["처음", "익숙"], intent: ["talk"],
+    input: "라면 드시게요? 저번에도 라면이라면서요",
+    response: ["기억하네요.", "그럼 이번엔 좀 챙겨서 먹을게요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "유저가 기억한 것을 먼저 짚어준다 — 변명하지 않는다" },
+  { id: "S-jaeeon-talk-2", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "라면 드시게요? 저번에도 라면이라면서요",
+    response: ["기억하네요.", "라면만 먹는 사람 같겠어요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "제 모양을 스스로 한 번 웃는다. 사과나 해명이 아니다" },
+  { id: "S-jaeeon-talk-3", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "아 맞다, 저번에 편의점에서 먹던 라면 이름이 뭐였죠?",
+    response: ["신라면이었나? 잘 모르겠는데요.", "왜 생각났어요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "모르면 모른다고 하고 되묻는다 — 아는 척으로 채우지 않는다" },
+  { id: "S-jaeeon-talk-4", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "아 맞다, 저번에 편의점에서 먹던 라면 이름이 뭐였죠?",
+    response: ["너구리요.", "같이 먹었잖아요, 벌써 잊었어요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "같이 한 일을 슬쩍 상기시킨다. 서운함을 직접 말하지는 않는다" },
+  { id: "S-jaeeon-talk-5", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "다음에 산책하실 때 저도 껴주세요",
+    response: ["껴줘요.", "대신 페이스 맞춰야 돼요. 나 느리게 걸어요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "받아주면서 제 조건을 하나 붙인다 — 그게 이 사람의 초대다" },
+  { id: "S-jaeeon-talk-6", speaker: "jaeeon", stage: ["균열", "시한"], intent: ["talk"],
+    input: "다음에 산책하실 때 저도 껴주세요",
+    response: ["다음이 언제일지도 모르면서.", "곤란한데. 산책이 산책 아니게 되잖아요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "곤란하다고 말하는 것이 싫다는 뜻이 아니다. 거절이 아니라 흔들림이다" },
+  { id: "S-jaeeon-talk-7", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "저는 오늘 시연 리허설 했어요. 중간에 머리가 하얘졌다가 겨우 돌아왔어요. 실전에서 또 그러면 어떡하죠?",
+    response: ["몇 초예요. 아무도 기억 안 해요.", "그게 끝이 아니니까요. 시작도 아니고요.", "선생님이 한 나머지가 더 길잖아요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "긴 걱정에 위로를 세트로 주지 않는다. 크기를 다시 재준다" },
+  { id: "S-jaeeon-talk-8", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "3주 전에 처음 인사드렸던 날 저 엄청 긴장했었는데, 티 났었어요?",
+    response: ["티 났어요. 목소리 떨렸어요.", "근데 그게 나쁜 건 아니었어요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "봤다고 인정한다. 봐준 것을 생색내지 않는다" },
+  { id: "S-jaeeon-night-1", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["night"],
+    input: "티 났어도 어쩔 수 없죠 뭐ㅋㅋ 오늘은 이만 잘게요. 안녕히 주무세요",
+    response: ["잘 자요.", "내일 시연 날 아니에요. 오늘 걱정은 오늘 것만."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "밤 인사에 한 줄을 더 놓는다 — 그 한 줄이 내일까지 간다" },
+  { id: "S-jaeeon-gift-1", speaker: "jaeeon", stage: ["처음", "익숙"], intent: ["gift_now"],
+    input: "보건실에 컵이 하나뿐이길래요. 쓰세요",
+    response: ["고마워요.", "자주 쓸게요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "받는 말은 짧다. 사양하거나 부담을 말하지 않는다" },
+  { id: "S-jaeeon-gift-2", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["gift_now"],
+    input: "보건실에 컵이 하나뿐이길래요. 쓰세요",
+    response: ["이건 또 언제 샀어요.", "컵 하나뿐인 거 어떻게 알았어요.", "...잘 쓸게요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "본 것을 되짚어 묻는다 — 놀란 자리에서 말이 늘어난다. 사용자 수정본" },
+  { id: "S-jaeeon-gifthist-1", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["gift_history"],
+    input: "혹시 제가 드린 머그컵에요?",
+    response: ["네. 이게 좋아서요."],
+    required_fact_ids: ["gift.mug.user_to_jaeeon"], forbidden_before: [],
+    note: "사용자 수정본. 시비조로 되묻지 않는다 — 쓰고 있다는 사실이 답이다" },
+  { id: "S-jaeeon-gifthist-2", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["gift_history"],
+    input: "혹시 제가 드린 머그컵에요?",
+    response: ["네, 이거요.", "자주 쓰게 되네요."],
+    required_fact_ids: ["gift.mug.user_to_jaeeon"], forbidden_before: [],
+    note: "사용자 수정본" },
+  { id: "S-jaeeon-gifthist-3", speaker: "jaeeon", stage: ["익숙", "균열", "시한"], intent: ["gift_history"],
+    input: "혹시 제가 드린 머그컵에요?",
+    response: ["맞아요.", "고마워요."],
+    required_fact_ids: ["gift.mug.user_to_jaeeon"], forbidden_before: [],
+    note: "사용자 수정본" },
+  /* 기억 — 아직 안 여는 자리. 정사: 재언은 공부방을 **다닌** 사람이다 */
+  { id: "S-jaeeon-probe-early-1", speaker: "jaeeon", stage: ["처음", "익숙", "균열"],
+    intent: ["memory_probe", "memory_reveal"],
+    input: "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?",
+    response: ["공부방이요?", "제가 한 건 아니에요."],
+    required_fact_ids: ["canon.jaeeon.study_room_attended"],
+    forbidden_before: [], forbidden_after: ["jaeeonMemory:opened"],
+    note: "운영한 적 없다는 것은 사실이다. 다닌 이야기는 아직 안 꺼낸다 — 연 뒤에는 못 쓴다" },
+  { id: "S-jaeeon-probe-early-2", speaker: "jaeeon", stage: ["처음", "익숙", "균열"],
+    intent: ["memory_probe", "memory_reveal"],
+    input: "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?",
+    response: ["공부방은 아니에요.", "거기 있었던 건 맞아요."],
+    required_fact_ids: ["canon.jaeeon.study_room_attended"],
+    forbidden_before: [], forbidden_after: ["jaeeonMemory:opened"],
+    note: "반은 인정하고 반은 안 준다 — 아끼는 것이지 모른다는 것이 아니다" },
+  /* 기억 — 열린 뒤에만 */
+  { id: "S-jaeeon-reveal-1", speaker: "jaeeon", stage: ["균열", "시한"],
+    intent: ["memory_probe", "memory_reveal"],
+    input: "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?",
+    response: ["기억나요.", "선생님 엄마가 하시던 공부방."],
+    required_fact_ids: ["canon.study_room.owner", "canon.jaeeon.knows_user_20y"],
+    forbidden_before: ["jaeeonMemory:opened"],
+    note: "운영한 사람은 유저의 어머니다. 여기서 처음으로 그 이름을 부른다" },
+  { id: "S-jaeeon-reveal-2", speaker: "jaeeon", stage: ["균열", "시한"],
+    intent: ["memory_probe", "memory_reveal"],
+    input: "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?",
+    response: ["기억나요.", "어떻게 알았어요."],
+    required_fact_ids: ["canon.jaeeon.knows_user_20y"],
+    forbidden_before: ["jaeeonMemory:opened"],
+    note: "인정하고 되묻는다 — 설명은 유저가 먼저 하게 둔다" },
+  { id: "S-jaeeon-reveal-3", speaker: "jaeeon", stage: ["균열", "시한"],
+    intent: ["memory_probe", "memory_reveal"],
+    input: "선생님도 그런 부적 같은 거 있어요?",
+    response: ["있죠.", "낡은 끈이요. 사탕 묶었던 거요."],
+    required_fact_ids: ["canon.jaeeon.knows_user_20y"],
+    forbidden_before: ["jaeeonMemory:opened"],
+    note: "물건 하나로만 말한다. 그게 무엇이었는지는 안 붙인다" },
+  /* ── 민현 ── */
+  { id: "S-minhyun-talk-1", speaker: "minhyun", stage: ["처음", "익숙"], intent: ["talk"],
+    input: "야자 끝나고 뭐 먹을 거야?",
+    response: ["몸에 좋은 건 맛없잖아요.", "야자 끝나고 뭐 먹는다기보단 삼촌이 뭘 해놨나 확인하는 거죠."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "묻는 말에 답하면서 제 생활을 흘린다 — 삼촌 얘기가 그 통로다" },
+  { id: "S-minhyun-talk-2", speaker: "minhyun", stage: ["처음", "익숙", "균열"], intent: ["talk"],
+    input: "야자 끝나고 뭐 먹을 거야?",
+    response: ["몸에 좋은데 맛은 왜 그럴까요.", "집 가서 뭐 먹지.", "삼촌이 뭐 해놨을지 모르겠네."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "혼잣말처럼 흘린다. 유저에게 계속 질문을 던지지 않는다" },
+  { id: "S-minhyun-talk-3", speaker: "minhyun", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "고3이 힘들지. 밥은 잘 챙겨 먹고?",
+    response: ["또 피해가네요.", "밥은 먹어요. 선생님이 같이 먹어주면 더 잘 먹을 것 같긴 한데."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "화제를 돌린 걸 알아채고 짚는다. 그러고도 답은 한다" },
+  { id: "S-minhyun-sick-1", speaker: "minhyun", stage: ["처음", "익숙", "균열", "시한"], intent: ["talk"],
+    input: "나 아파. 감기인가 봐",
+    response: ["많이요?", "약 챙겨 먹었어요?"],
+    required_fact_ids: [], forbidden_before: [],
+    note: "아프다는 말에는 곧장 상태를 묻는다 — 「뭐라고 해야 해요」가 아니다" },
+  { id: "S-minhyun-sick-2", speaker: "minhyun", stage: ["익숙", "균열", "시한"], intent: ["talk"],
+    input: "나 아파. 감기인가 봐",
+    response: ["많이 아파요?", "혼자 있어요?"],
+    required_fact_ids: [], forbidden_before: [],
+    note: "혼자냐고 묻는 것이 이 아이가 걱정을 말하는 방식이다" },
+  { id: "S-minhyun-night-1", speaker: "minhyun", stage: ["익숙", "균열", "시한"], intent: ["night"],
+    input: "내일 학교잖아. 무슨 생각 하는데?",
+    response: ["선생님 생각이요.", "왜요, 신경 쓰여요?"],
+    required_fact_ids: [], forbidden_before: [],
+    note: "직접 말하고 곧바로 되받는다 — 부끄러움을 되묻기로 덮는다" },
+  { id: "S-minhyun-night-2", speaker: "minhyun", stage: ["익숙", "균열", "시한"], intent: ["night"],
+    input: "내일 학교잖아. 무슨 생각 하는데?",
+    response: ["그냥요.", "선생님 생각."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "두 마디로 끝낸다. 짧을수록 세다" },
+  { id: "S-minhyun-night-3", speaker: "minhyun", stage: ["균열", "시한"], intent: ["night"],
+    input: "파이팅. 너무 늦게 자지 말고",
+    response: ["늦게는 안 자요.", "그냥 안 자는 거예요.", "선생님 자면 잘게요.", "아직 얘기 더 하고 싶은데."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "붙잡는 말을 한 줄씩 늘린다. 마지막 줄이 본심이다" },
+  { id: "S-minhyun-firstmeet-1", speaker: "minhyun", stage: ["처음", "익숙", "균열", "시한"], intent: ["firstmeet"],
+    input: "우리 어디서 만났더라? 기억이 가물가물하네",
+    response: ["병원 옥상이요. 제가 담배 피우다가 선생님을 봤는데.", "선생님은 하늘을 봤었어요. 그때부터 신기했어요."],
+    required_fact_ids: ["canon.minhyun.first_meet_rooftop"],
+    forbidden_before: ["firstContact:pending"],
+    note: "장면을 그대로 말하고 제 감상을 한 줄 붙인다" },
+  { id: "S-minhyun-firstmeet-2", speaker: "minhyun", stage: ["익숙", "균열", "시한"], intent: ["firstmeet"],
+    input: "우리 어디서 만났더라? 기억이 가물가물하네",
+    response: ["기억 안 나요?", "그럼 좀 서운한데", "병원 옥상에서요. 제가 담배 피우고 있었는데 선생님이 끄라고 했잖아요"],
+    required_fact_ids: ["canon.minhyun.first_meet_rooftop"],
+    forbidden_before: ["firstContact:pending"],
+    note: "서운함을 먼저 말하고 그다음에 알려준다" },
+  { id: "S-minhyun-firstmeet-3", speaker: "minhyun", stage: ["익숙", "균열", "시한"], intent: ["firstmeet"],
+    input: "우리 어디서 만났더라? 기억이 가물가물하네",
+    response: ["병원 옥상에서요", "선생님이 책임질 사이에나 그런 말 하는 거래놓고 나중엔 금연하라 했잖아요", "그래서 진짜 안 피웠는데 아직 책임은 안 지시네요"],
+    required_fact_ids: ["canon.minhyun.first_meet_rooftop", "canon.minhyun.responsibility_smoking"],
+    forbidden_before: ["firstContact:pending"],
+    note: "사용자 수정본(「안 지시네요」). 책임 이야기는 이 아이의 농담이자 요구다" },
+  /* ── 단톡 ── */
+  { id: "S-group-1", speaker: "group", stage: ["처음", "익숙", "균열", "시한"], intent: ["group"],
+    input: "둘 다 주말에 특별한 계획 없어요?",
+    response: ["jaeeon: 없어요. 집에서 쉬려고.", "minhyun: 삼촌도 심심하겠네요. 저는 집 청소 도와줄까요?"],
+    required_fact_ids: [], forbidden_before: [],
+    note: "두 사람이 각각 한 마디씩. 민현은 재언의 말을 받아서 제 말을 얹는다" },
+  { id: "S-group-2", speaker: "group", stage: ["처음", "익숙", "균열", "시한"], intent: ["group"],
+    input: "둘 다 주말에 특별한 계획 없어요?",
+    response: ["jaeeon: 집에 있을 거예요. 밀린 정리나 하려고.", "minhyun: 이틀 내내요?"],
+    required_fact_ids: [], forbidden_before: [],
+    note: "짧게 받아치는 것으로 끝나도 된다 — 둘 다 길게 말할 필요가 없다" },
+  /* ── 관전 ── */
+  { id: "S-health-1", speaker: "health", stage: ["처음", "익숙", "균열", "시한"], intent: ["watch"],
+    input: "",
+    response: ["minhyun: 5분만이라니까요. 진짜.", "jaeeon: 5분 뒤에 누가 와도 모르고.",
+      "minhyun: 아무도 안 와요. 지금 수업 시간이잖아요.", "jaeeon: 그럼 너도 가야지.",
+      "minhyun: 선생님이 저 쉬라고 했는데요.", "jaeeon: 언제.", "minhyun: ...", "jaeeon: 이리 와."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "짧은 말이 빠르게 오간다. 지문 없이 대사만으로 관계가 보인다" },
+  { id: "S-health-2", speaker: "health", stage: ["처음", "익숙", "균열", "시한"], intent: ["watch"],
+    input: "",
+    response: ["jaeeon: 5분 지나면 6교시 시작이다.", "minhyun: 그래서 5분만 자겠다는 건데요.",
+      "jaeeon: 어제도 그러다 한 시간 잤어.", "minhyun: 어제는 특별한 날이었잖아요.",
+      "jaeeon: 뭐가 특별했는데.", "minhyun: 아니에요. 그냥 여기 침대가 편해서 그래요.",
+      "jaeeon: 교실 가서 자. 여긴 아픈 애들 자리야.", "minhyun: 저 아파요. 봐주세요, 삼촌.",
+      "jaeeon: 어디가.", "minhyun: ...몰라요. 그냥 일어나기 싫어요."],
+    required_fact_ids: [], forbidden_before: [],
+    note: "삼촌·조카의 반말과 존댓말이 섞인다. 민현이 말을 흐리는 자리가 요점이다" },
+];
+
+/* ── 이번 턴의 의도 — 코드가 정한다 ──
+   모델에게 「무슨 장면인지 골라봐」라고 묻지 않는다. 이미 코드가 아는
+   것으로만 가른다: 이번 턴 조건, 승인된 장면 사유, 그리고 **이미 있는**
+   감지기(MEMORY_PROBE·FIRSTMEET_ASK·CONFESS_SAY). 새 금칙어 정규식을
+   만들지 않는다 — 여기는 검사가 아니라 재료를 고르는 자리다. */
+function intentOf(mode, room, ctx, lastUser, opts) {
+  const o = opts || {};
+  if (mode === "auto") return o.disclose ? "watch_discovery" : "watch";
+  if (room === "group") return "group";
+  const c = ctx || {};
+  if (c.giftNow) return "gift_now";
+  const said = String(lastUser || "");
+  /* 승인된 장면이 있으면 그게 이번 턴의 의도다 */
+  if (c.sceneReason && CRITICAL_REASONS[c.sceneReason]) return c.sceneReason;
+  if (said) {
+    /* 준 물건을 유저가 되짚는 자리 — 그 방에 실제 준 기록이 있을 때만.
+       매칭은 mentionsItem이다: 별칭까지 넓게 잡으면 「컵라면 하나 사
+       왔어요」가 머그컵 확인 문답이 된다. */
+    const given = (c.givenHistory && Array.isArray(c.givenHistory[room]))
+      ? c.givenHistory[room] : [];
+    if (given.some(k => mentionsItem(said, k))) return "gift_history";
+    if (FIRSTMEET_ASK.test(said)) return "firstmeet";
+    if (MEMORY_PROBE.test(said)) return "memory_probe";
+    if (CONFESS_SAY.test(said)) return "confession";
+  }
+  if (o.opening) return "opening";
+  if (o.night) return "night";
+  return "talk";
+}
+
+/* ── 이야기 상태가 그 자리까지 왔는가 ──
+   "jaeeonMemory:opened"는 「opened 이상」이다. 모르는 키는 통과시키지
+   않는다 — 견본이 조건을 잘못 적었으면 그 견본을 빼는 쪽이 안전하다. */
+const SAMPLE_GATES = { firstContact: FIRST_CONTACT, jaeeonMemory: JAEEON_MEMORY };
+function sampleGateAt(cond, ctx) {
+  const [key, want] = String(cond || "").split(":");
+  /* 제 것으로만 뒤진다 — "constructor:x"가 들어오면 list가 함수라
+     includes에서 TypeError가 나고 요청이 502가 된다 */
+  if (!Object.hasOwn(SAMPLE_GATES, key)) return null;
+  const list = SAMPLE_GATES[key];
+  if (!Array.isArray(list) || !list.includes(want)) return null;
+  return { at: list.indexOf((ctx && ctx[key]) || ""), want: list.indexOf(want) };
+}
+/* "jaeeonMemory:opened" — 그 값 **이상**이면 참 */
+function sampleGateOk(cond, ctx) {
+  const g = sampleGateAt(cond, ctx);
+  return !!g && g.at >= g.want;
+}
+/* 같은 표기로 「거기까지 왔는가」를 묻는다 — 왔으면 그 견본은 못 쓴다 */
+function sampleGatePassed(cond, ctx) {
+  const g = sampleGateAt(cond, ctx);
+  return !!g && g.at >= g.want;
+}
+
+/* ── 이번 턴에 실제로 쓸 수 있는 견본만 ──
+   화자·단계·의도가 맞고, 필요한 사실이 **그 화자에게 투영된 목록에**
+   전부 있고, 이야기 상태가 그 자리까지 온 것만. 최대 세 개다.
+   여기가 지식 차단선이다: 재언만 아는 과거는 민현 호출의 facts에 없으므로
+   required_fact_ids 검사에서 자동으로 떨어진다. */
+function examplesForTurn(samples, speaker, stage, intent, facts, ctx, max) {
+  const ids = factIds(facts);
+  /* 0을 3으로 되돌리지 않는다 — 「하나도 주지 마라」는 뜻이 있는 값이다 */
+  const n = Number.isFinite(Number(max)) ? Math.max(0, Number(max)) : 3;
+  const out = [];
+  for (const s of samples || []) {
+    if (out.length >= n) break;
+    if (s.speaker !== speaker) continue;
+    if (Array.isArray(s.stage) && s.stage.length && !s.stage.includes(stage)) continue;
+    const want = Array.isArray(s.intent) ? s.intent : [s.intent];
+    if (!want.includes(intent)) continue;
+    if ((s.required_fact_ids || []).some(f => !ids.has(f))) continue;
+    if ((s.forbidden_before || []).some(c => !sampleGateOk(c, ctx))) continue;
+    if ((s.forbidden_after || []).some(c => sampleGatePassed(c, ctx))) continue;
+    out.push(s);
+  }
+  return out;
+}
+
+/* ── 이번 턴에 반응할 재료 하나 ──
+   밋밋한 안전문은 「물 것」이 없을 때 나온다. 코드가 이번 턴에서 실제로
+   있는 것 **하나**를 골라 준다. 지어내게 하지 않는다 — 전부 이미 코드가
+   들고 있는 값이고, 우선순위는 고정이다.
+     1 유저가 방금 한 질문·요청·고백
+     2 이번 턴의 실제 사건이나 물건
+     3 승인된 장면 사유와 그 사실
+     4 최근 대화에서 아직 안 받은 구체적인 것 (아는 낱말 목록에서만)
+     5 지금 자리와 때
+   한 턴에 하나다. 둘을 주면 둘 다 얕게 스친다. */
+/* 청하는 말과 마음을 말하는 말. **검사가 아니다** — 이번 턴에 답해야 할
+   것이 있는지 고르는 표지라, 놓쳐도 다음 순위 재료로 내려갈 뿐이다.
+   CONFESS_SAY는 장면 승인용이라 좁게 잡혀 있다(「저 선생님 좋아해요」를
+   안 잡는다). 그 감지기를 넓히면 라우팅이 바뀌므로 여기서만 보탠다. */
+/* 청하는 말과 마음을 말하는 말. **좁게 잡는다** — 여기 걸리면 1순위라
+   다른 재료를 전부 누르기 때문이다. 전에는 「까요·나요·는데요·을래요」가
+   들어 있어서 「화가 나요」·「밥 먹었는데요」·「아까요」가 전부 질문이
+   됐고, 그러면 프롬프트가 「유저가 물었으니 먼저 답하라」고 지시한다.
+   물음표가 제일 믿을 만한 표지이고, 나머지는 명백한 청유·고백만 본다.
+   CONFESS_SAY는 장면 승인용이라 좁다(「저 선생님 좋아해요」를 안 잡는다).
+   그 감지기를 넓히면 라우팅이 바뀌므로 여기서만 보탠다. */
+const ASK_TAIL = /(해\s*주세요|해\s*줘|해\s*줄래|줄래요|주세요|알려\s*주|가르쳐\s*주|좋아해요|사랑해요)/;
+function turnMaterial(mode, room, ctx, lastUser, opts) {
+  const o = opts || {};
+  const c = ctx || {};
+  const said = String(lastUser || "").trim();
+  /* 관전방에는 유저가 없다. history 꼬리가 user여도 그건 유저가 이 방에
+     한 말이 아니다 — lastSaid가 auto에서 null을 돌려주는 것과 같은 이유다.
+     안 막으면 유저 없는 방의 Writer가 「방금 이렇게 물었으니 먼저 답하라」를
+     받는다. */
+  if (mode !== "auto" && said
+      && (/[?？]/.test(said) || ASK_TAIL.test(said) || CONFESS_SAY.test(said))) {
+    /* 마지막 문장만 준다 — 긴 토로에서 답해야 할 것은 끝에 온다.
+       자를 때는 **코드포인트 단위**다. slice(0,120)은 이모지의 서로게이트
+       쌍을 반으로 잘라 짝 없는 조각을 프롬프트에 싣는다. */
+    const parts = said.split(/(?<=[.!?…])\s+|\n/).map(s => s.trim()).filter(Boolean);
+    const tail = parts[parts.length - 1] || said;
+    return { kind: "user_ask", text: Array.from(tail).slice(0, 120).join("") };
+  }
+  /* giftNow는 **객체**다({key,name}) — 요청 처리부가 body.gift를 그대로
+     넘긴다. 문자열로 색인하면 늘 undefined라 이 분기가 통째로 죽고,
+     방금 받은 선물 대신 「지금은 저녁이다」가 재료로 나간다. 둘 다 받는다. */
+  const gk = c.giftNow && (typeof c.giftNow === "string" ? c.giftNow : c.giftNow.key);
+  if (gk && Object.hasOwn(ANY_NAME_BY_KEY, gk))
+    return { kind: "gift_now", text: `${jos(ANY_NAME_BY_KEY[gk], "을/를")} 방금 받았다` };
+  if (o.eventName) return { kind: "event", text: String(o.eventName).slice(0, 80) };
+  if (c.sceneReason && CRITICAL_REASONS[c.sceneReason])
+    return { kind: "scene", text: CRITICAL_REASONS[c.sceneReason] };
+  /* 4 — 유저가 최근에 말했는데 아직 아무도 안 받은 구체적인 것.
+     짐작으로 뽑지 않는다: 코드가 이름을 아는 물건에서만 고른다. */
+  const recent = Array.isArray(c.recent) ? c.recent : [];
+  const userSaid = recent.filter(m => m && m.role === "user")
+    .map(m => String(m.content || "")).join(" ");
+  const charSaid = recent.filter(m => m && m.role !== "user")
+    .map(m => String(m.content || "")).join(" ");
+  /* 긴 이름부터 본다 — 「캔커피」가 「커피」보다 먼저 걸려야 그 물건이
+     제 이름을 갖는다. 매칭은 mentionsItem이다(별칭 표를 안 쓴다). */
+  const byLen = Object.keys(ANY_NAME_BY_KEY)
+    .sort((a, b) => String(ANY_NAME_BY_KEY[b]).length - String(ANY_NAME_BY_KEY[a]).length);
+  for (const key of byLen) {
+    if (mentionsItem(userSaid, key) && !mentionsItem(charSaid, key))
+      return { kind: "unanswered", text: `${ANY_NAME_BY_KEY[key]} 이야기가 나왔는데 아직 아무도 안 받았다` };
+  }
+  if (c.place) return { kind: "place", text: `지금 ${c.place}에 같이 있다` };
+  if (c.now) return { kind: "when", text: `지금은 ${c.now}이다` };
+  return null;
+}
+
+/* ── Writer에 붙는 장 (selected-v1) ──
+   견본은 **온도와 반응 방식**만 참고하게 한다. 문장 복사와 「견본에 있으니
+   써도 되는 사실」을 둘 다 금지한다 — 그 둘이 견본을 쓰는 순간 생기는
+   두 가지 사고다. 방별 투영은 견본 선택이 이미 했다(required_fact_ids). */
+const SELECTED_COMMON = `[이 턴에 지켜야 할 것]
+- 유저가 묻거나 말한 핵심에 **먼저** 반응한다. 답을 미루고 되묻지 않는다.
+- 핵심에 답한 뒤에만 질문할 수 있다. 질문만 던지고 끝내지 않는다.
+- 아래에 적힌 재료 하나를 실제로 물어서, 이 사람의 감정이나 바람이 조금 움직이게 한다.
+- 없는 사실을 보태서 설렘을 만들지 않는다. 재료에 없는 과거·약속·선물·방문을 지어내지 않는다.
+- 유저의 말을 해석해주거나 교훈으로 정리하지 않는다. 상담사가 아니다.
+- 유저의 호의를 시비조로 밀어내지 않는다. 곤란한 것과 쏘아붙이는 것은 다르다.`;
+
+/* 화자별 한 줄. **한 사람만 말하는 호출**에는 그 사람 것만 준다 —
+   상대 이름이 보이면 모델이 상대 대사까지 쓰기 시작한다(§8.5 화자 순차). */
+const SELECTED_VOICE = {
+  jaeeon: "- 이재언은 짧고 간접적이다. 그렇다고 무례하거나 문장이 깨지면 안 된다.",
+  minhyun: "- 이민현은 직접적이다. 그렇다고 질문만 연달아 하면 안 된다.",
+};
+
+function selectedRules(material, examples, speaker) {
+  const who = speaker === "jaeeon" || speaker === "minhyun" ? [speaker] : ["jaeeon", "minhyun"];
+  const L = [SELECTED_COMMON + "\n" + who.map(w => SELECTED_VOICE[w]).join("\n")];
+  if (material) L.push(`\n[이번 턴 재료]\n${material.text}`);
+  if (examples && examples.length) {
+    L.push(`\n[말투 견본 — 이 사람이 이런 자리에서 실제로 말한 결]`);
+    L.push(`반응 방식과 온도만 참고한다. **문장을 그대로 쓰지 않는다.**`);
+    L.push(`견본에 나오는 사건·감정·관계·사실은 지금 입력에 없으면 없는 것이다 — 가져오지 않는다.`);
+    for (const e of examples) {
+      if (!e || !Array.isArray(e.response) || !e.response.length) continue;
+      if (e.input) L.push(`\n· 유저: ${e.input}`);
+      else L.push(`\n·`);
+      for (const r of e.response) L.push(`  ${r}`);
+      if (e.note) L.push(`  → ${e.note}`);
+    }
+  }
+  return L.join("\n");
+}
+
+/* ── selected-v1의 고르는 쪽 ──
+   여기서는 사실을 **다시 판정하지 않는다**. 사실은 앞 단계(hardFilter →
+   Canon → Character)가 이미 걸렀고, 고르는 쪽이 그것을 되짚으면 근거 없는
+   추측이 판정이 된다. 코드가 값으로 준 [이번 턴 사실]과 **직접** 충돌하는
+   줄만 버리고, 나머지는 전부 말맛으로 고른다. */
+const SELECTED_DIRECTOR_RULES = `너는 두 사람이 사는 세계의 연출자다. 대사를 쓰지 않는다 — 고르기만 한다.
+후보를 고치거나, 둘을 합치거나, 새로 쓰지 않는다. A의 대사를 고르면서 B의 Effect를 가져오지 않는다.
+
+[먼저 — 사실은 추측하지 않는다]
+아래 [이번 턴 사실]에 **적혀 있는 것과 직접 충돌하는** 후보만 사실을 이유로 버린다.
+목록에 없는 것은 모르는 것이지 거짓이 아니다. 네가 사실을 새로 판정하지 않는다.
+
+[그다음 — 말맛으로 고른다]
+살아남은 후보 사이에서 이 순서로 견준다.
+1. 유저가 방금 한 말에 실제로 답했는가
+2. 두 사람이 서로 구별되는가 — 누가 말했는지 지우고 읽어도 알 수 있는가
+3. 문장이 자연스러운 한국어인가 — 조사·높임법·지시 대상
+4. 구체적인 것에 반응했는가 — 일반론으로 도망가지 않았는가
+5. 관계가 한 칸 움직이는가
+6. 다음 말을 하고 싶게 만드는가
+7. 상담사 말투·질문 도배·이유 없는 시비가 없는가
+
+친절한 쪽도, 자세한 쪽도, 도움이 되는 쪽도 기준이 아니다.
+일반 챗봇의 좋은 답이 여기서는 나쁜 답이다.
+
+출력은 이 모양 하나뿐이다. 다른 말은 붙이지 않는다.
+{"decision":"A","reject_codes":{"A":[],"B":["COUNSELOR_TONE"]}}
+
+decision은 A · B · RETRY 중 하나다. 후보가 하나면 ACCEPT · RETRY 중 하나다.
+후보가 하나만 살아남았으면 그것을 그대로 고른다 — 비교할 상대가 없다고 RETRY하지 않는다.
+둘 다 부족할 때만 RETRY다.`;
+
+/* ══════════════════════════════════════════════════════════════
    축약 성격표 — rule_id
 
    ── 왜 id가 필요한가 ──
@@ -4790,9 +5289,25 @@ const FINALIZER_RULES = `너는 이 장면의 마지막 손이다. 유저가 실
    검사가 잡은 것을 마무리하는 쪽이 못 알아본다.
    ctx.here는 사실이 아니라 이번 턴의 조건이다(자리·건넬 물건). 사실과
    섞이지만 fact_id가 없으므로 검사의 판정 대상이 아니다. */
+/* ── 유저가 누구인지 한 줄로 못박는다 ──
+   사실 문장은 「연이 이민현에게 남색 비니를 줬다」인데(factLines가 이름을
+   넣는다) 인물은 유저를 「선생님」이라 부른다. 그 둘이 같은 사람이라는 것을
+   검사·고르기가 모르면, **정확한 대사**를 사실 위반으로 떨어뜨린다 —
+   「선생님이 주셨어요」가 OWNER_SWAPPED가 되어 T15가 502로 죽었다.
+   뿌리는 이 세계에 보건교사가 있어서 「선생님」이 두 사람을 가리킬 수
+   있다는 것이다. 인물 프롬프트에는 이 규칙이 있지만 검사의 system에는
+   없다 — 검사는 세계를 모른다. */
+function userLine(userName) {
+  const u = String(userName || "").trim();
+  if (!u) return "";
+  return `[유저] ${u} — 인물들은 유저를 「선생님」·「쌤」·「${u} 선생님」·`
+    + `「교생 선생님」으로도 부른다. 보건교사 이재언과는 다른 사람이다.`;
+}
 function sceneHead(ctx) {
   const L = [];
   L.push(`[화자] ${ctx.who}`);
+  const ul = userLine(ctx.userName);
+  if (ul) L.push(ul);
   if (ctx.stage) L.push(`[관계] ${ctx.stage}`);
   L.push(`[지금] ${ctx.when}${ctx.place ? ` · ${ctx.place}` : ""}`);
   /* 승인된 사유만 들어온다 — 검사와 마무리도 지금이 어떤 장면인지 알아야
@@ -5885,6 +6400,7 @@ export default {
       const directorDecisionLog = [];
       let criticNotesLog = [];       // 중요 장면 검사 결과 — attempt별 (trace 전용)
       let discloseLog = null;        // 선물 관측 장면의 기록 — 관측(observe)과 공개 여부 (trace 전용)
+      let selectedLog = null;        // selected-v1이 쓴 재료·견본 id (trace 전용, 대사 원문 없음)
       const traceOf = picked => !traceOn ? {} : { trace: {
         engine_mode: engineMode(env),
         candidate_mode: cMode,
@@ -5901,6 +6417,9 @@ export default {
           directorDecisions: directorDecisionLog } : {}),
         ...(criticNotesLog.length ? { criticNotes: criticNotesLog } : {}),
         ...(discloseLog ? { observe: discloseLog } : {}),
+        /* selected-v1이 실제로 무엇을 재료·견본으로 썼는지 남긴다 —
+           산출물(answers.md)이 이걸 그대로 적는다. 대사 원문은 안 싣는다. */
+        ...(selectedLog ? { selected: selectedLog } : {}),
         selectedCandidate: picked
           ? { id: picked.id, originalMessages: picked.originalMessages } : null,
       } };
@@ -5932,6 +6451,56 @@ export default {
       /* golden-v1 행동 규칙은 hybrid-pair Writer에만 붙는다.
          single5와 같은 투영(방별)·같은 비변이 복사(push 금지). */
       const goldenNow = !singleNow && dialogueRuleset(env) === "golden-v1";
+      /* ── selected-v1 — 이번 턴의 재료와 말투 견본 ──
+         운영 기본값은 꺼짐이다(DIALOGUE_RULESET이 빈 문자열). 켜져도
+         **호출 수는 안 늘어난다** — 붙는 것은 Writer의 장 하나뿐이고,
+         검사와 고르기의 단계 수는 그대로다. 캐시 지점도 안 건드린다:
+         cached system 배열은 비변이로 복사하고 뒤에 한 장만 얹는다
+         (push 금지 — 재시도와 다음 요청이 같은 배열을 다시 받는다).
+         투영은 **stageFacts**로 한다: 단톡·관전은 교집합, 1:1은 그 화자.
+         재언만 아는 과거가 민현 쪽 견본으로 새는 길이 여기서 막힌다. */
+      const selectedNow = !singleNow && dialogueRuleset(env) === "selected-v1";
+      const turnIntent = selectedNow
+        ? intentOf(mode, room, turnCtx, lastUser, {
+            disclose: !!disclose,
+            opening: (Number((counts || {})[room]) || 0) <= 2,
+            night: /밤|새벽/.test(String(now || "")),
+          })
+        : "";
+      const turnMat = selectedNow
+        ? turnMaterial(mode, room, turnCtx, lastUser,
+            { eventName: (event && event.name) ? `${event.name} 이야기가 이번 턴의 사건이다` : "" })
+        : null;
+      const turnSamples = selectedNow
+        ? examplesForTurn(SELECTED_SAMPLES,
+            mode === "auto" ? "health" : room === "group" ? "group" : room,
+            stageOf(Number((counts || {})[room]) || 0, days).name,
+            turnIntent, stageFacts, turnCtx, 3)
+        : [];
+      if (selectedNow) {
+        console.log(`[NULL] selected-v1 ▶ ${turnIntent}`
+          + ` · 재료 ${turnMat ? turnMat.kind : "없음"} · 견본 ${turnSamples.length}개`);
+        if (traceOn) selectedLog = { intent: turnIntent,
+          material: turnMat ? { kind: turnMat.kind, text: turnMat.text } : null,
+          sample_ids: turnSamples.map(s => s.id) };
+      }
+      /* ── selected 장은 **가변부**다 — cached system에 넣지 않는다 ──
+         재료가 유저의 이번 발화라서 매 턴 바뀐다. 그걸 cached system 배열에
+         넣으면 그 **뒤에** 찍히는 네 번째 캐시 지점(이력 꼬리)의 접두가 매
+         턴 갈려서, 이력 캐시를 쓰기만 하고 한 번도 못 읽는다 — 「가변부에
+         지점을 찍으면 안 된다」는 계약이 방향만 뒤집혀 재현된 꼴이다.
+         golden-v1·single5의 장은 턴 사이에 안 바뀌므로 system이 맞고, 이
+         장만 다르다. 캐시 지점 **뒤**, 가변부가 가는 자리에 얹는다.
+         이 자리는 재시도 루프 **밖**이라 한 번만 붙는다(askText와 같다). */
+      const selectedText = selectedNow ? selectedRules(turnMat, turnSamples) : "";
+      /* 화자 순차 갈래는 호출마다 **제 가변부**를 짓는다(partSel) — 여기서
+         공동 꼬리에 얹으면 같은 장이 두 번 실리고, 그 사본에는 두 화자가
+         다 적혀 있어 「한 명만 쓴다」가 무너진다. */
+      if (selectedText && !discloseNow) {
+        const t = msgs[msgs.length - 1];
+        if (Array.isArray(t.content)) t.content.push({ type: "text", text: selectedText });
+        else t.content = [{ type: "text", text: t.content }, { type: "text", text: selectedText }];
+      }
       const writerSystem = single5Now
         ? [...system, { type: "text", text: single5Rules(mode, room) }]
         : goldenNow
@@ -5976,11 +6545,19 @@ export default {
                모양을 안 보므로 통과하고 생산만 죽는 배선이 된다. 마지막이
                assistant면 새 user 턴으로 잇는다(역할 교대도 지켜진다). */
             const last = base[base.length - 1];
+            /* selected 장도 여기 함께 얹는다 — 이 갈래는 공동 가변부를 안
+               쓰고 호출마다 제 가변부를 짓기 때문이다. 안 얹으면 발견
+               장면에서만 규칙이 통째로 빠진다. */
+            /* 화자 지시가 **마지막**이어야 한다 — 뒤에 오는 것이 이긴다.
+               selected 장은 그 앞이고, 그 장의 화자 줄도 이 화자 것만
+               남긴다(상대 이름이 보이면 상대 대사를 쓰기 시작한다). */
+            const partSel = selectedNow ? selectedRules(turnMat, turnSamples, speaker) : "";
             const partMsgs = last && last.role === "assistant"
               ? [...base, { role: "user", content: [
                   ...(note ? [{ type: "text", text: note }] : []),
+                  ...(partSel ? [{ type: "text", text: partSel }] : []),
                   { type: "text", text: partVol(speaker, text) }] }]
-              : withBlocks(base, [note, partVol(speaker, text)]);
+              : withBlocks(base, [note, partSel, partVol(speaker, text)]);
             const raw = await callStage(env, meter, "writer", writerSystem,
               partMsgs, budget, attempt, tier, speaker);
             devLog(`[NULL] 응답(공개 ${speaker}) ▶ ${raw.slice(0, 600)}`);
@@ -6014,9 +6591,22 @@ export default {
           return null;
         };
         const obs = disclose.observer, own = disclose.owner;
+        /* ── 고정부를 이번 턴에만 무효화한다 ──
+           관전 고정부에는 「두 사람의 대화 4~8발화를 생성한다 · 첫 발화는
+           이민현이 한다」가 박혀 있다(캐시 블록이라 못 뺀다). 화자 순차
+           호출은 그 위에 「한 명만」을 얹는 구조인데, 구체적인 고정부
+           지시가 이겨서 실 API가 매번 두 사람 대화를 통째로 써 왔다 —
+           SENDER로 전부 탈락, 502. 가짜 API는 프롬프트를 안 읽으므로 이
+           구멍을 구조적으로 못 본다.
+           그래서 **명시적으로 취소하고**, 출력 모양까지 못박는다. */
+        const onlyOne = who => `\n**이번 턴만은 위 [대화 생성 지시]가 적용되지 않는다.**\n`
+          + `4~8발화도, 「첫 발화는 이민현」도 이번 턴에는 무효다.\n`
+          + `이번 응답은 ${jos(NAME[who], "이/가")} 말하는 차례다 — ${NAME[who]}의 발화만 쓴다.\n`
+          + `${NAME[who === obs ? own : obs]}의 말은 한 줄도 쓰지 않는다. 상대의 대답을 대신 지어내지 않는다.\n`
+          + `${NAME[who]}의 말 한두 마디로 끝낸다. 상대는 다음에 따로 답한다.`;
         const obsText = `${NAME[own]}에게 ${jos(disclose.name, "이/가")} 있는 것이 처음 눈에 띈다.\n`
           + `어디서 났는지는 모른다 — 아는 척하지 않는다. 궁금하면 짐작해서 물어도 된다.\n`
-          + `이번 응답은 ${jos(NAME[obs], "이/가")} 말하는 차례다. ${NAME[obs]}의 발화만 쓴다.`;
+          + onlyOne(obs);
         const c1 = await runPart(obs, obsText, msgs, discloseMention(disclose.key));
         if (c1) {
           /* 관측자의 실제 대사가 소유자 호출의 이력이 된다 — §8.5 ② */
@@ -6026,7 +6616,7 @@ export default {
             + `${NAME[obs]}은 이 ${jos(disclose.name, "이/가")} 어디서 났는지 **모른다**. 너는 안다 — 목록에 있다.\n`
             + `바로 말할지, 돌려 말할지, 아직 말하지 않을지는 네 몫이다. 아는 것을 통째로 읊지 않는다.\n`
             + `다만 **받은 사실 자체를 부정하지는 않는다** — 그건 회피가 아니라 거짓이다.\n`
-            + `이번 응답은 ${jos(NAME[own], "이/가")} 말하는 차례다. ${NAME[own]}의 발화만 쓴다.`;
+            + onlyOne(own);
           /* ── 소유자의 답도 정사를 통과해야 한다 ──
              「그냥 쓰던 거예요」 「내가 산 거야」는 유저가 준 물건이라는
              사실의 직접 부정이다 — 출처를 안 밝히고 딴청하는 회피와 다르다.
@@ -6106,8 +6696,11 @@ export default {
             })()
           : msgs;
         const raws = cMode === "parallel"
+          /* writerSystem이다 — system을 쓰면 규칙 장(single5·golden-v1)이
+             이 갈래에서만 조용히 빠지고, trace는 실렸다고 적는다.
+             산출물이 「견본을 주고 얻은 대사」라고 거짓말하게 된다. */
           ? await Promise.all([1, 2].map(i =>
-              callStage(env, meter, "writer", system, tries, budget, attempt, tier, "AB"[i - 1])))
+              callStage(env, meter, "writer", writerSystem, tries, budget, attempt, tier, "AB"[i - 1])))
           : [await callStage(env, meter, writerStage, writerSystem, tries,
               budget * (nCand > 1 ? nCand : 1), attempt, tier, "")];
         devLog(`[NULL] 응답 ▶ ${mode}/${room}/${cMode} ▶ ${raws.join(" ⋯ ").slice(0, 600)}`);
@@ -6234,9 +6827,14 @@ export default {
              cache_control은 안 붙인다 — 캐시 지점 네 개를 이미 다 썼다
              (WORLD·people·rules + 이력 꼬리). */
           const finalizerSystem = [...system, { type: "text", text: FINALIZER_RULES }];
+          /* 마무리도 같은 재료·견본을 본다. 후보는 견본을 보고 썼는데
+             화면에 나가는 대사를 쓰는 자리가 그걸 안 보면, 고쳐 쓰는 순간
+             말투가 갈린다. system이 아니라 user 묶음에 얹는다 — 캐시
+             지점을 안 건드리는 자리다. */
           const finRaw = await callStage(env, meter, "finalizer",
             finalizerSystem,
-            [{ role: "user", content: finalizerPacket(sceneCtx, survivors, notes.filter(n => !denied.has(n.candidate))) }],
+            [{ role: "user", content: finalizerPacket(sceneCtx, survivors, notes.filter(n => !denied.has(n.candidate)))
+                + (selectedText ? `\n\n${selectedText}` : "") }],
             budget, attempt, tier, "");
           /* 마무리도 제 묶음을 만든다. **원래 후보의 부수 출력을 물려받지
              않는다** — A를 뼈대로 고쳐 썼다고 A의 give가 따라오면, 고친
@@ -6259,7 +6857,10 @@ export default {
         }
 
         const packet = directorPacket(sceneCtx, cands);
-        const dirRules = goldenNow ? GOLDEN_DIRECTOR_RULES : DIRECTOR_RULES;
+        /* selected-v1의 고르는 쪽은 사실을 다시 판정하지 않는다 — 앞
+           단계가 이미 걸렀고, 여기서 되짚으면 추측이 판정이 된다. */
+        const dirRules = goldenNow ? GOLDEN_DIRECTOR_RULES
+          : selectedNow ? SELECTED_DIRECTOR_RULES : DIRECTOR_RULES;
         const decRaw = await callStage(env, meter, "director", dirRules,
           [{ role: "user", content: packet }], 300, attempt, tier, "");
         const dec = goldenNow
@@ -6385,9 +6986,13 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          directorPacket, readDecision, DIRECTOR_RULES,
          /* G5 — golden-v1 행동 규칙 */
          dialogueRuleset, goldenV1Rules, GOLDEN_DIRECTOR_RULES, readGoldenDecision, GOLDEN_REJECT_CODES,
+         SELECTED_SAMPLES, SELECTED_DIRECTOR_RULES, SELECTED_COMMON, selectedRules,
+         intentOf, turnMaterial, examplesForTurn, sampleGateOk, sampleGatePassed,
+         itemWords, mentionsItem,
          /* G3 — sonnet5-pair-haiku */
          S5PAIR_DIRECTOR_RULES, s5DirectorPacket, readS5Choice,
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
+         userLine,
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,

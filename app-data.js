@@ -1229,16 +1229,54 @@ const markPartnerKnown=char=>{
    어댑터 계약(웹은 finishBatch가 이 순서를 자체로 지키므로 이 엔진은
    앱이 쓴다 — rules.ts로 건너간다): 전부 「이미 되어 있으면 성공」이고
    성공 시 참을 준다.
-     saveMsg(m)      말풍선 하나 저장 — 같은 id는 두 번 안 붙는다
-     applyEffect(e)  Effect 하나 적용 — effect 장부(id) 멱등
-     ackEvent(id)    관전 사건 소모
-     dropBatch()     장부 삭제 */
+     saveMsg(m)         말풍선 하나 저장 — 같은 id는 두 번 안 붙는다
+     applyEffect(e)     Effect 하나 적용 — effect 장부(id) 멱등
+     applyUnlocked(ks)  이번에 열린 히든 (없으면 안 불린다)
+     ackEvent(id)       관전 사건 소모
+     dropBatch(b)       그 항목만 줄에서 뺀다 */
 const runAutoBatch=async(b,A)=>{
   if(!b)return true;
   for(const m of b.messages||[]){ if(!(await A.saveMsg(m)))return false; }
   for(const e of b.effects||[]){ if(!(await A.applyEffect(e)))return false; }
+  /* 해금도 장부 안이다. 밖에 두면 장부가 한 번 막혔다 풀릴 때 말풍선과
+     공개는 복구되는데 .hidden만 영영 안 열린다 — 그 방의 기록에는
+     남았는데 열린 적이 없는 문이 된다. */
+  if((b.unlocked||[]).length&&A.applyUnlocked
+     &&!(await A.applyUnlocked(b.unlocked)))return false;
   if(b.event_id&&!(await A.ackEvent(b.event_id)))return false;
-  return !!(await A.dropBatch());
+  return !!(await A.dropBatch(b));
+};
+
+/* ── 장부는 하나가 아니라 줄이다 — 방별 FIFO ──
+   값 하나로 두면 앞엣것이 실패로 남아 있을 때 새 관전이 그걸 덮는다:
+   아직 못 붙인 말풍선과 아직 안 적힌 공개가 통째로 사라지고, 소모되지
+   않은 사건만 남아 같은 장면이 또 돈다. 줄로 세운다 — 적힌 차례대로
+   풀고, 하나가 실패하면 그 자리에서 멈춘다. 뒤엣것은 그대로 남는다.
+   웹 장부(null_batch)가 방마다 머리부터 푸는 것과 같은 규칙이다. */
+const okAutoBatch=b=>!!b&&typeof b==="object"&&typeof b.id==="string"&&!!b.id;
+/* 깨진 값에도 안 죽는다. 옛 단일 장부(객체 하나)도 읽어 줄로 올린다 */
+const readAutoQueue=raw=>{
+  try{
+    const v=typeof raw==="string"?JSON.parse(raw||"[]"):raw;
+    if(Array.isArray(v))return v.filter(okAutoBatch);
+    return okAutoBatch(v)?[v]:[];
+  }catch(e){return[]}
+};
+/* 같은 id는 두 번 안 들어간다 — 그건 같은 답이다 */
+const pushAutoBatch=(list,b)=>{
+  const a=readAutoQueue(list);
+  return okAutoBatch(b)&&!a.some(x=>x.id===b.id)?[...a,b]:a;
+};
+/* 그 방의 줄을 순서대로 푼다. **남은 줄**을 돌려준다 — 빈 배열이면 다
+   끝났다. 안 비었으면 그 방은 잠긴 채로 남고, 다음 부팅이 여기서 잇는다.
+   이 함수도 API를 모른다 — 재개에 재호출이 원리적으로 없다. */
+const runAutoQueue=async(list,A)=>{
+  let left=readAutoQueue(list);
+  while(left.length){
+    if(!(await runAutoBatch(left[0],A)))return left;
+    left=left.slice(1);
+  }
+  return left;
 };
 
 const loadDisclosed=()=>{try{return JSON.parse(localStorage.getItem("null_disclosed"))||{}}catch(e){return{}}};

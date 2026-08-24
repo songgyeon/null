@@ -39,7 +39,7 @@ import {
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
-  runAutoBatch,
+  readAutoQueue, pushAutoBatch, runAutoQueue,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -1492,6 +1492,14 @@ function Root() {
   const [typing,setTyping]=useState(false);
   const [failed,setFailed]=useState<any>(null);
   const [autoLoading,setAutoLoading]=useState(false);
+  /* 관전 장부에 아직 안 푼 줄이 남아 있다 — 그 방은 잠긴다. 새 관전을
+     얹으면 아직 안 뜬 말 위에 다음 장면이 쌓여 차례가 갈린다.
+     ref를 같이 두는 이유: state는 다음 그림에서야 바뀌는데, 부팅 재개는
+     비동기라 그 사이에 배경 관전 효과가 **동기적으로** 가드를 지나
+     유료 호출을 낸다. 웹은 localStorage를 동기로 읽어(headBatchOf) 이
+     구멍이 없다 — 앱도 같은 시점에 볼 수 있는 값이 필요하다. */
+  const [autoStuck,setAutoStuck]=useState(false);
+  const autoStuckRef=useRef(false);
   const [popup,setPopup]=useState<string|null>(null);
   const [toast,setToast]=useState<string|null>(null);              // 짧은 확인 토스트
   const [profile,setProfile]=useState<Record<string,string>>({});  // 당신.txt 빈칸
@@ -1759,7 +1767,7 @@ function Root() {
     await applyUnlocked(data);
   };
 
-  /* ── 관전 응답의 원자 반영 — 공용 엔진(runAutoBatch)에 어댑터를 물린다 ──
+  /* ── 관전 응답의 원자 반영 — 공용 엔진(runAutoQueue)에 어댑터를 물린다 ──
      장부를 먼저 영속(meta)하고 나서 적용한다. 순서는 엔진이 강제한다:
      말풍선 → Effect(공개 포함) → 사건 소모 → 장부 삭제. 어느 저장이든
      실패하면 그 자리에서 멈추고 장부·사건이 남는다 — 다음 부팅의
@@ -1776,11 +1784,60 @@ function Root() {
       await ackEvent(id);
       const q=await loadEvQ(); return !q.some((x:any)=>x&&x.id===id);
     }catch{ return false } },
-    dropBatch: async()=>{ try{
-      await setMeta('null_auto_batch','');
-      return !((await getMeta('null_auto_batch'))||'');
+    /* 줄에서 **그 항목만** 뺀다. 통째로 비우면 뒤에 적힌, 아직 안 푼
+       장부가 같이 사라진다 — 말풍선도 공개도 없던 일이 된다. */
+    /* 해금은 말풍선·Effect가 다 남은 뒤에 온다 — 장부의 한 단계다 */
+    applyUnlocked: async(list:any)=>{ try{
+      await applyUnlocked({ unlocked: list }); return true;
+    }catch{ return false } },
+    dropBatch: async(b:any)=>{ try{
+      /* id 없는 장부는 지웠다고 치면 안 된다 — filter가 아무것도 안
+         지우고도 검증을 통과해 조용한 가짜 성공이 된다 */
+      if(!b||typeof b.id!=='string'||!b.id)return false;
+      const id=b&&b.id;
+      const next=readAutoQueue(await getMeta('null_auto_batch')).filter((x:any)=>x&&x.id!==id);
+      await setMeta('null_auto_batch',JSON.stringify(next));
+      return !readAutoQueue(await getMeta('null_auto_batch')).some((x:any)=>x&&x.id===id);
     }catch{ return false } },
   });
+  /* ── 관전 장부를 만지는 일은 한 줄로 세운다 ──
+     웹의 localStorage는 동기라 읽고-고치고-쓰는 사이가 없다. 여기는
+     await가 셋이라 그 사이가 열린다: 배경 관전과 유저의 peek이 겹치면
+     둘 다 빈 줄을 읽고 각자 제 것만 써서 **앞엣것이 통째로 사라진다** —
+     이번 변경이 막으려던 바로 그 사고가 덮어쓰기에서 경합으로 옮겨갈
+     뿐이다. 약속 사슬 하나로 직렬화한다. 앱에는 워커 스레드가 없으므로
+     이 큐가 곧 임계구역이다. */
+  const autoGate=useRef<Promise<any>>(Promise.resolve());
+  const inAutoGate=<T,>(fn:()=>Promise<T>):Promise<T>=>{
+    const next=autoGate.current.then(fn,fn);
+    /* 이 사슬은 끊기면 안 된다 — 한 번의 실패가 다음 일까지 막는다 */
+    autoGate.current=next.then(()=>{},()=>{});
+    return next;
+  };
+  /* ── 적힌 줄을 순서대로 푼다 (방별 FIFO) ──
+     남은 줄이 있으면 그 방은 잠긴다 — 아직 안 뜬 말 위에 새 관전을 얹으면
+     차례도 이력도 갈린다. 모델은 안 부른다: 저장된 장부로만 잇는다.
+     잠금 표시는 **try/finally**로 반드시 갱신한다: getMeta·reload가 던지면
+     setAutoStuck을 못 지나가고, 그러면 다 푼 방이 잠긴 채로 굳어 그 세션
+     내내 관전이 죽는다(catch{}가 그 예외를 삼킨다). */
+  const drainOnce=async():Promise<boolean>=>{
+    let leftN=0;
+    try{
+      const list=readAutoQueue(await getMeta('null_auto_batch'));
+      if(!list.length)return true;
+      const left=await runAutoQueue(list,autoAdapters());
+      leftN=left.length;
+      await reload('health');
+      return leftN===0;
+    }catch{
+      /* 얼마나 남았는지 다시 읽어본다 — 못 읽으면 잠근 채로 둔다 */
+      try{ leftN=readAutoQueue(await getMeta('null_auto_batch')).length }catch{ leftN=1 }
+      return false;
+    }finally{
+      autoStuckRef.current=leftN>0; setAutoStuck(leftN>0);
+    }
+  };
+  const drainAutoBatches=():Promise<boolean>=>inAutoGate(drainOnce);
   const commitAutoTurn=async(ev:any,at:number,data:any):Promise<boolean>=>{
     const list=data?.messages;
     if(!Array.isArray(list)||!list.length)return false;
@@ -1794,22 +1851,27 @@ function Root() {
       t+=40000+Math.floor(Math.random()*80000);
     });
     if(!messages.length)return false;
-    const b={id:'auto|'+evid,messages,
+    /* 해금도 장부에 싣는다 — 밖에 두면 장부가 한 번 막혔다 풀릴 때
+       말풍선·공개는 복구되는데 .hidden만 영영 안 열린다. 웹의 newBatch도
+       unlocked를 장부에 싣는다(같은 계약). */
+    const b={id:'auto|'+evid,room:'health',messages,
       effects:Array.isArray(data?.effects)?data.effects:[],
+      unlocked:Array.isArray(data?.unlocked)?data.unlocked:[],
       event_id:(ev&&ev.id)||''};
-    await setMeta('null_auto_batch',JSON.stringify(b));
-    const done=await runAutoBatch(b,autoAdapters());
-    await reload('health');
-    if(done)await applyUnlocked(data);
-    return done;
+    return inAutoGate(async()=>{
+      /* 줄 **뒤에** 붙인다. 덮어쓰면 앞엣것의 말풍선·공개가 통째로 사라진다. */
+      const before=readAutoQueue(await getMeta('null_auto_batch'));
+      const queued=pushAutoBatch(before,b);
+      /* 이미 그 id가 줄에 있으면 이번 응답은 갈 데가 없다 — 조용히
+         「저장됐다」로 넘기면 새 대사가 흔적 없이 사라진다 */
+      if(queued.length===before.length&&before.some((x:any)=>x&&x.id===b.id))return false;
+      await setMeta('null_auto_batch',JSON.stringify(queued));
+      if(!readAutoQueue(await getMeta('null_auto_batch')).some((x:any)=>x&&x.id===b.id))return false;
+      return await drainOnce();
+    });
   };
   /* 부팅 재개 — 남은 관전 장부가 있으면 저장된 것으로만 마저 한다 */
-  const resumePendingAuto=async()=>{ try{
-    const raw=await getMeta('null_auto_batch'); if(!raw)return;
-    const b=JSON.parse(raw); if(!b||!b.id)return;
-    await runAutoBatch(b,autoAdapters());
-    await reload('health');
-  }catch{} };
+  const resumePendingAuto=async()=>{ try{ await drainAutoBatches(); }catch{} };
 
   // 순차 등장 — 타이핑 연출
   const enqueue = async (room:string, list:any[]) => {
@@ -2051,6 +2113,9 @@ function Root() {
 
   const handleAuto = async()=>{
     if(!name||autoLoading) return;
+    /* 아직 안 푼 장부가 남아 있으면 그 방은 잠겼다. 모델을 부르는 대신
+       남은 것부터 잇는다 — 저장된 장부로만 하므로 호출이 없다. */
+    if(autoStuck||autoStuckRef.current){ await drainAutoBatches(); return; }
     /* 이쪽은 지금 벌어지는 일로 찍힌다. 한 사람이라도 자고 있으면 만들 대화가
        없다 — 부르지도 않는다. 눌렀는데 아무 일이 없으면 고장으로 보이니 한 줄 띄운다.
        쿨타임을 깎기 전에 본다 — 누르지도 못한 관전에 시계가 돌면 안 된다 */
@@ -2169,7 +2234,10 @@ function Root() {
 
   const autoBusy=useRef(false);
   useEffect(()=>{
-    if(!ready||!name||enrolling||autoBusy.current) return;
+    /* ref로 본다 — state는 다음 그림에서야 바뀌는데, 부팅 재개(비동기)가
+       잠금을 세우기 전에 이 효과가 동기적으로 지나가면 잠긴 방 위로
+       유료 호출이 나가고 하루 몫까지 깎인다. */
+    if(!ready||!name||enrolling||autoBusy.current||autoStuck||autoStuckRef.current) return;
     /* 목록에서도 돌고 관전방을 열 때도 돈다. 방을 열었는데 늘 같은 화면이면
        그 방은 죽은 방이다 — 유저 없이도 돌아간다는 게 이 앱의 전제인데
        정작 그 방만 유저가 뭘 해야 움직이고 있었다. */
@@ -2220,7 +2288,7 @@ function Root() {
       }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
       autoBusy.current=false;
     })();
-  },[ready,name,enrolling,view,msgs]);
+  },[ready,name,enrolling,view,msgs,autoStuck]);
 
   /* 당신.txt: 빈칸 저장 / 이름 변경 */
   const saveProfile=(k:string,v:string)=>{
