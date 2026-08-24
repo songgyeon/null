@@ -674,5 +674,222 @@ const PROBE = { ...BASE,
   eq("원소는 그대로다", a.slice().sort(), ["hybrid-one", "hybrid-pair", "single-sonnet", "staged"]);
 }
 
+/* ══════════ 10. G3 — sonnet5-pair-haiku 경로 ══════════
+   Sonnet 5가 한 호출로 후보 A·B → 후보별 코드 검사 → Haiku Director 선택 →
+   못 고르는 모든 갈래에서 Sonnet 4.5 한 번 폴백. 가짜 API 파이프라인으로
+   계약의 표적 열 가지를 실측한다. */
+{
+  const S5 = { ENGINE_MODE: "sonnet5-pair-haiku" };
+  const okBody = (text, model) => ({ ok: true, status: 200, headers: { get: () => null },
+    json: async () => ({ content: [{ type: "text", text }],
+      usage: { model, input_tokens: 100, output_tokens: 10,
+               cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      stop_reason: "end_turn" }),
+    text: async () => "" });
+  const errBody = status => ({ ok: false, status, headers: { get: () => null },
+    text: async () => "요청 거부", json: async () => ({}) });
+  const TWO = JSON.stringify({ candidates: [
+    { messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] });
+  const CHOOSE = c => JSON.stringify({ choice: c, reason_codes: [], fact_id: null, rule_id: null });
+  /* 모델 id로 단계를 가른다 — 프롬프트 문구보다 정확하다 */
+  async function run5(envExtra, body, o = {}) {
+    sent = [];
+    globalThis.fetch = async (url, init) => {
+      const c = JSON.parse(init.body);
+      sent.push(c);
+      if (c.model === "claude-sonnet-5")
+        return o.writerErr ? errBody(o.writerErr) : okBody(o.writer || TWO, c.model);
+      if (String(c.model).startsWith("claude-sonnet-4-5"))
+        return o.fbErr ? errBody(o.fbErr)
+          : okBody(o.fb || JSON.stringify({ messages: [{ text: "나중에요." }] }), c.model);
+      if (flatSys(c).includes('{"choice"'))
+        return o.dirErr ? errBody(o.dirErr) : okBody(o.dir || CHOOSE("A"), c.model);
+      return okBody(JSON.stringify({ messages: [{ text: "네." }] }), c.model);
+    };
+    try {
+      const res = await worker.fetch(
+        new Request("https://x/?k=열쇠", { method: "POST", body: JSON.stringify(body),
+          headers: { "CF-Connecting-IP": `9.9.${Math.floor(ipN / 250)}.${(ipN++ % 250) + 1}` } }),
+        { ANTHROPIC_API_KEY: "sk-테스트", ACCESS_KEY: "열쇠", TRACE: "1", ...S5, ...envExtra });
+      return { status: res.status, data: await res.json() };
+    } finally { globalThis.fetch = realFetch; }
+  }
+  /* B만 죽는 후보쌍 — 이 방에 없는 화자를 명시한다(SENDER) */
+  const B_DEAD = JSON.stringify({ candidates: [
+    { messages: [{ text: "네." }] }, { messages: [{ sender: "minhyun", text: "어." }] }] });
+  const BOTH_DEAD = JSON.stringify({ candidates: [
+    { messages: [{ sender: "minhyun", text: "어." }] },
+    { messages: [{ sender: "minhyun", text: "왜." }] }] });
+
+  /* ① 한 호출에서 정확히 두 후보 */
+  const base = await run5({}, BASE);
+  eq("s5pair는 쓰기 하나·고르기 하나다", stagesOf(base), ["sonnet5_pair_writer", "haiku_director"]);
+  eq("쓰는 쪽은 Sonnet 5, 고르는 쪽은 Haiku다",
+    base.data.stages.map(s => s.model), ["claude-sonnet-5", "claude-haiku-4-5"]);
+  eq("한 호출에서 둘을 청한다", flatMsgs(writerReq()).includes('"candidates"'), true);
+  eq("trace에 후보 둘이 다 실린다",
+    [base.data.trace.engine_mode, Object.keys(base.data.trace.candidates).sort(),
+     base.data.trace.director_choice, base.data.trace.fallback],
+    ["sonnet5-pair-haiku", ["A", "B"], "A", false]);
+  eq("usage는 쓰는 쪽 실측이다", base.data.usage.model, "claude-sonnet-5");
+
+  /* ② A·B가 개별로 hardFilter를 탄다 — 한쪽만 죽으면 남은 쪽을 판정한다 */
+  const half = await run5({}, BASE, { writer: B_DEAD });
+  eq("죽은 후보의 코드가 남는다", half.data.trace.candidate_checks.B, ["SENDER"]);
+  eq("산 후보는 깨끗하다", half.data.trace.candidate_checks.A, []);
+  eq("한 후보만 남아도 Haiku가 판정한다 — 폴백이 아니다",
+    [stagesOf(half), half.data.trace.fallback], [["sonnet5_pair_writer", "haiku_director"], false]);
+
+  /* ③ 탈락한 후보를 Haiku가 선택하면 그 판정은 무효 — 폴백 */
+  const dead = await run5({}, BASE, { writer: B_DEAD, dir: CHOOSE("B") });
+  eq("탈락 후보 선택은 폴백이다",
+    [stagesOf(dead), dead.data.trace.fallback,
+     dead.data.trace.fallback_why.some(w => w.startsWith("DIRECTOR_DEAD_PICK"))],
+    [["sonnet5_pair_writer", "haiku_director", "sonnet45_fallback"], true, true]);
+  eq("폴백 대사가 나간다", dead.data.messages.map(m => m.text), ["나중에요."]);
+
+  /* ④ A를 고르면 A의 Effect만 따라온다 */
+  const PLACE = { ...BASE, place: "보건실", talked_enough: true, bag: [] };
+  const GIVE_A = JSON.stringify({ candidates: [
+    { messages: [{ text: "밴드 줄게요." }], give: "bandaid" },
+    { messages: [{ text: "이따 봐요." }] }] });
+  const gaveA = await run5({}, PLACE, { writer: GIVE_A });
+  eq("A를 고르면 A의 give만 사건이 된다",
+    (gaveA.data.effects || []).map(f => [f.type, f.item]), [["item_transfer", "bandaid"]]);
+  const gaveB = await run5({}, PLACE, { writer: GIVE_A, dir: CHOOSE("B") });
+  eq("B를 고르면 A의 give는 안 따라온다", (gaveB.data.effects || []).length, 0);
+  eq("B의 대사가 나간다", gaveB.data.messages.map(m => m.text), ["이따 봐요."]);
+
+  /* ⑤ 둘 다 탈락 → Haiku를 부르지 않고 4.5로 */
+  const both = await run5({}, BASE, { writer: BOTH_DEAD });
+  eq("둘 다 탈락이면 Haiku를 생략한다",
+    stagesOf(both), ["sonnet5_pair_writer", "sonnet45_fallback"]);
+  eq("탈락 코드가 폴백 사유에 남는다",
+    both.data.trace.fallback_why.sort(), ["A:SENDER", "B:SENDER"]);
+
+  /* ⑥ RETRY · 판정 파싱 실패 · 없는 id — 전부 폴백 */
+  const retry = await run5({}, BASE, { dir: CHOOSE("RETRY") });
+  eq("Haiku RETRY는 폴백이다", [stagesOf(retry).at(-1), retry.data.trace.fallback_why],
+    ["sonnet45_fallback", ["DIRECTOR_RETRY"]]);
+  const garbled = await run5({}, BASE, { dir: "이건 JSON이 아니다" });
+  eq("판정 파싱 실패도 폴백이다", [stagesOf(garbled).at(-1),
+    garbled.data.trace.fallback_why.some(w => w.startsWith("DIRECTOR_BAD"))],
+    ["sonnet45_fallback", true]);
+  const ghost = await run5({}, BASE,
+    { dir: JSON.stringify({ choice: "A", fact_id: "ghost.fact" }) });
+  eq("없는 fact_id는 판정 무효 — 폴백이다", [stagesOf(ghost).at(-1),
+    ghost.data.trace.fallback_why.some(w => w.includes("없는 fact_id"))],
+    ["sonnet45_fallback", true]);
+  const badRule = await run5({}, BASE,
+    { dir: JSON.stringify({ choice: "A", rule_id: "ghost.rule" }) });
+  eq("없는 rule_id도 판정 무효다",
+    badRule.data.trace.fallback_why.some(w => w.includes("없는 rule_id")), true);
+
+  /* ⑦ Sonnet 5는 실패해도 재호출하지 않는다 */
+  const s5err = await run5({}, BASE, { writerErr: 529 });
+  eq("호출 실패에도 Sonnet 5는 한 번뿐이다",
+    [s5err.data.stages.filter(s => s.stage === "sonnet5_pair_writer").length,
+     stagesOf(s5err).at(-1)], [1, "sonnet45_fallback"]);
+  const oneCand = await run5({}, BASE,
+    { writer: JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }] }) });
+  eq("후보 수 오류도 재호출 없이 폴백이다",
+    [oneCand.data.stages.filter(s => s.stage === "sonnet5_pair_writer").length,
+     oneCand.data.trace.fallback_why, stagesOf(oneCand).includes("haiku_director")],
+    [1, ["WRITER_SCHEMA:1/2"], false]);
+  const empty = await run5({}, BASE, { writer: JSON.stringify({ candidates: [
+    { messages: [{ text: "네." }] }, { messages: [] }] }) });
+  eq("빈 후보도 곧장 폴백이다 — Haiku를 안 부른다",
+    [stagesOf(empty).includes("haiku_director"),
+     empty.data.trace.fallback_why.includes("B:EMPTY")], [false, true]);
+
+  /* ⑧ 폴백은 최대 한 번 — 그것도 실패하면 턴 실패다 */
+  const fbDead = await run5({}, BASE, { dir: CHOOSE("RETRY"),
+    fb: JSON.stringify({ messages: [{ sender: "minhyun", text: "어." }] }) });
+  eq("폴백 탈락은 502다 — 가짜 대사로 안 덮는다", fbDead.status, 502);
+  eq("폴백 호출은 한 번뿐이다",
+    fbDead.data.stages.filter(s => s.stage === "sonnet45_fallback").length, 1);
+  const fbErr = await run5({}, BASE, { writerErr: 529, fbErr: 500 });
+  eq("폴백 호출 실패도 한 번뿐이고 502다", [fbErr.status,
+    fbErr.data.stages.filter(s => s.stage === "sonnet45_fallback").length], [502, 1]);
+
+  /* ⑨ 실험 모드를 안 켜면 기존 동작·호출 수가 그대로다 */
+  const plain = await run({ CANDIDATE_MODE: "pair" }, BASE);
+  eq("env 없이는 기존 hybrid 그대로다", stagesOf(plain), ["writer", "director"]);
+  eq("기본 engineMode는 hybrid다", ENG.engineMode({}), "hybrid");
+  eq("s5pair 단계 이름이 운영 경로에 안 섞인다",
+    plain.data.stages.some(s => /sonnet5_pair|haiku_director|sonnet45_fallback/.test(s.stage)), false);
+  const single9 = await run({ ENGINE_MODE: "single" }, BASE);
+  eq("single 경로도 그대로다", stagesOf(single9), ["single_writer"]);
+  /* SONNET_WRITER_MODEL 덮어쓰기는 여전히 single/anchor에만 닿는다 */
+  const ovr = await run5({ SONNET_WRITER_MODEL: "claude-sonnet-4-6" }, BASE, { dir: CHOOSE("RETRY") });
+  eq("스윕 덮어쓰기가 s5pair의 세 자리에 안 닿는다",
+    ovr.data.stages.map(s => s.model),
+    ["claude-sonnet-5", "claude-haiku-4-5", "claude-sonnet-4-5-20250929"]);
+
+  /* ⑩ 운영 기본값·판 번호가 안 변했다 */
+  eq("ENGINE 운영 자리가 그대로다",
+    [ENG.ENGINE.writer.id, ENG.ENGINE.director.id, ENG.ENGINE.finalizer.id, ENG.CANDIDATE_MODE],
+    ["claude-haiku-4-5", "claude-haiku-4-5", "claude-sonnet-4-5-20250929", "pair"]);
+  eq("Sonnet 5 id는 MODELS에 등록된 것을 재사용한다 — 추측·중복 하드코딩이 아니다",
+    ENG.ENGINE.pairWriter5.id, "claude-sonnet-5");
+  eq("기본 replay 경로 목록에 s5pair가 없다", RP.DEFAULT_PATHS.includes("sonnet5-pair-haiku"), false);
+  eq("판 번호가 웹과 앱에서 같다 — H를 안 건드렸다", (() => {
+    const web = (readFileSync(join(ROOT, "index.html"), "utf8").match(/NULL_STORY_REV\s*=\s*["'](\d+)["']/) || [])[1];
+    const app = (readFileSync(join(ROOT, "app/lib/db.ts"), "utf8").match(/NULL_STORY_REV\s*=\s*["'](\d+)["']/) || [])[1];
+    return !!web && web === app;
+  })(), true);
+  eq("s5 산출물이 gitignore에 있다",
+    /replay-s5-pair-haiku/.test(readFileSync(join(ROOT, ".gitignore"), "utf8")), true);
+}
+
+/* ══════════ 10.5 G3 CLI — taste-pack 16문항 fake 전수 ══════════ */
+{
+  const { execSync } = await import("node:child_process");
+  const { mkdtempSync, readdirSync: rd, existsSync: ex } = await import("node:fs");
+  const os = await import("node:os");
+  const tmp = mkdtempSync(join(os.tmpdir(), "replay-s5-test-"));
+  const sh = args => {
+    try { execSync(`node tools/replay.mjs ${args}`, { cwd: ROOT, stdio: "pipe", maxBuffer: 64e6 }); return 0; }
+    catch (e) { return e.status || 1; }
+  };
+  const out1 = join(tmp, "run1");
+  eq("taste-pack fake 실행이 성공한다",
+    sh(`--fake --paths=sonnet5-pair-haiku --packets=test/packets-taste --sessions=none --out=${out1}`), 0);
+  const report = readFileSync(join(out1, "report.md"), "utf8");
+  eq("16턴이 다 돈다", /총 replay 턴: 16 · 성공 16/.test(report), true);
+  eq("계약된 산출물이 다 있다",
+    ["selected-blind", "pair-blind", "trace"].every(d => ex(join(out1, d)))
+      && ex(join(out1, "pair-key.json")), true);
+  eq("경로 비교용 blind/는 안 만든다", ex(join(out1, "blind")), false);
+  eq("pair-blind가 16개다", rd(join(out1, "pair-blind")).length, 16);
+  const key = JSON.parse(readFileSync(join(out1, "pair-key.json"), "utf8"));
+  eq("pair-key에 16항목·표시 교차가 있다", (() => {
+    const names = Object.keys(key);
+    if (names.length !== 16) return `개수 ${names.length}`;
+    const firsts = names.map(n => key[n].display["ㄱ"]);
+    return firsts.includes("A") && firsts.includes("B") ? "교차" : "고정";
+  })(), "교차");
+  /* 블라인드에 모델·선택·호출 흔적이 없다 — pair-key.json에만 있다 */
+  eq("s5 블라인드가 깨끗하다", (() => {
+    const bad = /sonnet|claude|haiku|4-5|director|fallback|폴백|token|usage|latency/i;
+    for (const d of ["selected-blind", "pair-blind"])
+      for (const f of rd(join(out1, d)))
+        if (bad.test(readFileSync(join(out1, d, f), "utf8"))) return f;
+    return "깨끗";
+  })(), "깨끗");
+  eq("--sessions=none 없이 빈 세션 디렉터리는 여전히 비정상 종료다",
+    sh(`--fake --paths=sonnet5-pair-haiku --packets=test/packets-taste --sessions=/no/such --out=${join(tmp, "run2")}`) !== 0, true);
+  /* taste-pack도 실사용 모양 lint를 통과한다 */
+  const TIME = ["새벽", "아침", "낮", "저녁", "밤"];
+  const DAYS = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  const tp = rd(join(ROOT, "test/packets-taste")).filter(f => f.endsWith(".json"))
+    .map(f => JSON.parse(readFileSync(join(ROOT, "test/packets-taste", f), "utf8")));
+  eq("taste-pack이 16개다", tp.length, 16);
+  eq("taste-pack 이력 행에 화자가 있고 때·요일이 워커 목록에 있다",
+    tp.every(p => (p.body.history || []).every(m => m.sender
+        && (m.role !== "user" || m.sender === "user"))
+      && TIME.includes(p.body.now) && DAYS.includes(p.body.day)), true);
+}
+
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);
 process.exit(fail ? 1 : 0);

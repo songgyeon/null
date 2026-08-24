@@ -1,0 +1,55 @@
+{
+  "label": "T04-jaeeon-mug",
+  "blurb": "이재언 1:1 — 준 머그컵을 다시 언급. 선물 기억·고마움·시비조 여부.",
+  "meta": {
+    "prev": {
+      "responses": 20,
+      "summary_upto": 0,
+      "stage_idx": 1
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "gifts": {
+      "jaeeon": [
+        "mug"
+      ]
+    },
+    "history": [
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님 지금 뭐 하세요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "커피 마셔요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "제가 드린 머그컵, 진짜 계속 쓰고 계세요?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 30,
+      "minhyun": 10,
+      "group": 4,
+      "health": 0
+    },
+    "days": 9,
+    "now": "아침",
+    "day": "수요일",
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

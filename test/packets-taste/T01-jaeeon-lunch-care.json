@@ -1,0 +1,51 @@
+{
+  "label": "T01-jaeeon-lunch-care",
+  "blurb": "이재언 1:1 — 유저의 돌봄. 시비조로 밀어내는지, 조용히 받아들이는지.",
+  "meta": {
+    "prev": {
+      "responses": 18,
+      "summary_upto": 0,
+      "stage_idx": 1
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "보건실 오늘 바빴어요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "애들이 좀 많았어요. 환절기라."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님, 오늘 점심도 대충 드신 거 아니죠?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 24,
+      "minhyun": 8,
+      "group": 2,
+      "health": 0
+    },
+    "days": 6,
+    "now": "저녁",
+    "day": "화요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

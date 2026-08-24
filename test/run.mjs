@@ -5039,8 +5039,15 @@ eq('시간표 단추는 peek보다 좁다',
         && id('canon') === id('writer')
         && id('character') === id('writer');
   })(), true);
-  /* 이 엔진이 안 쓰기로 한 것들 */
-  eq('엔진에 안 쓰기로 한 급이 없다', /sonnet-4-6|sonnet-5|opus/.test(eng), false);
+  /* 이 엔진이 안 쓰기로 한 것들. G3 비교 전용 자리(pairWriter5)는 예외다 —
+     운영 단계가 아니라 replay가 env로만 켜는 실험 팔이고, id도 MODELS의
+     등록 항목을 재사용한다. 그 블록만 잘라내고 나머지에 같은 검사를 건다. */
+  eq('엔진에 안 쓰기로 한 급이 없다 — G3 비교 자리만 예외', (() => {
+    const cut = eng.replace(/\/\* ── G3 비교 전용[^]*?noThinking: false \},\n/, '');
+    return /sonnet-4-6|sonnet-5|opus/.test(cut);
+  })(), false);
+  eq('G3 자리는 MODELS의 sonnet-5를 재사용한다',
+    /pairWriter5: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng), true);
 
   /* ── 폴백 금지 ──
      실패하면 다른 모델로 넘어가지 않는다. 진짜 오류를 그대로 올린다. */
@@ -7241,9 +7248,10 @@ eq('시간표 단추는 peek보다 좁다',
   })(), false);
   eq('생산 호출이 전부 Candidate다', (() => {
     /* hardFilter(무엇, …) 의 첫 인자가 배열 리터럴이거나 messages 배열이면 옛 모양이다 */
-    return (wk.match(/hardFilter\(/g) || []).length === 4      // 정의 1 + 호출 3
-        && /hardFilter\(cand, chars, hardCtx\)/.test(wk)      // 일반·pair·one·auto·중요
+    return (wk.match(/hardFilter\(/g) || []).length === 6      // 정의 1 + 호출 5 (G3의 후보 루프·폴백 포함)
+        && /hardFilter\(cand, chars, hardCtx\)/.test(wk)      // 일반·pair·one·auto·중요 + G3 후보 루프
         && /hardFilter\(fCand, chars, hardCtx\)/.test(wk)     // 마무리
+        && /hardFilter\(fbCand, chars, hardCtx\)/.test(wk)    // G3 폴백
         && /hardFilter\(c0, chars, hardCtx\)/.test(wk)        // 기준선
         && !/hardFilter\(kept/.test(wk) && !/hardFilter\(\[/.test(wk);
   })(), true);

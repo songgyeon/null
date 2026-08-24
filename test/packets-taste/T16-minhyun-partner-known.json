@@ -1,0 +1,57 @@
+{
+  "label": "T16-minhyun-partner-known",
+  "blurb": "이민현 1:1 — 상대 선택 이후, 선택받지 않은 민현이 처음 알게 되는 자리. 정해진 partner를 부정하거나 유저에게 다시 선택을 요구하지 않는지.",
+  "meta": {
+    "prev": {
+      "responses": 44,
+      "summary_upto": 0,
+      "stage_idx": 2
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
+    "partner": "jaeeon",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤 요즘 나한테 좀 소홀한 거 알죠"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "민현아. 할 말이 있어."
+      },
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "뭔데. 말해요"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "나… 재언 선생님이랑 만나기로 했어."
+      }
+    ],
+    "counts": {
+      "jaeeon": 70,
+      "minhyun": 50,
+      "group": 10,
+      "health": 0
+    },
+    "days": 24,
+    "now": "밤",
+    "day": "토요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "acknowledged",
+      "partnerKnown": {
+        "jaeeon": true,
+        "minhyun": false
+      }
+    }
+  }
+}

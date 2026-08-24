@@ -1,0 +1,51 @@
+{
+  "label": "T03-jaeeon-walk-comfort",
+  "blurb": "이재언 1:1 — 「둘이 걷는 건 불편하지 않아요?」. 설명·상담 없이 감정이 새는지.",
+  "meta": {
+    "prev": {
+      "responses": 26,
+      "summary_upto": 0,
+      "stage_idx": 1
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "오늘 같이 걸어서 좋았어요."
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "날이 선선했어요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "저랑 둘이 걷는 건 불편하지 않아요?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 34,
+      "minhyun": 12,
+      "group": 4,
+      "health": 0
+    },
+    "days": 10,
+    "now": "밤",
+    "day": "목요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

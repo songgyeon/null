@@ -1,0 +1,46 @@
+{
+  "label": "T10-minhyun-sick-alone",
+  "blurb": "이민현 1:1 — 「나 아픈데 지금 혼자 있어.」. 질문만 반복하는지, 실제로 움직이려는 반응이 나오는지.",
+  "meta": {
+    "prev": {
+      "responses": 22,
+      "summary_upto": 0,
+      "stage_idx": 1
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤 뭐 해"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "나 아픈데 지금 혼자 있어."
+      }
+    ],
+    "counts": {
+      "jaeeon": 10,
+      "minhyun": 30,
+      "group": 2,
+      "health": 0
+    },
+    "days": 11,
+    "now": "저녁",
+    "day": "토요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

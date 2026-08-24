@@ -1,0 +1,49 @@
+{
+  "label": "T13-group-weekend",
+  "blurb": "단톡 — 「주말에 둘 다 뭐 해요? 셋이 같이 만날래요?」. 두 사람 모두 답하면서 서로의 반응을 읽는지.",
+  "meta": {
+    "prev": {
+      "responses": 0
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "group",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤들 뭐 해요"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "일하는 중이다."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "주말에 둘 다 뭐 해요? 셋이 같이 만날래요?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 30,
+      "minhyun": 32,
+      "group": 14,
+      "health": 0
+    },
+    "days": 10,
+    "now": "저녁",
+    "day": "금요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

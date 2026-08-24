@@ -1,0 +1,51 @@
+{
+  "label": "T05-jaeeon-study-room",
+  "blurb": "이재언 1:1 — 「선생님도 어릴 때 공부방 다니신 적 있어요?」. 재언은 다닌 사람이라는 정사를 지키는지(했다고 하면 오류).",
+  "meta": {
+    "prev": {
+      "responses": 30,
+      "summary_upto": 0,
+      "stage_idx": 2
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "저 어릴 때 동네 공부방 다녔거든요."
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "그래요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님도 어릴 때 공부방 다니신 적 있어요?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 48,
+      "minhyun": 20,
+      "group": 8,
+      "health": 0
+    },
+    "days": 12,
+    "now": "밤",
+    "day": "일요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

@@ -100,11 +100,26 @@ const ENGINE = {
      비용 집계가 두 역할을 한 덩어리로 잰다. */
   anchorWriter: { id: "claude-sonnet-4-5-20250929", effort: null, noThinking: true },
   singleWriter: { id: "claude-sonnet-4-5-20250929", effort: null, noThinking: true },
+  /* ── G3 비교 전용 — sonnet5-pair-haiku 경로의 쓰는 자리 ──
+     후보 A·B를 한 호출로 쓰는 Sonnet 5. 모델 id는 MODELS에 이미 등록된
+     sonnet-5 항목을 그대로 재사용한다 — 새 id를 지어내지 않는다.
+     payload는 맨몸이다(effort·thinking·budget 없음) — 5는 수동 thinking과
+     비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다(G2 스윕과 같다). */
+  pairWriter5: { id: (MODELS.find(m => m.id === "claude-sonnet-5") || {}).id,
+                 effort: null, noThinking: false },
 };
 /* trace의 stage 이름 ↔ ENGINE 열쇠. 호출 자리에서는 trace에 남을 이름으로
    부르고, 모델은 이 표로 찾는다 — 이름 둘이 같은 자리를 가리킨다는 것을
    코드 모양으로 못박는다. */
-const STAGE_ENGINE = { single_writer: "singleWriter", anchor_writer: "anchorWriter" };
+const STAGE_ENGINE = { single_writer: "singleWriter", anchor_writer: "anchorWriter",
+  /* G3 — sonnet5-pair-haiku의 세 자리. 폴백은 singleWriter와 같은 4.5 설정을
+     재사용하되 trace 이름으로 역할을 가른다 — 비용 집계가 역할별로 갈라진다.
+     haiku_director도 모델은 운영 director 그대로다. */
+  sonnet5_pair_writer: "pairWriter5", haiku_director: "director",
+  sonnet45_fallback: "singleWriter" };
+/* usage(쓰는 쪽 한 번의 실측)를 남기는 단계 — 고르는 단계는 안 남긴다 */
+const WRITER_STAGES = new Set(["writer", "single_writer", "anchor_writer",
+  "sonnet5_pair_writer", "sonnet45_fallback"]);
 /* ── 후보를 몇 개, 어떻게 뽑나 ──
    후보 두 개가 무조건 한 개보다 낫다고 가정하지 않는다. 세 가지를 바꿔
    끼울 수 있게 둔다. 값이 다르고 지연이 다르고 후보의 다양성이 다르다 —
@@ -135,7 +150,11 @@ function engineMode(env) {
   /* single은 G 비교의 세 번째 갈래다 — Sonnet 4.5 Writer 한 호출, 고르기도
      검사도 없이 같은 후처리만 탄다. replay 도구가 env로 켠다. 운영 대시보드
      기본값은 hybrid 그대로다. */
-  return v === "legacy" ? "legacy" : v === "single" ? "single" : "hybrid";
+  /* sonnet5-pair-haiku는 G3 비교의 실험 갈래다 — Sonnet 5가 한 호출로 후보
+     A·B를 쓰고, Haiku Director가 고르고, 못 고를 때만 Sonnet 4.5가 한 번
+     폴백한다. replay 도구가 env로 켠다. 운영 대시보드 기본값은 hybrid다. */
+  return v === "legacy" ? "legacy" : v === "single" ? "single"
+       : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku" : "hybrid";
 }
 /* staged의 anchor 사유. **코드가 정한다** — 모델이 판단하지 않고, replay
    하네스가 packet 순서에서 계산해 env로 실어 보낸다. 허용 값은 셋뿐이다.
@@ -3233,7 +3252,11 @@ function stageModel(env, stage) {
   const key = STAGE_ENGINE[stage];
   const m = ENGINE[key || stage];
   if (!m) return null;
-  const ov = key ? sonnetOverride(env) : "";
+  /* override는 G2 스윕의 두 자리(single/anchor)에만 닿는다 — G3의
+     sonnet45_fallback이 singleWriter 설정을 재사용해도 갈아끼워지지 않고,
+     haiku_director는 더더욱 아니다. */
+  const ov = (stage === "single_writer" || stage === "anchor_writer")
+    ? sonnetOverride(env) : "";
   if (!ov) return m;
   /* SWEEP_BARE — G2 모델 스윕 전용. thinking·budget·effort를 아무것도 안
      실어서 payload가 model·max_tokens·system·messages 넷뿐이 된다.
@@ -3259,7 +3282,7 @@ async function callStage(env, meter, stage, system, messages, maxTokens, attempt
   stageStamp(meter, stage, m.id, res.usage, ms, attempt, tier, "ok", candidate);
   /* single·anchor도 「쓰는 쪽 한 번의 실측」이다 — usage 필드의 뜻이 경로에
      따라 달라지면 네 갈래의 비용 비교가 같은 자리를 재지 않게 된다. */
-  if ((stage === "writer" || STAGE_ENGINE[stage]) && meter) meter.writerUsage = res.usage;   // 화면 콘솔이 보던 자리
+  if (WRITER_STAGES.has(stage) && meter) meter.writerUsage = res.usage;   // 화면 콘솔이 보던 자리
   return res.text;
 }
 
@@ -3966,6 +3989,86 @@ function readDecision(raw, ids) {
   const allowed = one ? ["ACCEPT"] : list;
   if (allowed.indexOf(d) < 0) return no(`고를 수 없는 판정: ${d || "(빈칸)"}`);
   return { decision: d, reject_codes: (j && j.reject_codes) || {}, why: "" };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   G3 — sonnet5-pair-haiku의 고르는 쪽 계약
+
+   운영 Director와 판단 기준은 같지만 출력 모양이 다르다 — 사유를
+   reason_codes·fact_id·rule_id로 갈라 받아서, 없는 id를 대면 판정 자체를
+   무효로 한다(무효는 RETRY가 아니라 4.5 폴백의 사유다). 출력 모양이 다른
+   판정기를 한 파서에 욱여넣지 않는다 — 읽는 쪽도 따로 둔다. */
+const S5PAIR_DIRECTOR_RULES = `[사실이 먼저다]
+코드가 준 [이번 턴 사실]과 [성격 규칙]을 어기는 후보는 말맛이 좋아도 고르지 않는다.
+너는 대사를 쓰지 않는다 — 고르기만 한다. 후보를 고치거나 합치거나 새로 쓰지 않는다.
+
+너는 두 사람이 사는 세계의 연출자다.
+후보 중 어느 쪽이 「지금 이 사람」에 가까운지 고른다. 친절한 쪽도, 자세한 쪽도,
+도움이 되는 쪽도 기준이 아니다. 일반 챗봇의 좋은 답이 여기서는 나쁜 답이다.
+
+이런 쪽을 고른다.
+- 유저가 방금 한 말에 실제로 답한 쪽
+- 그 사람의 평소 말 길이와 거리에 맞는 쪽
+- 안 물어도 되는 자리에서 안 묻는 쪽
+- 관계 단계보다 앞서 나가지 않는 쪽
+
+이런 쪽을 버린다.
+- 유저 문장을 어미만 바꿔 되돌린 쪽
+- 정리·공감·해결책을 세트로 주는 쪽
+- 유저의 행동이나 감정을 대신 써준 쪽
+- 최근에 한 말을 표현만 바꿔 다시 한 쪽
+- 세계관을 설명하는 쪽
+
+출력은 이 모양 하나뿐이다. 다른 말은 붙이지 않는다.
+{"choice":"A","reason_codes":[],"fact_id":null,"rule_id":null}
+
+choice는 A · B · RETRY 중 하나다. 후보가 하나만 왔어도 그 후보의 id 또는 RETRY다.
+코드 검사에서 이미 탈락했다고 적힌 후보는 고를 수 없다.
+두 후보가 같은 사실을 뒤집으면 RETRY다. 둘 다 말투나 관계 거리를 명백히 어겨도 RETRY다.
+사실을 어겨 버릴 때는 그 fact_id를, 성격 규칙을 어겨 버릴 때는 그 rule_id를 적는다 —
+[fact_id 목록]과 [성격 규칙]에 실제로 있는 것만이다. 해당 없으면 null이다.`;
+
+/* 운영 directorPacket에 G3 전용 두 절을 얹는다 — 탈락한 후보의 코드(고를 수
+   없다는 표지)와, 판정에 쓸 수 있는 fact_id 목록. */
+function s5DirectorPacket(ctx, cands, checks) {
+  const L = [directorPacket(ctx, cands)];
+  const ids = [...factIds(ctx.facts || [])];   // factIds는 Set을 준다
+  if (ids.length) L.push("", `[fact_id 목록 — 여기 있는 것만 쓴다] ${ids.join(" · ")}`);
+  const dead = Object.entries(checks || {}).filter(([, cs]) => (cs || []).length);
+  if (dead.length) {
+    L.push("");
+    for (const [id, cs] of dead)
+      L.push(`후보 ${id}는 코드 검사에서 탈락했다(${cs.join(",")}) — 고를 수 없다.`);
+  }
+  return L.join("\n");
+}
+
+/* G3 판정을 읽는다. 모양이 어긋나면 ok:false — 호출부가 4.5 폴백으로 보낸다.
+   choice가 A/B인데 살아남은 후보가 아니면 dead:true로 알린다(탈락 후보 선택도
+   폴백 사유다 — 조용히 딴 후보를 집지 않는다). */
+function readS5Choice(raw, aliveIds, allowedFactIds) {
+  const no = why => ({ ok: false, why });
+  const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
+  if (!body) return no("JSON이 아니다");
+  let j;
+  try { j = JSON.parse(body); } catch (e) { return no("JSON을 못 읽었다"); }
+  const choice = String((j && j.choice) || "").toUpperCase();
+  if (choice !== "A" && choice !== "B" && choice !== "RETRY")
+    return no(`고를 수 없는 판정: ${choice || "(빈칸)"}`);
+  /* factIds는 Set을 준다 — 배열로 와도 받는다 */
+  const allowFacts = allowedFactIds instanceof Set
+    ? allowedFactIds : new Set(allowedFactIds || []);
+  const fid = j.fact_id == null || j.fact_id === "" ? null : String(j.fact_id);
+  if (fid !== null && !allowFacts.has(fid)) return no(`없는 fact_id: ${fid}`);
+  const rid = j.rule_id == null || j.rule_id === "" ? null : String(j.rule_id);
+  if (rid !== null && !RULE_IDS.has(rid)) return no(`없는 rule_id: ${rid}`);
+  const out = { choice,
+    reason_codes: Array.isArray(j.reason_codes)
+      ? j.reason_codes.filter(Boolean).map(String).slice(0, 6) : [],
+    fact_id: fid, rule_id: rid };
+  if (choice !== "RETRY" && !(aliveIds || []).includes(choice))
+    return { ok: true, choice, out, dead: true };
+  return { ok: true, choice, out };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5137,6 +5240,181 @@ export default {
          값을 그대로 넣어 뜻이 뒤집혀 있었다. */
       if (placeItemAvailable) here.push("이 자리에 건넬 수 있는 물건이 있다");
       const budget = mode === "auto" ? AUTO_BUDGET : ANSWER_BUDGET;
+
+      /* ── G3 비교: sonnet5-pair-haiku 경로 ──
+         모든 모델 응답 턴(normal·group·auto·critical)이 이 한 갈래를 탄다:
+         ① Sonnet 5가 한 호출로 후보 A·B → ② 후보마다 기존 코드 검사
+         (parse→sender→sanitize→hardFilter→Effect) → ③ Haiku Director가
+         고른다 → ④ 못 고르는 모든 갈래에서 Sonnet 4.5가 **한 번** 폴백.
+         Sonnet 5 재호출은 없다. critical의 검사·마무리 경로는 여기서 안
+         탄다 — 라우팅(tier)·Fact 투영·Effect 검증·scene_ack 계약은 그대로다.
+         운영 기본값(hybrid)에는 아무 영향이 없다 — env로만 켜진다. */
+      if (engineMode(env) === "sonnet5-pair-haiku") {
+        const s5 = { candidates: null, checks: {}, directorOut: null,
+                     directorChoice: null, fallback: false, fallbackWhy: [] };
+        const traceOn5 = String((env && env.TRACE) || "") === "1";
+        const s5TraceOf = picked => !traceOn5 ? {} : { trace: {
+          engine_mode: "sonnet5-pair-haiku",
+          route: { tier, reason: routed.reason },
+          turnContext: turnCtx,
+          candidates: s5.candidates,
+          candidate_checks: s5.checks,
+          director_choice: s5.directorChoice,
+          director_output: s5.directorOut,
+          fallback: s5.fallback,
+          fallback_why: s5.fallbackWhy,
+          writer_model: (stageModel(env, "sonnet5_pair_writer") || {}).id,
+          selectedCandidate: picked
+            ? { id: picked.id, originalMessages: picked.originalMessages } : null,
+        } };
+        traceOfRef = s5TraceOf;
+
+        const recent5 = msgs.slice(-6).map(m => ({ role: m.role,
+          content: Array.isArray(m.content) ? m.content.map(b => b.text || "").join(" ") : m.content }));
+        const sceneCtx5 = { who: fallbackSender, when: now, place, userName,
+          stage: relLabel, knows: knowsLabel, facts: stageFacts, here,
+          recent: recent5, scene: routed.reason };
+        /* 후보 하나를 기존 경로와 같은 후처리로 만든다 — 같은 파서, 같은
+           sanitize, 같은 hardFilter 입구다. 후처리가 다르면 비교되는 것이
+           모델이 아니라 후처리 차이가 된다. */
+        const mkCand5 = (one, id) => {
+          const parsed = parseMessages(one, fallbackSender, chars);
+          return { id, originalMessages: parsed.messages,
+            messages: dropEcho(
+              trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed.messages)), chars), photoChars, fallbackSender, recentPhotos)),
+              lastSaid(msgs, mode)),
+            invite: parsed.invite, give: parsed.give, photo: parsed.photo,
+            parseStatus: parsed.parseStatus, intruder: parsed.intruder, signals: [] };
+        };
+        const finishCand5 = c => {   // 검사 통과 후에만 제안을 확정한다
+          c.invite = pickInvite(c.invite, place ? [] : [...openPlaces, ...canGo]);
+          c.give = pickGive(c.give, place, placeItemOwned, room);
+          c.signals = softSignals(c.messages, recent5);
+          return c;
+        };
+        /* 마지막 발화에만 비변이로 한 장을 얹는다 — 폴백은 이 지시 없이 간다 */
+        const withNote5 = text => {
+          const copy = msgs.slice();
+          const t = copy[copy.length - 1];
+          const blocks = Array.isArray(t.content) ? t.content.slice()
+            : [{ type: "text", text: t.content }];
+          blocks.push({ type: "text", text });
+          copy[copy.length - 1] = { ...t, content: blocks };
+          return copy;
+        };
+
+        let picked = null;
+        const alive = [];
+        /* ① Sonnet 5 — 한 호출, 실패해도 재호출하지 않는다 */
+        try {
+          const raw5 = await callStage(env, meter, "sonnet5_pair_writer",
+            system, withNote5(writerAsk(2)), budget * 2, 1, tier, "");
+          devLog(`[NULL] s5pair 응답 ▶ ${mode}/${room} ▶ ${raw5.slice(0, 600)}`);
+          const pieces = splitCandidates(raw5);
+          if (pieces.length !== 2) {
+            s5.fallbackWhy.push(`WRITER_SCHEMA:${pieces.length}/2`);
+            console.log(`[NULL] s5pair 후보 수가 안 맞는다 — ${pieces.length}/2`);
+          } else {
+            s5.candidates = {};
+            const cands5 = pieces.map((one, i) => mkCand5(one, "AB"[i]));
+            /* 빈 후보는 스키마 위반이다 — 계약대로 곧장 폴백으로 간다.
+               둘 다 버린다: 반쪽 스키마를 살리면 「정확히 둘」이 흐려진다. */
+            const empty = cands5.filter(c => !(c.messages || []).length);
+            for (const cand of cands5) {
+              s5.candidates[cand.id] = { messages: cand.messages,
+                originalMessages: cand.originalMessages };
+              const codes = hardFilter(cand, chars, hardCtx);
+              s5.checks[cand.id] = codes;
+              if (empty.length) continue;
+              if (codes.length) {
+                console.log(`[NULL] s5pair 후보 ${cand.id} 탈락 — ${codes.join(",")}`);
+                continue;
+              }
+              alive.push(finishCand5(cand));
+            }
+            if (empty.length)
+              s5.fallbackWhy.push(...empty.map(c => `${c.id}:EMPTY`));
+            else if (!alive.length)
+              s5.fallbackWhy.push(...["A", "B"].flatMap(id =>
+                (s5.checks[id] || []).map(c => `${id}:${c}`)));
+          }
+        } catch (e) {
+          s5.fallbackWhy.push("S5_ERROR");
+          console.log(`[NULL] s5pair 쓰기 실패 — ${String(e).slice(0, 160)}`);
+        }
+
+        /* ② Haiku Director — 살아남은 후보가 있을 때만. 하나여도 판정을
+           맡긴다(그 id 또는 RETRY). 하나도 없으면 호출을 생략한다. */
+        if (alive.length && !s5.fallbackWhy.length) {
+          try {
+            const decRaw = await callStage(env, meter, "haiku_director",
+              S5PAIR_DIRECTOR_RULES,
+              [{ role: "user", content: s5DirectorPacket(sceneCtx5, alive, s5.checks) }],
+              300, 1, tier, "");
+            const dec = readS5Choice(decRaw, alive.map(c => c.id), factIds(stageFacts));
+            s5.directorOut = dec.ok ? dec.out : { invalid: dec.why };
+            console.log(`[NULL] s5pair 고름 ▶ ${dec.ok ? dec.choice : `무효(${dec.why})`}`);
+            if (!dec.ok) s5.fallbackWhy.push(`DIRECTOR_BAD:${dec.why}`);
+            else if (dec.choice === "RETRY") s5.fallbackWhy.push("DIRECTOR_RETRY");
+            else if (dec.dead) s5.fallbackWhy.push(`DIRECTOR_DEAD_PICK:${dec.choice}`);
+            else { picked = alive.find(c => c.id === dec.choice) || null;
+                   if (picked) s5.directorChoice = dec.choice;
+                   else s5.fallbackWhy.push(`DIRECTOR_GHOST:${dec.choice}`); }
+          } catch (e) {
+            s5.fallbackWhy.push("DIRECTOR_ERROR");
+            console.log(`[NULL] s5pair 고르기 실패 — ${String(e).slice(0, 160)}`);
+          }
+        }
+
+        /* ③ Sonnet 4.5 폴백 — 위가 실패한 모든 갈래에서, 최대 한 번.
+           같은 TurnContext에 탈락 코드·RETRY 사유를 짧게 얹는다. 폴백도
+           같은 검사줄을 탄다 — 여기서 떨어지면 가짜 대사로 덮지 않고 그
+           턴은 실패다. */
+        if (!picked) {
+          s5.fallback = true;
+          try {
+            const note = s5.fallbackWhy.length
+              ? `\n[이전 시도 탈락]\n${s5.fallbackWhy.slice(0, 6).map(c => `- ${c}`).join("\n")}\n`
+                + `같은 실수를 반복하지 않는다.\n`
+              : "";
+            const rawF = await callStage(env, meter, "sonnet45_fallback",
+              system, note ? withNote5(note) : msgs, budget, 1, tier, "");
+            devLog(`[NULL] s5pair 폴백 응답 ▶ ${mode}/${room} ▶ ${rawF.slice(0, 600)}`);
+            const fbCand = mkCand5(splitCandidates(rawF)[0] || "", "FB");
+            const fbCodes = hardFilter(fbCand, chars, hardCtx);
+            s5.checks.FB = fbCodes;
+            if (fbCodes.length)
+              console.log(`[NULL] s5pair 폴백 탈락 — ${fbCodes.join(",")}`);
+            else picked = finishCand5(fbCand);
+          } catch (e) {
+            console.log(`[NULL] s5pair 폴백 실패 — ${String(e).slice(0, 160)}`);
+          }
+        }
+
+        if (!picked) {
+          return new Response(JSON.stringify({ error: "생성 실패",
+            detail: "쓸 만한 응답을 못 받았습니다"
+              + (s5.fallbackWhy.length ? ` (${s5.fallbackWhy.join(", ")})` : ""),
+            stages: meter.rows, usage_total: meterTotal(meter),
+            ...(reqId ? { request_id: reqId } : {}),
+            ...s5TraceOf(null) }),
+            { status: 502, headers: { ...CORS, "content-type": "application/json" } });
+        }
+        const effects5 = materializeEffects(reqId, picked, hardCtx);
+        return new Response(JSON.stringify({
+          messages: dropSleepers(picked.messages, place ? null : states),
+          unlocked: unlockedKeys(counts, days),
+          usage: meter.writerUsage,
+          stages: meter.rows, usage_total: meterTotal(meter),
+          ...(reqId ? { request_id: reqId } : {}),
+          effects: effects5,
+          ...s5TraceOf(picked),
+          ...(tier === "critical" && routed.reason
+              && routed.reason === String(body.scene_reason || "").trim()
+            ? { scene_ack: routed.reason } : {}) }),
+          { headers: { ...CORS, "content-type": "application/json" } });
+      }
+
       /* ── G 비교: single-sonnet 경로 ──
          Sonnet 4.5 Writer 한 호출. Director도 검사도 마무리도 안 탄다 —
          같은 TurnContext·같은 파싱·같은 hardFilter·같은 Effect 후처리만 탄다.
@@ -5450,8 +5728,10 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
-         STAGE_ENGINE, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
+         STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
          directorPacket, readDecision, DIRECTOR_RULES,
+         /* G3 — sonnet5-pair-haiku */
+         S5PAIR_DIRECTOR_RULES, s5DirectorPacket, readS5Choice,
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,

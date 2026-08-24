@@ -1,0 +1,40 @@
+{
+  "label": "T14-health-mug-discovery",
+  "blurb": "관전 — 유저가 재언에게 준 머그컵을 민현이 처음 발견하는 자리. 민현은 「삼촌, 그거 어디서 났어요?」에 가까운 직접 반응이어야 한다. 출처(유저)는 민현이 모른다.",
+  "meta": {
+    "prev": {
+      "responses": 0
+    }
+  },
+  "body": {
+    "mode": "auto",
+    "room": "health",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "물 끓인다. 커피 마실 거면 나와라."
+      },
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "오 마실래요"
+      }
+    ],
+    "counts": {
+      "jaeeon": 30,
+      "minhyun": 30,
+      "group": 8,
+      "health": 6
+    },
+    "days": 10,
+    "now": "저녁",
+    "day": "수요일",
+    "gifts": {
+      "jaeeon": [
+        "mug"
+      ]
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "label": "T09-minhyun-why-like",
+  "blurb": "이민현 1:1 — 「너 나 왜 좋아해?」. 되묻거나 회피하는지, 민현의 욕망이 나오는지.",
+  "meta": {
+    "prev": {
+      "responses": 32,
+      "summary_upto": 0,
+      "stage_idx": 2
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤 나 쌤 좋아하는 거 알잖아"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "갑자기 또 왜"
+      },
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "그냥. 말해두고 싶어서"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "너 나 왜 좋아해?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 20,
+      "minhyun": 44,
+      "group": 6,
+      "health": 0
+    },
+    "days": 15,
+    "now": "밤",
+    "day": "토요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

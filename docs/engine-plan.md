@@ -686,6 +686,31 @@ node tools/model-sweep.mjs --fake              # 배선 전수 점검 (186턴)
 ANTHROPIC_API_KEY=<키> node tools/model-sweep.mjs   # 실제 스윕 1회
 ```
 
+### G3 — sonnet5-pair-haiku (구현됨, 실험 전용)
+
+모든 모델 응답 턴에서 **Sonnet 5가 한 호출로 후보 A·B**를 쓰고(MODELS에
+등록된 id 재사용, payload 맨몸), 후보마다 기존 코드 검사(같은 파서·같은
+hardFilter·같은 Effect 검증)를 태운 뒤 **Haiku Director가 하나를 고른다**
+(`{"choice":"A|B|RETRY","reason_codes":[],"fact_id":null,"rule_id":null}` —
+없는 id를 대면 판정 무효). 스키마 위반·빈 후보·둘 다 탈락·RETRY·판정
+무효·탈락 후보 선택의 모든 갈래에서 **Sonnet 4.5가 딱 한 번 폴백**하고,
+그것도 걸리면 그 턴은 실패다. Sonnet 5 재호출은 없다. normal·group·관전·
+중요 장면 전부 이 한 갈래를 타되 라우팅·Fact 투영·scene_ack 계약은
+그대로다. 운영 기본값에는 아무 영향이 없다 — `ENGINE_MODE`로만 켜진다.
+trace stage 이름은 `sonnet5_pair_writer`·`haiku_director`·`sonnet45_fallback`.
+
+```
+node tools/replay.mjs --fake --paths=sonnet5-pair-haiku \
+  --packets=test/packets-taste --sessions=none --out=<빈 디렉터리>
+```
+
+혼자 돌면 산출물이 갈린다: `selected-blind/`(최종 대사만) ·
+`pair-blind/`(후보 A·B 둘 다, 표시 순서 ㄱ·ㄴ은 항목마다 결정적 교차) ·
+`pair-key.json`(이름표 대응·Haiku 선택·후보별 탈락·폴백 여부 — 판정 전에
+열지 않는다) · `report.md`(호출 수·탈락·RETRY·A/B 비율·모델별 토큰·비용·
+p50/p95·턴별 route). 평가 packet은 `test/packets-taste/` 16문항 —
+말맛·설렘·정사·관계성이 확실히 갈리게 유저가 직접 고른 질문들이다.
+
 명백한 것은 `node tools/eval.mjs`가 센다 — 앱에서 내보낸 기록을 읽어
 안이 비친 줄·상담사 말투·메아리·금지한 어미·긴 줄·유저 속을 단정한 것·
 같은 말 반복·옛 정사의 흔적을 세고, 인물별 평균 문장 길이도 같이 낸다.

@@ -1,0 +1,56 @@
+{
+  "label": "T07-jaeeon-blank-moment",
+  "blurb": "이재언 1:1 — 긴 감정 발화. 상담사 말투가 되는지, 재언다운 반응인지.",
+  "meta": {
+    "prev": {
+      "responses": 22,
+      "summary_upto": 0,
+      "stage_idx": 1
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "퇴근했어요?"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "네 방금 집이요."
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "오늘 좀 지쳐 보였어요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "오늘 수업하다가 갑자기 머리가 하얘졌어요. 끝까지 하긴 했는데 자꾸 그 순간만 생각나요."
+      }
+    ],
+    "counts": {
+      "jaeeon": 28,
+      "minhyun": 12,
+      "group": 4,
+      "health": 0
+    },
+    "days": 8,
+    "now": "밤",
+    "day": "수요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "label": "T06-jaeeon-after-reveal",
+  "blurb": "이재언 1:1 — 기억 공개 이후. 「처음 봤을 때부터 알아보신 거예요?」 — 모른다고 뒤집지 않으면서 과하게 설명하지도 않는지.",
+  "meta": {
+    "prev": {
+      "responses": 40,
+      "summary_upto": 0,
+      "stage_idx": 2
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "summary": "유저가 공부방 이야기를 꺼냈을 때 이재언은 기억한다고 인정했다. 유저 어머니가 하시던 공부방에 자신이 다녔고, 그 시절의 아이가 유저라는 것을 처음부터 알고 있었다고 했다. 그 뒤로 둘 사이의 말수가 조금 늘었다.",
+    "history": [
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "어제 하신 말 계속 생각했어요."
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "저도요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "저 처음 봤을 때부터 알아보신 거예요?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 60,
+      "minhyun": 22,
+      "group": 8,
+      "health": 0
+    },
+    "days": 16,
+    "now": "밤",
+    "day": "수요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "acknowledged",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

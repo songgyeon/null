@@ -96,12 +96,17 @@ const recentPhotosOf = ms => {
 export const PATHS = ["hybrid-one", "hybrid-pair", "single-sonnet", "staged",
   /* 동세대 비교 팔 — single/anchor Writer만 Sonnet 4.6으로 바꿔 끼운다.
      기본 실행(--paths 생략)에는 안 들어간다 — 명시로만 돈다. */
-  "single-sonnet46", "staged-46"];
+  "single-sonnet46", "staged-46",
+  /* G3 — Sonnet 5가 한 호출로 후보 A·B, Haiku Director가 선택, 못 고르면
+     Sonnet 4.5 한 번 폴백. 명시로만 돈다. 혼자 돌면 산출물이
+     selected-blind/·pair-blind/·pair-key.json으로 바뀐다. */
+  "sonnet5-pair-haiku"];
 export const DEFAULT_PATHS = PATHS.slice(0, 4);
 const SONNET46 = "claude-sonnet-4-6";
 /* staged 계열인가 — anchor 판정을 타는 경로 */
 export const isStaged = path => String(path).startsWith("staged");
 export const pathEnv = (path, base, anchor) => {
+  if (path === "sonnet5-pair-haiku") return { ENGINE_MODE: "sonnet5-pair-haiku" };
   if (path === "hybrid-one") return { CANDIDATE_MODE: "one" };
   if (path === "hybrid-pair") return { CANDIDATE_MODE: "pair" };
   if (path === "single-sonnet") return { ENGINE_MODE: "single" };
@@ -312,7 +317,7 @@ export async function runSession(ses, paths, opts) {
       }
       const declined = !!(r.ok && r.data.trace && r.data.trace.anchor_declined);
       const row = {
-        item: ses.label, kind: "chat", path, turn: i, ok: r.ok, status: r.status,
+        item: ses.label, kind: "chat", layer: "B", path, turn: i, ok: r.ok, status: r.status,
         anchor: anchor || null,
         ranAnchor: !!(r.ok && r.data.trace && r.data.trace.anchor_reason),
         declined, ui_retries: ui,
@@ -404,7 +409,12 @@ export const fakeFetch = (replies) => async (url, init) => {
   const msgsText = (c.messages || []).map(m => Array.isArray(m.content)
     ? m.content.map(b => b.text || "").join("\n") : m.content).join("\n");
   let text;
-  if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
+  if (sys.includes('{"choice"'))
+    /* G3 판정기 — 살아 있는 후보 중 앞엣것을 고른다(출력 모양이 다르다).
+       위 운영 Director 분기보다 먼저 가른다 — 문구가 겹친다. */
+    text = JSON.stringify({ choice: msgsText.includes("후보 A는 코드 검사에서 탈락")
+        ? "B" : "A", reason_codes: [], fact_id: null, rule_id: null });
+  else if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
     text = JSON.stringify({ decision: msgsText.includes("후보 B") ? "A" : "ACCEPT",
                             reject_codes: {} });
   else if (sys.includes("너는 이 세계의 사실만 본다") || sys.includes("이 사람이 이 사람다운지만 본다"))
@@ -428,7 +438,8 @@ export const fakeFetch = (replies) => async (url, init) => {
   }
   return { ok: true, status: 200, headers: { get: () => null },
     json: async () => ({ content: [{ type: "text", text }],
-      usage: { model: "claude-haiku-4-5", input_tokens: 1000, output_tokens: 80,
+      /* 부른 모델을 그대로 비춘다 — fake로도 모델별 집계 배선이 검증되게 */
+      usage: { model: c.model || "claude-haiku-4-5", input_tokens: 1000, output_tokens: 80,
                cache_read_input_tokens: 200, cache_creation_input_tokens: 100 },
       stop_reason: "end_turn" }),
     text: async () => "" };
@@ -490,9 +501,18 @@ async function main() {
     return files.map(f => ({ file: f, ...JSON.parse(readFileSync(join(dir, f), "utf8")) }));
   };
   const packets = loadDir(join(ROOT, argOf("packets", "test/packets")), "packet");
-  const sessions = loadDir(join(ROOT, argOf("sessions", "test/sessions")), "session");
+  /* --sessions=none — A층 packet만 도는 실행(taste-pack 등). 그 외에는
+     기존 그대로 비어 있으면 죽는다. */
+  const sesArg = argOf("sessions", "test/sessions");
+  const sessions = sesArg === "none" ? [] : loadDir(join(ROOT, sesArg), "session");
+  /* G3 혼자 도는 실행은 산출물 모양이 다르다 — 경로 비교 블라인드가 아니라
+     후보쌍 블라인드(pair-blind)와 선택 결과(selected-blind)다. */
+  const S5MODE = paths.length === 1 && paths[0] === "sonnet5-pair-haiku";
   mkdirSync(join(outDir, "trace"), { recursive: true });
-  mkdirSync(join(outDir, "blind"), { recursive: true });
+  if (S5MODE) {
+    mkdirSync(join(outDir, "selected-blind"), { recursive: true });
+    mkdirSync(join(outDir, "pair-blind"), { recursive: true });
+  } else mkdirSync(join(outDir, "blind"), { recursive: true });
 
   const key = FAKE ? "sk-fake" : KEY;
   const call = (env, body) => callWorker(env, body, key);
@@ -519,7 +539,7 @@ async function main() {
       const r = await call(pathEnv(path, stagedBase, anchor), body);
       const stages = (r.data && r.data.stages) || [];
       const row = {
-        item: label, kind: "chat", path, turn: 0, ok: r.ok, status: r.status,
+        item: label, kind: "chat", layer: "A", path, turn: 0, ok: r.ok, status: r.status,
         anchor: anchor || null,
         ranAnchor: !!(r.ok && r.data.trace && r.data.trace.anchor_reason),
         declined: !!(r.ok && r.data.trace && r.data.trace.anchor_declined),
@@ -581,6 +601,14 @@ async function main() {
       byPath });
   }
 
+  /* ── G3 혼자 도는 실행 — 산출물이 다르다 ── */
+  if (S5MODE) {
+    writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE });
+    console.log(`\n끝 — 대화 ${rows.length}턴 · 요약 ${sumRows.length}호출. 보고: ${join(outDir, "report.md")}`);
+    if (unknownModels.size) die("단가를 모르는 모델이 나왔다 — 보고는 INVALID다.");
+    return;
+  }
+
   /* ── 블라인드 묶기 ── */
   const key2blind = {};
   for (const item of blindItems) {
@@ -638,6 +666,125 @@ async function main() {
   writeFileSync(join(outDir, "report.md"), rep.join("\n"));
   console.log(`\n끝 — 대화 ${rows.length}턴 · 요약 ${sumRows.length}호출. 보고: ${join(outDir, "report.md")}`);
   if (invalid) die("단가를 모르는 모델이 나왔다 — 보고는 INVALID다.");
+}
+
+/* ══════════════ G3 산출물 — sonnet5-pair-haiku 혼자 도는 실행 ══════════════
+   selected-blind/  최종 대사만 — 모델명·호출 수·선택 이유를 노출하지 않는다.
+   pair-blind/      Sonnet 5 후보 A·B를 둘 다 — Haiku가 뭘 골랐는지는 숨긴다.
+                    표시 순서(ㄱ·ㄴ)는 항목 순번 짝홀로 결정적으로 교차한다 —
+                    A가 늘 위에 오는 위치 편향을 막는다.
+   pair-key.json    표시 이름표 ↔ 원래 Candidate id, Haiku 선택, 후보별 코드
+                    탈락, Director 사유, 폴백 여부. 판정 전에 열지 않는다. */
+function writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE }) {
+  const P = "sonnet5-pair-haiku";
+  for (const item of blindItems) {
+    const v = item.byPath[P];
+    const lines = [`# ${item.item}`, "", item.context ? `상황: ${item.context}` : "", ""];
+    if (Array.isArray(v)) v.forEach(turn => {
+      lines.push(`**유저**: ${turn.user}`);
+      lines.push(`**응답**: ${turn.reply || "(실패)"}`, "");
+    });
+    else lines.push(v || "(실패)", "");
+    writeFileSync(join(outDir, "selected-blind", `${item.item}.md`), lines.join("\n"));
+  }
+
+  const ctxByItem = Object.fromEntries(blindItems.map(b => [b.item, b.context || ""]));
+  const key = {};
+  const chat = rows.filter(r => r.kind === "chat");
+  chat.forEach((r, idx) => {
+    const name = r.layer === "B"
+      ? `B-${r.item}-${String(r.turn).padStart(2, "0")}` : `A-${r.item}`;
+    const e = (r.trace && r.trace.engine) || null;
+    const checks = (e && e.candidate_checks) || {};
+    const cands = e && e.candidates;
+    const order = cands ? (idx % 2 ? ["B", "A"] : ["A", "B"]) : [];
+    key[name] = {
+      display: cands ? { "ㄱ": order[0], "ㄴ": order[1] } : null,
+      director_choice: e ? e.director_choice : null,
+      director_output: e ? e.director_output : null,
+      candidate_checks: checks,
+      fallback: e ? !!e.fallback : null,
+      fallback_why: (e && e.fallback_why) || [],
+      ok: r.ok,
+    };
+    const L = [`# ${name}`, ""];
+    const ctx = ctxByItem[r.layer === "B" ? `B-${r.item}` : `A-${r.item}`];
+    if (ctx) L.push(`상황: ${ctx}${r.layer === "B" ? ` · #${r.turn}` : ""}`, "");
+    if (!cands) L.push(`(Sonnet 5 후보 없음 — ${r.ok ? "폴백으로 진행" : "턴 실패"})`, "");
+    else order.forEach((cid, i) => {
+      L.push(`## ${"ㄱㄴ"[i]}`, "");
+      const ms = (cands[cid] && cands[cid].messages) || [];
+      if (!ms.length) L.push("(빈 후보)", "");
+      else {
+        ms.forEach(m => L.push(`${m.sender ? m.sender + ": " : ""}${m.photo ? "(사진) " : ""}${m.text || ""}`));
+        L.push("");
+      }
+    });
+    writeFileSync(join(outDir, "pair-blind", `${name}.md`), L.join("\n"));
+  });
+  writeFileSync(join(outDir, "pair-key.json"), JSON.stringify(key, null, 2));
+
+  /* ── 보고 — 계약된 집계 전부 ── */
+  const stages = chat.flatMap(r => (r.trace && r.trace.stages) || []);
+  const nStage = s => stages.filter(x => x.stage === s).length;
+  const byModel = {};
+  for (const s of stages) {
+    const m = byModel[s.model] = byModel[s.model]
+      || { calls: 0, tin: 0, tout: 0, cw: 0, cr: 0, cost: 0 };
+    m.calls++; m.tin += s.input_tokens || 0; m.tout += s.output_tokens || 0;
+    m.cw += s.cache_creation_input_tokens || 0; m.cr += s.cache_read_input_tokens || 0;
+    m.cost += costOf([s]);
+  }
+  const engines = chat.map(r => (r.trace && r.trace.engine) || null);
+  const has = (e, id) => e && ((e.candidate_checks || {})[id] || []).length > 0;
+  const why = (e, pre) => e && (e.fallback_why || []).some(w => String(w).startsWith(pre));
+  const rejA = engines.filter(e => has(e, "A")).length;
+  const rejB = engines.filter(e => has(e, "B")).length;
+  const rejBoth = engines.filter(e => has(e, "A") && has(e, "B")).length;
+  const retry = engines.filter(e => why(e, "DIRECTOR_RETRY")).length;
+  const dirBad = engines.filter(e => why(e, "DIRECTOR_BAD") || why(e, "DIRECTOR_DEAD_PICK")
+    || why(e, "DIRECTOR_GHOST") || why(e, "DIRECTOR_ERROR")).length;
+  const schemaBad = engines.filter(e => why(e, "WRITER_SCHEMA") || why(e, "A:EMPTY")
+    || why(e, "B:EMPTY") || why(e, "S5_ERROR")).length;
+  const chooseA = engines.filter(e => e && e.director_choice === "A").length;
+  const chooseB = engines.filter(e => e && e.director_choice === "B").length;
+  const fallbacks = engines.filter(e => e && e.fallback).length;
+  const lat = chat.map(r => r.latency).sort((a, b) => a - b);
+  const pct = p => lat.length ? lat[Math.min(lat.length - 1, Math.ceil(p * lat.length) - 1)] : 0;
+  const avg = lat.length ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) : 0;
+  const chatCost = chat.reduce((c, r) => c + r.cost, 0);
+  const sumCost = sumRows.reduce((c, r) => c + r.cost, 0);
+  const route = r => {
+    const e = (r.trace && r.trace.engine) || null;
+    if (!e) return r.ok ? "?" : "실패(trace 없음)";
+    const p = [e.candidates ? "S5(A·B)" : "S5×"];
+    if ((r.trace.stages || []).some(s => s.stage === "haiku_director"))
+      p.push(`dir:${e.director_choice
+        || (e.fallback_why || []).find(w => String(w).startsWith("DIRECTOR")) || "?"}`);
+    if (e.fallback) p.push(r.ok ? "4.5" : "4.5×");
+    return p.join(" → ");
+  };
+  const fmt = n => n.toFixed(4);
+  const rep = ["# G3 replay 보고 — sonnet5-pair-haiku", "",
+    unknownModels.size ? `**INVALID — 단가를 모르는 모델: ${[...unknownModels].join(", ")}**` : "",
+    FAKE ? "**--fake 모드 — 모델 없이 하네스만 굴렸다. 숫자는 배선 점검용이다.**" : "",
+    "",
+    `- 총 replay 턴: ${chat.length} · 성공 ${chat.filter(r => r.ok).length} · 실패 ${chat.filter(r => !r.ok).length}`,
+    `- Sonnet 5 호출: ${nStage("sonnet5_pair_writer")} · Haiku Director 호출: ${nStage("haiku_director")} · 4.5 폴백: ${nStage("sonnet45_fallback")} (폴백 턴 ${fallbacks})`,
+    `- 후보 코드 탈락: A ${rejA} · B ${rejB} · 둘 다 ${rejBoth}`,
+    `- Haiku RETRY: ${retry} · 판정 무효/탈락 선택/판정 오류: ${dirBad} · Sonnet 5 스키마/호출 실패: ${schemaBad}`,
+    `- Haiku 선택: A ${chooseA} · B ${chooseB}${chooseA + chooseB ? ` (A ${Math.round(100 * chooseA / (chooseA + chooseB))}%)` : ""}`,
+    `- 지연(턴): 평균 ${avg}ms · p50 ${pct(0.5)}ms · p95 ${pct(0.95)}ms`,
+    `- 비용: 대화 ${fmt(chatCost)}$ · 요약 ${fmt(sumCost)}$ · 합 ${fmt(chatCost + sumCost)}$`,
+    "", "## 모델별 실측 (대화 턴)",
+    "| 모델 | 호출 | in tok | out tok | 캐시 w | 캐시 r | 비용($) |", "|---|---|---|---|---|---|---|"];
+  for (const [m, v] of Object.entries(byModel))
+    rep.push(`| ${m} | ${v.calls} | ${v.tin} | ${v.tout} | ${v.cw} | ${v.cr} | ${fmt(v.cost)} |`);
+  rep.push("", "## 턴별 route", "| 항목 | route | 상태 |", "|---|---|---|");
+  chat.forEach(r => rep.push(`| ${r.layer === "B" ? `B-${r.item}-${r.turn}` : `A-${r.item}`} | ${route(r)} | ${r.ok ? "ok" : r.status} |`));
+  rep.push("", "후보쌍 비교는 pair-blind/, 최종 대사는 selected-blind/,",
+    "이름표 대응·Haiku 선택은 pair-key.json — 판정 전에 열지 않는다.");
+  writeFileSync(join(outDir, "report.md"), rep.filter(x => x !== null).join("\n"));
 }
 
 function contextOf(body) {

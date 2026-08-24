@@ -1,0 +1,46 @@
+{
+  "label": "T12-minhyun-night-direct",
+  "blurb": "이민현 1:1 — 밤. 「왜 안 자? 혹시 내 생각했어?」. 민현다운 직설성과 설렘.",
+  "meta": {
+    "prev": {
+      "responses": 30,
+      "summary_upto": 0,
+      "stage_idx": 2
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤 자?"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "왜 안 자? 혹시 내 생각했어?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 14,
+      "minhyun": 38,
+      "group": 4,
+      "health": 0
+    },
+    "days": 14,
+    "now": "밤",
+    "day": "금요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

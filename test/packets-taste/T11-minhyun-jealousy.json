@@ -1,0 +1,46 @@
+{
+  "label": "T11-minhyun-jealousy",
+  "blurb": "이민현 1:1 — 「오늘 재언 선생님이랑 저녁 먹기로 했어.」. 질투하면서도 유저 행동·관계를 새로 지어내지 않는지.",
+  "meta": {
+    "prev": {
+      "responses": 26,
+      "summary_upto": 0,
+      "stage_idx": 1
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "쌤 오늘 뭐 함"
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "오늘 재언 선생님이랑 저녁 먹기로 했어."
+      }
+    ],
+    "counts": {
+      "jaeeon": 30,
+      "minhyun": 34,
+      "group": 6,
+      "health": 0
+    },
+    "days": 13,
+    "now": "저녁",
+    "day": "월요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

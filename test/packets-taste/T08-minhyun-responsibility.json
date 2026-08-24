@@ -1,0 +1,54 @@
+{
+  "label": "T08-minhyun-responsibility",
+  "blurb": "이민현 1:1 — 각본 선톡 뒤 「네? 무슨 책임이요?」. 병원 옥상 사건을 정확하고 자연스럽게 설명하는지.",
+  "meta": {
+    "prev": {
+      "responses": 0
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "minhyun",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "선생님."
+      },
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "저 알죠?"
+      },
+      {
+        "role": "assistant",
+        "sender": "minhyun",
+        "content": "선생님이 저 책임진다면서요."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "네? 무슨 책임이요?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 0,
+      "minhyun": 4,
+      "group": 0,
+      "health": 0
+    },
+    "days": 0,
+    "now": "저녁",
+    "day": "목요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "pending",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}

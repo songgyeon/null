@@ -1,0 +1,61 @@
+{
+  "label": "T02-jaeeon-walk-join",
+  "blurb": "이재언 1:1 — 산책 동행 요청. 「껴줘요」류 말투 오류와 관계 진입 능력.",
+  "meta": {
+    "prev": {
+      "responses": 8,
+      "summary_upto": 0,
+      "stage_idx": 0
+    }
+  },
+  "body": {
+    "mode": "chat",
+    "room": "jaeeon",
+    "user_name": "연",
+    "history": [
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "선생님은 쉬는 날 뭐 하세요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "빨래요. 밀린 거."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "그게 다예요?"
+      },
+      {
+        "role": "assistant",
+        "sender": "jaeeon",
+        "content": "산책도 해요. 가끔."
+      },
+      {
+        "role": "user",
+        "sender": "user",
+        "content": "다음에 산책하실 때 저도 같이 가도 돼요?"
+      }
+    ],
+    "counts": {
+      "jaeeon": 16,
+      "minhyun": 6,
+      "group": 0,
+      "health": 0
+    },
+    "days": 4,
+    "now": "낮",
+    "day": "토요일",
+    "gifts": {},
+    "story": {
+      "firstContact": "explained",
+      "jaeeonMemory": "hidden",
+      "partnerKnown": {
+        "jaeeon": false,
+        "minhyun": false
+      }
+    }
+  }
+}
