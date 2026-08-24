@@ -116,10 +116,13 @@ const STAGE_ENGINE = { single_writer: "singleWriter", anchor_writer: "anchorWrit
      재사용하되 trace 이름으로 역할을 가른다 — 비용 집계가 역할별로 갈라진다.
      haiku_director도 모델은 운영 director 그대로다. */
   sonnet5_pair_writer: "pairWriter5", haiku_director: "director",
-  sonnet45_fallback: "singleWriter" };
+  sonnet45_fallback: "singleWriter",
+  /* G4 — single5 단일 Writer. G2·G3에서 실제 쓴 그 자리(pairWriter5 —
+     MODELS의 등록 항목)를 그대로 재사용한다. 새 id를 추측하지 않는다. */
+  single5_writer: "pairWriter5" };
 /* usage(쓰는 쪽 한 번의 실측)를 남기는 단계 — 고르는 단계는 안 남긴다 */
 const WRITER_STAGES = new Set(["writer", "single_writer", "anchor_writer",
-  "sonnet5_pair_writer", "sonnet45_fallback"]);
+  "sonnet5_pair_writer", "sonnet45_fallback", "single5_writer"]);
 /* ── 후보를 몇 개, 어떻게 뽑나 ──
    후보 두 개가 무조건 한 개보다 낫다고 가정하지 않는다. 세 가지를 바꿔
    끼울 수 있게 둔다. 값이 다르고 지연이 다르고 후보의 다양성이 다르다 —
@@ -153,7 +156,11 @@ function engineMode(env) {
   /* sonnet5-pair-haiku는 G3 비교의 실험 갈래다 — Sonnet 5가 한 호출로 후보
      A·B를 쓰고, Haiku Director가 고르고, 못 고를 때만 Sonnet 4.5가 한 번
      폴백한다. replay 도구가 env로 켠다. 운영 대시보드 기본값은 hybrid다. */
+  /* single5는 G4의 실험 갈래다 — single과 같은 배선(한 호출·같은 검사·
+     재시도 1회·폴백 없음)에서 Writer 자리만 Sonnet 5다. replay 도구가
+     env로 켠다. 운영 대시보드 기본값은 hybrid 그대로다. */
   return v === "legacy" ? "legacy" : v === "single" ? "single"
+       : v === "single5" ? "single5"
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku" : "hybrid";
 }
 /* staged의 anchor 사유. **코드가 정한다** — 모델이 판단하지 않고, replay
@@ -3914,6 +3921,52 @@ function softSignals(kept, recent) {
    전체 세계관도, 전체 기록도 안 넣는다 — 그걸 다시 주면 값만 두 배가 되고
    판단은 안 좋아진다. 이 장면과 무관한 과거도 뺀다.
    대신 정사를 추측하게 만들 만큼 굶기지도 않는다. */
+/* ── G4: single5 전용 행동 규칙 ──
+   Sonnet 5 단일 Writer 실험에만 붙는 한 장이다. 공용 프롬프트(세계·인물)는
+   바꾸지 않는다 — 실험이 끝나고 채택된 것만 공용으로 옮긴다.
+   행동 원칙과 예시다 — 실패 문장들을 금칙어 정규식으로 옮기지 않는다(계약).
+   말투·감정·자연스러움의 판정은 replay에서 사람이 한다.
+   정사 절(공부방·기억)은 재언 1:1에만 붙는다 — 재언만 아는 과거가 민현·
+   단톡·관전 Writer에 새지 않게(§5, known_by 투영과 같은 선).
+   정사 원본은 이미 구분돼 있다(「아홉 살 때 동네 공부방에 맡겨졌다 …
+   선생님에게는 다섯 살 딸이 있었다. 그 아이가 바로 유저다」) — 여기는
+   그 사실을 다시 쓰는 자리가 아니라 답의 방향만 못박는 자리다. */
+const SINGLE5_COMMON = `[이번 장면의 행동 원칙]
+- 건조함은 무례함·비꼼·시비·상대의 호의를 의심하는 태도가 아니다.
+- 유저가 걱정하거나 선물을 주거나 호의를 보이면, 그 호의를 공격하거나 민망하게 만들지 않는다.
+- 직접 질문을 받으면 질문의 핵심에 먼저 답한다. 반문·농담·화제 전환만으로 답을 대신하지 않는다.
+- 짧게 답할 수는 있다. 다만 의미가 빠진 반쪽짜리 답은 안 된다.
+- 코드가 주지 않은 과거 행동·대화·접촉·장소·방문·소리 같은 사건을 실제 있었던 일처럼 만들지 않는다.
+- 알려지지 않은 세부는 자연스럽게 비워둔다. 그럴듯한 사건을 만들어 채우지 않는다.
+- 이번 장면에 명시된 목적이 있으면, 더 자극적인 곁가지를 새로 만들기 전에 그 목적부터 수행한다.
+- 친절한 상담사가 되라는 말이 아니다. 인물의 건조함·장난·거리감은 유지하되 호의에 시비를 걸지 않는다.`;
+const SINGLE5_JAEEON = `[이재언]
+- 이재언의 건조함은 말수가 적고 감정을 설명하지 않는 데서 나온다.
+- 걱정·선물·호의를 받았을 때 상대를 추궁하거나 빈정대는 방식으로 반응하지 않는다.
+- 사실에 먼저 답한 뒤, 짧은 관찰이나 감정 누출을 붙인다.
+- 피해야 할 결의 예시: 「왜, 나 굶은 사람처럼 보여요?」 「그럼 안 쓰고 뭐해요.」 「그러던지.」 「컵 하나뿐인 거 어떻게 알았대.」
+- 부드럽게 만든다는 이유로 모든 답을 「고마워요」 「괜찮아요」 「잘했어요」로 평준화하지도 않는다.`;
+const SINGLE5_MINHYUN = `[이민현]
+- 장난·확인욕·질투는 질문을 피하는 핑계가 아니다.
+- 관계를 직접 묻는 질문(「너 나 왜 좋아해?」)에는 감정이나 이유가 실제로 드러나는 답을 한다. 「비밀」이나 반문만으로 끝내지 않는다.
+- 질투할 사실을 알게 된 장면에서 아무 감정도 없는 것처럼 「그렇구나」로 끝내지 않는다.
+- 불안하거나 집착하는 마음은 보여도 된다. 다만 유저의 행동을 대신 정하거나, 없는 약속을 있었던 일처럼 말하지 않는다.`;
+const SINGLE5_CANON_JAEEON = `[정사 — 공부방]
+- 이재언은 공부방을 운영한 사람이 아니다. 공부방은 유저의 어머니가 운영했고, 이재언은 그곳에 다녔다.
+- 「공부방 하셨어요?」에 「했어요」라고 답하면 정사 오류다 — 다닌 쪽이 맞다.
+- 기억을 공개할 수 있는 상태에서는, 유저를 기억한다는 사실과 유저 어머니의 공부방이었다는 사실을 함께 지킨다.
+- 아직 공개할 수 없는 상태에서도, 공부방을 자신이 운영했다고 말하면 안 된다.
+- 아끼는 것과 모른다고 거짓말하는 것을 구분한다 — 짧아지고, 화제를 옮기고, 확인해주지 않는 쪽이 아끼는 방식이다.`;
+function single5Rules(mode, room) {
+  const parts = [SINGLE5_COMMON];
+  const both = mode === "auto" || room === "group" || room === "health";
+  if (both || room === "jaeeon") parts.push(SINGLE5_JAEEON);
+  if (both || room === "minhyun") parts.push(SINGLE5_MINHYUN);
+  /* 재언만 아는 과거 — 재언 1:1에만. 단톡·관전에 실으면 known_by가 깨진다 */
+  if (mode === "chat" && room === "jaeeon") parts.push(SINGLE5_CANON_JAEEON);
+  return parts.join("\n\n");
+}
+
 const DIRECTOR_RULES = `[사실이 먼저다]
 코드가 준 [이번 턴 사실]과 [성격 규칙]을 어기는 후보는 말맛이 좋아도 고르지 않는다.
 둘 다 어기면 RETRY다. 고쳐서 내보내지 않는다 — 너는 한 글자도 쓰지 않는다.
@@ -5425,15 +5478,27 @@ export default {
          한 턴에 Sonnet을 Writer와 Finalizer 두 자리에 사지 않는다.
          anchor 없는 순수 single은 중요 장면도 한 호출로 쓴다 — 그게
          「항상 Sonnet 하나」라는 갈래의 실제 모습이다. */
-      const anchorWhy = engineMode(env) === "single" ? anchorReason(env) : "";
+      const em = engineMode(env);
+      const anchorWhy = em === "single" ? anchorReason(env) : "";
       const anchorDeclined = !!anchorWhy && tier === "critical";
-      const singleNow = engineMode(env) === "single" && !anchorDeclined;
-      const writerStage = singleNow ? (anchorWhy ? "anchor_writer" : "single_writer") : "writer";
+      /* ── G4: single5 — Sonnet 5 단일 Writer ──
+         single과 완전히 같은 배선이다: 한 호출·후보 하나·Director/검사/
+         마무리 없음·같은 후처리·탈락시 재시도 한 번·폴백 없음. Writer
+         자리만 Sonnet 5다. anchor는 single(4.5 staged) 전용이라 안 탄다.
+         관전·단톡·중요 장면 포함 모든 생성이 이 한 호출이다. */
+      const single5Now = em === "single5";
+      const singleNow = (em === "single" || single5Now) && !anchorDeclined;
+      const writerStage = singleNow
+        ? (anchorWhy ? "anchor_writer" : single5Now ? "single5_writer" : "single_writer")
+        : "writer";
       /* ── trace는 replay 도구 전용이다 ──
          TurnContext와 고른 후보의 원문이 실린다. §12에 따라 운영 로그와 기본
          응답에는 안 싣는다 — 운영 env에는 TRACE가 없고, 켜는 것은 replay
          하네스가 자기 env로 워커를 부를 때뿐이다. */
       const traceOn = String((env && env.TRACE) || "") === "1";
+      /* 탈락한 시도의 원문·코드 — trace 전용(attempts 기록용). 운영에서는
+         traceOn이 꺼져 있어 아무것도 안 쌓인다. */
+      const rejectedLog = [];
       const traceOf = picked => !traceOn ? {} : { trace: {
         engine_mode: engineMode(env),
         candidate_mode: cMode,
@@ -5442,6 +5507,7 @@ export default {
         writer_model: (stageModel(env, writerStage) || {}).id,
         route: { tier, reason: routed.reason },
         turnContext: turnCtx,
+        ...(rejectedLog.length ? { rejected: rejectedLog } : {}),
         selectedCandidate: picked
           ? { id: picked.id, originalMessages: picked.originalMessages } : null,
       } };
@@ -5464,6 +5530,14 @@ export default {
         content: Array.isArray(m.content) ? m.content.map(b => b.text || "").join(" ") : m.content,
       }));
 
+      /* ── single5 전용 행동 규칙(§4) — 공용 프롬프트는 안 바꾼다 ──
+         cached system 배열은 비변이 복사 뒤에 한 장을 덧붙인다(push 금지 —
+         재시도와 다음 요청이 같은 배열을 다시 받는다). cache_control은 안
+         붙는다 — 캐시 지점 네 개는 이미 다 썼고, 이 장은 실험 동안만 있다.
+         방별 투영은 single5Rules가 한다 — 재언만 아는 과거(공부방·기억)가
+         민현·단톡·관전 Writer에 새지 않게 정사 절은 재언 1:1에만 붙는다. */
+      const writerSystem = single5Now
+        ? [...system, { type: "text", text: single5Rules(mode, room) }] : system;
       let picked = null, lastCodes = [];
       for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked; attempt++) {
         /* parallel은 두 번 나란히 부른다. 한쪽이 실패하면 그건 진짜 실패다 —
@@ -5496,7 +5570,7 @@ export default {
         const raws = cMode === "parallel"
           ? await Promise.all([1, 2].map(i =>
               callStage(env, meter, "writer", system, tries, budget, attempt, tier, "AB"[i - 1])))
-          : [await callStage(env, meter, writerStage, system, tries,
+          : [await callStage(env, meter, writerStage, writerSystem, tries,
               budget * (nCand > 1 ? nCand : 1), attempt, tier, "")];
         devLog(`[NULL] 응답 ▶ ${mode}/${room}/${cMode} ▶ ${raws.join(" ⋯ ").slice(0, 600)}`);
 
@@ -5514,6 +5588,8 @@ export default {
            집는다 — G 비교에서 경로의 정체가 무너진다. 재시도로 보낸다. */
         if (pieces.length !== nCand) {
           lastCodes = ["WRITER_SCHEMA"];
+          if (traceOn) rejectedLog.push({ attempt, codes: ["WRITER_SCHEMA"],
+            raw: raws.join("\n").slice(0, 2000) });
           console.log(`[NULL] 후보 수가 안 맞는다 — ${pieces.length}/${nCand}`);
           continue;
         }
@@ -5534,6 +5610,8 @@ export default {
           const codes = hardFilter(cand, chars, hardCtx);
           if (codes.length) {
             fell.push(...codes.map(c => `${id}:${c}`));
+            if (traceOn) rejectedLog.push({ attempt, id, codes,
+              originalMessages: parsed.messages });
             console.log(`[NULL] 후보 ${id} 탈락 — ${codes.join(",")}`);
             return;                                     // 명백한 것만 떨어뜨린다
           }
@@ -5729,6 +5807,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
+         single5Rules,
          directorPacket, readDecision, DIRECTOR_RULES,
          /* G3 — sonnet5-pair-haiku */
          S5PAIR_DIRECTOR_RULES, s5DirectorPacket, readS5Choice,

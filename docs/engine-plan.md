@@ -711,6 +711,27 @@ node tools/replay.mjs --fake --paths=sonnet5-pair-haiku \
 p50/p95·턴별 route). 평가 packet은 `test/packets-taste/` 16문항 —
 말맛·설렘·정사·관계성이 확실히 갈리게 유저가 직접 고른 질문들이다.
 
+### G4 — single5 (구현됨, 실험 전용)
+
+Sonnet 5 **단일 Writer** 실험이다. single(4.5 기준선)과 완전히 같은 배선 —
+한 호출·후보 하나·Director/Canon/Character/Finalizer 0회·같은 검사·같은
+후처리·탈락시 정확히 한 번 재호출(턴당 최대 2회)·폴백 없음 — 에서 Writer
+자리만 Sonnet 5다(`ENGINE_MODE=single5`, id는 pairWriter5 재사용). 관전·
+단톡·중요 장면 포함 모든 생성이 이 한 호출이다. single5에만 행동 규칙 한
+장(`single5Rules`)이 비변이 복사로 system 뒤에 붙는다 — 호의에 시비 걸지
+않기·질문 핵심에 먼저 답하기·없는 사건 안 만들기·공부방 정사(재언 1:1에만,
+known_by 투영 유지). 공용 프롬프트는 그대로다. 금칙어 정규식은 만들지
+않는다 — 말맛 판정은 replay에서 사람이 한다.
+
+```
+node tools/single5-replay.mjs --fake                 # 배선 점검 (36턴)
+ANTHROPIC_API_KEY=<키> node tools/single5-replay.mjs # 실제 18항목 + 안정성 9×2
+```
+
+산출물: answers.md(18항목 최종 대사 전문) · attempts.md(재시도 원문) ·
+stability.md(고위험 9항목 × sample 3) · report.md(실측 usage 수치) · trace/.
+
+
 명백한 것은 `node tools/eval.mjs`가 센다 — 앱에서 내보낸 기록을 읽어
 안이 비친 줄·상담사 말투·메아리·금지한 어미·긴 줄·유저 속을 단정한 것·
 같은 말 반복·옛 정사의 흔적을 세고, 인물별 평균 문장 길이도 같이 낸다.

@@ -891,5 +891,129 @@ const PROBE = { ...BASE,
       && TIME.includes(p.body.now) && DAYS.includes(p.body.day)), true);
 }
 
+/* ══════════ 11. G4 — single5 (Sonnet 5 단일 Writer) ══════════
+   성공 턴 = Sonnet 5 Writer 1회, 후보 정확히 1개, Director·Canon·
+   Character·Finalizer 0회. 탈락시 정확히 한 번 재호출(턴당 최대 2회),
+   폴백 없음. 검사·후처리는 기존 경로 그대로다. */
+{
+  const S5ONE = { ENGINE_MODE: "single5" };
+  const GOOD = JSON.stringify({ messages: [{ text: "먹었어요. 늦게라도." }] });
+  const BAD = JSON.stringify({ messages: [{ sender: "minhyun", text: "어." }] });
+  const TWO = JSON.stringify({ candidates: [
+    { messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] });
+  const sysOf = c => flatSys(c);
+  const otherStages = d => (d.data.stages || [])
+    .filter(s => /director|canon|character|finalizer|haiku|fallback|pair/.test(s.stage));
+
+  /* 성공 턴 — 한 호출이 전부다 */
+  const one = await run(S5ONE, BASE, [GOOD]);
+  eq("single5 성공 턴은 Sonnet 5 한 호출이다", stagesOf(one), ["single5_writer"]);
+  eq("모델이 Sonnet 5다", one.data.stages[0].model, "claude-sonnet-5");
+  eq("후보를 하나만 청한다", flatMsgs(writerReq()).includes('"candidates"'), false);
+  eq("고르기·검사·마무리 단계가 없다", otherStages(one), []);
+  eq("trace의 경로·모델", [one.data.trace.engine_mode, one.data.trace.writer_model],
+    ["single5", "claude-sonnet-5"]);
+
+  /* 첫 응답 hard reject → 정확히 한 번 재호출 → 성공 */
+  const retry = await run(S5ONE, BASE, [BAD, GOOD]);
+  eq("탈락 후 재호출까지 총 2회다", stagesOf(retry), ["single5_writer", "single5_writer"]);
+  eq("재시도가 성공 대사를 낸다", retry.data.messages.map(m => m.text), ["먹었어요. 늦게라도."]);
+  eq("재시도 입력에 탈락 코드만 짧게 붙는다",
+    flatMsgs(sent[1]).includes("[이전 시도 탈락]") && flatMsgs(sent[1]).includes("A:SENDER"), true);
+  eq("첫 입력은 변이되지 않았다", flatMsgs(sent[0]).includes("[이전 시도 탈락]"), false);
+  eq("탈락 원문이 trace에 남는다 — attempts 기록용",
+    retry.data.trace.rejected.map(r => [r.attempt, r.codes]), [[1, ["SENDER"]]]);
+
+  /* 두 번 다 실패 — 폴백 없이 명시적 실패 */
+  const twice = await run(S5ONE, BASE, [BAD, BAD]);
+  eq("두 번 실패는 502다 — 가짜 대사·폴백 없음", twice.status, 502);
+  eq("호출은 턴당 최대 2회다", stagesOf(twice), ["single5_writer", "single5_writer"]);
+  eq("다른 모델이 전혀 안 불린다",
+    twice.data.stages.every(s => s.model === "claude-sonnet-5"), true);
+
+  /* 후보가 둘 오면 스키마 탈락 → 한 번 재시도 */
+  const sch = await run(S5ONE, BASE, [TWO, GOOD]);
+  eq("후보 둘은 탈락 후 한 번 재시도다", [stagesOf(sch), sch.status],
+    [["single5_writer", "single5_writer"], 200]);
+
+  /* 중요 장면도 hybrid critical 경로로 안 보낸다 */
+  const crit = await run(S5ONE, PROBE, [GOOD]);
+  eq("중요 장면도 single5 한 호출이다", stagesOf(crit), ["single5_writer"]);
+  eq("검사 둘·마무리가 안 붙는다", otherStages(crit), []);
+
+  /* 단톡·관전도 single5를 탄다 */
+  const gBody = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T13-group-weekend.json"), "utf8")).body;
+  const aBody = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8")).body;
+  const grp = await run(S5ONE, gBody, [JSON.stringify({ messages: [
+    { sender: "jaeeon", text: "주말은 비었다." }, { sender: "minhyun", text: "오 저도요" }] })]);
+  eq("단톡도 single5 한 호출이다", stagesOf(grp), ["single5_writer"]);
+  const auto = await run(S5ONE, aBody, [JSON.stringify({ messages: [
+    { sender: "minhyun", text: "삼촌 그 컵 어디서 났어요?" }, { sender: "jaeeon", text: "샀다." }] })]);
+  eq("관전도 single5 한 호출이다", stagesOf(auto), ["single5_writer"]);
+
+  /* Candidate와 Effect가 같이 움직인다 */
+  const PLACE5 = { ...BASE, place: "보건실", talked_enough: true, bag: [] };
+  const gave = await run(S5ONE, PLACE5,
+    [JSON.stringify({ messages: [{ text: "밴드 줄게요." }], give: "bandaid" })]);
+  eq("한 후보의 give만 사건이 된다",
+    (gave.data.effects || []).map(f => [f.type, f.item]), [["item_transfer", "bandaid"]]);
+
+  /* single5 전용 행동 규칙 — 방별 투영 */
+  await run(S5ONE, BASE, [GOOD]);
+  const sysJ = sysOf(writerReq());
+  eq("행동 규칙이 재언 1:1 프롬프트에 붙는다",
+    [sysJ.includes("[이번 장면의 행동 원칙]"), sysJ.includes("[정사 — 공부방]")], [true, true]);
+  const MB = { ...BASE, room: "minhyun", history: [
+    { role: "user", content: "뭐 해" }] };
+  await run(S5ONE, MB, [JSON.stringify({ messages: [{ text: "숙제요" }] })]);
+  const sysM = sysOf(writerReq());
+  eq("민현 방에는 정사 절이 안 붙는다 — known_by 투영",
+    [sysM.includes("[이번 장면의 행동 원칙]"), sysM.includes("[정사 — 공부방]")], [true, false]);
+  await run(S5ONE, gBody, [JSON.stringify({ messages: [{ sender: "jaeeon", text: "비었다." }] })]);
+  eq("단톡에도 정사 절이 안 붙는다", sysOf(writerReq()).includes("[정사 — 공부방]"), false);
+  await run({ CANDIDATE_MODE: "pair" }, BASE);
+  eq("운영 hybrid 프롬프트에는 규칙 장이 없다 — 공용 프롬프트 불변",
+    sysOf(writerReq()).includes("[이번 장면의 행동 원칙]"), false);
+  await run({ ENGINE_MODE: "single" }, BASE);
+  eq("single(4.5 기준선)도 그대로다 — 규칙 장 없음·모델 4.5",
+    [sysOf(writerReq()).includes("[이번 장면의 행동 원칙]"),
+     sent[0].model], [false, "claude-sonnet-4-5-20250929"]);
+  eq("정사 원본은 이미 구분돼 있다 — 재언은 다닌 사람",
+    /아홉 살 때 동네 공부방에 맡겨졌다/.test(readFileSync(join(ROOT, "worker.js"), "utf8")), true);
+}
+
+/* ══════════ 11.5 G4 CLI — single5 replay fake 전수 ══════════ */
+{
+  const { execSync } = await import("node:child_process");
+  const { mkdtempSync, readdirSync: rd, existsSync: ex } = await import("node:fs");
+  const os = await import("node:os");
+  const tmp = mkdtempSync(join(os.tmpdir(), "replay-s5one-test-"));
+  const sh = args => {
+    try { execSync(`node tools/single5-replay.mjs ${args}`, { cwd: ROOT, stdio: "pipe", maxBuffer: 64e6 }); return 0; }
+    catch (e) { return e.status || 1; }
+  };
+  const out1 = join(tmp, "run1");
+  eq("single5 fake 실행이 성공한다", sh(`--fake --out=${out1}`), 0);
+  const report = readFileSync(join(out1, "report.md"), "utf8");
+  eq("36턴(18+18)이 다 돈다", /총 대화 턴: 36 \(1차 18 \+ 안정성 18\)/.test(report), true);
+  eq("모델이 하나뿐이다", /- 모델: claude-sonnet-5\n/.test(report), true);
+  const answers = readFileSync(join(out1, "answers.md"), "utf8");
+  eq("answers가 18항목 전부다", (answers.match(/^## A-/gm) || []).length, 18);
+  eq("고위험 두 fixture가 들어 있다",
+    ["## A-14-jaeeon-early-probe", "## A-08-jaeeon-memory-probe"].every(s => answers.includes(s)), true);
+  const stability = readFileSync(join(out1, "stability.md"), "utf8");
+  eq("안정성이 9항목 × sample 3이다",
+    [(stability.match(/^## S-/gm) || []).length, (stability.match(/- sample \d/g) || []).length], [9, 27]);
+  eq("attempts·trace가 있다", [ex(join(out1, "attempts.md")), rd(join(out1, "trace")).length], [true, 36]);
+  eq("키·헤더가 산출물에 없다", (() => {
+    for (const f of ["answers.md", "attempts.md", "stability.md", "report.md"])
+      if (/sk-ant|x-api-key|api03/i.test(readFileSync(join(out1, f), "utf8"))) return f;
+    return "깨끗";
+  })(), "깨끗");
+  eq("비어 있지 않은 outDir은 거부한다", sh(`--fake --out=${out1}`) !== 0, true);
+  eq("기본 산출물 이름이 gitignore 패턴에 덮인다",
+    /replay-out\*\//.test(readFileSync(join(ROOT, ".gitignore"), "utf8")), true);
+}
+
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);
 process.exit(fail ? 1 : 0);
