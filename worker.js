@@ -5320,10 +5320,21 @@ export default {
           const n = sys.reduce((a, b) => a + (b.text || "").length, 0);
           return `${r} ${Math.round(n / 1000)}k자`;
         }).join(" / ");
+        /* ── 어느 배선이 떠 있는지 한 줄로 ──
+           「코드를 고쳤는데 반영이 안 된다」를 몇 시간 헤맨 적이 있다 —
+           배포가 검증 오류로 실패했는데 대시보드에는 이전 버전이 계속 떠
+           있었다. 주소만 열면 지금 도는 배선이 보이게 한다.
+           **모델 id는 안 적는다** — 공개 엔드포인트다. 경로 이름과 일반
+           턴의 호출 수만으로 새 배선인지 옛 배선인지 갈린다. */
+        const em = engineMode(env);
+        const wiring = `${em} · 일반 턴 ${em === "solo" || em === "single" || em === "single5" ? 1 : 2}호출`
+          + `${em === "solo" ? " (고르는 단계 없음)" : ""}`;
         return new Response(
           ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
            `실행 위치      ${colo}`,
            `API 키         ${found ? "있음" : "없음"}`,
+           `엔진 배선      ${wiring}`,
+           `행동 규칙      ${em === "solo" || dialogueRuleset(env) === "selected-v1" ? "켜짐" : "꺼짐"}`,
            `프롬프트 크기   ${sizes}`,
            "",
            "모델 호출까지 확인하려면 ?diag=<DIAG_TOKEN> 을 붙이세요.",

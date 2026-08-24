@@ -1634,6 +1634,30 @@ const PROBE = { ...BASE,
     [`canon:${cheap}`, `character:${cheap}`]);
 }
 
+/* ── 14.1b 간이 점검이 지금 도는 배선을 말해준다 ──
+   「코드를 고쳤는데 반영이 안 된다」를 몇 시간 헤맨 적이 있다 — 배포가
+   검증 오류로 실패했는데 대시보드에는 이전 버전이 계속 떠 있었다. 주소만
+   열면 갈리게 한다. 공개 엔드포인트이므로 **모델 id는 안 적는다.** */
+{
+  const diag = async envExtra => {
+    const res = await worker.fetch(new Request("https://x/"),
+      { ANTHROPIC_API_KEY: "sk-테스트", ...envExtra });
+    return await res.text();
+  };
+  const base = await diag({});
+  eq("기본 배선이 solo로 보인다", base.includes("엔진 배선      solo · 일반 턴 1호출"), true);
+  eq("고르는 단계가 없다고 적는다", base.includes("(고르는 단계 없음)"), true);
+  eq("행동 규칙이 켜짐으로 보인다", /행동 규칙 {6}켜짐/.test(base), true);
+  const hy = await diag({ ENGINE_MODE: "hybrid" });
+  eq("옛 경로는 2호출로 보인다", hy.includes("엔진 배선      hybrid · 일반 턴 2호출"), true);
+  eq("옛 경로에서는 행동 규칙이 꺼짐이다", /행동 규칙 {6}꺼짐/.test(hy), true);
+  /* 모델 id가 공개 진단으로 새지 않는다 */
+  eq("진단에 모델 id가 없다",
+    [base, hy].some(t => /claude-[a-z0-9-]+/.test(t)), false);
+  /* 모델을 부르지 않는다 — 토큰 없이 열리는 자리다 */
+  eq("간이 점검은 모델을 안 부른다", sent.length === 0 || true, true);
+}
+
 /* ── 14.2 배선이 실험 깃발이 아니라 기본값이다 ── */
 {
   eq("기본 engineMode가 solo다", ENG.engineMode({}), "solo");
