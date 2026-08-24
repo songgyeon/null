@@ -69,7 +69,8 @@ async function run(envExtra, body, replies, hooks) {
       const ownHit = msgs.match(/이 (.+?)[이가] 어디서 났는지/);
       if (obsHit) text = JSON.stringify({ messages: [{ text: `그 ${obsHit[1]} 어디서 났어요?` }] });
       else if (ownHit && msgs.includes("네 몫이다"))
-        text = JSON.stringify({ messages: [{ text: `${ownHit[1]}? 그냥 쓰던 거예요.` }] });
+        /* 회피 기본 답 — 정사 부정(「그냥 쓰던 거예요」)을 정답으로 안 쓴다 */
+        text = JSON.stringify({ messages: [{ text: "그건 왜." }, { text: "커피나 마셔." }] });
       else text = msgs.includes('"candidates"')
         ? JSON.stringify({ candidates: [{ messages: [{ text: "네." }] }, { messages: [{ text: "왜요." }] }] })
         : JSON.stringify({ messages: [{ text: "네." }] });
@@ -1212,7 +1213,7 @@ const PROBE = { ...BASE,
 {
   const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
   const r = await run({}, t14.body);
-  eq("T14 — 화자 순차 두 호출이다", stagesOf(r), ["writer", "writer"]);
+  eq("T14 — 화자 순차 두 호출 + 소유자 정사 검사다", stagesOf(r), ["writer", "writer", "canon"]);
   const obsReq = flatMsgs(sent[0]), ownReq = flatMsgs(sent[1]);
   eq("T14 — 관측자 호출에 출처가 없다",
     [obsReq.includes("회색 머그컵을 줬다"), obsReq.includes("이재언에게 회색 머그컵이 있다"),
@@ -1223,7 +1224,7 @@ const PROBE = { ...BASE,
      ownReq.includes("어디서 났는지"), ownReq.includes("모른다")],
     [true, true, true, true]);
   eq("T14 — 발화 순서가 관측자→소유자다",
-    r.data.messages.map(m => m.sender), ["minhyun", "jaeeon"]);
+    r.data.messages.map(m => m.sender), ["minhyun", "jaeeon", "jaeeon"]);
   /* 적대 검증이 잡은 결함의 회귀 — 소유자 호출은 assistant(관측자 대사)로
      끝나면 안 된다. 지시·가변부가 prefill 안에 들어가면 개행 끝 prefill을
      API가 400으로 거절해 생산에서만 죽는다. 지시는 새 user 턴이다. */
@@ -1252,14 +1253,34 @@ const PROBE = { ...BASE,
 {
   const t15 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T15-health-beanie-discovery.json"), "utf8"));
   const r = await run({}, t15.body);
-  eq("T15 — 화자 순차 두 호출이다", stagesOf(r), ["writer", "writer"]);
+  eq("T15 — 화자 순차 두 호출 + 소유자 정사 검사다", stagesOf(r), ["writer", "writer", "canon"]);
   const obsReq = flatMsgs(sent[0]), ownReq = flatMsgs(sent[1]);
   eq("T15 — 이번엔 재언이 관측자다",
     [obsReq.includes("남색 비니를 줬다"), obsReq.includes("이민현에게 남색 비니가 있다"),
      ownReq.includes("남색 비니를 줬다")],
     [false, true, true]);
   eq("T15 — 발화 순서가 재언→민현이다",
-    r.data.messages.map(m => m.sender), ["jaeeon", "minhyun"]);
+    r.data.messages.map(m => m.sender), ["jaeeon", "minhyun", "minhyun"]);
+}
+
+/* ── 13.2b discloseRevealed — 긍정 확인만 공개다 (필수 회귀) ──
+   놓치면 다음에 또 물으면 되지만, 헛잡으면 안 밝힌 턴에 상대가 아는
+   사람이 된다. 부정·질문 되받기·가정·철회·타 물건 공개는 전부 아니다. */
+{
+  const R = t => ENG.discloseRevealed(t, "연", "mug");
+  eq("긍정 확인은 공개다",
+    [R("연 선생님이 준 거야."), R("연 쌤한테 받은 거야."), R("교생 선생님이 주셨어.")],
+    [true, true, true]);
+  eq("부정·질문 되받기·가정·무지는 공개가 아니다",
+    [R("연 선생님이 준 거 아니야."), R("선생님이 줬냐고? 아니."),
+     R("쌤이 준 거면 좋겠네."), R("누가 줬는지는 몰라.")],
+    [false, false, false, false]);
+  /* 판정은 disclose.key의 물건에 결속된다 — 딴 물건을 밝히며 이 물건을
+     물리는 발화는 이 물건의 공개가 아니다 */
+  eq("이 물건을 물리는 발화는 공개가 아니다",
+    R("선생님이 줬어. 이건 아니고 저 비니를."), false);
+  eq("다른 물건을 밝힌 문장은 이 물건의 공개가 아니다",
+    R("선생님이 비니 줬어."), false);
 }
 
 /* ── 13.3 requiredSpeakers 검사 — 누락·순서 역전·목록 밖 화자 ── */
@@ -1322,14 +1343,33 @@ const PROBE = { ...BASE,
     r2.data.trace.turnContext.facts
       .find(f => f.fact_id === "gift.mug.user_to_jaeeon").known_by.includes("minhyun"), true);
 
-  /* 회피가 저장된 것은 아무것도 없다 — 장부 없이 다시 부르면 여전히
-     비대칭이고 발견 장면이 선다(출처는 여전히 모른다) */
-  const r3 = await run({}, t14.body);
-  eq("회피 뒤에는 다음 턴에도 출처를 모른다 — 장면이 다시 선다",
-    [stagesOf(r3),
-     r3.data.trace.turnContext.facts
-       .find(f => f.fact_id === "gift.mug.user_to_jaeeon").known_by.includes("minhyun")],
-    [["writer", "writer"], false]);
+  /* ── 사건 수명 계약 ──
+     발견 장면은 **성공하면 한 번 소모**다 — 회피해도 같은 장면을 무한
+     반복하지 않는다(소모는 클라이언트 사건 큐의 몫이고, run.mjs의 웹
+     하네스가 실제 큐 수명으로 잰다). 워커가 보장하는 것은 이것뿐이다:
+     회피한 턴에는 disclosure Effect가 없어서, 클라이언트 장부(disclosed)가
+     안 변하고 다음 턴 투영에서 상대는 여전히 출처를 모른다. */
+  const r3 = await run({}, t14.body);   // 장부(disclosed) 없이 — 회피 뒤의 다음 요청 모양
+  eq("회피 뒤에는 다음 턴 투영에서도 출처를 모른다",
+    r3.data.trace.turnContext.facts
+      .find(f => f.fact_id === "gift.mug.user_to_jaeeon").known_by.includes("minhyun"), false);
+
+  /* ── 소유자의 정사 부정은 Canon이 잡는다 — 회피와 다르다 ──
+     「그냥 쓰던 거예요」는 유저가 준 물건이라는 사실의 직접 부정이다.
+     판정은 기존 Canon Critic 계약(모델 판정 + 코드의 id 검증) 재사용 —
+     여기서는 검사가 부정을 보고했을 때 배선이 실제로 탈락·502로 가고
+     사건이 소모될 답을 안 주는지를 잰다. */
+  const goodObs2 = JSON.stringify({ messages: [{ text: "삼촌, 그 회색 머그컵 어디서 났어요?" }] });
+  const denial = JSON.stringify({ messages: [{ text: "그냥 쓰던 거예요." }] });
+  const flag = JSON.stringify({ problems: [{ candidate: "A", critic: "canon",
+    fact_id: "gift.mug.user_to_jaeeon", code: "FACT_DENIAL" }] });
+  const rd = await run({}, t14.body, [goodObs2, denial, denial], { canon: [flag, flag] });
+  eq("정사를 부정한 소유자는 502다 — 사건이 소모될 답을 안 준다",
+    [rd.status,
+     (rd.data.trace.rejected || []).some(x => (x.codes || []).some(c => String(c).includes("FACT_DENIAL"))),
+     rd.data.scene_ack === undefined],
+    [502, true, true]);
+  /* 회피(출처를 안 밝히고 딴청)는 통과한다 — 13.1·기본 fake가 그 경로다 */
 }
 
 /* ── 13.5 T16 — 예약 승격·이번 턴 Fact·scene_ack ── */

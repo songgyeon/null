@@ -9,8 +9,8 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs                   # 1864개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
-node test/engine-pipeline.test.mjs  # 생성 경로 회귀 333개 (G 네 갈래 + G2 모델 스윕 + G3 sonnet5-pair-haiku + G4 single5 + G5 golden-v1 + §13 계약 복구) — 역시 키 없이 돈다
+node test/run.mjs                   # 1889개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/engine-pipeline.test.mjs  # 생성 경로 회귀 338개 (G 네 갈래 + G2 모델 스윕 + G3 sonnet5-pair-haiku + G4 single5 + G5 golden-v1 + §13 계약 복구) — 역시 키 없이 돈다
 node tools/eval.mjs                 # 대사 품질 자 — 내보낸 기록에서 명백한 것을 센다
 node tools/replay.mjs --fake        # 네 갈래 replay 하네스 자체 점검 (실제 재생은 ANTHROPIC_API_KEY로)
 ```

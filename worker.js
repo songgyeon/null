@@ -2925,14 +2925,34 @@ function discloseMention(key) {
 }
 
 /* ── 소유자가 출처를 실제로 밝혔는가 ──
-   준 사람(유저)을 가리키는 말과 주었다는 말이 같은 발화 묶음에 있어야
-   공개다. 좁게 잡는다: 헛잡으면 안 밝힌 턴에 상대의 known_by가 넘어가고,
-   놓치면 다음 관측에서 또 물으면 될 뿐이다. */
-function discloseRevealed(text, userName) {
-  const t = String(text || "");
+   **문장 단위**로 보고, 긍정 서술만 공개다. 부정(아니·않·몰라), 질문
+   되받기(냐고), 가정(거면·다면·라면·었으면)은 전부 공개가 아니고,
+   「이건 아니고 저 비니를」처럼 지금 물건을 물리는 말이 발화 묶음에
+   있으면 통째로 공개가 아니다. 다른 물건을 밝힌 문장도 이 물건의 공개가
+   아니다 — 판정은 disclose.key의 물건에 결속된다.
+   좁게 잡는 이유: 놓치면 다음에 또 물으면 되지만, 헛잡으면 안 밝힌 턴에
+   상대가 아는 사람이 된다. */
+function discloseRevealed(text, userName, key) {
+  const whole = String(text || "");
+  /* 지금 물건을 물리는 말 — 이 발화 묶음은 그 물건의 출처를 밝힌 것이 아니다 */
+  if (/(이건|이거|그건|그거|이걸|그걸)\s*(아니고|아니라|말고)/.test(whole)) return false;
   const u = String(userName || "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const giver = new RegExp(`(${u ? u + "|" : ""}선생님|쌤)`);
-  return giver.test(t) && /(줬|주셨|주신|준 거|준 물건|선물)/.test(t);
+  const giver = new RegExp(`(${u ? u + "\\s*|" : ""}선생님|쌤)`);
+  const gave = /(줬|주셨|주신|준\s*거|준\s*물건|선물이|선물했|받았|받은)/;
+  const deny = /(아니|않|없|몰라|모른|모르|냐고|을까|는지|거면|다면|라면|었으면|았으면)/;
+  /* 다른 물건의 이름·별칭 — 이 물건 것과 겹치는 표기는 빼고 만든다 */
+  const mine = key ? discloseMention(key) : [];
+  const otherWords = key
+    ? Object.keys(ANY_NAME_BY_KEY).filter(k => k !== key)
+        .flatMap(k => discloseMention(k)).filter(w => w.length >= 2 && !mine.includes(w))
+    : [];
+  for (const s of whole.split(/(?<=[.!?…])\s+|\n/)) {
+    if (!giver.test(s) || !gave.test(s)) continue;
+    if (deny.test(s)) continue;
+    if (otherWords.some(w => s.includes(w)) && !mine.some(w => s.includes(w))) continue;
+    return true;
+  }
+  return false;
 }
 
 /* ── 공개된 출처를 투영에 반영한다 ──
@@ -5944,7 +5964,7 @@ export default {
           copy[copy.length - 1] = { ...t, content: blocks };
           return copy;
         };
-        const runPart = async (speaker, text, base, mustMention) => {
+        const runPart = async (speaker, text, base, mustMention, validate) => {
           for (let attempt = 1; attempt <= RETRY_MAX + 1; attempt++) {
             const note = attempt > 1 && lastCodes.length
               ? `\n[이전 시도 탈락]\n${lastCodes.slice(0, 6).map(c => `- ${c}`).join("\n")}\n`
@@ -5981,6 +6001,9 @@ export default {
               const said = cand.messages.map(m => (m && m.text) || "").join(" ");
               if (!mustMention.some(w => said.includes(w))) codes.push("ITEM_MISS");
             }
+            /* 추가 검증(소유자의 정사 검사 등) — hardFilter와 같은 취급이다:
+               실패 코드가 나오면 이 시도는 탈락이고 다음 시도로 간다 */
+            if (!codes.length && validate) codes.push(...await validate(cand, attempt));
             if (traceOn) allCandsLog.push({ attempt, id: speaker, originalMessages: parsed.messages });
             if (!codes.length) return cand;
             lastCodes = codes.map(c => `${speaker}:${c}`);
@@ -6002,8 +6025,26 @@ export default {
           const ownText = `${jos(NAME[obs], "이/가")} 방금 위와 같이 말했다.\n`
             + `${NAME[obs]}은 이 ${jos(disclose.name, "이/가")} 어디서 났는지 **모른다**. 너는 안다 — 목록에 있다.\n`
             + `바로 말할지, 돌려 말할지, 아직 말하지 않을지는 네 몫이다. 아는 것을 통째로 읊지 않는다.\n`
+            + `다만 **받은 사실 자체를 부정하지는 않는다** — 그건 회피가 아니라 거짓이다.\n`
             + `이번 응답은 ${jos(NAME[own], "이/가")} 말하는 차례다. ${NAME[own]}의 발화만 쓴다.`;
-          const c2 = await runPart(own, ownText, base2);
+          /* ── 소유자의 답도 정사를 통과해야 한다 ──
+             「그냥 쓰던 거예요」 「내가 산 거야」는 유저가 준 물건이라는
+             사실의 직접 부정이다 — 출처를 안 밝히고 딴청하는 회피와 다르다.
+             판정은 기존 Canon Critic 계약을 그대로 재사용한다(새 정규식을
+             복제하지 않는다). 검사가 어긋나면 탈락·재시도, 소진되면 502 —
+             사건은 소모되지 않는다. 하급 검사 한 호출이 더 든다. */
+          const ownValidate = async (cand, attempt) => {
+            const ownFacts = factsForSpeaker(turnCtx, own);
+            const ctxOwn = { who: own, when: now, place, userName, stage: relLabel,
+              knows: "", facts: ownFacts, here: [], recent: recentForDirector, scene: "" };
+            const cRaw = await callStage(env, meter, "canon", CANON_CRITIC,
+              [{ role: "user", content: criticPacket(ctxOwn, [{ id: "A", messages: cand.messages }], "canon") }],
+              400, attempt, tier, own);
+            const res = readProblems(cRaw, "canon", { candidates: new Set(["A"]), facts: factIds(ownFacts) });
+            if (!res.ok) return ["CRITIC_SCHEMA"];
+            return res.problems.map(n => `${n.code}:${n.fact_id}`);
+          };
+          const c2 = await runPart(own, ownText, base2, null, ownValidate);
           if (c2) {
             const merged = { id: "D",
               originalMessages: [...c1.originalMessages, ...c2.originalMessages],
@@ -6019,7 +6060,7 @@ export default {
                  공개의 저장·투영은 검증된 Effect(materializeEffects)가 맡고,
                  at은 코드가 찍는다. */
               const ownerSaid = c2.messages.map(m => (m && m.text) || "").join(" ");
-              const revealed = discloseRevealed(ownerSaid, userName);
+              const revealed = discloseRevealed(ownerSaid, userName, disclose.key);
               merged.disclosure = revealed
                 ? { fact_id: disclose.fact_id, by: own, room } : null;
               picked = merged;

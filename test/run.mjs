@@ -4081,9 +4081,12 @@ eq('모델이 첫 턴에 건네도 안 받는다', (() => {
 /* 상태를 바꾸는 길은 effects 하나다 */
 eq('상태 경로가 하나다',
   /const batch=commitTurn\(bid,bucket,data,payload,sceneRef\.current\);/.test(web)
-  /* Effect를 적용하는 자리는 장부 실행기 하나뿐이다 */
-  && (web.match(/applyEffect\(/g) || []).length === 1
-  && /const r=applyEffect\(e\);/.test(web), true);
+  /* Effect를 적용하는 자리는 장부 실행기 하나뿐이다. 공용 관전 엔진
+     (runAutoBatch)은 그 함수를 어댑터로 받아 쓸 뿐(A.applyEffect) 제 길을
+     만들지 않는다 — 직접 호출은 여전히 장부의 한 줄이다 */
+  && (web.match(/=applyEffect\(/g) || []).length === 1
+  && /const r=applyEffect\(e\);/.test(web)
+  && (web.match(/A\.applyEffect\(/g) || []).length === 1, true);
 /* 표제를 「여기서 건넬 것」이라고 달아놨더니 첫 마디부터 건네줬다 */
 eq('언젠가 건넨다고 적는다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
@@ -6103,8 +6106,11 @@ eq('시간표 단추는 peek보다 좁다',
   eq('웹이 적용한 id를 적어둔다',
     /if\(loadEffDone\(\)\.indexOf\(e\.id\)>=0\)return\{status:"already_applied"\};/.test(web)
     && /if\(done\.indexOf\(e\.id\)<0\)done\.push\(e\.id\);/.test(web), true);
+  /* 적기만 하는 게 아니라 적힌 것까지 다시 읽어 확인한다 — 관전 장부의
+     어댑터가 이 판정을 그대로 쓰므로, 확인이 거짓이면 장부가 멈춘다 */
   eq('앱도 적용한 id를 적어둔다',
-    /null_eff_done/.test(appSrc) && /if\(done\.includes\(e\.id\)\)continue;/.test(appSrc), true);
+    /null_eff_done/.test(appSrc) && /if\(done\.includes\(e\.id\)\)return true;/.test(appSrc)
+    && /return back\.includes\(e\.id\);/.test(appSrc), true);
   /* 방향을 본다 — 유저가 받는 것만 가방에 들어간다 */
   eq('웹·앱 둘 다 방향을 본다',
     /e\.to!=="user"/.test(web) && /e\.to==='user'/.test(appSrc), true);
@@ -6130,8 +6136,10 @@ eq('시간표 단추는 peek보다 좁다',
     /* 두 적용 함수의 뼈대를 소스에서 그대로 뽑아 나란히 견준다 */
     const webBody = web.slice(web.indexOf('const markDone=e=>{'),
                               web.indexOf('const planEffects=fx=>{'));
-    const appStart = appSrc.indexOf('const applyEffects=async(fx:any)=>{');
-    const appBody = appSrc.slice(appStart, appSrc.indexOf('\n  };', appStart));
+    /* 앱은 하나짜리(applyOneEffect)와 루프(applyEffects)로 갈라졌다 —
+       판정은 전부 하나짜리에 있으므로 둘을 함께 뜬다 */
+    const appStart = appSrc.indexOf('const applyOneEffect=async(e:any)');
+    const appBody = appSrc.slice(appStart, appSrc.indexOf('const applyUnlocked'));
     /* 같은 판정을 하는지 문장으로 맞춘다 — 둘 다 id 중복·방향·갈래를 본다 */
     const shape = t => [
       /e\.id/.test(t), /e\.type/.test(t),
@@ -6146,7 +6154,7 @@ eq('시간표 단추는 peek보다 좁다',
     eq('두 번 적용해도 한 번이다', (() => {
       const webTwice = /if\(loadEffDone\(\)\.indexOf\(e\.id\)>=0\)return\{status:"already_applied"\};/.test(webBody)
         && /if\(done\.indexOf\(e\.id\)<0\)done\.push\(e\.id\);/.test(web);
-      const appTwice = /if\(done\.includes\(e\.id\)\)continue;/.test(appBody)
+      const appTwice = /if\(done\.includes\(e\.id\)\)return true;/.test(appBody)
         && /done\.push\(e\.id\)/.test(appBody);
       return [webTwice, appTwice];
     })(), [true, true]);
@@ -6243,7 +6251,7 @@ eq('시간표 단추는 peek보다 좁다',
     eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes('function App(){'), true);
     const APP_SRC = 'function App(){'
       + web.slice(web.indexOf('function App(){') + 'function App(){'.length, web.indexOf(CUT))
-      + `\n  return { send, request, enqueue, commitTurn, resumeBatch, retry, openRoom,
+      + `\n  return { send, request, enqueue, commitTurn, resumeBatch, retry, openRoom, runAutoEvent,
         leaveScene, answerLeave, startWay: setWay, answerWay,
         openAsk, answerMove, answerAsk, answerInvite, giveGift, giveGiftAt,
         invite, busy, failed,
@@ -7114,6 +7122,147 @@ eq('시간표 단추는 peek보다 좁다',
           [V.ls('null_story'), V.ls('null_scene_pend')], [undefined, { minhyun: 'partner_known' }]);
       }
     }
+
+    /* ══════════ 관전 사건 — 대사와 송장이 같은 장부로 간다 (§8.5) ══════════
+       전에는 응답에서 data.messages만 꺼내고 data.effects를 버렸다 —
+       서버가 만든 택배에서 대사만 꺼내고 송장(공개 Effect)을 버리는 짓이라
+       null_disclosed가 영영 안 갱신됐다. 여기는 실제 app.js를 굴려 잰다. */
+    {
+      /* created_at을 최근으로 둔다 — 한 시간 전으로 두면 배경 관전 효과
+         (자리 비움)가 같은 사건을 제 길로도 집어 fetch가 두 번 된다.
+         여기서 재는 것은 runAutoEvent 한 번의 장부이지 발화 조건이 아니다. */
+      const EV = { id: 'gift|jaeeon|회색 머그컵', kind: 'gift', to: 'jaeeon',
+        name: '회색 머그컵', created_at: T0 - 1000, status: 'pending' };
+      const DEFF = { id: 'r1|disclosure|jaeeon|gift.mug.user_to_jaeeon', type: 'disclosure',
+        fact_id: 'gift.mug.user_to_jaeeon', by: 'jaeeon',
+        heard_by: ['jaeeon', 'minhyun'], room: 'health', at: T0 };
+      const rep = () => ({
+        messages: [{ sender: 'minhyun', text: '그 회색 머그컵 어디서 났어요?' },
+                   { sender: 'jaeeon', text: '선생님이 준 거야.' }],
+        effects: [DEFF] });
+      const seedQ = { null_name: '연', null_gifts: JSON.stringify({ jaeeon: ['mug'] }),
+        null_auto_q: JSON.stringify([EV]) };
+
+      /* ── ① 성공 — 대사·공개·표·사건 소모가 전부 한 번에 ── */
+      {
+        const W = boot(seedQ, rep);
+        await W.app.runAutoEvent(EV, T0 - 1000);
+        await W.tick(60000);
+        eq('관전 대사가 저장된다',
+          (W.app.store.msgs.health || []).map(m => m.text),
+          ['그 회색 머그컵 어디서 났어요?', '선생님이 준 거야.']);
+        eq('공개 장부가 같은 장부에서 갱신된다',
+          W.ls('null_disclosed'), { 'gift.mug.user_to_jaeeon': ['jaeeon', 'minhyun'] });
+        eq('effect 표가 찍힌다', (W.ls('null_eff_done') || []).includes(DEFF.id), true);
+        eq('사건은 마지막에 소모된다', W.ls('null_auto_q'), []);
+        eq('장부가 비워졌다', W.ls('null_batch') || [], []);
+        eq('fetch는 한 번이다', W.sent.length, 1);
+        eq('관전 요청에 공개 장부가 실린다',
+          [W.sent[0].mode, 'disclosed' in W.sent[0]], ['auto', true]);
+      }
+
+      /* ── ② 공개 저장이 실패하면 — 사건이 남고, 재개는 API를 안 부른다 ── */
+      {
+        const W = boot(seedQ, rep, { failKeys: ['null_disclosed'] });
+        await W.app.runAutoEvent(EV, T0 - 1000);
+        await W.tick(60000);
+        eq('실패하면 사건이 남는다', (W.ls('null_auto_q') || []).length, 1);
+        eq('실패하면 장부도 남는다', (W.ls('null_batch') || []).length, 1);
+        eq('공개는 반영되지 않았다', W.ls('null_disclosed') || {}, {});
+        /* 같은 저장소로 다시 켠다 — 이게 새로고침이다. 남은 장부로만 잇는다 */
+        const W2 = boot(JSON.parse(JSON.stringify(W.dump())), rep);
+        await W2.tick(60000);
+        eq('재개는 API를 안 부른다', W2.sent.length, 0);
+        eq('재개가 남은 것을 마저 한다',
+          [W2.ls('null_disclosed'), W2.ls('null_auto_q'), (W2.ls('null_batch') || []).length],
+          [{ 'gift.mug.user_to_jaeeon': ['jaeeon', 'minhyun'] }, [], 0]);
+        eq('말풍선이 두 번 안 붙는다', (W2.app.store.msgs.health || []).length, 2);
+      }
+
+      /* ── ③ 회피 응답 — 공개 Effect가 없으면 장부도 그대로다 ── */
+      {
+        const avoid = () => ({ messages: [{ sender: 'minhyun', text: '그 회색 머그컵 어디서 났어요?' },
+          { sender: 'jaeeon', text: '그건 왜.' }], effects: [] });
+        const W = boot(seedQ, avoid);
+        await W.app.runAutoEvent(EV, T0 - 1000);
+        await W.tick(60000);
+        eq('회피면 공개 장부가 안 변한다', W.ls('null_disclosed') || {}, {});
+        eq('회피여도 발견 장면은 한 번 소모된다 — 무한 반복하지 않는다',
+          W.ls('null_auto_q'), []);
+      }
+    }
+
+    /* ══════════ 앱 관전 장부 엔진 — runAutoBatch (웹·앱 공용) ══════════
+       Expo가 rules.ts로 받는 엔진을 여기서 어댑터 주입으로 직접 굴린다.
+       순서·멱등·실패 정지가 코드로 강제되는지를 실행으로 잰다. */
+    {
+      const AB = new Function(
+        'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v},removeItem(k){delete this._v[k]}};'
+        + dataSrc + '\nreturn runAutoBatch;')();
+      const mk = opts => {
+        const S = { msgs: [], fx: [], q: ['ev1'], batch: true, log: [] };
+        const A = {
+          saveMsg: async m => { S.log.push('msg:' + m.id);
+            if (opts && opts.failMsg === m.id) return false;
+            if (!S.msgs.includes(m.id)) S.msgs.push(m.id); return true; },
+          applyEffect: async e => { S.log.push('fx:' + e.id);
+            if (opts && opts.failFx) return false;
+            if (!S.fx.includes(e.id)) S.fx.push(e.id); return true; },
+          ackEvent: async id => { S.log.push('ack:' + id);
+            S.q = S.q.filter(x => x !== id); return true; },
+          dropBatch: async () => { S.log.push('drop'); S.batch = false; return true; },
+        };
+        return { S, A };
+      };
+      const B = { id: 'auto|ev1',
+        messages: [{ id: 'a#0', text: 'ㄱ' }, { id: 'a#1', text: 'ㄴ' }],
+        effects: [{ id: 'e1', type: 'disclosure' }], event_id: 'ev1' };
+
+      /* 순서: 말풍선 → Effect → 사건 → 장부 */
+      const ok = mk();
+      eq('엔진 순서가 계약대로다', [await AB(B, ok.A), ok.S.log],
+        [true, ['msg:a#0', 'msg:a#1', 'fx:e1', 'ack:ev1', 'drop']]);
+      /* 대화 저장 실패 → 공개 미반영·사건 미소모 (SQLite 쓰기 실패와 같다) */
+      const f1 = mk({ failMsg: 'a#1' });
+      eq('대화가 실패하면 공개로 못 간다', [await AB(B, f1.A), f1.S.fx, f1.S.q, f1.S.batch],
+        [false, [], ['ev1'], true]);
+      /* 공개 저장 실패 → 사건 미소모 */
+      const f2 = mk({ failFx: true });
+      eq('공개가 실패하면 사건을 안 지운다', [await AB(B, f2.A), f2.S.q, f2.S.batch],
+        [false, ['ev1'], true]);
+      /* 재개 — 멱등 어댑터로 다시 돌리면 무실패 실행과 같은 끝 상태다 */
+      const f3 = mk({ failFx: true });
+      await AB(B, f3.A);                       // 중간에 멈춘다
+      const again = mk(); again.S.msgs = f3.S.msgs; again.S.q = f3.S.q;
+      eq('재개가 무실패 실행과 같은 상태로 끝난다',
+        [await AB(B, again.A), again.S.msgs, again.S.fx, again.S.q, again.S.batch],
+        [true, ['a#0', 'a#1'], ['e1'], [], false]);
+      /* 이 엔진은 API를 모른다 — 재호출이 원리적으로 없다 */
+      eq('엔진에 fetch가 없다', (() => {
+        const i = dataSrc.indexOf('const runAutoBatch');
+        return /fetch|XMLHttpRequest/.test(dataSrc.slice(i, dataSrc.indexOf('const loadDisclosed', i)));
+      })(), false);
+    }
+
+    /* ── 앱 배선 소스 검사 — 엔진이 실제 관전 경로에 물려 있다 ── */
+    {
+      const appTsx = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+      eq('앱 관전이 원자 장부를 쓴다',
+        [/const data=await genAuto\(name,ev\?[\s\S]{0,300}await commitAutoTurn\(ev,at,data\)/.test(appTsx),
+         /await commitAutoTurn\(null,Date\.now\(\),data\)/.test(appTsx)], [true, true]);
+      /* 관전 응답(genAuto)이 applyExtras(즉시 적용)로 새는 길이 없어야
+         한다 — 관전은 원자 장부(commitAutoTurn)만 탄다. 채팅 경로의
+         applyExtras는 다른 길이라 여기서 안 잰다. */
+      eq('앱 관전에서 Effect가 대화보다 먼저 적히는 길이 없다',
+        /genAuto\([\s\S]{0,400}applyExtras/.test(appTsx), false);
+      eq('앱이 공용 엔진과 멱등 열쇠를 쓴다',
+        [/runAutoBatch\(b,autoAdapters\(\)\)/.test(appTsx), /hasMsgTrack\('health', m\.id\)/.test(appTsx)], [true, true]);
+      eq('앱이 부팅에서 남은 장부를 잇는다',
+        /if\(ready\) resumePendingAuto\(\)/.test(appTsx)
+        && /getMeta\('null_auto_batch'\)/.test(appTsx), true);
+      eq('규칙층이 엔진을 나른다',
+        /const runAutoBatch=async\(b,A\)=>/.test(readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8')), true);
+    }
   }
 
   /* ── 워커가 승인한 것만 scene_ack로 돌려준다 ── */
@@ -7430,9 +7579,12 @@ eq('시간표 단추는 peek보다 좁다',
 
   /* ── D7 호출 수 ── */
   eq('검사를 후보마다 안 부른다', /cands\.map\([\s\S]{0,80}callStage\(env, meter, "(canon|character)"/.test(wk), false);
+  /* canon 호출부는 둘이다 — 중요 장면 검사 하나, 관전 공개 갈래의 소유자
+     정사 검사(ownValidate) 하나. 같은 계약(CANON_CRITIC·criticPacket·
+     readProblems)의 재사용이지 새 검사기가 아니다. */
   eq('검사는 각각 한 번씩이다',
     [(wk.match(/callStage\(env, meter, "canon"/g) || []).length,
-     (wk.match(/callStage\(env, meter, "character"/g) || []).length], [1, 1]);
+     (wk.match(/callStage\(env, meter, "character"/g) || []).length], [2, 1]);
   /* 사실을 어긴 후보가 다 빠지면 위를 안 부른다 — 틀린 재료로 값비싼 호출을
      하지 않는다 */
   eq('사실을 다 어기면 마무리를 안 부른다', (() => {
@@ -8125,7 +8277,8 @@ eq('시간표 단추는 peek보다 좁다',
   eq('앱도 같은 이름으로 실어 보낸다',
     /story: loadStory\(\),/.test(apiSrc) && /origin_phase: originPhase\(room\)/.test(apiSrc), true);
   eq('앱도 전환을 실제로 적용한다',
-    /applyStoryTransition\(e\)!=='fail'/.test(appSrc)
+    /const r=applyStoryTransition\(e\);/.test(appSrc)
+    && /if\(r==='fail'\)return false;/.test(appSrc)
     && /if\(why==='partner_known'\|\|why==='partner_confirm'\)markPartnerKnown\(room\);/.test(appSrc), true);
 
   /* ── E5 — 아끼는 것 ≠ 모른다는 것 ── */

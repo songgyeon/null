@@ -70,6 +70,17 @@ export async function insertMsg(m: Msg) {
   return res.lastInsertRowId;
 }
 
+/* ── 관전 장부의 멱등 열쇠 (§8.5) ──
+   장부(runAutoBatch)가 같은 말풍선을 두 번 붙이지 않으려면 「이미
+   들어갔나」를 물을 수 있어야 한다. track에 장부 항목 id를 싣고 여기로
+   확인한다 — 재개가 남은 것만 정확히 한 번 더 붙는 근거다. */
+export async function hasMsgTrack(room: string, track: string): Promise<boolean> {
+  const d = await initDB();
+  const rows = await d.getAllAsync<{ id: number }>(
+    'SELECT id FROM messages WHERE room = ? AND track = ? LIMIT 1', room, track);
+  return rows.length > 0;
+}
+
 /* 최근 것부터 limit개를 가져와 시간순으로 되돌려 준다.
    전에는 ORDER BY ASC LIMIT 200이었다 — 200개가 넘는 순간 제일 오래된 200개가
    돌아왔다. 화면에는 옛날 대화만 남고 새 말은 안 보이고, 프롬프트에도 옛날

@@ -1281,58 +1281,69 @@ function App(){
          일이 되는 쪽은 유저가 한 일이었다.
          쿨타임 표시는 저장값으로 충분하다 — 목록은 열 때 loadAutoAt으로 읽는다. */
       saveAutoAt(now);
-      let list=null;
-      /* 고른 데모(?demo=1)만 각본이다. 실패해서 넘어가는 길은 이제 없다. */
-      if(DEMO.on){ list=demoReply("health",null,name,storeRef.current.msgs); }
-      else{
-        try{
-          const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
-            /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로
-               떨어져 관전이 민현 1:1 방으로 처리된다 */
-            body:JSON.stringify({mode:"auto",room:"health",user_name:name,counts:roomCounts(),
-              /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
-                 같은 얘기를 두 번 싣는다 */
-              history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
-              ...(loadSum("health").text?{summary:loadSum("health").text}:{}),
-              signals:buildSignals(null),
-              /* 준 기록도 싣는다 — 선물 관측 사건(§8.5)은 워커가 이걸로
-                 출처·보유 사실을 만들어 비대칭을 판정한다. 안 실으면
-                 발견 장면이 영영 못 선다. request()의 888줄과 같은 원본이다. */
-              gifts:giftsRef.current||{},
-              disclosed:loadDisclosed(),
-              ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
-          const data=await res.json().catch(()=>null);
-          if(res.ok&&data) list=data.messages;
-        }catch(e){ /* 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
-      }
+      const done=await runAutoEvent(ev,at);
       autoBusy.current=false;
       /* 실패하면 사건이 줄에 그대로 남는다. 다음에 다시 시도한다 */
-      if(!list||!list.length)return;
-      /* ── 관전도 같은 장부를 쓴다 ──
-         전에는 ackAutoEvent를 먼저 부르고 그 다음에 말을 붙였다. 저장이
-         실패하면 사건은 소모됐는데 대화는 없는 상태가 된다 — 유저가 준
-         선물이 없던 일이 되는 자리다.
-         id를 뽑기로 만들지 않는 이유도 같다. 둘째 말풍선 저장이 실패하고
-         다음에 다시 만들면, 랜덤 id라 첫째가 한 번 더 붙는다. 사건에
-         매단 결정적 id면 남은 것만 정확히 한 번 더 붙는다. */
-      const evid=(ev&&ev.id)||("at|"+at);
-      const sys=[]; let t=at;
-      list.forEach((x,i)=>{
-        if(!x)return;
-        const photo=photoSrc(x.photo)?x.photo:null;
-        const text=(x.text||"").trim();
-        if(!text&&!photo)return;
-        sys.push({id:`auto:${evid}#${i}`,room:"health",sender:x.sender||"health",
-          sys:false,text,...(photo?{photo}:{}),ts:t});
-        t+=40000+Math.floor(Math.random()*80000);
-      });
-      if(!sys.length)return;
-      /* 말풍선이 다 남고 뒤따르는 것까지 끝난 뒤에만 **그 사건만** 지운다 */
-      if(!localBatch("auto|"+evid,"health",{sys,auto_event_id:(ev&&ev.id)||""}))return;
+      if(!done)return;
       /* 관전도 창이 있다. 굴려두지 않으면 지난 관전 대화가 그냥 사라진다 */
       setTimeout(()=>rollSummary("health"),1200);
     })();
   },[name,view]);
+
+  /* ── 관전 사건 턴 하나 — 응답 전부가 한 장부로 간다 ──
+     전에는 data.messages만 꺼내고 data.effects를 버렸다. 서버가 만든
+     택배에서 대사만 꺼내고 송장(공개 Effect)을 버리는 짓이라, 소유자가
+     출처를 밝혀도 null_disclosed가 영영 안 갱신됐다. 이제 말풍선·Effect·
+     사건 소모가 한 장부(localBatch)에 실린다 — finishBatch가 Effect와
+     말풍선을 전부 확인한 뒤에만(⑦) 사건을 지우고, 어느 저장이 실패하면
+     장부와 사건이 남아 **API 재호출 없이** 남은 것만 이어서 한다. */
+  const runAutoEvent=async(ev,at)=>{
+    let data=null;
+    /* 고른 데모(?demo=1)만 각본이다. 실패해서 넘어가는 길은 이제 없다. */
+    if(DEMO.on){ data={messages:demoReply("health",null,name,storeRef.current.msgs)}; }
+    else{
+      try{
+        const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
+          /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로
+             떨어져 관전이 민현 1:1 방으로 처리된다 */
+          body:JSON.stringify({mode:"auto",room:"health",user_name:name,counts:roomCounts(),
+            /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
+               같은 얘기를 두 번 싣는다 */
+            history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
+            ...(loadSum("health").text?{summary:loadSum("health").text}:{}),
+            signals:buildSignals(null),
+            /* 준 기록도 싣는다 — 선물 관측 사건(§8.5)은 워커가 이걸로
+               출처·보유 사실을 만들어 비대칭을 판정한다. 안 실으면
+               발견 장면이 영영 못 선다. request()의 888줄과 같은 원본이다. */
+            gifts:giftsRef.current||{},
+            disclosed:loadDisclosed(),
+            ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
+        const body=await res.json().catch(()=>null);
+        if(res.ok&&body)data=body;
+      }catch(e){ /* 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
+    }
+    const list=data&&data.messages;
+    if(!list||!list.length)return false;
+    /* id를 뽑기로 만들지 않는다 — 둘째 말풍선 저장이 실패하고 다음에 다시
+       만들면, 랜덤 id라 첫째가 한 번 더 붙는다. 사건에 매단 결정적 id면
+       남은 것만 정확히 한 번 더 붙는다. */
+    const evid=(ev&&ev.id)||("at|"+at);
+    const sys=[]; let t=at;
+    list.forEach((x,i)=>{
+      if(!x)return;
+      const photo=photoSrc(x.photo)?x.photo:null;
+      const text=(x.text||"").trim();
+      if(!text&&!photo)return;
+      sys.push({id:`auto:${evid}#${i}`,room:"health",sender:x.sender||"health",
+        sys:false,text,...(photo?{photo}:{}),ts:t});
+      t+=40000+Math.floor(Math.random()*80000);
+    });
+    if(!sys.length)return false;
+    /* 말풍선·Effect가 다 남은 뒤에만 **그 사건만** 지운다 */
+    return !!localBatch("auto|"+evid,"health",{sys,
+      effects:(data&&Array.isArray(data.effects))?data.effects:[],
+      auto_event_id:(ev&&ev.id)||""});
+  };
 
   const doAuto=async()=>{
     if(autoLoading)return;

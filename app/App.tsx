@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
-import { initDB, getMsgs, insertMsg, getMeta, setMeta, wipeStory, wipeIfOldRevision, countMsgs, Msg } from './lib/db';
+import { initDB, getMsgs, insertMsg, hasMsgTrack, getMeta, setMeta, wipeStory, wipeIfOldRevision, countMsgs, Msg } from './lib/db';
 import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoGreetWhen, demoWatchOpen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
@@ -39,6 +39,7 @@ import {
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
+  runAutoBatch,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -1605,6 +1606,9 @@ function Root() {
     await runTurn(sc.room, sc.place);
   },[msgs,typing]);
   useEffect(()=>{ if(ready&&name&&!enrolling) expireScene(); },[ready,name,enrolling,view.type]);
+  /* 끊긴 관전 장부를 잇는다 — 반쯤 적힌 관전 응답은 저장된 장부로만
+     마저 적는다. API를 다시 부르지 않는다. */
+  useEffect(()=>{ if(ready) resumePendingAuto(); },[ready]);
 
   /* ── 첫 자리 ──
      한 마디도 오간 적이 없으면 인사로 시작하지 않는다. 자리에서 시작한다.
@@ -1669,15 +1673,17 @@ function Root() {
      처리해도 결과는 한 번과 같아야 한다.
      전에는 applyExtras가 give를 **아예 안 봤다** — 앱에서는 자리 물건을
      영영 못 받았고, 그 구멍을 자동 지급이 가리고 있었다. */
-  const applyEffects=async(fx:any)=>{
-    if(!Array.isArray(fx)||!fx.length)return;
-    let done:string[]=[];
-    try{ done=JSON.parse((await getMeta('null_eff_done'))||'[]') }catch{}
-    let changed=false;
-    for(const e of fx){
-      if(!e||typeof e!=='object'||!e.id||!e.type)continue;
-      if(done.includes(e.id))continue;                          // 이미 새겼다
-      let ok=false;
+  /* ── Effect 하나를 적용하고 표(eff_done)까지 확인한다 ──
+     「이미 되어 있으면 성공」 — 웹 applyEffect와 같은 의미고, 관전 원자
+     장부(runAutoBatch)의 어댑터가 이 함수를 그대로 쓴다. 저장이 실제로
+     안 남으면 거짓을 돌려 장부가 그 자리에서 멈춘다. */
+  const applyOneEffect=async(e:any):Promise<boolean>=>{
+    if(!e||typeof e!=='object'||!e.id||!e.type)return true;    // 모르는 것은 막지 않는다
+    try{
+      let done:string[]=[];
+      try{ done=JSON.parse((await getMeta('null_eff_done'))||'[]') }catch{}
+      if(done.includes(e.id))return true;                      // 이미 새겼다
+      let ok=false, skip=false;
       if(e.type==='item_transfer'){
         /* 방향을 본다. 유저가 받는 것만 가방에 들어간다 */
         if(e.to==='user'&&e.item&&ITEMS[e.item]
@@ -1688,37 +1694,48 @@ function Root() {
           const it=ITEMS[e.item];
           await sysLine(e.from,`${CHARS[e.from]?CHARS[e.from].name:e.from}에게 ${jos(it.name,'을/를')} 받았다`);
           setToast(`bag — ${it.name}`); ok=true;
-        }
+        }else skip=true;
       }else if(e.type==='invite'){
         if(e.place&&e.char){ setInvite({place:e.place,char:e.char}); ok=true; }
+        else skip=true;
       }
       else if(e.type==='story_transition'){
         /* 이야기 상태가 실제로 움직이는 유일한 자리 (E3). 앞으로만 옮기고,
            이미 지나 있으면 한 것으로 친다. 저장이 안 되면 표를 안 찍는다 —
            다음 응답에서 같은 id가 다시 와서 마저 간다. */
-        ok=applyStoryTransition(e)!=='fail';
+        const r=applyStoryTransition(e);
+        if(r==='fail')return false;
+        ok=true;
       }
       else if(e.type==='disclosure'){
-        /* 출처가 실제로 말해졌다 — 같은 저장 트랜잭션에서 장부에 적고,
-           다음 요청의 사실 투영(payload.disclosed)이 받는다 (§8.5).
-           웹 app.js의 applyDisclosure와 같은 의미다. */
+        /* 출처가 실제로 말해졌다 — 대화가 저장 확인된 뒤에만 여기 온다
+           (runAutoBatch의 순서). 장부에 적고, 다음 요청의 사실 투영
+           (payload.disclosed)이 받는다 (§8.5). 웹 applyDisclosure와 같다. */
         if(e.fact_id&&Array.isArray(e.heard_by)&&e.heard_by.length){
           const d=await loadDisclosed();
           const cur=d[e.fact_id]||[];
           const next=Array.from(new Set([...cur,...e.heard_by.map(String)]));
-          if(next.length!==cur.length)await saveDisclosed({...d,[e.fact_id]:next});
+          if(next.length!==cur.length){
+            await saveDisclosed({...d,[e.fact_id]:next});
+            const back=await loadDisclosed();                   // 다시 읽어 확인한다
+            if((back[e.fact_id]||[]).length!==next.length)return false;
+          }
           ok=true;
-        }
+        }else skip=true;
       }
-      if(ok){ done.push(e.id); changed=true; }
-    }
-    if(changed)await setMeta('null_eff_done',JSON.stringify(done.slice(-200)));
+      if(skip||!ok)return true;                                 // 해당 없음 — 막지 않는다
+      done.push(e.id);
+      await setMeta('null_eff_done',JSON.stringify(done.slice(-200)));
+      try{ const back=JSON.parse((await getMeta('null_eff_done'))||'[]'); return back.includes(e.id); }
+      catch{ return false }
+    }catch{ return false }
+  };
+  const applyEffects=async(fx:any)=>{
+    if(!Array.isArray(fx)||!fx.length)return;
+    for(const e of fx)await applyOneEffect(e);
   };
 
-  const applyExtras = async(data:any)=>{
-    /* 상태를 바꾸는 길은 effects 하나다. 전에는 invite를 여기서 바로 열고
-       give는 아예 안 봤다 — 두 방향이 서로 다른 길을 탔다. */
-    await applyEffects(data?.effects);
+  const applyUnlocked = async(data:any)=>{
     if(Array.isArray(data?.unlocked)){
       setUnlocked(prev=>{
         const merged=Array.from(new Set([...prev,...data.unlocked]));
@@ -1733,6 +1750,66 @@ function Root() {
     }
     setStamp(x=>x+1);
   };
+  const applyExtras = async(data:any)=>{
+    /* 상태를 바꾸는 길은 effects 하나다. 전에는 invite를 여기서 바로 열고
+       give는 아예 안 봤다 — 두 방향이 서로 다른 길을 탔다.
+       ※ 관전(auto) 응답은 이 함수를 안 탄다 — 대화보다 Effect가 먼저
+       적히면 안 되므로 commitAutoTurn(원자 장부)이 순서를 강제한다. */
+    await applyEffects(data?.effects);
+    await applyUnlocked(data);
+  };
+
+  /* ── 관전 응답의 원자 반영 — 공용 엔진(runAutoBatch)에 어댑터를 물린다 ──
+     장부를 먼저 영속(meta)하고 나서 적용한다. 순서는 엔진이 강제한다:
+     말풍선 → Effect(공개 포함) → 사건 소모 → 장부 삭제. 어느 저장이든
+     실패하면 그 자리에서 멈추고 장부·사건이 남는다 — 다음 부팅의
+     resumePendingAuto가 **저장된 장부로만** 이어서 한다(API 재호출 없음).
+     SQLite 쓰기 실패는 어댑터가 거짓으로 돌린다. */
+  const autoAdapters=()=>({
+    saveMsg: async(m:any)=>{ try{
+      if(await hasMsgTrack('health', m.id))return true;        // 같은 id는 두 번 안 붙는다
+      await insertMsg({room:'health',sender:m.sender,text:m.text||'',photo:m.photo||null,track:m.id,created_at:m.ts});
+      return await hasMsgTrack('health', m.id);
+    }catch{ return false } },
+    applyEffect: async(e:any)=>{ try{ return await applyOneEffect(e) }catch{ return false } },
+    ackEvent: async(id:string)=>{ try{
+      await ackEvent(id);
+      const q=await loadEvQ(); return !q.some((x:any)=>x&&x.id===id);
+    }catch{ return false } },
+    dropBatch: async()=>{ try{
+      await setMeta('null_auto_batch','');
+      return !((await getMeta('null_auto_batch'))||'');
+    }catch{ return false } },
+  });
+  const commitAutoTurn=async(ev:any,at:number,data:any):Promise<boolean>=>{
+    const list=data?.messages;
+    if(!Array.isArray(list)||!list.length)return false;
+    /* 결정적 id — 재개 때 남은 것만 정확히 한 번 더 붙는다 (웹과 같은 규칙) */
+    const evid=(ev&&ev.id)||('at|'+at);
+    const messages:any[]=[]; let t=at;
+    list.forEach((x:any,i:number)=>{
+      const text=(x?.text||'').trim(); const photo=x?.photo||null;
+      if(!text&&!photo)return;
+      messages.push({id:`auto:${evid}#${i}`,sender:x.sender||'health',text,photo,ts:t});
+      t+=40000+Math.floor(Math.random()*80000);
+    });
+    if(!messages.length)return false;
+    const b={id:'auto|'+evid,messages,
+      effects:Array.isArray(data?.effects)?data.effects:[],
+      event_id:(ev&&ev.id)||''};
+    await setMeta('null_auto_batch',JSON.stringify(b));
+    const done=await runAutoBatch(b,autoAdapters());
+    await reload('health');
+    if(done)await applyUnlocked(data);
+    return done;
+  };
+  /* 부팅 재개 — 남은 관전 장부가 있으면 저장된 것으로만 마저 한다 */
+  const resumePendingAuto=async()=>{ try{
+    const raw=await getMeta('null_auto_batch'); if(!raw)return;
+    const b=JSON.parse(raw); if(!b||!b.id)return;
+    await runAutoBatch(b,autoAdapters());
+    await reload('health');
+  }catch{} };
 
   // 순차 등장 — 타이핑 연출
   const enqueue = async (room:string, list:any[]) => {
@@ -1994,8 +2071,9 @@ function Root() {
       const data=await genAuto(name,undefined,rid);
       if(!stale('health',rid)){
         endTurn('health',rid);
-        await applyExtras(data);
-        if(data.messages?.length) await enqueue('health',data.messages);
+        /* 대화·Effect·(사건 없음)를 원자 장부로 — Effect가 대화보다 먼저
+           적히는 길을 없앤다. 타이핑 연출 대신 한 번에 얹힌다. */
+        await commitAutoTurn(null,Date.now(),data);
       }
     }catch(e:any){
       if(!stale('health',rid)){ endTurn('health',rid); failTurn(e,'health'); }
@@ -2135,11 +2213,10 @@ function Root() {
            실패 뒤 관전 생성이 진짜를 시도조차 않고 적어둔 사건을 각본에
            삼킨다. 이 경로는 진짜 요청을 안 하니 래치가 풀릴 길도 없었다. */
         const data=await genAuto(name,ev?{kind:ev.kind,to:ev.to,name:ev.name}:undefined);
-        await applyExtras(data);
-        if(data.messages?.length) await enqueuePast('health',data.messages,at);
-        /* 성공했다. **그 사건만** 지운다 — 뒤에 쌓인 것은 그대로 둔다.
-           실패하면 줄에 남아서 다음에 다시 시도한다. */
-        if(ev&&ev.id&&data.messages?.length) await ackEvent(ev.id);
+        /* 대화 → Effect(공개 포함) → **그 사건만** 소모 — 순서와 멱등은
+           runAutoBatch가 강제한다. 어느 저장이 실패해도 사건은 줄에 남고,
+           다음 부팅이 저장된 장부로만 이어서 한다(재호출 없음). */
+        await commitAutoTurn(ev,at,data);
       }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
       autoBusy.current=false;
     })();

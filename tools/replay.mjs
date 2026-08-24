@@ -449,7 +449,9 @@ export const fakeFetch = (replies) => {
       if (obsHit)
         text = JSON.stringify({ messages: [{ text: `그 ${obsHit[1]} 어디서 났어요?` }] });
       else if (ownHit && msgsText.includes("네 몫이다"))
-        text = JSON.stringify({ messages: [{ text: `${ownHit[1]}? 그냥 쓰던 거예요.` }] });
+        /* 회피 — 출처를 안 밝히고 딴청한다. 「그냥 쓰던 거예요」류의 정사
+           부정을 기본 정답으로 쓰지 않는다(그건 Canon이 잡을 거짓이다). */
+        text = JSON.stringify({ messages: [{ text: "그건 왜." }, { text: "커피나 마셔." }] });
       else {
         const A = [{ text: "오늘은 조용했어요. 애들도 얌전했고요." },
                    { text: "선생님 하루는 어땠어요. 밥은 챙겨 먹었고요?" }];

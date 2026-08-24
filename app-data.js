@@ -1217,6 +1217,30 @@ const markPartnerKnown=char=>{
    저장 트랜잭션(장부)에서만 여기 적히고, 다음 요청부터 payload.disclosed로
    실려 그 사실의 known_by가 넓어진다. 관측(봤다)과 공개(들었다)는 다른
    상태다 — 소유자가 회피한 턴에는 Effect가 없어 이 장부도 안 변한다. */
+/* ── 관전 응답의 원자적 반영 — 웹·앱 공용 엔진 (§8.5) ──
+   순서와 멱등을 코드로 강제하고, 저장은 어댑터가 한다. 이 엔진은 API를
+   모른다 — 재개는 저장된 장부로만 하므로 재호출이 원리적으로 없다.
+
+   순서: 말풍선 → Effect(공개 포함) → 사건 소모 → 장부 삭제.
+   대화가 저장 확인이 안 되면 Effect로 못 간다 — 화면에 말이 없는데
+   상태만 「아는 사람」이 되는 일이 없다. Effect가 안 남으면 사건을 안
+   지운다. 한 단계라도 거짓이 오면 그 자리에서 멈추고 장부를 남긴다.
+
+   어댑터 계약(웹은 finishBatch가 이 순서를 자체로 지키므로 이 엔진은
+   앱이 쓴다 — rules.ts로 건너간다): 전부 「이미 되어 있으면 성공」이고
+   성공 시 참을 준다.
+     saveMsg(m)      말풍선 하나 저장 — 같은 id는 두 번 안 붙는다
+     applyEffect(e)  Effect 하나 적용 — effect 장부(id) 멱등
+     ackEvent(id)    관전 사건 소모
+     dropBatch()     장부 삭제 */
+const runAutoBatch=async(b,A)=>{
+  if(!b)return true;
+  for(const m of b.messages||[]){ if(!(await A.saveMsg(m)))return false; }
+  for(const e of b.effects||[]){ if(!(await A.applyEffect(e)))return false; }
+  if(b.event_id&&!(await A.ackEvent(b.event_id)))return false;
+  return !!(await A.dropBatch());
+};
+
 const loadDisclosed=()=>{try{return JSON.parse(localStorage.getItem("null_disclosed"))||{}}catch(e){return{}}};
 const saveDisclosed=o=>{try{localStorage.setItem("null_disclosed",JSON.stringify(o));return true}catch(e){return false}};
 const applyDisclosure=e=>{
