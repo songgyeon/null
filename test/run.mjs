@@ -5057,20 +5057,60 @@ eq('시간표 단추는 peek보다 좁다',
   eq('모델 배치가 한 곳에 있다',
     ['writer', 'director', 'canon', 'character', 'finalizer'].filter(k =>
       !new RegExp(`^\\s*${k}:\\s*\\{ id: "claude-`, 'm').test(eng)), []);
-  eq('쓰는 쪽과 검사는 같은 급이다', (() => {
+  /* ── 쓰는 자리를 올렸다 ──
+     블라인드 평가에서 사용자가 고른 47개 중 38개가 상급 이상이 쓴 것이었다.
+     저비용 Writer에 그 결과물을 견본으로 줘서 흉내내게 하는 길은 실측으로
+     실패했다. 이제 쓰기·마무리가 상급이고, 저비용은 검사 둘에만 남는다. */
+  eq('쓰는 쪽과 마무리는 같은 급이다', (() => {
     const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
-    return id('writer') === id('canon') && id('writer') === id('character');
+    return id('writer') === id('finalizer');
+  })(), true);
+  eq('검사 둘은 저비용이고 쓰는 쪽과 다르다', (() => {
+    const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
+    return id('canon') === id('character') && id('canon') !== id('writer');
   })(), true);
   /* 「중요할 때만 위를 쓴다」가 계약인데 고르는 쪽이 위였다 —
      일반 턴마다 위를 부르고 있었다. 위를 쓰는 자리는 마무리 하나뿐이다.
      이 테스트가 옛 구조를 강제하고 있었으므로 같이 고친다. */
-  eq('마무리만 위를 쓴다', (() => {
+  /* 고르는 자리는 표에 남아 있지만 **기본 경로에서 안 불린다** — 지운
+     것이 아니라 실험 깃발(ENGINE_MODE=hybrid) 뒤로 내린 것이다. */
+  eq('고르는 자리는 저비용으로 남아 있다', (() => {
     const id = k => (eng.match(new RegExp(`${k}:\\s*\\{ id: "([^"]+)"`)) || [])[1];
-    return id('finalizer') !== id('writer')
-        && id('director') === id('writer')
-        && id('canon') === id('writer')
-        && id('character') === id('writer');
+    return id('director') === id('canon');
   })(), true);
+  /* ── 배선이 실험 깃발이 아니라 기본값이다 ──
+     env를 하나도 안 주면 solo다: 쓰기 한 번, 고르는 단계 없음. 옛 경로는
+     ENGINE_MODE=hybrid로 명시해야 나온다. 소스에 그 순서가 박혀 있다. */
+  eq('기본 경로가 solo다 — 고르는 단계가 없다', (() => {
+    const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+    return /: v === "hybrid" \? "hybrid" : "solo";/.test(wk3)
+      && /const soloNow = em === "solo";/.test(wk3)
+      && /if \(soloNow\) \{ picked = cands\[0\]; break; \}/.test(wk3);
+  })(), true);
+  eq('solo는 후보를 하나만 청한다', (() => {
+    const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+    return /mode === "auto" \|\| singleNow \|\| soloNow \? "one"/.test(wk3);
+  })(), true);
+  /* 관전 발견 갈래가 기본 경로에서도 돈다 — hybrid로만 두면 기본값이
+     바뀌는 순간 그 장면이 통째로 죽는다 */
+  eq('발견 갈래가 기본 경로에서도 돈다', (() => {
+    const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+    return /engineMode\(env\) === "solo" \|\| engineMode\(env\) === "hybrid"/.test(wk3);
+  })(), true);
+  /* 행동 규칙과 이번 턴 재료도 기본값이다 — 실험 깃발 뒤가 아니다 */
+  eq('행동 규칙이 기본으로 켜진다', (() => {
+    const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+    return /const selectedNow = !singleNow\s*\n\s*&& \(soloNow \|\| dialogueRuleset\(env\) === "selected-v1"\);/.test(wk3);
+  })(), true);
+  /* 예시 대사를 런타임 프롬프트에 넣는 경로가 없다 — 데이터는 평가용으로 보존 */
+  eq('워커에 예시 대사가 없다', (() => {
+    const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+    return /SELECTED_SAMPLES|examplesForTurn/.test(wk3);
+  })(), false);
+  eq('선택 대사는 평가용으로 남아 있다', (() => {
+    const g = JSON.parse(readFileSync(join(ROOT, 'test/selected-samples.json'), 'utf8'));
+    return [g.samples.length, g.note.includes('런타임이 읽지 않는다')];
+  })(), [36, true]);
   /* 이 엔진이 안 쓰기로 한 것들. G3 비교 전용 자리(pairWriter5)는 예외다 —
      운영 단계가 아니라 replay가 env로만 켜는 실험 팔이고, id도 MODELS의
      등록 항목을 재사용한다. 그 블록만 잘라내고 나머지에 같은 검사를 건다. */
@@ -5718,7 +5758,11 @@ eq('시간표 단추는 peek보다 좁다',
       const res = await worker.fetch(
         new Request('https://x/?k=열쇠', { method: 'POST', body: JSON.stringify(body),
           headers: { 'CF-Connecting-IP': '7.7.7.' + (++sceneIp) } }),
-        { ANTHROPIC_API_KEY: 'sk-테스트', ACCESS_KEY: '열쇠', CANDIDATE_MODE: 'one' });
+        /* 이 하네스는 **고르는 쪽의 투영**도 잰다 — 기본 경로(solo)에는
+           그 단계가 없으므로 옛 경로를 명시한다. 재는 것은 투영 규칙이고,
+           그 규칙은 두 경로가 같은 원본(stageFacts)을 쓴다. */
+        { ANTHROPIC_API_KEY: 'sk-테스트', ACCESS_KEY: '열쇠',
+          ENGINE_MODE: 'hybrid', CANDIDATE_MODE: 'one' });
       return { status: res.status, data: await res.json() };
     } finally { globalThis.fetch = realFetch; }
   };

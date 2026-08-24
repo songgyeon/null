@@ -63,7 +63,9 @@ async function main() {
   const items = taste.map(p => ({ label: p.label, blurb: p.blurb || "", body: p.body }));
 
   const key = FAKE ? "sk-fake" : KEY;
-  const env = { CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" };
+  /* 기본 경로가 solo(쓰기 한 번·고르기 없음)로 바뀌었으므로 옛 경로를
+     명시한다 — 이 도구의 정체는 hybrid-pair + golden 규칙이다 */
+  const env = { ENGINE_MODE: "hybrid", CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" };
   const calls = [];
 
   async function runOne(item, reqId) {

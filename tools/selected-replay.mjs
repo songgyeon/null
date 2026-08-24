@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/* ── selected-v1 replay — hybrid-pair + 말투 견본·턴 재료 ──
-   ENGINE_MODE는 hybrid(기본값). DIALOGUE_RULESET=selected-v1로 Writer에
-   [이번 턴 재료] 하나와 [말투 견본] 최대 셋을 붙이고, Director를 말맛
-   전담으로 돌린다. 호출 구조는 hybrid-pair 그대로다 — 일반 턴은 Writer
-   1회 + Director 1회, 중요 장면은 Writer·Canon·Character·Finalizer.
+/* ── 기본 경로 replay — 상급 Writer 한 번 + 행동 규칙·턴 재료 ──
+   깃발을 하나도 안 준다 — 운영이 실제로 도는 그 배선이다. Writer에
+   [이번 턴 재료] 하나와 행동 규칙을 붙인다. 호출은 일반 턴에 상급 Writer
+   한 번(고르는 단계 없음), 중요 장면에 Writer·Canon·Character·Finalizer,
+   관전 발견에 화자 순차 둘 + 소유자 정사 검사.
    **경로는 이 하나뿐이다.** 모델 대회를 다시 열지 않는다.
 
    항목:
@@ -13,7 +13,7 @@
 
    산출물(커밋 금지 — .gitignore의 replay-out* 패턴이 덮는다):
      answers.md   항목마다 상황·유저 입력·최종 대사·첫시도/재시도·
-                  견본 id·turn material·route·Effect·자동 검사 결과
+                  의도·turn material·route·Effect·자동 검사 결과
      attempts.md  재시도가 난 항목의 각 시도 원문·코드
      report.md    실측 usage 기반 수치
      trace/       턴별 원 trace JSON
@@ -34,9 +34,11 @@ const argOf = (name, dflt) => {
   return hit ? hit.split("=").slice(1).join("=") : dflt;
 };
 const has = name => process.argv.includes(`--${name}`);
-const die = msg => { console.error(`[selected] ${msg}`); process.exit(1); };
+const die = msg => { console.error(`[replay] ${msg}`); process.exit(1); };
 
-const ENV = { CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "selected-v1" };
+/* 운영 기본 경로 그대로다 — 깃발을 하나도 안 준다. 행동 규칙과 이번 턴
+   재료는 이제 기본값이고, 쓰는 자리는 상급 Writer 한 번이다. */
+const ENV = {};
 
 const lastUserOf = body => {
   const m = [...(body.history || [])].reverse().find(x => x.role === "user");
@@ -75,11 +77,9 @@ const AUTO_CHECKS = row => {
 };
 
 const fmtSelected = sel => {
-  if (!sel) return "  (selected-v1 기록 없음)";
-  const L = [`  의도: ${sel.intent || "(없음)"}`];
-  L.push(`  turn material: ${sel.material ? `${sel.material.kind} — ${sel.material.text}` : "(없음)"}`);
-  L.push(`  견본 id: ${(sel.sample_ids || []).length ? sel.sample_ids.join(", ") : "(없음)"}`);
-  return L.join("\n");
+  if (!sel) return "  (행동 규칙 기록 없음)";
+  return [`  의도: ${sel.intent || "(없음)"}`,
+    `  turn material: ${sel.material ? `${sel.material.kind} — ${sel.material.text}` : "(없음)"}`].join("\n");
 };
 
 async function main() {
@@ -149,7 +149,7 @@ async function main() {
     calls.push(row);
     writeFileSync(join(outDir, "trace", `A-${item.label}.json`), JSON.stringify(row.trace, null, 2));
     console.log(`${item.label} → ${r.status}${row.rounds ? ` · 재시도 ${row.rounds}` : ""}`
-      + (row.selected ? ` · ${row.selected.intent}/${(row.selected.sample_ids || []).length}견본` : ""));
+      + (row.selected ? ` · ${row.selected.intent}` : ""));
   }
 
   /* ── B층 — 연속 세션. 경로는 selected 하나뿐이다 ── */
@@ -210,10 +210,9 @@ async function main() {
     return decs.map(d => fmtOneDec(d, d.attempt ? `attempt ${d.attempt} ` : "")).join("\n\n");
   };
 
-  const ans = ["# selected-v1 — hybrid-pair + 말투 견본·턴 재료", "",
-    "Writer에 [이번 턴 재료] 하나와 [말투 견본] 최대 셋을 붙이고,",
-    "Director는 사실을 다시 판정하지 않고 말맛만 고른 결과다.",
-    "**견본은 고정 대사가 아니다** — 아래 대사는 전부 모델이 그 자리에서 쓴 것이다.", "",
+  const ans = ["# 기본 경로 — 상급 Writer + 행동 규칙·턴 재료", "",
+    "깃발 없이 운영이 실제로 도는 배선으로 굴린 결과다.",
+    "프롬프트에 예시 대사를 넣지 않는다 — 아래는 전부 모델이 그 자리에서 쓴 것이다.", "",
     "「설레는가 · 캐릭터가 맞는가 · 다음 말을 하고 싶은가」는 여기서 판정하지 않는다.", ""];
   for (const c of calls) {
     ans.push(`## ${c.label}`, "",
@@ -270,11 +269,11 @@ async function main() {
   const line = o => Object.entries(o).sort((a, b) => b[1] - a[1])
     .map(([c, n]) => `${c} ${n}`).join(" · ") || "없음";
 
-  const rep = ["# selected-v1 replay 보고", "",
+  const rep = ["# 기본 경로 replay 보고", "",
     RP.unknownModels.size ? `**INVALID — 단가를 모르는 모델: ${[...RP.unknownModels].join(", ")}**` : "",
     FAKE ? "**--fake 모드 — 모델 없이 하네스만 굴렸다.**" : "",
     "",
-    `- 경로: hybrid-pair + DIALOGUE_RULESET=selected-v1 (이 하나뿐)`,
+    `- 경로: 운영 기본값 (깃발 없음 — 상급 Writer 한 번, 고르는 단계 없음)`,
     `- 모델: ${models.join(", ")}`,
     `- 총 대화 턴: ${calls.length} (packet ${calls.filter(c => c.kind === "packet").length} · 세션 ${calls.filter(c => c.kind === "session").length})`,
     `- 성공: ${okCalls.length} · 실패: ${calls.length - okCalls.length}`,
