@@ -5159,7 +5159,8 @@ eq('시간표 단추는 peek보다 좁다',
   eq('고르는 쪽 꾸러미가 작다', (() => {
     const i = wk.indexOf('const decRaw = await callStage(env, meter, "director"');
     const box = wk.slice(i, i + 220);
-    return box.includes('DIRECTOR_RULES') && box.includes('content: packet')
+    return (box.includes('DIRECTOR_RULES') || box.includes('dirRules'))
+        && box.includes('content: packet')
         && !box.includes('system,');
   })(), true);
   eq('최근 대화만 넘긴다', /msgs\.slice\(-6\)/.test(wk), true);

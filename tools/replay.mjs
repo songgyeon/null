@@ -414,6 +414,9 @@ export const fakeFetch = (replies) => async (url, init) => {
        위 운영 Director 분기보다 먼저 가른다 — 문구가 겹친다. */
     text = JSON.stringify({ choice: msgsText.includes("후보 A는 코드 검사에서 탈락")
         ? "B" : "A", reason_codes: [], fact_id: null, rule_id: null });
+  else if (sys.includes("SELECT_A · SELECT_B · RETRY"))
+    text = JSON.stringify({ decision: msgsText.includes("후보 B") ? "SELECT_A" : "SELECT_A",
+                            reject_codes: { A: [], B: [] }, fact_id: null, rule_id: null });
   else if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
     text = JSON.stringify({ decision: msgsText.includes("후보 B") ? "A" : "ACCEPT",
                             reject_codes: {} });

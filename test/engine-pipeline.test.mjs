@@ -40,7 +40,10 @@ async function run(envExtra, body, replies) {
     sent.push(c);
     const sys = flatSys(c), msgs = flatMsgs(c);
     let text;
-    if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
+    if (sys.includes("SELECT_A · SELECT_B · RETRY"))
+      text = JSON.stringify({ decision: msgs.includes("후보 B") ? "SELECT_A" : "SELECT_A",
+        reject_codes: { A: [], B: [] }, fact_id: null, rule_id: null });
+    else if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다"))
       text = JSON.stringify({ decision: msgs.includes("후보 B") ? "A" : "ACCEPT", reject_codes: {} });
     else if (sys.includes("너는 이 세계의 사실만 본다") || sys.includes("이 사람이 이 사람다운지만 본다"))
       text = '{"problems":[]}';
@@ -1013,6 +1016,136 @@ const PROBE = { ...BASE,
   eq("비어 있지 않은 outDir은 거부한다", sh(`--fake --out=${out1}`) !== 0, true);
   eq("기본 산출물 이름이 gitignore 패턴에 덮인다",
     /replay-out\*\//.test(readFileSync(join(ROOT, ".gitignore"), "utf8")), true);
+}
+
+/* ══════════ 12. G5 golden-v1 — 행동 규칙 + Director 구조화 ══════════ */
+{
+  const gv1 = await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" }, BASE);
+  eq("golden-v1도 호출은 둘이다(Writer+Director)", stagesOf(gv1), ["writer", "director"]);
+  eq("golden-v1 Writer는 Haiku다", gv1.data.stages[0].model, "claude-haiku-4-5");
+  eq("golden-v1 Director는 Haiku다", gv1.data.stages[1].model, "claude-haiku-4-5");
+  eq("trace에 dialogue_ruleset이 기록된다", gv1.data.trace.dialogue_ruleset, "golden-v1");
+  eq("trace에 allCandidates가 기록된다", Array.isArray(gv1.data.trace.allCandidates), true);
+  eq("trace에 directorDecision이 기록된다", gv1.data.trace.directorDecision != null, true);
+  eq("golden Director는 SELECT_A/SELECT_B 중 하나를 돌려준다",
+    ["A", "B"].includes(gv1.data.trace.directorDecision.decision), true);
+
+  const goldenSys = flatSys(sent[1]);
+  eq("golden Director system에 SELECT_A가 있다", goldenSys.includes("SELECT_A"), true);
+  eq("golden Director system에 10개 코드가 있다",
+    ["FACT_BREAK", "KNOWLEDGE_LEAK", "INVENTED_EVENT", "INTENT_MISS",
+     "DIRECT_ANSWER_MISS", "KOREAN_BROKEN", "VOICE_BREAK",
+     "QUESTION_SPAM", "COUNSELOR_TONE", "REPEATS_RECENT"]
+      .every(c => goldenSys.includes(c)), true);
+
+  const writerSys = flatSys(sent[0]);
+  eq("golden Writer에 행동 원칙이 붙는다", writerSys.includes("[행동 원칙]"), true);
+  eq("golden Writer에 이재언 규칙이 붙는다(jaeeon 방)", writerSys.includes("[이재언]"), true);
+  eq("golden Writer에 민현 규칙은 안 붙는다(jaeeon 방)", writerSys.includes("[이민현]"), false);
+  eq("golden Writer에 단톡·관전 규칙은 안 붙는다(jaeeon 방)", writerSys.includes("[단톡·관전]"), false);
+  eq("golden Writer에 정사 — 공부방이 붙는다(chat+jaeeon)", writerSys.includes("[정사 — 공부방]"), true);
+
+  const gv1Min = await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" },
+    { ...BASE, room: "minhyun" });
+  const writerSysMin = flatSys(sent[0]);
+  eq("golden minhyun 방에 이민현 규칙이 붙는다", writerSysMin.includes("[이민현]"), true);
+  eq("golden minhyun 방에 이재언 규칙은 안 붙는다", writerSysMin.includes("[이재언]"), false);
+  eq("golden minhyun 방에 정사 — 공부방은 안 붙는다", writerSysMin.includes("[정사 — 공부방]"), false);
+
+  const gv1Grp = await run({ CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" },
+    { ...BASE, mode: "auto", room: "group" });
+  const writerSysGrp = flatSys(sent[0]);
+  eq("golden group에 이재언+이민현+단톡·관전이 모두 붙는다",
+    [writerSysGrp.includes("[이재언]"), writerSysGrp.includes("[이민현]"),
+     writerSysGrp.includes("[단톡·관전]")], [true, true, true]);
+  eq("golden group에 정사 — 공부방은 안 붙는다(auto 모드)", writerSysGrp.includes("[정사 — 공부방]"), false);
+}
+
+/* ══════════ 12.1 golden-v1은 기존 경로를 안 건드린다 ══════════ */
+{
+  const vanilla = await run({ CANDIDATE_MODE: "pair" }, BASE);
+  eq("DIALOGUE_RULESET 없으면 행동 원칙이 안 붙는다",
+    flatSys(sent[0]).includes("[행동 원칙]"), false);
+  eq("DIALOGUE_RULESET 없으면 Director에 SELECT_A가 없다",
+    flatSys(sent[1]).includes("SELECT_A"), false);
+  eq("DIALOGUE_RULESET 없으면 trace에 dialogue_ruleset이 없다",
+    vanilla.data.trace.dialogue_ruleset, undefined);
+
+  const oneNoGolden = await run({ CANDIDATE_MODE: "one" }, BASE);
+  eq("hybrid-one에 DIALOGUE_RULESET을 안 넣으면 규칙 없다",
+    flatSys(sent[0]).includes("[행동 원칙]"), false);
+
+  const singleNoGolden = await run({ ENGINE_MODE: "single" }, BASE);
+  eq("single에 golden-v1을 넣어도 single이 이긴다(singleNow 우선)",
+    stagesOf(singleNoGolden), ["single_writer"]);
+}
+
+/* ══════════ 12.2 readGoldenDecision 파서 검증 ══════════ */
+{
+  const rd = ENG.readGoldenDecision;
+  const ids = ["A", "B"];
+  eq("SELECT_A → A", rd('{"decision":"SELECT_A","reject_codes":{"A":[],"B":["VOICE_BREAK"]},"fact_id":null,"rule_id":null}', ids).decision, "A");
+  eq("SELECT_B → B", rd('{"decision":"SELECT_B","reject_codes":{},"fact_id":null,"rule_id":null}', ids).decision, "B");
+  eq("RETRY → RETRY", rd('{"decision":"RETRY","reject_codes":{"A":["FACT_BREAK"],"B":["FACT_BREAK"]},"fact_id":"gift.mug","rule_id":null}', ids).decision, "RETRY");
+  eq("RETRY의 reject_codes 보존", rd('{"decision":"RETRY","reject_codes":{"A":["FACT_BREAK"],"B":["INVENTED_EVENT"]},"fact_id":null,"rule_id":null}', ids).reject_codes.A[0], "FACT_BREAK");
+  eq("fact_id 보존", rd('{"decision":"SELECT_A","reject_codes":{},"fact_id":"gift.mug","rule_id":null}', ids).fact_id, "gift.mug");
+  eq("rule_id 보존", rd('{"decision":"SELECT_A","reject_codes":{},"fact_id":null,"rule_id":"minhyun.voice"}', ids).rule_id, "minhyun.voice");
+  eq("빈 입력은 RETRY", rd("", ids).decision, "RETRY");
+  eq("잘못된 JSON은 RETRY", rd("{broken", ids).decision, "RETRY");
+  eq("SELECT_C는 RETRY", rd('{"decision":"SELECT_C","reject_codes":{}}', ids).decision, "RETRY");
+  eq("ACCEPT는 golden에서 안 된다(RETRY)", rd('{"decision":"ACCEPT","reject_codes":{}}', ids).decision, "RETRY");
+}
+
+/* ══════════ 12.3 GOLDEN_REJECT_CODES 열 개 ══════════ */
+{
+  eq("GOLDEN_REJECT_CODES는 Set이다", ENG.GOLDEN_REJECT_CODES instanceof Set, true);
+  eq("정확히 열 개다", ENG.GOLDEN_REJECT_CODES.size, 10);
+  eq("FACT_BREAK이 있다", ENG.GOLDEN_REJECT_CODES.has("FACT_BREAK"), true);
+  eq("KNOWLEDGE_LEAK이 있다", ENG.GOLDEN_REJECT_CODES.has("KNOWLEDGE_LEAK"), true);
+  eq("INVENTED_EVENT가 있다", ENG.GOLDEN_REJECT_CODES.has("INVENTED_EVENT"), true);
+  eq("INTENT_MISS가 있다", ENG.GOLDEN_REJECT_CODES.has("INTENT_MISS"), true);
+  eq("DIRECT_ANSWER_MISS가 있다", ENG.GOLDEN_REJECT_CODES.has("DIRECT_ANSWER_MISS"), true);
+  eq("KOREAN_BROKEN이 있다", ENG.GOLDEN_REJECT_CODES.has("KOREAN_BROKEN"), true);
+  eq("VOICE_BREAK이 있다", ENG.GOLDEN_REJECT_CODES.has("VOICE_BREAK"), true);
+  eq("QUESTION_SPAM이 있다", ENG.GOLDEN_REJECT_CODES.has("QUESTION_SPAM"), true);
+  eq("COUNSELOR_TONE이 있다", ENG.GOLDEN_REJECT_CODES.has("COUNSELOR_TONE"), true);
+  eq("REPEATS_RECENT가 있다", ENG.GOLDEN_REJECT_CODES.has("REPEATS_RECENT"), true);
+}
+
+/* ══════════ 12.4 golden-v1.json은 runtime에 import되지 않는다 ══════════ */
+{
+  const workerSrc = readFileSync(join(ROOT, "worker.js"), "utf8");
+  eq("worker.js에 golden-v1.json import 없다", /golden-v1\.json/.test(workerSrc), false);
+  const appSrc = readFileSync(join(ROOT, "app.js"), "utf8");
+  eq("app.js에 golden-v1.json import 없다", /golden-v1\.json/.test(appSrc), false);
+}
+
+/* ══════════ 12.5 G5 CLI — golden-replay fake 전수 ══════════ */
+{
+  const { execSync } = await import("node:child_process");
+  const { mkdtempSync, readdirSync: rd, existsSync: ex } = await import("node:fs");
+  const os = await import("node:os");
+  const tmp = mkdtempSync(join(os.tmpdir(), "replay-golden-test-"));
+  const sh = args => {
+    try { execSync(`node tools/golden-replay.mjs ${args}`, { cwd: ROOT, stdio: "pipe", maxBuffer: 64e6 }); return 0; }
+    catch (e) { return e.status || 1; }
+  };
+  const out1 = join(tmp, "run1");
+  eq("golden fake 실행이 성공한다", sh(`--fake --out=${out1}`), 0);
+  const report = readFileSync(join(out1, "report.md"), "utf8");
+  eq("16턴이 다 돈다", /총 대화 턴: 16/.test(report), true);
+  const answers = readFileSync(join(out1, "answers.md"), "utf8");
+  eq("answers가 16항목 전부다", (answers.match(/^## A-/gm) || []).length, 16);
+  eq("answers에 후보 섹션이 있다", answers.includes("### 후보"), true);
+  eq("answers에 Director 섹션이 있다", answers.includes("### Director"), true);
+  eq("answers에 최종 대사 섹션이 있다", answers.includes("### 최종 대사"), true);
+  eq("attempts·trace가 있다", [ex(join(out1, "attempts.md")), rd(join(out1, "trace")).length], [true, 16]);
+  eq("키·헤더가 산출물에 없다", (() => {
+    for (const f of ["answers.md", "attempts.md", "report.md"])
+      if (/sk-ant|x-api-key|api03/i.test(readFileSync(join(out1, f), "utf8"))) return f;
+    return "깨끗";
+  })(), "깨끗");
+  eq("비어 있지 않은 outDir은 거부한다", sh(`--fake --out=${out1}`) !== 0, true);
 }
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);

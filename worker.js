@@ -163,6 +163,12 @@ function engineMode(env) {
        : v === "single5" ? "single5"
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku" : "hybrid";
 }
+/* G5 — 행동 규칙 프로필. hybrid-pair 구조 자체는 그대로고, Writer에 행동
+   규칙을 얹고 Director의 판정 형식을 구조화한다. 운영 기본값은 빈 문자열
+   (규칙 없음)이다. replay 도구가 env로 켠다. */
+function dialogueRuleset(env) {
+  return String((env && (env.DIALOGUE_RULESET || env.dialogue_ruleset)) || "").trim().toLowerCase();
+}
 /* staged의 anchor 사유. **코드가 정한다** — 모델이 판단하지 않고, replay
    하네스가 packet 순서에서 계산해 env로 실어 보낸다. 허용 값은 셋뿐이다.
    캐시 hit/miss·cache_read_input_tokens·한 시간 경과는 조건이 아니다 —
@@ -3967,6 +3973,134 @@ function single5Rules(mode, room) {
   return parts.join("\n\n");
 }
 
+/* ── G5: golden-v1 행동 규칙 ──
+   hybrid-pair Writer에 붙는 행동 규칙이다. 호출 구조(후보 2개·Director 1회)는
+   그대로고, Writer가 규칙을 지키고 Director가 규칙 기반으로 판정한다.
+   single5Rules와 같은 투영 — 재언만 아는 과거가 민현·단톡·관전에 새지 않게. */
+const GOLDEN_COMMON = `[행동 원칙]
+- 코드가 제공한 사실만 이미 일어난 사실로 사용한다.
+- 정보가 없으면 과거 행동·장소·방문·소리·선물 출처를 만들어 채우지 않는다.
+- 모르는 것은 모르는 상태로 둔다.
+- 유저 질문의 핵심에 먼저 답한다.
+- 반문은 답한 뒤에만 가능하다.
+- 걱정·선물·호의를 비꼼이나 시비로 밀어내지 않는다.
+- 짧은 대사라도 조사·높임법·주어·목적어의 관계가 무너지지 않게 한다.
+- 자연스러운 단답은 허용하지만 중간 절에서 끊긴 비문은 금지한다.
+- 유저가 하지 않은 행동·약속·감정을 사실처럼 확정하지 않는다.
+- 최근 대화에서 이미 물어본 질문을 반복하지 않는다.
+- 질문만 연속해서 답하지 않는다.
+- 유저의 심리를 상담사처럼 해설하지 않는다.
+- 장면 목적이 있으면 주변 사건을 새로 만들기 전에 그 목적부터 수행한다.
+- 숨기고 싶으면 말수를 줄이거나 화제를 옮긴다.
+- 숨기기 위해 코드가 준 사실과 반대되는 새 사실을 만들지는 않는다.`;
+const GOLDEN_JAEEON = `[이재언]
+- 건조함은 짧게 말하고 감정을 자세히 설명하지 않는 방식이다.
+- 건조함을 비꼼·추궁·호의 거절로 표현하지 않는다.
+- 걱정이나 선물을 받으면 사실에 먼저 답한다.
+- 감정은 기억하고 있던 세부·짧은 제안·이미 하고 있는 행동으로 드러낸다.
+- 유저의 감정을 심리 상담처럼 분석하지 않는다.
+- 관계 단계보다 갑자기 적극적이거나 다정해지지 않는다.
+- 먼저 밝히지 않는 것과 사실을 모른다고 부정하는 것을 구분한다.`;
+const GOLDEN_CANON_JAEEON = `[정사 — 공부방]
+- 공부방은 유저의 어머니가 운영했다.
+- 이재언은 그 공부방에 다닌 사람이며 운영한 사람이 아니다.
+- 이재언은 유저를 기억한다. 공개 상태에 따라 말하는 양만 달라진다.`;
+const GOLDEN_MINHYUN = `[이민현]
+- 장난·반문·질투는 직접 질문을 회피하는 수단이 아니다.
+- 관계를 직접 묻는 질문에는 실제 감정이나 이유를 답한다.
+- 질투할 상황에서 아무렇지 않은 한마디로 끝내지 않는다.
+- 걱정할 때 질문만 반복하지 않고 자신이 하려는 행동을 같이 말한다.
+- 유저의 행동을 강제하거나 존재하지 않는 약속을 만들지 않는다.
+- 재언과 함께 있는 장면에서는 재언의 말을 읽고 다시 반응한다.
+- 유저에게는 자연스러운 존댓말을 유지한다.
+- 존댓말과 반말 어미를 한 문장 안에서 깨뜨리지 않는다.`;
+const GOLDEN_MULTI = `[단톡·관전]
+- 두 사람이 유저에게 따로 답하는 병렬 독백을 만들지 않는다.
+- 서로의 발화를 읽고 다음 발화가 이어져야 한다.
+- 일반 단톡마다 두 사람을 무조건 등장시키지 않는다.
+- requiredSpeakers가 있을 때만 필요한 화자를 모두 등장시킨다.
+- 텍스트 채팅에서 실제로 들을 수 없는 웃음소리·방 안 소리·방문 장면을 만들지 않는다.
+- 물건을 처음 발견한 인물은 물건이나 출처에 반응한다.
+- 출처를 모르는 인물은 준 사람을 단정하지 않는다.
+- 출처를 아는 인물은 물건의 나이·소유자·전달 방향을 거짓으로 뒤집지 않는다.
+- 민현은 재언의 새 물건을 발견하면 비교적 직접적으로 출처를 확인한다.
+- 재언은 민현의 새 물건을 발견하면 이미 봤다는 사실을 말하거나 돌려서 출처를 확인한다.`;
+function goldenV1Rules(mode, room) {
+  const parts = [GOLDEN_COMMON];
+  const both = mode === "auto" || room === "group" || room === "health";
+  if (both || room === "jaeeon") parts.push(GOLDEN_JAEEON);
+  if (both || room === "minhyun") parts.push(GOLDEN_MINHYUN);
+  if (both) parts.push(GOLDEN_MULTI);
+  if (mode === "chat" && room === "jaeeon") parts.push(GOLDEN_CANON_JAEEON);
+  return parts.join("\n\n");
+}
+
+/* G5 Director reject codes — 열 개가 전부다. 목록에 없는 코드는 파싱 실패다 */
+const GOLDEN_REJECT_CODES = new Set([
+  "FACT_BREAK", "KNOWLEDGE_LEAK", "INVENTED_EVENT",
+  "INTENT_MISS", "DIRECT_ANSWER_MISS", "KOREAN_BROKEN",
+  "VOICE_BREAK", "QUESTION_SPAM", "COUNSELOR_TONE", "REPEATS_RECENT",
+]);
+
+const GOLDEN_DIRECTOR_RULES = `[사실이 먼저다]
+코드가 준 [이번 턴 사실]과 [성격 규칙]을 어기는 후보는 말맛이 좋아도 고르지 않는다.
+둘 다 어기면 RETRY다. 고쳐서 내보내지 않는다 — 너는 한 글자도 쓰지 않는다.
+
+너는 두 사람이 사는 세계의 연출자다. 대사를 쓰지 않는다 — 고르기만 한다.
+후보를 고치거나, 둘을 합치거나, 새로 쓰지 않는다.
+A의 대사를 고르면서 B의 Effect를 가져오지 않는다.
+
+[판정 우선순위 — 위가 먼저다]
+1. 정사와 이번 턴 Fact
+2. 인물별 지식 범위
+3. 이번 장면의 필수 목적
+4. 유저 질문에 실제로 답했는가
+5. 자연스러운 한국어와 명확한 지시 대상
+6. 캐릭터 말투와 관계 거리
+7. 최근 반응 반복 여부
+8. 대화의 재미와 감정
+
+[탈락 사유 — 이 코드만 쓴다]
+FACT_BREAK — 이번 턴 Fact과 직접 충돌
+KNOWLEDGE_LEAK — 해당 인물이 모르는 정보를 사용
+INVENTED_EVENT — 코드가 주지 않은 과거 행동·장소·선물·방문을 사실처럼 만듦
+INTENT_MISS — 장면의 필수 목적을 무시
+DIRECT_ANSWER_MISS — 유저의 직접 질문에 답하지 않음
+KOREAN_BROKEN — 조사·높임법·주어·목적어 관계 오류
+VOICE_BREAK — 캐릭터 말투·관계 거리 이탈
+QUESTION_SPAM — 질문만 연속
+COUNSELOR_TONE — 상담사 해설 톤
+REPEATS_RECENT — 최근 대화와 같은 내용 반복
+
+출력은 이 모양 하나뿐이다. 다른 말은 붙이지 않는다.
+{"decision":"SELECT_A","reject_codes":{"A":[],"B":["VOICE_BREAK"]},"fact_id":null,"rule_id":null}
+
+decision은 SELECT_A · SELECT_B · RETRY 중 하나다.
+reject_codes에는 위 열 개의 코드만 쓴다.
+fact_id — 사실 관련 탈락이면 해당 fact_id. 아니면 null.
+rule_id — 성격 관련 탈락이면 해당 rule_id. 아니면 null.
+둘 다 부족할 때만 RETRY다 — 더 나은 쪽이 있으면 그쪽을 고른다.
+둘 다 문제인데 덜 나쁜 후보를 선택하지 않는다 — 둘 다 문제면 RETRY다.`;
+
+function readGoldenDecision(raw, ids) {
+  const list = Array.isArray(ids) ? ids : ["A", "B"];
+  const no = why => ({ decision: "RETRY", reject_codes: {}, why, fact_id: null, rule_id: null });
+  const body = carveJson(String(raw || "").replace(/```json|```/g, "").trim());
+  if (!body) return no("JSON이 아니다");
+  let j;
+  try { j = JSON.parse(body); } catch (e) { return no("JSON을 못 읽었다"); }
+  const d = String(j && j.decision || "").toUpperCase();
+  if (d === "RETRY") return { decision: "RETRY",
+    reject_codes: (j && j.reject_codes) || {},
+    fact_id: (j && j.fact_id) || null,
+    rule_id: (j && j.rule_id) || null, why: "" };
+  const map = {};
+  list.forEach(id => { map[`SELECT_${id}`] = id; });
+  if (!map[d]) return no(`고를 수 없는 판정: ${d || "(빈칸)"}`);
+  return { decision: map[d], reject_codes: (j && j.reject_codes) || {},
+    fact_id: (j && j.fact_id) || null, rule_id: (j && j.rule_id) || null, why: "" };
+}
+
 const DIRECTOR_RULES = `[사실이 먼저다]
 코드가 준 [이번 턴 사실]과 [성격 규칙]을 어기는 후보는 말맛이 좋아도 고르지 않는다.
 둘 다 어기면 RETRY다. 고쳐서 내보내지 않는다 — 너는 한 글자도 쓰지 않는다.
@@ -5499,15 +5633,23 @@ export default {
       /* 탈락한 시도의 원문·코드 — trace 전용(attempts 기록용). 운영에서는
          traceOn이 꺼져 있어 아무것도 안 쌓인다. */
       const rejectedLog = [];
+      /* golden-v1 replay가 answers.md에 후보 A·B와 Director 결정을 적으려면
+         모든 후보의 원문과 Director 판정을 trace에 담아야 한다. 운영에서는
+         traceOn이 꺼져 있어 아무 부담이 없다. */
+      const allCandsLog = [];
+      let directorDecisionLog = null;
       const traceOf = picked => !traceOn ? {} : { trace: {
         engine_mode: engineMode(env),
         candidate_mode: cMode,
+        ...(goldenNow ? { dialogue_ruleset: "golden-v1" } : {}),
         anchor_reason: singleNow && anchorWhy ? anchorWhy : null,
         ...(anchorDeclined ? { anchor_declined: anchorWhy } : {}),
         writer_model: (stageModel(env, writerStage) || {}).id,
         route: { tier, reason: routed.reason },
         turnContext: turnCtx,
         ...(rejectedLog.length ? { rejected: rejectedLog } : {}),
+        ...(allCandsLog.length ? { allCandidates: allCandsLog } : {}),
+        ...(directorDecisionLog ? { directorDecision: directorDecisionLog } : {}),
         selectedCandidate: picked
           ? { id: picked.id, originalMessages: picked.originalMessages } : null,
       } };
@@ -5536,8 +5678,14 @@ export default {
          붙는다 — 캐시 지점 네 개는 이미 다 썼고, 이 장은 실험 동안만 있다.
          방별 투영은 single5Rules가 한다 — 재언만 아는 과거(공부방·기억)가
          민현·단톡·관전 Writer에 새지 않게 정사 절은 재언 1:1에만 붙는다. */
+      /* golden-v1 행동 규칙은 hybrid-pair Writer에만 붙는다.
+         single5와 같은 투영(방별)·같은 비변이 복사(push 금지). */
+      const goldenNow = !singleNow && dialogueRuleset(env) === "golden-v1";
       const writerSystem = single5Now
-        ? [...system, { type: "text", text: single5Rules(mode, room) }] : system;
+        ? [...system, { type: "text", text: single5Rules(mode, room) }]
+        : goldenNow
+        ? [...system, { type: "text", text: goldenV1Rules(mode, room) }]
+        : system;
       let picked = null, lastCodes = [];
       for (let attempt = 1; attempt <= RETRY_MAX + 1 && !picked; attempt++) {
         /* parallel은 두 번 나란히 부른다. 한쪽이 실패하면 그건 진짜 실패다 —
@@ -5620,6 +5768,7 @@ export default {
           cand.give = pickGive(cand.give, place, placeItemOwned, room);
           cand.signals = softSignals(messages, recentForDirector);
           cands.push(cand);
+          if (traceOn) allCandsLog.push({ attempt, id, originalMessages: parsed.messages });
         });
         if (fell.length) lastCodes = fell;
         if (!cands.length) { console.log(`[NULL] 후보가 다 떨어졌다 — ${lastCodes.join(",")}`); continue; }
@@ -5709,9 +5858,13 @@ export default {
         }
 
         const packet = directorPacket(sceneCtx, cands);
-        const decRaw = await callStage(env, meter, "director", DIRECTOR_RULES,
+        const dirRules = goldenNow ? GOLDEN_DIRECTOR_RULES : DIRECTOR_RULES;
+        const decRaw = await callStage(env, meter, "director", dirRules,
           [{ role: "user", content: packet }], 300, attempt, tier, "");
-        const dec = readDecision(decRaw, cands.map(c => c.id));
+        const dec = goldenNow
+          ? readGoldenDecision(decRaw, cands.map(c => c.id))
+          : readDecision(decRaw, cands.map(c => c.id));
+        if (traceOn) directorDecisionLog = dec;
         console.log(`[NULL] 고름 ▶ ${dec.decision}${dec.why ? ` (${dec.why})` : ""}`
           + ` ${JSON.stringify(dec.reject_codes).slice(0, 200)}`);
         if (dec.decision === "RETRY") {
@@ -5809,6 +5962,8 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
          single5Rules,
          directorPacket, readDecision, DIRECTOR_RULES,
+         /* G5 — golden-v1 행동 규칙 */
+         dialogueRuleset, goldenV1Rules, GOLDEN_DIRECTOR_RULES, readGoldenDecision, GOLDEN_REJECT_CODES,
          /* G3 — sonnet5-pair-haiku */
          S5PAIR_DIRECTOR_RULES, s5DirectorPacket, readS5Choice,
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
