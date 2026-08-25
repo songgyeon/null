@@ -293,7 +293,9 @@ console.log("── 아직 학교에서 만나기 전 ──");
 {
   /* 처음부터 교생인 걸 아는 게 아니다. 학교에서 만난 뒤부터 안다.
      그 전까지는 과거의 만남이 유저에 대해 아는 전부다. */
-  const RULE = "처음부터 교생인 걸 아는 게 아니라";
+  /* 같은 문장이 세계관(늘 실림)에도 있다. 여기서 재는 것은 **조건부로
+     붙는 덩어리** — 제목으로 가른다. */
+  const RULE = "## [아직 학교에서 만나기 전]";
   const sentOf = async (body) => {
     let out = "";
     const realFetch = globalThis.fetch;
@@ -336,7 +338,8 @@ console.log("── 아직 학교에서 만나기 전 ──");
   const src = readFileSync(join(ROOT, "worker.js"), "utf8");
   eq("문장이 그대로 있다", src.includes(
     "처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다."), true);
-  eq("유저가 먼저 꺼내면 예외다", src.includes("유저가 먼저 언급할 때는 예외다."), true);
+  eq("세계관에도 같은 규칙이 있다", src.includes(
+    "학교가 아닌 장소에서 세계가 시작될 경우 유저를 \"선생님\"이라고 부르지 않는다."), true);
 }
 
 console.log("── 민현 행동축 ──");

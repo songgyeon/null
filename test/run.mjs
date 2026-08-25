@@ -1453,7 +1453,8 @@ eq('생성된 파일이라고 적어둔다',
      무게로 서야 이긴다. 학교에서 만나면 그 덩어리가 사라진다. */
   const sysOf = (room, sm) => ENG.buildSystem('chat', room, '연', null, [], null,
     null, null, null, null, 3, '', sm).map(b => b.text).join('\n');
-  const YET = "처음부터 교생인 걸 아는 게 아니라";
+  /* 같은 문장이 세계관(늘 실림)에도 있다 — 여기서 재는 것은 조건부 덩어리다 */
+  const YET = "## [아직 학교에서 만나기 전]";
   eq('아직 안 만났으면 고정부에 있다',
     sysOf('minhyun', { jaeeon: false, minhyun: false }).includes(YET), true);
   eq('학교에서 만나면 사라진다',
@@ -1473,6 +1474,13 @@ eq('생성된 파일이라고 적어둔다',
   eq('문장이 그대로 있다', ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null,
     null, null, 3, '', { jaeeon: false, minhyun: false }).map(b => b.text).join('').includes(
     "처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다. 그 전까지는 과거의 만남이 유저에 대해 아는 전부다. 따라서 오프닝부터 학교에 대해 언급하거나 '선생님'이라고 부르지 않는다. 유저가 먼저 언급할 때는 예외다."), true);
+  /* 세계관의 호칭 절에도 같은 규칙이 있다 — 이쪽은 늘 실린다 */
+  eq('세계관 호칭 절이 그대로다', (() => {
+    const w = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null,
+      null, null, 3, '', null)[0].text;
+    return w.includes('학교가 아닌 장소에서 세계가 시작될 경우 유저를 "선생님"이라고 부르지 않는다.')
+      && w.includes('한 번 부른 이후에는 자연스럽게 부르면 된다.');
+  })(), true);
 
   /* ── 학교에서 만난 뒤부터 교생인 걸 안다 ──
      찍는 자리가 둘이다: 학교 안 자리에서 마주 앉을 때, 그리고 그 사람이
