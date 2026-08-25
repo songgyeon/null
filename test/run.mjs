@@ -1797,7 +1797,7 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
    민현이 수다스러운 판에서 재언 방의 D-일차가 같이 탔고, 첫날 아침 8시 47분에
    이미 37일째였다. 그래서 구조를 뗐다.
    이제 시각·D-일차·요일·도장·재회가 전부 이 시계 하나에서 나온다:
-     리얼 1:1 · 스피드 1:4 · 게임 오전 8시 출발 · 현실 7.5일에 게임 30일 */
+     리얼 1:1 · 스피드 1:4 · 켠 그 시각에서 출발 · 현실 7.5일에 게임 30일 */
 const CLK = (dev) => new Function('__G',
   'const NULL_DEV=__G.NULL_DEV, localStorage=__G.localStorage;'
   + web.slice(web.indexOf('const ENROLL_DAYS'), web.indexOf('/* ── 이름이 불린 횟수 ──'))
@@ -1819,12 +1819,19 @@ const CLK = (dev) => new Function('__G',
   const s12 = at(12 * 60 * 1000);
   s12.msgs.jaeeon = Array.from({ length: 150 }, () => ({ ts: Date.now(), sender: 'char' }))
     .concat(s12.msgs.jaeeon);
-  eq('현실 12분 · 150줄 → 첫날 08:4x · day 0 · D-30',
-    [D.worldNow().getHours(), D.worldNow().getMinutes() >= 45, D.worldDaysOf(s12), D.daysLeft(s12)],
-    [8, true, 0, 30]);
+  /* 세계는 **켠 그 시각**에서 출발한다. 전에는 첫날을 무조건 여덟 시로
+     옮겨놓아서, 스피드 모드의 첫 자리가 늘 아침(후문 골목)이었다 */
+  eq('출발 자리가 첫 말풍선 그 시각이다',
+    Math.abs(D.worldStart().getTime() - (Date.now() - 12 * 60 * 1000)) < 2000, true);
+  eq('현실 12분 · 150줄 → 세계로 48분 · day 0 · D-30',
+    [Math.round((D.worldNow() - D.worldStart()) / 60000), D.worldDaysOf(s12), D.daysLeft(s12)],
+    [48, 0, 30]);
   const s6 = at(6 * 3600 * 1000);
-  eq('현실 6시간 → 다음 날 08:00 · day 1 · D-29',
-    [D.worldNow().getHours(), D.worldDaysOf(s6), D.daysLeft(s6)], [8, 1, 29]);
+  /* 여섯 시간이 스물네 시간 — 하루 뒤 같은 시각이다. 벽시계 숫자로 재면
+     서머타임 경계에서 한 시간 어긋나므로 흐른 폭으로 잰다 */
+  eq('현실 6시간 → 세계로 하루 · day 1 · D-29',
+    [Math.round((D.worldNow() - D.worldStart()) / 3600000), D.worldDaysOf(s6), D.daysLeft(s6)],
+    [24, 1, 29]);
   /* 앱을 닫아둔 시간도 흐른다 — 「당신이 말하지 않아도 세계는 돌아갑니다」 */
   const s2d = at(2 * 864e5);
   eq('닫아둔 현실 이틀 → 게임 여드레', [D.worldDaysOf(s2d), D.daysLeft(s2d)], [8, 22]);
@@ -1921,11 +1928,20 @@ const CLK = (dev) => new Function('__G',
   const anchor = Date.now() - 7 * 3600 * 1000;
   F.setWorldAt(anchor);
   const early = anchor + 15 * 60 * 1000;          // 십오 분째에 찍힌 말
-  eq('십오 분째 말풍선은 아홉 시다', [F.gameAt(early).getHours(), F.gameAt(early).getMinutes()], [9, 0]);
-  eq('말풍선도 번역돼 찍힌다', F.fmtClock(early), '오전 9:00');
-  /* 앵커보다 먼저 찍힌 ts는 여덟 시에 멈춘다 — 음수로 거슬러 올라가지 않는다 */
-  eq('앵커 앞은 여덟 시에 멈춘다',
-    [F.gameAt(anchor - 3600 * 1000).getHours(), F.gameAt(anchor - 3600 * 1000).getMinutes()], [8, 0]);
+  /* 켠 시각에서 출발하므로 십오 분째는 앵커 + 한 시간이다 */
+  eq('십오 분째 말풍선은 한 시간 뒤다',
+    Math.round((F.gameAt(early).getTime() - anchor) / 60000), 60);
+  /* 화면에 찍히는 글자도 번역된 시각이다 — 리얼 모드로 그 세계 시각을
+     그대로 찍어 견준다(같은 입력을 두 번 넣으면 늘 같아서 자가 안 된다) */
+  eq('말풍선도 번역돼 찍힌다', (() => {
+    const world = F.gameAt(early).getTime();
+    const spoken = F.fmtClock(early);
+    F.saveMode('real'); const plain = F.fmtClock(world); F.saveMode('speed');
+    return [spoken, spoken === plain];
+  })(), [F.fmtClock(early), true]);
+  /* 앵커보다 먼저 찍힌 ts는 앵커에 멈춘다 — 음수로 거슬러 올라가지 않는다 */
+  eq('앵커 앞은 앵커에 멈춘다',
+    F.gameAt(anchor - 3600 * 1000).getTime(), F.gameAt(anchor).getTime());
   /* 「오늘」도 세계의 오늘이다 — 첫날의 말은 이제 세계의 어제다 */
   eq('첫날 말풍선은 세계의 어제다', F.isToday(early), false);
   eq('지금 찍힌 말은 오늘이다', F.isToday(Date.now()), true);

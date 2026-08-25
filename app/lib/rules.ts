@@ -43,7 +43,7 @@ const ENROLL_DAYS = 30;
 
      리얼      현실 1시간 = 게임 1시간
      스피드    현실 1시간 = 게임 4시간
-     출발      게임 오전 8시 · 현실 6시간 뒤 다음 날 8시 · 현실 7.5일에 게임 30일
+     출발      켠 그 시각 · 현실 6시간 뒤 같은 시각 하루 뒤 · 현실 7.5일에 게임 30일
 
    ── 말풍선은 시간에 손대지 않는다 ──
    한때 쌓인 대화를 날로 셌다(네 마디 = 하루). 그러면 인물이 두 줄로 답하느냐
@@ -92,7 +92,12 @@ const firstTsOf=store=>Object.values((store&&store.msgs)||{}).flat()
      worldDays()  worldNow - worldStart를 하루로 나눈 것
    개발 오프셋을 gameAt에 넣으면 과거 말풍선 시각까지 통째로 움직이고,
    일차 계산에서는 시작과 지금 양쪽에 들어가 상쇄돼 버린다. 지금에만 더한다. */
-const SPEED_START_HOUR=8;   // 여덟 시 출발 — 출근 시각이라 세계가 열려 있다
+/* ── 세계는 접속한 그 시각에서 출발한다 ──
+   전에는 첫날을 무조건 여덟 시로 옮겨놓고 시작했다(SPEED_START_HOUR).
+   그러면 스피드 모드의 첫 자리가 **늘 아침**이라, 오프닝 여섯 자리 중
+   후문 골목 하나만 나왔다. 밤에 켠 사람의 세계가 아침이 되는 것도 이상하다.
+   지금은 켠 시각 그대로에서 출발해 거기서부터 네 배로 흐른다 —
+   비율만 세계의 것이고 출발 자리는 현실의 것이다. */
 const SPEED_RATE=4;         // 실제 1분이 게임 4분. 진짜 하루가 게임 나흘이다
 let WORLD_ANCHOR=0;         // 첫 말풍선의 현실 epoch
 let DEV_SKEW=0;             // 개발 전용 시간 이동(ms). 배포판에서는 늘 0
@@ -101,10 +106,9 @@ const gameAt=ts=>{
   const t=Number(ts)||Date.now();
   if(!speedOn())return new Date(t);
   const start=WORLD_ANCHOR||Date.now();
-  const a=new Date(start); a.setHours(SPEED_START_HOUR,0,0,0);
-  return new Date(a.getTime()+Math.max(0,t-start)*SPEED_RATE);
+  return new Date(start+Math.max(0,t-start)*SPEED_RATE);
 };
-/* 세계가 출발한 자리. 스피드면 첫날 오전 8시, 리얼이면 첫 말풍선 그 시각 */
+/* 세계가 출발한 자리. 스피드든 리얼이든 첫 말풍선 그 시각이다 */
 const worldStart=()=>gameAt(WORLD_ANCHOR||Date.now());
 /* 세계가 보는 지금. 잠·시간표·자리 여는 시각·요일·도장이 전부 이걸 본다 */
 const worldNow=()=>new Date(gameAt(Date.now()).getTime()+DEV_SKEW);
@@ -1533,7 +1537,6 @@ return {
   saveMode,
   speedOn,
   firstTsOf,
-  SPEED_START_HOUR,
   SPEED_RATE,
   WORLD_ANCHOR,
   DEV_SKEW,
@@ -1786,7 +1789,6 @@ export const {
   saveMode,
   speedOn,
   firstTsOf,
-  SPEED_START_HOUR,
   SPEED_RATE,
   WORLD_ANCHOR,
   DEV_SKEW,
