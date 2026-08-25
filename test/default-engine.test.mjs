@@ -143,13 +143,26 @@ console.log("── 재시도 계약 ──");
     [...new Set(stagesOf(r2))].sort(), ["canon", "character", "writer"]);
   eq("실패 응답에 Effect가 없다", (r2.data.effects || []).length, 0);
   eq("실패해도 장면 사유는 살아 있다", r2.data.trace.route.reason, "memory_reveal");
-  /* 말투 불만으로는 재시도하지 않는다 — 사람 검사가 아예 안 돈다 */
-  /* 말투 문제도 이제 탈락이다 — 검사를 달았으면 결과에 영향이 있어야 한다 */
+  /* ── 말투 탈락은 중요 장면에서만 ──
+     일반 턴은 후보가 하나뿐이라 말투 한 건에 전멸하고, 재시도가 한 번이라
+     두 번째도 걸리면 502다. 사람 검사는 계속 돌고 판정도 남지만, 일반
+     턴에서 그것만으로 화면에 아무것도 못 내보내지는 않는다. */
   const badVoice = JSON.stringify({ problems: [{ candidate: "A", critic: "character",
     code: "VOICE_BREAK", rule_id: "minhyun.ask.stops_at_two" }] });
-  const r3 = await run({}, N01, { character: [badVoice] });
-  eq("일반 턴의 말투 탈락도 다시 쓴다",
-    stagesOf(r3).filter(x => x === "writer").length, 2);
+  const r3 = await run({}, N01, { character: [badVoice, badVoice] });
+  eq("일반 턴의 말투 탈락은 다시 쓰지 않는다",
+    stagesOf(r3).filter(x => x === "writer").length, 1);
+  eq("그래도 화면에는 나간다", r3.status, 200);
+  eq("사람 검사는 돌고 판정도 남는다",
+    [stagesOf(r3).filter(x => x === "character").length,
+     JSON.stringify(r3.data.trace.criticNotes || []).includes("VOICE_BREAK")],
+    [1, true]);
+  /* 중요 장면에서는 그대로 탈락이다 — 두 번 다 걸리면 502 */
+  const r4 = await run({}, C01, { character: [badVoice] });
+  eq("중요 장면의 말투 탈락은 다시 쓴다",
+    stagesOf(r4).filter(x => x === "writer").length, 2);
+  eq("중요 장면에서 두 번 다 말투면 502다",
+    (await run({}, C01, { character: [badVoice, badVoice] })).status, 502);
 }
 
 console.log("── Canon 판정의 한계 ──");

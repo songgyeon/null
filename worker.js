@@ -5443,7 +5443,7 @@ export default {
         const wiring = `${em} · 일반 턴 ${oneCall ? 1 : 2}호출`
           + `${em === "gpt41" || em === "solo" ? " (고르는 단계 없음)" : ""}`;
         /* 중요 장면에 남은 검사가 몇인지도 적는다 — 기본 경로는 정사 하나다 */
-        const critics = em === "gpt41" ? "정사·사람 2 (모든 턴)"
+        const critics = em === "gpt41" ? "정사·사람 2 (모든 턴 · 말투 탈락은 중요 장면만)"
           : em === "single" || em === "single5" ? "없음" : "정사·사람 2 (중요 장면만)";
         return new Response(
           ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
@@ -6703,12 +6703,22 @@ export default {
              사람이 없으므로 사람 문제도 탈락이다 — 안 그러면 Character 검사가
              결과에 아무 영향이 없는 채로 돌기만 한다. 운영 기본에는 이 깃발이
              없고, 있을 때도 검사가 대사를 대신 쓰지 않는다. */
-          /* 기본 경로에는 사람 검사가 없으므로 탈락 사유도 정사뿐이다.
-             마무리 없이 옛 배선을 재보는 replay에서는 고칠 사람이 없으니
-             사람 문제도 탈락으로 센다(그러지 않으면 그 검사가 결과에 아무
-             영향 없이 돌기만 한다). */
+          /* ── 말투로 후보를 지우는 것은 중요 장면에서만 ──
+             검사 둘을 모든 턴에 달았더니 일반 턴에서 답이 아예 안 왔다.
+             기본 경로는 후보가 하나뿐이라 검사 한 건이면 전멸이고, 재시도는
+             한 번이라 두 번째도 걸리면 502다. 실측(중요 장면 22회)에서
+             유일한 후보가 지워진 것이 9회 — 41%다. 그중 절반이 말투였다.
+
+             그래서 일반 턴에서는 사실(정사)만 탈락 사유로 둔다. 사람 검사는
+             계속 돌고 결과도 trace·로그에 그대로 남는다 — 판정을 안 하는
+             것이 아니라, 말투 하나로 화면에 아무것도 못 내보내는 일을
+             막는 것이다. 중요 장면에서는 둘 다 그대로 탈락이다.
+
+             마무리 없이 옛 배선을 재보는 replay(NO_FINALIZER + solo)는
+             계약 그대로 — 거기서는 고칠 사람이 없으니 사람 문제도 탈락이다. */
+          const denyVoice = noFinalizer && (!criticsAll || tier === "critical");
           const denyCritics = canonOnly ? ["canon"]
-            : noFinalizer ? ["canon", "character"] : ["canon"];
+            : denyVoice ? ["canon", "character"] : ["canon"];
           const denied = new Set(notes.filter(n => denyCritics.includes(n.critic)).map(n => n.candidate));
           const survivors = cands.filter(c => !denied.has(c.id));
           console.log(`[NULL] 검사 ▶ ${notes.length}건 · 남은 후보 ${survivors.length}/${cands.length}`);
