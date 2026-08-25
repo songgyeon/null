@@ -1073,17 +1073,28 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  background:#efeaf9;cursor:pointer;aspect-ratio:2/3;object-fit:cover}
 .bubble.photo img:active{opacity:.82}
 .bubble.photo .cap{padding:5px 7px 3px;font-size:12.5px;line-height:1.6;color:#4a4276;white-space:pre-wrap}
-.lightbox{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
- background:rgba(43,36,78,.82);animation:fadeUp .18s steps(3) both;cursor:pointer;padding:22px}
-.lightbox img{max-width:100%;max-height:100%;border:2px solid #fff;border-radius:4px;
- box-shadow:0 6px 24px rgba(0,0,0,.45)}
-.lightcard{max-width:100%;max-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.lightcard:not(.solo) img{min-height:0;max-height:calc(100% - 68px)}
-.lightcap{width:min(100%,520px);box-sizing:border-box;margin-top:8px;padding:8px 10px;
- border:1px solid #cfc6ee;background:rgba(255,253,255,.96);color:#4a4276;text-align:left;
- box-shadow:2px 2px 0 rgba(138,127,192,.28);cursor:pointer}
-.lightcap .lt{font-size:10px;letter-spacing:.14em;color:#8a7fc0;margin-bottom:4px}
-.lightcap .ln{font-size:11.5px;line-height:1.65;word-break:keep-all}
+/* ── 사진 보기 ──
+   이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
+   사진도 창에 담으면 규칙이 하나로 서고, 창틀이 「이게 무엇인지」도 말해준다.
+   전에는 검은 공백에 사진만 띄웠는데, 이 사진들은 전부 표면 위에 놓인 물건을
+   찍은 것이라 이미 자기 세계를 들고 온다 — 검정은 그 세계를 버리고 두 번째
+   세계를 하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라 가까이 본 게 된다. */
+.pvwin{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+ padding:16px;background:rgba(74,66,118,.42);animation:fade .18s steps(3) both;cursor:pointer}
+.pvwin .dlg.pvdlg{max-width:none;width:100%;cursor:default;
+ display:flex;flex-direction:column;max-height:100%}
+.pvbody{flex:0 1 auto;min-height:0;overflow:auto;padding:11px 11px 0;background:none}
+.pvbody img{display:block;width:100%;border-radius:5px;
+ box-shadow:0 2px 0 rgba(150,135,210,.3),0 0 0 1px rgba(93,84,144,.18)}
+.pvcap{margin-top:9px;padding:8px 10px;border:1px solid #cfc6ee;border-radius:6px;
+ background:rgba(255,253,255,.96);color:#4a4276;text-align:left}
+.pvcap .lt{margin-bottom:4px;font-size:10px;letter-spacing:.14em;color:#8a7fc0}
+.pvcap .ln{font-size:11.5px;line-height:1.65;word-break:keep-all}
+/* 알약은 사진에 붙는다. 창 안이라 떠 있을 자리가 없다 —
+   전에는 사진에서 한참 떨어져 아무 관계도 없이 떠 있었다 */
+.pvfoot{flex:none;display:flex;align-items:center;gap:7px;padding:11px}
+.pvfoot .wbtn{max-width:none}
+.pvfoot .wbtn.sh{flex:none;width:42px;padding:11px 0}
 .typing{display:flex;gap:5px;padding:12px 12px}
 .typing i{width:5px;height:5px;border-radius:50%;background:#8a7fc0;animation:blink 1s steps(2) infinite}
 .typing i:nth-child(2){animation-delay:.15s}

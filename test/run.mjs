@@ -466,6 +466,42 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('앞뒤 두 장을 쓴다', [D.FLASH_FRONT, D.FLASH_BACK], ['card-rooftop.webp', 'card-note.webp']);
 }
 
+/* ── 사진은 창에 담는다 ──
+   이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
+   사진만 검은 공백에 떠 있었다. 그 사진들은 전부 표면 위에 놓인 물건을 찍은
+   것이라 이미 자기 세계를 들고 온다 — 검정은 그 세계를 버리고 두 번째 세계를
+   하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라 가까이 본 게 된다. */
+{
+  const pvCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('사진 보는 창이 하나다', (web.match(/function PhotoWin\(/g) || []).length, 1);
+  /* 부르는 자리가 셋이다 — 사진첩·히든·말풍선(1:1·단톡). 각자 그리면 같은
+     사진이 화면마다 다르게 열린다 */
+  eq('세 자리가 같은 창을 쓴다',
+    (web.match(/<PhotoWin shot=\{zoom\} onClose=\{\(\)=>setZoom\(null\)\}\/>/g) || []).length, 3);
+  eq('검은 공백은 걷었다', [/lightbox/.test(web), /lightbox/.test(pvCss)], [false, false]);
+  /* 뒤로 앱이 비친다 — 막이 불투명하면 떠난 게 된다 */
+  eq('막은 반투명이다', /\.pvwin\{[^}]*background:rgba\(74,66,118,\.42\)/.test(pvCss), true);
+  /* 창틀은 이 앱의 그 창틀이다 — 사진용 창을 따로 그리지 않는다 */
+  eq('앱의 창틀을 쓴다',
+    /className="dlg pvdlg"/.test(web) && /<div className="tb">photo<WinDots onClose=\{onClose\}\/><\/div>/.test(web), true);
+  /* 알약은 사진에 붙는다 — 전에는 사진에서 한참 떨어져 아무 관계도 없이 떠 있었다 */
+  eq('알약이 창 안에 붙는다', /\.pvfoot\{flex:none;display:flex/.test(pvCss), true);
+  /* 두 모양을 다 받는다 — 말풍선은 파일 이름 한 줄, 사진첩·히든은 설명이 붙는다 */
+  eq('설명 있는 사진도 같은 창이다',
+    /const label=typeof shot==="string"\?"":shot\.label;/.test(web)
+    && /\{label&&<div className="pvcap">/.test(web), true);
+  /* 앱도 같은 창이다 — 두 판이 갈리면 같은 사진이 두 앱에서 다르게 열린다 */
+  const pvApp = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+  const pvDlg = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
+  eq('앱도 사진 보는 창이 하나다', (pvDlg.match(/export function PhotoWin\(/g) || []).length, 1);
+  eq('앱의 두 자리가 같은 창을 쓴다',
+    (pvApp.match(/<PhotoWin shot=\{zoom\} onClose=\{\(\)=>setZoom\(null\)\}\/>/g) || []).length, 2);
+  eq('앱도 앱의 창틀을 쓴다',
+    /<Text style=\{dl\.tbT\}>photo<\/Text>/.test(pvDlg), true);
+  eq('앱도 검은 공백을 걷었다',
+    [/rl\.lbCard/.test(pvApp), /ch\.lb\}/.test(pvApp)], [false, false]);
+}
+
 /* ── 배역을 받는 자리 ──
    유저가 배역을 받은 줄 모르는 채로 첫 방에 들어가고 있었다. 그래서 뒤에
    「선생님」이라는 호칭이 설명 없이 성립하지 않았다. 교실에서 그렇게 불리는

@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, LookOverlay, KAO } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, PhotoWin, LookOverlay, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -1253,15 +1253,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
       </ScrollView>
       </View>
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
-        <TouchableOpacity style={rl.lb} activeOpacity={1} onPress={()=>setZoom(null)}>
-          {zoom&&<View style={rl.lbCard}>
-              <Image source={{uri:zoom.uri}} style={rl.lbImg} resizeMode="contain"/>
-              {zoom.label&&<View style={rl.lbCap}>
-                <Text style={rl.lbTitle}>{zoom.label}</Text>
-                {!!zoom.note&&<Text style={rl.lbNote}>{zoom.note}</Text>}
-              </View>}
-            </View>}
-        </TouchableOpacity>
+        <PhotoWin shot={zoom} onClose={()=>setZoom(null)}/>
       </Modal>
       <View style={rl.st}>
         <Text style={rl.stT}>the blank u fill in ♡ NULL v1.1{demo?' · demo':''}</Text>
@@ -1469,9 +1461,7 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
             <Text style={{color:'#fff',fontSize:16}}>↑</Text></Bevel>
         </View>}
     <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
-      <TouchableOpacity style={ch.lb} onPress={()=>setZoom(null)} activeOpacity={1}>
-        {zoom&&<Image source={{uri:zoom}} style={{width:'100%',height:'80%'}} resizeMode="contain"/>}
-      </TouchableOpacity>
+      <PhotoWin shot={zoom} onClose={()=>setZoom(null)}/>
     </Modal>
   </View>;
 }

@@ -415,6 +415,64 @@ const gc = StyleSheet.create({
    수업 중엔 대화가 아니라 구경이다. 교실 배경을 어둡게 깔고 그 애 사진
    한 장을 폴라로이드처럼 얹는다. 캐비닛 TV처럼 아무 데나 누르면 돌아간다.
    말풍선도 도장도 없다 — 방문이 아니니까. */
+/* ══ 사진 보기 ══ 웹의 PhotoWin과 같은 창.
+   이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
+   사진만 검은 공백에 떠 있었다. 그 사진들은 전부 표면 위에 놓인 물건을 찍은
+   것이라 이미 자기 세계를 들고 온다 — 검정은 그 세계를 버리고 두 번째 세계를
+   하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라 가까이 본 게 된다.
+   부르는 자리가 셋이다(사진첩·히든·말풍선). 셋이 각자 그리면 어긋난다. */
+export function PhotoWin({shot, onClose}:
+  {shot:string|{uri:string; label?:string; note?:string}|null; onClose:()=>void}) {
+  /* 사진마다 비율이 다르다(1024×1536도 있고 1122×1402도 있다). 웹은 height:auto로
+     원본 비율이 저절로 나오는데 RN은 미리 알려줘야 해서, 흔한 쪽으로 그려두고
+     사진이 도착하면 실제 값으로 고친다. 안 그러면 얼굴이 늘어난다. */
+  const [ratio, setRatio] = useState(1024/1536);
+  if (!shot) return null;
+  const uri   = typeof shot === 'string' ? shot : shot.uri;
+  const label = typeof shot === 'string' ? '' : (shot.label || '');
+  const note  = typeof shot === 'string' ? '' : (shot.note || '');
+  return <View style={[dl.ov, pv.ov, {zIndex:50}]}>
+    <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
+    <View style={[dl.wrap, pv.wrap]}>
+      <View pointerEvents="none" style={dl.shadow}/>
+      <View style={dl.win}>
+        <LinearGradient colors={['#ff8fbe','#ffb0d4']} start={{x:0,y:0}} end={{x:1,y:0}} style={dl.tb}>
+          <Text style={dl.tbT}>photo</Text>
+          <Dots onClose={onClose}/>
+        </LinearGradient>
+        <View style={pv.body}>
+          <Image source={{uri}} resizeMode="contain"
+            onLoad={(e:any)=>{ const s = e && e.nativeEvent && e.nativeEvent.source;
+              if (s && s.width && s.height) setRatio(s.width/s.height) }}
+            style={[pv.img, {aspectRatio:ratio}]}/>
+          {!!label && <View style={pv.cap}>
+            <Text style={pv.capT}>{label}</Text>
+            {!!note && <Text style={pv.capN}>{note}</Text>}
+          </View>}
+        </View>
+        {/* 알약은 사진에 붙는다. 창 안이라 떠 있을 자리가 없다 */}
+        <View style={pv.foot}>
+          <Bevel style={pv.btn} inner={{backgroundColor:'#ff9ec6'}} onPress={onClose}>
+            <Text style={pv.btnT}>덮기 ♡</Text></Bevel>
+        </View>
+      </View>
+    </View>
+  </View>;
+}
+const pv = StyleSheet.create({
+  ov:{padding:16},
+  wrap:{maxWidth:'100%'},
+  body:{paddingHorizontal:11, paddingTop:11},
+  img:{width:'100%', borderRadius:5},
+  cap:{marginTop:9, paddingVertical:8, paddingHorizontal:10, borderRadius:6,
+    borderWidth:1, borderColor:'#cfc6ee', backgroundColor:'rgba(255,253,255,.96)'},
+  capT:{...F, marginBottom:4, fontSize:10, letterSpacing:1.4, color:'#8a7fc0'},
+  capN:{...F, fontSize:11.5, lineHeight:19, color:'#4a4276'},
+  foot:{flexDirection:'row', alignItems:'center', gap:7, padding:11},
+  btn:{flex:1, height:38, borderColor:'#ff8fbe'},
+  btnT:{...F, fontSize:11, letterSpacing:1.2, color:'#fff'},
+});
+
 export function LookOverlay({shot, onClose}:{shot:string; onClose:()=>void}) {
   const {height} = useWindowDimensions();
   /* 사진마다 비율이 다르다(1024×1536도 있고 1122×1402도 있다). 웹은 height:auto로

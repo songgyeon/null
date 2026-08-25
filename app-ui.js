@@ -625,6 +625,46 @@ function ModeAsk({which,now,onYes,onNo}){
   </div>;
 }
 
+/* ── 사진 보기 ──
+   이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
+   사진도 창에 담으면 규칙이 하나로 서고, 창틀이 「이게 무엇인지」도 말해준다.
+
+   전에는 검은 공백에 사진만 띄웠다. 그런데 이 사진들은 전부 표면 위에 놓인
+   물건을 찍은 것이라 이미 자기 세계를 들고 온다 — 검정은 그 세계를 버리고
+   두 번째 세계를 하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라
+   가까이 본 게 된다.
+
+   알약은 사진에 붙는다. 창 안이라 떠 있을 자리가 없다 — 전에는 사진에서
+   한참 떨어져 아무 관계도 없이 떠 있었다.
+
+   부르는 자리가 셋이다(사진첩·히든·말풍선). 셋이 각자 그리면 같은 사진이
+   화면마다 다르게 열린다. */
+function PhotoWin({shot,onClose,onNext}){
+  if(!shot)return null;
+  const src=typeof shot==="string"?shot:shot.src;
+  const label=typeof shot==="string"?"":shot.label;
+  const note=typeof shot==="string"?"":shot.note;
+  return <div className="pvwin" onClick={onClose}>
+    <div className="dlg pvdlg" onClick={e=>e.stopPropagation()}>
+      <div className="tb">photo<WinDots onClose={onClose}/></div>
+      <div className="pvbody">
+        <img src={src} alt={label||""}/>
+        {label&&<div className="pvcap">
+          <div className="lt">{label}</div>
+          {note&&<div className="ln">{note}</div>}
+        </div>}
+      </div>
+      <div className="pvfoot">
+        {onNext&&<button className="wbtn sh" onClick={onNext} aria-label="다음 사진">
+          <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 17c0-5 4-8 9-8M11 4l4 5-4 5" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg></button>}
+        <button className="wbtn go" onClick={onClose}>덮기 ♡</button>
+      </div>
+    </div>
+  </div>;
+}
+
 /* ── 재언의 옛 일기 ──
    재언 방에 처음 들어가는 순간, 선톡 앞에 한 번.
 
@@ -1359,15 +1399,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           </div>
         </div>}
     </Dialog>}
-    {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}>
-      {<div className={"lightcard"+(zoom.label?"":" solo")}>
-          <img src={zoom.src} alt={zoom.label||""}/>
-          {zoom.label&&<div className="lightcap">
-            <div className="lt">{zoom.label}</div>
-            {zoom.note&&<div className="ln">{zoom.note}</div>}
-          </div>}
-        </div>}
-    </div>}
+    <PhotoWin shot={zoom} onClose={()=>setZoom(null)}/>
   </div>;
 }
 
@@ -1506,7 +1538,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send0}
           style={{background:sendBg(room)}}><SendIcon/></button>
       </div>
-      {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
+      <PhotoWin shot={zoom} onClose={()=>setZoom(null)}/>
       {fixBox}
     </div>;
   }
@@ -1594,7 +1626,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
           onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
         <button className="sendbtn rbtn" disabled={!!locked||!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
       </div>}
-    {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
+    <PhotoWin shot={zoom} onClose={()=>setZoom(null)}/>
     {fixBox}
   </div>;
 }
