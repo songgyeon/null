@@ -784,7 +784,7 @@ eq('선톡 함수 안에서도 막는다', /if\(!canGreet\(id\)\)return;/.test(w
 /* 뽑고 나서 막으면 그 판은 아무도 안 건다. 새벽에는 제일 오래 조용한 쪽이
    늘 재언이라, 민현이 영영 안 걸린다 */
 eq('자는 쪽과 아직 출근 안 한 쪽을 후보에서 먼저 뺀다',
-  /\["jaeeon","minhyun"\]\s*\n\s*\.filter\(id=>canGreet\(id\)&&!roomLocked\(storeRef\.current,id\)\)\.map\(id=>\{/.test(web), true);
+  /\["jaeeon","minhyun"\]\s*\n\s*\.filter\(id=>canGreet\(id\)&&!roomLock\(storeRef\.current,id\)\)\.map\(id=>\{/.test(web), true);
 /* filter(canGreet)로 넘기면 두 번째 인자로 인덱스가 들어가 now가 0이 된다.
    0은 1970년이고 그 해의 시각은 UTC 기준이라 어느 쪽으로 튈지 모른다 */
 eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter\(canGreet\)/.test(web), false);
@@ -973,9 +973,9 @@ eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.k
   /* 다만 주말이면 안 건다 — 그 사람은 학교에서 만나야 하는데 실습이
      월요일부터라 아직 출근을 안 했다. 월요일에 추첨이 데려온다 */
   eq('다른 한 사람이 첫인사를 보낸다',
-    /const other=o\.room==="jaeeon"\?"minhyun":"jaeeon";\s*\n\s*if\(canGreet\(other\)&&!roomLocked\(storeRef\.current,other\)\)\{/.test(web), true);
+    /const other=o\.room==="jaeeon"\?"minhyun":"jaeeon";\s*\n\s*if\(canGreet\(other\)&&!roomLock\(storeRef\.current,other\)\)\{/.test(web), true);
   /* 새벽이면 재언은 안 온다 — 여섯 시에 온다 */
-  eq('그 첫인사도 자는 사람은 거른다', /if\(canGreet\(other\)&&!roomLocked\(/.test(web), true);
+  eq('그 첫인사도 자는 사람은 거른다', /if\(canGreet\(other\)&&!roomLock\(/.test(web), true);
   /* 직접 걸었으면 추첨은 일 분간 조용해야 한다. 안 그러면 둘이 같은 초에 온다 */
   eq('직접 건 뒤에는 추첨이 조용하다',
     /greetAtRef\.current=Date\.now\(\);\s*\/\/ 추첨은 일 분간 조용히/.test(web), true);
@@ -1365,29 +1365,39 @@ eq('생성된 파일이라고 적어둔다',
   const D = new Function('localStorage', 'location',
     readFileSync(join(ROOT, 'app-data.js'), 'utf8')
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {roomLocked,LOCK_LINES};')(g.localStorage, g.location);
-  const SAT = new Date(2026, 0, 10, 14, 0);    // 토요일
-  const TUE = new Date(2026, 0, 6, 14, 0);     // 화요일
+    + '\nreturn {roomLock,atWorkNow,presence,LOCK_LINES,WAIT_LINES};')(g.localStorage, g.location);
+  const at = (dd, h) => new Date(2026, 0, dd, h, 30);
+  const SAT = at(10, 14), TUE = at(6, 14);                 // 토요일 / 화요일 낮
   const empty = { msgs: {} };
   const talked = { msgs: { jaeeon: [{ sender: 'jaeeon', text: '왔어요?', ts: 1 }] } };
-  eq('주말에 빈 방은 잠긴다', D.roomLocked(empty, 'jaeeon', SAT), true);
-  eq('평일에는 빈 방도 안 잠긴다', D.roomLocked(empty, 'jaeeon', TUE), false);
-  /* 말이 한 마디라도 오갔으면 이미 만난 것이다 — 다음 주말에도 안 잠긴다 */
-  eq('만난 방은 주말에도 안 잠긴다', D.roomLocked(talked, 'jaeeon', SAT), false);
+  /* 학교에 있는 동안에만 먼저 건다 — AT_WORK(보건실·수업 중·점심·야자) */
+  eq('평일 낮에는 둘 다 학교에 있다',
+    ['jaeeon', 'minhyun'].map(id => D.atWorkNow(id, TUE)), [true, true]);
+  eq('주말에는 아무도 학교에 없다',
+    ['jaeeon', 'minhyun'].map(id => D.atWorkNow(id, SAT)), [false, false]);
+  /* 잠금은 두 가지다 — 실습 전(주말)과 오늘은 지났거나 아직인 때 */
+  eq('주말 빈 방 — 실습이 아직이다', D.roomLock(empty, 'jaeeon', SAT), D.LOCK_LINES);
+  eq('평일 밤 빈 방 — 오늘은 지났다', D.roomLock(empty, 'jaeeon', at(6, 23)), D.WAIT_LINES);
+  eq('평일 낮 빈 방은 안 잠긴다', D.roomLock(empty, 'jaeeon', TUE), null);
+  /* 말이 한 마디라도 오갔으면 이미 만난 것이다 — 밤에도 주말에도 안 잠긴다 */
+  eq('만난 방은 언제든 안 잠긴다',
+    [D.roomLock(talked, 'jaeeon', SAT), D.roomLock(talked, 'jaeeon', at(6, 3))], [null, null]);
   /* 단톡·관전은 제 조건(groupReady)이 따로 있다 */
   eq('단톡·관전은 여기 안 걸린다',
-    [D.roomLocked(empty, 'group', SAT), D.roomLocked(empty, 'health', SAT)], [false, false]);
-  eq('입력창에 설 두 줄이 정해져 있다', D.LOCK_LINES,
-    ['아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა', '교생 실습은 월요일부터 ♡']);
+    [D.roomLock(empty, 'group', SAT), D.roomLock(empty, 'health', SAT)], [null, null]);
+  eq('화면에 설 두 줄이 까닭마다 정해져 있다', [D.LOCK_LINES, D.WAIT_LINES],
+    [['아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა', '교생 실습은 월요일부터 ♡'],
+     ['내일 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+', '조금만 기다려 ♡']]);
 
   const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
   const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
   const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
-  eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLocked\(store,view\)\}/.test(app), true);
+  eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLock\(store,view\)\}/.test(app), true);
   /* 방을 감추지 않는다 — 이 사람이 없는 게 아니라 아직 안 온 것이다.
      까닭은 화면 한가운데가 말한다(빈 방 안내와 같은 자리·같은 보라색) */
+  /* 잠금 여부와 까닭이 한 자리에서 나온다 — 둘로 나누면 어긋난다 */
   eq('잠긴 방은 한가운데에 이유가 선다',
-    /\{locked\?<div className="empty lockempty">\s*\n\s*\{LOCK_LINES\.map/.test(ui), true);
+    /\{locked\?<div className="empty lockempty">\s*\n\s*\{locked\.map/.test(ui), true);
   /* 입력창은 자리를 지킨 채 잠긴다 — 빼버리면 방마다 화면 높이가 달라진다 */
   eq('입력창은 자리를 지키고 잠긴다',
     /className=\{"inputbar"\+\(locked\?" locked":""\)\}/.test(ui)
@@ -1397,7 +1407,7 @@ eq('생성된 파일이라고 적어둔다',
   /* 방을 여는 것도 선톡 경로다 — 여기를 안 막으면 「아직 출근하지
      않았어요」 위에 타이핑 표시가 뜬다 */
   eq('잠긴 방은 열어도 말이 안 온다',
-    /else if\(!roomLocked\(storeRef\.current,id\)\)greet\(id,700\)/.test(app), true);
+    /else if\(!roomLock\(storeRef\.current,id\)\)greet\(id,700\)/.test(app), true);
 }
 
 /* ── 앱이 워커에 보내는 것이 웹과 같다 ──

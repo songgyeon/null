@@ -781,19 +781,6 @@ const WEND_SLOTS=4;      // 주말은 이름이 없다. 유저가 넷을 직접 
 const weekNo=d=>Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7);
 const isYajaWeek=(now)=>weekNo(now||nowClock())%2===0;
 const isWend=d=>{const w=(d||nowClock()).getDay();return w===0||w===6};
-/* ── 아직 출근하지 않은 사람 ──
-   첫 자리에서 만난 사람의 방만 열린다. 다른 한 사람은 학교에서 만나야
-   하는데 교생 실습이 월요일부터라 주말에는 그 자리가 없다. 그래서
-   주말 동안 그 방은 잠겨 있고 월요일 선톡으로 열린다.
-   상태를 따로 안 적는다 — 말이 한 마디라도 오갔으면 이미 만난 것이다.
-   그러면 다음 주말이 와도 안 잠기고, 판을 새로 열면 저절로 돌아온다.
-   단톡·관전은 제 조건(groupReady)이 따로 있어 여기 안 걸린다. */
-const roomLocked=(store,id,now)=>
-  (id==="jaeeon"||id==="minhyun")
-  && !(((store&&store.msgs&&store.msgs[id])||[]).length)
-  && isWend(now||worldNow());
-/* 잠긴 방의 입력창 자리에 서는 두 줄 */
-const LOCK_LINES=["아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა","교생 실습은 월요일부터 ♡"];
 /* 오늘 시간표. 야자는 담당인 목요일에만 붙고, 주말은 아예 칸이 없다 —
    학교가 정해주는 하루가 아니라 유저가 적는 하루라서 */
 const daySlots=(now)=>{
@@ -989,6 +976,37 @@ const freeOut=(id,now)=>{
   return isWend(d)||!AT_WORK.includes(pr.t);
 };
 const whoOut=(now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));
+
+/* ── 아직 만나지 않은 사람 ──
+   첫 자리에서 만난 사람의 방만 열린다. 다른 한 사람은 **학교에서** 만나야
+   한다. 그래서 그 사람이 학교에 있는 동안에만 먼저 말을 걸 수 있다 —
+   출근해서 퇴근 전까지, 야자까지. 그 시간이 아니면 다음 근무 시간에 온다.
+
+   창을 새로 만들지 않는다. 「학교에 있다」는 이미 생활 리듬(presence)이
+   AT_WORK로 정해뒀다: 보건실·수업 중·점심·야자.
+
+   상태도 따로 안 적는다 — 말이 한 마디라도 오갔으면 이미 만난 것이다.
+   그러면 그 뒤로는 밤이든 주말이든 안 잠기고, 판을 새로 열면 저절로
+   돌아온다. 단톡·관전은 제 조건(groupReady)이 따로 있어 여기 안 걸린다. */
+const atWorkNow=(id,now)=>{
+  const d=now||worldNow();
+  if(isWend(d))return false;                    // 주말엔 학교가 없다
+  const pr=presence(id,d);
+  return !!pr&&AT_WORK.includes(pr.t);
+};
+/* 주말 — 실습이 아직 시작도 안 했다 */
+const LOCK_LINES=["아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა","교생 실습은 월요일부터 ♡"];
+/* 평일인데 학교에 없는 때 — 오늘은 지났거나 아직이다 */
+const WAIT_LINES=["내일 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+","조금만 기다려 ♡"];
+/* 잠겼으면 화면에 설 두 줄을, 아니면 null을 준다. 부르는 쪽이 둘 다 쓴다 —
+   잠금 여부와 까닭이 한 자리에서 나와야 둘이 어긋나지 않는다. */
+const roomLock=(store,id,now)=>{
+  if(id!=="jaeeon"&&id!=="minhyun")return null;
+  if(((store&&store.msgs&&store.msgs[id])||[]).length)return null;   // 이미 만났다
+  const d=now||worldNow();
+  if(atWorkNow(id,d))return null;
+  return isWend(d)?LOCK_LINES:WAIT_LINES;
+};
 /* ── 유저가 먼저 가자고 하는 자리 ──
    지금까지 자리를 여는 길은 둘뿐이었다. 지도에서 유저가 고르거나, 관계가
    쌓여 인물이 먼저 꺼내거나(INVITES). 그래서 대화 중에 「편의점 가자」고

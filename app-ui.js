@@ -1370,7 +1370,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       {/* 아직 출근하지 않은 사람 — 화면 한가운데. 빈 방 안내와 같은 자리·
           같은 보라색이다. 방이 빈 것은 맞지만 까닭이 다르니 글만 바꾼다 */}
       {locked?<div className="empty lockempty">
-        {LOCK_LINES.map((t,i)=><React.Fragment key={i}>{i?<br/>:null}{t}</React.Fragment>)}
+        {locked.map((t,i)=><React.Fragment key={i}>{i?<br/>:null}{t}</React.Fragment>)}
       </div>
       :msgs.length===0&&!busy&&room.empty&&<div className="empty">
         <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>{room.empty}
