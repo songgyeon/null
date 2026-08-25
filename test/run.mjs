@@ -1329,15 +1329,15 @@ eq('생성된 파일이라고 적어둔다',
   const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
   const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('오프닝이 아직 안 받은 사람만 예약한다',
-    /if\(!loadGetcha\(o\.room\)\)getchaRef\.current=\{room:o\.room,armed:!first\.length\};/.test(app), true);
-  /* 초를 세지 않는다 — 말 수에 따라 끝나는 시각이 다르다.
-     다만 켜지는 것을 **먼저 보고** 꺼지는 것을 봐야 한다: 자리를 여는
-     effect와 이 감시가 같은 commit에서 도는데, 감시 쪽은 아직 busy가
-     켜지기 전 값을 본다. armed가 없으면 창이 오프닝 시작에 떴다. */
-  eq('말하는 것을 먼저 보고 조용해지는 것을 본다',
-    /if\(busy\[r\.room\]\)\{ r\.armed=true; return \}\s*\n\s*if\(!r\.armed\)return;/.test(app), true);
+    /if\(!loadGetcha\(o\.room\)\)getchaRef\.current=o\.room;/.test(app), true);
+  /* ── 창은 자리에서 **나올 때** 뜬다 ──
+     말풍선이 다 앉는 것은 오프닝이 끝난 게 아니다. 그때는 아직 그 사람과
+     마주 서 있다 — 번호는 헤어지면서 주고받는 것이다. 자리를 닫는 길이
+     여럿이라(나가기·귀갓길·자리 이동·시간 끝) 닫는 자리 한 곳에서 잡는다. */
+  eq('첫 자리가 닫히는 순간에 연다',
+    /const sceneClosed=sc=>\{\s*\n\s*if\(!sc\|\|getchaRef\.current!==sc\.room\)return;/.test(app), true);
   eq('열면서 적어둔다 — 새로고침으로 다시 안 뜬다',
-    /getchaRef\.current=null;\s*\n\s*saveGetcha\(r\.room\); setGetcha\(r\.room\);/.test(app), true);
+    /getchaRef\.current=null;\s*\n\s*saveGetcha\(sc\.room\); setGetcha\(sc\.room\);/.test(app), true);
   eq('창이 화면에 붙어 있다', /\{getcha&&<GetCha char=\{getcha\} onClose=/.test(app), true);
   /* 토스트(45)가 대화창(40) 위에 뜨는 건 그대로 두고, 이 창일 때만 미룬다 */
   eq('창이 떠 있는 동안 알림은 세워둔다',
@@ -1437,12 +1437,37 @@ eq('생성된 파일이라고 적어둔다',
     && /editable=\{!locked\}/.test(app2)
     && /disabled=\{!!locked\|\|!text\.trim\(\)\|\|typing\}/.test(app2), true);
   /* 앱의 오프닝은 await가 있어 순서가 글에 보인다 — 웹의 busy 감시와 같은 뜻 */
-  eq('앱도 첫 마디가 다 앉은 뒤에 get cha를 연다',
-    /await runTurn\(o\.room\);[\s\S]{0,260}if\(!loadGetcha\(o\.room\)\)\{ saveGetcha\(o\.room\); setGetcha\(o\.room\); \}/.test(app2), true);
+  /* 앱도 자리에서 나올 때 연다 — 이름만 걸어두고 putScene(null)이 연다 */
+  eq('앱도 첫 자리에서 이름만 걸어둔다',
+    /if\(!loadGetcha\(o\.room\)\) getchaRef\.current=o\.room;/.test(app2), true);
+  eq('앱은 자리가 닫힐 때 연다',
+    /if\(!v&&getchaRef\.current\)\{[\s\S]{0,240}saveGetcha\(who\); setGetcha\(who\);/.test(app2), true);
   eq('앱 창의 문구가 웹과 같다',
     dlg.includes('의 메신저를') && dlg.includes('Get cha!')
     && dlg.includes('( ⸝⸝´꒳`⸝⸝) ꫂ 💌') && dlg.includes('chat ♡'), true);
   eq('앱도 창이 떠 있는 동안 알림을 세워둔다', /\{toast&&!getcha&&<View/.test(app2), true);
+
+  /* ── 프롬프트로 부탁만 하지 않는다 ──
+     고정부에 「유저는 교생이고 셋 다 안다」가 캐시로 박혀 있고 인물표에
+     그 호칭이 수십 번 나와서, 가변부 한 줄이 그걸 못 이겼다.
+     아직 학교에서 안 만났는데 호칭으로 쓰면 코드가 떨어뜨린다. */
+  const say2 = t => ({ messages: [{ sender: 'minhyun', text: t }] });
+  const CTX2 = o => ({ schoolUnmet: true, userSaidTeacher: false, openPlaces: [], ...o });
+  const hf = (t, o) => ENG.hardFilter(say2(t), ['minhyun'], CTX2(o));
+  eq('아직 안 만났는데 부르면 떨어진다', hf('선생님, 저 알죠?'), ['TEACHER_TOO_SOON']);
+  /* 부르는 말만 본다 — 짐작하거나 되묻는 말은 통과다 */
+  eq('짐작하는 말은 통과한다', [
+    '꼭 선생님 같아요.', '선생님인 줄 알았어요.', '학교 선생님이세요?',
+  ].flatMap(t => hf(t)), []);
+  eq('유저가 먼저 꺼내면 통과한다', hf('선생님, 저 알죠?', { userSaidTeacher: true }), []);
+  eq('학교에서 만난 뒤에는 통과한다', hf('선생님, 저 알죠?', { schoolUnmet: false }), []);
+  eq('호칭 자는 부르는 자리만 잡는다', (() => {
+    const R = ENG.CALL_TEACHER;
+    const yes = ['선생님.', '선생님, 그거 알아요?', '선생님!', '쌤,', '선생님 왜요?', '쌤 뭐해요'];
+    const no = ['꼭 선생님 같아요.', '선생님인 줄 알았어요.', '학교 선생님이세요?',
+      '그 선생님이 그랬어요.', '선생님이 저 책임진다면서요.', '선생님한테 물어볼게요.'];
+    return [yes.filter(t => !R.test(t)), no.filter(t => R.test(t))];
+  })(), [[], []]);
 
   /* ── 학교에서 만난 뒤부터 교생인 걸 안다 ──
      찍는 자리가 둘이다: 학교 안 자리에서 마주 앉을 때, 그리고 그 사람이
@@ -3853,7 +3878,7 @@ eq('자리에 없으면 갈 자리는 그대로 나온다',
    가방에 들어오는 길은 하나다 — 검증된 give Effect를 한 번 적용하는 것. */
 /* 자리를 닫는 것은 이제 장부의 계획 하나다 — 지급이 붙을 자리가 없다 */
 eq('자리를 닫으면서 물건을 안 준다',
-  /if\(o\.op==="closeScene"\)\{[\s\S]{0,300}setScene\(null\); return true;/.test(web), true);
+  /if\(o\.op==="closeScene"\)\{[\s\S]{0,300}setScene\(null\); sceneClosed\(sc\); return true;/.test(web), true);
 eq('닫는 손에 지급이 안 붙어 있다', /closeScene[\s\S]{0,200}takeItem\(/.test(web), false);
 
 /* ── 관전방도 저절로 쌓인다 ──
@@ -3971,7 +3996,7 @@ eq('때가 지나면 보내는 말에 실린다', /sceneOver\(sc\)\?\{place_over
 /* 시간으로 재지 않는다 — 그 답 덩어리의 마지막 말풍선이 뜬 자리에 매단다 */
 eq('답이 다 뜬 뒤에 자리가 닫힌다 — 인사보다 「나왔다」가 먼저면 거꾸로다',
   /if\(payload\.place_over&&scene\)ops\.push\(\{op:"leave",id:id\+"#out",room,since:scene\.since,/.test(web)
-  && /if\(o\.op==="leave"\)\{[\s\S]{0,500}setScene\(null\); return true;/.test(web), true);
+  && /if\(o\.op==="leave"\)\{[\s\S]{0,500}setScene\(null\); sceneClosed\(sc\); return true;/.test(web), true);
 eq('접어두고 떠난 자리도 때가 지나면 닫힌다',
   /Date\.now\(\)-last<AUTO_AWAY&&!sceneOver\(sc\)/.test(web), true);
 eq('워커가 때를 받으면 일어서라고 말한다',
@@ -6456,7 +6481,7 @@ eq('시간표 단추는 peek보다 좁다',
 
   /* ── 자동 지급이 없다 ── */
   eq('닫는 손이 물건을 안 준다',
-    /if\(o\.op==="closeScene"\)\{[\s\S]{0,300}setScene\(null\); return true;/.test(web), true);
+    /if\(o\.op==="closeScene"\)\{[\s\S]{0,300}setScene\(null\); sceneClosed\(sc\); return true;/.test(web), true);
   eq('앱의 닫는 손도 안 준다',
     /const closeScene=\(\)=>\{ putScene\(null\); \};/.test(appSrc), true);
   eq('웹·앱 어디에도 자동 지급이 없다',

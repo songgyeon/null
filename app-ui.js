@@ -537,7 +537,7 @@ function Dialog({title,onClose,children,cls,win}){
    번호가 어디서 났는지를 대사로 설명하는 대신 이 한 장면이 맡는다 —
    그래서 문구집 여덟 자리를 한 줄도 안 고쳐도 된다. */
 function GetCha({char,onClose}){
-  return <div className="dlgov" onClick={onClose}>
+  return <div className="dlgov gcov" onClick={onClose}>
     <div className="dlg getcha" onClick={e=>e.stopPropagation()}>
       <div className="tb">null.exe<WinDots onClose={onClose}/></div>
       <div className="gcbody">

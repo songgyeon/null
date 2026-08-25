@@ -12,10 +12,11 @@ function App(){
   /* 첫 만남이 끝나고 그 사람의 메신저가 생기는 창. 방이 왜 생겼는지를
      이 한 장면이 맡는다 — 대사로 「번호 주세요」를 여덟 번 쓰지 않아도 된다. */
   const [getcha,setGetcha]=useState(null);          // 메신저를 얻은 사람 id
-  /* {room, armed} — armed는 「말하는 걸 한 번이라도 봤다」다. 이게 없으면
-     창이 오프닝 **시작**에 뜬다: 자리를 여는 effect와 아래 감시 effect가
-     같은 commit에서 도는데, 감시 쪽은 아직 busy가 켜지기 전 값을 본다. */
-  const getchaRef=useRef(null);                     // 첫 마디가 다 앉기를 기다리는 자리
+  /* ── 창은 자리에서 **나올 때** 뜬다 ──
+     말풍선이 다 앉는 것은 오프닝이 끝난 게 아니다. 그때는 아직 그 사람과
+     마주 서 있다 — 번호는 헤어지면서 주고받는 것이다. 그래서 첫 자리를
+     열 때 여기 이름을 걸어두고, 그 자리가 닫히는 순간에 연다. */
+  const getchaRef=useRef(null);                     // 첫 자리에서 만난 사람
   const [view,setView]=useState("list");            // 'list' | roomId
   const [busy,setBusy]=useState({});                // 방별 타이핑 인디케이터
   const [failed,setFailed]=useState({});            // 방별 실패 payload (재시도용)
@@ -441,13 +442,20 @@ function App(){
     after_request:(x&&x.after_request)||null});
 
   /* ── 계획 하나를 적용한다. 전부 「이미 되어 있으면 성공」 ── */
+  /* 첫 자리가 닫히는 순간 — 헤어지면서 번호를 주고받는다. 자리를 닫는 길이
+     여럿이라(나가기·귀갓길·자리 이동·시간 끝) 닫는 자리 한 곳에서 잡는다. */
+  const sceneClosed=sc=>{
+    if(!sc||getchaRef.current!==sc.room)return;
+    getchaRef.current=null;
+    saveGetcha(sc.room); setGetcha(sc.room);
+  };
   const applyOp=o=>{
     if(!o||!o.op)return true;
     if(o.op==="closeScene"){
       const sc=loadScene();
       if(!sc||(o.since&&sc.since!==o.since))return true;      // 이미 닫혔거나 다른 자리다
       if(!saveScene(null)||loadScene())return false;
-      sceneRef.current=null; setScene(null); return true;
+      sceneRef.current=null; setScene(null); sceneClosed(sc); return true;
     }
     if(o.op==="leave"){
       /* 나온 줄을 먼저 남기고 그 다음에 닫는다 — 순서가 반대면
@@ -456,7 +464,7 @@ function App(){
       if(!sc||sc.room!==o.room||(o.since&&sc.since!==o.since))return true;
       if(!appendOnce(o.room,{id:o.id,sender:"user",sys:true,text:o.text,ts:Date.now()}))return false;
       if(!saveScene(null)||loadScene())return false;
-      sceneRef.current=null; setScene(null); return true;
+      sceneRef.current=null; setScene(null); sceneClosed(sc); return true;
     }
     if(o.op==="openScene"){
       const sc=loadScene();
@@ -1705,8 +1713,7 @@ function App(){
     /* 첫 마디가 다 앉은 뒤에 창을 띄운다. 말하는 중에 덮으면 그 자리를
        못 읽는다 — 아래 useEffect가 busy를 보고 있다가 연다. */
     const first=demoProactive(o.room,o.place,name);
-    /* 할 말이 없으면 기다릴 것도 없다 — 곧장 연다 */
-    if(!loadGetcha(o.room))getchaRef.current={room:o.room,armed:!first.length};
+    if(!loadGetcha(o.room))getchaRef.current=o.room;
     if(first.length)setTimeout(()=>enqueue(o.room,first),700);
     else setBusy(b=>({...b,[o.room]:false}));
     /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 아래 선톡 추첨에
@@ -1727,19 +1734,6 @@ function App(){
     }
   },[name,enrolling]);
 
-  /* ── 첫 마디가 다 앉으면 get cha 창 ──
-     타이핑이 끝나는 시각은 말 수에 따라 다르다. 초를 세지 않고 busy가
-     내려가는 것을 본다 — 그게 「이 방이 조용해졌다」의 뜻이다.
-     다만 **켜지는 것을 먼저 보고** 꺼지는 것을 본다. 처음 도는 commit에서는
-     busy가 아직 옛 값이라, 바로 「조용하다」로 읽고 오프닝 시작에 떴다. */
-  useEffect(()=>{
-    const r=getchaRef.current;
-    if(!r)return;
-    if(busy[r.room]){ r.armed=true; return }
-    if(!r.armed)return;
-    getchaRef.current=null;
-    saveGetcha(r.room); setGetcha(r.room);
-  },[busy]);
 
   useEffect(()=>{
     if(!name||view!=="list"||enrolling)return;

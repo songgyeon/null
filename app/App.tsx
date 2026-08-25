@@ -1536,7 +1536,18 @@ function Root() {
   const sceneRef=useRef<any>(null); sceneRef.current=scene;
   /* 학교 안 자리에서 마주 앉았으면 그때부터 교생인 걸 안다. 자리를 여는
      길이 여럿이라(첫 자리·지도·초대·같이 가기) 여기 한 곳에서 잡는다 */
-  const putScene=(v:any)=>{ setScene(v); saveScene(v);
+  const getchaRef=useRef<string|null>(null);      // 첫 자리에서 만난 사람
+  const putScene=(v:any)=>{
+    /* 첫 자리가 닫히는 순간 — 헤어지면서 번호를 주고받는다. 자리를 닫는
+       길이 여럿이라(나가기·귀갓길·자리 이동·시간 끝) 여기 한 곳에서 잡는다 */
+    if(!v&&getchaRef.current){
+      const sc=sceneRef.current;
+      if(sc&&sc.room===getchaRef.current){
+        const who=getchaRef.current; getchaRef.current=null;
+        saveGetcha(who); setGetcha(who);
+      }
+    }
+    setScene(v); saveScene(v);
     if(v&&isSchoolPlace(v.place))markSchoolMet(v.room); };
   /* 키만 보내면 워커가 from을 빈칸으로 채운다. buildBag은 from으로 제 것을
      고르므로, 그 상태에서는 「네가 준 것」이 영영 비어 있었다 — 웹은 고쳐졌고
@@ -1679,10 +1690,10 @@ function Root() {
       const first=demoProactive(o.room,o.place,name);
       if(first.length){ setTyping(true); await new Promise(r=>setTimeout(r,700)); await enqueue(o.room,first); }
       else await runTurn(o.room);
-      /* ── get cha ── 첫 마디가 다 앉은 뒤다. 번호가 어디서 났는지를 이 창이
-         맡는다. 웹은 busy가 내려가는 것을 보고 열지만 여기는 await가 있어
-         순서가 글에 그대로 보인다. 판마다 사람마다 한 번이다. */
-      if(!loadGetcha(o.room)){ saveGetcha(o.room); setGetcha(o.room); }
+      /* ── get cha ── 창은 자리에서 **나올 때** 뜬다. 말풍선이 다 앉는 것은
+         오프닝이 끝난 게 아니다 — 그때는 아직 마주 서 있고, 번호는 헤어지면서
+         주고받는 것이다. 여기서는 이름만 걸어두고 putScene(null)이 연다. */
+      if(!loadGetcha(o.room)) getchaRef.current=o.room;
       /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 추첨에 맡기면
          자리 쪽 상태가 아직 안 앉아서 두 방이 다 비어 보이고, 자리에서 만난
          사람이 뽑혀 조용히 삼켜진다. */

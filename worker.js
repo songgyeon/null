@@ -358,7 +358,7 @@ function makeStoryState(s) {
   const o = s || {};
   const one = (list, v) => list.includes(v) ? v : list[0];
   const pk = o.partnerKnown || {};
-  const sm = o.schoolMet || {};
+  const sm = o.schoolMet;
   return {
     room:        ["jaeeon", "minhyun", "group", "health"].includes(o.room) ? o.room : "minhyun",
     stage:       String(o.stage || ""),
@@ -372,8 +372,12 @@ function makeStoryState(s) {
     partnerKnown: { jaeeon: !!pk.jaeeon, minhyun: !!pk.minhyun },
     /* ── 학교에서 만났나 ──
        처음부터 교생인 걸 아는 게 아니다. 학교에서 만난 뒤부터 안다.
-       그 전까지는 과거의 만남이 유저에 대해 아는 전부다. */
-    schoolMet: { jaeeon: !!sm.jaeeon, minhyun: !!sm.minhyun },
+       그 전까지는 과거의 만남이 유저에 대해 아는 전부다.
+       **안 실려 오면 null이다** — 「아직 안 만났다」가 아니라 「이 판은 그
+       칸을 안 쓴다」는 뜻이다. 없는 것을 거짓으로 읽으면, 이 칸을 모르는
+       옛 판과 replay 묶음이 통째로 「아직」이 되어 없던 규칙이 선다. */
+    schoolMet: sm && typeof sm === "object"
+      ? { jaeeon: !!sm.jaeeon, minhyun: !!sm.minhyun } : null,
   };
 }
 
@@ -4284,6 +4288,23 @@ function hardFilter(cand, allowed, ctx) {
     }
   }
 
+  /* ── 아직 학교에서 안 만났는데 「선생님」이라 부른다 ──
+     프롬프트로 부탁만 해서는 안 됐다. 고정부에 「유저는 교생이고 셋 다
+     안다」가 캐시로 박혀 있고 인물표에 그 호칭이 수십 번 나와서, 가변부
+     한 줄이 그걸 못 이긴다. 그래서 코드가 판정한다.
+
+     **부르는 말일 때만** 걸린다 — 문장 첫머리이거나 쉼표·호격 앞이다.
+     「꼭 선생님 같아요」 「선생님이라도 되세요?」처럼 짐작하거나 되묻는
+     말은 부르는 것이 아니라 통과한다. 유저가 먼저 꺼낸 턴도 통과다.
+
+     자연어를 지우지 않는다. 그 후보를 떨어뜨리고 다시 쓰게 한다. */
+  if (g.schoolUnmet && !g.userSaidTeacher) {
+    for (const m of kept) {
+      if (!m || m.sender === "user") continue;
+      if (CALL_TEACHER.test(String(m.text || ""))) { push("TEACHER_TOO_SOON"); break; }
+    }
+  }
+
   /* ── 잠긴 자리 제안은 대사를 죽이지 않는다 ──
      전에는 여기서 INVALID_INVITE로 후보 전체를 떨어뜨렸다. 아직 안 열린
      자리(옥상 40·도서관 80·빨래방 120)를 대사가 한 번 입에 올리면 그 턴
@@ -4759,6 +4780,13 @@ const FIRSTMEET_EXPLAIN = /병원\s*옥상|(옥상|병원)에서\s*.{0,6}(만났
    판정은 두 조각이다: 수긍하는 말이 있고, 부정하는 말이 없어야 한다.
    부정이 이긴다 — 「그랬구나, 근데 사람 잘못 보신 것 같은데요」는 수긍이
    아니다. 반쪽만 보면 서 있던 질문이 조용히 닫힌다(EXPLAIN과 같은 이유). */
+/* ── 「선생님」을 호칭으로 쓴 자리 ──
+   부르는 말만 본다: 문장 첫머리, 또는 쉼표·물음표·느낌표 앞의 홀로 선 호칭.
+   「꼭 선생님 같아요」 「선생님인 줄 알았어요」는 짐작이라 안 걸린다. */
+const CALL_TEACHER = /(^|[.!?~…]\s*)(선생님|쌤)(?![가-힣])\s*([,!?~….]|$|[가-힣])/;
+/* 유저가 먼저 꺼냈으면 예외다 — 그 뒤로는 그 말을 써도 된다 */
+const USER_TEACHER = /선생님|쌤|교생|학교|실습/;
+
 const FIRSTMEET_TAKE = /그랬(구나|군요|나\s*봐|나\s*보네|어요)|그런\s*일이|그때\s*(그|그거|봤|만났|였)|아\s*그때|맞네(요)?|(병원|옥상)[가-힣]*\s*(이었|였|맞)/;
 /* 이게 있으면 위가 걸려도 전진 안 한다. 상태는 explained에 그대로 선다 */
 const FIRSTMEET_DENY = /그런\s*적\s*(은\s*)?없|아닌\s*것\s*같|잘못\s*(아신|보신|알)|사람\s*잘못|누구(세요|시|신데)|모르겠(는데|어|네|어요)/;
@@ -6051,7 +6079,12 @@ export default {
                            한 번이고 materializeEffects는 결과만 본다(E4) */
                         firstMeetTaken: mode === "chat" && room === "minhyun"
                           && body.greet !== true
-                          && FIRSTMEET_TAKE.test(lastUser) && !FIRSTMEET_DENY.test(lastUser) };
+                          && FIRSTMEET_TAKE.test(lastUser) && !FIRSTMEET_DENY.test(lastUser),
+                        /* 아직 학교에서 안 만난 사람인가. 「선생님」을 호칭으로
+                           쓰면 떨어진다 — 유저가 먼저 꺼낸 턴은 예외다. */
+                        schoolUnmet: mode === "chat" && !!CHAR_LABEL[room]
+                          && !!story.schoolMet && !story.schoolMet[room],
+                        userSaidTeacher: USER_TEACHER.test(lastUser) };
 
       if (engineMode(env) === "legacy") {
         const t0 = Date.now();
@@ -7005,6 +7038,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,
+         CALL_TEACHER, USER_TEACHER,
          CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
          JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,
          sceneHead, criticPacket, finalizerPacket, readProblems,
