@@ -1145,7 +1145,7 @@ function App(){
   };
 
   /* 일반 대화 전송 */
-  const send=(room,text)=>{
+  const send=(room,text,resumed)=>{
     /* 「//」로 열면 대화가 아니라 적어두는 것이다. 여기서 끊으므로 이력에도
        안 남고 워커도 안 부른다 — 인물은 이 말을 모른다. */
     if(/^\/\//.test(text)){ addNote(room,text.replace(/^\/\/\s*/,"")); return }
@@ -1155,6 +1155,19 @@ function App(){
        옛 답이 통째로 빠진다. 새로고침으로 되살아난 재생이 그 자리다. */
     if(replaying(room)){ setBusy(b=>({...b,[room]:true})); return }
     const prevList=storeRef.current.msgs[room]||[];
+    /* ── 옥상이 올라오는 순간 ──
+       민현 방이고, 오프닝에서 만난 게 민현이고, 아직 안 채웠고, 그가 이미
+       말을 걸어둔 뒤다(「저 알죠」 세 줄이 앉은 다음). 그 순간에 한 번.
+
+       유저가 친 말은 **삼키지 않는다.** 여기서 붙잡아 뒀다가 엽서를 덮은
+       뒤에 그대로 다시 보낸다(resumed). 붙이고 나서 붙잡으면 말은 떠 있는데
+       답이 없는 방이 되고, 삼키면 방금 친 말이 어디로 갔는지 모른다.
+       모델은 이 순간에 안 부른다 — 기억이 올라오는 동안에는 아무도 말하지 않는다. */
+    if(!resumed&&room==="minhyun"&&loadFirstMet()==="minhyun"&&!loadFlash()
+       &&prevList.some(m=>m.sender==="minhyun")){
+      setFlash({room,text});
+      return;
+    }
     const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};
     const next=appendMsg(room,userMsg);
     if(!next)return saveFailed(room);
@@ -1591,6 +1604,12 @@ function App(){
     greet(id,700)};
   /* 덮으면 그때 선톡이 걸린다 */
   const diaryDone=()=>{setDiary(false);greet("jaeeon",700)};
+  /* ── 민현의 옛 일기 — 병원 옥상 ──
+     오프닝에서 민현을 만난 판에서만, 「저 알죠」 세 줄이 다 앉은 뒤 유저가
+     처음 무언가를 입력한 그 순간에 한 번. 유저의 말은 그대로 올라가고,
+     엽서가 그 위로 뜬다 — 삼키면 유저가 방금 친 말이 어디로 갔는지 모른다.
+     엽서를 덮은 뒤에 그 말이 나간다. */
+  const [flash,setFlash]=useState(null);   // null | {room,text}
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
@@ -1779,6 +1798,7 @@ function App(){
 
   return <div className="phone">
     {diary&&<Diary onDone={diaryDone}/>}
+    {flash&&<Flash onDone={()=>{const f=flash;setFlash(null);send(f.room,f.text,true)}}/>}
     {enrolling==="intro"&&<Intro onGo={()=>setEnrolling("enroll")}/>}
     {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}

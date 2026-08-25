@@ -172,6 +172,11 @@ const sys1Due=store=>{
 
    「엄마가 사탕을 줬다」에서 멈춘다. 누구에게 줬는지는 비운다 —
    사탕 삼각형은 어떤 화면도 발설하지 않는다. */
+/* 화면에 그리는 것은 **사진**이다. 줄공책을 CSS로 흉내내던 때가 있었는데,
+   이건 20년 전 물건이고 물건은 흉내내면 물건이 아니게 된다.
+   아래 글은 그 사진에 적힌 정사 원문이다 — 사진을 못 읽는 사람에게 읽어주는
+   글(alt)이자, 이 빈칸이 어떤 문장인지 코드가 아는 자리다. */
+const DIARY_IMG="diary-jaeeon.webp";
 const DIARY_HEAD="200X.XX.XX";
 const DIARY_LINES=[
   "엄마가 이제 이사를 간다고 공부방을 안 한다고 했다.",
@@ -179,17 +184,67 @@ const DIARY_LINES=[
   "그래도 계속 눈물이 났다.",
   "나중에 크면 다시 이 동네에 올 거다.",
 ];
-/* 마지막 줄만 빈칸을 문다. 앞뒤를 따로 들고 있어야 화면이 한 줄 안에서
-   글자를 잇는다 — 통째로 한 문자열이면 빈칸 자리를 다시 찾아야 한다. */
 const DIARY_TAIL_A="왜냐하면 나는 ";
 const DIARY_TAIL_B="니까.";
 const DIARY_MAX=8;
+/* 빈칸이 사진 위 어디에 앉는지. 사진에 그려진 네모를 실제로 재서 넣은
+   값이다(1024×1536 기준). 눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다. */
+const DIARY_BOX={left:51.56,top:77.41,w:25.98,h:4.62};
 const loadDiary=()=>{try{return localStorage.getItem("null_diary")||""}catch(e){return""}};
 const saveDiary=v=>{try{
   const t=(v||"").toString().trim().slice(0,DIARY_MAX);
   if(t)localStorage.setItem("null_diary",t);
   return t;
 }catch(e){return""}};
+
+/* ── 민현의 옛 일기 — 병원 옥상 ──
+   오프닝에서 민현을 만난 판에서, 「저 알죠」 세 줄이 다 앉은 뒤 유저가 처음
+   무언가를 입력한 그 순간. 엽서 앞면(그날의 옥상)이 천천히 뜨고, 그다음
+   뒷면으로 천천히 넘어간다. 뒷면이 일기고 빈칸이 셋이다.
+
+   정사는 전부 고정이다 — 옥상, 담배, 금연, 책임. 유저가 짓는 것은 자기
+   행동이 아니라 **상대의 반응**(표정·말)과 **자기 소망**이다.
+
+   빈칸 자리는 사진에 그려진 네모를 실제로 재서 넣었다(1024×1536 기준).
+   눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다. */
+const FLASH_FRONT="card-rooftop.webp";
+const FLASH_BACK="card-note.webp";
+const FLASH_ALT=[
+  "병원 옥상에서 흡연 중인 고등학생을 만났다.",
+  "나는 아무 말도 하지 않았다.",
+  "걔는 왜 아무 말도 안 하냐고 했다.",
+  "내가 책임질 사이에나 그런 말을 하는 거랬더니",
+  "한 대 더 꺼내길래 그만 피우라고 했다.",
+  "내가 책임지겠다고.",
+  "걔는 □ 표정으로 날 보면서 □ 라고 했다.",
+  "다시 만나면 □ 하고 싶다.",
+];
+/* 셋의 뜻. 저장도 이 열쇠로 하고, 나중에 가변부로 나갈 때도 이 이름이다 */
+const FLASH_KEYS=["face","said","wish"];
+const FLASH_BOX=[
+  {key:"face", left:24.71, top:59.83, w:33.11, h:4.17},
+  {key:"said", left:32.13, top:66.47, w:37.11, h:4.23},
+  {key:"wish", left:36.04, top:73.50, w:30.27, h:4.23},
+];
+const FLASH_MAX=10;
+/* ── 얼마나 천천히 ──
+   숫자를 화면과 시험이 같이 본다. 한쪽에만 적으면 「천천히」가 두 뜻이 된다.
+   앞면이 앉고(1.4초) 잠깐 그대로 있다가(1.6초) 넘어간다(1.2초). */
+const FLASH_RISE=1400, FLASH_HOLD=1600, FLASH_TURN=1200;
+const loadFlash=()=>{try{
+  const v=JSON.parse(localStorage.getItem("null_flash"));
+  return v&&typeof v==="object"&&!Array.isArray(v)?v:null;
+}catch(e){return null}};
+const saveFlash=o=>{try{
+  const out={};
+  for(const k of FLASH_KEYS){
+    const t=((o||{})[k]||"").toString().trim().slice(0,FLASH_MAX);
+    if(!t)return null;                       // 셋이 다 차야 저장한다
+    out[k]=t;
+  }
+  localStorage.setItem("null_flash",JSON.stringify(out));
+  return out;
+}catch(e){return null}};
 
 const loadFirstMet=()=>{try{
   const v=localStorage.getItem("null_first");

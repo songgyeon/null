@@ -390,6 +390,82 @@ eq('이름을 넣으면 배역을 받는 자리로 간다',
 eq('그 자리에서 등록으로 넘어간다',
   [/<Intro onGo=\{\(\)=>setEnrolling\('enroll'\)\}\/>/.test(appSrc),
    /<Intro onGo=\{\(\)=>setEnrolling\("enroll"\)\}\/>/.test(web)], [true, true]);
+const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+/* ── ④ 민현의 옛 일기 — 병원 옥상 ──
+   오프닝에서 민현을 만난 판에서만, 「저 알죠」 세 줄이 앉은 뒤 유저가 처음
+   무언가를 입력한 그 순간. 앞면이 천천히 뜨고 뒷면으로 천천히 넘어간다. */
+{
+  const mem = new Map();
+  const g = { localStorage: { getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
+    location: { search: '' } };
+  const D = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {saveFlash,loadFlash,FLASH_KEYS,FLASH_BOX,FLASH_MAX,FLASH_ALT,'
+    + 'FLASH_FRONT,FLASH_BACK,FLASH_RISE,FLASH_HOLD,FLASH_TURN,loadStory};')(g.localStorage, g.location);
+
+  /* 셋이 다 차야 저장한다 — 하나라도 비면 이 화면이 할 일이 남아 있다 */
+  eq('하나라도 비면 저장 안 한다',
+    [D.saveFlash({face:'어이없는', said:'', wish:'사과'}), D.loadFlash()], [null, null]);
+  const V = {face:'어이없는', said:'책임져요', wish:'사과'};
+  eq('셋이 다 차면 저장한다', [D.saveFlash(V), D.loadFlash()], [V, V]);
+
+  /* ⚠️ 이 값도 아직 서버로 안 간다 — 가변부 배선은 다음 몫이다.
+     지금 시점의 계약을 못박아 둔다: 이야기 상태에 섞이지 않는다 */
+  eq('이야기 상태에 안 섞인다', JSON.stringify(D.loadStory()).includes('어이없는'), false);
+  eq('저장 열쇠가 따로다', [...mem.keys()].filter(k => k !== 'null_flash'), []);
+
+  /* 정사는 전부 고정이다 — 옥상·담배·금연·책임.
+     유저가 짓는 것은 자기 행동이 아니라 상대의 반응과 자기 소망이다 */
+  eq('정사가 글자 그대로다', D.FLASH_ALT, [
+    '병원 옥상에서 흡연 중인 고등학생을 만났다.',
+    '나는 아무 말도 하지 않았다.',
+    '걔는 왜 아무 말도 안 하냐고 했다.',
+    '내가 책임질 사이에나 그런 말을 하는 거랬더니',
+    '한 대 더 꺼내길래 그만 피우라고 했다.',
+    '내가 책임지겠다고.',
+    '걔는 □ 표정으로 날 보면서 □ 라고 했다.',
+    '다시 만나면 □ 하고 싶다.',
+  ]);
+  eq('빈칸은 상대의 반응과 내 소망 셋이다', D.FLASH_KEYS, ['face', 'said', 'wish']);
+  eq('빈칸 자리가 셋이고 순서가 같다', D.FLASH_BOX.map(b => b.key), D.FLASH_KEYS);
+
+  /* ── 언제 뜨나 ──
+     오프닝 상대가 민현이고, 아직 안 채웠고, 그가 이미 말을 걸어둔 뒤다.
+     유저가 친 말은 삼키지 않는다 — 붙잡아 뒀다가 덮은 뒤에 그대로 보낸다. */
+  eq('오프닝이 민현일 때만 뜬다',
+    /if\(!resumed&&room==="minhyun"&&loadFirstMet\(\)==="minhyun"&&!loadFlash\(\)/.test(web), true);
+  eq('그가 말을 걸어둔 뒤다',
+    /&&prevList\.some\(m=>m\.sender==="minhyun"\)\)\{\s*\n\s*setFlash\(\{room,text\}\);/.test(web), true);
+  /* 붙이기 전에 붙잡는다 — 붙이고 나서 잡으면 말은 떠 있는데 답이 없는 방이 된다 */
+  eq('유저의 말을 붙이기 전에 잡는다',
+    web.indexOf('setFlash({room,text});') < web.indexOf('const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};'), true);
+  eq('덮은 뒤에 그 말이 그대로 나간다',
+    /onDone=\{\(\)=>\{const f=flash;setFlash\(null\);send\(f\.room,f\.text,true\)\}\}/.test(web), true);
+  /* 다시 부를 때 또 잡히면 영영 안 나간다 */
+  eq('되보낼 때는 안 잡는다', /const send=\(room,text,resumed\)=>\{/.test(web), true);
+
+  /* ── 얼마나 천천히 ──
+     화면과 코드가 같은 숫자를 본다. 한쪽에만 적으면 「천천히」가 두 뜻이 되고,
+     커서가 아직 뒤집히는 중인 종이 위에 선다. */
+  eq('앉고 · 머물고 · 넘어가는 시간이 코드에 있다',
+    [D.FLASH_RISE > 0, D.FLASH_HOLD > 0, D.FLASH_TURN > 0], [true, true, true]);
+  eq('넘어가는 것은 앉은 다음이다',
+    /setTurn\(true\),FLASH_RISE\+FLASH_HOLD/.test(web), true);
+  eq('커서는 다 넘어간 다음에 선다',
+    /if\(!turn\)return;[\s\S]{0,120}first\.current\.focus\(\)\},FLASH_TURN/.test(web), true);
+  /* 앉는 것과 넘어가는 것을 두 겹으로 나눈다 — 한 겹이면 앉는 애니메이션이
+     transform을 끝까지 붙들어서 넘어가는 게 화면에 안 나온다 */
+  eq('앉는 겹과 넘어가는 겹이 다르다',
+    /\.fwrap\{[^}]*animation:frise/.test(flashCss) && /\.fcard\{[^}]*transition:transform/.test(flashCss)
+    && !/\.fcard\{[^}]*animation:frise/.test(flashCss), true);
+  /* 말풍선이 아니라 화면 전환이다 — 말풍선으로 오면 「상대가 보낸 셀카」가 된다 */
+  eq('말풍선이 아니라 화면이다', /\.flash\{position:absolute;inset:0;z-index:58;/.test(flashCss), true);
+  /* 두 장을 다 쓴다 — 앞면이 그날의 옥상이고 뒷면이 일기다 */
+  eq('앞뒤 두 장을 쓴다', [D.FLASH_FRONT, D.FLASH_BACK], ['card-rooftop.webp', 'card-note.webp']);
+}
+
 /* ── 배역을 받는 자리 ──
    유저가 배역을 받은 줄 모르는 채로 첫 방에 들어가고 있었다. 그래서 뒤에
    「선생님」이라는 호칭이 설명 없이 성립하지 않았다. 교실에서 그렇게 불리는
@@ -5161,7 +5237,7 @@ eq('시간표 단추는 peek보다 좁다',
   /* 고칠 말풍선이 딱 하나가 아닐 때 — 「//」는 대화가 아니라 적어두는 것이다.
      그 줄에서 끝난다: 이력에도 안 남고 워커도 안 부른다 */
   eq('두 빗금은 워커를 안 부른다', (() => {
-    const i = web.indexOf('const send=(room,text)=>{');
+    const i = web.indexOf('const send=(room,text,resumed)=>{');
     const head = web.slice(i, i + 500);
     const cut = head.indexOf('addNote(room,text.replace');
     return cut > 0 && /return \}/.test(head.slice(cut, cut + 60))

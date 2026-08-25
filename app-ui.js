@@ -642,18 +642,76 @@ function Diary({onDone}){
   const t=v.trim();
   /* 닫히는 동안 한 번 더 눌려서 두 번 저장되는 일이 없게 */
   const done=()=>{if(out||!t)return;setOut(true);saveDiary(t);setTimeout(onDone,420)};
+  /* 사진을 못 읽는 사람에게는 적힌 글을 그대로 읽어준다 */
+  const alt=[DIARY_HEAD,...DIARY_LINES,DIARY_TAIL_A+"□"+DIARY_TAIL_B].join(" ");
   return <div className={"diary"+(out?" out":"")}>
     <div className="dpage">
-      <div className="dhead">{DIARY_HEAD}</div>
-      {DIARY_LINES.map((l,i)=><p key={i} className="dline">{l}</p>)}
-      <p className="dline dlast">{DIARY_TAIL_A}
-        <input className="dblank" value={v} autoFocus maxLength={DIARY_MAX}
-          placeholder="ㅁ" onChange={e=>setV(e.target.value)}
-          onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();done()}}}/>
-        {DIARY_TAIL_B}</p>
-      {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
-      <button className="wbtn go dbtn" disabled={!t} onClick={done}>덮기 ♡</button>
+      <img className="dshot" src={DIARY_IMG} alt={alt}/>
+      {/* 종이에 그려진 네모 위에 그대로 앉는다. 자리는 사진에서 잰 값이다.
+          비어 있는 칸이 채워지는 것 — 그게 이 게임이 하는 일이다 */}
+      <input className="dblank" value={v} autoFocus maxLength={DIARY_MAX}
+        style={{left:DIARY_BOX.left+"%",top:DIARY_BOX.top+"%",
+                width:DIARY_BOX.w+"%",height:DIARY_BOX.h+"%"}}
+        onChange={e=>setV(e.target.value)}
+        onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();done()}}}/>
     </div>
+    {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
+    <button className="wbtn go dbtn" disabled={!t} onClick={done}>덮기 ♡</button>
+  </div>;
+}
+
+/* ── 민현의 옛 일기 — 병원 옥상 ──
+   유저가 처음 무언가를 입력한 그 순간. 말풍선으로 오지 않는다 — 말풍선은
+   「상대가 보낸 사진」이고, 이건 유저의 기억이 올라오는 것이다. 화면이
+   통째로 그 엽서가 된다.
+
+   앞면이 천천히 앉고, 잠깐 그대로 있다가, 천천히 넘어간다. 넘어가고 나서야
+   빈칸이 보이고 커서가 선다 — 앞면을 보는 동안 칸을 못 누르게 하는 것이
+   이 화면의 속도다.
+
+   정사는 전부 고정이다. 유저가 짓는 것은 상대의 반응과 자기 소망뿐이다. */
+function Flash({onDone}){
+  const [turn,setTurn]=useState(false);   // 뒷면으로 넘어갔나
+  const [v,setV]=useState({face:"",said:"",wish:""});
+  const [out,setOut]=useState(false);
+  const first=useRef(null);
+  useEffect(()=>{
+    const t=setTimeout(()=>setTurn(true),FLASH_RISE+FLASH_HOLD);
+    return()=>clearTimeout(t);
+  },[]);
+  /* 넘어간 뒤에 커서가 선다. 넘어가는 중에 잡으면 뒤집히는 종이를 누르는 게 된다 */
+  useEffect(()=>{
+    if(!turn)return;
+    const t=setTimeout(()=>{if(first.current)first.current.focus()},FLASH_TURN);
+    return()=>clearTimeout(t);
+  },[turn]);
+  const full=FLASH_KEYS.every(k=>v[k].trim());
+  const done=()=>{if(out||!full)return;setOut(true);saveFlash(v);setTimeout(()=>onDone(v),460)};
+  const set=(k,t)=>setV(p=>({...p,[k]:t}));
+  return <div className={"flash"+(out?" out":"")}>
+    {/* 앉는 것과 넘어가는 것을 두 겹으로 나눈다 — 한 겹에 얹으면 앉는
+        애니메이션이 transform을 붙들고 있어서 넘어가는 게 화면에 안 나온다.
+        (실제로 그랬다: 클래스는 바뀌는데 앞면이 그대로 있었다) */}
+    <div className="fwrap" style={{"--rise":FLASH_RISE+"ms","--turn":FLASH_TURN+"ms"}}>
+    <div className={"fcard"+(turn?" turn":"")}>
+      <div className="fside ffront"><img src={FLASH_FRONT} alt="눈 내리는 병원 옥상"/></div>
+      <div className="fside fback">
+        <img src={FLASH_BACK} alt={FLASH_ALT.join(" ")}/>
+        {/* 종이에 그려진 네모 위에 그대로 앉는다. 자리는 사진에서 잰 값이다 */}
+        {FLASH_BOX.map((b,i)=>
+          <input key={b.key} ref={i===0?first:null} className="fblank"
+            value={v[b.key]} maxLength={FLASH_MAX} tabIndex={turn?0:-1}
+            style={{left:b.left+"%",top:b.top+"%",width:b.w+"%",height:b.h+"%"}}
+            onChange={e=>set(b.key,e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();
+              const n=e.target.closest(".fback").querySelectorAll(".fblank")[i+1];
+              if(n)n.focus(); else done()}}}/>)}
+      </div>
+    </div>
+    </div>
+    {/* 셋이 다 차야 넘어간다. 하나라도 비면 이 화면이 할 일이 남아 있다 */}
+    <button className={"wbtn go fbtn"+(turn?"":" hid")} disabled={!full} onClick={done}>
+      덮기 ♡</button>
   </div>;
 }
 
