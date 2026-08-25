@@ -150,6 +150,18 @@ const sys1Due=store=>{
   return !!first && worldNow().getTime()-gameAt(first).getTime() >= SYS1_AFTER;
 };
 const loadSys1=()=>{try{return localStorage.getItem("null_sys1")==="1"}catch(e){return false}};
+/* ── get cha ──
+   첫 만남이 끝나면 그 사람의 메신저가 생긴다. 판마다 사람마다 한 번뿐이라
+   저장소에 적어둔다 — 새로고침으로 다시 뜨면 사건이 아니라 알림이 된다.
+   null_wipe로 판을 새로 열면 이것도 같이 비워진다(저장소를 통째로 지운다). */
+const loadGetcha=id=>{try{
+  return (JSON.parse(localStorage.getItem("null_getcha"))||[]).includes(id);
+}catch(e){return false}};
+const saveGetcha=id=>{try{
+  const a=JSON.parse(localStorage.getItem("null_getcha"))||[];
+  if(!a.includes(id)){a.push(id);localStorage.setItem("null_getcha",JSON.stringify(a))}
+  return true;
+}catch(e){return false}};
 const saveSys1=()=>{try{localStorage.setItem("null_sys1","1")}catch(e){}};
 /* 남은 날·지난 날. 둘 다 세계 시계 하나에서 나온다 */
 const daysLeft=store=>Math.max(0,ENROLL_DAYS+loadExtend()-worldDaysOf(store));

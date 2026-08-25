@@ -9,6 +9,10 @@ function App(){
   const [unlocked,setUnlocked]=useState(loadUnlocked);
   const [gifts,setGifts]=useState(loadGifts);   // {jaeeon:["mug"], ...} 누구에게 뭘 줬나
   const [toast,setToast]=useState(null);            // 해금 알림
+  /* 첫 만남이 끝나고 그 사람의 메신저가 생기는 창. 방이 왜 생겼는지를
+     이 한 장면이 맡는다 — 대사로 「번호 주세요」를 여덟 번 쓰지 않아도 된다. */
+  const [getcha,setGetcha]=useState(null);          // 메신저를 얻은 사람 id
+  const getchaRef=useRef(null);                     // 첫 마디가 다 앉기를 기다리는 자리
   const [view,setView]=useState("list");            // 'list' | roomId
   const [busy,setBusy]=useState({});                // 방별 타이핑 인디케이터
   const [failed,setFailed]=useState({});            // 방별 실패 payload (재시도용)
@@ -37,7 +41,11 @@ function App(){
 
   useEffect(()=>{try{localStorage.setItem("null_profile",JSON.stringify(profile))}catch(e){}},[profile]);
   useEffect(()=>{saveUnlocked(unlocked)},[unlocked]);
-  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2600);return()=>clearTimeout(t)},[toast]);
+  /* get cha 창이 떠 있는 동안에는 알림을 세워둔다. 토스트(45)가 대화창(40)
+     위에 뜨는 건 「구경 중에도 알림은 보인다」는 결정이라 그대로 두고,
+     이 창일 때만 미룬다 — 첫 만남에서 자리 물건을 받으면 「bag — 에너지바」가
+     Get cha! 글자를 정확히 덮는다. 창을 닫으면 그때 뜨고 2.6초 뒤 사라진다. */
+  useEffect(()=>{if(!toast||getcha)return;const t=setTimeout(()=>setToast(null),2600);return()=>clearTimeout(t)},[toast,getcha]);
 
   /* 메시지 추가 (+현재 안 보고 있는 방이면 unread 증가)
      ── 계약 ──
@@ -1678,6 +1686,9 @@ function App(){
        자리마다 첫 마디를 문구집에 따로 정해뒀다. 모델은 안 부른다 —
        두 번째 말부터가 모델 몫이다. */
     setBusy(b=>({...b,[o.room]:true}));
+    /* 첫 마디가 다 앉은 뒤에 창을 띄운다. 말하는 중에 덮으면 그 자리를
+       못 읽는다 — 아래 useEffect가 busy를 보고 있다가 연다. */
+    if(!loadGetcha(o.room))getchaRef.current=o.room;
     const first=demoProactive(o.room,o.place,name);
     if(first.length)setTimeout(()=>enqueue(o.room,first),700);
     else setBusy(b=>({...b,[o.room]:false}));
@@ -1692,6 +1703,16 @@ function App(){
       setTimeout(()=>greet(other,0),2600+Math.random()*2600);
     }
   },[name,enrolling]);
+
+  /* ── 첫 마디가 다 앉으면 get cha 창 ──
+     타이핑이 끝나는 시각은 말 수에 따라 다르다. 초를 세지 않고 busy가
+     내려가는 것을 본다 — 그게 「이 방이 조용해졌다」의 뜻이다. */
+  useEffect(()=>{
+    const r=getchaRef.current;
+    if(!r||busy[r])return;
+    getchaRef.current=null;
+    saveGetcha(r); setGetcha(r);
+  },[busy]);
 
   useEffect(()=>{
     if(!name||view!=="list"||enrolling)return;
@@ -1902,6 +1923,7 @@ function App(){
         </div>
       </div>
     </Dialog>}
+    {getcha&&<GetCha char={getcha} onClose={()=>setGetcha(null)}/>}
     {sys1&&<Dialog title="null.exe" onClose={()=>setSys1(false)}>
       <div className="ddq">
         <div className="k">［ N U L L ］♡</div>
@@ -1951,7 +1973,7 @@ function App(){
         <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
       </div>
     </Dialog>}
-    {toast&&<div className="toast"><span>✧ {toast}</span></div>}
+    {toast&&!getcha&&<div className="toast"><span>✧ {toast}</span></div>}
   </div>;
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);

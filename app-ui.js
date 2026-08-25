@@ -532,6 +532,27 @@ function Dialog({title,onClose,children,cls,win}){
   </div>;
 }
 
+/* ── get cha ── 첫 만남이 끝나고 그 사람의 메신저가 생기는 창.
+   Dialog 셸을 안 쓴다: 이 창만 창틀 셋(─ □ ✕)이 다 보이고 본문이 어둡다.
+   번호가 어디서 났는지를 대사로 설명하는 대신 이 한 장면이 맡는다 —
+   그래서 문구집 여덟 자리를 한 줄도 안 고쳐도 된다. */
+function GetCha({char,onClose}){
+  return <div className="dlgov" onClick={onClose}>
+    <div className="dlg getcha" onClick={e=>e.stopPropagation()}>
+      <div className="tb">null.exe<WinDots onClose={onClose}/></div>
+      <div className="gcbody">
+        <span className="gcslot"><b>{(CHARS[char]||{}).name||"□□□"}</b><i/></span>
+        <div className="gcget">
+          <span>의 메신저를</span>
+          <b>Get cha!</b>
+          <i className="kao">( ⸝⸝´꒳`⸝⸝) ꫂ 💌</i>
+        </div>
+        <button className="wbtn gcbtn" onClick={onClose}>chat ♡</button>
+      </div>
+    </div>
+  </div>;
+}
+
 /* 탭하면 입력으로 바뀌는 빈칸 */
 /* 열린 상태를 밖에서 쥘 수 있다(open/onOpen). 등록 화면은 그렇게 해서
    엔터 한 번에 다음 칸으로 넘긴다. 안 넘기면 제 안의 edit로 혼자 돈다 —

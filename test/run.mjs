@@ -1296,6 +1296,59 @@ eq('생성된 파일이라고 적어둔다',
   })(), []);
 }
 
+/* ── get cha — 첫 만남이 끝나면 그 사람의 메신저가 생긴다 ──
+   방이 왜 생겼는지를 이 창 하나가 맡는다. 판마다 사람마다 한 번뿐이고,
+   말하는 중에 덮으면 그 자리를 못 읽으므로 첫 마디가 다 앉은 뒤에 뜬다. */
+{
+  const box = () => {
+    const mem = new Map();
+    return { localStorage: { getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
+      location: { search: '' } };
+  };
+  const g = box();
+  const D = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {loadGetcha,saveGetcha};')(g.localStorage, g.location);
+  eq('처음에는 아무도 안 받았다',
+    [D.loadGetcha('minhyun'), D.loadGetcha('jaeeon')], [false, false]);
+  D.saveGetcha('minhyun');
+  eq('받은 사람만 적힌다',
+    [D.loadGetcha('minhyun'), D.loadGetcha('jaeeon')], [true, false]);
+  D.saveGetcha('minhyun'); D.saveGetcha('jaeeon');
+  eq('두 번 적어도 한 번이다',
+    JSON.parse(g.localStorage.getItem('null_getcha')), ['minhyun', 'jaeeon']);
+  /* 깨진 값이 들어 있어도 창이 안 뜨는 쪽으로 죽지 않는다 */
+  g.localStorage.setItem('null_getcha', '{{{');
+  eq('깨진 값은 「아직 안 받음」이다', D.loadGetcha('minhyun'), false);
+
+  const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
+  const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
+  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('오프닝이 아직 안 받은 사람만 예약한다',
+    /if\(!loadGetcha\(o\.room\)\)getchaRef\.current=o\.room;/.test(app), true);
+  /* 초를 세지 않는다 — 말 수에 따라 끝나는 시각이 다르다 */
+  eq('첫 마디가 다 앉은 뒤에 연다',
+    /const r=getchaRef\.current;\s*\n\s*if\(!r\|\|busy\[r\]\)return;/.test(app), true);
+  eq('열면서 적어둔다 — 새로고침으로 다시 안 뜬다',
+    /getchaRef\.current=null;\s*\n\s*saveGetcha\(r\); setGetcha\(r\);/.test(app), true);
+  eq('창이 화면에 붙어 있다', /\{getcha&&<GetCha char=\{getcha\} onClose=/.test(app), true);
+  /* 토스트(45)가 대화창(40) 위에 뜨는 건 그대로 두고, 이 창일 때만 미룬다 */
+  eq('창이 떠 있는 동안 알림은 세워둔다',
+    /if\(!toast\|\|getcha\)return;/.test(app)
+    && /\{toast&&!getcha&&<div className="toast">/.test(app), true);
+  eq('창은 인물 이름을 CHARS에서 읽는다',
+    /function GetCha\(\{char,onClose\}\)/.test(ui)
+    && /\(CHARS\[char\]\|\|\{\}\)\.name/.test(ui), true);
+  eq('문구는 정해진 한 줄이다',
+    ui.includes('의 메신저를') && ui.includes('Get cha!')
+    && ui.includes('( ⸝⸝´꒳`⸝⸝) ꫂ 💌'), true);
+  /* .wbtn이 뒤에 나와서 한 클래스로는 진다 — 두 클래스로 못박아야 분홍이다 */
+  eq('단추 색이 .wbtn에 안 먹힌다', /\.wbtn\.gcbtn\{/.test(css), true);
+  eq('이 창만 어둡다', /\.dlg\.getcha\{background:linear-gradient\(180deg,#3d3170,#2b2352\)/.test(css), true);
+}
+
 /* ── 앱이 워커에 보내는 것이 웹과 같다 ──
    payload가 다르면 같은 인물이 두 앱에서 다르게 군다. 웹이 얹는 것을
    앱도 다 얹어야 한다 — 특히 접속 상태와 자리는 인물의 대답을 바꾼다. */
