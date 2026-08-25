@@ -2944,12 +2944,11 @@ eq('세계관에는 안 남겼다',
      써졌다. 공통 블록(①세계)으로 올라갔으니 ③에는 없어야 한다 */
   eq('쓰는 법이 공통 블록에만 있다', (() => {
     const [world, , rules] = buildSystem('chat', 'jaeeon', 'R', null, [], null, null, null).map(b => b.text);
-    return world.includes('같은 소재를 반복하지 않는다') && !rules.includes('같은 소재를 반복하지 않는다');
+    const k = '입에 붙는 말일수록 간격을 둔다';
+    return world.includes(k) && !rules.includes(k);
   })(), true);
-  /* 민현의 대화 예시에 「같이 웃어요ㅋㅋㅋㅋㅋ」가 있다. 전면 금지와 예시가
-     서로 딴말을 하면 모델이 아무거나 고른다 — 예시가 상한이라고 적는다 */
-  eq('자모 축약은 예시만큼만 허용한다',
-    /\[대화 예시\]에 나오는 쓰임만 예외다/.test(workerSrc), true);
+  eq('자모 축약은 안 쓴다',
+    /• 자모 축약은 쓰지 않는다\./.test(workerSrc), true);
   /* ── 말꼬리와 우기기 ──
      재언은 꼰대로, 민현은 없던 일을 있었다고 말하는 쪽으로 기울었다. 둘 다
      같은 뿌리다 — 유저가 무슨 뜻으로 말했는지보다 자기 말이 맞는 쪽을 고른다.
@@ -2985,8 +2984,13 @@ eq('세계관에는 안 남겼다',
   /* 받아서 되묻는 것은 (o)다. 이 둘이 (x)로 있으면 규칙이 대화까지 막는다 */
   eq('받아서 되묻는 것은 막지 않는다', (() => {
     const world = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[0].text;
-    return /\(o\) 유저: 각종 댄스 가능/.test(world)
-        && /\(o\) 유저: 학교에 비리로 수영장 만들어줘/.test(world);
+    return /\(o\) 유저: 각종 댄스 가능 → "각종이요\? 어떤 거요\."/.test(world);
+  })(), true);
+  /* 모르겠다는 말을 그냥 넘기지 않는다 — 이해한 뒤에 이어가는 것이 대화다 */
+  eq('모른다고 하면 설명한다', (() => {
+    const world = buildSystem('chat', 'minhyun', 'R', null, [], null, null, null)[0].text;
+    return world.includes('유저가 모른다고 말하면 정확히 설명한다')
+        && world.includes('유저가 이해한 뒤에 이어가는 것이 대화다');
   })(), true);
   /* ── 스물아홉인데 10년 차였다 ──
      「29세」와 「10년 차 보건교사의 손」이 같은 블록에 있었다. 보건교사는
