@@ -1454,6 +1454,11 @@ eq('생성된 파일이라고 적어둔다',
     const all = w.map(x => x.text).join('');
     return (all.match(/처음부터 교생인 걸 아는 게 아니라/g) || []).length;
   })(), 1);
+  /* 세계가 언제 시작하는지가 제일 앞줄이다 — 뒤에 오는 조건절이 그걸 본다 */
+  eq('첫 문장이 세계의 시작을 적는다', (() => {
+    const w = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '')[0].text;
+    return w.trim().split('\n')[0].trim();
+  })(), '유저의 첫 입력이 세계의 시작이다.');
   eq('세계관 호칭 절이 그대로다', (() => {
     const w = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '')[0].text;
     return w.includes('학교가 아닌 장소에서 세계가 시작될 경우 유저를 "선생님"이라고 부르지 않는다.')

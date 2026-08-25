@@ -298,6 +298,45 @@ console.log("── 아직 학교에서 만나기 전 ──");
     (src.match(/처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터/g) || []).length, 1);
   eq("유저가 먼저 꺼내면 예외다", src.includes(
     '학교가 아닌 장소에서 세계가 시작될 경우 유저를 "선생님"이라고 부르지 않는다.'), true);
+
+  /* ── 규칙에는 조건이 달려 있다. 그 조건이 참이라는 것을 알려주는 것은
+     사실이다 ── 이게 없으면 모델은 조건을 판정할 수 없어 조건절을 버리고
+     앞 문장(「호칭은 선생님이다」)만 읽는다. 규칙을 넣어도 안 듣던 까닭. */
+  const sentOf2 = async (body) => {
+    let out = "";
+    const realFetch = globalThis.fetch;
+    const base = RP.fakeFetch();
+    globalThis.fetch = async (u, init) => {
+      if (String(u).includes("api.openai.com") && !out) out = init.body;
+      return base(u, init);
+    };
+    try {
+      await worker.fetch(new Request("https://x/?k=k", { method: "POST", body: JSON.stringify(body),
+        headers: { "CF-Connecting-IP": "9.5.7.1" } }),
+        { ANTHROPIC_API_KEY: "sk-t", ACCESS_KEY: "k", OPENAI_API_KEY: "sk-fake" });
+    } finally { globalThis.fetch = realFetch; }
+    return out;
+  };
+  const withMet2 = (body, sm) => {
+    const b = JSON.parse(JSON.stringify(body));
+    if (sm) b.story = { ...(b.story || {}), schoolMet: sm };
+    else if (b.story) delete b.story.schoolMet;
+    return b;
+  };
+  const YET = "아직 학교에서 만나지 않았다";
+  eq("아직 안 만났으면 그 사실이 실린다",
+    (await sentOf2(withMet2(N07, { jaeeon: false, minhyun: false }))).includes(YET), true);
+  eq("학교에서 만난 뒤에는 안 실린다",
+    (await sentOf2(withMet2(N07, { jaeeon: false, minhyun: true }))).includes(YET), false);
+  /* 사람마다 따로 선다 — known_by가 그 사람이라 남의 방에는 안 샌다 */
+  eq("남의 몫은 이 방에 안 샌다",
+    (await sentOf2(withMet2(N07, { jaeeon: false, minhyun: true }))).includes("이재언은 유저를 아직"), false);
+  eq("안 실려 온 판은 아무것도 안 낸다",
+    (await sentOf2(withMet2(N07, null))).includes(YET), false);
+  eq("사실이지 규칙이 아니다 — 문장에 지시가 없다",
+    ENG.storyFacts(ENG.makeStoryState({ schoolMet: { jaeeon: false, minhyun: false } }))
+      .filter(f => /school_met/.test(f.fact_id))
+      .every(f => f.source === "state" && !/않는다\.|말라|하지 마/.test(f.value)), true);
 }
 
 console.log("── 민현 행동축 ──");

@@ -636,6 +636,8 @@ const MAX_HISTORY_CHARS = 60000;
    덩어리가 막는 것들이다.)
    순서를 바꾸면 캐시가 한 번 다시 써진다. 그 한 번뿐이고 턴당 값은 안 변한다. */
 const WORLD = `
+유저의 첫 입력이 세계의 시작이다.
+
 NULL — 공통 세계관 프롬프트
 
 역할
@@ -2866,6 +2868,20 @@ function buildFacts(gifts, bag, giftNow, giftRoom) {
    뒤에야 유저 귀에 들어간 것이다), 민현의 설명은 민현과 유저가 안다. */
 function storyFacts(st) {
   const F = [];
+  /* ── 아직 학교에서 안 만났다 ──
+     호칭 절의 규칙은 「학교가 아닌 장소에서 세계가 시작될 경우」로 조건이
+     달려 있다. 그런데 그 조건이 참인지를 모델에게 알려주는 것이 아무것도
+     없었다 — 세계가 어디서 시작했는지도, 학교에서 만났는지도 프롬프트에
+     안 적혔다. 조건을 모르면 조건절은 없는 것과 같고, 앞 문장(「호칭은
+     선생님이다」)만 남는다. 그게 규칙을 넣어도 안 듣던 까닭이다.
+     규칙은 세계관에 있고, 여기 싣는 것은 그 조건이 참이라는 **사실**이다.
+     schoolMet이 안 실려 온 판(null)은 이 칸을 안 쓰므로 아무것도 안 낸다. */
+  for (const who of ["jaeeon", "minhyun"]) {
+    if (!st.schoolMet || st.schoolMet[who]) continue;
+    F.push(makeFact(`story.school_met.${who}.not_yet`,
+      `${CHAR_LABEL[who]}은 유저를 아직 학교에서 만나지 않았다. 유저가 교생이라는 것도, 무엇을 하는 사람인지도 모른다. 과거에 한 번 마주친 것이 유저에 대해 아는 전부다`,
+      "state", [who]));
+  }
   if (st.firstContact === "pending")
     F.push(makeFact("story.first_contact.pending",
       "유저가 이민현에게 처음 만난 자리를 물었고, 이민현은 아직 설명하지 않았다. 설명을 미루면 미룰수록 부자연스럽다",
