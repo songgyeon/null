@@ -184,13 +184,17 @@ function engineMode(env) {
      명시해야 그 길이다. 일반 턴에서 저비용 Writer도 Director도 안 부른다.
      중요 장면의 검사·마무리와 관전 발견의 화자 순차는 그대로다: solo가
      없애는 것은 「후보 둘을 만들어 고르는」 단계 하나뿐이다. */
+  /* ── 무플래그 기본값은 gpt41이다 ──
+     블라인드 판정(17승 2패 1무)으로 쓰는 자리가 정해졌다. 기본 배선은
+     쓰는 자리 한 번이고, 검사는 **승인된 중요 장면의 정사 하나**뿐이다 —
+     사람 검사·고르는 쪽·마무리는 기본 경로에서 안 부른다.
+     옛 배선은 지우지 않았다: solo(상급 Writer + 검사 둘 + 마무리)와
+     hybrid·legacy·single·single5는 명시한 깃발에서 그대로 돈다. */
   return v === "legacy" ? "legacy" : v === "single" ? "single"
        : v === "single5" ? "single5"
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku"
-       /* gpt41 — replay 전용 도전자. solo와 **같은 배선**이고 생성 자리
-          (Writer·Finalizer)만 다른 진영이다. 검사 둘은 그대로 남는다. */
-       : v === "gpt41" ? "gpt41"
-       : v === "hybrid" ? "hybrid" : "solo";
+       : v === "solo" ? "solo"
+       : v === "hybrid" ? "hybrid" : "gpt41";
 }
 /* G5 — 행동 규칙 프로필. hybrid-pair 구조 자체는 그대로고, Writer에 행동
    규칙을 얹고 Director의 판정 형식을 구조화한다. 운영 기본값은 빈 문자열
@@ -4934,7 +4938,13 @@ const SELECTED_COMMON = `[이 턴에 지켜야 할 것]
 - 아래에 적힌 재료 하나를 실제로 물어서, 이 사람의 감정이나 바람이 조금 움직이게 한다.
 - 없는 사실을 보태서 설렘을 만들지 않는다. 재료에 없는 과거·약속·선물·방문을 지어내지 않는다.
 - 유저의 말을 해석해주거나 교훈으로 정리하지 않는다. 상담사가 아니다.
-- 유저의 호의를 시비조로 밀어내지 않는다. 곤란한 것과 쏘아붙이는 것은 다르다.`;
+- 유저의 호의를 시비조로 밀어내지 않는다. 곤란한 것과 쏘아붙이는 것은 다르다.
+
+[직접 반응]
+사용자가 방금 한 말의 핵심에 먼저 직접 반응한다. 감정을 상담사처럼 다시 요약하거나 원인을 분석하는 질문으로 돌리지 않는다. 다음 말이 자연스럽게 없으면 질문 없이 끝내도 된다. 시간·날씨·식사·현재 위치는 방금 발화와 직접 관련될 때만 소재로 쓴다.
+
+[주어진 사실 안에서 전진]
+현재 사실·대화 기록·상태로 확인되는 내용만 확정한다. 아직 실행되지 않은 제안이나 약속은 제안 상태로 둔다. 주어지지 않은 과거 행동·시간·장소·감정·관계 이력을 만들어 설명하지 않는다. 대신 이미 주어진 사실 중 하나를 골라 감정이나 욕망이 드러나는 방향으로 반응한다.`;
 
 /* 화자별 한 줄. **한 사람만 말하는 호출**에는 그 사람 것만 준다 —
    상대 이름이 보이면 모델이 상대 대사까지 쓰기 시작한다(§8.5 화자 순차). */
@@ -5429,14 +5439,18 @@ export default {
            **모델 id는 안 적는다** — 공개 엔드포인트다. 경로 이름과 일반
            턴의 호출 수만으로 새 배선인지 옛 배선인지 갈린다. */
         const em = engineMode(env);
-        const wiring = `${em} · 일반 턴 ${em === "solo" || em === "single" || em === "single5" ? 1 : 2}호출`
-          + `${em === "solo" ? " (고르는 단계 없음)" : ""}`;
+        const oneCall = em === "gpt41" || em === "solo" || em === "single" || em === "single5";
+        const wiring = `${em} · 일반 턴 ${oneCall ? 1 : 2}호출`
+          + `${em === "gpt41" || em === "solo" ? " (고르는 단계 없음)" : ""}`;
+        /* 중요 장면에 남은 검사가 몇인지도 적는다 — 기본 경로는 정사 하나다 */
+        const critics = em === "gpt41" ? "정사 1" : em === "single" || em === "single5" ? "없음" : "정사·사람 2";
         return new Response(
           ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
            `실행 위치      ${colo}`,
            `API 키         ${found ? "있음" : "없음"}`,
            `엔진 배선      ${wiring}`,
-           `행동 규칙      ${em === "solo" || dialogueRuleset(env) === "selected-v1" ? "켜짐" : "꺼짐"}`,
+           `중요 장면 검사  ${critics}`,
+           `행동 규칙      ${em === "gpt41" || em === "solo" || dialogueRuleset(env) === "selected-v1" ? "켜짐" : "꺼짐"}`,
            `프롬프트 크기   ${sizes}`,
            "",
            "모델 호출까지 확인하려면 ?diag=<DIAG_TOKEN> 을 붙이세요.",
@@ -6231,7 +6245,16 @@ export default {
          쓰는 자리가 후보를 고쳐 써버리니까. 그래서 이 깃발에서는 마무리를
          아예 안 부르고, 검사를 통과한 Writer 원문을 그대로 내보낸다.
          env로만 켜진다 — 요청 본문은 못 바꾼다. 운영에는 이 변수가 없다. */
-      const noFinalizer = String((env && env.NO_FINALIZER) || "") === "1";
+      /* ── 기본 경로의 검사 구성 ──
+         마무리(Finalizer)는 기본 경로에 없다. 검사를 통과한 쓰는 자리의
+         원문이 그대로 화면에 나간다 — 고쳐 쓰는 자리가 없으니 「누가 썼나」가
+         흐려지지 않는다. NO_FINALIZER는 옛 배선(solo·hybrid)을 마무리 없이
+         재보는 replay 깃발로 남는다. */
+      const noFinalizer = em === "gpt41" || String((env && env.NO_FINALIZER) || "") === "1";
+      /* 사람 검사(Character)도 기본 경로에 없다. 말맛은 검사가 아니라 사람이
+         읽고 정한다 — 모델에게 말맛을 판정시키면 재시도가 폭주하고, 그 판정
+         자체가 근거 없는 주관이다. 기본 경로에 남는 검사는 정사 하나뿐이다. */
+      const canonOnly = em === "gpt41";
       /* ── NO_CRITICS — replay 전용 ──
          한 진영만으로 어디까지 가는지 재는 자리다. 검사 둘(Canon·Character)과
          소유자 정사 검사가 다른 진영의 모델이라, 그게 붙어 있으면 「그 모델
@@ -6637,14 +6660,18 @@ export default {
           /* 검사는 둘이고, 각각 후보 전부를 한 번에 본다. 후보마다 부르면
              여섯 호출이 나고 결과를 합치면서 표식이 사라진다. */
           const allowed = { candidates: new Set(cands.map(c => c.id)), facts: factIds(stageFacts) };
+          /* 기본 경로는 정사 하나만 본다. 사람 검사는 옛 배선에만 남는다 —
+             호출을 안 하지 잘라낸 것이 아니다(코드도 규칙도 그대로다). */
           const [canonRaw, charRaw] = await Promise.all([
             callStage(env, meter, "canon", CANON_CRITIC,
               [{ role: "user", content: criticPacket(sceneCtx, cands, "canon") }], 400, attempt, tier, ""),
-            callStage(env, meter, "character", CHAR_CRITIC,
-              [{ role: "user", content: criticPacket(sceneCtx, cands, "character") }], 400, attempt, tier, ""),
+            canonOnly ? Promise.resolve(null)
+              : callStage(env, meter, "character", CHAR_CRITIC,
+                  [{ role: "user", content: criticPacket(sceneCtx, cands, "character") }], 400, attempt, tier, ""),
           ]);
           const canonRes = readProblems(canonRaw, "canon", allowed);
-          const charRes = readProblems(charRaw, "character", allowed);
+          const charRes = canonOnly ? { ok: true, problems: [] }
+            : readProblems(charRaw, "character", allowed);
           /* 못 읽은 것은 「문제 없음」이 아니다. 검사가 헛소리를 했는데
              깨끗하다고 넘어가면 검사가 있는데 없는 것과 같다. */
           if (!canonRes.ok || !charRes.ok) {
@@ -6667,7 +6694,12 @@ export default {
              사람이 없으므로 사람 문제도 탈락이다 — 안 그러면 Character 검사가
              결과에 아무 영향이 없는 채로 돌기만 한다. 운영 기본에는 이 깃발이
              없고, 있을 때도 검사가 대사를 대신 쓰지 않는다. */
-          const denyCritics = noFinalizer ? ["canon", "character"] : ["canon"];
+          /* 기본 경로에는 사람 검사가 없으므로 탈락 사유도 정사뿐이다.
+             마무리 없이 옛 배선을 재보는 replay에서는 고칠 사람이 없으니
+             사람 문제도 탈락으로 센다(그러지 않으면 그 검사가 결과에 아무
+             영향 없이 돌기만 한다). */
+          const denyCritics = canonOnly ? ["canon"]
+            : noFinalizer ? ["canon", "character"] : ["canon"];
           const denied = new Set(notes.filter(n => denyCritics.includes(n.critic)).map(n => n.candidate));
           const survivors = cands.filter(c => !denied.has(c.id));
           console.log(`[NULL] 검사 ▶ ${notes.length}건 · 남은 후보 ${survivors.length}/${cands.length}`);

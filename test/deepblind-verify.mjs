@@ -38,7 +38,8 @@ async function run(env, body) {
   } finally { globalThis.fetch = realFetch; }
 }
 const ENV_G = { ENGINE_MODE: "gpt41", NO_FINALIZER: "1", OPENAI_API_KEY: "sk-fake" };
-const ENV_S = { NO_FINALIZER: "1" };
+/* 기준선 진영 — 무플래그 기본값이 바뀌었으므로 그 배선을 명시한다 */
+const ENV_S = { ENGINE_MODE: "solo", NO_FINALIZER: "1" };
 /* 나간 요청의 프롬프트를 진영과 무관한 한 덩어리로 편다 */
 const flat = req => {
   const c = req.body;
@@ -208,19 +209,24 @@ console.log("── 10. 블라인드에 단서가 없다 ──");
 
 console.log("── 11. 운영 기본·판 번호·배포 무변경 ──");
 {
-  eq("기본 엔진 모드가 solo다", ENG.engineMode({}), "solo");
-  eq("기본 쓰는 자리가 그대로다", ENG.ENGINE.writer.id, "claude-sonnet-4-5-20250929");
-  eq("기본 경로는 마무리를 부른다(깃발이 없으면)", (() => {
+  /* 이 실험은 끝났고 결과로 기본값이 바뀌었다. 여기서 지키는 것은 **실험
+     하네스가 계속 재현 가능한가**다 — 두 진영이 각자의 깃발로 정확히 그
+     배선을 타는지. 옛 상급 배선은 지운 것이 아니라 solo로 남아 있다. */
+  eq("기본 엔진 모드는 도전자 진영이다", ENG.engineMode({}), "gpt41");
+  eq("기준선 배선은 solo로 남아 있다", ENG.engineMode({ ENGINE_MODE: "solo" }), "solo");
+  eq("기준선 진영의 쓰는 자리가 그대로다", ENG.ENGINE.writer.id, "claude-sonnet-4-5-20250929");
+  eq("마무리를 빼는 깃발이 살아 있다", (() => {
     const src = readFileSync(join(ROOT, "worker.js"), "utf8");
     return /if \(noFinalizer\) \{ picked = survivors\[0\]; break; \}/.test(src)
-      && /const noFinalizer = String\(\(env && env\.NO_FINALIZER\) \|\| ""\) === "1";/.test(src);
+      && /String\(\(env && env\.NO_FINALIZER\) \|\| ""\) === "1"/.test(src);
   })(), true);
   const diff = execSync("git diff --name-only HEAD", { cwd: ROOT }).toString().trim().split("\n").filter(Boolean);
   eq("배포 파일에 diff가 없다",
     diff.filter(f => ["index.html", "app.js", "app-ui.js", "app-data.js", "null.css",
       "app/lib/db.ts", "app/lib/rules.ts", "app/App.tsx"].includes(f)), []);
-  eq("바뀐 것은 워커의 실험 깃발과 도구·fixture뿐이다",
-    diff.filter(f => !f.startsWith("tools/") && !f.startsWith("test/") && f !== "worker.js"), []);
+  eq("바뀐 것은 워커·도구·시험과 교체한 사진뿐이다",
+    diff.filter(f => !f.startsWith("tools/") && !f.startsWith("test/")
+      && f !== "worker.js" && !f.endsWith(".webp")), []);
 }
 
 console.log("── 12. 상한이 코드로 강제된다 ──");

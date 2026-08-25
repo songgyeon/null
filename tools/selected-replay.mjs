@@ -38,7 +38,11 @@ const die = msg => { console.error(`[replay] ${msg}`); process.exit(1); };
 
 /* 운영 기본 경로 그대로다 — 깃발을 하나도 안 준다. 행동 규칙과 이번 턴
    재료는 이제 기본값이고, 쓰는 자리는 상급 Writer 한 번이다. */
-const ENV = {};
+/* ── 이 하네스가 재는 배선 ──
+   selected-v1 실험은 **상급 Sonnet 단독 Writer**(solo) 위에서 행동 규칙과
+   턴 재료를 재려고 만든 것이다. 무플래그 기본값이 바뀐 뒤에도 그 실험이
+   재현되려면 그 배선을 명시해야 한다 — 안 그러면 이름과 실제가 갈린다. */
+const ENV = { ENGINE_MODE: "solo" };
 
 const lastUserOf = body => {
   const m = [...(body.history || [])].reverse().find(x => x.role === "user");

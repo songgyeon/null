@@ -107,12 +107,14 @@ const SONNET46 = "claude-sonnet-4-6";
 export const isStaged = path => String(path).startsWith("staged");
 export const pathEnv = (path, base, anchor) => {
   if (path === "sonnet5-pair-haiku") return { ENGINE_MODE: "sonnet5-pair-haiku" };
-  if (path === "hybrid-one") return { CANDIDATE_MODE: "one" };
-  if (path === "hybrid-pair") return { CANDIDATE_MODE: "pair" };
+  /* 이름이 hybrid면 깃발도 hybrid다. 전에는 그게 기본값이라 안 적었는데,
+     기본값이 바뀌면 이름과 실제가 갈린다 — 실제로 갈렸다. */
+  if (path === "hybrid-one") return { ENGINE_MODE: "hybrid", CANDIDATE_MODE: "one" };
+  if (path === "hybrid-pair") return { ENGINE_MODE: "hybrid", CANDIDATE_MODE: "pair" };
   if (path === "single-sonnet") return { ENGINE_MODE: "single" };
   if (path === "single-sonnet46")
     return { ENGINE_MODE: "single", SONNET_WRITER_MODEL: SONNET46 };
-  const b = { CANDIDATE_MODE: base === "one" ? "one" : "pair" };
+  const b = { CANDIDATE_MODE: base === "one" ? "one" : "pair", ENGINE_MODE: "hybrid" };
   if (!anchor) return b;
   return path === "staged-46"
     ? { ...b, ENGINE_MODE: "single", ANCHOR_REASON: anchor, SONNET_WRITER_MODEL: SONNET46 }
@@ -165,6 +167,9 @@ export const PRICES = {
   /* 요약의 폴백(askClaude의 MODELS)까지 — 폴백이 탄 호출이 새면 안 된다 */
   "claude-sonnet-4-6": { in: 3.00, out: 15.00 },
   "claude-sonnet-5":   { in: 2.00, out: 10.00 },
+  /* 운영 기본의 쓰는 자리. 캐시 읽기는 기본 단가의 0.25배다(진영마다 다르다)
+     — priceFor의 기본 0.1배를 쓰면 실제보다 싸게 잰다. */
+  "gpt-4.1":           { in: 2.00, out: 8.00, cachedIn: 0.50 },
 };
 export const CACHE_WRITE_X = 2.0;      // 워커 CACHE ttl "1h"의 쓰기 배율
 /* 날짜 접미(claude-…-20250929)는 떼고 찾는다. 그래도 모르는 모델은 적어
@@ -172,7 +177,9 @@ export const CACHE_WRITE_X = 2.0;      // 워커 CACHE ttl "1h"의 쓰기 배율
 export const unknownModels = new Set();
 export const priceFor = model => {
   const id = String(model || "");
-  const hit = PRICES[id] || PRICES[id.replace(/-\d{8}$/, "")];
+  const hit = PRICES[id] || PRICES[id.replace(/-\d{8}$/, "")]
+    /* 다른 진영은 날짜를 -YYYY-MM-DD로 붙인다 — 그 모양도 떼고 찾는다 */
+    || PRICES[id.replace(/-\d{4}-\d{2}-\d{2}$/, "")];
   if (hit) return hit;
   if (id && !unknownModels.has(id)) {
     unknownModels.add(id);

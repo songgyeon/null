@@ -49,7 +49,9 @@ const envFor = (camp, okey, pure) => camp === "gpt41"
   ? { ENGINE_MODE: "gpt41", NO_FINALIZER: "1",
       /* --pure — 다른 진영의 눈까지 뗀다. 쓰는 자리 한 번과 코드 검사만 */
       ...(pure ? { NO_CRITICS: "1" } : {}), OPENAI_API_KEY: okey }
-  : { NO_FINALIZER: "1" };
+  /* 이름이 sonnet45면 깃발도 그 배선이다. 전에는 그게 무플래그 기본값이라
+     안 적었는데, 기본값이 바뀌면 이름과 실제가 갈린다 — 실제로 갈렸다. */
+  : { ENGINE_MODE: "solo", NO_FINALIZER: "1" };
 
 /* ── 단가 ── 보고 전용. 모르는 모델이 나오면 RP.priceFor가 죽는다 */
 const GPT_PRICE = { in: 2.00, out: 8.00, cachedIn: 0.50 };   // per 1M

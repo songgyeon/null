@@ -101,7 +101,8 @@ async function run(envExtra, body, replies, hooks) {
     const res = await worker.fetch(
       new Request("https://x/?k=열쇠", { method: "POST", body: JSON.stringify(body),
         headers: { "CF-Connecting-IP": `9.8.${Math.floor(ipN / 250)}.${(ipN++ % 250) + 1}` } }),
-      { ANTHROPIC_API_KEY: "sk-테스트", ACCESS_KEY: "열쇠", TRACE: "1", ...envExtra });
+      { ANTHROPIC_API_KEY: "sk-테스트", OPENAI_API_KEY: "sk-가짜",
+        ACCESS_KEY: "열쇠", TRACE: "1", ...envExtra });
     return { status: res.status, data: await res.json() };
   } finally { globalThis.fetch = realFetch; }
 }
@@ -113,6 +114,10 @@ const stagesOf = d => (d.data.stages || []).map(s => s.stage);
    기본값이 solo(쓰기 한 번·고르기 없음)로 바뀌었다. hybrid(후보 둘 + 저비용
    Director)는 실험 깃발 뒤에 그대로 남아 있고, 아래 회귀들은 그 길을 잰다. */
 const HY = { ENGINE_MODE: "hybrid" };
+/* ── 옛 상급 solo 배선을 재는 시험은 그 깃발을 명시한다 ──
+   무플래그 기본값이 바뀌었다(블라인드 판정). 옛 배선은 지운 것이 아니라
+   ENGINE_MODE=solo로 그대로 남아 있고, 아래 회귀들이 그 길을 계속 잰다. */
+const SOLO = { ENGINE_MODE: "solo" };
 
 const BASE = {
   mode: "chat", room: "jaeeon", user_name: "연",
@@ -328,7 +333,11 @@ const PROBE = { ...BASE,
      쓰기 한 번, 고르는 단계 없음. 일반 턴에서 저비용 Writer도 Director도
      안 부른다 — 그게 이 배선의 요점이다. */
   eq("기본 경로는 쓰기 한 번이다", stagesOf(prod), ["writer"]);
-  eq("기본 쓰는 쪽은 상급 Writer다", prod.data.stages[0].model, MID.writer);
+  /* 쓰는 자리는 블라인드 판정으로 다른 진영이 됐다. 옛 상급 배선은 지운
+     것이 아니라 ENGINE_MODE=solo로 그대로 있고, 바로 아래에서 같이 잰다. */
+  eq("기본 쓰는 쪽은 도전자 진영이다", prod.data.stages[0].model, ENG.OPENAI_MODEL);
+  eq("solo를 명시하면 옛 상급 Writer 그대로다",
+    (await run(SOLO, BASE)).data.stages[0].model, MID.writer);
   eq("기본 Writer가 상급 모델로 고정돼 있다", MID.writer, MID.finalizer);
   const noTrace = await run({ TRACE: "" }, BASE);
   eq("TRACE 없이는 trace가 안 실린다 — 운영 응답 불변", "trace" in noTrace.data, false);
@@ -867,7 +876,8 @@ const PROBE = { ...BASE,
   /* ⑨ 실험 모드를 안 켜면 기존 동작·호출 수가 그대로다 */
   const plain = await run({ ...HY, CANDIDATE_MODE: "pair" }, BASE);
   eq("env 없이는 기존 hybrid 그대로다", stagesOf(plain), ["writer", "director"]);
-  eq("기본 engineMode는 solo다", ENG.engineMode({}), "solo");
+  eq("기본 engineMode는 gpt41이다", ENG.engineMode({}), "gpt41");
+  eq("solo는 깃발을 명시해야 나온다", ENG.engineMode({ ENGINE_MODE: "solo" }), "solo");
   eq("hybrid는 깃발을 명시해야 나온다", ENG.engineMode({ ENGINE_MODE: "hybrid" }), "hybrid");
   eq("s5pair 단계 이름이 운영 경로에 안 섞인다",
     plain.data.stages.some(s => /sonnet5_pair|haiku_director|sonnet45_fallback/.test(s.stage)), false);
@@ -1406,7 +1416,10 @@ const PROBE = { ...BASE,
 {
   const t16 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T16-minhyun-partner-known.json"), "utf8"));
   const r = await run({}, t16.body);
-  eq("T16 — critical로 간다", stagesOf(r), ["writer", "canon", "character", "finalizer"]);
+  /* 검사 둘 + 마무리는 옛 배선(solo)의 계약이다. 기본 경로의 T16은
+     writer → canon이고 그쪽은 test/default-engine.test.mjs가 잰다. */
+  eq("T16 — solo에서는 검사 둘 + 마무리다",
+    stagesOf(await run(SOLO, t16.body)), ["writer", "canon", "character", "finalizer"]);
   eq("T16 — 라우팅·ack가 계약대로다",
     [r.data.trace.route.tier, r.data.trace.route.reason, r.data.scene_ack],
     ["critical", "partner_known", "partner_known"]);
@@ -1423,7 +1436,9 @@ const PROBE = { ...BASE,
 {
   const hit = JSON.stringify({ problems: [{ candidate: "A", critic: "canon",
     fact_id: "canon.jaeeon.knows_user_20y", code: "FACT_DENIAL" }] });
-  const r = await run({}, PROBE, null, { canon: [hit] });
+  /* 마무리에게 재료를 주는 계약은 옛 배선(solo)의 것이다 — 기본 경로에는
+     마무리가 없다. 그 계약은 여기서 계속 잰다. */
+  const r = await run(SOLO, PROBE, null, { canon: [hit] });
   eq("고정 정사 fact_id가 검사에서 돌아온다",
     [r.status, r.data.trace.criticNotes[0].notes[0].fact_id],
     [200, "canon.jaeeon.knows_user_20y"]);
@@ -1582,8 +1597,8 @@ const PROBE = { ...BASE,
 
 /* ── 13.11 운영 기본값 무변경 ── */
 {
-  eq("기본 경로는 solo, 실험 깃발은 비어 있다",
-    [ENG.engineMode({}), ENG.dialogueRuleset({})], ["solo", ""]);
+  eq("기본 경로는 gpt41, 실험 깃발은 비어 있다",
+    [ENG.engineMode({}), ENG.dialogueRuleset({})], ["gpt41", ""]);
   eq("일반 관전(사건 없음)은 여전히 한 호출이다", await (async () => {
     const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
     const body = { ...t14.body }; delete body.event;
@@ -1599,36 +1614,37 @@ const PROBE = { ...BASE,
   })(), ["writer"]);
 }
 
-/* ══════════ 14. 기본 배선 — 상급 Writer 한 번, 고르는 단계 없음 ══════════
-   여기서 재는 것은 **어느 모델이 몇 번 불리는가**와 **프롬프트 계약**이다.
-   정확한 대사 문자열을 정답으로 박지 않는다 — 그건 고정 응답집이다. */
+/* ══════════ 14. 옛 상급 solo 배선 — 지운 것이 아니라 깃발 뒤에 있다 ══════════
+   무플래그 기본값이 바뀌었다(블라인드 판정). 그래도 이 배선은 살아 있어야
+   한다 — ENGINE_MODE=solo로 명시하면 상급 Writer 한 번 + 검사 둘 + 마무리
+   그대로다. 아래 회귀가 그 길을 계속 잰다.
+   **새 기본 경로(쓰기 하나 + 중요 장면 정사 하나)는 test/default-engine.test.mjs가 잰다.** */
 {
-  /* ── 14.1 모든 Writer 호출이 같은 상급 설정이다 ──
-     1:1·단톡·관전·화자 순차·중요 장면 전부. 깃발을 하나도 안 준다. */
+  /* ── 14.1 모든 Writer 호출이 같은 상급 설정이다 ── */
   const stagesModelOf = d => (d.data.stages || []).map(s => `${s.stage}:${s.model}`);
   const W = ENG.ENGINE.writer.id;
 
-  const one = await run({}, BASE);
+  const one = await run(SOLO, BASE);
   eq("1:1 일반 — 쓰기 한 번, 고르기 없음", stagesOf(one), ["writer"]);
   eq("1:1 일반 Writer가 상급이다", stagesModelOf(one), [`writer:${W}`]);
 
-  const grp = await run({}, { ...BASE, room: "group",
+  const grp = await run(SOLO, { ...BASE, room: "group",
     counts: { jaeeon: 20, minhyun: 20, group: 12, health: 0 } });
   eq("단톡 — 쓰기 한 번, 고르기 없음", stagesOf(grp), ["writer"]);
   eq("단톡 Writer도 상급이다", stagesModelOf(grp), [`writer:${W}`]);
 
   const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
-  const watch = await run({}, (() => { const b = { ...t14.body }; delete b.event; return b; })());
+  const watch = await run(SOLO, (() => { const b = { ...t14.body }; delete b.event; return b; })());
   eq("관전 일반 — 쓰기 한 번", stagesOf(watch), ["writer"]);
   eq("관전 Writer도 상급이다", stagesModelOf(watch), [`writer:${W}`]);
 
-  const disc = await run({}, t14.body);
+  const disc = await run(SOLO, t14.body);
   eq("관전 발견 — 화자 순차 둘 + 소유자 정사 검사", stagesOf(disc), ["writer", "writer", "canon"]);
   eq("화자 순차 두 호출 다 상급이다",
     stagesModelOf(disc).slice(0, 2), [`writer:${W}`, `writer:${W}`]);
 
   const t16 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T16-minhyun-partner-known.json"), "utf8"));
-  const crit = await run({}, t16.body);
+  const crit = await run(SOLO, t16.body);
   eq("중요 장면 — 쓰기·검사 둘·마무리", stagesOf(crit),
     ["writer", "canon", "character", "finalizer"]);
   eq("중요 장면의 Writer도 같은 상급 설정이다", stagesModelOf(crit)[0], `writer:${W}`);
@@ -1661,7 +1677,9 @@ const PROBE = { ...BASE,
     return await res.text();
   };
   const base = await diag({});
-  eq("기본 배선이 solo로 보인다", base.includes("엔진 배선      solo · 일반 턴 1호출"), true);
+  eq("기본 배선이 지금 도는 것으로 보인다",
+    base.includes("엔진 배선      gpt41 · 일반 턴 1호출"), true);
+  eq("중요 장면에 남은 검사가 하나라고 적는다", base.includes("중요 장면 검사  정사 1"), true);
   eq("고르는 단계가 없다고 적는다", base.includes("(고르는 단계 없음)"), true);
   eq("행동 규칙이 켜짐으로 보인다", /행동 규칙 {6}켜짐/.test(base), true);
   const hy = await diag({ ENGINE_MODE: "hybrid" });
@@ -1676,14 +1694,14 @@ const PROBE = { ...BASE,
 
 /* ── 14.2 배선이 실험 깃발이 아니라 기본값이다 ── */
 {
-  eq("기본 engineMode가 solo다", ENG.engineMode({}), "solo");
-  eq("빈 env·모르는 값도 solo로 떨어진다",
+  eq("기본 engineMode가 gpt41이다", ENG.engineMode({}), "gpt41");
+  eq("빈 env·모르는 값도 기본값으로 떨어진다",
     [ENG.engineMode(null), ENG.engineMode({ ENGINE_MODE: "" }),
-     ENG.engineMode({ ENGINE_MODE: "없는모드" })], ["solo", "solo", "solo"]);
+     ENG.engineMode({ ENGINE_MODE: "없는모드" })], ["gpt41", "gpt41", "gpt41"]);
   eq("옛 경로는 명시해야 나온다", [
-    ENG.engineMode({ ENGINE_MODE: "hybrid" }), ENG.engineMode({ ENGINE_MODE: "single" }),
-    ENG.engineMode({ ENGINE_MODE: "legacy" }),
-  ], ["hybrid", "single", "legacy"]);
+    ENG.engineMode({ ENGINE_MODE: "solo" }), ENG.engineMode({ ENGINE_MODE: "hybrid" }),
+    ENG.engineMode({ ENGINE_MODE: "single" }), ENG.engineMode({ ENGINE_MODE: "legacy" }),
+  ], ["solo", "hybrid", "single", "legacy"]);
   /* Writer 모델이 표에 고정돼 있다 — 실험 env가 아니라 ENGINE 항목이다 */
   eq("Writer가 상급으로 고정돼 있다",
     [ENG.ENGINE.writer.id === ENG.ENGINE.finalizer.id,
@@ -1807,7 +1825,9 @@ const PROBE = { ...BASE,
         out.push({ t: b.text || "", cached: !!b.cache_control });
     return out;
   };
-  await run({}, BASE);
+  /* 캐시 지점은 기존 진영의 요청 모양이다(cache_control). 다른 진영에는
+     그 표시를 안 싣는다 — 그 계약은 §15가 따로 잰다. */
+  await run(SOLO, BASE);
   const req = sent[0];
   const bs = blocksOf(req);
   eq("캐시 지점은 넷을 안 넘는다", bs.filter(b => b.cached).length <= 4, true);
@@ -1913,12 +1933,13 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
 
 /* ── 15.1 기본 경로는 그대로 Sonnet 4.5 solo다 ── */
 {
-  eq("기본 엔진 모드가 solo다", ENG.engineMode({}), "solo");
-  const r = await run({}, BASE);
-  eq("기본 턴은 쓰기 한 번이다", stagesOf(r), ["writer"]);
-  eq("기본 턴의 쓰는 자리는 상급 Sonnet이다",
+  eq("기본 엔진 모드가 도전자 진영이다", ENG.engineMode({}), "gpt41");
+  eq("solo는 명시해야 나온다", ENG.engineMode({ ENGINE_MODE: "solo" }), "solo");
+  const r = await run(SOLO, BASE);
+  eq("solo 턴은 쓰기 한 번이다", stagesOf(r), ["writer"]);
+  eq("solo의 쓰는 자리는 상급 Sonnet 그대로다",
     r.data.stages[0].model, "claude-sonnet-4-5-20250929");
-  eq("기본 턴은 다른 진영으로 안 나간다", oaiReqs().length, 0);
+  eq("solo는 다른 진영으로 안 나간다", oaiReqs().length, 0);
   /* 도전자 설정이 기본 배치를 오염시키지 않았다 */
   eq("기본 모델 배치가 그대로다",
     [ENGINE_ID("writer"), ENGINE_ID("canon"), ENGINE_ID("character"), ENGINE_ID("director")],
@@ -1927,24 +1948,25 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
 
 /* ── 15.2 깃발을 명시했을 때만 도전자가 뜬다 ── */
 {
-  const r = await run(GPT, BASE);
-  eq("도전자도 배선은 같다 — 쓰기 한 번", stagesOf(r), ["writer"]);
+  const r = await run({}, BASE);
+  eq("기본이 도전자 진영이다 — 쓰기 한 번", stagesOf(r), ["writer"]);
   eq("쓰는 자리만 다른 진영으로 나간다", oaiReqs().length, 1);
   eq("주소가 그 진영의 것이다", oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
   eq("계측에 남는 모델도 도전자다", r.data.stages[0].model, "gpt-4.1-2025-04-14");
 
-  /* 클라이언트 입력은 진영도 모델도 못 바꾼다 — env만이 정한다 */
-  const spoof = await run({}, { ...BASE, engine_mode: "gpt41", ENGINE_MODE: "gpt41",
-    model: "gpt-4.1", engine: { writer: "gpt-4.1" } });
-  eq("요청 본문으로는 진영을 못 바꾼다", oaiReqs().length, 0);
-  eq("요청 본문으로는 모델도 못 바꾼다", spoof.data.stages[0].model, "claude-sonnet-4-5-20250929");
+  /* 클라이언트 입력은 진영도 모델도 못 바꾼다 — env만이 정한다.
+     기본을 옛 배선으로 되돌리려는 시도도 안 먹는다. */
+  const spoof = await run({}, { ...BASE, engine_mode: "solo", ENGINE_MODE: "solo",
+    model: "claude-sonnet-4-5-20250929", engine: { writer: "claude-sonnet-4-5-20250929" } });
+  eq("요청 본문으로는 진영을 못 바꾼다", oaiReqs().length, 1);
+  eq("요청 본문으로는 모델도 못 바꾼다", spoof.data.stages[0].model, ENG.OPENAI_MODEL);
 }
 
 /* ── 15.3 별칭이 아니라 snapshot이다 ── */
 {
   eq("snapshot 문자열이 박혀 있다", ENG.OPENAI_MODEL, "gpt-4.1-2025-04-14");
   eq("날짜가 붙은 고정 판이다", /^gpt-4\.1-\d{4}-\d{2}-\d{2}$/.test(ENG.OPENAI_MODEL), true);
-  await run(GPT, BASE);
+  await run({}, BASE);
   eq("요청 본문의 모델이 그 snapshot이다", oaiReqs()[0].body.model, "gpt-4.1-2025-04-14");
 }
 
@@ -1961,9 +1983,13 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("무엇이 없는지 말한다", out.body.includes("OPENAI_API_KEY"), true);
   eq("부르지 않고 멈춘다", called, 0);
 
-  const r = await run({ ENGINE_MODE: "gpt41" }, BASE);
+  /* 워커 env에 열쇠가 없으면 기본 요청 전체가 부르기 전에 멈춘다 —
+     배포에 OPENAI_API_KEY가 빠지면 조용히 옛 모델로 도는 것이 아니라 실패한다. */
+  const r = await run({ OPENAI_API_KEY: "" }, BASE);
   eq("턴 전체도 나가지 않는다", oaiReqs().length, 0);
   eq("성공으로 위장하지 않는다", r.status === 200, false);
+  eq("다른 진영으로 몰래 넘어가지 않는다",
+    sentReq.filter(x => !OAI(x.url)).length, 0);
 }
 
 /* ── 15.5 열쇠는 머리 한 곳에만 있다 ── */
@@ -2001,9 +2027,9 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     [{ role: "user", content: "안녕\n가변부" }, { role: "assistant", content: "네." }]);
 
   /* 실행: 같은 입력을 두 진영에 돌리면 프롬프트 원문이 한 글자도 안 다르다 */
-  await run({}, BASE);
+  await run(SOLO, BASE);
   const base = sentReq[0].body;
-  await run(GPT, BASE);
+  await run({}, BASE);
   const gpt = oaiReqs()[0].body;
   const gsys = gpt.messages.filter(m => m.role === "system").map(m => m.content).join("\n");
   eq("고정부+가변부 원문이 같다", gsys, flatSys(base));
@@ -2029,16 +2055,16 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     [["director", true, true], ["canon", true, true], ["character", true, true],
      ["single_writer", true, true], ["anchor_writer", true, true]]);
 
-  const r = await run(GPT, PROBE);
-  eq("중요 장면의 단계 구성이 같다", stagesOf(r),
-    ["writer", "canon", "character", "finalizer"]);
-  eq("쓰기·마무리만 도전자다",
-    r.data.stages.map(s => s.model === "gpt-4.1-2025-04-14"), [true, false, false, true]);
-  eq("검사 둘은 기존 저비용 그대로다",
-    [r.data.stages[1].model, r.data.stages[2].model], [MID.canon, MID.character]);
-  eq("다른 진영으로 나간 것은 둘뿐이다", oaiReqs().length, 2);
-  eq("검사 둘은 기존 진영 주소로 갔다",
-    sentReq.filter(q => !OAI(q.url)).length, 2);
+  /* 기본 경로의 중요 장면은 쓰기 하나와 정사 하나다 — 사람 검사와 마무리는
+     기본 경로에서 안 부른다. 옛 배선(solo)의 네 단계는 §14가 잰다. */
+  const r = await run({}, PROBE);
+  eq("중요 장면은 쓰기 + 정사 하나다", stagesOf(r), ["writer", "canon"]);
+  eq("쓰는 자리만 도전자다",
+    r.data.stages.map(s => s.model === "gpt-4.1-2025-04-14"), [true, false]);
+  eq("정사 검사는 기존 저비용 그대로다", r.data.stages[1].model, MID.canon);
+  eq("다른 진영으로 나간 것은 하나뿐이다", oaiReqs().length, 1);
+  eq("정사 검사는 기존 진영 주소로 갔다",
+    sentReq.filter(q => !OAI(q.url)).length, 1);
 }
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);

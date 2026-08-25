@@ -5164,11 +5164,14 @@ eq('시간표 단추는 peek보다 좁다',
   /* ── 배선이 실험 깃발이 아니라 기본값이다 ──
      env를 하나도 안 주면 solo다: 쓰기 한 번, 고르는 단계 없음. 옛 경로는
      ENGINE_MODE=hybrid로 명시해야 나온다. 소스에 그 순서가 박혀 있다. */
-  eq('기본 경로가 solo다 — 고르는 단계가 없다', (() => {
+  /* ── 기본 경로는 쓰는 자리 하나다 ──
+     블라인드 판정으로 쓰는 자리가 정해졌다(무플래그 = gpt41). 고르는 단계는
+     기본 경로에 없다. 옛 배선(solo·hybrid…)은 지운 것이 아니라 명시한
+     깃발 뒤에 그대로 있다 — 그것도 여기서 같이 잰다. */
+  eq('기본 경로는 고르는 단계가 없다', (() => {
     const wk3 = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-    /* 실험 깃발이 늘어도 **아무것도 안 준 env는 solo**여야 한다 —
-       문자열 모양이 아니라 함수를 직접 불러 잰다. */
-    return ENG.engineMode({}) === 'solo'
+    return ENG.engineMode({}) === 'gpt41'
+      && ENG.engineMode({ ENGINE_MODE: 'solo' }) === 'solo'
       && ENG.engineMode({ ENGINE_MODE: 'hybrid' }) === 'hybrid'
       && /const soloNow = em === "solo" \|\| em === "gpt41";/.test(wk3)
       && /if \(soloNow\) \{ picked = cands\[0\]; break; \}/.test(wk3);
@@ -5361,6 +5364,16 @@ eq('시간표 단추는 peek보다 좁다',
     }),
     text: async () => '',
   });
+  /* 기본 진영의 응답 모양. 같은 글을 다른 봉투에 담을 뿐이다 */
+  const fakeReplyOai = (txt, model) => ({
+    ok: true, status: 200,
+    headers: { get: () => null },
+    json: async () => ({
+      model, choices: [{ message: { content: txt } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, prompt_tokens_details: { cached_tokens: 0 } },
+    }),
+    text: async () => '',
+  });
   /* 한 턴이 모델을 여러 번 탄다 — 쓰는 쪽 다음에 고르는 쪽이 온다.
      같은 답을 두 번 주면 고르는 쪽이 못 읽고 RETRY가 돌아 502가 난다. */
   async function runTurn(body, reply) {
@@ -5368,17 +5381,22 @@ eq('시간표 단추는 peek보다 좁다',
     globalThis.fetch = async (url, init) => {
       const c = JSON.parse(init.body);
       sent.push(c);
-      const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
-        .map(b => b.text || '').join('');
+      /* 기본 진영은 요청 모양이 다르다 — system이 messages 맨 앞 한 장이다.
+         단계 판별은 **같은 문구**로 한다(프롬프트 원문이 같으니까). */
+      const oai = String(url).includes('api.openai.com');
+      const sys = oai
+        ? (c.messages || []).filter(m => m.role === 'system').map(m => m.content).join('')
+        : (Array.isArray(c.system) ? c.system : [{ text: c.system }]).map(b => b.text || '').join('');
       const isDirector = sys.includes('대사를 쓰지 않는다 — 고르기만 한다');
-      return fakeReply(isDirector
+      const text = isDirector
         ? JSON.stringify({ decision: 'ACCEPT', reject_codes: {} })
-        : (reply || JSON.stringify({ messages: [{ text: '네.' }] })));
+        : (reply || JSON.stringify({ messages: [{ text: '네.' }] }));
+      return oai ? fakeReplyOai(text, c.model) : fakeReply(text);
     };
     try {
       const res = await worker.fetch(
         new Request('https://x/?k=열쇠', { method: 'POST', body: JSON.stringify(body) }),
-        { ANTHROPIC_API_KEY: 'sk-테스트', ACCESS_KEY: '열쇠', CANDIDATE_MODE: 'one' });
+        { ANTHROPIC_API_KEY: 'sk-테스트', OPENAI_API_KEY: 'sk-가짜', ACCESS_KEY: '열쇠', CANDIDATE_MODE: 'one' });
       return { status: res.status, data: await res.json() };
     } finally { globalThis.fetch = realFetch; }
   }
@@ -5386,6 +5404,9 @@ eq('시간표 단추는 peek보다 좁다',
   const writerSaw = () => {
     const c = sent[0];
     if (!c) return '';
+    /* 기본 진영은 system이 messages 맨 앞 한 장이다 — 원문은 같다 */
+    if (c.system === undefined && Array.isArray(c.messages))
+      return (c.messages || []).map(m => m.content).join('\n');
     const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
       .map(b => b.text || '').join('\n');
     const msg = (c.messages || []).map(m => Array.isArray(m.content)
@@ -5831,14 +5852,17 @@ eq('시간표 단추는 peek보다 좁다',
     globalThis.fetch = async (url, init) => {
       const c = JSON.parse(init.body);
       sent.push(c);
-      const sys = (Array.isArray(c.system) ? c.system : [{ text: c.system }])
-        .map(b => b.text || '').join('');
+      const oai = String(url).includes('api.openai.com');
+      const sys = oai
+        ? (c.messages || []).filter(m => m.role === 'system').map(m => m.content).join('')
+        : (Array.isArray(c.system) ? c.system : [{ text: c.system }]).map(b => b.text || '').join('');
+      const rep = t => (oai ? fakeReplyOai(t, c.model) : fakeReply(t));
       if (sys.includes('대사를 쓰지 않는다 — 고르기만 한다'))
-        return fakeReply(JSON.stringify({ decision: 'ACCEPT', reject_codes: {} }));
+        return rep(JSON.stringify({ decision: 'ACCEPT', reject_codes: {} }));
       if (sys.includes('너는 이 세계의 사실만 본다') || sys.includes('이 사람이 이 사람다운지만 본다'))
-        return fakeReply(JSON.stringify({ problems: [] }));
+        return rep(JSON.stringify({ problems: [] }));
       /* 마무리(FINALIZER_RULES가 system 배열 끝에 붙는다)와 쓰는 쪽 */
-      return fakeReply(JSON.stringify({ messages: [{ text: say || '네.' }] }));
+      return rep(JSON.stringify({ messages: [{ text: say || '네.' }] }));
     };
     try {
       const res = await worker.fetch(
@@ -5847,7 +5871,7 @@ eq('시간표 단추는 peek보다 좁다',
         /* 이 하네스는 **고르는 쪽의 투영**도 잰다 — 기본 경로(solo)에는
            그 단계가 없으므로 옛 경로를 명시한다. 재는 것은 투영 규칙이고,
            그 규칙은 두 경로가 같은 원본(stageFacts)을 쓴다. */
-        { ANTHROPIC_API_KEY: 'sk-테스트', ACCESS_KEY: '열쇠',
+        { ANTHROPIC_API_KEY: 'sk-테스트', OPENAI_API_KEY: 'sk-가짜', ACCESS_KEY: '열쇠',
           ENGINE_MODE: 'hybrid', CANDIDATE_MODE: 'one' });
       return { status: res.status, data: await res.json() };
     } finally { globalThis.fetch = realFetch; }
