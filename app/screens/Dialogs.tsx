@@ -281,6 +281,49 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
   </Dlg>;
 }
 
+/* ══ 5.5 get cha ══
+   첫 만남이 끝나고 그 사람의 메신저가 생기는 창. Dlg 껍데기를 안 쓴다:
+   이 창만 본문이 어둡다. 앱이 전부 파스텔이라 파스텔 알림으로 띄우면
+   「저장됐습니다」와 같은 무게가 된다. 뒤에는 방금 그 자리가 그대로 있다.
+   웹 app-ui.js의 GetCha와 같은 창이다 — 문구도 모양도 같아야 한다. */
+export function GetChaDialog({name, onClose}:{name:string; onClose:()=>void}) {
+  return <View style={[dl.ov, {zIndex:41}]}>
+    <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
+    <View style={dl.wrap}>
+      <View pointerEvents="none" style={dl.shadow}/>
+      <View style={[dl.win, gc.win]}>
+        <LinearGradient colors={['#ff8fbe','#ffb0d4']} start={{x:0,y:0}} end={{x:1,y:0}} style={dl.tb}>
+          <Text style={dl.tbT}>null.exe</Text>
+          <Dots onClose={onClose}/>
+        </LinearGradient>
+        <View style={gc.body}>
+          {/* 이름만 채워지는 빈칸 — 아직 아무도 아니었던 칸에 이 사람이 들어왔다 */}
+          <View style={gc.slot}><Text style={gc.slotT}>{name}</Text><View style={gc.car}/></View>
+          <Text style={gc.of}>의 메신저를</Text>
+          <Text style={gc.get}>Get cha!</Text>
+          <Text style={[gc.kao, KAO]}>( ⸝⸝´꒳`⸝⸝) ꫂ 💌</Text>
+          <Bevel style={gc.btn} inner={{backgroundColor:'#ff9ec6'}} onPress={onClose}>
+            <Text style={gc.btnT}>chat ♡</Text></Bevel>
+        </View>
+      </View>
+    </View>
+  </View>;
+}
+const gc = StyleSheet.create({
+  win:{backgroundColor:'#2b2352', borderColor:'rgba(255,255,255,.9)'},
+  body:{paddingHorizontal:17, paddingTop:22, paddingBottom:19, alignItems:'center'},
+  slot:{flexDirection:'row', alignItems:'center', justifyContent:'center', gap:5,
+    minWidth:126, height:42, paddingHorizontal:15, borderRadius:7,
+    backgroundColor:'rgba(255,255,255,.06)', borderWidth:2, borderStyle:'dashed', borderColor:'#ff8fbe'},
+  slotT:{...F, fontSize:16, letterSpacing:2, color:'#ff9ec6'},
+  car:{width:2, height:19, backgroundColor:'#ff5fa8'},
+  of:{...F, marginTop:13, fontSize:11.5, color:'#c6b8f0'},
+  get:{...F, marginTop:7, fontSize:22, color:'#ff8fbe'},
+  kao:{marginTop:7, fontSize:11, color:'#a394d8'},
+  btn:{marginTop:19, height:44, minWidth:118, paddingHorizontal:26, flex:0},
+  btnT:{...F, fontSize:12.5, letterSpacing:2, color:'#fff'},
+});
+
 /* ══ 6. 교실 문틈 ══
    수업 중엔 대화가 아니라 구경이다. 교실 배경을 어둡게 깔고 그 애 사진
    한 장을 폴라로이드처럼 얹는다. 캐비닛 TV처럼 아무 데나 누르면 돌아간다.

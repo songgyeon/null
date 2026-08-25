@@ -12,6 +12,9 @@ function App(){
   /* 첫 만남이 끝나고 그 사람의 메신저가 생기는 창. 방이 왜 생겼는지를
      이 한 장면이 맡는다 — 대사로 「번호 주세요」를 여덟 번 쓰지 않아도 된다. */
   const [getcha,setGetcha]=useState(null);          // 메신저를 얻은 사람 id
+  /* {room, armed} — armed는 「말하는 걸 한 번이라도 봤다」다. 이게 없으면
+     창이 오프닝 **시작**에 뜬다: 자리를 여는 effect와 아래 감시 effect가
+     같은 commit에서 도는데, 감시 쪽은 아직 busy가 켜지기 전 값을 본다. */
   const getchaRef=useRef(null);                     // 첫 마디가 다 앉기를 기다리는 자리
   const [view,setView]=useState("list");            // 'list' | roomId
   const [busy,setBusy]=useState({});                // 방별 타이핑 인디케이터
@@ -1691,8 +1694,9 @@ function App(){
     setBusy(b=>({...b,[o.room]:true}));
     /* 첫 마디가 다 앉은 뒤에 창을 띄운다. 말하는 중에 덮으면 그 자리를
        못 읽는다 — 아래 useEffect가 busy를 보고 있다가 연다. */
-    if(!loadGetcha(o.room))getchaRef.current=o.room;
     const first=demoProactive(o.room,o.place,name);
+    /* 할 말이 없으면 기다릴 것도 없다 — 곧장 연다 */
+    if(!loadGetcha(o.room))getchaRef.current={room:o.room,armed:!first.length};
     if(first.length)setTimeout(()=>enqueue(o.room,first),700);
     else setBusy(b=>({...b,[o.room]:false}));
     /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 아래 선톡 추첨에
@@ -1715,12 +1719,16 @@ function App(){
 
   /* ── 첫 마디가 다 앉으면 get cha 창 ──
      타이핑이 끝나는 시각은 말 수에 따라 다르다. 초를 세지 않고 busy가
-     내려가는 것을 본다 — 그게 「이 방이 조용해졌다」의 뜻이다. */
+     내려가는 것을 본다 — 그게 「이 방이 조용해졌다」의 뜻이다.
+     다만 **켜지는 것을 먼저 보고** 꺼지는 것을 본다. 처음 도는 commit에서는
+     busy가 아직 옛 값이라, 바로 「조용하다」로 읽고 오프닝 시작에 떴다. */
   useEffect(()=>{
     const r=getchaRef.current;
-    if(!r||busy[r])return;
+    if(!r)return;
+    if(busy[r.room]){ r.armed=true; return }
+    if(!r.armed)return;
     getchaRef.current=null;
-    saveGetcha(r); setGetcha(r);
+    saveGetcha(r.room); setGetcha(r.room);
   },[busy]);
 
   useEffect(()=>{

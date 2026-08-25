@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, LookOverlay } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, LookOverlay } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -40,6 +40,7 @@ import {
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
   readAutoQueue, pushAutoBatch, runAutoQueue,
+  roomLock, loadGetcha, saveGetcha,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -1298,7 +1299,7 @@ function useKeyboardHeight() {
 }
 
 // ═══ 채팅방 ═══
-function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene,onLeaveScene,onMinimize}:any) {
+function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene,onLeaveScene,onMinimize,locked}:any) {
   const [text,setText]=useState('');
   const [zoom,setZoom]=useState<string|null>(null);
   const ref=useRef<ScrollView>(null);
@@ -1332,9 +1333,14 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
         <Text style={ch.hdrS}>{watch?'🔴 watching':scene?'같이 있는 중':room.sub}</Text></View>
     </View>
     <ScrollView ref={ref} style={{flex:1}} contentContainerStyle={{padding:16}}>
-      {msgs.length===0&&!typing&&<View style={{paddingVertical:80,alignItems:'center'}}>
-        {!watch&&<Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>}
-        <Text style={ch.empty}>{watch?'':room.empty}</Text></View>}
+      {/* 아직 출근하지 않은 사람 — 화면 한가운데. 빈 방 안내와 같은 자리·
+          같은 보라색이다. 방이 빈 것은 맞고 까닭만 다르니 글만 바뀐다 */}
+      {locked
+        ? <View style={{paddingVertical:80,alignItems:'center'}}>
+            <Text style={[ch.empty,{lineHeight:26}]}>{locked.join('\n')}</Text></View>
+        : msgs.length===0&&!typing&&<View style={{paddingVertical:80,alignItems:'center'}}>
+            {!watch&&<Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>}
+            <Text style={ch.empty}>{watch?'':room.empty}</Text></View>}
       {msgs.map((m:Msg,i:number)=>{
         const prev=msgs[i-1]; const gap=dividerGap(prev&&prev.created_at,m.created_at);
         const me=m.sender==='user'; const mt=meta(m.sender);
@@ -1383,10 +1389,13 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
     </ScrollView>
     {watch
       ? <View style={ch.wBar}><Text style={{fontSize:8}}>🔴</Text><Text style={ch.wT}>u can't join this one</Text></View>
+      /* 잠긴 방도 입력창 자리는 그대로 둔다 — 빼버리면 방마다 화면 높이가
+         달라진다. 까닭은 위 한가운데가 말한다 */
       : <View style={[ch.iBar,{marginBottom:kb}]}>
-          <TextInput style={ch.input} value={text} onChangeText={setText} onSubmitEditing={send} returnKeyType="send"/>
-          <Bevel style={{width:40,height:37}} inner={{backgroundColor:room.color}}
-            onPress={send} disabled={!text.trim()||typing}>
+          <TextInput style={[ch.input,!!locked&&ch.inputOff]} value={locked?'':text} editable={!locked}
+            onChangeText={setText} onSubmitEditing={send} returnKeyType="send"/>
+          <Bevel style={{width:40,height:37,...(locked?{opacity:.4}:null)}} inner={{backgroundColor:room.color}}
+            onPress={send} disabled={!!locked||!text.trim()||typing}>
             <Text style={{color:'#fff',fontSize:16}}>↑</Text></Bevel>
         </View>}
     <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={()=>setZoom(null)}>
@@ -1401,6 +1410,7 @@ const ch=StyleSheet.create({
   hdrAv:{width:32,height:32,borderRadius:16,borderWidth:1,borderColor:P.mid},
   hdrN:{...F,fontSize:13.5,color:P.ink}, hdrS:{...F,fontSize:9.5,color:P.sub},
   empty:{...F,textAlign:'center',color:P.dim,fontSize:11.5},
+  inputOff:{backgroundColor:'#e4dff5',borderColor:'#c5bce8'},
   div:{...F,alignSelf:'center',marginVertical:12,fontSize:9.5,color:'#c39ede'},
   // 괄호 지문 — 말풍선이 아니라 채팅창에 쳐진 한 줄
   narr:{...F,alignSelf:'center',maxWidth:'82%',marginVertical:7,paddingHorizontal:6,
@@ -1535,6 +1545,7 @@ function Root() {
   const [met,setMet]=useState<string[]>([]);       // 다녀온 자리 — 지도가 열리는 근거
   const [groupOn,setGroupOn]=useState(false);      // 단톡방은 민현이 나중에 판다
   const [groupNew,setGroupNew]=useState(false);
+  const [getcha,setGetcha]=useState<string|null>(null);   // 메신저를 얻은 사람
   const [ask,setAsk]=useState<string|null>(null);  // 지도에서 고른 자리
   const [askWho,setAskWho]=useState<string|null>(null);
   const [leaving,setLeaving]=useState<any>(null);  // 나가기 확인
@@ -1663,11 +1674,19 @@ function Root() {
       const first=demoProactive(o.room,o.place,name);
       if(first.length){ setTyping(true); await new Promise(r=>setTimeout(r,700)); await enqueue(o.room,first); }
       else await runTurn(o.room);
+      /* ── get cha ── 첫 마디가 다 앉은 뒤다. 번호가 어디서 났는지를 이 창이
+         맡는다. 웹은 busy가 내려가는 것을 보고 열지만 여기는 await가 있어
+         순서가 글에 그대로 보인다. 판마다 사람마다 한 번이다. */
+      if(!loadGetcha(o.room)){ saveGetcha(o.room); setGetcha(o.room); }
       /* 다른 한 사람은 첫인사를 보낸다. 여기서 직접 건다 — 추첨에 맡기면
          자리 쪽 상태가 아직 안 앉아서 두 방이 다 비어 보이고, 자리에서 만난
          사람이 뽑혀 조용히 삼켜진다. */
+      /* ── 안 만난 사람은 학교에 있을 때만 온다 ──
+         전에는 무조건 걸었다. 첫 자리에서 민현을 만났는데 삼 초 뒤에 재언이
+         먼저 말을 걸었다 — 만난 적도 없는 사람한테서. 그 사람은 학교에서
+         만나야 하므로 출근해서 퇴근 전까지(야자 포함)가 아니면 안 건다. */
       const other=o.room==='jaeeon'?'minhyun':'jaeeon';
-      if(canGreet(other)){ greetAtRef.current=Date.now();
+      if(canGreet(other)&&!roomLock(msgsForFlow(),other)){ greetAtRef.current=Date.now();
         setTimeout(()=>greet(other,0),2600+Math.random()*2600); }
     })();
   },[ready,name,enrolling,msgs]);
@@ -2384,6 +2403,8 @@ function Root() {
     /* 자는 사람은 먼저 말을 안 건다. 목록의 점을 정하는 함수가 선톡도 정한다 —
        점은 「꺼짐」인데 그 사람 말풍선이 오면 그게 제일 이상하다 */
     if(!canGreet(id))return;
+    /* 아직 만나지 않은 사람은 학교에 있을 때만 먼저 건다 */
+    if(roomLock(msgsForFlow(),id))return;
     /* 같이 있는 사람은 선톡을 안 한다 — 눈앞에 있는데 문자가 오면 이상하다 */
     if(sceneRef.current&&sceneRef.current.room===id)return;
     const list:any[]=(msgs as any)[id]||[];
@@ -2427,7 +2448,7 @@ function Root() {
   useEffect(()=>{
     if(!name||view.type!=='list')return;
     if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
-    const cand=['jaeeon','minhyun'].map(id=>{
+    const cand=['jaeeon','minhyun'].filter(id=>!roomLock(msgsForFlow(),id)).map(id=>{
       const l:any[]=(msgs as any)[id]||[];
       return {id,gap:l.length?(Date.now()-l[l.length-1].created_at)/60000:-1};
     }).filter(c=>c.gap<0||c.gap>=180)
@@ -2456,8 +2477,10 @@ function Root() {
       if(lines.length){ await new Promise(r=>setTimeout(r,450)); await enqueue('health',lines); }
     }catch(e){ console.warn('[NULL] 첫 장면 실패', e); }
   };
+  /* 잠긴 방은 열어도 말이 안 온다 — 안 막으면 「아직 출근하지 않았어요」
+     위에 타이핑 표시가 뜬다 */
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0}));
-    if(id==='health') seedWatch(); else greet(id,700); };
+    if(id==='health') seedWatch(); else if(!roomLock(msgsForFlow(),id)) greet(id,700); };
 
   /* ── 자리에 가고, 옮기고, 나온다 ──
      판단은 lib/flow.ts가 한다(웹 app.js와 같은 사다리). 여기서는 그 판단대로
@@ -2566,6 +2589,7 @@ function Root() {
       failed={failed&&failed.room===view.id?failed:null}
       scene={sc} onLeaveScene={()=>sc&&setLeaving(sc)} onMinimize={()=>setView({type:'list'})}
       onBack={()=>sc?setLeaving(sc):setView({type:'list'})} onSend={handleSend} onRetry={handleRetry}
+      locked={roomLock(msgsForFlow(),view.id!)}
       onProfile={openProfile}/>;
   } else {
     screen=<RoomList msgs={msgs} unread={unread} unlocked={unlocked} counts={counts} album={album}
@@ -2619,8 +2643,11 @@ function Root() {
     {way&&<WayDialog room={way.room} onRide={()=>answerWay(true)} onAlone={()=>answerWay(false)}/>}
     {plate&&<PlateDialog say={plate.say} kao={plate.kao} kind={plate.kind} onClose={()=>setPlate(null)}/>}
     {groupNew&&<GroupNewDialog onClose={()=>setGroupNew(false)}/>}
+    {!!getcha&&<GetChaDialog name={(CHARS[getcha]||{}).name||'□□□'} onClose={()=>setGetcha(null)}/>}
     {look&&<LookOverlay shot={look.shot} onClose={()=>setLook(null)}/>}
-    {toast&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
+    {/* get cha 창이 떠 있는 동안에는 알림을 세워둔다 — 첫 만남에서 자리
+        물건을 받으면 「bag — 에너지바」가 Get cha! 글자를 정확히 덮는다 */}
+    {toast&&!getcha&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}
     <Modal visible={!!popup} transparent animationType="fade" onRequestClose={()=>setPopup(null)}>
       <TouchableOpacity style={mo.bg} activeOpacity={1} onPress={()=>setPopup(null)}>
         <TouchableOpacity activeOpacity={1} style={mo.winWrap} onPress={()=>{}}>

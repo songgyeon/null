@@ -1329,12 +1329,15 @@ eq('생성된 파일이라고 적어둔다',
   const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
   const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('오프닝이 아직 안 받은 사람만 예약한다',
-    /if\(!loadGetcha\(o\.room\)\)getchaRef\.current=o\.room;/.test(app), true);
-  /* 초를 세지 않는다 — 말 수에 따라 끝나는 시각이 다르다 */
-  eq('첫 마디가 다 앉은 뒤에 연다',
-    /const r=getchaRef\.current;\s*\n\s*if\(!r\|\|busy\[r\]\)return;/.test(app), true);
+    /if\(!loadGetcha\(o\.room\)\)getchaRef\.current=\{room:o\.room,armed:!first\.length\};/.test(app), true);
+  /* 초를 세지 않는다 — 말 수에 따라 끝나는 시각이 다르다.
+     다만 켜지는 것을 **먼저 보고** 꺼지는 것을 봐야 한다: 자리를 여는
+     effect와 이 감시가 같은 commit에서 도는데, 감시 쪽은 아직 busy가
+     켜지기 전 값을 본다. armed가 없으면 창이 오프닝 시작에 떴다. */
+  eq('말하는 것을 먼저 보고 조용해지는 것을 본다',
+    /if\(busy\[r\.room\]\)\{ r\.armed=true; return \}\s*\n\s*if\(!r\.armed\)return;/.test(app), true);
   eq('열면서 적어둔다 — 새로고침으로 다시 안 뜬다',
-    /getchaRef\.current=null;\s*\n\s*saveGetcha\(r\); setGetcha\(r\);/.test(app), true);
+    /getchaRef\.current=null;\s*\n\s*saveGetcha\(r\.room\); setGetcha\(r\.room\);/.test(app), true);
   eq('창이 화면에 붙어 있다', /\{getcha&&<GetCha char=\{getcha\} onClose=/.test(app), true);
   /* 토스트(45)가 대화창(40) 위에 뜨는 건 그대로 두고, 이 창일 때만 미룬다 */
   eq('창이 떠 있는 동안 알림은 세워둔다',
@@ -1415,6 +1418,31 @@ eq('생성된 파일이라고 적어둔다',
     && /disabled=\{!!locked\}/.test(ui)
     && /disabled=\{!!locked\|\|!v\.trim\(\)\|\|busy\}/.test(ui), true);
   eq('잠긴 입력창은 눌러도 안 써진다', /\.inputbar\.locked \.sunken\{/.test(css), true);
+
+  /* ── 앱도 같은 규칙을 쓴다 ──
+     규칙은 rules.ts로 건너가지만 화면은 앱이 따로 그린다. 한쪽만 고쳐지면
+     같은 세계가 두 앱에서 다르게 군다 — 그게 이 파일이 있는 이유다. */
+  const app2 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+  const dlg = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
+  eq('앱도 같은 rules에서 잠금을 읽는다',
+    /roomLock, loadGetcha, saveGetcha,\n\} from '\.\/lib\/rules'/.test(app2), true);
+  eq('앱도 거는 길 넷을 다 막는다', [
+    /if\(canGreet\(other\)&&!roomLock\(msgsForFlow\(\),other\)\)/.test(app2),   // 첫 자리
+    /if\(roomLock\(msgsForFlow\(\),id\)\)return;/.test(app2),                   // greet 안쪽
+    /\.filter\(id=>!roomLock\(msgsForFlow\(\),id\)\)/.test(app2),               // 추첨
+    /else if\(!roomLock\(msgsForFlow\(\),id\)\) greet\(id,700\)/.test(app2),   // 방 열기
+  ], [true, true, true, true]);
+  eq('앱도 한가운데에 이유가 서고 입력창은 자리를 지킨다',
+    /\{locked\.join\('\\n'\)\}/.test(app2)
+    && /editable=\{!locked\}/.test(app2)
+    && /disabled=\{!!locked\|\|!text\.trim\(\)\|\|typing\}/.test(app2), true);
+  /* 앱의 오프닝은 await가 있어 순서가 글에 보인다 — 웹의 busy 감시와 같은 뜻 */
+  eq('앱도 첫 마디가 다 앉은 뒤에 get cha를 연다',
+    /await runTurn\(o\.room\);[\s\S]{0,260}if\(!loadGetcha\(o\.room\)\)\{ saveGetcha\(o\.room\); setGetcha\(o\.room\); \}/.test(app2), true);
+  eq('앱 창의 문구가 웹과 같다',
+    dlg.includes('의 메신저를') && dlg.includes('Get cha!')
+    && dlg.includes('( ⸝⸝´꒳`⸝⸝) ꫂ 💌') && dlg.includes('chat ♡'), true);
+  eq('앱도 창이 떠 있는 동안 알림을 세워둔다', /\{toast&&!getcha&&<View/.test(app2), true);
   /* 방을 여는 것도 선톡 경로다 — 여기를 안 막으면 「아직 출근하지
      않았어요」 위에 타이핑 표시가 뜬다 */
   eq('잠긴 방은 열어도 말이 안 온다',
