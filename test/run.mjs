@@ -594,7 +594,7 @@ eq('웹·앱 둘 다 선물 열쇠를 넘긴다',
    유저가 말 걸 사람이 아무도 없었다. 민현이 자러 가는 시각과 재언이 일어나는
    시각을 네 시 반에 맞물려 놓는다 — 한쪽이 자는 동안 다른 쪽이 깨 있다. */
 const PRESENCE = (() => {
-  const src = web.slice(web.indexOf('function presence'));
+  const src = web.slice(web.indexOf('const weekNo='));
   return new Function(src.slice(0, src.indexOf('\n}\n') + 3)
     + '\nreturn presence;')();
 })();
@@ -613,7 +613,7 @@ eq('둘 다 자는 시각이 없다',
 /* 점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
    일어나는 시각과 말 거는 시각이 같아야 한다 — 시계가 하나라 저절로 같다 */
 eq('선톡도 같은 시계를 본다', (() => {
-  const src = web.slice(web.indexOf('function presence'));
+  const src = web.slice(web.indexOf('const weekNo='));
   const P = new Function(src.slice(0, src.indexOf('\n}\n') + 3)
     + 'const canGreet=(id,now)=>{const pr=presence(id,now);return !pr||pr.s!=="off"};'
     + '\nreturn canGreet;')();
@@ -643,7 +643,7 @@ eq('점이 꺼진 사람은 안 건다',
    사람이 끝낼 수가 없었다. 무슨 말을 걸든 반드시 답이 오는 세계에는
    「답하지 않는다」는 수가 없어서다. 같은 시계의 off를 반대쪽에서도 본다 */
 {
-  const src = web.slice(web.indexOf('function presence'));
+  const src = web.slice(web.indexOf('const weekNo='));
   const A = new Function(src.slice(0, src.indexOf('\n}\n') + 3)
     + 'const asleep=(id,now)=>{const pr=presence(id,now);return !!pr&&pr.s==="off"};'
     + 'const allAsleep=(room,now)=>(room==="group"?["jaeeon","minhyun"]:[room]).every(id=>asleep(id,now));'
@@ -736,7 +736,7 @@ eq('점이 꺼진 사람은 안 건다',
    재언이 자는데 「두 사람」방에서는 떠들고 있었다. 목록에 「자는 중」이 떠
    있는 사람이 옆방에서 말을 하면 그 점이 거짓말이 된다 */
 {
-  const src2 = web.slice(web.indexOf('function presence'));
+  const src2 = web.slice(web.indexOf('const weekNo='));
   const B = new Function(src2.slice(0, src2.indexOf('\n}\n') + 3)
     + 'const asleep=(id,now)=>{const pr=presence(id,now);return !!pr&&pr.s==="off"};'
     + 'const bothAwake=now=>!asleep("jaeeon",now)&&!asleep("minhyun",now);'
@@ -1010,7 +1010,7 @@ eq('민현은 네 시 반까지 깨 있다',
   /if\(mm>=22\*60\|\|mm<270\) return \{s:"on",  t:"안 자는 중"\}/.test(web), true);
 {
   /* 글자 수로 자르면 문자열 한가운데서 끊긴다. 함수 끝(줄 맨 앞의 })까지 가져온다 */
-  const src = web.slice(web.indexOf('function presence'));
+  const src = web.slice(web.indexOf('const weekNo='));
   const body = src.slice(0, src.indexOf('\n}\n') + 3);
   const P = new Function(body + '\nreturn presence;')();
   eq('새벽 세 시에도 켜져 있다', P('minhyun', new Date(2026, 0, 6, 3, 10)).s, 'on');
@@ -1388,10 +1388,23 @@ eq('생성된 파일이라고 적어둔다',
   eq('퇴근 뒤에는 내일 만난다',
     [at(6, 17, 30), at(6, 23)].map(d => D.roomLock(empty, 'jaeeon', d)),
     [D.WAIT_LINES, D.WAIT_LINES]);
-  /* 두 사람의 창이 다르다 — 재언은 퇴근까지, 민현은 야자까지 */
-  eq('재언이 퇴근한 시각에 민현은 아직 야자다',
-    [D.roomLock(empty, 'jaeeon', at(6, 17, 30)), D.roomLock(empty, 'minhyun', at(6, 17, 30))],
+  /* 두 사람의 창이 다르다 — 재언은 퇴근까지, 민현은 야자까지.
+     단 야자가 붙는 날이라야 그렇다. 1월 15일이 야자 주의 목요일이다 */
+  eq('야자 날에는 재언이 퇴근해도 민현은 학교다',
+    [D.roomLock(empty, 'jaeeon', at(15, 17)), D.roomLock(empty, 'minhyun', at(15, 17))],
     [D.WAIT_LINES, null]);
+  /* 야자는 격주 목요일에만 붙는다. 없는 날 저녁에는 민현도 학교에 없다 —
+     전에는 생활 리듬이 평일 저녁을 통째로 「야자」라고 불러서, 야자도 없는
+     화요일 저녁에 안 만난 민현의 방이 열리고 선톡이 나갔다 */
+  eq('야자 없는 평일 저녁에는 민현도 내일 만난다',
+    [D.roomLock(empty, 'minhyun', at(6, 17)), D.roomLock(empty, 'minhyun', at(6, 20)),
+     D.roomLock(empty, 'minhyun', at(8, 20))],
+    [D.WAIT_LINES, D.WAIT_LINES, D.WAIT_LINES]);
+  /* 시간표와 생활 리듬이 같은 날을 센다 — 이게 갈리면 위가 다시 어긋난다 */
+  eq('야자 날을 한 군데서 센다',
+    /const isYajaDay=\(now\)=>\{const d=now\|\|nowClock\(\);return d\.getDay\(\)===4&&isYajaWeek\(d\)\};/.test(web)
+    && /if\(isYajaDay\(d\)\) return \{s:"on",  t:"야자"\};/.test(web)
+    && /return DAY_SLOTS\.filter\(s=>s\.k!=="야자"\|\|isYajaDay\(d\)\);/.test(web), true);
   /* 말이 한 마디라도 오갔으면 이미 만난 것이다 — 밤에도 주말에도 안 잠긴다 */
   eq('만난 방은 언제든 안 잠긴다',
     [D.roomLock(talked, 'jaeeon', SAT), D.roomLock(talked, 'jaeeon', at(6, 3))], [null, null]);
@@ -4507,16 +4520,22 @@ eq('못 가는 이유를 셋 다 말한다',
   /* 주말엔 근무도 수업도 야자도 없다 */
   eq('주말엔 낮에도 나온다', /return isWend\(d\)\|\|!AT_WORK\.includes\(pr\.t\);/.test(web), true);
   const F = new Function('const isWend=d=>{const w=d.getDay();return w===0||w===6};'
-    + web.slice(web.indexOf('function presence'),
-        web.indexOf('function presence') + web.slice(web.indexOf('function presence')).indexOf('\n}\n') + 3)
+    + web.slice(web.indexOf('const weekNo='),
+        web.indexOf('const weekNo=') + web.slice(web.indexOf('const weekNo=')).indexOf('\n}\n') + 3)
     + 'const AT_WORK=["보건실","수업 중","점심","야자"];'
     + 'const freeOut=(id,now)=>{const d=now,pr=presence(id,d);'
     + 'if(!pr||pr.s==="off")return false;return isWend(d)||!AT_WORK.includes(pr.t)};'
     + '\nreturn (now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));')();
   /* 화요일 낮 — 하나는 근무 중이고 하나는 수업 중이라 아무도 없다 */
   eq('평일 낮엔 아무도 밖에 없다', F(new Date(2026, 0, 6, 13)), []);
-  /* 화요일 저녁 일곱 시 — 재언은 퇴근했고 민현은 야자 중이다 */
-  eq('저녁엔 재언만 있다', F(new Date(2026, 0, 6, 19)), ['jaeeon']);
+  /* 목요일 저녁 일곱 시 — 재언은 퇴근했고 민현은 야자 중이다.
+     야자가 붙는 주의 목요일이라야 이 그림이 나온다(1월 15일) */
+  eq('야자 날 저녁엔 재언만 있다', F(new Date(2026, 0, 15, 19)), ['jaeeon']);
+  /* 야자가 없는 평일 저녁 — 민현도 밖에 있다. 전에는 평일 저녁이 통째로
+     「야자」라서 이 애가 수요일에도 학교에 묶여 있었다 */
+  eq('야자 없는 저녁엔 둘 다 있다', F(new Date(2026, 0, 6, 19)), ['jaeeon', 'minhyun']);
+  /* 야자 주의 목요일이 아닌 목요일 — 격주라 이 날도 야자가 아니다 */
+  eq('격주가 아닌 목요일도 저녁엔 나온다', F(new Date(2026, 0, 8, 19)), ['jaeeon', 'minhyun']);
   /* 화요일 밤 열한 시 — 둘 다 나와 있을 수 있다 */
   eq('밤엔 둘 다 있을 수 있다', F(new Date(2026, 0, 6, 23)), ['jaeeon', 'minhyun']);
   /* 새벽 두 시 — 재언은 자고 민현만 깨 있다 */
@@ -4680,8 +4699,13 @@ eq('앱의 새로 시작도 같은 helper다',
    하루에 여섯 번 알림을 띄우면 사흘이면 벽지가 된다. 하루에 한 번이면
    의식이 된다. 그 뒤로는 peek 옆 단추가 지금이 몇 교시인지 들고 있다. */
 {
+  /* 야자 날을 세는 셋은 presence 위로 옮겼다 — 시간표와 생활 리듬이
+     같은 함수를 봐야 해서다. 여기서 베껴 적지 않고 원본을 그대로 떼어 온다 */
+  const yajaSrc = web.slice(web.indexOf('const weekNo='),
+                            web.indexOf('\n\n/* ── 접속 상태 ──'));
   const src = web.slice(web.indexOf('const PERIODS='), web.indexOf('/* 하루의 경계는'));
-  const f = new Function(src + ';return {nowLabel,daySlots,slotNow,isYajaWeek,isWend}')();
+  const f = new Function(yajaSrc + '\n' + src
+    + ';return {nowLabel,daySlots,slotNow,isYajaWeek,isYajaDay,isWend}')();
   const at = (mo, d, h, mi) => new Date(2026, mo, d, h, mi);
   /* 요즘 고등학교 기준 — 50분 수업 10분 쉬는 시간, 4교시 뒤 점심 */
   eq('교시를 센다', ['등교전','1교시','쉬는시간','점심','5교시','쉬는시간','퇴근'].filter((w, i) =>

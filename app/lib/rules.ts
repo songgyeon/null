@@ -566,6 +566,22 @@ const openingFor=now=>{
   return OPENINGS.slice().reverse().find(x=>h>=x.from)||OPENINGS[OPENINGS.length-1];
 };
 
+/* ── 야자가 붙는 날 ──
+   격주. 어느 주부터인지는 유저 사정이 아니라 학교 사정이라 달력으로 센다.
+   야자는 2017년쯤 강제가 없어져서 희망자만 남는 자율학습이다 — 매일이
+   아니라 유저가 감독으로 남는 격주 목요일에만 붙는다.
+
+   시간표(daySlots)는 처음부터 그렇게 세고 있었는데 생활 리듬(presence)만
+   평일 저녁을 통째로 「야자」라고 불렀다. 시계가 둘이면 AT_WORK가 그
+   거짓말을 그대로 받는다 — 야자도 없는 수요일 저녁에 민현이 아직 학교에
+   있는 것이 되어, 안 만난 쪽 방이 열리고 선톡이 나갔다. 한 군데서 센다.
+
+   presence 바로 위에 둔다 — 시험이 presence를 떼어 돌릴 때 이 셋이 같이
+   딸려 와야 한다(그래서 시험의 자르는 자리도 weekNo부터다). */
+const weekNo=d=>Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7);
+const isYajaWeek=(now)=>weekNo(now||nowClock())%2===0;
+const isYajaDay=(now)=>{const d=now||nowClock();return d.getDay()===4&&isYajaWeek(d)};
+
 /* ── 접속 상태 ──
    시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다.
    재언은 근무 시간에 보건실에 있고, 민현은 학교에 매여 있다.
@@ -610,7 +626,12 @@ function presence(id, now){
        새던 것도 분으로 세면 같이 잡힌다. */
     if(mm>=750&&mm<810) return {s:"away",t:"점심"};
     if(mm<980)       return {s:"away",t:"수업 중"};
-    return {s:"on",  t:"야자"};
+    /* 7교시가 끝나면 야자가 있는 날만 학교에 남는다. 없는 날은 갈 데가
+       없는 애가 밖에 있다 — 상태를 새로 만들지 않고 밤에 쓰던 것을 그대로
+       쓴다. 어디 있다고 말하지 않는 말이라 이 애한테 맞고, AT_WORK가 아니라
+       그 저녁에 편의점·빨래방에서 마주칠 수도 있게 된다. */
+    if(isYajaDay(d)) return {s:"on",  t:"야자"};
+    return {s:"on",  t:"안 자는 중"};
   }
   return null;
 }
@@ -794,17 +815,13 @@ const DAY_SLOTS=[
   {k:"퇴근",at:LEAVE_AT},{k:"저녁",at:1080},{k:"야자",at:1110},{k:"OFF",at:1260},
 ];
 const WEND_SLOTS=4;      // 주말은 이름이 없다. 유저가 넷을 직접 채운다
-/* 격주. 어느 주부터인지는 유저 사정이 아니라 학교 사정이라 달력으로 센다 */
-const weekNo=d=>Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7);
-const isYajaWeek=(now)=>weekNo(now||nowClock())%2===0;
 const isWend=d=>{const w=(d||nowClock()).getDay();return w===0||w===6};
 /* 오늘 시간표. 야자는 담당인 목요일에만 붙고, 주말은 아예 칸이 없다 —
    학교가 정해주는 하루가 아니라 유저가 적는 하루라서 */
 const daySlots=(now)=>{
   const d=now||nowClock();
   if(isWend(d))return [];
-  const yaja=isYajaWeek(d)&&d.getDay()===4;
-  return DAY_SLOTS.filter(s=>s.k!=="야자"||yaja);
+  return DAY_SLOTS.filter(s=>s.k!=="야자"||isYajaDay(d));
 };
 /* 지금 몇 번째 칸인가. 아직 출근 전이면 -1, 다 끝났으면 마지막 칸 */
 const slotNow=(now)=>{
@@ -1640,6 +1657,9 @@ return {
   OPENINGS,
   WEND_OPEN,
   openingFor,
+  weekNo,
+  isYajaWeek,
+  isYajaDay,
   presence,
   HEAT,
   heatRing,
@@ -1666,8 +1686,6 @@ return {
   LEAVE_AT,
   DAY_SLOTS,
   WEND_SLOTS,
-  weekNo,
-  isYajaWeek,
   isWend,
   daySlots,
   slotNow,
@@ -1895,6 +1913,9 @@ export const {
   OPENINGS,
   WEND_OPEN,
   openingFor,
+  weekNo,
+  isYajaWeek,
+  isYajaDay,
   presence,
   HEAT,
   heatRing,
@@ -1921,8 +1942,6 @@ export const {
   LEAVE_AT,
   DAY_SLOTS,
   WEND_SLOTS,
-  weekNo,
-  isYajaWeek,
   isWend,
   daySlots,
   slotNow,
