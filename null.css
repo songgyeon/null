@@ -161,13 +161,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dlgbody{background:none;padding:18px 16px 16px;display:flex;flex-direction:column;gap:8px}
 .dlgline{font-size:12px;line-height:1.9;color:#6b5fa8}
 .dlgbtns{display:flex;gap:7px;margin-top:10px}
-/* ── get cha 창은 얼굴을 안 덮는다 ──
-   자리 배경은 인물 사진이고 얼굴이 화면 위쪽 가운데에 온다. 가운데에
-   띄우면 정확히 그 위에 앉는다 — 첫 만남의 그림을 창이 가리는 꼴이다.
-   아래로 내린다. 그 자리의 대사는 창 뒤로 들어가지만 이미 한 줄씩 읽은
-   뒤고, 창을 닫으면 그대로 남아 있다. */
-.dlgov.gcov{align-items:flex-end;padding-bottom:18px}
-
 /* ── get cha — 첫 만남에서 메신저를 얻는 순간 ──
    앱이 전부 파스텔이라 파스텔 알림으로 띄우면 「저장됐습니다」와 같은 무게가
    된다. 이 창만 판을 어둡게 뒤집어 한 번뿐인 사건으로 만든다. 뒤에는 방금
