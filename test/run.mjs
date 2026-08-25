@@ -2671,12 +2671,11 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   /* ── 현실의 나는 □□이다 ──
      그 칸은 안 채워진다. 채워지면 이 게임이 아니다 — 이 세계에서만 값이
      생긴다(교생). 게임 이름이 거기서 온다.
-     배너를 하나 더 얹는 대신 이미 있는 창틀(등록 창 제목줄)에 앉혔다.
-     길어서 흐른다 — 메신저 맨 위 띠와 같은 slide/Marquee다. */
-  eq('제목줄이 그 한 줄을 말한다',
-    web.includes('현실에서 □□이던 내가 이 세계에서는 교생?')
-    && web.includes('(,,◕ᗝ◕,,)♡.ᐟ.ᐟ')
-    && /<div className="etb"><span className="etbrun">/.test(web), true);
+     한동안 등록 창 제목줄에 흐르고 있었다. 지금은 제 화면을 갖는다(Intro) —
+     그 자리에서 유저가 배역을 받고, 읽고, 단추를 눌러 등록으로 온다. */
+  eq('그 한 줄이 웹·앱 둘 다 있다',
+    [web, appSrc].filter(src => !(src.includes('현실에서 ') && src.includes('이 세계에서는 ')
+      && src.includes('교생?') && src.includes('(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'))).length, 0);
   eq('제목줄이 흐른다',
     /\.etbrun>i\{[^}]*animation:slide 17s linear infinite/.test(web), true);
   /* 점 셋은 오른쪽에 그대로 붙어 있어야 한다 — 흐르는 쪽에만 flex를 준다 */
@@ -2688,9 +2687,21 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     const box = web.slice(i, web.indexOf('/* ── 마지막 빈칸 ──', i));
     return /WARNING|현실에서|교생\?/.test(box);
   })(), false);
-  eq('앱도 제목줄이 말한다',
-    appSrc.includes("const ENR_TITLE = '현실에서 □□이던 내가 이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ")
-    && /<View style=\{en\.tb\}><EnrTitle\/><\/View>/.test(appSrc), true);
+  /* 등록 제목줄도 그 말을 다시 안 한다 — 바로 앞 화면(Intro)이 전체 화면으로
+     그 말을 하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 그 다음 창이 같은
+     문장을 또 흘리면 방금 읽은 것을 되돌려주는 게 된다. 자리는 새 문구로
+     채우지 않고 다른 창과 같은 이름(null.exe)을 쓴다 — 문구를 지어내지 않는다. */
+  for (const [label, src, box] of [
+    ['웹', web, web.slice(web.indexOf('function Enroll('), web.indexOf('function Intro('))],
+    ['앱', appSrc, appSrc.slice(appSrc.indexOf('function EnrTitle('), appSrc.indexOf('function Intro('))],
+  ]) {
+    eq(`${label} 등록 제목줄은 그 말을 다시 안 한다`, /현실에서|교생\?/.test(box), false);
+    eq(`${label} 등록 제목줄은 다른 창과 같은 이름이다`, /null\.exe/.test(box), true);
+  }
+  /* 그 문장이 사라진 게 아니라 제 화면으로 옮겨간 것이다 */
+  eq('그 말은 배역 화면에 산다',
+    [/function Intro\([^]{0,900}이 세계에서는/.test(web),
+     /function Intro\([^]{0,1500}이 세계에서는/.test(appSrc)], [true, true]);
   /* 창틀이 이미 색을 갖고 있다 — 띠가 제 배경을 또 그리면 창 위에 뜬 것처럼 보인다 */
   eq('제목줄 띠는 배경을 안 그린다',
     /function Marquee\(\{text,bare\}/.test(appSrc)

@@ -421,13 +421,13 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr"+(out?" out":"")}>
     <div className="ecard">
-      {/* ── 제목줄이 말한다 ──
-          현실의 나는 □□이고 이 세계에서만 값이 생긴다(교생). 그게 이 게임의
-          이름이다. 배너를 하나 더 얹는 대신 이미 있는 창틀에 앉힌다 —
-          길어서 흐른다. 메신저 맨 위 띠와 같은 애니메이션(slide)이다. */}
-      <div className="etb"><span className="etbrun"><i>
-        현실에서 □□이던 내가 이 세계에서는 교생? {'(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'}
-      </i></span><WinDots/></div>
+      {/* ── 같은 말을 두 번 하지 않는다 ──
+          이 문장은 원래 여기 흐르고 있었다. 지금은 바로 앞 화면(Intro)이
+          전체 화면으로 그 말을 하고, 유저는 그걸 읽고 단추를 눌러 여기로
+          온다 — 그 다음 창의 제목줄이 같은 문장을 또 흘리면 방금 읽은 것을
+          되돌려주는 게 된다. 확정 화면에서 이미 같은 이유로 걷었다.
+          자리를 새 문구로 채우지 않는다. 다른 창과 같은 이름을 쓴다. */}
+      <div className="etb">null.exe<WinDots/></div>
       <div className="ebody">
         {edit
           ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}

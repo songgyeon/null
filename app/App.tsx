@@ -271,8 +271,9 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
   {k:'dislikes', lab:'HATES',   tail:'를 싫어한다'},
 ];
 /* 등록 창의 제목줄. Marquee는 아래에 정의돼 있지만 함수 선언이라 끌어올려진다 */
-const ENR_TITLE = '현실에서 □□이던 내가 이 세계에서는 교생? (,,◕ᗝ◕,,)♡.ᐟ.ᐟ    ';
-function EnrTitle(){ return <Marquee text={ENR_TITLE} bare/>; }
+/* 같은 말을 두 번 하지 않는다 — 바로 앞 화면(Intro)이 전체 화면으로 그 말을
+   하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 웹의 .etb와 같은 자리다. */
+function EnrTitle(){ return <Text style={en.tbT}>null.exe</Text>; }
 function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   name:string; profile:Record<string,string>;
   onSaveField:(k:string,v:string)=>void; onRename:(n:string)=>void; onDone:()=>void;
