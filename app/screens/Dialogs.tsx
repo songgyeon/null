@@ -286,6 +286,45 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
    이 창만 본문이 어둡다. 앱이 전부 파스텔이라 파스텔 알림으로 띄우면
    「저장됐습니다」와 같은 무게가 된다. 뒤에는 방금 그 자리가 그대로 있다.
    웹 app-ui.js의 GetCha와 같은 창이다 — 문구도 모양도 같아야 한다. */
+/* ══ 모드 팝업 ══ 웹의 ModeAsk와 같은 글월·같은 자리.
+   비율만 말하던 자리였다. 비율은 숫자고, 유저가 정하는 건 살아지는 방식이다 —
+   앱을 꺼둔 동안에도 세계가 흐르는가, 엔딩이 언제 오는가.
+   그리고 중간에 못 바꾼다는 것이 주석에만 있었다. 화면이 말 안 하는
+   되돌릴 수 없는 선택은 선택이 아니라 함정이다. */
+export const MODE_ASK:{[k:string]:{body:string; kao:string}} = {
+  real:{body:'하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.',
+        kao:'٩(❛ัᴗ❛ั ๑)'},
+  speed:{body:'빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.',
+        kao:'˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙'},
+};
+export function ModeDialog({which, now, onYes, onNo}:
+  {which:string; now:boolean; onYes:()=>void; onNo:()=>void}) {
+  if (!which) return null;
+  const m = MODE_ASK[which] || MODE_ASK.real;
+  return <Dlg title="null.exe" onClose={onNo} z={41}>
+    <View style={md.head}>
+      <Text style={md.name}>{which}</Text>
+      <Text style={[md.kao, KAO]}>{m.kao}</Text>
+    </View>
+    <Text style={md.body}>{m.body}</Text>
+    {/* 되돌릴 수 없다는 말은 따로 세운다 — 설명에 섞으면 안 읽힌다 */}
+    <Text style={md.lock}>한 번 정하면 바꿀 수 없어요</Text>
+    <View style={dl.btns}>
+      <Btn label="back" onPress={onNo}/>
+      <Btn pink label={now ? 'ok ♡' : '이걸로 ♡'} onPress={onYes}/>
+    </View>
+  </Dlg>;
+}
+const md = StyleSheet.create({
+  head:{flexDirection:'row', alignItems:'baseline', gap:7, paddingHorizontal:2},
+  name:{...F, fontSize:16, letterSpacing:1.5, color:'#ff7fae'},
+  kao:{fontSize:10.5, color:'#a06a90'},
+  body:{...F, paddingHorizontal:2, fontSize:12.5, lineHeight:23, color:'#8a4f74'},
+  lock:{...F, marginTop:2, paddingVertical:7, paddingHorizontal:9, borderRadius:8,
+    fontSize:10.5, lineHeight:17, color:'#a06a90',
+    backgroundColor:'rgba(199,182,245,.22)', borderWidth:1, borderColor:'#e7b9d2'},
+});
+
 export function GetChaDialog({name, onClose}:{name:string; onClose:()=>void}) {
   return <View style={[dl.ov, {zIndex:41}]}>
     <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>

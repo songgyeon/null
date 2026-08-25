@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, LookOverlay } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, LookOverlay } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -281,6 +281,9 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
   const [edit,setEdit]=useState(false);
+  /* 모드는 물어보고 바꾼다. 지금 켜진 걸 눌러도 창은 뜬다 —
+     무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
+  const [askMode,setAskMode]=useState('');
   const [nv,setNv]=useState(name||'');
   useEffect(()=>setNv(name||''),[name,edit]);
   const saveName=()=>{setEdit(false);const t=nv.trim();if(t&&t!==name)onRename(t)};
@@ -331,7 +334,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
           <Text style={en.rowL}>MODE</Text>
           <View style={en.mode}>
             {['real','speed'].map(k=>
-              <TouchableOpacity key={k} activeOpacity={.8} onPress={()=>onMode(k)}
+              <TouchableOpacity key={k} activeOpacity={.8} onPress={()=>setAskMode(k)}
                 style={[en.modeB,mode===k&&en.modeBOn]}>
                 <Text style={[en.modeT,mode===k&&en.modeTOn]}>{k}</Text>
               </TouchableOpacity>)}
@@ -352,6 +355,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
           <Text style={en.goT}>Click!</Text></TouchableOpacity>
       </View>
     </View>
+    {!!askMode&&<ModeDialog which={askMode} now={mode===askMode}
+      onYes={()=>{onMode(askMode);setAskMode('')}} onNo={()=>setAskMode('')}/>}
   </Animated.View>;
 }
 /* ── 세계 확정 ── 웹의 Confirm과 같은 그림, 즉 「[NULL] 상태」 창의 동생이다.

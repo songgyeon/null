@@ -414,6 +414,9 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
   /* 한 칸 채우고 엔터를 치면 다음 칸이 열린다. 네 칸을 채우는 데 클릭이
      네 번 필요할 이유가 없다. -1은 아무 칸도 안 열린 상태다. */
   const [focus,setFocus]=useState(-1);
+  /* 모드는 물어보고 바꾼다. 지금 켜진 걸 눌러도 창은 뜬다 —
+     무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
+  const [askMode,setAskMode]=useState(null);
   const filled=ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr"+(out?" out":"")}>
@@ -448,7 +451,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
         <div className="eline"><span className="lab">MODE</span>
           <span className="emode">
             {[["real","real"],["speed","speed"]].map(([k,t])=>
-              <b key={k} className={mode===k?"on":""} onClick={()=>onMode(k)}>{t}</b>)}
+              <b key={k} className={mode===k?"on":""} onClick={()=>setAskMode(k)}>{t}</b>)}
           </span>
           <span className="emhint">{mode==="speed"
             ?<>하루가 4배로 Speed up! <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>
@@ -463,6 +466,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
         <button className="ego" onClick={leave}>Click!</button>
       </div>
     </div>
+    {askMode&&<ModeAsk which={askMode} now={mode===askMode}
+      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
   </div>;
 }
 
@@ -548,6 +553,42 @@ function GetCha({char,onClose}){
           <i className="kao">( ⸝⸝´꒳`⸝⸝) ꫂ 💌</i>
         </div>
         <button className="wbtn gcbtn" onClick={onClose}>chat ♡</button>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ── 이 판을 어떻게 살 것인가 ──
+   비율만 말하던 자리다(「현실 하루 = NULL 하루!」 「하루가 4배로 Speed up!」).
+   비율은 숫자고, 유저가 정하는 건 숫자가 아니라 **살아지는 방식**이다 —
+   앱을 꺼둔 동안에도 세계가 흐르는가, 엔딩이 언제 오는가.
+
+   그리고 중간에 못 바꾼다는 것이 코드 주석에만 있었다. 화면이 말 안 하는
+   되돌릴 수 없는 선택은 선택이 아니라 함정이다. 여기서 말한다.
+
+   자재는 있는 것을 쓴다 — 겟챠 창과 같은 .dlgov/.dlg다. */
+const MODE_ASK={
+  real:{t:"real",
+    body:"하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.",
+    kao:"٩(❛ัᴗ❛ั ๑)"},
+  speed:{t:"speed",
+    body:"빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.",
+    kao:"˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙"},
+};
+function ModeAsk({which,now,onYes,onNo}){
+  const m=MODE_ASK[which]||MODE_ASK.real;
+  return <div className="dlgov" onClick={onNo}>
+    <div className="dlg" onClick={e=>e.stopPropagation()}>
+      <div className="tb">null.exe<WinDots onClose={onNo}/></div>
+      <div className="dlgbody">
+        <div className="mdhead"><b>{m.t}</b> <span className="kao">{m.kao}</span></div>
+        <div className="dlgline">{m.body}</div>
+        {/* 되돌릴 수 없다는 말은 따로 세운다 — 설명에 섞으면 안 읽힌다 */}
+        <div className="mdlock">한 번 정하면 바꿀 수 없어요</div>
+        <div className="mdrow">
+          <button className="wbtn" onClick={onNo}>back</button>
+          <button className="wbtn go" onClick={onYes}>{now?"ok ♡":"이걸로 ♡"}</button>
+        </div>
       </div>
     </div>
   </div>;

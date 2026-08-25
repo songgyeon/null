@@ -2158,12 +2158,27 @@ eq('단추도 그 플래그 뒤다',
     /setAnchor\(0\); setWorldAt\(0\); setMode\(loadMode\(\)\)/.test(appSrc), true);
 }
 
-/* 모드는 판마다 하나고 등록 화면에서 고른다 — 중간에 바꾸면 D-N이 튄다 */
+/* 모드는 판마다 하나고 등록 화면에서 고른다 — 중간에 바꾸면 D-N이 튄다.
+   이제 곧바로 안 바꾼다. 되돌릴 수 없는 선택이라 창이 한 번 묻는다 —
+   누르는 것은 setAskMode고, onMode는 창의 확정 단추만 부른다. */
 for (const [label, src, re] of [
   ['웹', web, /<span className="lab">MODE<\/span>/],
   ['앱', appSrc, /<Text style=\{en\.rowL\}>MODE<\/Text>/],
 ])
-  eq(`${label}은 등록 화면에서 고른다`, re.test(src) && /onMode\(k\)/.test(src), true);
+  eq(`${label}은 등록 화면에서 고른다`, re.test(src) && /setAskMode\(k\)/.test(src), true);
+/* 누르는 자리와 정하는 자리가 갈렸다 — 알약이 바로 onMode를 부르면 창이 장식이 된다 */
+for (const [label, src] of [['웹', web], ['앱', appSrc]]) {
+  eq(`${label}의 알약은 곧바로 안 바꾼다`, /onPress=\{\(\)=>onMode\(k\)\}|onClick=\{\(\)=>onMode\(k\)\}/.test(src), false);
+  eq(`${label}은 창의 확정에서만 바꾼다`, /onYes=\{\(\)=>\{onMode\(askMode\)/.test(src), true);
+}
+/* 두 화면의 글월이 같아야 한다 — 같은 것을 고르는데 설명이 다르면 다른 기능이다 */
+const dlgSrc = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
+for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]]) {
+  eq(`${label}의 모드 팝업 글월이 같다`,
+    ['하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.',
+     '빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.',
+     '한 번 정하면 바꿀 수 없어요'].filter(t => !src.includes(t)), []);
+}
 for (const [label, src] of [['웹', web], ['앱', appSrc]])
   eq(`${label}이 고른 것을 저장한다`,
     /onMode=\{m=>\{setMode\(m\);saveMode\(m\)\}\}/.test(src), true);
