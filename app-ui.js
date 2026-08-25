@@ -1367,7 +1367,12 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       </div>
     </div>
     <div className="msgs" ref={boxRef}>
-      {msgs.length===0&&!busy&&room.empty&&<div className="empty">
+      {/* 아직 출근하지 않은 사람 — 화면 한가운데. 빈 방 안내와 같은 자리·
+          같은 보라색이다. 방이 빈 것은 맞지만 까닭이 다르니 글만 바꾼다 */}
+      {locked?<div className="empty lockempty">
+        {LOCK_LINES.map((t,i)=><React.Fragment key={i}>{i?<br/>:null}{t}</React.Fragment>)}
+      </div>
+      :msgs.length===0&&!busy&&room.empty&&<div className="empty">
         <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>{room.empty}
       </div>}
       {msgs.map((m,i)=>{
@@ -1419,13 +1424,13 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
     </div>
     {watch?
       <div className="watchbar"><span className="rec"/>u can't join this one</div>
-      /* 아직 출근하지 않은 사람 — 입력창 자리에 이유가 선다. 방을 감추지
-         않는 건 이 사람이 없는 게 아니라 아직 안 온 것이기 때문이다 */
-      :locked?
-      <div className="lockbar">{LOCK_LINES.map((t,i)=><span key={i}>{t}</span>)}</div>
-      :<div className="inputbar">
-        <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
-        <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
+      /* 아직 출근하지 않은 사람 — 까닭은 화면 한가운데가 말한다.
+         여기는 자리를 그대로 두고 못 쓰게만 한다. 입력창을 빼버리면
+         방을 열 때마다 화면이 흔들린다. */
+      :<div className={"inputbar"+(locked?" locked":"")}>
+        <input className="sunken" value={locked?"":v} disabled={!!locked}
+          onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
+        <button className="sendbtn rbtn" disabled={!!locked||!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
       </div>}
     {zoom&&<div className="lightbox" onClick={()=>setZoom(null)}><img src={zoom} alt=""/></div>}
     {fixBox}

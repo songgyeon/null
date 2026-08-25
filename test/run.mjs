@@ -1384,10 +1384,16 @@ eq('생성된 파일이라고 적어둔다',
   const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
   const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLocked\(store,view\)\}/.test(app), true);
-  /* 방을 감추지 않는다 — 이 사람이 없는 게 아니라 아직 안 온 것이다 */
-  eq('잠긴 방은 입력창 자리에 이유가 선다',
-    /:locked\?\s*\n\s*<div className="lockbar">\{LOCK_LINES\.map/.test(ui), true);
-  eq('관전방 자리와 같은 높이다', /\.lockbar\{flex:none;/.test(css), true);
+  /* 방을 감추지 않는다 — 이 사람이 없는 게 아니라 아직 안 온 것이다.
+     까닭은 화면 한가운데가 말한다(빈 방 안내와 같은 자리·같은 보라색) */
+  eq('잠긴 방은 한가운데에 이유가 선다',
+    /\{locked\?<div className="empty lockempty">\s*\n\s*\{LOCK_LINES\.map/.test(ui), true);
+  /* 입력창은 자리를 지킨 채 잠긴다 — 빼버리면 방마다 화면 높이가 달라진다 */
+  eq('입력창은 자리를 지키고 잠긴다',
+    /className=\{"inputbar"\+\(locked\?" locked":""\)\}/.test(ui)
+    && /disabled=\{!!locked\}/.test(ui)
+    && /disabled=\{!!locked\|\|!v\.trim\(\)\|\|busy\}/.test(ui), true);
+  eq('잠긴 입력창은 눌러도 안 써진다', /\.inputbar\.locked \.sunken\{/.test(css), true);
   /* 방을 여는 것도 선톡 경로다 — 여기를 안 막으면 「아직 출근하지
      않았어요」 위에 타이핑 표시가 뜬다 */
   eq('잠긴 방은 열어도 말이 안 온다',
