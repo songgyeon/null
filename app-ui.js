@@ -625,6 +625,38 @@ function ModeAsk({which,now,onYes,onNo}){
   </div>;
 }
 
+/* ── 재언의 옛 일기 ──
+   재언 방에 처음 들어가는 순간, 선톡 앞에 한 번.
+
+   이 앱의 다른 창은 전부 가짜 OS다. 여기만 종이다 — 20년 전 것이고
+   화면에서 나온 물건이 아니라 서랍에서 나온 물건이라서. 그래서 창틀도
+   메뉴바도 없다. 줄공책 한 장이 화면을 덮는다.
+
+   마지막 한 칸은 유저가 채운다. 재언이 왜 돌아오겠다고 했는지는 재언이
+   쓴 것이지만, 그 이유를 정하는 건 이 판을 사는 사람이다.
+
+   ⚠️ 채운 값은 여기 브라우저 안에만 산다. 어떤 요청에도 안 실린다. */
+function Diary({onDone}){
+  const [v,setV]=useState("");
+  const [out,setOut]=useState(false);
+  const t=v.trim();
+  /* 닫히는 동안 한 번 더 눌려서 두 번 저장되는 일이 없게 */
+  const done=()=>{if(out||!t)return;setOut(true);saveDiary(t);setTimeout(onDone,420)};
+  return <div className={"diary"+(out?" out":"")}>
+    <div className="dpage">
+      <div className="dhead">{DIARY_HEAD}</div>
+      {DIARY_LINES.map((l,i)=><p key={i} className="dline">{l}</p>)}
+      <p className="dline dlast">{DIARY_TAIL_A}
+        <input className="dblank" value={v} autoFocus maxLength={DIARY_MAX}
+          placeholder="ㅁ" onChange={e=>setV(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();done()}}}/>
+        {DIARY_TAIL_B}</p>
+      {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
+      <button className="wbtn go dbtn" disabled={!t} onClick={done}>덮기 ♡</button>
+    </div>
+  </div>;
+}
+
 /* 탭하면 입력으로 바뀌는 빈칸 */
 /* 열린 상태를 밖에서 쥘 수 있다(open/onOpen). 등록 화면은 그렇게 해서
    엔터 한 번에 다음 칸으로 넘긴다. 안 넘기면 제 안의 edit로 혼자 돈다 —

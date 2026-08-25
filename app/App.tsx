@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, LookOverlay, KAO } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, LookOverlay, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -36,6 +36,7 @@ import {
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
   talkedEnoughIn, applyStoryTransition, markPartnerKnown, markSchoolMet, isSchoolPlace, atWorkNow,
+  loadDiary, saveDiary,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, setWorldAt, leaveTsOf, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
@@ -1631,6 +1632,9 @@ function Root() {
   const [groupOn,setGroupOn]=useState(false);      // 단톡방은 민현이 나중에 판다
   const [groupNew,setGroupNew]=useState(false);
   const [getcha,setGetcha]=useState<string|null>(null);   // 메신저를 얻은 사람
+  /* 재언의 옛 일기 — 그의 방에 처음 들어가는 순간, 첫 마디 앞에 한 번.
+     채운 값은 이 기기 안에만 산다(웹의 null_diary와 같은 열쇠). */
+  const [diary,setDiary]=useState(false);
   const [ask,setAsk]=useState<string|null>(null);  // 지도에서 고른 자리
   const [askWho,setAskWho]=useState<string|null>(null);
   const [leaving,setLeaving]=useState<any>(null);  // 나가기 확인
@@ -2492,6 +2496,12 @@ function Root() {
     if(!canGreet(id))return;
     /* 아직 만나지 않은 사람은 학교에 있을 때만 먼저 건다 */
     if(roomLock(msgsForFlow(),id))return;
+    /* ── 재언의 첫 마디는 옛 일기 뒤다 ──
+       선톡은 두 길로 나간다 — 방을 열 때, 그리고 목록에 앉아 있을 때의 추첨.
+       방 여는 쪽만 막으면 추첨이 먼저 걸려서, 유저가 그의 첫 마디를 읽은 뒤에
+       일기가 뜬다. 순서가 뒤집힌다.
+       **첫 마디만** 잡는다 — 이미 말이 오간 방은 평소대로 걸린다. */
+    if(id==='jaeeon'&&!((msgs as any)[id]||[]).length&&!loadDiary())return;
     /* 빈 방의 첫 연락은 그 사람이 **학교에서** 거는 것이다(roomLock이 그
        시간에만 열어준다). 그 순간부터 교생인 걸 안다. */
     if(!((msgs as any)[id]||[]).length&&atWorkNow(id))markSchoolMet(id);
@@ -2570,7 +2580,14 @@ function Root() {
   /* 잠긴 방은 열어도 말이 안 온다 — 안 막으면 「아직 출근하지 않았어요」
      위에 타이핑 표시가 뜬다 */
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0}));
-    if(id==='health') seedWatch(); else if(!roomLock(msgsForFlow(),id)) greet(id,700); };
+    if(id==='health') return seedWatch();
+    if(roomLock(msgsForFlow(),id)) return;
+    /* 재언 방은 옛 일기가 먼저다 — 선톡을 먼저 걸면 말이 도착한 방 위에 종이가
+       덮여서, 첫 마디를 못 읽은 채로 일기를 읽게 된다 */
+    if(id==='jaeeon'&&!loadDiary()) return setDiary(true);
+    greet(id,700); };
+  /* 덮으면 그때 선톡이 걸린다 */
+  const diaryDone=(v:string)=>{ saveDiary(v); setDiary(false); greet('jaeeon',700) };
 
   /* ── 자리에 가고, 옮기고, 나온다 ──
      판단은 lib/flow.ts가 한다(웹 app.js와 같은 사다리). 여기서는 그 판단대로
@@ -2735,6 +2752,7 @@ function Root() {
     {plate&&<PlateDialog say={plate.say} kao={plate.kao} kind={plate.kind} onClose={()=>setPlate(null)}/>}
     {groupNew&&<GroupNewDialog onClose={()=>setGroupNew(false)}/>}
     {!!getcha&&<GetChaDialog name={(CHARS[getcha]||{}).name||'□□□'} onClose={()=>setGetcha(null)}/>}
+    {diary&&<DiaryPage onDone={diaryDone}/>}
     {look&&<LookOverlay shot={look.shot} onClose={()=>setLook(null)}/>}
     {/* get cha 창이 떠 있는 동안에는 알림을 세워둔다 — 첫 만남에서 자리
         물건을 받으면 「bag — 에너지바」가 Get cha! 글자를 정확히 덮는다 */}

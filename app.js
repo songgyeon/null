@@ -1513,6 +1513,13 @@ function App(){
     /* 같이 있는 사람은 선톡을 안 한다 — 눈앞에 있는데 문자가 오면 이상하다 */
     if(sceneRef.current&&sceneRef.current.room===id)return;
     const list=storeRef.current.msgs[id]||[];
+    /* ── 재언의 첫 마디는 옛 일기 뒤다 ──
+       선톡은 두 길로 나간다 — 방을 열 때, 그리고 목록에 앉아 있을 때의 추첨.
+       방 여는 쪽만 막으면 추첨이 먼저 걸려서, 유저가 그의 첫 마디를 읽은 뒤에
+       일기가 뜬다. 순서가 뒤집힌다.
+       **첫 마디만** 잡는다. 이미 말이 오간 방은 평소대로 걸린다 — 일기는
+       그를 처음 만나는 자리를 짓는 것이지 대화를 멈추는 장치가 아니다. */
+    if(id==="jaeeon"&&!list.length&&!loadDiary())return;
     /* 빈 방의 첫 연락은 그 사람이 **학교에서** 거는 것이다(roomLock이 그
        시간에만 열어준다). 그 순간부터 교생인 걸 안다. */
     if(!list.length&&atWorkNow(id))markSchoolMet(id);
@@ -1568,9 +1575,22 @@ function App(){
   };
   /* 잠긴 방은 열어도 말이 안 온다. 여기를 안 막았더니 방을 여는 순간
      선톡이 걸려서, 「아직 출근하지 않았어요」 위에 타이핑 표시가 떴다. */
+  /* ── 재언의 옛 일기 ──
+     재언 방에 처음 들어가는 순간, **선톡 앞에** 한 번. 선톡을 먼저 걸면
+     말이 도착한 방 위에 종이가 덮여서, 첫 마디를 못 읽은 채로 일기를 읽게
+     된다. 그래서 여기서 갈라진다 — 일기를 덮은 뒤에 선톡이 걸린다.
+
+     잠긴 방(아직 안 만난 사람)에는 안 띄운다. 자리(오프닝)에서 시작한 판은
+     openRoom을 안 거치므로 그 장면을 덮지도 않는다 — 목록에서 방으로 들어올
+     때 처음 뜬다. 채운 값은 브라우저 안에만 산다. */
+  const [diary,setDiary]=useState(false);
   const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));
-    if(id==="health")seedWatch();
-    else if(!roomLock(storeRef.current,id))greet(id,700)};
+    if(id==="health")return seedWatch();
+    if(roomLock(storeRef.current,id))return;
+    if(id==="jaeeon"&&!loadDiary())return setDiary(true);
+    greet(id,700)};
+  /* 덮으면 그때 선톡이 걸린다 */
+  const diaryDone=()=>{setDiary(false);greet("jaeeon",700)};
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
@@ -1758,6 +1778,7 @@ function App(){
   },[name,view,enrolling]);
 
   return <div className="phone">
+    {diary&&<Diary onDone={diaryDone}/>}
     {enrolling==="intro"&&<Intro onGo={()=>setEnrolling("enroll")}/>}
     {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}

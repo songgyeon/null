@@ -20,9 +20,9 @@
    z는 웹과 같은 값이다: 대화창 40, 문틈 42(토스트 45보다는 아래 —
    구경 중에도 알림은 보여야 한다). */
 import React, { useState } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Image, Pressable, TextInput, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CHARS, AV_V, jos } from '../lib/rules';
+import { CHARS, AV_V, jos, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX } from '../lib/rules';
 import { IMG } from '../lib/api';
 /* 값이 아니라 모양만 가져온다 — 판정은 저쪽 파일의 일이다.
    askState는 {away,locked,shut,wk,done,empty,need,mv,klass,no,why,
@@ -286,6 +286,58 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
    이 창만 본문이 어둡다. 앱이 전부 파스텔이라 파스텔 알림으로 띄우면
    「저장됐습니다」와 같은 무게가 된다. 뒤에는 방금 그 자리가 그대로 있다.
    웹 app-ui.js의 GetCha와 같은 창이다 — 문구도 모양도 같아야 한다. */
+/* ══ 재언의 옛 일기 ══ 웹의 Diary와 같은 종이·같은 글월.
+   재언 방에 처음 들어가는 순간, 그의 첫 마디 앞에 한 번.
+
+   이 앱의 다른 창은 전부 가짜 OS다. 여기만 종이다 — 20년 전 것이고 화면에서
+   나온 물건이 아니라 서랍에서 나온 물건이라서. 창틀도 메뉴바도 없다.
+
+   마지막 한 칸은 유저가 채운다. 재언이 왜 돌아오겠다고 했는지는 재언이 쓴
+   것이지만, 그 이유를 정하는 건 이 판을 사는 사람이다.
+
+   ⚠️ 채운 값은 이 기기 안에만 산다. 어떤 요청에도 안 실린다. */
+export function DiaryPage({onDone}:{onDone:(v:string)=>void}) {
+  const [v, setV] = useState('');
+  const t = v.trim();
+  return <View style={[dl.ov, dy.ov, {zIndex:58}]}>
+    <View style={dy.page}>
+      {/* 공책의 붉은 세로줄 */}
+      <View pointerEvents="none" style={dy.rule}/>
+      <Text style={dy.head}>{DIARY_HEAD}</Text>
+      {DIARY_LINES.map((l, i) => <Text key={i} style={dy.line}>{l}</Text>)}
+      <View style={dy.last}>
+        <Text style={dy.line}>{DIARY_TAIL_A}</Text>
+        <TextInput style={dy.blank} value={v} onChangeText={setV} autoFocus
+          maxLength={DIARY_MAX} placeholder="ㅁ" placeholderTextColor="#c9a7bb"
+          onSubmitEditing={()=>{ if(t) onDone(t) }} returnKeyType="done"/>
+        <Text style={dy.line}>{DIARY_TAIL_B}</Text>
+      </View>
+      {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
+      <Bevel style={[dy.btn, !t && dy.btnOff]} disabled={!t}
+        inner={{backgroundColor:'#ff9ec6'}} onPress={()=>{ if(t) onDone(t) }}>
+        <Text style={dy.btnT}>덮기 ♡</Text></Bevel>
+    </View>
+  </View>;
+}
+const dy = StyleSheet.create({
+  ov:{backgroundColor:'rgba(38,26,66,.72)', padding:18},
+  /* 줄공책 — 옅은 누런 종이. RN에는 반복 그라데이션이 없어서 줄은 안 긋고
+     종이만 둔다. 줄 간격은 lineHeight가 대신 지킨다. */
+  page:{width:'100%', maxWidth:312, paddingTop:26, paddingRight:16,
+    paddingBottom:20, paddingLeft:28, borderRadius:3, backgroundColor:'#fdf8ea'},
+  rule:{position:'absolute', left:17, top:0, bottom:0, width:1, backgroundColor:'#e0a7a7'},
+  head:{...F, marginBottom:12, fontSize:10, letterSpacing:1.6, color:'#9a8f6e'},
+  line:{...F, fontSize:12, lineHeight:28, color:'#4a4276'},
+  last:{flexDirection:'row', flexWrap:'wrap', alignItems:'center'},
+  blank:{...F, minWidth:64, marginHorizontal:2, paddingHorizontal:3, paddingVertical:0,
+    fontSize:12, lineHeight:26, textAlign:'center', color:'#c2477f',
+    borderBottomWidth:1.5, borderStyle:'dashed', borderColor:'#c2477f'},
+  btn:{alignSelf:'center', marginTop:20, minWidth:104, height:38,
+    paddingHorizontal:20, borderColor:'#ff8fbe'},
+  btnOff:{opacity:.45},
+  btnT:{...F, fontSize:11, letterSpacing:1.4, color:'#fff'},
+});
+
 /* ══ 모드 팝업 ══ 웹의 ModeAsk와 같은 글월·같은 자리.
    비율만 말하던 자리였다. 비율은 숫자고, 유저가 정하는 건 살아지는 방식이다 —
    앱을 꺼둔 동안에도 세계가 흐르는가, 엔딩이 언제 오는가.

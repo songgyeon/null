@@ -170,6 +170,36 @@ const sys1Due=store=>{
    첫 항목이 같은 값을 들고 있다 — 그 창은 오프닝이 닫힐 때 처음 뜨므로
    맨 앞이 오프닝 방이다. 없으면 null이고, 없는 것은 모르는 것이지
    틀린 것이 아니다 — 부르는 쪽이 「모르면 지금까지대로」로 받는다. */
+/* ── 재언의 옛 일기 ──
+   재언 방에 처음 들어가는 순간, 선톡 앞에 한 번. 20년 전 공부방 아이가
+   쓴 것이고, 유저는 그걸 읽고 마지막 한 칸을 채운다.
+
+   ⚠️ 채운 값은 **어떤 요청에도 실리지 않는다.** 프롬프트에도, story에도,
+   페이로드에도 안 간다 — 여기 브라우저 안에만 산다. 유저만의 비밀이다.
+   그래서 저장 자리도 이야기 상태(null_store_v1·loadStory)와 따로 둔다.
+   시험이 실제 요청 본문을 뒤져서 이 값이 안 새는지 잰다.
+
+   「엄마가 사탕을 줬다」에서 멈춘다. 누구에게 줬는지는 비운다 —
+   사탕 삼각형은 어떤 화면도 발설하지 않는다. */
+const DIARY_HEAD="200X.XX.XX";
+const DIARY_LINES=[
+  "엄마가 이제 이사를 간다고 공부방을 안 한다고 했다.",
+  "나는 속상해서 울었는데 엄마가 사탕을 줬다.",
+  "그래도 계속 눈물이 났다.",
+  "나중에 크면 다시 이 동네에 올 거다.",
+];
+/* 마지막 줄만 빈칸을 문다. 앞뒤를 따로 들고 있어야 화면이 한 줄 안에서
+   글자를 잇는다 — 통째로 한 문자열이면 빈칸 자리를 다시 찾아야 한다. */
+const DIARY_TAIL_A="왜냐하면 나는 ";
+const DIARY_TAIL_B="니까.";
+const DIARY_MAX=8;
+const loadDiary=()=>{try{return localStorage.getItem("null_diary")||""}catch(e){return""}};
+const saveDiary=v=>{try{
+  const t=(v||"").toString().trim().slice(0,DIARY_MAX);
+  if(t)localStorage.setItem("null_diary",t);
+  return t;
+}catch(e){return""}};
+
 const loadFirstMet=()=>{try{
   const v=localStorage.getItem("null_first");
   if(v==="jaeeon"||v==="minhyun")return v;
@@ -1660,6 +1690,13 @@ return {
   loadExtend,
   SYS1_AFTER,
   sys1Due,
+  DIARY_HEAD,
+  DIARY_LINES,
+  DIARY_TAIL_A,
+  DIARY_TAIL_B,
+  DIARY_MAX,
+  loadDiary,
+  saveDiary,
   loadFirstMet,
   saveFirstMet,
   unmetOne,
@@ -1920,6 +1957,13 @@ export const {
   loadExtend,
   SYS1_AFTER,
   sys1Due,
+  DIARY_HEAD,
+  DIARY_LINES,
+  DIARY_TAIL_A,
+  DIARY_TAIL_B,
+  DIARY_MAX,
+  loadDiary,
+  saveDiary,
   loadFirstMet,
   saveFirstMet,
   unmetOne,

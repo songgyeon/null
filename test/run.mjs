@@ -1472,7 +1472,7 @@ eq('생성된 파일이라고 적어둔다',
     /if\(canGreet\(other\)&&!roomLock\(msgsForFlow\(\),other\)\)/.test(app2),   // 첫 자리
     /if\(roomLock\(msgsForFlow\(\),id\)\)return;/.test(app2),                   // greet 안쪽
     /\.filter\(id=>!roomLock\(msgsForFlow\(\),id\)\)/.test(app2),               // 추첨
-    /else if\(!roomLock\(msgsForFlow\(\),id\)\) greet\(id,700\)/.test(app2),   // 방 열기
+    /if\(roomLock\(msgsForFlow\(\),id\)\) return;/.test(app2),                 // 방 열기
   ], [true, true, true, true]);
   eq('앱도 한가운데에 이유가 서고 입력창은 자리를 지킨다',
     /\{locked\.join\('\\n'\)\}/.test(app2)
@@ -1553,7 +1553,34 @@ eq('생성된 파일이라고 적어둔다',
   /* 방을 여는 것도 선톡 경로다 — 여기를 안 막으면 「아직 출근하지
      않았어요」 위에 타이핑 표시가 뜬다 */
   eq('잠긴 방은 열어도 말이 안 온다',
-    /else if\(!roomLock\(storeRef\.current,id\)\)greet\(id,700\)/.test(app), true);
+    /if\(roomLock\(storeRef\.current,id\)\)return;/.test(app), true);
+  /* 재언 방은 옛 일기가 먼저다 — 선톡을 먼저 걸면 말이 도착한 방 위에 종이가
+     덮여서, 첫 마디를 못 읽은 채로 일기를 읽게 된다 */
+  eq('재언 방은 일기가 선톡보다 앞이다',
+    /if\(id==="jaeeon"&&!loadDiary\(\)\)return setDiary\(true\);\s*\n\s*greet\(id,700\)/.test(app), true);
+  eq('덮으면 그때 선톡이 걸린다',
+    /const diaryDone=\(\)=>\{setDiary\(false\);greet\("jaeeon",700\)\}/.test(app), true);
+  /* 선톡은 두 길로 나간다 — 방을 열 때, 그리고 목록의 추첨. 방 여는 쪽만
+     막으면 추첨이 먼저 걸려서 그의 첫 마디를 읽은 뒤에 일기가 뜬다. */
+  eq('추첨도 재언의 첫 마디를 붙잡는다',
+    /if\(id==="jaeeon"&&!list\.length&&!loadDiary\(\)\)return;/.test(app), true);
+  /* 첫 마디만 잡는다 — 이미 말이 오간 방은 평소대로다 */
+  eq('이미 말이 오간 방은 안 막는다', /!list\.length&&!loadDiary\(\)/.test(app), true);
+  /* 앱도 같은 순서다 — 두 판이 갈리면 뒤에 오는 쪽이 이긴다 */
+  eq('앱도 일기가 선톡보다 앞이다',
+    /if\(id==='jaeeon'&&!loadDiary\(\)\) return setDiary\(true\);/.test(app2), true);
+  eq('앱도 덮으면 그때 선톡이 걸린다',
+    /const diaryDone=\(v:string\)=>\{ saveDiary\(v\); setDiary\(false\); greet\('jaeeon',700\) \}/.test(app2), true);
+  eq('앱의 추첨도 첫 마디를 붙잡는다',
+    /if\(id==='jaeeon'&&!\(\(msgs as any\)\[id\]\|\|\[\]\)\.length&&!loadDiary\(\)\)return;/.test(app2), true);
+  /* 앱도 잠긴 방에는 안 띄운다 — 잠금이 일기보다 앞이다 */
+  eq('앱도 잠긴 방에는 안 띄운다',
+    app2.indexOf("if(roomLock(msgsForFlow(),id)) return;")
+      < app2.indexOf("if(id==='jaeeon'&&!loadDiary()) return setDiary(true);"), true);
+  /* 두 화면의 글월은 규칙 파일 하나에서 온다 — 베껴 적으면 어긋난다 */
+  eq('앱은 문안을 규칙 파일에서 가져온다',
+    /DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX \} from '\.\.\/lib\/rules'/.test(dlg)
+    && !/공부방|사탕/.test(dlg), true);
 }
 
 /* ── 앱이 워커에 보내는 것이 웹과 같다 ──
@@ -9224,10 +9251,24 @@ eq('시간표 단추는 peek보다 좁다',
     catch (e) { return 'throw'; }
   })(), 'throw');
 
-  /* ── E4 — 감지는 워커에만 있다 ── */
+  /* ── E4 — 감지는 워커에만 있다 ──
+     재언의 옛 일기(③) 문안에는 「공부방」과 「사탕」이 그대로 들어 있다.
+     그건 감지가 아니라 화면에 그리는 글이고, 확정 문안이라 글자를 못 바꾼다.
+     그 덩어리만 잘라내고 나머지에 같은 검사를 건다 — 클라이언트가 그 말을
+     **찾기 시작하면** 여전히 걸린다. */
+  const CUT_DIARY = src =>
+    src.replace(/\/\* ── 재언의 옛 일기 ──[^]*?const DIARY_MAX ?= ?\d+;/g, '');
   eq('클라이언트에 기억·고백 정규식이 없다',
-    [/공부방|사탕\s*목걸이/.test(web), /공부방|사탕/.test(appSrc),
+    [/공부방|사탕\s*목걸이/.test(CUT_DIARY(web)), /공부방|사탕/.test(CUT_DIARY(appSrc)),
      /MEMORY_PROBE|CONFESS_SAY|FIRSTMEET_ASK/.test(web + appSrc)], [false, false, false]);
+  /* 문안은 글이지 자가 아니다 — 그 덩어리 안에 찾는 코드가 없어야 한다 */
+  eq('일기 문안은 찾는 코드가 아니다', (() => {
+    const m = web.match(/\/\* ── 재언의 옛 일기 ──[^]*?const DIARY_MAX ?= ?\d+;/);
+    return !m || /RegExp|\.test\(|\.match\(|\.exec\(/.test(m[0]);
+  })(), false);
+  /* 잘라낸 게 진짜 그 덩어리인지 — 아무것도 안 잘렸으면 위 검사가 헛돈다 */
+  eq('잘라낸 덩어리에 그 말이 들어 있다',
+    /공부방/.test(web.match(/\/\* ── 재언의 옛 일기 ──[^]*?const DIARY_MAX ?= ?\d+;/)[0]), true);
   eq('클라이언트가 예약하는 것은 화면의 선택뿐이다',
     [...web.matchAll(/markScene\([^,]+,"([a-z_]+)"\)/g)].map(m => m[1])
       .filter(r => !['dday_choice', 'partner_confirm', 'partner_known'].includes(r)), []);
@@ -9239,6 +9280,54 @@ eq('시간표 단추는 peek보다 좁다',
     && /payload\.origin_phase=originPhase\(bucket\)/.test(web), true);
   eq('앱도 같은 이름으로 실어 보낸다',
     /story: loadStory\(\),/.test(apiSrc) && /origin_phase: originPhase\(room\)/.test(apiSrc), true);
+
+/* ── ③ 재언 일기의 빈칸은 서버로 안 간다 ──
+   문서의 「서버 전달 경계」다. 서버로 가는 빈칸은 민현 온보딩(④) 하나뿐이고,
+   재언 일기는 유저만의 비밀이라 브라우저 밖으로 안 나간다.
+
+   글자로 재지 않는다 — 「payload에 안 넣었다」는 소스를 읽어서는 증명이 안
+   된다. 실제로 보내는 함수를 돌려서 **나간 본문**을 뒤진다. */
+{
+  const mem = new Map();
+  const g = { localStorage: { getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
+    location: { search: '' } };
+  const D = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {saveDiary,loadDiary,DIARY_MAX,DIARY_LINES,DIARY_HEAD,DIARY_TAIL_A,DIARY_TAIL_B,loadStory};')(g.localStorage, g.location);
+  const SECRET = '어린애';
+  eq('채운 값이 저장된다', [D.saveDiary(SECRET), D.loadDiary()], [SECRET, SECRET]);
+  /* 이야기 상태(서버로 가는 것)에는 안 섞인다 */
+  eq('이야기 상태에 안 섞인다', JSON.stringify(D.loadStory()).includes(SECRET), false);
+  /* 저장 자리도 따로다 — 이야기 상태와 같은 열쇠를 쓰면 언젠가 같이 실려 나간다 */
+  eq('저장 열쇠가 이야기 상태와 다르다',
+    [...mem.keys()].filter(k => k !== 'null_diary'), []);
+  /* 소스 쪽 계약도 같이 못박는다 — payload에 손대는 자리에 이 값이 없다 */
+  eq('보내는 자리에 일기 값이 없다', (() => {
+    const send = web.slice(web.indexOf('payload.request_id=rid;'), web.indexOf('payload.story=loadStory();') + 200);
+    return /loadDiary|null_diary/.test(send);
+  })(), false);
+  eq('어떤 payload 줄에도 안 실린다',
+    [...web.matchAll(/payload\.[A-Za-z_]+ *= *([^;\n]+)/g)].map(m => m[1])
+      .filter(v => /loadDiary|null_diary|DIARY/.test(v)), []);
+  /* 프롬프트로도 안 간다 — 워커가 그 이름을 아예 모른다 */
+  eq('워커는 그 값을 모른다',
+    /null_diary|loadDiary|DIARY_TAIL/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
+  /* 확정 문안 — 글자 그대로다. 한 글자라도 바뀌면 20년 전 그 아이의 글이 아니다 */
+  eq('일기 문안이 글자 그대로다',
+    [D.DIARY_HEAD, ...D.DIARY_LINES, D.DIARY_TAIL_A + 'ㅁ' + D.DIARY_TAIL_B],
+    ['200X.XX.XX',
+     '엄마가 이제 이사를 간다고 공부방을 안 한다고 했다.',
+     '나는 속상해서 울었는데 엄마가 사탕을 줬다.',
+     '그래도 계속 눈물이 났다.',
+     '나중에 크면 다시 이 동네에 올 거다.',
+     '왜냐하면 나는 ㅁ니까.']);
+  /* 「엄마가 사탕을 줬다」에서 멈춘다 — 누구에게 줬는지는 어떤 화면도 발설하지 않는다 */
+  eq('사탕을 누구에게 줬는지는 안 적는다',
+    D.DIARY_LINES.some(l => /목걸이|재언|민현|삼촌/.test(l)), false);
+}
+
   eq('앱도 전환을 실제로 적용한다',
     /const r=applyStoryTransition\(e\);/.test(appSrc)
     && /if\(r==='fail'\)return false;/.test(appSrc)

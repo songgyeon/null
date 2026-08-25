@@ -497,6 +497,36 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    다른 앱처럼 끼어 있었다. 어둠이 뜻을 지고 있던 것도 아니다:
    「아직 안 들어왔다」는 오프닝의 "당신을 찾을 수 없습니다"가 이미 말하고,
    null.exe도 d-0.exe도 밝은 창이다. 그래서 같은 가족으로 옮긴다. */
+/* ── 재언의 옛 일기 ──
+   이 앱의 다른 창은 전부 가짜 OS다. 여기만 종이다 — 20년 전 것이고
+   화면에서 나온 물건이 아니라 서랍에서 나온 물건이라서. 창틀도 메뉴바도
+   없다. 줄공책 한 장이 화면을 덮는다. */
+.diary{position:absolute;inset:0;z-index:58;display:flex;align-items:center;justify-content:center;
+ padding:22px 18px;background:rgba(38,26,66,.72);animation:fade .22s steps(3) both}
+.diary.out{animation:dclose .42s steps(5) both}
+@keyframes dclose{0%{opacity:1}100%{opacity:0;transform:translateY(10px)}}
+/* 줄공책 — 옅은 누런 종이에 파란 줄. 왼쪽 붉은 세로줄은 공책의 그 줄이다 */
+.dpage{position:relative;width:100%;max-width:312px;padding:26px 16px 20px 28px;border-radius:3px;
+ background:repeating-linear-gradient(180deg,#fdf8ea 0 27px,#e3dcc6 27px 28px);
+ box-shadow:0 3px 0 rgba(120,104,70,.35),0 14px 30px rgba(40,28,70,.45);
+ animation:dopen .28s steps(4) both}
+@keyframes dopen{0%{opacity:0;transform:translateY(12px) rotate(-.6deg)}100%{opacity:1;transform:none}}
+.dpage::before{content:"";position:absolute;left:17px;top:0;bottom:0;width:1px;background:#e0a7a7}
+.dhead{margin-bottom:12px;font-size:10px;letter-spacing:.16em;color:#9a8f6e}
+/* 공책은 줄이 넘어간다 — 그건 그대로 둔다. 다만 낱말 가운데서 자르지
+   않는다(「안 한다 / 고 했다」). 한국어는 띄어쓰기에서만 끊는다 */
+.dline{margin:0;padding:0;font-size:12px;line-height:28px;color:#4a4276;
+ word-break:keep-all;overflow-wrap:break-word}
+.dlast{display:flex;flex-wrap:wrap;align-items:baseline}
+/* 채우는 칸. 종이 위라 창틀을 안 두른다 — 밑줄 하나면 공책에서는 그게 빈칸이다 */
+.dblank{min-width:64px;max-width:130px;width:64px;margin:0 2px;padding:0 3px;
+ font-family:inherit;font-size:12px;line-height:26px;text-align:center;color:#c2477f;
+ background:none;border:0;border-bottom:1.5px dashed #c2477f;outline:none}
+.dblank::placeholder{color:#c9a7bb;letter-spacing:.2em}
+.wbtn.go.dbtn{flex:none;align-self:center;display:block;margin:20px auto 0;width:auto;max-width:none;
+ min-width:104px;padding:11px 20px;font-size:11px;letter-spacing:.12em}
+.wbtn.go.dbtn[disabled]{opacity:.45;cursor:default}
+
 /* ── 배역을 받는 자리 ── 이름을 친 다음, 등록 앞에 한 번.
    막을 안 씌운다 — 눈을 뜨고 그 교실에 서 있는 것이라 막을 깔면 눈을 감은
    게 된다. 대신 글자에 그늘을 깊게 준다. */
