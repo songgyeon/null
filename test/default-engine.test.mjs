@@ -188,7 +188,7 @@ console.log("── sonnet45: 배선은 그대로, 쓰는 손만 ──");
                    ["T16", T16]];
   for (const [label, body] of PACKETS) {
     const base = await run({}, body);
-    for (const flag of ["sonnet45", "sonnet5"]) {
+    for (const flag of ["sonnet45", "sonnet5", "sonnet46"]) {
       const r = await run({ ENGINE_MODE: flag }, body);
       eq(`${label} · ${flag} — 단계가 무플래그와 같다`, stagesOf(r), stagesOf(base));
       eq(`${label} · ${flag} — 응답 코드가 같다`, r.status, base.status);
@@ -231,13 +231,32 @@ console.log("── sonnet45: 배선은 그대로, 쓰는 손만 ──");
   eq("최상급 자리는 등록된 id를 재사용한다", w5.id, "claude-sonnet-5");
   eq("최상급 자리는 thinking·effort를 안 싣는다", [w5.noThinking, w5.effort, w5.budget],
     [false, null, undefined]);
-  /* 세 손이 같은 자리(GPT_STAGES)를 갈아끼운다 — 검사 자리는 어느 손에서도 안 바뀐다 */
-  eq("세 손이 같은 자리를 갈아끼운다",
-    ["", "sonnet45", "sonnet5"].map(v => ENG.stageModel(v ? { ENGINE_MODE: v } : {}, "writer").id),
-    [ENG.OPENAI_MODEL, "claude-sonnet-4-5-20250929", "claude-sonnet-5"]);
-  eq("검사 자리는 세 손 모두 같다",
-    ["", "sonnet45", "sonnet5"].map(v => ENG.stageModel(v ? { ENGINE_MODE: v } : {}, "canon").id),
-    ["claude-haiku-4-5", "claude-haiku-4-5", "claude-haiku-4-5"]);
+  /* 차상급 자리도 같은 모양이다. 사고는 끈다 — 지금 쓰는 자리(상급)와 같은
+     payload라야 비교에서 바뀌는 것이 모델 하나로 유지된다 */
+  const c46 = await run({ ENGINE_MODE: "sonnet46" }, C01);
+  eq("sonnet46의 쓰는 자리는 차상급이다",
+    c46.sent.filter(x => x.stage === "writer").map(x => x.model), ["claude-sonnet-4-6"]);
+  eq("sonnet46의 정사 검사도 그대로 저비용이다",
+    c46.sent.filter(x => x.stage === "canon").map(x => x.model), ["claude-haiku-4-5"]);
+  eq("sonnet46 trace 이름", c46.data.trace.engine_mode, "sonnet46");
+  const w46 = ENG.ENGINE.writer46;
+  eq("차상급 자리는 등록된 id를 재사용한다", w46.id, "claude-sonnet-4-6");
+  eq("차상급 자리는 사고를 끈다", [w46.noThinking, w46.effort, w46.budget],
+    [true, null, undefined]);
+  /* 네 손이 같은 자리(GPT_STAGES)를 갈아끼운다 — 검사 자리는 어느 손에서도 안 바뀐다 */
+  const SEATS = ["", "sonnet45", "sonnet5", "sonnet46"];
+  eq("네 손이 같은 자리를 갈아끼운다",
+    SEATS.map(v => ENG.stageModel(v ? { ENGINE_MODE: v } : {}, "writer").id),
+    [ENG.OPENAI_MODEL, "claude-sonnet-4-5-20250929", "claude-sonnet-5", "claude-sonnet-4-6"]);
+  eq("검사 자리는 네 손 모두 같다",
+    SEATS.map(v => ENG.stageModel(v ? { ENGINE_MODE: v } : {}, "canon").id),
+    SEATS.map(() => "claude-haiku-4-5"));
+  /* 목록에 없는 이름은 오류가 아니라 조용히 기본값이다. 그 사실을 못박아둔다 —
+     「바꿨는데 왜 그대로지」를 헤매는 자리라, 모양이 바뀌면 여기가 말해준다 */
+  eq("모르는 이름은 조용히 기본값으로 떨어진다",
+    ["sonnet46 ", "SONNET46", "46", "sonnet-4-6", "오타"]
+      .map(v => ENG.engineLabel({ ENGINE_MODE: v })),
+    ["sonnet46", "sonnet46", "gpt41", "gpt41", "gpt41"]);
 }
 
 console.log("── 옛 배선은 살아 있다 ──");

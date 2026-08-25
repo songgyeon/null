@@ -126,14 +126,23 @@ const ENGINE = {
      callModel이 다른 진영으로 보낸다 — 열쇠도 주소도 다르다.
      운영 기본 경로(solo)는 이 자리를 한 번도 안 본다. */
   gptWriter: { id: OPENAI_MODEL, openai: true, effort: null, noThinking: true },
-  /* ── 쓰는 자리를 최상급으로 올릴 때 앉는 모델 ──
-     ENGINE_MODE=sonnet5를 명시했을 때만 쓰인다. id는 MODELS에 이미 등록된
-     항목을 그대로 재사용한다 — 새 id를 지어내지 않는다.
-     payload는 맨몸이다(effort·thinking·budget 없음). 이 세대는 수동
-     thinking과 비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다 —
-     G3·G4 실측(pairWriter5)에서 같은 설정·같은 max_tokens로 이미 돌았다. */
-  writer5: { id: (MODELS.find(m => m.id === "claude-sonnet-5") || {}).id,
-             effort: null, noThinking: false },
+  /* ── 쓰는 손을 갈아끼우는 자리 ──
+     ENGINE_MODE=sonnet5 · sonnet46을 명시했을 때만 쓰인다. id는 둘 다
+     MODELS에 이미 등록된 항목을 그대로 재사용한다 — 새 id를 지어내지 않는다.
+     payload도 MODELS의 그 항목과 같은 모양으로 둔다.
+
+     최상급은 맨몸이다(effort·thinking·budget 없음). 그 세대는 수동 thinking과
+     비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다 — G3·G4 실측
+     (pairWriter5)에서 같은 설정·같은 max_tokens로 이미 돌았다.
+
+     차상급은 사고를 끈다. 이 파일 맨 위가 그 이유를 적어뒀다 — 말풍선 한둘짜리
+     대화에 사고는 안 쓰이는데 max_tokens는 사고와 답을 함께 센다. 끄면
+     max_tokens 전부가 답 몫이다. 지금 쓰는 자리(상급)와 같은 모양이라
+     비교에서 바뀌는 것이 모델 하나로 유지된다. */
+  writer5:  { id: (MODELS.find(m => m.id === "claude-sonnet-5")   || {}).id,
+              effort: null, noThinking: false },
+  writer46: { id: (MODELS.find(m => m.id === "claude-sonnet-4-6") || {}).id,
+              effort: null, noThinking: true },
 };
 /* trace의 stage 이름 ↔ ENGINE 열쇠. 호출 자리에서는 trace에 남을 이름으로
    부르고, 모델은 이 표로 찾는다 — 이름 둘이 같은 자리를 가리킨다는 것을
@@ -213,7 +222,7 @@ function engineMode(env) {
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku"
        : v === "solo" ? "solo"
        : v === "hybrid" ? "hybrid"
-       : v === "sonnet45" || v === "sonnet5" ? "gpt41" : "gpt41";
+       : v === "sonnet45" || v === "sonnet5" || v === "sonnet46" ? "gpt41" : "gpt41";
 }
 /* 쓰는 자리에 누가 앉나. 기본 배선(gpt41)에서만 갈린다 —
    ENGINE_MODE=sonnet45면 상급 Writer, 그 밖에는 도전자(GPT)다.
@@ -221,11 +230,13 @@ function engineMode(env) {
 function writerSeat(env) {
   const v = String((env && (env.ENGINE_MODE || env.engine_mode)) || "").trim().toLowerCase();
   if (engineMode(env) !== "gpt41") return "own";
-  return v === "sonnet45" ? "sonnet" : v === "sonnet5" ? "sonnet5" : "gpt";
+  return v === "sonnet45" ? "sonnet"
+       : v === "sonnet5"  ? "sonnet5"
+       : v === "sonnet46" ? "sonnet46" : "gpt";
 }
 /* 화면·trace에 적는 이름. 배선 이름만 적으면 sonnet45가 「gpt41」로 보인다 —
    「고쳤는데 반영이 안 된다」를 헤매게 만드는 바로 그 거짓말이다. */
-const SEAT_LABEL = { sonnet: "sonnet45", sonnet5: "sonnet5" };
+const SEAT_LABEL = { sonnet: "sonnet45", sonnet5: "sonnet5", sonnet46: "sonnet46" };
 function engineLabel(env) {
   const em = engineMode(env);
   return (em === "gpt41" && SEAT_LABEL[writerSeat(env)]) || em;
@@ -3680,6 +3691,7 @@ function stageModel(env, stage) {
   const seat = writerSeat(env);
   if (seat === "gpt" && GPT_STAGES.has(stage)) return ENGINE.gptWriter;
   if (seat === "sonnet5" && GPT_STAGES.has(stage)) return ENGINE.writer5;
+  if (seat === "sonnet46" && GPT_STAGES.has(stage)) return ENGINE.writer46;
   /* override는 G2 스윕의 두 자리(single/anchor)에만 닿는다 — G3의
      sonnet45_fallback이 singleWriter 설정을 재사용해도 갈아끼워지지 않고,
      haiku_director는 더더욱 아니다. */

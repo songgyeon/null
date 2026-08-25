@@ -687,7 +687,11 @@ const PLACES=[
   {name:"학교",     map:"town", into:"school", hours:[8,22], wend:false, icon:"school", need:[]},
   /* meet:"out" — 누가 있을지 정해두지 않는다. 그 시각에 밖에 나와 있을 수
      있는 사람 중에서 뽑는다. 약속하고 가는 게 아니라 마주치는 자리라서. */
-  {name:"편의점",   map:"town", meet:"out", bg:"place-conv.webp",     icon:"conv",    need:["옥상"],              who:["jaeeon","minhyun"], item:"haribo",
+  /* 편의점만 사다리 밖이다. 학교를 한 바퀴 돌아야(교실·보건실→옥상) 열리는
+     자리였는데, 여기는 시간을 내서 가는 데가 아니라 지나다 들르는 데다 —
+     meet:"out"인 자리에 해금을 걸면 「마주치는 자리」라는 설계와 어긋난다.
+     사다리는 그대로 남는다: 레코드샵은 여전히 편의점을 딛고 열린다. */
+  {name:"편의점",   map:"town", meet:"out", bg:"place-conv.webp",     icon:"conv",    need:[],                    who:["jaeeon","minhyun"], item:"haribo",
    note:"학교 뒷문에서 이 분."},
   /* wendOnly — 평일엔 못 간다. 둘 다 학교에 매여 있고, 여기는 들르는 데가
      아니라 시간을 내서 가는 데다. pick — 누구랑 갈지 고른다. */

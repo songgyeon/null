@@ -3804,10 +3804,17 @@ eq('자리에 들어갈 때 시각을 찍는다',
   /* 대화 수나 날짜로는 안 열린다. 다녀와야 열린다 —
      앉아서 말만 쌓아도 지도가 넓어지면 그건 지도가 아니라 또 하나의 게이지다 */
   eq('지도는 대화 수로 안 열린다', /\{name:"[^"]+",[^}]*?\bat:/.test(web), false);
-  /* 학교는 자리가 아니라 문이라 처음부터 열려 있다 — 세는 데서 뺀다 */
-  eq('교실과 보건실만 처음부터 열려 있다',
+  /* 학교는 자리가 아니라 문이라 처음부터 열려 있다 — 세는 데서 뺀다.
+     편의점도 처음부터 열려 있다. 사다리를 딛고 오르는 자리가 아니라
+     지나다 들르는 자리(meet:"out")라서다 — 마주치는 자리에 해금을 걸면
+     「마주친다」는 말과 어긋난다. 빨래방은 같은 meet:"out"이지만 밤의
+     자리라 사다리에 남는다. */
+  eq('처음부터 열려 있는 자리 셋',
     [...web.matchAll(/\{name:"([^"]+)",[^}]*?need:\[\]/g)].map(m => m[1]).filter(n => n !== '학교'),
-    ['교실', '보건실']);
+    ['편의점', '교실', '보건실']);
+  /* 사다리는 안 끊긴다 — 레코드샵은 여전히 편의점을 딛는다 */
+  eq('편의점을 딛는 자리가 남아 있다',
+    /\{name:"레코드샵",[^}]*?need:\["편의점"\]/.test(web), true);
   /* need에 적힌 자리가 목록에 없으면 그 자리는 영영 안 열린다 */
   {
     const all = new Set(names);
@@ -5518,23 +5525,25 @@ eq('시간표 단추는 peek보다 좁다',
     const g = JSON.parse(readFileSync(join(ROOT, 'test/selected-samples.json'), 'utf8'));
     return [g.samples.length, g.note.includes('런타임이 읽지 않는다')];
   })(), [36, true]);
-  /* 이 엔진이 안 쓰기로 한 것들. 예외는 **쓰는 손을 갈아끼우는 자리 둘**뿐이다 —
-     G3 비교 전용(pairWriter5)과 ENGINE_MODE=sonnet5가 앉히는 자리(writer5).
-     둘 다 운영 기본 경로가 한 번도 안 보고, env를 명시해야만 켜지며, id도
-     MODELS의 등록 항목을 재사용한다. 그 두 블록만 잘라내고 나머지에 같은
+  /* 이 엔진이 안 쓰기로 한 것들. 예외는 **쓰는 손을 갈아끼우는 자리**뿐이다 —
+     G3 비교 전용(pairWriter5)과 ENGINE_MODE가 앉히는 자리 둘(writer5·writer46).
+     전부 운영 기본 경로가 한 번도 안 보고, env를 명시해야만 켜지며, id도
+     MODELS의 등록 항목을 재사용한다. 그 블록들만 잘라내고 나머지에 같은
      검사를 건다 — 검사(canon·director)나 기본 writer에 저 급이 새면 걸린다. */
   eq('엔진에 안 쓰기로 한 급이 없다 — 쓰는 손 교체 자리만 예외', (() => {
     const cut = eng
       .replace(/\/\* ── G3 비교 전용[^]*?noThinking: false \},\n/, '')
-      .replace(/\/\* ── 쓰는 자리를 최상급으로[^]*?noThinking: false \},\n/, '');
+      .replace(/\/\* ── 쓰는 손을 갈아끼우는 자리[^]*?noThinking: true \},\n/, '');
     return /sonnet-4-6|sonnet-5|opus/.test(cut);
   })(), false);
-  eq('두 자리 다 MODELS의 sonnet-5를 재사용한다',
+  eq('세 자리 다 MODELS의 등록 항목을 재사용한다',
     [/pairWriter5: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng),
-     /writer5: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng)], [true, true]);
+     /writer5:  \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng),
+     /writer46: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-4-6"\)/.test(eng)],
+    [true, true, true]);
   /* 쓰는 손은 셋인데 배선은 하나다 — 셋 다 engineMode에서 gpt41을 돌려받는다 */
   eq('쓰는 손 깃발이 배선을 안 건드린다',
-    /: v === "sonnet45" \|\| v === "sonnet5" \? "gpt41" : "gpt41";/.test(wk), true);
+    /: v === "sonnet45" \|\| v === "sonnet5" \|\| v === "sonnet46" \? "gpt41" : "gpt41";/.test(wk), true);
 
   /* ── 폴백 금지 ──
      실패하면 다른 모델로 넘어가지 않는다. 진짜 오류를 그대로 올린다. */
