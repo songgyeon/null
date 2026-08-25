@@ -1447,27 +1447,32 @@ eq('생성된 파일이라고 적어둔다',
     && dlg.includes('( ⸝⸝´꒳`⸝⸝) ꫂ 💌') && dlg.includes('chat ♡'), true);
   eq('앱도 창이 떠 있는 동안 알림을 세워둔다', /\{toast&&!getcha&&<View/.test(app2), true);
 
-  /* ── 프롬프트로 부탁만 하지 않는다 ──
-     고정부에 「유저는 교생이고 셋 다 안다」가 캐시로 박혀 있고 인물표에
-     그 호칭이 수십 번 나와서, 가변부 한 줄이 그걸 못 이겼다.
-     아직 학교에서 안 만났는데 호칭으로 쓰면 코드가 떨어뜨린다. */
-  const say2 = t => ({ messages: [{ sender: 'minhyun', text: t }] });
-  const CTX2 = o => ({ schoolUnmet: true, userSaidTeacher: false, openPlaces: [], ...o });
-  const hf = (t, o) => ENG.hardFilter(say2(t), ['minhyun'], CTX2(o));
-  eq('아직 안 만났는데 부르면 떨어진다', hf('선생님, 저 알죠?'), ['TEACHER_TOO_SOON']);
-  /* 부르는 말만 본다 — 짐작하거나 되묻는 말은 통과다 */
-  eq('짐작하는 말은 통과한다', [
-    '꼭 선생님 같아요.', '선생님인 줄 알았어요.', '학교 선생님이세요?',
-  ].flatMap(t => hf(t)), []);
-  eq('유저가 먼저 꺼내면 통과한다', hf('선생님, 저 알죠?', { userSaidTeacher: true }), []);
-  eq('학교에서 만난 뒤에는 통과한다', hf('선생님, 저 알죠?', { schoolUnmet: false }), []);
-  eq('호칭 자는 부르는 자리만 잡는다', (() => {
-    const R = ENG.CALL_TEACHER;
-    const yes = ['선생님.', '선생님, 그거 알아요?', '선생님!', '쌤,', '선생님 왜요?', '쌤 뭐해요'];
-    const no = ['꼭 선생님 같아요.', '선생님인 줄 알았어요.', '학교 선생님이세요?',
-      '그 선생님이 그랬어요.', '선생님이 저 책임진다면서요.', '선생님한테 물어볼게요.'];
-    return [yes.filter(t => !R.test(t)), no.filter(t => R.test(t))];
-  })(), [[], []]);
+  /* ── 그 줄은 고정부에 박혀 있다 ──
+     가변부에 한 줄 얹어봤더니 안 이겼다. 세계관에 「유저는 교생이고 셋 다
+     안다」가 있고 인물표에 그 호칭이 수십 번 나오는데, 그 전부와 같은
+     무게로 서야 이긴다. 학교에서 만나면 그 덩어리가 사라진다. */
+  const sysOf = (room, sm) => ENG.buildSystem('chat', room, '연', null, [], null,
+    null, null, null, null, 3, '', sm).map(b => b.text).join('\n');
+  const YET = "처음부터 교생인 걸 아는 게 아니라";
+  eq('아직 안 만났으면 고정부에 있다',
+    sysOf('minhyun', { jaeeon: false, minhyun: false }).includes(YET), true);
+  eq('학교에서 만나면 사라진다',
+    sysOf('minhyun', { jaeeon: false, minhyun: true }).includes(YET), false);
+  eq('사람마다 따로 선다',
+    sysOf('minhyun', { jaeeon: true, minhyun: false }).includes(YET), true);
+  /* 안 실려 오면 이 판은 그 칸을 안 쓴다 — 없는 것을 거짓으로 읽지 않는다 */
+  eq('안 실려 오면 안 붙는다', sysOf('minhyun', null).includes(YET), false);
+  /* 요약 뒤에 붙는다 — 앞 두 덩어리(세계관·인물)는 붙든 빠지든 그대로다 */
+  eq('세계관·인물 덩어리는 안 흔들린다', (() => {
+    const a = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '',
+      { jaeeon: false, minhyun: false });
+    const b = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '',
+      { jaeeon: false, minhyun: true });
+    return [a[0].text === b[0].text, a[1].text === b[1].text, a[2].text === b[2].text];
+  })(), [true, true, false]);
+  eq('문장이 그대로 있다', ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null,
+    null, null, 3, '', { jaeeon: false, minhyun: false }).map(b => b.text).join('').includes(
+    "처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다. 그 전까지는 과거의 만남이 유저에 대해 아는 전부다. 따라서 오프닝부터 학교에 대해 언급하거나 '선생님'이라고 부르지 않는다. 유저가 먼저 언급할 때는 예외다."), true);
 
   /* ── 학교에서 만난 뒤부터 교생인 걸 안다 ──
      찍는 자리가 둘이다: 학교 안 자리에서 마주 앉을 때, 그리고 그 사람이
@@ -2912,7 +2917,7 @@ eq('유저 말을 되받아 옮기지 말라고 적어뒀다',
 /* 장면 줄(승인된 사유·화자 순차 사건)까지 실은 뒤가 TURN이다 — TURN은 여전히 맨 뒤 */
 eq('그 말은 가변부 맨 뒤에 있다',
   /const TURN = `\n## 이 턴\n유저의 가장 최근 발화가 짧더라도/.test(workerSrc)
-  && /\+ buildSchoolMet\(ctx, mode, room, disclose\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
+  && /disclose && disclose\.text \? `\\n## \[지금 장면\]\\n\$\{disclose\.text\}\\n` : ""\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
 /* 세계관에 두고 왔으면 두 군데에 같은 말이 남는다 */
 eq('세계관에는 안 남겼다',
   (workerSrc.match(/유저의 단어를 어미만 바꿔 반복하는 대신/g) || []).length, 1);

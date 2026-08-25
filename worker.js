@@ -3237,7 +3237,19 @@ function buildEvent(event, userName) {
   return "";
 }
 
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary) {
+/* ── 아직 학교에서 만나기 전 ──
+   고정부에 박는다. 가변부에 한 줄 얹어봤더니 안 이겼다 — 세계관에 「유저는
+   교생이고 셋 다 안다」가 있고 인물표에 그 호칭이 수십 번 나오는데, 그
+   전부와 같은 무게로 서야 이긴다.
+
+   학교에서 만나면 이 덩어리가 사라진다. 그 판에서 캐시가 한 번 깨지고
+   그 뒤로는 다시 붙는다 — 사람마다 한 번뿐이다. */
+const SCHOOL_YET = `
+## [아직 학교에서 만나기 전]
+처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다. 그 전까지는 과거의 만남이 유저에 대해 아는 전부다. 따라서 오프닝부터 학교에 대해 언급하거나 '선생님'이라고 부르지 않는다. 유저가 먼저 언급할 때는 예외다.
+`;
+
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary, schoolMet) {
   const sub = (t) => subName(t, userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
@@ -3262,6 +3274,10 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
      같아서 캐시에 얹혀 간다. 갱신되면 이 블록만 다시 쓰이고 세계관·인물
      블록은 그대로다 — 캐시는 앞부터 맞춰 가므로 앞 두 덩어리는 살아 있다. */
   rules += buildSummary(summary);
+  /* 아직 학교에서 안 만난 사람의 방에만 붙는다. 요약 뒤라 앞 두 덩어리
+     (세계관·인물)는 이게 붙든 빠지든 캐시에 그대로 얹혀 간다.
+     안 실려 오면(schoolMet == null) 이 판은 그 칸을 안 쓴다 — 안 붙인다. */
+  if (mode === "chat" && schoolMet && CHAR_LABEL[room] && !schoolMet[room]) rules += SCHOOL_YET;
 
   /* 매 턴 바뀌는 것은 여기서 안 붙인다. 캐시는 앞부분 바이트 일치라서,
      시스템 끝에 가변부를 두면 그 뒤에 렌더링되는 대화 이력이 통째로
@@ -3316,24 +3332,6 @@ const TURN = `
    오면 사실 투영을 공동 교집합 대신 **그 화자의 known_by**로 갈고, 사건
    목적을 [지금 장면]으로 얹는다. 일반 호출은 이 인자가 없다 — 기존 투영
    규칙이 그대로다. */
-/* 아직 학교에서 안 만난 화자가 있으면 그 줄을 낸다. 1:1은 그 사람만,
-   단톡·관전은 아직인 사람만 이름을 적는다 — 한쪽만 모르는 자리가 있다. */
-function buildSchoolMet(ctx, mode, room, disclose) {
-  /* 1:1에서만 본다. 단톡·관전은 관계가 쌓여야 열리는 방이라 그때는 이미
-     학교에서 만난 뒤고, 애초에 그 두 방에는 story가 안 실린다 —
-     안 실린 것을 「아직 안 만났다」로 읽으면 없던 규칙이 서 버린다. */
-  if (mode !== "chat" || !ctx || !ctx.schoolMet) return "";
-  const met = ctx.schoolMet;
-  const who = disclose && disclose.speaker ? [disclose.speaker] : [room];
-  const yet = who.filter(k => CHAR_LABEL[k] && !met[k]);
-  if (!yet.length) return "";
-  return `\n## [아직 학교에서 만나기 전 — ${yet.map(k => CHAR_LABEL[k]).join("·")}]\n`
-    + `처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다. `
-    + `그 전까지는 과거의 만남이 유저에 대해 아는 전부다. `
-    + `따라서 오프닝부터 학교에 대해 언급하거나 '선생님'이라고 부르지 않는다. `
-    + `유저가 먼저 언급할 때는 예외다.\n`;
-}
-
 function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, ctx, placeItemAvailable, disclose) {
   const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
@@ -3385,12 +3383,6 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           /* 화자 순차 호출의 사건 목적 — 대사는 고정하지 않는다. 코드가
              강제하는 것은 사건 목적·지식 범위·발화 순서뿐이다(§8.5). */
           + (disclose && disclose.text ? `\n## [지금 장면]\n${disclose.text}\n` : "")
-          /* ── 아직 학교에서 만나기 전 ──
-             고정부(WORLD)는 「유저는 교생이고 셋 다 그 사실을 안다」로 못박혀
-             있다. 캐시 블록이라 뺄 수가 없어서, 이번 턴에만 무효로 만드는 줄을
-             여기(가변부)에 얹는다 — 화자 순차 호출의 onlyOne과 같은 방식이다.
-             이 줄이 없던 동안 둘 다 첫 마디부터 유저를 「선생님」이라 불렀다. */
-          + buildSchoolMet(ctx, mode, room, disclose)
           + TURN;
   return t.trim() ? sub(t) : "";
 }
@@ -4288,23 +4280,6 @@ function hardFilter(cand, allowed, ctx) {
     }
   }
 
-  /* ── 아직 학교에서 안 만났는데 「선생님」이라 부른다 ──
-     프롬프트로 부탁만 해서는 안 됐다. 고정부에 「유저는 교생이고 셋 다
-     안다」가 캐시로 박혀 있고 인물표에 그 호칭이 수십 번 나와서, 가변부
-     한 줄이 그걸 못 이긴다. 그래서 코드가 판정한다.
-
-     **부르는 말일 때만** 걸린다 — 문장 첫머리이거나 쉼표·호격 앞이다.
-     「꼭 선생님 같아요」 「선생님이라도 되세요?」처럼 짐작하거나 되묻는
-     말은 부르는 것이 아니라 통과한다. 유저가 먼저 꺼낸 턴도 통과다.
-
-     자연어를 지우지 않는다. 그 후보를 떨어뜨리고 다시 쓰게 한다. */
-  if (g.schoolUnmet && !g.userSaidTeacher) {
-    for (const m of kept) {
-      if (!m || m.sender === "user") continue;
-      if (CALL_TEACHER.test(String(m.text || ""))) { push("TEACHER_TOO_SOON"); break; }
-    }
-  }
-
   /* ── 잠긴 자리 제안은 대사를 죽이지 않는다 ──
      전에는 여기서 INVALID_INVITE로 후보 전체를 떨어뜨렸다. 아직 안 열린
      자리(옥상 40·도서관 80·빨래방 120)를 대사가 한 번 입에 올리면 그 턴
@@ -4780,13 +4755,6 @@ const FIRSTMEET_EXPLAIN = /병원\s*옥상|(옥상|병원)에서\s*.{0,6}(만났
    판정은 두 조각이다: 수긍하는 말이 있고, 부정하는 말이 없어야 한다.
    부정이 이긴다 — 「그랬구나, 근데 사람 잘못 보신 것 같은데요」는 수긍이
    아니다. 반쪽만 보면 서 있던 질문이 조용히 닫힌다(EXPLAIN과 같은 이유). */
-/* ── 「선생님」을 호칭으로 쓴 자리 ──
-   부르는 말만 본다: 문장 첫머리, 또는 쉼표·물음표·느낌표 앞의 홀로 선 호칭.
-   「꼭 선생님 같아요」 「선생님인 줄 알았어요」는 짐작이라 안 걸린다. */
-const CALL_TEACHER = /(^|[.!?~…]\s*)(선생님|쌤)(?![가-힣])\s*([,!?~….]|$|[가-힣])/;
-/* 유저가 먼저 꺼냈으면 예외다 — 그 뒤로는 그 말을 써도 된다 */
-const USER_TEACHER = /선생님|쌤|교생|학교|실습/;
-
 const FIRSTMEET_TAKE = /그랬(구나|군요|나\s*봐|나\s*보네|어요)|그런\s*일이|그때\s*(그|그거|봤|만났|였)|아\s*그때|맞네(요)?|(병원|옥상)[가-힣]*\s*(이었|였|맞)/;
 /* 이게 있으면 위가 걸려도 전진 안 한다. 상태는 explained에 그대로 선다 */
 const FIRSTMEET_DENY = /그런\s*적\s*(은\s*)?없|아닌\s*것\s*같|잘못\s*(아신|보신|알)|사람\s*잘못|누구(세요|시|신데)|모르겠(는데|어|네|어요)/;
@@ -5979,7 +5947,7 @@ export default {
            따로 실리므로 이 필드를 다시 렌더하지 않는다(E4). */
         recent: msgs.slice(-6).map(m => ({ role: m.role, content: String(m.content) })) });
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
-      (body.summary || "").toString().slice(0, 4000));
+      (body.summary || "").toString().slice(0, 4000), story.schoolMet);
 
     /* ── 이력을 캐시에 태운다 ──
        마지막 유저 발화까지를 한 덩어리로 잘라 캐시 지점을 찍고, 매 턴 달라지는
@@ -6079,12 +6047,7 @@ export default {
                            한 번이고 materializeEffects는 결과만 본다(E4) */
                         firstMeetTaken: mode === "chat" && room === "minhyun"
                           && body.greet !== true
-                          && FIRSTMEET_TAKE.test(lastUser) && !FIRSTMEET_DENY.test(lastUser),
-                        /* 아직 학교에서 안 만난 사람인가. 「선생님」을 호칭으로
-                           쓰면 떨어진다 — 유저가 먼저 꺼낸 턴은 예외다. */
-                        schoolUnmet: mode === "chat" && !!CHAR_LABEL[room]
-                          && !!story.schoolMet && !story.schoolMet[room],
-                        userSaidTeacher: USER_TEACHER.test(lastUser) };
+                          && FIRSTMEET_TAKE.test(lastUser) && !FIRSTMEET_DENY.test(lastUser) };
 
       if (engineMode(env) === "legacy") {
         const t0 = Date.now();
@@ -7038,7 +7001,6 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,
-         CALL_TEACHER, USER_TEACHER,
          CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
          JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,
          sceneHead, criticPacket, finalizerPacket, readProblems,
