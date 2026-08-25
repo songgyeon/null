@@ -45,8 +45,10 @@ const die = msg => { console.error(`[deep] ${msg}`); process.exit(1); };
 const CAMPS = ["gpt41", "sonnet45"];
 /* 마무리를 안 부르는 것은 양쪽 공통이다. 진영을 가르는 것은 ENGINE_MODE
    하나뿐 — sonnet45는 깃발이 없는 운영 기본 배선 그대로다. */
-const envFor = (camp, okey) => camp === "gpt41"
-  ? { ENGINE_MODE: "gpt41", NO_FINALIZER: "1", OPENAI_API_KEY: okey }
+const envFor = (camp, okey, pure) => camp === "gpt41"
+  ? { ENGINE_MODE: "gpt41", NO_FINALIZER: "1",
+      /* --pure — 다른 진영의 눈까지 뗀다. 쓰는 자리 한 번과 코드 검사만 */
+      ...(pure ? { NO_CRITICS: "1" } : {}), OPENAI_API_KEY: okey }
   : { NO_FINALIZER: "1" };
 
 /* ── 단가 ── 보고 전용. 모르는 모델이 나오면 RP.priceFor가 죽는다 */
@@ -96,6 +98,15 @@ function chargeStages(stages) {
 
 async function main() {
   const FAKE = has("fake");
+  /* ── --pure ──
+     앞선 실행에서 **다른 진영의 호출이 섞인 문항만** 다시 돌린다. 쓰는 자리
+     한 번과 코드 검사(hardFilter)뿐이고, 실패하면 같은 진영 Writer로 한 번만
+     다시 쓴다. 이미 순수했던 문항은 다시 안 부른다 — 앞 실행이 그대로 답이다.
+     기존 산출물은 건드리지 않는다. */
+  const PURE = has("pure");
+  const onlyList = PURE ? new Set(JSON.parse(readFileSync(
+    argOf("assisted", "replay-out-deepblind/assisted.json"), "utf8"))
+    .map(a => `${a.item}#${a.sample}`)) : null;
   const OKEY = process.env.OPENAI_API_KEY || "";
   const AKEY = process.env.ANTHROPIC_API_KEY || "";
   if (!FAKE) {
@@ -106,7 +117,9 @@ async function main() {
   const key = FAKE ? "sk-fake" : AKEY;
   const okey = FAKE ? "sk-fake-도전자" : OKEY;
 
-  const outDir = resolve(ROOT, argOf("out", FAKE ? "replay-out-deepblind-fake" : "replay-out-deepblind"));
+  const outDir = resolve(ROOT, argOf("out",
+    PURE ? (FAKE ? "replay-out-deepblind-pure-fake" : "replay-out-deepblind-pure")
+         : (FAKE ? "replay-out-deepblind-fake" : "replay-out-deepblind")));
   if (existsSync(outDir) && readdirSync(outDir).length)
     die(`--out 디렉터리가 비어 있지 않다 — ${outDir}`);
   for (const d of ["blind", "sealed", "trace"]) mkdirSync(join(outDir, d), { recursive: true });
@@ -129,15 +142,19 @@ async function main() {
   const SAMPLES = Number(argOf("samples", "3"));
   const sessions = JSON.parse(readFileSync(join(ROOT, "test/sessions-deep.json"), "utf8"));
 
-  const expected = singles.length * SAMPLES * CAMPS.length
-    + sessions.reduce((n, s) => n + s.turns.length, 0) * CAMPS.length;
+  const expected = onlyList ? onlyList.size
+    : singles.length * SAMPLES * CAMPS.length
+      + sessions.reduce((n, s) => n + s.turns.length, 0) * CAMPS.length;
   console.log(`[deep] 문항 ${singles.length} × sample ${SAMPLES} × 진영 ${CAMPS.length}`
     + ` + 세션 ${sessions.length} · 기대 결과 ${expected}개`);
 
+  /* 순수 재실행은 한 진영만 돈다 — 기준선은 앞 실행 것이 그대로 답이다 */
+  const camps = PURE ? ["gpt41"] : CAMPS;
   const rows = [];       // { group, item, sample, camp, ok, lines, ... }
+  const PREV = argOf("prev", "replay-out-deepblind");
   const call = async (camp, body, tag) => {
     if (!roomLeft(1)) { budget.stopped = budget.stopped || `상한 — 호출 ${budget.calls}/${CALL_CAP} · 비용 ${budget.cost.toFixed(4)}/$${COST_CAP}`; return null; }
-    const r = await RP.callWorker(envFor(camp, okey), body, key);
+    const r = await RP.callWorker(envFor(camp, okey, PURE), body, key);
     const stages = (r.data && r.data.stages) || [];
     chargeStages(stages);
     return { r, stages, tag };
@@ -160,12 +177,61 @@ async function main() {
         effects: (r.data && r.data.effects) || [] } };
   };
 
+  /* ── 순수 재실행 ──
+     앞선 실행에서 다른 진영의 호출이 섞인 자리만 다시 돈다. 문항을 fixture
+     에서 다시 만들지 않고 **그때 실제로 보낸 body를 그대로** 다시 보낸다 —
+     세션 중간 턴은 앞 턴들이 쌓아놓은 상태 위에 서 있어서, 다시 지어내면
+     같은 입력이 아니다. 바뀌는 것은 env 하나뿐이다. */
+  if (PURE) {
+    const list = JSON.parse(readFileSync(join(ROOT, PREV, "assisted.json"), "utf8"));
+    console.log(`[deep] 순수 재실행 — 보조를 받았던 ${list.length}자리`);
+    for (const a of list) {
+      const prev = JSON.parse(readFileSync(join(ROOT, PREV, "trace", a.f), "utf8"));
+      const body = { ...prev.body, request_id: `${prev.body.request_id}-pure` };
+      const got = await call("gpt41", body, a.item);
+      const row = rowOf(a.group, a.item, a.sample, "gpt41", got, body);
+      row.prevStages = (prev.stages || []).map(x => x.stage);
+      row.prevLines = (prev.finalMessages || [])
+        .map(m => `${m.sender || ""}: ${m.text || ""}`).join("\n");
+      rows.push(row);
+      writeFileSync(join(outDir, "trace", `P-${a.item}-${a.sample}.json`),
+        JSON.stringify(row.trace, null, 2));
+      console.log(`  ${a.item} ${a.group === "session" ? "턴" : "s"}${a.sample}`
+        + ` → ${row.ok ? "ok" : "(응답 없음)"} · 단계 ${(row.stages || []).map(x => x.stage).join("+") || "-"}`
+        + ` · 누적 ${budget.calls}회 $${budget.cost.toFixed(4)}`);
+      if (budget.stopped) break;
+    }
+    const st = rows.flatMap(r => r.stages || []);
+    const ant = st.filter(x => !isGpt(x.model));
+    const P = [];
+    P.push("# 순수 재실행 — 쓰는 자리 하나와 코드 검사뿐\n");
+    P.push(`- 다시 돈 자리: ${rows.length} / 보조를 받았던 ${list.length}`);
+    P.push(`- 성공 ${rows.filter(r => r.ok).length} · 「(응답 없음)」 ${rows.filter(r => !r.ok).length}`);
+    P.push(`- 호출 ${st.length} · **다른 진영 호출 ${ant.length}회**`);
+    P.push(`- 단 단계: ${[...new Set(st.map(x => x.stage))].sort().join(" · ") || "없음"}`);
+    P.push(`- 최대 Writer 시도: ${st.length ? Math.max(...st.map(x => x.attempt || 1)) : 0}`);
+    P.push(`- 비용 $${costOfStages(st).all.toFixed(4)} (상한 $${COST_CAP})\n`);
+    P.push("## 자리별\n");
+    for (const r of rows) {
+      P.push(`### ${r.item} ${r.group === "session" ? "턴" : "sample "}${r.sample}\n`);
+      P.push(`- 앞선 실행의 단계: ${(r.prevStages || []).join("+")}`);
+      P.push(`- 이번 단계: ${(r.stages || []).map(x => x.stage).join("+") || "-"}\n`);
+      P.push(`**앞선 실행(보조 받음)**\n\n\`\`\`\n${r.prevLines || "(응답 없음)"}\n\`\`\`\n`);
+      P.push(`**이번(순수)**\n\n\`\`\`\n${r.lines}\n\`\`\`\n`);
+    }
+    writeFileSync(join(outDir, "pure.md"), P.join("\n") + "\n");
+    console.log(`\n끝 — ${rows.length}자리 · 호출 ${budget.calls} · $${budget.cost.toFixed(4)}`);
+    console.log(`다른 진영 호출 ${ant.length}회`);
+    console.log(`보고: ${join(outDir, "pure.md")}`);
+    return;
+  }
+
   /* ── A층 — 일반·중요 문항 × sample ──
      같은 문항의 두 진영을 **붙여서** 돌린다. 상한에 걸려 멈춰도 짝이
      반쪽으로 남지 않는다. 초기 상태는 sample마다 완전히 같다. */
   for (const it of singles) {
     for (let s = 1; s <= SAMPLES; s++) {
-      for (const camp of CAMPS) {
+      for (const camp of camps) {
         const body = { ...JSON.parse(JSON.stringify(it.body)),
           request_id: `deep-${it.label}-s${s}-${camp}` };
         const got = await call(camp, body, `${it.label}#${s}`);
@@ -175,7 +241,7 @@ async function main() {
         if (row.trace) writeFileSync(join(outDir, "trace",
           `A-${it.label}-s${s}-${camp}.json`), JSON.stringify(row.trace, null, 2));
       }
-      console.log(`  ${it.label} #${s} → ${rows.slice(-2).map(r => r.ok ? "ok" : "—").join("/")}`
+      console.log(`  ${it.label} #${s} → ${rows.slice(-camps.length).map(r => r.ok ? "ok" : "—").join("/")}`
         + ` · 누적 ${budget.calls}회 $${budget.cost.toFixed(3)}`);
       if (budget.stopped) break;
     }
@@ -189,14 +255,14 @@ async function main() {
   for (const ses of sessions) {
     if (budget.stopped) break;
     const st = {};
-    for (const camp of CAMPS) st[camp] = {
+    for (const camp of camps) st[camp] = {
       msgs: JSON.parse(JSON.stringify(ses.seed && ses.seed.msgs || {})),
       story: { firstContact: "explained", jaeeonMemory: "hidden",
                partnerKnown: { jaeeon: false, minhyun: false }, ...(ses.seed && ses.seed.story || {}) },
       alive: true, turns: [] };
     for (let i = 0; i < ses.turns.length; i++) {
       const t = ses.turns[i];
-      for (const camp of CAMPS) {
+      for (const camp of camps) {
         const s = st[camp];
         if (!s.alive) { s.turns.push({ user: t.text || "(각본 진입 턴)", lines: "(응답 없음)" }); continue; }
         s.msgs[t.room] = s.msgs[t.room] || [];
@@ -226,7 +292,7 @@ async function main() {
           { sender: m.sender || t.room, text: m.text || "" }));
         s.turns.push({ user: t.text || "(각본 진입 턴)", lines: row.lines });
       }
-      console.log(`  ${ses.label} 턴${i} → ${CAMPS.map(c => st[c].alive ? "ok" : "—").join("/")}`
+      console.log(`  ${ses.label} 턴${i} → ${camps.map(c => st[c].alive ? "ok" : "—").join("/")}`
         + ` · 누적 ${budget.calls}회 $${budget.cost.toFixed(3)}`);
       if (budget.stopped) break;
     }

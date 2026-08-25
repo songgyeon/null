@@ -6232,6 +6232,13 @@ export default {
          아예 안 부르고, 검사를 통과한 Writer 원문을 그대로 내보낸다.
          env로만 켜진다 — 요청 본문은 못 바꾼다. 운영에는 이 변수가 없다. */
       const noFinalizer = String((env && env.NO_FINALIZER) || "") === "1";
+      /* ── NO_CRITICS — replay 전용 ──
+         한 진영만으로 어디까지 가는지 재는 자리다. 검사 둘(Canon·Character)과
+         소유자 정사 검사가 다른 진영의 모델이라, 그게 붙어 있으면 「그 모델
+         혼자서」가 아니다. 이 깃발에서는 쓰는 자리 한 번과 **코드 검사
+         (hardFilter)**만 남는다 — 그 검사는 모델이 아니라 우리 코드다.
+         env로만 켜진다. 운영에는 이 변수가 없다. */
+      const noCritics = String((env && env.NO_CRITICS) || "") === "1";
       const singleNow = (em === "single" || single5Now) && !anchorDeclined;
       const writerStage = singleNow
         ? (anchorWhy ? "anchor_writer" : single5Now ? "single5_writer" : "single_writer")
@@ -6481,7 +6488,7 @@ export default {
             if (!res.ok) return ["CRITIC_SCHEMA"];
             return res.problems.map(n => `${n.code}:${n.fact_id}`);
           };
-          const c2 = await runPart(own, ownText, base2, null, ownValidate);
+          const c2 = await runPart(own, ownText, base2, null, noCritics ? null : ownValidate);
           if (c2) {
             const merged = { id: "D",
               originalMessages: [...c1.originalMessages, ...c2.originalMessages],
@@ -6623,6 +6630,10 @@ export default {
            맡는다. 정확성만큼 감정의 체온과 말하지 않은 것이 중요한 자리라
            고르기만 해서는 모자라기 때문이다. */
         if (tier === "critical") {
+          /* 검사를 아예 안 부르는 실험 경로 — 코드 검사만 통과한 원문 그대로.
+             중요 장면의 라우팅·사실 투영·행동 규칙은 그대로 살아 있다.
+             빠지는 것은 다른 진영의 모델이 보는 눈 둘뿐이다. */
+          if (noCritics) { picked = cands[0]; break; }
           /* 검사는 둘이고, 각각 후보 전부를 한 번에 본다. 후보마다 부르면
              여섯 호출이 나고 결과를 합치면서 표식이 사라진다. */
           const allowed = { candidates: new Set(cands.map(c => c.id)), facts: factIds(stageFacts) };
