@@ -1648,13 +1648,15 @@ function App(){
     return (s[id]||[]).length+(s.group||[]).filter(m=>m.sender===id||m.sender==="user").length;
   };
   /* 이름을 넣으면 등록 → 세계 확정(YES)이 한 번 지나간다.
-     enrolling은 단계다: false | "enroll" | "confirm".
+     enrolling은 단계다: false | "intro" | "enroll" | "confirm".
+     intro는 배역을 받는 자리다 — 이름을 친 직후 한 번. 다시 열면 안 뜬다
+     (등록만 하고 닫은 사람은 이미 봤다). 세계는 여전히 YES에서 생긴다.
      이름이 저장돼 있어도 YES를 안 눌렀으면(loadWorld가 거짓) 메신저로
      건너뛰지 않는다 — 등록만 하고 닫은 사람은 아직 시작 전이다. */
   const [enrolling,setEnrolling]=useState(()=>{
     try{return localStorage.getItem("null_name")&&!loadWorld()?"enroll":false}catch(e){return false}
   });
-  const enter=n=>{localStorage.setItem("null_name",n);setName(n);setEnrolling("enroll")};
+  const enter=n=>{localStorage.setItem("null_name",n);setName(n);setEnrolling("intro")};
   /* YES — 세계가 생기는 순간. 프로필이 잠기고 나이는 세계 고정값 25가 된다.
      saveWorld는 멱등이라 연타·재렌더가 와도 시작은 한 번이다. */
   const confirmYes=()=>{
@@ -1756,6 +1758,7 @@ function App(){
   },[name,view,enrolling]);
 
   return <div className="phone">
+    {enrolling==="intro"&&<Intro onGo={()=>setEnrolling("enroll")}/>}
     {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}

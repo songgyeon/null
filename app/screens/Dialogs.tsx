@@ -43,7 +43,7 @@ const F = { fontFamily:'Galmuri11' } as const;
    빼둔 것과 같은 이유 — Galmuri11로 그리면 얼굴 자리에 두부가 뜬다.
    RN은 중첩 Text가 부모 글꼴을 물려받으므로 이름을 비우는 것으로는 안 되고
    시스템 글꼴 이름을 또박또박 적어야 덮인다. */
-const KAO = {
+export const KAO = {
   fontFamily: Platform.select({ android:'sans-serif', ios:'System', default:'System' }),
   letterSpacing: 0,
 };

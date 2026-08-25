@@ -381,11 +381,40 @@ eq('음악이 막혔을 때 켜라고 알려준다',
    앱을 열 때마다 나오면 그냥 방해다. */
 eq('등록 화면이 웹·앱 둘 다 있다',
   /function Enroll\(/.test(appSrc) && /function Enroll\(/.test(web), true);
-/* 등록이 단계가 됐다(false|'enroll'|'confirm') — 이름을 넣으면 등록으로,
-   Click 뒤 세계 확정(YES)으로 간다. 웹과 앱이 같은 단계를 쓴다 */
-eq('등록 화면은 이름을 넣은 순간에 뜬다',
-  [/setName\(n\); setEnrolling\('enroll'\)/.test(appSrc), /setName\(n\);setEnrolling\("enroll"\)/.test(web)],
+/* 등록이 단계가 됐다(false|'intro'|'enroll'|'confirm') — 이름을 넣으면
+   배역을 받는 자리(intro)로, 거기서 등록으로, Click 뒤 세계 확정(YES)으로
+   간다. 웹과 앱이 같은 단계를 쓴다 */
+eq('이름을 넣으면 배역을 받는 자리로 간다',
+  [/setName\(n\); setEnrolling\('intro'\)/.test(appSrc), /setName\(n\);setEnrolling\("intro"\)/.test(web)],
   [true, true]);
+eq('그 자리에서 등록으로 넘어간다',
+  [/<Intro onGo=\{\(\)=>setEnrolling\('enroll'\)\}\/>/.test(appSrc),
+   /<Intro onGo=\{\(\)=>setEnrolling\("enroll"\)\}\/>/.test(web)], [true, true]);
+/* ── 배역을 받는 자리 ──
+   유저가 배역을 받은 줄 모르는 채로 첫 방에 들어가고 있었다. 그래서 뒤에
+   「선생님」이라는 호칭이 설명 없이 성립하지 않았다. 교실에서 그렇게 불리는
+   사람은 한 명뿐이고, 그 소리가 나를 향하면 설명 없이 안다 —
+   그게 이 화면이 하는 일 전부다. */
+eq('배역을 받는 자리가 웹·앱 둘 다 있다',
+  [/function Intro\(/.test(web), /function Intro\(/.test(appSrc)], [true, true]);
+const introCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+/* 팝업이 아니라 전체 화면이다 — 팝업은 앞의 가짜 오류창과 문법이 겹친다 */
+eq('전체 화면이지 팝업이 아니다',
+  [/\.intro\{position:absolute;inset:0;z-index:56;/.test(introCss),
+   !/className="dlgov"[^]{0,200}intro/.test(web)], [true, true]);
+/* 두 화면의 글월이 같아야 한다 — 같은 자리인데 말이 다르면 다른 화면이다 */
+for (const [label, src] of [['웹', web], ['앱', appSrc]])
+  eq(`${label}의 배역 화면 글월이 같다`,
+    ['뒷자리', '창가 쪽', '선생님— ', '선생님!', '현실에서 ', '이던 내가',
+     '이 세계에서는 ', '교생?', 'NULL 채우러 가기 ♡'].filter(t => !src.includes(t)), []);
+/* □□는 유저가 채우는 칸이 아니다 — 현실의 내 값이 비어 있다는 말이라
+   비어 있는 채로 고정이다. 입력칸으로 만들면 이야기가 반대가 된다 */
+for (const [label, src] of [['웹', web], ['앱', appSrc]])
+  eq(`${label}의 □□는 입력칸이 아니다`,
+    /(?:className="bk"|style=\{io\.bk\})[^]{0,40}(?:input|TextInput)/.test(src), false);
+/* 교실을 앞에서 보는 시야다 — 교사만 서는 자리라 그 자리가 곧 호칭이다 */
+for (const [label, src] of [['웹', introCss], ['앱', appSrc]])
+  eq(`${label}은 교실 사진을 쓴다`, /place-class\.webp/.test(src), true);
 /* 남은 날이 null인 것이 이 프로덕트의 이름이자 이야기다. 숫자로 바꾸면 안 된다. */
 eq('DAYS LEFT는 null로 둔다',
   /DAYS LEFT[\s\S]{0,80}null/.test(appSrc) && /DAYS LEFT[\s\S]{0,80}null/.test(web), true);

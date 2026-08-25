@@ -558,6 +558,37 @@ function GetCha({char,onClose}){
   </div>;
 }
 
+/* ── 배역을 받는 자리 ──
+   이름을 친 다음, 등록 네 칸 앞에 한 번.
+
+   POV에서 내가 누구인지 정하는 건 내가 든 물건이 아니라 **남이 나를 부르는
+   호칭**이다. 교실에서 「선생님」이라고 불리는 사람은 한 명뿐이고, 그 소리가
+   나를 향하면 설명 없이 안다 — 아, 그게 나구나.
+   그래서 그리는 물건이 없다. 사진은 교실을 앞에서 보는 시야고(교사만 서는
+   자리), 부르는 소리가 그 자리에서 나고, 내 속마음이 그 위에 뜬다.
+
+   이게 있어야 뒤에 「선생님」이라는 호칭이 설명 없이 성립한다. 전에는
+   유저가 배역을 받은 줄 모르는 채로 첫 방에 들어갔다.
+
+   팝업이 아니라 전체 화면이다 — 팝업은 앞의 가짜 오류창과 문법이 겹친다. */
+function Intro({onGo}){
+  return <div className="intro">
+    {/* 소리는 말풍선이 아니다. 그 자리에서 나는 것이라 자리만 잡고 글자만 둔다 */}
+    <div className="incall c1"><span className="who">뒷자리</span>
+      <span className="say">선생님— <em className="kao">{'(๑•̀ㅅ•́)ﻭ✧'}</em></span></div>
+    <div className="incall c2"><span className="who">창가 쪽</span>
+      <span className="say"><em className="kao">{'ﻭ(•̀ᴗ•́)و'}</em> 선생님!</span></div>
+    <div className="inbottom">
+      {/* □□는 유저가 채우는 칸이 아니다. 현실의 내 값이 비어 있다는 말이라
+          비어 있는 채로 고정이다 — 채워지는 건 이 세계 쪽뿐이다 */}
+      <div className="inthink">현실에서 <span className="bk">□□</span>이던 내가<br/>
+        이 세계에서는 <b>교생?</b>
+        <span className="kao">{'(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'}</span></div>
+      <button className="wbtn go inbtn" onClick={onGo}>NULL 채우러 가기 ♡</button>
+    </div>
+  </div>;
+}
+
 /* ── 이 판을 어떻게 살 것인가 ──
    비율만 말하던 자리다(「현실 하루 = NULL 하루!」 「하루가 4배로 Speed up!」).
    비율은 숫자고, 유저가 정하는 건 숫자가 아니라 **살아지는 방식**이다 —

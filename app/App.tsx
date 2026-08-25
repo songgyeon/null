@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, LookOverlay } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, LookOverlay, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -363,6 +363,69 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
    값을 읊는 창에는 속카드가 없다 — 줄이 창 바닥에 바로 앉는다. 창은 좁고
    (290) 단추는 작은 알약이다. 되돌아가기는 창의 X다.
    「NULL을」로 고치지 않는다 — NULL=널이라 조사가 없는 것이 의도다. */
+/* ── 배역을 받는 자리 ── 웹의 Intro와 같은 그림·같은 글월.
+   이름을 친 다음, 등록 네 칸 앞에 한 번.
+
+   POV에서 내가 누구인지 정하는 건 내가 든 물건이 아니라 남이 나를 부르는
+   호칭이다. 교실에서 「선생님」이라고 불리는 사람은 한 명뿐이고, 그 소리가
+   나를 향하면 설명 없이 안다. 그래서 그리는 물건이 없다 — 사진은 교실을
+   앞에서 보는 시야(교사만 서는 자리)고, 부르는 소리가 그 자리에서 난다.
+   이게 있어야 뒤에 「선생님」이라는 호칭이 설명 없이 성립한다.
+   팝업이 아니라 전체 화면이다 — 팝업은 앞의 가짜 오류창과 문법이 겹친다. */
+function Intro({onGo}:{onGo:()=>void}) {
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(()=>{Animated.timing(fade,{toValue:1,duration:400,useNativeDriver:true}).start()},[]);
+  return <Animated.View style={[io.root,{opacity:fade}]}>
+    <ImageBackground source={{uri:IMG+'place-class.webp'}} style={{flex:1}} resizeMode="cover">
+      {/* 소리는 말풍선이 아니다. 그 자리에서 나는 것이라 자리만 잡고 글자만 둔다 */}
+      <View style={[io.call,io.c1]}>
+        <Text style={io.who}>뒷자리</Text>
+        <Text style={io.say}>선생님— <Text style={[io.wave,KAO]}>(๑•̀ㅅ•́)ﻭ✧</Text></Text>
+      </View>
+      <View style={[io.call,io.c2]}>
+        <Text style={[io.who,io.right]}>창가 쪽</Text>
+        <Text style={[io.say,io.right]}><Text style={[io.wave,KAO]}>ﻭ(•̀ᴗ•́)و</Text> 선생님!</Text>
+      </View>
+      <View style={io.bottom}>
+        <LinearGradient colors={['rgba(26,16,48,0)','rgba(26,16,48,.62)']}
+          style={StyleSheet.absoluteFill as any} pointerEvents="none"/>
+        {/* □□는 유저가 채우는 칸이 아니다. 현실의 내 값이 비어 있다는 말이라
+            비어 있는 채로 고정이다 — 채워지는 건 이 세계 쪽뿐이다 */}
+        <Text style={io.think}>현실에서 <Text style={io.bk}>□□</Text>이던 내가{'\n'}
+          이 세계에서는 <Text style={io.role}>교생?</Text></Text>
+        <Text style={[io.kao,KAO]}>(,,◕ᗝ◕,,)♡.ᐟ.ᐟ</Text>
+        <TouchableOpacity activeOpacity={.85} onPress={onGo} style={io.goWrap}>
+          <LinearGradient colors={['#ffc4dd','#ff9ec6','#ff7fae','#ff96bf']}
+            locations={[0,.48,.52,1]} style={io.go}>
+            <Text style={io.goT}>NULL 채우러 가기 ♡</Text></LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </ImageBackground>
+  </Animated.View>;
+}
+const io=StyleSheet.create({
+  root:{...StyleSheet.absoluteFillObject,zIndex:56,backgroundColor:'#3d3170'},
+  call:{position:'absolute',gap:5},
+  c1:{left:'12%',top:'40%',alignItems:'flex-start'},
+  c2:{right:'10%',top:'50%',alignItems:'flex-end'},
+  who:{...F,fontSize:8,letterSpacing:1.8,color:'#ffd9ec',
+    textShadowColor:'rgba(12,6,32,.95)',textShadowOffset:{width:0,height:1},textShadowRadius:3},
+  say:{...F,fontSize:15,letterSpacing:.6,color:'#fff',
+    textShadowColor:'rgba(12,6,32,.95)',textShadowOffset:{width:0,height:1},textShadowRadius:3},
+  right:{textAlign:'right'},
+  wave:{fontSize:12.5,color:'#ffd9ec'},
+  bottom:{position:'absolute',left:0,right:0,bottom:0,paddingHorizontal:26,paddingBottom:34,
+    paddingTop:58,alignItems:'center'},
+  think:{...F,textAlign:'center',fontSize:13.5,lineHeight:26,letterSpacing:.3,color:'#fff',
+    textShadowColor:'rgba(12,6,32,.95)',textShadowOffset:{width:0,height:1},textShadowRadius:3},
+  bk:{color:'#ffc2dd',letterSpacing:4},
+  role:{fontSize:17,color:'#ff9ec6'},
+  kao:{marginTop:10,fontSize:12.5,color:'#e6dcff'},
+  goWrap:{marginTop:22,borderRadius:999,overflow:'hidden',borderWidth:1.5,borderColor:'#ff8fbe'},
+  go:{paddingVertical:13,paddingHorizontal:22,alignItems:'center'},
+  goT:{...F,fontSize:12,letterSpacing:1,color:'#fff'},
+});
+
 function Confirm({name,onYes,onBack}:{name:string;onYes:()=>void;onBack:()=>void}) {
   const fade = useRef(new Animated.Value(0)).current;
   const [pressed,setPressed]=useState(false);   // 연타해도 시작은 한 번이다
@@ -1527,7 +1590,9 @@ function Root() {
   /* 등록 → 세계 확정(YES)이 한 번 지나간다. false | 'enroll' | 'confirm'.
      이름이 저장돼 있어도 YES를 안 눌렀으면 메신저로 건너뛰지 않는다 —
      등록만 하고 닫은 사람은 아직 시작 전이다(웹과 같은 규칙·같은 열쇠). */
-  const [enrolling,setEnrolling]=useState<false|'enroll'|'confirm'>(false);
+  /* intro는 배역을 받는 자리다 — 이름을 친 직후 한 번. 다시 열면 안 뜬다
+     (등록만 하고 닫은 사람은 이미 봤다). 세계는 여전히 YES에서 생긴다. */
+  const [enrolling,setEnrolling]=useState<false|'intro'|'enroll'|'confirm'>(false);
   /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 — 웹과 같은 열쇠다 */
   const [mode,setMode]=useState<string>(loadMode);
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
@@ -1955,7 +2020,7 @@ function Root() {
 
   /* 입장 — 기본 문장 없음, 빈 방에서 시작 */
   const handleEnter = async(n:string)=>{
-    await setMeta('user_name',n); setName(n); setEnrolling('enroll');
+    await setMeta('user_name',n); setName(n); setEnrolling('intro');
     await reload();
   };
 
@@ -2650,6 +2715,7 @@ function Root() {
         </View>
       </View>
     </Modal>
+    {enrolling==='intro'&&<Intro onGo={()=>setEnrolling('enroll')}/>}
     {enrolling==='enroll'&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={doRename} onDone={()=>setEnrolling('confirm')}/>}
