@@ -160,7 +160,7 @@ export async function wipeStory() {
    변환은 안 만든다 — 어차피 맞출 수 없고, 반쯤 맞은 세계가 제일 나쁘다.
    판 번호가 다르면 이야기만 한 번 비운다. 비운 뒤 번호를 찍으므로 다음
    실행부터는 새로 쌓인 것이 그대로 남는다. 웹(index.html)과 같은 번호다. */
-export const NULL_STORY_REV = '3';
+export const NULL_STORY_REV = '4';
 
 export async function wipeIfOldRevision(): Promise<boolean> {
   const at = await getMeta('null_rev');
