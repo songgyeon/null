@@ -3233,19 +3233,7 @@ function buildEvent(event, userName) {
   return "";
 }
 
-/* ── 아직 학교에서 만나기 전 ──
-   고정부에 박는다. 가변부에 한 줄 얹어봤더니 안 이겼다 — 세계관에 「유저는
-   교생이고 셋 다 안다」가 있고 인물표에 그 호칭이 수십 번 나오는데, 그
-   전부와 같은 무게로 서야 이긴다.
-
-   학교에서 만나면 이 덩어리가 사라진다. 그 판에서 캐시가 한 번 깨지고
-   그 뒤로는 다시 붙는다 — 사람마다 한 번뿐이다. */
-const SCHOOL_YET = `
-## [아직 학교에서 만나기 전]
-처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다. 그 전까지는 과거의 만남이 유저에 대해 아는 전부다. 따라서 오프닝부터 학교에 대해 언급하거나 '선생님'이라고 부르지 않는다. 유저가 먼저 언급할 때는 예외다.
-`;
-
-function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary, schoolMet) {
+function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary) {
   const sub = (t) => subName(t, userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
   // 앞부분이 어긋나 캐시가 통째로 다시 쓰인다.
@@ -3270,10 +3258,6 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
      같아서 캐시에 얹혀 간다. 갱신되면 이 블록만 다시 쓰이고 세계관·인물
      블록은 그대로다 — 캐시는 앞부터 맞춰 가므로 앞 두 덩어리는 살아 있다. */
   rules += buildSummary(summary);
-  /* 아직 학교에서 안 만난 사람의 방에만 붙는다. 요약 뒤라 앞 두 덩어리
-     (세계관·인물)는 이게 붙든 빠지든 캐시에 그대로 얹혀 간다.
-     안 실려 오면(schoolMet == null) 이 판은 그 칸을 안 쓴다 — 안 붙인다. */
-  if (mode === "chat" && schoolMet && CHAR_LABEL[room] && !schoolMet[room]) rules += SCHOOL_YET;
 
   /* 매 턴 바뀌는 것은 여기서 안 붙인다. 캐시는 앞부분 바이트 일치라서,
      시스템 끝에 가변부를 두면 그 뒤에 렌더링되는 대화 이력이 통째로
@@ -5943,7 +5927,7 @@ export default {
            따로 실리므로 이 필드를 다시 렌더하지 않는다(E4). */
         recent: msgs.slice(-6).map(m => ({ role: m.role, content: String(m.content) })) });
     const system = buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, openPlaces, days,
-      (body.summary || "").toString().slice(0, 4000), story.schoolMet);
+      (body.summary || "").toString().slice(0, 4000));
 
     /* ── 이력을 캐시에 태운다 ──
        마지막 유저 발화까지를 한 덩어리로 잘라 캐시 지점을 찍고, 매 턴 달라지는

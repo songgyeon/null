@@ -1447,37 +1447,15 @@ eq('생성된 파일이라고 적어둔다',
     && dlg.includes('( ⸝⸝´꒳`⸝⸝) ꫂ 💌') && dlg.includes('chat ♡'), true);
   eq('앱도 창이 떠 있는 동안 알림을 세워둔다', /\{toast&&!getcha&&<View/.test(app2), true);
 
-  /* ── 그 줄은 고정부에 박혀 있다 ──
-     가변부에 한 줄 얹어봤더니 안 이겼다. 세계관에 「유저는 교생이고 셋 다
-     안다」가 있고 인물표에 그 호칭이 수십 번 나오는데, 그 전부와 같은
-     무게로 서야 이긴다. 학교에서 만나면 그 덩어리가 사라진다. */
-  const sysOf = (room, sm) => ENG.buildSystem('chat', room, '연', null, [], null,
-    null, null, null, null, 3, '', sm).map(b => b.text).join('\n');
-  /* 같은 문장이 세계관(늘 실림)에도 있다 — 여기서 재는 것은 조건부 덩어리다 */
-  const YET = "## [아직 학교에서 만나기 전]";
-  eq('아직 안 만났으면 고정부에 있다',
-    sysOf('minhyun', { jaeeon: false, minhyun: false }).includes(YET), true);
-  eq('학교에서 만나면 사라진다',
-    sysOf('minhyun', { jaeeon: false, minhyun: true }).includes(YET), false);
-  eq('사람마다 따로 선다',
-    sysOf('minhyun', { jaeeon: true, minhyun: false }).includes(YET), true);
-  /* 안 실려 오면 이 판은 그 칸을 안 쓴다 — 없는 것을 거짓으로 읽지 않는다 */
-  eq('안 실려 오면 안 붙는다', sysOf('minhyun', null).includes(YET), false);
-  /* 요약 뒤에 붙는다 — 앞 두 덩어리(세계관·인물)는 붙든 빠지든 그대로다 */
-  eq('세계관·인물 덩어리는 안 흔들린다', (() => {
-    const a = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '',
-      { jaeeon: false, minhyun: false });
-    const b = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '',
-      { jaeeon: false, minhyun: true });
-    return [a[0].text === b[0].text, a[1].text === b[1].text, a[2].text === b[2].text];
-  })(), [true, true, false]);
-  eq('문장이 그대로 있다', ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null,
-    null, null, 3, '', { jaeeon: false, minhyun: false }).map(b => b.text).join('').includes(
-    "처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다. 그 전까지는 과거의 만남이 유저에 대해 아는 전부다. 따라서 오프닝부터 학교에 대해 언급하거나 '선생님'이라고 부르지 않는다. 유저가 먼저 언급할 때는 예외다."), true);
-  /* 세계관의 호칭 절에도 같은 규칙이 있다 — 이쪽은 늘 실린다 */
+  /* 그 규칙은 세계관 호칭 절에 있다 — 조건부 덩어리는 걷어냈다.
+     같은 말을 두 군데에 두면 한쪽만 고쳐질 때 두 세계가 된다. */
+  eq('규칙이 한 군데에만 있다', (() => {
+    const w = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '');
+    const all = w.map(x => x.text).join('');
+    return (all.match(/처음부터 교생인 걸 아는 게 아니라/g) || []).length;
+  })(), 1);
   eq('세계관 호칭 절이 그대로다', (() => {
-    const w = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null,
-      null, null, 3, '', null)[0].text;
+    const w = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '')[0].text;
     return w.includes('학교가 아닌 장소에서 세계가 시작될 경우 유저를 "선생님"이라고 부르지 않는다.')
       && w.includes('한 번 부른 이후에는 자연스럽게 부르면 된다.');
   })(), true);
