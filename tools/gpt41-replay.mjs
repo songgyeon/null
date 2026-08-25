@@ -51,9 +51,12 @@ const die = msg => { console.error(`[gpt41] ${msg}`); process.exit(1); };
 /* 도전자 경로를 켜는 유일한 자리. 그 밖의 깃발은 안 준다 —
    나머지는 운영 기본값 그대로여야 비교가 성립한다. */
 const ENV = { ENGINE_MODE: "gpt41" };
+/* --baseline: 같은 18항목을 **운영 기본 경로**(깃발 없음 = Sonnet 4.5 solo)로
+   돌린다. 비교 대상이 있어야 도전자의 대사를 읽을 수 있다 — 입력·상태·규칙·
+   후처리·재시도 조건이 전부 같고 다른 것은 쓰는 손 하나뿐이다. */
 /* 열쇠는 **부를 때** 환경변수에서 읽어 워커 env로만 건넨다. 파일 어디에도
    적지 않고, trace·보고·로그에도 안 싣는다. --fake는 자리표시자를 쓴다. */
-const envWith = key => ({ ...ENV, OPENAI_API_KEY: key });
+const envWith = (key, base) => (base ? {} : { ...ENV, OPENAI_API_KEY: key });
 
 /* ── 단가 ──
    replay 보고 전용이다. 모르는 모델이 나오면 0원으로 조용히 새는 대신
@@ -86,16 +89,19 @@ const costOfRows = rows => rows.reduce((c, r) => {
 
 async function main() {
   const FAKE = has("fake");
+  const BASE = has("baseline");
   const OKEY = process.env.OPENAI_API_KEY || "";
   const AKEY = process.env.ANTHROPIC_API_KEY || "";
   if (!FAKE) {
     /* 부르기 전에 멈춘다 — 없는 채로 나가면 401 본문이 산출물에 실린다 */
-    if (!OKEY) die("OPENAI_API_KEY가 없다. 점검만 하려면 --fake.");
+    if (!OKEY && !BASE) die("OPENAI_API_KEY가 없다. 점검만 하려면 --fake.");
     if (!AKEY) die("ANTHROPIC_API_KEY가 없다 — 검사 둘(Canon·Character)이 기존 모델이다.");
   }
   if (FAKE) globalThis.fetch = RP.fakeFetch();
 
-  const outDir = resolve(ROOT, argOf("out", FAKE ? "replay-out-gpt41-fake" : "replay-out-gpt41"));
+  const outDir = resolve(ROOT, argOf("out",
+    BASE ? (FAKE ? "replay-out-sonnet45-fake" : "replay-out-sonnet45")
+         : (FAKE ? "replay-out-gpt41-fake" : "replay-out-gpt41")));
   if (existsSync(outDir) && readdirSync(outDir).length)
     die(`--out 디렉터리가 비어 있지 않다 — ${outDir}\n지난 실행의 trace가 새 보고에 섞인다. 지우거나 다른 --out을 써라.`);
   mkdirSync(join(outDir, "trace"), { recursive: true });
@@ -113,7 +119,7 @@ async function main() {
   if (items.length !== 18) die(`18항목이 아니다 — ${items.length}`);
 
   const key = FAKE ? "sk-fake" : AKEY;
-  const env = envWith(FAKE ? "sk-fake-도전자" : OKEY);
+  const env = envWith(FAKE ? "sk-fake-도전자" : OKEY, BASE);
   const calls = [];
 
   for (const item of items) {
@@ -207,9 +213,12 @@ async function main() {
     RP.unknownModels.size ? `**INVALID — 단가를 모르는 모델: ${[...RP.unknownModels].join(", ")}**` : "",
     FAKE ? "**--fake 모드 — 모델 없이 하네스만 굴렸다.**" : "",
     "",
-    `- 경로: ENGINE_MODE=gpt41 (운영 기본 solo와 같은 배선 · 쓰는 손만 다름)`,
-    `- 사용한 model id: **${ENG.OPENAI_MODEL}** (별칭 아님 · snapshot 고정)`,
-    `- 도전자가 맡은 단계: ${[...ENG.GPT_STAGES].join(" · ")}`,
+    BASE ? `- 경로: 운영 기본(solo · 깃발 없음) — 비교 기준선`
+         : `- 경로: ENGINE_MODE=gpt41 (운영 기본 solo와 같은 배선 · 쓰는 손만 다름)`,
+    BASE ? `- 쓰는 자리: ${ENG.ENGINE.writer.id}`
+         : `- 사용한 model id: **${ENG.OPENAI_MODEL}** (별칭 아님 · snapshot 고정)`,
+    BASE ? `- 검사·마무리도 기존 배치 그대로`
+         : `- 도전자가 맡은 단계: ${[...ENG.GPT_STAGES].join(" · ")}`,
     `- 기존 모델이 맡은 단계: ${[...new Set(othRows.map(r => r.stage))].join(" · ") || "없음"}`,
     "",
     `- 총 항목: ${calls.length}`,
