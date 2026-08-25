@@ -996,8 +996,24 @@ const atWorkNow=(id,now)=>{
 };
 /* 주말 — 실습이 아직 시작도 안 했다 */
 const LOCK_LINES=["아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა","교생 실습은 월요일부터 ♡"];
-/* 평일인데 학교에 없는 때 — 오늘은 지났거나 아직이다 */
+/* 평일인데 아직 출근 전 — 오늘 이따 온다 */
+const SOON_LINES=["이따 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+","조금만 기다려 ♡"];
+/* 평일인데 오늘 근무가 끝났다 — 다음은 내일이다 */
 const WAIT_LINES=["내일 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+","조금만 기다려 ♡"];
+/* 오늘 안에 아직 학교에 있을 때가 남았나. 출근 전(「이따」)과 퇴근 뒤
+   (「내일」)를 가른다 — 새벽 세 시에 「내일 만나요」는 틀린 말이다.
+   시각 상수를 새로 두지 않고 같은 presence를 오늘 끝까지 훑는다. 두 사람의
+   창이 다르고(재언은 퇴근까지, 민현은 야자까지) 야자는 주마다 붙었다
+   떨어지므로, 표를 따로 만들면 그게 또 갈린다. */
+const worksLaterToday=(id,now)=>{
+  const d=now||worldNow();
+  const t=new Date(d);
+  for(;;){
+    t.setMinutes(t.getMinutes()+15,0,0);
+    if(t.getDate()!==d.getDate()||t.getMonth()!==d.getMonth())return false;  // 자정을 넘었다
+    if(atWorkNow(id,t))return true;
+  }
+};
 /* 잠겼으면 화면에 설 두 줄을, 아니면 null을 준다. 부르는 쪽이 둘 다 쓴다 —
    잠금 여부와 까닭이 한 자리에서 나와야 둘이 어긋나지 않는다. */
 const roomLock=(store,id,now)=>{
@@ -1005,7 +1021,8 @@ const roomLock=(store,id,now)=>{
   if(((store&&store.msgs&&store.msgs[id])||[]).length)return null;   // 이미 만났다
   const d=now||worldNow();
   if(atWorkNow(id,d))return null;
-  return isWend(d)?LOCK_LINES:WAIT_LINES;
+  if(isWend(d))return LOCK_LINES;
+  return worksLaterToday(id,d)?SOON_LINES:WAIT_LINES;
 };
 /* ── 유저가 먼저 가자고 하는 자리 ──
    지금까지 자리를 여는 길은 둘뿐이었다. 지도에서 유저가 고르거나, 관계가

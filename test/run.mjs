@@ -1365,7 +1365,7 @@ eq('생성된 파일이라고 적어둔다',
   const D = new Function('localStorage', 'location',
     readFileSync(join(ROOT, 'app-data.js'), 'utf8')
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {roomLock,atWorkNow,presence,LOCK_LINES,WAIT_LINES};')(g.localStorage, g.location);
+    + '\nreturn {roomLock,atWorkNow,presence,LOCK_LINES,SOON_LINES,WAIT_LINES};')(g.localStorage, g.location);
   const at = (dd, h) => new Date(2026, 0, dd, h, 30);
   const SAT = at(10, 14), TUE = at(6, 14);                 // 토요일 / 화요일 낮
   const empty = { msgs: {} };
@@ -1375,18 +1375,29 @@ eq('생성된 파일이라고 적어둔다',
     ['jaeeon', 'minhyun'].map(id => D.atWorkNow(id, TUE)), [true, true]);
   eq('주말에는 아무도 학교에 없다',
     ['jaeeon', 'minhyun'].map(id => D.atWorkNow(id, SAT)), [false, false]);
-  /* 잠금은 두 가지다 — 실습 전(주말)과 오늘은 지났거나 아직인 때 */
+  /* 잠금 까닭이 셋이다 — 실습 전(주말) · 오늘 이따 · 오늘은 지났다.
+     새벽 세 시에 「내일 만나요」는 틀린 말이라 출근 전과 퇴근 뒤를 가른다 */
   eq('주말 빈 방 — 실습이 아직이다', D.roomLock(empty, 'jaeeon', SAT), D.LOCK_LINES);
-  eq('평일 밤 빈 방 — 오늘은 지났다', D.roomLock(empty, 'jaeeon', at(6, 23)), D.WAIT_LINES);
   eq('평일 낮 빈 방은 안 잠긴다', D.roomLock(empty, 'jaeeon', TUE), null);
+  eq('출근 전에는 이따 만난다',
+    [at(6, 3), at(6, 7)].map(d => D.roomLock(empty, 'jaeeon', d)),
+    [D.SOON_LINES, D.SOON_LINES]);
+  eq('퇴근 뒤에는 내일 만난다',
+    [at(6, 17, 30), at(6, 23)].map(d => D.roomLock(empty, 'jaeeon', d)),
+    [D.WAIT_LINES, D.WAIT_LINES]);
+  /* 두 사람의 창이 다르다 — 재언은 퇴근까지, 민현은 야자까지 */
+  eq('재언이 퇴근한 시각에 민현은 아직 야자다',
+    [D.roomLock(empty, 'jaeeon', at(6, 17, 30)), D.roomLock(empty, 'minhyun', at(6, 17, 30))],
+    [D.WAIT_LINES, null]);
   /* 말이 한 마디라도 오갔으면 이미 만난 것이다 — 밤에도 주말에도 안 잠긴다 */
   eq('만난 방은 언제든 안 잠긴다',
     [D.roomLock(talked, 'jaeeon', SAT), D.roomLock(talked, 'jaeeon', at(6, 3))], [null, null]);
   /* 단톡·관전은 제 조건(groupReady)이 따로 있다 */
   eq('단톡·관전은 여기 안 걸린다',
     [D.roomLock(empty, 'group', SAT), D.roomLock(empty, 'health', SAT)], [null, null]);
-  eq('화면에 설 두 줄이 까닭마다 정해져 있다', [D.LOCK_LINES, D.WAIT_LINES],
+  eq('화면에 설 두 줄이 까닭마다 정해져 있다', [D.LOCK_LINES, D.SOON_LINES, D.WAIT_LINES],
     [['아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა', '교생 실습은 월요일부터 ♡'],
+     ['이따 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+', '조금만 기다려 ♡'],
      ['내일 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+', '조금만 기다려 ♡']]);
 
   const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
