@@ -1615,6 +1615,10 @@ We Are Lady Parts, Heartstopper, SKAM, Derry Girls, Reservation Dogs, My Mad Fat
   다음 말이 짧아지는 것으로 한다.
 - **관심 없다고 하면 한 번 더 간다.** 이 애는 무관심만 못 믿는다.
 
+장난이 시비가 되지 않게
+
+민현의 장난은 관심을 확인하려는 시도다. 유저가 당황하거나 불쾌해하면 맞받아치거나 평가하지 않고 장난을 거두고 짧게 인정하거나 사실을 설명하며 물러선다. 관계 초기에는 친분·약속·반복된 일상·상대 성격을 이미 아는 것처럼 말하지 않는다.
+
 이렇게는 말하지 않는다
 
 여기 적힌 것들이 이 인물을 착한 챗봇으로 만든다. 하나도 하지 않는다.
@@ -4233,10 +4237,19 @@ function hardFilter(cand, allowed, ctx) {
     }
   }
 
-  /* ── 후보가 낸 제안이 지금 조건을 어긴다 ──
-     상태를 고치지 않는다. 어겼는지만 본다 — 커밋은 E다.
-     제안을 안 낸 것은 어긴 것이 아니다. */
-  if (c.invite && !pickInvite(c.invite, g.openPlaces || [])) push("INVALID_INVITE");
+  /* ── 잠긴 자리 제안은 대사를 죽이지 않는다 ──
+     전에는 여기서 INVALID_INVITE로 후보 전체를 떨어뜨렸다. 아직 안 열린
+     자리(옥상 40·도서관 80·빨래방 120)를 대사가 한 번 입에 올리면 그 턴
+     전체가 사라지고, 재시도가 한 번뿐이라 두 번째도 그러면 502였다.
+
+     제안은 사건이 아니다. 억제할 것은 **구조화된 invite Effect** 하나뿐이고,
+     그건 pickInvite가 확정 단계에서 null로 만든다 — 그러면 Effect도, 해금도,
+     scene·ack도 아무것도 안 일어난다. 대사 문장은 손대지 않는다: 자연어를
+     정규식으로 지우면 무슨 말을 하려던 건지까지 같이 지워진다.
+     억제했다는 사실은 trace에 invite_suppressed로 남는다.
+
+     give는 그대로 탈락이다 — 그건 실제로 물건이 오가는 사건이라, 대사와
+     가방이 갈리면 유저가 받은 줄 알고 안 받은 상태가 된다. */
   /* 못 건네는 턴인데 give를 냈다. 프롬프트에 안 보여줬는데도 지어냈으면
      그건 후보가 세계를 어긴 것이다 — 조용히 버리지 않고 떨어뜨린다. */
   if (c.give && (!g.placeItemAvailable || !pickGive(c.give, g.place, g.placeItemOwned, g.room)))
@@ -5443,7 +5456,7 @@ export default {
         const wiring = `${em} · 일반 턴 ${oneCall ? 1 : 2}호출`
           + `${em === "gpt41" || em === "solo" ? " (고르는 단계 없음)" : ""}`;
         /* 중요 장면에 남은 검사가 몇인지도 적는다 — 기본 경로는 정사 하나다 */
-        const critics = em === "gpt41" ? "정사·사람 2 (모든 턴 · 말투 탈락은 중요 장면만)"
+        const critics = em === "gpt41" ? "정사 1 (중요 장면만) · 일반 턴 없음"
           : em === "single" || em === "single5" ? "없음" : "정사·사람 2 (중요 장면만)";
         return new Response(
           ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
@@ -6252,14 +6265,18 @@ export default {
          흐려지지 않는다. NO_FINALIZER는 옛 배선(solo·hybrid)을 마무리 없이
          재보는 replay 깃발로 남는다. */
       const noFinalizer = em === "gpt41" || String((env && env.NO_FINALIZER) || "") === "1";
-      /* ── 검사 둘을 모든 턴에 단다 ──
-         중요 장면에만 달았더니 일반 턴의 사실·말투가 아무도 안 보는 채로
-         나갔다. 기본 경로에서는 일반 턴도 정사와 사람 둘 다 통과해야 한다.
-         마무리는 여전히 없다 — 검사는 판정만 하고, 통과한 원문이 그대로
-         화면에 나간다. 옛 배선(solo·hybrid)은 제 계약 그대로다. */
-      const criticsAll = em === "gpt41";
-      /* 정사 하나만 보는 자리는 이제 없다 — 두 검사가 늘 같이 돈다 */
-      const canonOnly = false;
+      /* ── 일반 턴에는 검사가 없다 ──
+         모든 턴에 검사 둘을 달아봤더니 값과 지연만 늘고 대사는 안 좋아졌다.
+         일반 1:1·단톡·관전은 쓰는 자리 한 번으로 끝난다 — 코드 검사
+         (hardFilter)만 통과하면 그 원문이 그대로 화면에 나간다.
+         옛 배선(solo·hybrid·single·legacy)은 제 계약 그대로다. */
+      /* ── 중요 장면에 남는 검사는 정사 하나 ──
+         말투·관계 속도·질문 수는 사람이 읽고 정한다. 모델에게 말맛을
+         판정시키면 재시도가 폭주하고 그 판정 자체가 근거 없는 주관이다.
+         사람 검사(Character)의 코드·규칙표·호출부는 지우지 않는다 —
+         옛 배선과 실험 경로(solo·hybrid·NO_FINALIZER replay)가 그대로 쓴다.
+         기본 경로에서만 안 부른다. */
+      const canonOnly = em === "gpt41";
       /* ── NO_CRITICS — replay 전용 ──
          한 진영만으로 어디까지 가는지 재는 자리다. 검사 둘(Canon·Character)과
          소유자 정사 검사가 다른 진영의 모델이라, 그게 붙어 있으면 「그 모델
@@ -6289,6 +6306,18 @@ export default {
          directorDecision(마지막 판정)은 읽던 쪽과의 호환으로 남긴다. */
       const directorDecisionLog = [];
       let criticNotesLog = [];       // 중요 장면 검사 결과 — attempt별 (trace 전용)
+      /* 잠긴 자리 제안을 억제한 기록 (trace 전용). 대사는 그대로 나갔고
+         invite Effect만 안 생겼다는 뜻이다 — 탈락이 아니다. */
+      const inviteSuppressedLog = [];
+      /* 확정 단계에서 한 번만 부른다. 억제했으면 그 자리를 남긴다 */
+      const settleInvite = (cand, attempt, open) => {
+        const want = (cand.invite || "").toString().trim();
+        const got = pickInvite(cand.invite, open);
+        if (traceOn && want && !got)
+          inviteSuppressedLog.push({ attempt, id: cand.id || null, place: want });
+        cand.invite = got;
+        return cand;
+      };
       let discloseLog = null;        // 선물 관측 장면의 기록 — 관측(observe)과 공개 여부 (trace 전용)
       let selectedLog = null;        // selected-v1이 쓴 재료·견본 id (trace 전용, 대사 원문 없음)
       const traceOf = picked => !traceOn ? {} : { trace: {
@@ -6306,6 +6335,7 @@ export default {
           directorDecision: directorDecisionLog[directorDecisionLog.length - 1],
           directorDecisions: directorDecisionLog } : {}),
         ...(criticNotesLog.length ? { criticNotes: criticNotesLog } : {}),
+        ...(inviteSuppressedLog.length ? { invite_suppressed: inviteSuppressedLog } : {}),
         ...(discloseLog ? { observe: discloseLog } : {}),
         /* selected-v1이 실제로 무엇을 재료·견본으로 썼는지 남긴다 —
            산출물(answers.md)이 이걸 그대로 적는다. 대사 원문은 안 싣는다. */
@@ -6628,8 +6658,9 @@ export default {
             console.log(`[NULL] 후보 ${id} 탈락 — ${codes.join(",")}`);
             return;                                     // 명백한 것만 떨어뜨린다
           }
-          /* 검사를 통과한 뒤에야 제안을 확정한다. 어긴 것은 위에서 잘렸다 */
-          cand.invite = pickInvite(cand.invite, place ? [] : [...openPlaces, ...canGo]);
+          /* 검사를 통과한 뒤에야 제안을 확정한다. 아직 안 열린 자리면
+             여기서 조용히 null이 된다 — 대사는 그대로 나가고 Effect만 없다 */
+          settleInvite(cand, attempt, place ? [] : [...openPlaces, ...canGo]);
           cand.give = pickGive(cand.give, place, placeItemOwned, room);
           cand.signals = softSignals(messages, recentForDirector);
           cands.push(cand);
@@ -6642,11 +6673,7 @@ export default {
            장면 전체가 다르고, 여기서 값을 두 배로 낼 자리가 아니다.
            single도 여기서 끝난다 — 한 호출이 계약이다. hardFilter는 위에서
            이미 탔고, 떨어졌으면 lastCodes를 들고 재시도로 돌아갔다. */
-        /* 검사를 모든 턴에 다는 배선에서는 관전 일반도 그 줄을 탄다 —
-           고르는 단계를 안 타는 것과 검사를 안 받는 것은 다른 얘기다. */
-        if ((mode === "auto" && !criticsAll) || singleNow || cands.length === 0) {
-          picked = cands[0]; break;
-        }
+        if (mode === "auto" || singleNow || cands.length === 0) { picked = cands[0]; break; }
 
         /* facts는 **Fact[]**다. 이 꾸러미가 Director·Canon·Character·
            Finalizer로 그대로 간다 — 문장은 sceneHead가 마지막에 만든다. */
@@ -6661,7 +6688,7 @@ export default {
            그어주고, 마무리하는 쪽이 그 안에서 후보 선택과 문장 완성을 함께
            맡는다. 정확성만큼 감정의 체온과 말하지 않은 것이 중요한 자리라
            고르기만 해서는 모자라기 때문이다. */
-        if (tier === "critical" || criticsAll) {
+        if (tier === "critical") {
           /* 검사를 아예 안 부르는 실험 경로 — 코드 검사만 통과한 원문 그대로.
              중요 장면의 라우팅·사실 투영·행동 규칙은 그대로 살아 있다.
              빠지는 것은 다른 진영의 모델이 보는 눈 둘뿐이다. */
@@ -6703,22 +6730,13 @@ export default {
              사람이 없으므로 사람 문제도 탈락이다 — 안 그러면 Character 검사가
              결과에 아무 영향이 없는 채로 돌기만 한다. 운영 기본에는 이 깃발이
              없고, 있을 때도 검사가 대사를 대신 쓰지 않는다. */
-          /* ── 말투로 후보를 지우는 것은 중요 장면에서만 ──
-             검사 둘을 모든 턴에 달았더니 일반 턴에서 답이 아예 안 왔다.
-             기본 경로는 후보가 하나뿐이라 검사 한 건이면 전멸이고, 재시도는
-             한 번이라 두 번째도 걸리면 502다. 실측(중요 장면 22회)에서
-             유일한 후보가 지워진 것이 9회 — 41%다. 그중 절반이 말투였다.
-
-             그래서 일반 턴에서는 사실(정사)만 탈락 사유로 둔다. 사람 검사는
-             계속 돌고 결과도 trace·로그에 그대로 남는다 — 판정을 안 하는
-             것이 아니라, 말투 하나로 화면에 아무것도 못 내보내는 일을
-             막는 것이다. 중요 장면에서는 둘 다 그대로 탈락이다.
-
-             마무리 없이 옛 배선을 재보는 replay(NO_FINALIZER + solo)는
-             계약 그대로 — 거기서는 고칠 사람이 없으니 사람 문제도 탈락이다. */
-          const denyVoice = noFinalizer && (!criticsAll || tier === "critical");
+          /* ── 기본 경로의 탈락 사유는 정사뿐 ──
+             기본 경로에는 사람 검사가 아예 안 돈다(canonOnly). 말투·관계
+             속도·질문 수로 대사를 버리지 않는다 — 그건 사람이 읽고 정한다.
+             마무리 없이 옛 배선을 재보는 replay(NO_FINALIZER + solo)에서는
+             고칠 사람이 없으니 사람 문제도 탈락이다. */
           const denyCritics = canonOnly ? ["canon"]
-            : denyVoice ? ["canon", "character"] : ["canon"];
+            : noFinalizer ? ["canon", "character"] : ["canon"];
           const denied = new Set(notes.filter(n => denyCritics.includes(n.critic)).map(n => n.candidate));
           const survivors = cands.filter(c => !denied.has(c.id));
           console.log(`[NULL] 검사 ▶ ${notes.length}건 · 남은 후보 ${survivors.length}/${cands.length}`);
@@ -6768,7 +6786,7 @@ export default {
              여기가 유일하게 안 걸러지는 자리가 된다 */
           const fCodes = hardFilter(fCand, chars, hardCtx);
           if (fCodes.length) { lastCodes = fCodes.map(c => `F:${c}`); continue; }
-          fCand.invite = pickInvite(fCand.invite, place ? [] : [...openPlaces, ...canGo]);
+          settleInvite(fCand, attempt, place ? [] : [...openPlaces, ...canGo]);
           fCand.give = pickGive(fCand.give, place, placeItemOwned, room);
           picked = fCand;
           break;

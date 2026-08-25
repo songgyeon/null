@@ -224,9 +224,11 @@ console.log("── 11. 운영 기본·판 번호·배포 무변경 ──");
   eq("배포 파일에 diff가 없다",
     diff.filter(f => ["index.html", "app.js", "app-ui.js", "app-data.js", "null.css",
       "app/lib/db.ts", "app/lib/rules.ts", "app/App.tsx"].includes(f)), []);
-  eq("바뀐 것은 워커·도구·시험과 교체한 사진뿐이다",
+  /* README는 시험 수를 적는 자리라 시험이 늘면 같이 바뀐다 — 배포물이 아니다 */
+  eq("바뀐 것은 워커·도구·시험·README와 교체한 사진뿐이다",
     diff.filter(f => !f.startsWith("tools/") && !f.startsWith("test/")
-      && f !== "worker.js" && !f.endsWith(".webp")), []);
+      && f !== "worker.js" && f !== "README.md" && !f.startsWith("docs/")
+      && !f.endsWith(".webp")), []);
 }
 
 console.log("── 12. 상한이 코드로 강제된다 ──");

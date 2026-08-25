@@ -60,6 +60,7 @@ async function run(env, body, hooks) {
 const load = (d, f) => JSON.parse(readFileSync(join(ROOT, d, f), "utf8"));
 const P = (d, f) => load(d, f).body;
 const N01 = P("test/packets-deep", "N01-jaeeon-care.json");
+const N07 = P("test/packets-deep", "N07-minhyun-why.json");
 const N11 = P("test/packets-deep", "N11-group-movie.json");
 const C01 = P("test/packets-deep", "C01-memory-before.json");
 const T14 = P("test/packets-taste", "T14-health-mug-discovery.json");
@@ -71,19 +72,19 @@ const stagesOf = r => r.sent.map(s => s.stage);
 
 console.log("── 경로별 단계 ──");
 {
-  /* 검사 둘이 모든 턴에 붙는다. 순서는 나란히 부르므로 도착 순이 갈릴 수
-     있어 정렬해서 본다 — 재는 것은 「무엇이 몇 번 불렸나」다. */
-  const setOf = r => stagesOf(r).slice().sort().join("+");
+  /* 일반 턴은 쓰는 자리 한 번이다. 중요 장면에만 정사 검사 하나가 붙는다.
+     실행으로 잰다 — 모양 핀만으로는 배선이 바뀌어도 안 깨진다. */
   const a = await run({}, N01);
-  eq("1:1 일반 — writer + 검사 둘", setOf(a), "canon+character+writer");
-  eq("1:1 일반 — 기존 진영은 검사 둘뿐", a.sent.filter(s => !s.oai).map(s => s.stage).sort(),
-    ["canon", "character"]);
+  eq("1:1 일반 — writer 하나", stagesOf(a), ["writer"]);
+  eq("1:1 일반 — 기존 진영을 아예 안 부른다", a.sent.filter(s => !s.oai).length, 0);
   const b = await run({}, N11);
-  eq("단톡 일반 — writer + 검사 둘", setOf(b), "canon+character+writer");
+  eq("단톡 일반 — writer 하나", stagesOf(b), ["writer"]);
+  eq("단톡 일반 — 기존 진영을 안 부른다", b.sent.filter(s => !s.oai).length, 0);
   const c = await run({}, WATCH);
-  eq("관전 일반 — writer + 검사 둘", setOf(c), "canon+character+writer");
+  eq("관전 일반 — writer 하나", stagesOf(c), ["writer"]);
+  eq("관전 일반 — 기존 진영을 안 부른다", c.sent.filter(s => !s.oai).length, 0);
   const d = await run({}, C01);
-  eq("중요 장면 — writer + 검사 둘", setOf(d), "canon+character+writer");
+  eq("중요 장면 — writer → 정사 검사", stagesOf(d), ["writer", "canon"]);
   eq("중요 장면 — 라우팅이 critical", d.data.trace.route.tier, "critical");
   const e = await run({}, T14);
   eq("비대칭 발견 — 관측자·소유자 writer 둘과 canon 하나",
@@ -93,7 +94,7 @@ console.log("── 경로별 단계 ──");
   const f = await run({}, T15);
   eq("T15도 같은 모양이다", stagesOf(f), ["writer", "writer", "canon"]);
   const g = await run({}, T16);
-  eq("T16 partner_known — writer + 검사 둘", setOf(g), "canon+character+writer");
+  eq("T16 partner_known — writer → 정사 검사", stagesOf(g), ["writer", "canon"]);
   eq("T16 승인 사유가 남는다", g.data.trace.route.reason, "partner_known");
 }
 
@@ -104,10 +105,8 @@ console.log("── 모델 배치 ──");
   const c = r.sent.filter(s => s.stage === "canon");
   eq("무플래그 Writer가 도전자 진영이다", w.every(s => s.oai), true);
   eq("Writer 모델이 snapshot 고정이다", w[0].model, ENG.OPENAI_MODEL);
-  eq("검사 둘만 저비용 기존 모델이다",
+  eq("정사 검사만 저비용 기존 모델이다",
     [c.length, c.every(x => !x.oai), c[0].model], [1, true, ENG.ENGINE.canon.id]);
-  const ch = r.sent.filter(s => s.stage === "character");
-  eq("사람 검사도 저비용이다", [ch.length, ch[0].model], [1, ENG.ENGINE.character.id]);
   eq("engineMode 기본값", ENG.engineMode({}), "gpt41");
 }
 
@@ -118,11 +117,15 @@ console.log("── 기본 경로에서 사라진 것 ──");
     names.push(...(await run({}, b)).sent.map(s => s.stage));
   eq("director 호출", names.filter(x => x === "director").length, 0);
   eq("finalizer 호출", names.filter(x => x === "finalizer").length, 0);
-  /* 검사 둘은 모든 턴에 붙는다 — 발견 장면은 소유자 정사가 하나 더 붙는다 */
-  eq("검사 둘이 모든 턴에 붙는다", [
-    names.filter(x => x === "canon").length,
-    names.filter(x => x === "character").length,
-  ], [7, 5]);
+  /* 사람 검사(Character)는 기본 운영 경로 어디에도 없다. 코드·규칙표·
+     호출부는 그대로 있고, 옛 배선과 실험 경로만 쓴다 */
+  eq("character 호출", names.filter(x => x === "character").length, 0);
+  /* 정사 검사는 승인된 중요 장면과 발견 장면에만 — 일곱 갈래 중 넷 */
+  eq("정사 검사는 중요 장면에만", names.filter(x => x === "canon").length, 4);
+  /* 일반 세 갈래는 통째로 한 호출이다 */
+  const normals = [];
+  for (const b of [N01, N11, WATCH]) normals.push(...(await run({}, b)).sent.map(s => s.stage));
+  eq("일반 세 갈래는 writer 셋이 전부다", normals, ["writer", "writer", "writer"]);
 }
 
 console.log("── 재시도 계약 ──");
@@ -131,38 +134,27 @@ console.log("── 재시도 계약 ──");
   const bad = JSON.stringify({ problems: [{ candidate: "A", critic: "canon",
     code: "FACT_DENIAL", fact_id: "canon.jaeeon.study_room_attended" }] });
   const r = await run({}, C01, { canon: [bad] });
-  eq("정사 탈락 → 쓰기 두 번·검사 두 벌",
-    stagesOf(r).slice().sort().join("+"),
-    "canon+canon+character+character+writer+writer");
+  eq("정사 탈락 → 쓰기 두 번·검사 두 번",
+    stagesOf(r), ["writer", "canon", "writer", "canon"]);
   eq("두 번째도 같은 진영 Writer다",
     r.sent.filter(s => s.stage === "writer").every(s => s.oai), true);
   /* 두 번 다 탈락하면 502 — 다른 모델로 대체하지 않는다 */
   const r2 = await run({}, C01, { canon: [bad, bad] });
   eq("두 번 다 탈락이면 502다", r2.status, 502);
   eq("대체 모델을 안 부른다",
-    [...new Set(stagesOf(r2))].sort(), ["canon", "character", "writer"]);
+    [...new Set(stagesOf(r2))].sort(), ["canon", "writer"]);
   eq("실패 응답에 Effect가 없다", (r2.data.effects || []).length, 0);
   eq("실패해도 장면 사유는 살아 있다", r2.data.trace.route.reason, "memory_reveal");
-  /* ── 말투 탈락은 중요 장면에서만 ──
-     일반 턴은 후보가 하나뿐이라 말투 한 건에 전멸하고, 재시도가 한 번이라
-     두 번째도 걸리면 502다. 사람 검사는 계속 돌고 판정도 남지만, 일반
-     턴에서 그것만으로 화면에 아무것도 못 내보내지는 않는다. */
+  /* 말투·관계 속도·질문 수로는 아무것도 안 버린다 — 사람 검사가 기본
+     경로에서 아예 안 돌기 때문이다. 심어놔도 쓰이지 않는다. */
   const badVoice = JSON.stringify({ problems: [{ candidate: "A", critic: "character",
     code: "VOICE_BREAK", rule_id: "minhyun.ask.stops_at_two" }] });
   const r3 = await run({}, N01, { character: [badVoice, badVoice] });
-  eq("일반 턴의 말투 탈락은 다시 쓰지 않는다",
-    stagesOf(r3).filter(x => x === "writer").length, 1);
-  eq("그래도 화면에는 나간다", r3.status, 200);
-  eq("사람 검사는 돌고 판정도 남는다",
-    [stagesOf(r3).filter(x => x === "character").length,
-     JSON.stringify(r3.data.trace.criticNotes || []).includes("VOICE_BREAK")],
-    [1, true]);
-  /* 중요 장면에서는 그대로 탈락이다 — 두 번 다 걸리면 502 */
-  const r4 = await run({}, C01, { character: [badVoice] });
-  eq("중요 장면의 말투 탈락은 다시 쓴다",
-    stagesOf(r4).filter(x => x === "writer").length, 2);
-  eq("중요 장면에서 두 번 다 말투면 502다",
-    (await run({}, C01, { character: [badVoice, badVoice] })).status, 502);
+  eq("일반 턴은 말투 판정 자체가 없다",
+    [stagesOf(r3), r3.status], [["writer"], 200]);
+  const r4 = await run({}, C01, { character: [badVoice, badVoice] });
+  eq("중요 장면에도 사람 검사는 안 붙는다",
+    [stagesOf(r4), r4.status], [["writer", "canon"], 200]);
 }
 
 console.log("── Canon 판정의 한계 ──");
@@ -174,9 +166,15 @@ console.log("── Canon 판정의 한계 ──");
   eq("무효 fact_id는 판정으로 안 믿는다 — 스키마 어긋남으로 다시 쓴다",
     stagesOf(r).filter(x => x === "writer").length, 2);
   const src = readFileSync(join(ROOT, "worker.js"), "utf8");
-  eq("검사 둘을 모든 턴에 다는 배선이다",
-    /const criticsAll = em === "gpt41";/.test(src)
-    && /if \(tier === "critical" \|\| criticsAll\) \{/.test(src), true);
+  eq("검사는 중요 장면에만 붙는 배선이다",
+    /const canonOnly = em === "gpt41";/.test(src)
+    && /if \(tier === "critical"\) \{/.test(src)
+    && !/criticsAll/.test(src), true);
+  /* 지우지 않았다는 것도 함께 잰다 — 코드·규칙표·호출부는 그대로 있다 */
+  eq("사람 검사 코드는 지우지 않았다",
+    [/const CHAR_CRITIC = /.test(src), /const CHAR_RULES = /.test(src),
+     /const CHAR_CODES = /.test(src), /callStage\(env, meter, "character"/.test(src)],
+    [true, true, true, true]);
 }
 
 console.log("── 옛 배선은 살아 있다 ──");
@@ -191,6 +189,94 @@ console.log("── 옛 배선은 살아 있다 ──");
   eq("hybrid는 고르는 쪽이 그대로 있다", stagesOf(h), ["writer", "director"]);
   eq("pure 실험(NO_CRITICS)은 검사를 아예 안 부른다",
     stagesOf(await run({ NO_CRITICS: "1" }, C01)), ["writer"]);
+}
+
+console.log("── 잠긴 자리 제안 (invite) ──");
+{
+  /* 아직 안 열린 자리를 대사가 입에 올려도 그 턴은 그대로 나간다.
+     억제되는 것은 구조화된 invite Effect 하나뿐이다. */
+  const locked = JSON.stringify({ invite: "빨래방", messages: ["같이 갈래요?"] });
+  const r = await run({}, N01, { writer: [locked] });
+  eq("잠긴 자리를 제안해도 200이다", r.status, 200);
+  eq("다시 쓰지 않는다", stagesOf(r).filter(x => x === "writer").length, 1);
+  eq("대사는 그대로 나간다",
+    (r.data.messages || []).some(m => String(m.text || "").includes("같이 갈래요?")), true);
+  eq("invite Effect는 안 생긴다",
+    (r.data.effects || []).filter(e => e.type === "invite").length, 0);
+  eq("억제 기록이 trace에 남는다",
+    (r.data.trace.invite_suppressed || []).map(x => x.place), ["빨래방"]);
+  /* 자연어를 정규식으로 지우지 않는다 — 원문 문장이 그대로 있다 */
+  const src = readFileSync(join(ROOT, "worker.js"), "utf8");
+  eq("hardFilter에 INVALID_INVITE 코드가 없다",
+    /push\("INVALID_INVITE"\)/.test(src), false);
+  eq("give는 그대로 탈락이다 — 물건은 실제로 오간다",
+    /push\("INVALID_GIVE"\)/.test(src), true);
+}
+
+console.log("── pure 블라인드와 운영의 Writer 프롬프트가 같다 ──");
+{
+  /* 비교 실험(pure)과 운영이 같은 글을 보내는지 실행으로 잰다. 다르면
+     블라인드 결과를 운영 판단에 못 쓴다. */
+  const cap = async env => {
+    const got = [];
+    const realFetch = globalThis.fetch;
+    const base = RP.fakeFetch();
+    globalThis.fetch = async (u, init) => {
+      if (String(u).includes("api.openai.com")) {
+        const c = JSON.parse(init.body);
+        got.push({ model: c.model, temperature: c.temperature,
+          max_tokens: c.max_tokens ?? c.max_completion_tokens, messages: c.messages });
+      }
+      return base(u, init);
+    };
+    try {
+      await worker.fetch(new Request("https://x/?k=k", { method: "POST", body: JSON.stringify(N01),
+        headers: { "CF-Connecting-IP": "9.5.7.1" } }),
+        { ANTHROPIC_API_KEY: "sk-t", ACCESS_KEY: "k", OPENAI_API_KEY: "sk-fake", ...env });
+    } finally { globalThis.fetch = realFetch; }
+    return got;
+  };
+  const pure = await cap({ NO_FINALIZER: "1", NO_CRITICS: "1" });
+  const ops = await cap({});
+  eq("두 경로의 Writer 요청이 바이트로 같다",
+    JSON.stringify(pure) === JSON.stringify(ops), true);
+  eq("temperature를 어느 쪽도 안 정한다",
+    [pure[0].temperature, ops[0].temperature], [undefined, undefined]);
+  /* 심사 규칙이 쓰는 자리에 섞이면 안 된다 — 판정 어휘를 보고 쓰게 된다 */
+  const sys = ops[0].messages.filter(m => m.role === "system").map(m => m.content).join("\n");
+  eq("Writer 프롬프트에 심사 코드·id가 없다",
+    ["RELATIONSHIP_SPEED", "VOICE_BREAK", "stops_at_two", "COUNSELOR_TONE", "USER_PUPPETRY",
+     "DESIRE_BREAK", "EXPOSITION", "FACT_DENIAL", "rule_id", "fact_id", "reject_codes"]
+      .filter(k => sys.includes(k)), []);
+}
+
+console.log("── 민현 행동축 ──");
+{
+  const AXIS = "민현의 장난은 관심을 확인하려는 시도다";
+  const sysOf = async body => {
+    let sys = "";
+    const realFetch = globalThis.fetch;
+    const base = RP.fakeFetch();
+    globalThis.fetch = async (u, init) => {
+      if (String(u).includes("api.openai.com") && !sys) {
+        const c = JSON.parse(init.body);
+        sys = c.messages.filter(m => m.role === "system").map(m => m.content).join("\n");
+      }
+      return base(u, init);
+    };
+    try {
+      await worker.fetch(new Request("https://x/?k=k", { method: "POST", body: JSON.stringify(body),
+        headers: { "CF-Connecting-IP": "9.5.7.1" } }),
+        { ANTHROPIC_API_KEY: "sk-t", ACCESS_KEY: "k", OPENAI_API_KEY: "sk-fake" });
+    } finally { globalThis.fetch = realFetch; }
+    return sys;
+  };
+  eq("민현 1:1에 행동축이 실린다", (await sysOf(N07)).includes(AXIS), true);
+  eq("재언 1:1에는 안 실린다 — 1:1은 그 화자 것만", (await sysOf(N01)).includes(AXIS), false);
+  eq("단톡에는 실린다", (await sysOf(N11)).includes(AXIS), true);
+  const src = readFileSync(join(ROOT, "worker.js"), "utf8");
+  eq("세 문장이 그대로 있다", src.includes(
+    "민현의 장난은 관심을 확인하려는 시도다. 유저가 당황하거나 불쾌해하면 맞받아치거나 평가하지 않고 장난을 거두고 짧게 인정하거나 사실을 설명하며 물러선다. 관계 초기에는 친분·약속·반복된 일상·상대 성격을 이미 아는 것처럼 말하지 않는다."), true);
 }
 
 console.log("── 프롬프트에 더한 두 덩어리 ──");

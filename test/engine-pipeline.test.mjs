@@ -336,8 +336,8 @@ const PROBE = { ...BASE,
      쓰기 한 번, 고르는 단계 없음. 일반 턴에서 저비용 Writer도 Director도
      안 부른다 — 그게 이 배선의 요점이다. */
   eq("기본 경로는 쓰기 한 번이다", writersOf(prod), 1);
-  eq("검사 둘이 같이 붙는다",
-    stagesOf(prod).filter(x => x !== "writer").sort(), ["canon", "character"]);
+  eq("일반 턴에는 검사가 안 붙는다",
+    stagesOf(prod).filter(x => x !== "writer"), []);
   /* 쓰는 자리는 블라인드 판정으로 다른 진영이 됐다. 옛 상급 배선은 지운
      것이 아니라 ENGINE_MODE=solo로 그대로 있고, 바로 아래에서 같이 잰다. */
   eq("기본 쓰는 쪽은 도전자 진영이다", prod.data.stages[0].model, ENG.OPENAI_MODEL);
@@ -1683,8 +1683,8 @@ const PROBE = { ...BASE,
   const base = await diag({});
   eq("기본 배선이 지금 도는 것으로 보인다",
     base.includes("엔진 배선      gpt41 · 일반 턴 1호출"), true);
-  eq("검사 둘이 모든 턴에 붙는다고 적는다",
-    base.includes("중요 장면 검사  정사·사람 2 (모든 턴)"), true);
+  eq("검사가 중요 장면에만 붙는다고 적는다",
+    base.includes("중요 장면 검사  정사 1 (중요 장면만) · 일반 턴 없음"), true);
   eq("고르는 단계가 없다고 적는다", base.includes("(고르는 단계 없음)"), true);
   eq("행동 규칙이 켜짐으로 보인다", /행동 규칙 {6}켜짐/.test(base), true);
   const hy = await diag({ ENGINE_MODE: "hybrid" });
@@ -2063,18 +2063,18 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   /* 기본 경로의 중요 장면은 쓰기 하나와 정사 하나다 — 사람 검사와 마무리는
      기본 경로에서 안 부른다. 옛 배선(solo)의 네 단계는 §14가 잰다. */
   const r = await run({}, PROBE);
-  eq("중요 장면은 쓰기 하나 + 검사 둘이다",
-    [writersOf(r), stagesOf(r).filter(x => x !== "writer").sort().join("+")],
-    [1, "canon+character"]);
+  eq("중요 장면은 쓰기 하나 + 정사 하나다",
+    [writersOf(r), stagesOf(r).filter(x => x !== "writer").join("+")],
+    [1, "canon"]);
   eq("쓰는 자리만 도전자다",
     r.data.stages.filter(s => s.stage === "writer")
       .every(s => s.model === "gpt-4.1-2025-04-14"), true);
-  eq("검사 둘은 기존 저비용 그대로다",
-    r.data.stages.filter(s => s.stage !== "writer").map(s => s.model).sort(),
-    [MID.canon, MID.character].sort());
+  eq("정사 검사는 기존 저비용 그대로다",
+    r.data.stages.filter(s => s.stage !== "writer").map(s => s.model),
+    [MID.canon]);
   eq("다른 진영으로 나간 것은 하나뿐이다", oaiReqs().length, 1);
-  eq("검사 둘은 기존 진영 주소로 갔다",
-    sentReq.filter(q => !OAI(q.url)).length, 2);
+  eq("정사 검사는 기존 진영 주소로 갔다",
+    sentReq.filter(q => !OAI(q.url)).length, 1);
 }
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);

@@ -719,7 +719,7 @@ eq('점이 꺼진 사람은 안 건다',
      검증에서 걸리면 화면에는 아무 일도 안 일어나고 말만 남는다 */
   eq('검증도 두 목록을 같이 본다',
     /openPlaces: place \? \[\] : \[\.\.\.openPlaces, \.\.\.canGo\]/.test(wSrc)
-    && /pickInvite\(cand\.invite, place \? \[\] : \[\.\.\.openPlaces, \.\.\.canGo\]\)/.test(wSrc), true);
+    && /settleInvite\(cand, attempt, place \? \[\] : \[\.\.\.openPlaces, \.\.\.canGo\]\)/.test(wSrc), true);
   /* 인물이 먼저 꺼내는 사다리(INVITES)와는 따로 둔다 — 그쪽은 관계가 쌓여야
      열리고, 이쪽은 유저가 이미 열어둔 문이다 */
   eq('두 목록은 따로 선다',
@@ -7898,11 +7898,14 @@ eq('시간표 단추는 peek보다 좁다',
     hardFilter(say('회색 머그컵 잘 쓸게요.'), ['jaeeon'], GIFT), []);
 
   /* ── D2 초대·지급 제안 검사 ── */
-  eq('지어낸 자리 제안은 떨어진다',
-    hardFilter({ messages: [{ text: 'ㄱ' }], invite: '한강' }, MH, { openPlaces: ['옥상'] }),
-    ['INVALID_INVITE']);
+  /* 잠긴 자리 제안으로 대사를 죽이지 않는다 — 억제할 것은 invite Effect
+     하나뿐이고 그건 pickInvite가 확정 단계에서 null로 만든다 */
+  eq('안 열린 자리 제안으로 후보가 떨어지지 않는다',
+    hardFilter({ messages: [{ text: 'ㄱ' }], invite: '한강' }, MH, { openPlaces: ['옥상'] }), []);
+  eq('그래도 그 자리는 Effect가 안 된다', INV.pickInvite('한강', ['옥상']), null);
   eq('열린 자리 제안은 통과한다',
     hardFilter({ messages: [{ text: 'ㄱ' }], invite: '옥상' }, MH, { openPlaces: ['옥상'] }), []);
+  eq('열린 자리는 Effect가 된다', INV.pickInvite('옥상', ['옥상']), '옥상');
   eq('제안을 안 낸 것은 어긴 것이 아니다',
     hardFilter({ messages: [{ text: 'ㄱ' }] }, MH, { openPlaces: [] }), []);
   eq('자리 밖에서 건네겠다는 것은 떨어진다',
