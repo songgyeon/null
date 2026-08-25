@@ -289,6 +289,56 @@ console.log("── pure 블라인드와 운영의 Writer 프롬프트가 같다
       .filter(k => sys.includes(k)), []);
 }
 
+console.log("── 아직 학교에서 만나기 전 ──");
+{
+  /* 처음부터 교생인 걸 아는 게 아니다. 학교에서 만난 뒤부터 안다.
+     그 전까지는 과거의 만남이 유저에 대해 아는 전부다. */
+  const RULE = "처음부터 교생인 걸 아는 게 아니라";
+  const sentOf = async (body) => {
+    let out = "";
+    const realFetch = globalThis.fetch;
+    const base = RP.fakeFetch();
+    globalThis.fetch = async (u, init) => {
+      if (String(u).includes("api.openai.com") && !out) out = init.body;
+      return base(u, init);
+    };
+    try {
+      await worker.fetch(new Request("https://x/?k=k", { method: "POST", body: JSON.stringify(body),
+        headers: { "CF-Connecting-IP": "9.5.7.1" } }),
+        { ANTHROPIC_API_KEY: "sk-t", ACCESS_KEY: "k", OPENAI_API_KEY: "sk-fake", TRACE: "1" });
+    } finally { globalThis.fetch = realFetch; }
+    return out;
+  };
+  const withMet = (body, sm) => {
+    const b = JSON.parse(JSON.stringify(body));
+    b.story = { ...(b.story || {}), schoolMet: sm };
+    return b;
+  };
+  const NO = { jaeeon: false, minhyun: false };
+  eq("아직 안 만났으면 그 줄이 실린다",
+    (await sentOf(withMet(N07, NO))).includes(RULE), true);
+  eq("그 사람을 학교에서 만났으면 안 실린다",
+    (await sentOf(withMet(N07, { jaeeon: false, minhyun: true }))).includes(RULE), false);
+  /* 사람마다 따로 선다 — 재언을 만났어도 민현 방에서는 아직이다 */
+  eq("다른 사람을 만난 것은 상관없다",
+    (await sentOf(withMet(N07, { jaeeon: true, minhyun: false }))).includes(RULE), true);
+  eq("재언 방도 같은 규칙이다",
+    [(await sentOf(withMet(N01, NO))).includes(RULE),
+     (await sentOf(withMet(N01, { jaeeon: true, minhyun: false }))).includes(RULE)],
+    [true, false]);
+  /* 단톡·관전은 관계가 쌓여야 열리는 방이라 그때는 이미 만난 뒤다.
+     게다가 그 두 방에는 story가 안 실린다 — 안 실린 것을 「아직」으로 읽으면
+     없던 규칙이 서 버린다 */
+  eq("단톡·관전에는 안 실린다",
+    [(await sentOf(N11)).includes(RULE), (await sentOf(WATCH)).includes(RULE)], [false, false]);
+  /* 고정부(WORLD)는 캐시 블록이라 못 뺀다. 이 줄은 가변부에 얹혀
+     이번 턴에만 그것을 무효로 만든다 */
+  const src = readFileSync(join(ROOT, "worker.js"), "utf8");
+  eq("문장이 그대로 있다", src.includes(
+    "처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다."), true);
+  eq("유저가 먼저 꺼내면 예외다", src.includes("유저가 먼저 언급할 때는 예외다."), true);
+}
+
 console.log("── 민현 행동축 ──");
 {
   const AXIS = "민현의 장난은 관심을 확인하려는 시도다";

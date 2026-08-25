@@ -462,6 +462,9 @@ function App(){
       const sc=loadScene();
       if(sc&&sc.since===o.scene.since)return true;
       if(!saveScene(o.scene))return false;
+      /* 학교 안 자리에서 마주 앉았으면 그때부터 교생인 걸 안다.
+         그 전까지는 과거의 만남이 유저에 대해 아는 전부다. */
+      if(isSchoolPlace(o.scene.place))markSchoolMet(o.scene.room);
       const now=loadScene(); if(!now||now.since!==o.scene.since)return false;
       /* ref도 같이 앞세운다 — setScene은 다음 그림에서야 반영되는데,
          이어 부르는 요청(runAfter)과 배경 바꾸기(swapShot)는 그 자리에서
@@ -1497,9 +1500,14 @@ function App(){
     /* 거는 길이 둘이다 — 목록에 앉아 있을 때, 그리고 방을 열 때.
        한쪽만 잠그면 새벽에 재언 방을 열었을 때 그가 깨어난다 */
     if(!canGreet(id))return;
+    /* 아직 만나지 않은 사람은 학교에 있을 때만 먼저 건다 */
+    if(roomLock(storeRef.current,id))return;
     /* 같이 있는 사람은 선톡을 안 한다 — 눈앞에 있는데 문자가 오면 이상하다 */
     if(sceneRef.current&&sceneRef.current.room===id)return;
     const list=storeRef.current.msgs[id]||[];
+    /* 빈 방의 첫 연락은 그 사람이 **학교에서** 거는 것이다(roomLock이 그
+       시간에만 열어준다). 그 순간부터 교생인 걸 안다. */
+    if(!list.length&&atWorkNow(id))markSchoolMet(id);
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].ts)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
     /* ── 첫 연락은 딱 한 번 ──
@@ -1682,6 +1690,8 @@ function App(){
        시작한 자리도 다녀온 자리다. 하루에 한 번은 여기에도 걸린다. */
     if(PLACE_BY[o.place])localBatch("open|"+o.place,o.room,
       {local_ops:[{op:"goneTo",place:o.place},{op:"stampGone",place:o.place}]});
+    /* 첫 자리가 학교 안(보건실)이면 거기서 교생인 걸 안다. 밖이면 모른다 */
+    if(isSchoolPlace(o.place))markSchoolMet(o.room);
     const sc={room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{})};
     setScene(sc); saveScene(sc); setView(o.room);
     /* ── 첫 마디는 정해져 있다 ──

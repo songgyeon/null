@@ -1271,14 +1271,23 @@ const SCENE_REASONS = ["memory_reveal","null_identity","confession","irreversibl
    둘을 한 칸으로 뭉치면 말한 순간 아는 사이가 되어, 유저가 계속 「누구세요」를
    쳐도 워커에 실리는 사실은 「이미 설명했다」 하나뿐이었다. */
 const STORY_FC=["unseen","pending","explained","recognized"];
+/* ── 학교에서 만났나 ──
+   처음부터 교생인 걸 아는 게 아니다. 학교에서 만난 뒤부터 안다. 그 전까지는
+   과거의 만남이 유저에 대해 아는 전부다.
+   partnerKnown과 같은 모양이다 — 되돌릴 수 없고, 사람마다 따로 선다. */
+const SCHOOL_PLACES=["학교","교실","보건실","옥상","체육관"];
+const isSchoolPlace=place=>SCHOOL_PLACES.includes(place);
 const STORY_JM=["hidden","opened","acknowledged"];
 const loadStory=()=>{try{
   const o=JSON.parse(localStorage.getItem("null_story"))||{};
   const pk=o.partnerKnown||{};
+  const sm=o.schoolMet||{};
   return{firstContact:STORY_FC.includes(o.firstContact)?o.firstContact:"unseen",
     jaeeonMemory:STORY_JM.includes(o.jaeeonMemory)?o.jaeeonMemory:"hidden",
-    partnerKnown:{jaeeon:!!pk.jaeeon,minhyun:!!pk.minhyun}};
-}catch(e){return{firstContact:"unseen",jaeeonMemory:"hidden",partnerKnown:{jaeeon:false,minhyun:false}}}};
+    partnerKnown:{jaeeon:!!pk.jaeeon,minhyun:!!pk.minhyun},
+    schoolMet:{jaeeon:!!sm.jaeeon,minhyun:!!sm.minhyun}};
+}catch(e){return{firstContact:"unseen",jaeeonMemory:"hidden",
+  partnerKnown:{jaeeon:false,minhyun:false},schoolMet:{jaeeon:false,minhyun:false}}}};
 const saveStory=v=>{try{localStorage.setItem("null_story",JSON.stringify(v));return true}catch(e){return false}};
 /* 앞으로만 간다. 이미 지나 있으면 한 것으로 친다 — 두 번 적용해도 같다.
    저장은 쓰고 나서 다시 읽어 확인한다(장부의 규칙 그대로). */
@@ -1299,6 +1308,15 @@ const markPartnerKnown=char=>{
   if(s.partnerKnown[char])return true;
   const next={...s,partnerKnown:{...s.partnerKnown,[char]:true}};
   return !!saveStory(next)&&loadStory().partnerKnown[char]===true;
+};
+
+/* 학교에서 만난 순간에만 선다. 되풀이해도 같다 — 되돌아가지 않는다 */
+const markSchoolMet=char=>{
+  if(char!=="jaeeon"&&char!=="minhyun")return true;
+  const s=loadStory();
+  if(s.schoolMet[char])return true;
+  const next={...s,schoolMet:{...s.schoolMet,[char]:true}};
+  return !!saveStory(next)&&loadStory().schoolMet[char]===true;
 };
 
 /* ── 공개 장부 — 출처가 실제로 말해진 사실 (§8.5 disclosure) ──

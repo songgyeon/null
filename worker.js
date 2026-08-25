@@ -358,6 +358,7 @@ function makeStoryState(s) {
   const o = s || {};
   const one = (list, v) => list.includes(v) ? v : list[0];
   const pk = o.partnerKnown || {};
+  const sm = o.schoolMet || {};
   return {
     room:        ["jaeeon", "minhyun", "group", "health"].includes(o.room) ? o.room : "minhyun",
     stage:       String(o.stage || ""),
@@ -369,6 +370,10 @@ function makeStoryState(s) {
     firstContact: one(FIRST_CONTACT, o.firstContact),
     jaeeonMemory: one(JAEEON_MEMORY, o.jaeeonMemory),
     partnerKnown: { jaeeon: !!pk.jaeeon, minhyun: !!pk.minhyun },
+    /* ── 학교에서 만났나 ──
+       처음부터 교생인 걸 아는 게 아니다. 학교에서 만난 뒤부터 안다.
+       그 전까지는 과거의 만남이 유저에 대해 아는 전부다. */
+    schoolMet: { jaeeon: !!sm.jaeeon, minhyun: !!sm.minhyun },
   };
 }
 
@@ -3307,6 +3312,24 @@ const TURN = `
    오면 사실 투영을 공동 교집합 대신 **그 화자의 known_by**로 갈고, 사건
    목적을 [지금 장면]으로 얹는다. 일반 호출은 이 인자가 없다 — 기존 투영
    규칙이 그대로다. */
+/* 아직 학교에서 안 만난 화자가 있으면 그 줄을 낸다. 1:1은 그 사람만,
+   단톡·관전은 아직인 사람만 이름을 적는다 — 한쪽만 모르는 자리가 있다. */
+function buildSchoolMet(ctx, mode, room, disclose) {
+  /* 1:1에서만 본다. 단톡·관전은 관계가 쌓여야 열리는 방이라 그때는 이미
+     학교에서 만난 뒤고, 애초에 그 두 방에는 story가 안 실린다 —
+     안 실린 것을 「아직 안 만났다」로 읽으면 없던 규칙이 서 버린다. */
+  if (mode !== "chat" || !ctx || !ctx.schoolMet) return "";
+  const met = ctx.schoolMet;
+  const who = disclose && disclose.speaker ? [disclose.speaker] : [room];
+  const yet = who.filter(k => CHAR_LABEL[k] && !met[k]);
+  if (!yet.length) return "";
+  return `\n## [아직 학교에서 만나기 전 — ${yet.map(k => CHAR_LABEL[k]).join("·")}]\n`
+    + `처음부터 교생인 걸 아는 게 아니라 '학교'에서 만난 뒤부터 교생인 걸 안다. `
+    + `그 전까지는 과거의 만남이 유저에 대해 아는 전부다. `
+    + `따라서 오프닝부터 학교에 대해 언급하거나 '선생님'이라고 부르지 않는다. `
+    + `유저가 먼저 언급할 때는 예외다.\n`;
+}
+
 function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, place, placeItemOwned, now, day, states, placeOver, canGo, bag, season, left, came, ctx, placeItemAvailable, disclose) {
   const sub = (t) => subName(t, userName || "선생님");
   const recent = (recentPhotos || []).filter(k => PHOTOS[k]);
@@ -3358,6 +3381,12 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           /* 화자 순차 호출의 사건 목적 — 대사는 고정하지 않는다. 코드가
              강제하는 것은 사건 목적·지식 범위·발화 순서뿐이다(§8.5). */
           + (disclose && disclose.text ? `\n## [지금 장면]\n${disclose.text}\n` : "")
+          /* ── 아직 학교에서 만나기 전 ──
+             고정부(WORLD)는 「유저는 교생이고 셋 다 그 사실을 안다」로 못박혀
+             있다. 캐시 블록이라 뺄 수가 없어서, 이번 턴에만 무효로 만드는 줄을
+             여기(가변부)에 얹는다 — 화자 순차 호출의 onlyOne과 같은 방식이다.
+             이 줄이 없던 동안 둘 다 첫 마디부터 유저를 「선생님」이라 불렀다. */
+          + buildSchoolMet(ctx, mode, room, disclose)
           + TURN;
   return t.trim() ? sub(t) : "";
 }
@@ -5853,6 +5882,9 @@ export default {
       firstContact: (body.story || {}).firstContact,
       jaeeonMemory: (body.story || {}).jaeeonMemory,
       partnerKnown: (body.story || {}).partnerKnown,
+      /* 학교에서 만났나 — 안 실려 오면 아직 안 만난 것으로 둔다. 이 값은
+         옛 세이브에 없으므로, 그 판은 학교 자리를 한 번 지나면 선다. */
+      schoolMet: (body.story || {}).schoolMet,
       /* 누구를 골랐는지도 이야기 상태다. 이게 빠지면 「상대가 정해졌다는
          것을 안다」만 남고 **누구인지**가 없다 — 최근 대화가 잘리는 순간
          재언은 자기가 선택됐는지도 모르게 된다. */
@@ -5903,7 +5935,8 @@ export default {
     const turnCtx = makeTurnContext(
       { room, days, unlocked: unlockedKeys(counts, days), owned: bag.map(b => b.key),
         firstContact: story.firstContact, jaeeonMemory: story.jaeeonMemory,
-        partnerKnown: story.partnerKnown, originPhase: body.origin_phase,
+        partnerKnown: story.partnerKnown, schoolMet: story.schoolMet,
+        originPhase: body.origin_phase,
         /* 누구를 골랐는지도 문맥의 일부다 — story에서 이미 정규화됐다
            (jaeeon·minhyun 밖의 값은 null). 여기 빠지면 TurnContext만
            상대를 모르는 반쪽이 된다. */

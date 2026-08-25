@@ -914,8 +914,8 @@ eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.k
   /* 도서관은 wendOnly다 — 유저가 지도에서 골라 가는 것에 대한 규칙이라
      첫 자리에는 안 걸린다. 첫 자리를 여는 길이 wendOnlyOk를 안 봐야 한다 */
   eq('첫 자리는 wendOnly를 안 본다',
-    /const o=openingFor\(\);[\s\S]{0,600}?setView\(o\.room\);/.test(web)
-    && !/const o=openingFor\(\);[\s\S]{0,600}?wendOnlyOk/.test(web), true);
+    /const o=openingFor\(\);[\s\S]{0,900}?setView\(o\.room\);/.test(web)
+    && !/const o=openingFor\(\);[\s\S]{0,900}?wendOnlyOk/.test(web), true);
   /* 첫 자리도 다녀온 자리다 — 도장을 안 찍으면 같은 날 한 번 더 갈 수 있다 */
   eq('첫 자리도 도장을 찍는다',
     /if\(PLACE_BY\[o\.place\]\)localBatch\("open\|"\+o\.place,o\.room,\s*\n\s*\{local_ops:\[\{op:"goneTo",place:o\.place\},\{op:"stampGone",place:o\.place\}\]\}\);/.test(web), true);
@@ -1443,6 +1443,33 @@ eq('생성된 파일이라고 적어둔다',
     dlg.includes('의 메신저를') && dlg.includes('Get cha!')
     && dlg.includes('( ⸝⸝´꒳`⸝⸝) ꫂ 💌') && dlg.includes('chat ♡'), true);
   eq('앱도 창이 떠 있는 동안 알림을 세워둔다', /\{toast&&!getcha&&<View/.test(app2), true);
+
+  /* ── 학교에서 만난 뒤부터 교생인 걸 안다 ──
+     찍는 자리가 둘이다: 학교 안 자리에서 마주 앉을 때, 그리고 그 사람이
+     학교에서 첫 연락을 걸 때. 웹·앱 양쪽에 다 있어야 한다. */
+  const D2 = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {loadStory,markSchoolMet,isSchoolPlace};')(box().localStorage, box().location);
+  eq('처음에는 아무도 학교에서 안 만났다',
+    D2.loadStory().schoolMet, { jaeeon: false, minhyun: false });
+  D2.markSchoolMet('jaeeon');
+  eq('만난 사람만 선다', D2.loadStory().schoolMet, { jaeeon: true, minhyun: false });
+  D2.markSchoolMet('jaeeon');
+  eq('되풀이해도 같다', D2.loadStory().schoolMet, { jaeeon: true, minhyun: false });
+  eq('학교 안 자리가 다섯이다',
+    ['학교', '교실', '보건실', '옥상', '체육관', '편의점', '도서관', '빨래방', '레코드샵', '집']
+      .filter(p => D2.isSchoolPlace(p)), ['학교', '교실', '보건실', '옥상', '체육관']);
+  eq('웹이 두 자리에서 찍는다',
+    /if\(isSchoolPlace\(o\.scene\.place\)\)markSchoolMet\(o\.scene\.room\);/.test(web)
+    && /if\(!list\.length&&atWorkNow\(id\)\)markSchoolMet\(id\);/.test(web), true);
+  eq('앱도 두 자리에서 찍는다',
+    /if\(v&&isSchoolPlace\(v\.place\)\)markSchoolMet\(v\.room\);/.test(app2)
+    && /if\(!\(\(msgs as any\)\[id\]\|\|\[\]\)\.length&&atWorkNow\(id\)\)markSchoolMet\(id\);/.test(app2), true);
+  /* 첫 자리가 학교 안이면(보건실) 거기서 안다. 밖이면 모른다 */
+  eq('첫 자리도 학교면 찍는다',
+    /if\(isSchoolPlace\(o\.place\)\)markSchoolMet\(o\.room\);/.test(web)
+    && /if\(isSchoolPlace\(o\.place\)\)markSchoolMet\(o\.room\);/.test(app2), true);
   /* 방을 여는 것도 선톡 경로다 — 여기를 안 막으면 「아직 출근하지
      않았어요」 위에 타이핑 표시가 뜬다 */
   eq('잠긴 방은 열어도 말이 안 온다',
@@ -2860,7 +2887,7 @@ eq('유저 말을 되받아 옮기지 말라고 적어뒀다',
 /* 장면 줄(승인된 사유·화자 순차 사건)까지 실은 뒤가 TURN이다 — TURN은 여전히 맨 뒤 */
 eq('그 말은 가변부 맨 뒤에 있다',
   /const TURN = `\n## 이 턴\n유저의 가장 최근 발화가 짧더라도/.test(workerSrc)
-  && /disclose && disclose\.text \? `\\n## \[지금 장면\]\\n\$\{disclose\.text\}\\n` : ""\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
+  && /\+ buildSchoolMet\(ctx, mode, room, disclose\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
 /* 세계관에 두고 왔으면 두 군데에 같은 말이 남는다 */
 eq('세계관에는 안 남겼다',
   (workerSrc.match(/유저의 단어를 어미만 바꿔 반복하는 대신/g) || []).length, 1);
@@ -7387,7 +7414,9 @@ eq('시간표 단추는 peek보다 좁다',
         W.app.send('jaeeon', '저 어디서 본 적 있지 않아요?');
         await W.tick(0);
         eq('요청에 이야기 상태가 실린다', W.sent[0].story,
-          { firstContact: 'unseen', jaeeonMemory: 'hidden', partnerKnown: { jaeeon: false, minhyun: false } });
+          { firstContact: 'unseen', jaeeonMemory: 'hidden',
+            partnerKnown: { jaeeon: false, minhyun: false },
+            schoolMet: { jaeeon: false, minhyun: false } });
         eq('출처 문답 단계도 실린다', W.sent[0].origin_phase, 'unasked');
         await W.tick(5000);
         eq('전환이 장부를 거쳐 적용된다', W.ls('null_story').jaeeonMemory, 'opened');

@@ -35,7 +35,7 @@ import {
   loadScene, saveScene, loadMet, saveMet, loadBag, saveBag, goneToday, stampGone,
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
-  talkedEnoughIn, applyStoryTransition, markPartnerKnown,
+  talkedEnoughIn, applyStoryTransition, markPartnerKnown, markSchoolMet, isSchoolPlace, atWorkNow,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, setWorldAt, leaveTsOf, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
@@ -1534,7 +1534,10 @@ function Root() {
      저장은 규칙 파일이 한다(loadScene/saveScene) — 웹과 같은 열쇠, 같은 모양. */
   const [scene,setScene]=useState<any>(null);
   const sceneRef=useRef<any>(null); sceneRef.current=scene;
-  const putScene=(v:any)=>{ setScene(v); saveScene(v); };
+  /* 학교 안 자리에서 마주 앉았으면 그때부터 교생인 걸 안다. 자리를 여는
+     길이 여럿이라(첫 자리·지도·초대·같이 가기) 여기 한 곳에서 잡는다 */
+  const putScene=(v:any)=>{ setScene(v); saveScene(v);
+    if(v&&isSchoolPlace(v.place))markSchoolMet(v.room); };
   /* 키만 보내면 워커가 from을 빈칸으로 채운다. buildBag은 from으로 제 것을
      고르므로, 그 상태에서는 「네가 준 것」이 영영 비어 있었다 — 웹은 고쳐졌고
      앱만 문자열 배열로 남아 있었다. 자리 밖에서도 보낸다: 준 사실은 그 자리에서
@@ -1660,6 +1663,8 @@ function Root() {
          빨래방에서 시작한 날 지도의 빨래방이 그대로 열려 있었다. 시작한
          자리도 다녀온 자리다. 하루에 한 번은 여기에도 걸린다. */
       if(PLACE_BY[o.place]){ const nm=met.includes(o.place)?met:[...met,o.place]; setMet(nm); saveMet(nm); stampGone(o.place); }
+      /* 첫 자리가 학교 안(보건실)이면 거기서 교생인 걸 안다. 밖이면 모른다 */
+      if(isSchoolPlace(o.place))markSchoolMet(o.room);
       await sysLine(o.room,o.note);
       const shot=sceneShot(o.place,o.room);
       if(shot)stampShot(shot);
@@ -2405,6 +2410,9 @@ function Root() {
     if(!canGreet(id))return;
     /* 아직 만나지 않은 사람은 학교에 있을 때만 먼저 건다 */
     if(roomLock(msgsForFlow(),id))return;
+    /* 빈 방의 첫 연락은 그 사람이 **학교에서** 거는 것이다(roomLock이 그
+       시간에만 열어준다). 그 순간부터 교생인 걸 안다. */
+    if(!((msgs as any)[id]||[]).length&&atWorkNow(id))markSchoolMet(id);
     /* 같이 있는 사람은 선톡을 안 한다 — 눈앞에 있는데 문자가 오면 이상하다 */
     if(sceneRef.current&&sceneRef.current.room===id)return;
     const list:any[]=(msgs as any)[id]||[];
