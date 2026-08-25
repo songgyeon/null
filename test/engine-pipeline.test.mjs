@@ -109,6 +109,9 @@ async function run(envExtra, body, replies, hooks) {
 /* 쓰는 쪽 요청(첫 호출)의 전체 프롬프트 — 고정부+이력+가변부 */
 const writerReq = () => sent[0];
 const stagesOf = d => (d.data.stages || []).map(s => s.stage);
+/* 검사 둘이 모든 턴에 붙는 배선이라, 「발견 갈래인가 일반인가」는 단계 목록이
+   아니라 **쓰는 호출이 몇 번인가**로 갈린다. 재는 것은 그거다. */
+const writersOf = d => stagesOf(d).filter(x => x === "writer").length;
 
 /* ── 옛 경로를 재는 시험은 그 깃발을 명시한다 ──
    기본값이 solo(쓰기 한 번·고르기 없음)로 바뀌었다. hybrid(후보 둘 + 저비용
@@ -332,7 +335,9 @@ const PROBE = { ...BASE,
   /* ── 기본 경로는 solo다 ──
      쓰기 한 번, 고르는 단계 없음. 일반 턴에서 저비용 Writer도 Director도
      안 부른다 — 그게 이 배선의 요점이다. */
-  eq("기본 경로는 쓰기 한 번이다", stagesOf(prod), ["writer"]);
+  eq("기본 경로는 쓰기 한 번이다", writersOf(prod), 1);
+  eq("검사 둘이 같이 붙는다",
+    stagesOf(prod).filter(x => x !== "writer").sort(), ["canon", "character"]);
   /* 쓰는 자리는 블라인드 판정으로 다른 진영이 됐다. 옛 상급 배선은 지운
      것이 아니라 ENGINE_MODE=solo로 그대로 있고, 바로 아래에서 같이 잰다. */
   eq("기본 쓰는 쪽은 도전자 진영이다", prod.data.stages[0].model, ENG.OPENAI_MODEL);
@@ -1377,8 +1382,7 @@ const PROBE = { ...BASE,
      사라진다: 발견 장면이 다시 서지 않고 일반 관전 한 호출이다. */
   const after = { ...t14.body, disclosed: { "gift.mug.user_to_jaeeon": ["jaeeon", "minhyun"] } };
   const r2 = await run({}, after);
-  eq("공개 뒤에는 발견 장면이 다시 안 선다 — 일반 관전 한 호출",
-    stagesOf(r2), ["writer"]);
+  eq("공개 뒤에는 발견 장면이 다시 안 선다 — 쓰기 한 번", writersOf(r2), 1);
   eq("공개 뒤에는 상대의 known_by에 출처가 있다",
     r2.data.trace.turnContext.facts
       .find(f => f.fact_id === "gift.mug.user_to_jaeeon").known_by.includes("minhyun"), true);
@@ -1603,15 +1607,15 @@ const PROBE = { ...BASE,
     const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
     const body = { ...t14.body }; delete body.event;
     const r = await run({}, body);
-    return stagesOf(r);
-  })(), ["writer"]);
+    return writersOf(r);
+  })(), 1);
   eq("비대칭이 아니면 사건이 있어도 일반 관전이다", await (async () => {
     /* 선물 기록이 없으면 출처 사실이 없다 — 비대칭이 성립 안 한다 */
     const t14 = JSON.parse(readFileSync(join(ROOT, "test/packets-taste/T14-health-mug-discovery.json"), "utf8"));
     const body = { ...t14.body, gifts: {} };
     const r = await run({}, body);
-    return stagesOf(r);
-  })(), ["writer"]);
+    return writersOf(r);
+  })(), 1);
 }
 
 /* ══════════ 14. 옛 상급 solo 배선 — 지운 것이 아니라 깃발 뒤에 있다 ══════════
@@ -1679,7 +1683,8 @@ const PROBE = { ...BASE,
   const base = await diag({});
   eq("기본 배선이 지금 도는 것으로 보인다",
     base.includes("엔진 배선      gpt41 · 일반 턴 1호출"), true);
-  eq("중요 장면에 남은 검사가 하나라고 적는다", base.includes("중요 장면 검사  정사 1"), true);
+  eq("검사 둘이 모든 턴에 붙는다고 적는다",
+    base.includes("중요 장면 검사  정사·사람 2 (모든 턴)"), true);
   eq("고르는 단계가 없다고 적는다", base.includes("(고르는 단계 없음)"), true);
   eq("행동 규칙이 켜짐으로 보인다", /행동 규칙 {6}켜짐/.test(base), true);
   const hy = await diag({ ENGINE_MODE: "hybrid" });
@@ -1914,12 +1919,12 @@ const PROBE = { ...BASE,
     [r.data.trace.observe.observer, r.data.trace.observe.owner], ["minhyun", "jaeeon"]);
   eq("일반 관전(사건 없음)은 한 호출이다", await (async () => {
     const body = { ...t14.body }; delete body.event;
-    return stagesOf(await run({}, body));
-  })(), ["writer"]);
+    return writersOf(await run({}, body));
+  })(), 1);
   eq("비대칭이 아니면 사건이 있어도 일반 관전이다", await (async () => {
     const body = { ...t14.body, gifts: {} };
-    return stagesOf(await run({}, body));
-  })(), ["writer"]);
+    return writersOf(await run({}, body));
+  })(), 1);
 }
 
 /* ══════════ 15. 도전자 경로 — replay 전용 GPT-4.1 ══════════
@@ -1949,7 +1954,7 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
 /* ── 15.2 깃발을 명시했을 때만 도전자가 뜬다 ── */
 {
   const r = await run({}, BASE);
-  eq("기본이 도전자 진영이다 — 쓰기 한 번", stagesOf(r), ["writer"]);
+  eq("기본이 도전자 진영이다 — 쓰기 한 번", writersOf(r), 1);
   eq("쓰는 자리만 다른 진영으로 나간다", oaiReqs().length, 1);
   eq("주소가 그 진영의 것이다", oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
   eq("계측에 남는 모델도 도전자다", r.data.stages[0].model, "gpt-4.1-2025-04-14");
@@ -2058,13 +2063,18 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   /* 기본 경로의 중요 장면은 쓰기 하나와 정사 하나다 — 사람 검사와 마무리는
      기본 경로에서 안 부른다. 옛 배선(solo)의 네 단계는 §14가 잰다. */
   const r = await run({}, PROBE);
-  eq("중요 장면은 쓰기 + 정사 하나다", stagesOf(r), ["writer", "canon"]);
+  eq("중요 장면은 쓰기 하나 + 검사 둘이다",
+    [writersOf(r), stagesOf(r).filter(x => x !== "writer").sort().join("+")],
+    [1, "canon+character"]);
   eq("쓰는 자리만 도전자다",
-    r.data.stages.map(s => s.model === "gpt-4.1-2025-04-14"), [true, false]);
-  eq("정사 검사는 기존 저비용 그대로다", r.data.stages[1].model, MID.canon);
+    r.data.stages.filter(s => s.stage === "writer")
+      .every(s => s.model === "gpt-4.1-2025-04-14"), true);
+  eq("검사 둘은 기존 저비용 그대로다",
+    r.data.stages.filter(s => s.stage !== "writer").map(s => s.model).sort(),
+    [MID.canon, MID.character].sort());
   eq("다른 진영으로 나간 것은 하나뿐이다", oaiReqs().length, 1);
-  eq("정사 검사는 기존 진영 주소로 갔다",
-    sentReq.filter(q => !OAI(q.url)).length, 1);
+  eq("검사 둘은 기존 진영 주소로 갔다",
+    sentReq.filter(q => !OAI(q.url)).length, 2);
 }
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);

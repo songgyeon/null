@@ -5443,7 +5443,8 @@ export default {
         const wiring = `${em} · 일반 턴 ${oneCall ? 1 : 2}호출`
           + `${em === "gpt41" || em === "solo" ? " (고르는 단계 없음)" : ""}`;
         /* 중요 장면에 남은 검사가 몇인지도 적는다 — 기본 경로는 정사 하나다 */
-        const critics = em === "gpt41" ? "정사 1" : em === "single" || em === "single5" ? "없음" : "정사·사람 2";
+        const critics = em === "gpt41" ? "정사·사람 2 (모든 턴)"
+          : em === "single" || em === "single5" ? "없음" : "정사·사람 2 (중요 장면만)";
         return new Response(
           ["NULL 백엔드 — 간이 점검", "=".repeat(28), "",
            `실행 위치      ${colo}`,
@@ -6251,10 +6252,14 @@ export default {
          흐려지지 않는다. NO_FINALIZER는 옛 배선(solo·hybrid)을 마무리 없이
          재보는 replay 깃발로 남는다. */
       const noFinalizer = em === "gpt41" || String((env && env.NO_FINALIZER) || "") === "1";
-      /* 사람 검사(Character)도 기본 경로에 없다. 말맛은 검사가 아니라 사람이
-         읽고 정한다 — 모델에게 말맛을 판정시키면 재시도가 폭주하고, 그 판정
-         자체가 근거 없는 주관이다. 기본 경로에 남는 검사는 정사 하나뿐이다. */
-      const canonOnly = em === "gpt41";
+      /* ── 검사 둘을 모든 턴에 단다 ──
+         중요 장면에만 달았더니 일반 턴의 사실·말투가 아무도 안 보는 채로
+         나갔다. 기본 경로에서는 일반 턴도 정사와 사람 둘 다 통과해야 한다.
+         마무리는 여전히 없다 — 검사는 판정만 하고, 통과한 원문이 그대로
+         화면에 나간다. 옛 배선(solo·hybrid)은 제 계약 그대로다. */
+      const criticsAll = em === "gpt41";
+      /* 정사 하나만 보는 자리는 이제 없다 — 두 검사가 늘 같이 돈다 */
+      const canonOnly = false;
       /* ── NO_CRITICS — replay 전용 ──
          한 진영만으로 어디까지 가는지 재는 자리다. 검사 둘(Canon·Character)과
          소유자 정사 검사가 다른 진영의 모델이라, 그게 붙어 있으면 「그 모델
@@ -6637,7 +6642,11 @@ export default {
            장면 전체가 다르고, 여기서 값을 두 배로 낼 자리가 아니다.
            single도 여기서 끝난다 — 한 호출이 계약이다. hardFilter는 위에서
            이미 탔고, 떨어졌으면 lastCodes를 들고 재시도로 돌아갔다. */
-        if (mode === "auto" || singleNow || cands.length === 0) { picked = cands[0]; break; }
+        /* 검사를 모든 턴에 다는 배선에서는 관전 일반도 그 줄을 탄다 —
+           고르는 단계를 안 타는 것과 검사를 안 받는 것은 다른 얘기다. */
+        if ((mode === "auto" && !criticsAll) || singleNow || cands.length === 0) {
+          picked = cands[0]; break;
+        }
 
         /* facts는 **Fact[]**다. 이 꾸러미가 Director·Canon·Character·
            Finalizer로 그대로 간다 — 문장은 sceneHead가 마지막에 만든다. */
@@ -6652,7 +6661,7 @@ export default {
            그어주고, 마무리하는 쪽이 그 안에서 후보 선택과 문장 완성을 함께
            맡는다. 정확성만큼 감정의 체온과 말하지 않은 것이 중요한 자리라
            고르기만 해서는 모자라기 때문이다. */
-        if (tier === "critical") {
+        if (tier === "critical" || criticsAll) {
           /* 검사를 아예 안 부르는 실험 경로 — 코드 검사만 통과한 원문 그대로.
              중요 장면의 라우팅·사실 투영·행동 규칙은 그대로 살아 있다.
              빠지는 것은 다른 진영의 모델이 보는 눈 둘뿐이다. */

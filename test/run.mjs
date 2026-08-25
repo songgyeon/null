@@ -5388,8 +5388,12 @@ eq('시간표 단추는 peek보다 좁다',
         ? (c.messages || []).filter(m => m.role === 'system').map(m => m.content).join('')
         : (Array.isArray(c.system) ? c.system : [{ text: c.system }]).map(b => b.text || '').join('');
       const isDirector = sys.includes('대사를 쓰지 않는다 — 고르기만 한다');
+      /* 검사 둘이 모든 턴에 붙는다 — 단계마다 제 모양으로 답해야 502가 안 난다 */
+      const isCritic = sys.includes('너는 이 세계의 사실만 본다')
+        || sys.includes('이 사람이 이 사람다운지만 본다');
       const text = isDirector
         ? JSON.stringify({ decision: 'ACCEPT', reject_codes: {} })
+        : isCritic ? JSON.stringify({ problems: [] })
         : (reply || JSON.stringify({ messages: [{ text: '네.' }] }));
       return oai ? fakeReplyOai(text, c.model) : fakeReply(text);
     };

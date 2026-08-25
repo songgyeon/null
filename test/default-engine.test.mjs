@@ -71,17 +71,19 @@ const stagesOf = r => r.sent.map(s => s.stage);
 
 console.log("── 경로별 단계 ──");
 {
+  /* 검사 둘이 모든 턴에 붙는다. 순서는 나란히 부르므로 도착 순이 갈릴 수
+     있어 정렬해서 본다 — 재는 것은 「무엇이 몇 번 불렸나」다. */
+  const setOf = r => stagesOf(r).slice().sort().join("+");
   const a = await run({}, N01);
-  eq("1:1 일반 — writer 하나", stagesOf(a), ["writer"]);
-  eq("1:1 일반 — 기존 진영 호출 0", a.sent.filter(s => !s.oai).length, 0);
+  eq("1:1 일반 — writer + 검사 둘", setOf(a), "canon+character+writer");
+  eq("1:1 일반 — 기존 진영은 검사 둘뿐", a.sent.filter(s => !s.oai).map(s => s.stage).sort(),
+    ["canon", "character"]);
   const b = await run({}, N11);
-  eq("단톡 일반 — writer 하나", stagesOf(b), ["writer"]);
-  eq("단톡 일반 — 기존 진영 호출 0", b.sent.filter(s => !s.oai).length, 0);
+  eq("단톡 일반 — writer + 검사 둘", setOf(b), "canon+character+writer");
   const c = await run({}, WATCH);
-  eq("관전 일반 — writer 하나", stagesOf(c), ["writer"]);
-  eq("관전 일반 — 기존 진영 호출 0", c.sent.filter(s => !s.oai).length, 0);
+  eq("관전 일반 — writer + 검사 둘", setOf(c), "canon+character+writer");
   const d = await run({}, C01);
-  eq("중요 장면 — writer → canon", stagesOf(d), ["writer", "canon"]);
+  eq("중요 장면 — writer + 검사 둘", setOf(d), "canon+character+writer");
   eq("중요 장면 — 라우팅이 critical", d.data.trace.route.tier, "critical");
   const e = await run({}, T14);
   eq("비대칭 발견 — 관측자·소유자 writer 둘과 canon 하나",
@@ -91,7 +93,7 @@ console.log("── 경로별 단계 ──");
   const f = await run({}, T15);
   eq("T15도 같은 모양이다", stagesOf(f), ["writer", "writer", "canon"]);
   const g = await run({}, T16);
-  eq("T16 partner_known — writer → canon", stagesOf(g), ["writer", "canon"]);
+  eq("T16 partner_known — writer + 검사 둘", setOf(g), "canon+character+writer");
   eq("T16 승인 사유가 남는다", g.data.trace.route.reason, "partner_known");
 }
 
@@ -102,8 +104,10 @@ console.log("── 모델 배치 ──");
   const c = r.sent.filter(s => s.stage === "canon");
   eq("무플래그 Writer가 도전자 진영이다", w.every(s => s.oai), true);
   eq("Writer 모델이 snapshot 고정이다", w[0].model, ENG.OPENAI_MODEL);
-  eq("Canon만 저비용 기존 모델이다",
-    [c.length, c[0].oai, c[0].model], [1, false, ENG.ENGINE.canon.id]);
+  eq("검사 둘만 저비용 기존 모델이다",
+    [c.length, c.every(x => !x.oai), c[0].model], [1, true, ENG.ENGINE.canon.id]);
+  const ch = r.sent.filter(s => s.stage === "character");
+  eq("사람 검사도 저비용이다", [ch.length, ch[0].model], [1, ENG.ENGINE.character.id]);
   eq("engineMode 기본값", ENG.engineMode({}), "gpt41");
 }
 
@@ -112,10 +116,13 @@ console.log("── 기본 경로에서 사라진 것 ──");
   const names = [];
   for (const b of [N01, N11, WATCH, C01, T14, T15, T16])
     names.push(...(await run({}, b)).sent.map(s => s.stage));
-  eq("character 호출", names.filter(x => x === "character").length, 0);
   eq("director 호출", names.filter(x => x === "director").length, 0);
   eq("finalizer 호출", names.filter(x => x === "finalizer").length, 0);
-  eq("canon은 중요 장면에서만", names.filter(x => x === "canon").length, 4);
+  /* 검사 둘은 모든 턴에 붙는다 — 발견 장면은 소유자 정사가 하나 더 붙는다 */
+  eq("검사 둘이 모든 턴에 붙는다", [
+    names.filter(x => x === "canon").length,
+    names.filter(x => x === "character").length,
+  ], [7, 5]);
 }
 
 console.log("── 재시도 계약 ──");
@@ -124,19 +131,25 @@ console.log("── 재시도 계약 ──");
   const bad = JSON.stringify({ problems: [{ candidate: "A", critic: "canon",
     code: "FACT_DENIAL", fact_id: "canon.jaeeon.study_room_attended" }] });
   const r = await run({}, C01, { canon: [bad] });
-  eq("정사 탈락 → writer·canon 각 두 번",
-    stagesOf(r), ["writer", "canon", "writer", "canon"]);
+  eq("정사 탈락 → 쓰기 두 번·검사 두 벌",
+    stagesOf(r).slice().sort().join("+"),
+    "canon+canon+character+character+writer+writer");
   eq("두 번째도 같은 진영 Writer다",
     r.sent.filter(s => s.stage === "writer").every(s => s.oai), true);
   /* 두 번 다 탈락하면 502 — 다른 모델로 대체하지 않는다 */
   const r2 = await run({}, C01, { canon: [bad, bad] });
   eq("두 번 다 탈락이면 502다", r2.status, 502);
-  eq("대체 모델을 안 부른다", stagesOf(r2), ["writer", "canon", "writer", "canon"]);
+  eq("대체 모델을 안 부른다",
+    [...new Set(stagesOf(r2))].sort(), ["canon", "character", "writer"]);
   eq("실패 응답에 Effect가 없다", (r2.data.effects || []).length, 0);
   eq("실패해도 장면 사유는 살아 있다", r2.data.trace.route.reason, "memory_reveal");
   /* 말투 불만으로는 재시도하지 않는다 — 사람 검사가 아예 안 돈다 */
-  const r3 = await run({}, N01);
-  eq("일반 턴은 말투로 다시 안 쓴다", stagesOf(r3), ["writer"]);
+  /* 말투 문제도 이제 탈락이다 — 검사를 달았으면 결과에 영향이 있어야 한다 */
+  const badVoice = JSON.stringify({ problems: [{ candidate: "A", critic: "character",
+    code: "VOICE_BREAK", rule_id: "minhyun.ask.stops_at_two" }] });
+  const r3 = await run({}, N01, { character: [badVoice] });
+  eq("일반 턴의 말투 탈락도 다시 쓴다",
+    stagesOf(r3).filter(x => x === "writer").length, 2);
 }
 
 console.log("── Canon 판정의 한계 ──");
@@ -146,12 +159,11 @@ console.log("── Canon 판정의 한계 ──");
     code: "FACT_DENIAL", fact_id: "canon.지어낸.사실" }] });
   const r = await run({}, C01, { canon: [bogus] });
   eq("무효 fact_id는 판정으로 안 믿는다 — 스키마 어긋남으로 다시 쓴다",
-    stagesOf(r), ["writer", "canon", "writer", "canon"]);
-  /* 말맛 코드는 운영 Canon의 탈락 사유가 아니다 */
+    stagesOf(r).filter(x => x === "writer").length, 2);
   const src = readFileSync(join(ROOT, "worker.js"), "utf8");
-  const i = src.indexOf("const denyCritics = canonOnly");
-  eq("기본 경로의 탈락 사유는 정사뿐이다",
-    src.slice(i, i + 120).includes('canonOnly ? ["canon"]'), true);
+  eq("검사 둘을 모든 턴에 다는 배선이다",
+    /const criticsAll = em === "gpt41";/.test(src)
+    && /if \(tier === "critical" \|\| criticsAll\) \{/.test(src), true);
 }
 
 console.log("── 옛 배선은 살아 있다 ──");
