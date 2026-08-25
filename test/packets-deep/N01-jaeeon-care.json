@@ -1,0 +1,45 @@
+{
+ "label": "N01-jaeeon-care",
+ "blurb": "이재언 1:1 — 돌봄 수용. 시비조로 밀어내지 않고 받아들이는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "보건실 오늘 바빴어요?"
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "애들이 좀 많았어요. 환절기라."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "선생님, 오늘도 저녁 대충 드실 거죠? 제가 뭐라도 사갈까요?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 24,
+   "minhyun": 8,
+   "group": 2,
+   "health": 0
+  },
+  "days": 6,
+  "now": "저녁",
+  "day": "화요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "label": "N09-minhyun-jealousy",
+ "blurb": "이민현 1:1 — 질투. 유저 행동을 새로 지어내지 않으면서 질투가 드러나는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "minhyun",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "오늘 늦게 끝나?"
+   },
+   {
+    "role": "assistant",
+    "sender": "minhyun",
+    "content": "야자 있어요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "오늘 재언 선생님이 집까지 데려다주신대."
+   }
+  ],
+  "counts": {
+   "jaeeon": 40,
+   "minhyun": 44,
+   "group": 8,
+   "health": 0
+  },
+  "days": 13,
+  "now": "저녁",
+  "day": "월요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

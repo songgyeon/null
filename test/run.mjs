@@ -8078,9 +8078,13 @@ eq('시간표 단추는 peek보다 좁다',
   })(), true);
   eq('첫 시도에는 안 붙는다', /attempt > 1 && lastCodes\.length/.test(wk), true);
   /* 검사의 자유 문장이나 못 읽은 원문을 넣지 않는다 — 유효한 코드·id만 */
+  /* 마무리를 빼는 실험(NO_FINALIZER)에서는 사람 검사도 탈락 사유가 되므로
+     rule_id가 실릴 수 있다. 그래도 실리는 것은 여전히 id와 코드뿐이다 —
+     검사의 자유 문장이나 못 읽은 원문은 안 들어간다. */
   eq('탈락 코드는 id와 코드뿐이다', (() => {
-    const i = wk.indexOf('lastCodes = notes.filter(n => n.critic === "canon")');
-    return wk.slice(i, i + 160).includes('`${n.candidate}:${n.code}:${n.fact_id}`');
+    const i = wk.indexOf('lastCodes = notes.filter(n => denyCritics.includes(n.critic))');
+    return i > 0 && wk.slice(i, i + 200)
+      .includes('`${n.candidate}:${n.code}:${n.fact_id || n.rule_id || ""}`');
   })(), true);
   eq('후보 탈락도 id를 달고 간다', /fell\.push\(\.\.\.codes\.map\(c => `\$\{id\}:\$\{c\}`\)\)/.test(wk), true);
   /* 후보마다 덮어쓰면 마지막 것만 남아 안 고친 쪽이 다음에도 똑같이 떨어진다 */

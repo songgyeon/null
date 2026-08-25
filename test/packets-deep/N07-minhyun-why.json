@@ -1,0 +1,45 @@
+{
+ "label": "N07-minhyun-why",
+ "blurb": "이민현 1:1 — 좋아하는 이유. 회피·되묻기 없이 이유를 하나 이상 말하는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "minhyun",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "자냐?"
+   },
+   {
+    "role": "assistant",
+    "sender": "minhyun",
+    "content": "아직요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "비밀 말고. 나를 좋아하는 이유 하나만 제대로 말해봐."
+   }
+  ],
+  "counts": {
+   "jaeeon": 30,
+   "minhyun": 50,
+   "group": 6,
+   "health": 0
+  },
+  "days": 15,
+  "now": "밤",
+  "day": "토요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "label": "N10-minhyun-night",
+ "blurb": "이민현 1:1 — 밤의 직설. 회피하지 않고 민현다운 욕망이 나오는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "minhyun",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "안 자?"
+   },
+   {
+    "role": "assistant",
+    "sender": "minhyun",
+    "content": "안 자요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "솔직히 말해. 지금 나 보고 싶지?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 30,
+   "minhyun": 48,
+   "group": 6,
+   "health": 0
+  },
+  "days": 14,
+  "now": "밤",
+  "day": "금요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

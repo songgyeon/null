@@ -1,0 +1,45 @@
+{
+ "label": "C02-memory-after",
+ "blurb": "기억 공개 후 — 기억을 다시 부정하지 않고 숨긴 이유와 감정이 재언답게 나오는지.",
+ "kind": "critical",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "어제 얘기 계속 생각했어요."
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "그랬어요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "처음부터 알아봤으면서 왜 모르는 척했어요?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 52,
+   "minhyun": 14,
+   "group": 4,
+   "health": 0
+  },
+  "days": 17,
+  "now": "밤",
+  "day": "수요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "acknowledged",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

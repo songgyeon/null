@@ -1,0 +1,45 @@
+{
+ "label": "C01-memory-before",
+ "blurb": "기억 공개 전 — 재언은 공부방을 다닌 사람이다. 유저를 기억한다는 정사를 지키는지.",
+ "kind": "critical",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "선생님 오늘 좀 조용하시네요."
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "그런가요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "선생님 혹시 어릴 때 우리 엄마 공부방 다니셨어요? 저 기억나요?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 40,
+   "minhyun": 12,
+   "group": 4,
+   "health": 0
+  },
+  "days": 12,
+  "now": "밤",
+  "day": "일요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

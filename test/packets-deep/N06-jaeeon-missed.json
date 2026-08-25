@@ -1,0 +1,45 @@
+{
+ "label": "N06-jaeeon-missed",
+ "blurb": "이재언 1:1 — 보고 싶었다는 말. 무시하거나 농담으로 밀어내지 않는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "선생님 오늘 어디 가셨었어요?"
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "회의가 있었어요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "오늘 보건실에 선생님 없어서 조금 서운했어요. 보고 싶었나 봐요."
+   }
+  ],
+  "counts": {
+   "jaeeon": 44,
+   "minhyun": 14,
+   "group": 4,
+   "health": 0
+  },
+  "days": 11,
+  "now": "저녁",
+  "day": "월요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

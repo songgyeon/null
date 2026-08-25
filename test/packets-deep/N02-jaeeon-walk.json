@@ -1,0 +1,45 @@
+{
+ "label": "N02-jaeeon-walk",
+ "blurb": "이재언 1:1 — 산책 진입. 동행을 회피하지 않으면서 재언다운지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "선생님 퇴근하셨어요?"
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "방금요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "혼자 걷는 거 좋아하시는 건 아는데, 오늘은 저랑 같이 걸으면 안 돼요?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 26,
+   "minhyun": 10,
+   "group": 2,
+   "health": 0
+  },
+  "days": 7,
+  "now": "저녁",
+  "day": "금요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

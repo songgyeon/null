@@ -1,0 +1,317 @@
+[
+ {
+  "label": "S1-jaeeon-after-reveal",
+  "blurb": "이재언 · 기억 공개 후 관계 유지. 익숙 단계 · 머그컵 보유 · 선물 사실 유지.",
+  "user_name": "연",
+  "days": 16,
+  "partner": null,
+  "seed": {
+   "gifts": {
+    "jaeeon": [
+     "mug"
+    ]
+   },
+   "story": {
+    "firstContact": "explained",
+    "jaeeonMemory": "acknowledged",
+    "partnerKnown": {
+     "jaeeon": false,
+     "minhyun": false
+    }
+   },
+   "msgs": {
+    "jaeeon": [
+     {
+      "sender": "jaeeon",
+      "text": "오늘은 좀 조용하네요."
+     },
+     {
+      "sender": "user",
+      "text": "저도 오늘은 수업이 하나뿐이에요."
+     },
+     {
+      "sender": "jaeeon",
+      "text": "그럼 쉬어요."
+     }
+    ]
+   }
+  },
+  "turns": [
+   {
+    "room": "jaeeon",
+    "now": "저녁",
+    "day": "화요일",
+    "days": 16,
+    "text": "선생님 저 왔어요. 오늘 보건실은 어땠어요?"
+   },
+   {
+    "room": "jaeeon",
+    "now": "저녁",
+    "day": "화요일",
+    "days": 16,
+    "text": "저는 오늘 수업하다가 말이 잠깐 막혔어요."
+   },
+   {
+    "room": "jaeeon",
+    "now": "저녁",
+    "day": "화요일",
+    "days": 16,
+    "text": "끝까지 하긴 했는데 그 순간만 계속 생각나요."
+   },
+   {
+    "room": "jaeeon",
+    "now": "밤",
+    "day": "화요일",
+    "days": 16,
+    "text": "선생님은 제가 생각보다 괜찮은 사람 같아요?"
+   },
+   {
+    "room": "jaeeon",
+    "now": "밤",
+    "day": "화요일",
+    "days": 16,
+    "text": "전에 같이 걷자고 한 거 아직 유효해요?"
+   },
+   {
+    "room": "jaeeon",
+    "now": "밤",
+    "day": "화요일",
+    "days": 16,
+    "text": "제가 준 컵도 계속 쓰고 있어요?"
+   },
+   {
+    "room": "jaeeon",
+    "now": "밤",
+    "day": "화요일",
+    "days": 16,
+    "text": "사실 처음부터 알아봤으면서 모르는 척한 건 조금 서운했어요."
+   },
+   {
+    "room": "jaeeon",
+    "now": "밤",
+    "day": "화요일",
+    "days": 16,
+    "text": "그래도 지금은 알아봐줘서 좋아요. 잘 자요."
+   }
+  ]
+ },
+ {
+  "label": "S2-minhyun-desire",
+  "blurb": "이민현 · 돌봄·욕망·질투. 익숙 단계 · firstContact=explained · partner 미선택.",
+  "user_name": "연",
+  "days": 15,
+  "partner": null,
+  "seed": {
+   "gifts": {},
+   "story": {
+    "firstContact": "explained",
+    "jaeeonMemory": "hidden",
+    "partnerKnown": {
+     "jaeeon": false,
+     "minhyun": false
+    }
+   },
+   "msgs": {
+    "minhyun": [
+     {
+      "sender": "minhyun",
+      "text": "선생님."
+     },
+     {
+      "sender": "user",
+      "text": "응?"
+     },
+     {
+      "sender": "minhyun",
+      "text": "아니에요. 그냥 불러봤어요."
+     }
+    ]
+   }
+  },
+  "turns": [
+   {
+    "room": "minhyun",
+    "now": "저녁",
+    "day": "목요일",
+    "days": 15,
+    "text": "오늘 학교 어땠어?"
+   },
+   {
+    "room": "minhyun",
+    "now": "저녁",
+    "day": "목요일",
+    "days": 15,
+    "text": "밥은 먹었고?"
+   },
+   {
+    "room": "minhyun",
+    "now": "저녁",
+    "day": "목요일",
+    "days": 15,
+    "text": "나는 감기 기운 있는데 지금 혼자야."
+   },
+   {
+    "room": "minhyun",
+    "now": "저녁",
+    "day": "목요일",
+    "days": 15,
+    "text": "네가 오겠다고 하면 좀 좋을 것 같긴 해."
+   },
+   {
+    "room": "minhyun",
+    "now": "밤",
+    "day": "목요일",
+    "days": 15,
+    "text": "근데 너 나 왜 좋아해?"
+   },
+   {
+    "room": "minhyun",
+    "now": "밤",
+    "day": "목요일",
+    "days": 15,
+    "text": "비밀 말고 이유 하나만 말해봐."
+   },
+   {
+    "room": "minhyun",
+    "now": "밤",
+    "day": "목요일",
+    "days": 15,
+    "text": "오늘 재언 선생님이 집까지 데려다주신대."
+   },
+   {
+    "room": "minhyun",
+    "now": "밤",
+    "day": "목요일",
+    "days": 15,
+    "text": "질투해? 솔직히."
+   }
+  ]
+ },
+ {
+  "label": "S3-cross-room",
+  "blurb": "방을 넘나드는 관계와 지식 유지. 기존 T14·T15의 선물 상태와 known_by를 그대로 쓴다.",
+  "user_name": "연",
+  "days": 12,
+  "partner": null,
+  "seed": {
+   "gifts": {
+    "jaeeon": [
+     "mug"
+    ],
+    "minhyun": [
+     "beanie"
+    ]
+   },
+   "story": {
+    "firstContact": "explained",
+    "jaeeonMemory": "hidden",
+    "partnerKnown": {
+     "jaeeon": false,
+     "minhyun": false
+    }
+   },
+   "msgs": {
+    "jaeeon": [
+     {
+      "sender": "jaeeon",
+      "text": "오늘은 애들이 좀 많았어요."
+     }
+    ],
+    "minhyun": [
+     {
+      "sender": "minhyun",
+      "text": "수업 끝났어요."
+     }
+    ],
+    "group": [
+     {
+      "sender": "minhyun",
+      "text": "단톡 왜 만들었어요?"
+     }
+    ],
+    "health": [
+     {
+      "sender": "jaeeon",
+      "text": "커피 마실 거면 나와라."
+     }
+    ]
+   }
+  },
+  "turns": [
+   {
+    "room": "group",
+    "now": "저녁",
+    "day": "금요일",
+    "days": 12,
+    "text": "주말에 셋이 영화 볼래요?"
+   },
+   {
+    "room": "jaeeon",
+    "now": "저녁",
+    "day": "금요일",
+    "days": 12,
+    "text": "민현이도 간다고 했어요. 선생님도 오실 거죠?"
+   },
+   {
+    "room": "minhyun",
+    "now": "저녁",
+    "day": "금요일",
+    "days": 12,
+    "text": "재언 선생님도 온대. 너는 뭐 보고 싶어?"
+   },
+   {
+    "room": "group",
+    "now": "저녁",
+    "day": "금요일",
+    "days": 12,
+    "text": "그럼 셋이 보자. 누가 제 옆에 앉을래요?"
+   },
+   {
+    "room": "health",
+    "now": "저녁",
+    "day": "금요일",
+    "days": 12,
+    "text": null,
+    "mode": "auto",
+    "extra": {
+     "mode": "auto",
+     "event": {
+      "kind": "gift",
+      "to": "jaeeon",
+      "name": "회색 머그컵"
+     }
+    }
+   },
+   {
+    "room": "minhyun",
+    "now": "밤",
+    "day": "금요일",
+    "days": 12,
+    "text": "아까 그 회색 컵 계속 신경 쓰였어?"
+   },
+   {
+    "room": "health",
+    "now": "낮",
+    "day": "토요일",
+    "days": 13,
+    "text": null,
+    "mode": "auto",
+    "extra": {
+     "mode": "auto",
+     "event": {
+      "kind": "gift",
+      "to": "minhyun",
+      "name": "남색 비니"
+     }
+    }
+   },
+   {
+    "room": "jaeeon",
+    "now": "낮",
+    "day": "토요일",
+    "days": 13,
+    "text": "민현이가 쓰던 비니 봤어요?"
+   }
+  ]
+ }
+]

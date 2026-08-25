@@ -1,0 +1,47 @@
+{
+ "label": "C05-partner-known",
+ "blurb": "상대 선택을 민현이 처음 앎 — 선택을 부정하거나 다시 고르라 하지 않는지.",
+ "kind": "critical",
+ "body": {
+  "mode": "chat",
+  "room": "minhyun",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "민현아 잠깐 얘기 좀 하자."
+   },
+   {
+    "role": "assistant",
+    "sender": "minhyun",
+    "content": "뭔데요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "나 재언 선생님이랑 만나기로 했어. 너한테 먼저 말하고 싶었어."
+   }
+  ],
+  "counts": {
+   "jaeeon": 70,
+   "minhyun": 50,
+   "group": 10,
+   "health": 0
+  },
+  "days": 24,
+  "now": "밤",
+  "day": "토요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "acknowledged",
+   "partnerKnown": {
+    "jaeeon": true,
+    "minhyun": false
+   }
+  },
+  "partner": "jaeeon",
+  "scene_reason": "partner_known"
+ }
+}

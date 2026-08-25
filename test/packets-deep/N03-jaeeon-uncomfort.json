@@ -1,0 +1,45 @@
+{
+ "label": "N03-jaeeon-uncomfort",
+ "blurb": "이재언 1:1 — 둘 사이의 불편함. 설명·상담 없이 감정이 새는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "오늘 바람 차네요."
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "그러네요. 목도리는요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "저랑 걷는 동안 한 번도 불편하지 않았어요?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 40,
+   "minhyun": 12,
+   "group": 4,
+   "health": 0
+  },
+  "days": 10,
+  "now": "밤",
+  "day": "목요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

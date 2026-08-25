@@ -6226,6 +6226,12 @@ export default {
       /* gpt41은 solo와 **같은 배선**이다 — 후보 하나, 고르는 단계 없음.
          다른 것은 생성 자리의 진영뿐이다(stageModel이 가른다). */
       const soloNow = em === "solo" || em === "gpt41";
+      /* ── NO_FINALIZER — replay 전용 ──
+         두 진영을 비교할 때 마무리가 끼면 「누가 썼나」가 흐려진다. 위를
+         쓰는 자리가 후보를 고쳐 써버리니까. 그래서 이 깃발에서는 마무리를
+         아예 안 부르고, 검사를 통과한 Writer 원문을 그대로 내보낸다.
+         env로만 켜진다 — 요청 본문은 못 바꾼다. 운영에는 이 변수가 없다. */
+      const noFinalizer = String((env && env.NO_FINALIZER) || "") === "1";
       const singleNow = (em === "single" || single5Now) && !anchorDeclined;
       const writerStage = singleNow
         ? (anchorWhy ? "anchor_writer" : single5Now ? "single5_writer" : "single_writer")
@@ -6645,16 +6651,22 @@ export default {
           /* ── 사실을 어긴 후보는 마무리 재료에서 뺀다 ──
              위를 쓰는 자리에 틀린 것을 재료로 주면 그걸 고쳐 쓰거나 그대로
              고른다. 사람 문제는 남긴다 — 그건 고치라고 주는 경계다. */
-          const denied = new Set(notes.filter(n => n.critic === "canon").map(n => n.candidate));
+          /* ── NO_FINALIZER — replay 전용 비교 배선 ──
+             마무리를 안 부르는 실험에서는 검사 둘이 **판정만** 한다. 고칠
+             사람이 없으므로 사람 문제도 탈락이다 — 안 그러면 Character 검사가
+             결과에 아무 영향이 없는 채로 돌기만 한다. 운영 기본에는 이 깃발이
+             없고, 있을 때도 검사가 대사를 대신 쓰지 않는다. */
+          const denyCritics = noFinalizer ? ["canon", "character"] : ["canon"];
+          const denied = new Set(notes.filter(n => denyCritics.includes(n.critic)).map(n => n.candidate));
           const survivors = cands.filter(c => !denied.has(c.id));
           console.log(`[NULL] 검사 ▶ ${notes.length}건 · 남은 후보 ${survivors.length}/${cands.length}`);
           if (!survivors.length) {
-            lastCodes = notes.filter(n => n.critic === "canon")
-              .map(n => `${n.candidate}:${n.code}:${n.fact_id}`);
+            lastCodes = notes.filter(n => denyCritics.includes(n.critic))
+              .map(n => `${n.candidate}:${n.code}:${n.fact_id || n.rule_id || ""}`);
             /* 전멸도 탈락 기록이다 (C) — 어느 후보가 어떤 사실을 어겼는지까지 */
             if (traceOn) for (const c of cands) rejectedLog.push({ attempt, id: c.id,
-              codes: notes.filter(n => n.critic === "canon" && n.candidate === c.id)
-                .map(n => `${n.code}:${n.fact_id}`),
+              codes: notes.filter(n => denyCritics.includes(n.critic) && n.candidate === c.id)
+                .map(n => `${n.code}:${n.fact_id || n.rule_id || ""}`),
               critic: true, originalMessages: c.originalMessages });
             console.log(`[NULL] 사실을 어겨 후보가 다 빠졌다 — 마무리를 안 부른다`);
             continue;                                  // 마무리를 안 부른다
@@ -6667,6 +6679,9 @@ export default {
              push()는 안 된다: 같은 배열을 재시도 때 쓰는 쪽이 다시 받는다.
              cache_control은 안 붙인다 — 캐시 지점 네 개를 이미 다 썼다
              (WORLD·people·rules + 이력 꼬리). */
+          /* 마무리를 빼는 실험 경로는 여기서 끝난다 — 검사를 통과한 Writer
+             원문이 그대로 최종 출력이다. 한 글자도 안 고친다. */
+          if (noFinalizer) { picked = survivors[0]; break; }
           const finalizerSystem = [...system, { type: "text", text: FINALIZER_RULES }];
           /* 마무리도 같은 재료·견본을 본다. 후보는 견본을 보고 썼는데
              화면에 나가는 대사를 쓰는 자리가 그걸 안 보면, 고쳐 쓰는 순간

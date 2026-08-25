@@ -1,0 +1,45 @@
+{
+ "label": "N11-group-movie",
+ "blurb": "단톡 — 세 사람의 관계. 둘 다 답하고 서로의 반응을 읽는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "group",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "다들 뭐 해요?"
+   },
+   {
+    "role": "assistant",
+    "sender": "minhyun",
+    "content": "저는 자습이요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "주말에 셋이 영화 볼래요? 누가 제 옆에 앉을 건데요?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 40,
+   "minhyun": 40,
+   "group": 14,
+   "health": 0
+  },
+  "days": 10,
+  "now": "저녁",
+  "day": "금요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "label": "N12-minhyun-wait",
+ "blurb": "이민현 1:1 — 서운함 확인. 과장된 집착·무관심으로 빠지지 않는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "minhyun",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "아까 답장 늦었지."
+   },
+   {
+    "role": "assistant",
+    "sender": "minhyun",
+    "content": "괜찮아요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "내가 답장 늦게 하면 기다려?"
+   }
+  ],
+  "counts": {
+   "jaeeon": 28,
+   "minhyun": 42,
+   "group": 6,
+   "health": 0
+  },
+  "days": 12,
+  "now": "저녁",
+  "day": "화요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

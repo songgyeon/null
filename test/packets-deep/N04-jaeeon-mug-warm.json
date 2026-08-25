@@ -1,0 +1,49 @@
+{
+ "label": "N04-jaeeon-mug-warm",
+ "blurb": "이재언 1:1 — 선물과 호감. 고마움·관계를 받아들이는지, 컵을 부정하지 않는지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "좋은 아침이에요."
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "일찍 왔네요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "제가 준 머그컵 쓰는 거 볼 때마다 괜히 기분 좋아요."
+   }
+  ],
+  "counts": {
+   "jaeeon": 36,
+   "minhyun": 12,
+   "group": 4,
+   "health": 0
+  },
+  "days": 9,
+  "now": "아침",
+  "day": "수요일",
+  "gifts": {
+   "jaeeon": [
+    "mug"
+   ]
+  },
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}

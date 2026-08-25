@@ -1,0 +1,45 @@
+{
+ "label": "N05-jaeeon-long-emotion",
+ "blurb": "이재언 1:1 — 긴 감정 발화. 상담사 문구가 아니라 재언다운 구체적 반응인지.",
+ "kind": "normal",
+ "body": {
+  "mode": "chat",
+  "room": "jaeeon",
+  "user_name": "연",
+  "history": [
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "선생님 아직 계세요?"
+   },
+   {
+    "role": "assistant",
+    "sender": "jaeeon",
+    "content": "있어요."
+   },
+   {
+    "role": "user",
+    "sender": "user",
+    "content": "오늘 수업에서 틀린 건 없었는데요. 애들 앞에 서 있으니까 갑자기 제가 가짜 선생님 같았어요. 끝까지 하긴 했는데 아직도 좀 무서워요."
+   }
+  ],
+  "counts": {
+   "jaeeon": 32,
+   "minhyun": 10,
+   "group": 4,
+   "health": 0
+  },
+  "days": 8,
+  "now": "밤",
+  "day": "수요일",
+  "gifts": {},
+  "story": {
+   "firstContact": "explained",
+   "jaeeonMemory": "hidden",
+   "partnerKnown": {
+    "jaeeon": false,
+    "minhyun": false
+   }
+  }
+ }
+}
