@@ -707,7 +707,7 @@ eq('점이 꺼진 사람은 안 건다',
   /* 그 사람이 갈 수 있는 자리여야 하고, 마주치는 자리는 그 시각에 나와 있어야 한다 */
   eq('그 사람이 갈 수 있는 데만 센다', /\(p\.who\|\|\[\]\)\.includes\(id\)/.test(src3.slice(0, 400)), true);
   eq('마주치는 자리는 나와 있어야 한다',
-    /p\.meet!=="out"\|\|whoOut\(now\)\.includes\(id\)/.test(src3.slice(0, 400)), true);
+    /p\.meet!=="out"\|\|outAt\(p,now\)\.includes\(id\)/.test(src3.slice(0, 400)), true);
   /* 학교는 자리가 아니라 문이다 */
   eq('문은 자리가 아니다', /!p\.into/.test(src3.slice(0, 400)), true);
   /* 마주 앉은 턴에는 안 보낸다 — 워커도 place가 있으면 목록을 통째로 뺀다.
@@ -851,7 +851,7 @@ eq('보내는 쪽에서도 막는다',
    물건은 손에서 손으로 간다. 그래서 선물이 만나러 가는 이유가 된다 —
    지도를 도는 이유가 아이템 하나뿐이었는데 하나 늘었다 */
 eq('자리 규칙을 하나도 안 봐준다',
-  /const canMeet=p\.meet==="out" \? whoOut\(now\)\.includes\(char\)/.test(web)
+  /const canMeet=p\.meet==="out" \? outAt\(p,now\)\.includes\(char\)/.test(web)
   && /goneToday\(p\.name,now\) \? "오늘은 벌써 다녀왔어요"/.test(web)
   && /!wendOnlyOk\(p,now\)\s*\? "주말에만"/.test(web)
   && /!placeHours\(p,now\)\s*\? placeWhen\(p,now\)/.test(web), true);
@@ -4597,6 +4597,61 @@ eq('못 가는 이유를 셋 다 말한다',
   eq('학교 밖 자리는 그대로다',
     [S.placeHours(S.PLACE_BY['편의점'], at(7, 19)), S.placeHours(S.PLACE_BY['집'], at(7, 19))],
     [true, true]);
+}
+
+/* ── 편의점은 안 만난 쪽을 만나는 자리다 ──
+   둘 다 나와 있는 시간이면 그대로 둘 다. 한 사람만 나올 수 있는 시간이면
+   그 자리에 서는 것은 오프닝에서 **안 만난 쪽**이다. 오프닝 상대가 편의점에
+   또 서 있으면 안 만난 사람의 방은 계속 잠긴 채로 남는다. */
+{
+  const boxed = first => {
+    const mem = new Map();
+    if (first) mem.set('null_first', first);
+    const g = { localStorage: { getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
+      location: { search: '' } };
+    return new Function('localStorage', 'location',
+      readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+        .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+      + '\nreturn {outAt,whoOut,PLACE_BY,unmetOne,loadFirstMet,canGoWith,giftSpots};')(g.localStorage, g.location);
+  };
+  const at = (dd, h) => new Date(2026, 0, dd, h, 0);
+  const CONV = f => boxed(f).PLACE_BY['편의점'];
+  const out = (f, d) => boxed(f).outAt(boxed(f).PLACE_BY['편의점'], d);
+  /* 1/7 수 19시 — 야자가 없는 저녁이라 둘 다 밖에 있다 */
+  eq('둘 다 나와 있으면 그대로 둘이다',
+    [out('jaeeon', at(7, 19)), out('minhyun', at(7, 19))],
+    [['jaeeon', 'minhyun'], ['jaeeon', 'minhyun']]);
+  /* 1/15 목 19시 — 야자라 민현은 학교에 있고 재언만 밖이다 */
+  eq('한 사람만 나올 수 있는 시간 — 오프닝이 민현이면 재언이 선다',
+    out('minhyun', at(15, 19)), ['jaeeon']);
+  eq('같은 시간 — 오프닝이 재언이면 아무도 안 선다',
+    out('jaeeon', at(15, 19)), []);
+  /* 새벽 두 시 — 재언은 자고 민현만 깨어 있다 */
+  eq('새벽에는 민현만 — 오프닝이 재언이면 민현이 선다',
+    out('jaeeon', at(7, 2)), ['minhyun']);
+  eq('새벽에 오프닝이 민현이면 아무도 안 선다', out('minhyun', at(7, 2)), []);
+  /* 오프닝 상대를 모르는 판(옛 세이브)은 지금까지대로 둔다 —
+     없는 것은 모르는 것이지 틀린 것이 아니다 */
+  eq('모르면 지금까지대로', [boxed(null).unmetOne(), out(null, at(15, 19))], [null, ['jaeeon']]);
+  /* 빨래방은 이 규칙 밖이다 — 표를 안 붙였다 */
+  eq('빨래방은 그대로다', (() => {
+    const D = boxed('minhyun');
+    return [!!D.PLACE_BY['편의점'].meetOther, !!D.PLACE_BY['빨래방'].meetOther,
+            D.outAt(D.PLACE_BY['빨래방'], at(15, 19))];
+  })(), [true, false, ['jaeeon']]);
+  /* 지도·선물·같이가기가 한 함수를 본다 — 셋이 따로 세면 지도에는 뜨는데
+     들어가면 아무도 없는 자리가 생긴다 */
+  eq('같이 가자는 목록도 같은 답을 쓴다', (() => {
+    const D = boxed('jaeeon'), met = ['편의점'];
+    return [D.canGoWith('jaeeon', met, at(15, 19)).includes('편의점'),
+            D.canGoWith('minhyun', met, at(7, 19)).includes('편의점')];
+  })(), [false, true]);
+  eq('선물 자리도 같은 답을 쓴다', (() => {
+    const D = boxed('jaeeon');
+    const why = c => (D.giftSpots(c, ['편의점'], at(15, 19)).find(s => s.place === '편의점') || {}).why;
+    return why('jaeeon');
+  })(), '지금은 아무도 없어요');
 }
 
 /* 길이 없어졌는데 머리글에 ROAD가 남아 있었다. 사물함이라 NOCKER다 */

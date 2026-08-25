@@ -858,7 +858,7 @@ function App(){
      그 밖 — 자리 임자가 정해져 있다. 둘 다면 더 많이 말을 나눈 쪽. */
   const whoAt=(p,picked)=>{
     if(p.pick)return picked||null;
-    if(p.meet==="out"){ const out=whoOut(); return out.length?out[Math.floor(Math.random()*out.length)]:null }
+    if(p.meet==="out"){ const out=outAt(p); return out.length?out[Math.floor(Math.random()*out.length)]:null }
     const list=p.who||[]; if(list.length<2)return p.own||list[0];
     const n=id=>(storeRef.current.msgs[id]||[]).length;
     return list.slice().sort((a,b)=>n(b)-n(a))[0];
@@ -1700,6 +1700,8 @@ function App(){
       {local_ops:[{op:"goneTo",place:o.place},{op:"stampGone",place:o.place}]});
     /* 첫 자리가 학교 안(보건실)이면 거기서 교생인 걸 안다. 밖이면 모른다 */
     if(isSchoolPlace(o.place))markSchoolMet(o.room);
+    /* 세계가 시작된 자리에 있던 쪽. 편의점이 이 값을 보고 안 만난 쪽을 세운다 */
+    saveFirstMet(o.room);
     const sc={room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{})};
     setScene(sc); saveScene(sc); setView(o.room);
     /* ── 첫 마디는 정해져 있다 ──

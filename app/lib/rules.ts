@@ -162,6 +162,28 @@ const sys1Due=store=>{
   const first=firstTsOf(store);
   return !!first && worldNow().getTime()-gameAt(first).getTime() >= SYS1_AFTER;
 };
+/* ── 오프닝에서 만난 사람 ──
+   세계가 시작된 자리에 있던 쪽이다. 다른 한 사람은 아직 안 만난 사람이고,
+   그쪽을 만나는 것이 첫 며칠의 할 일이다.
+
+   판을 새로 열기 전의 세이브에는 이 값이 없다. 그런 판에서는 getcha 목록의
+   첫 항목이 같은 값을 들고 있다 — 그 창은 오프닝이 닫힐 때 처음 뜨므로
+   맨 앞이 오프닝 방이다. 없으면 null이고, 없는 것은 모르는 것이지
+   틀린 것이 아니다 — 부르는 쪽이 「모르면 지금까지대로」로 받는다. */
+const loadFirstMet=()=>{try{
+  const v=localStorage.getItem("null_first");
+  if(v==="jaeeon"||v==="minhyun")return v;
+  const g=JSON.parse(localStorage.getItem("null_getcha"))||[];
+  return g[0]==="jaeeon"||g[0]==="minhyun"?g[0]:null;
+}catch(e){return null}};
+const saveFirstMet=id=>{try{
+  if((id==="jaeeon"||id==="minhyun")&&!localStorage.getItem("null_first"))
+    localStorage.setItem("null_first",id);
+}catch(e){}};
+/* 아직 안 만난 쪽. 오프닝 상대를 모르면 null이다 */
+const unmetOne=()=>{const f=loadFirstMet();
+  return f==="jaeeon"?"minhyun":f==="minhyun"?"jaeeon":null};
+
 const loadSys1=()=>{try{return localStorage.getItem("null_sys1")==="1"}catch(e){return false}};
 /* ── get cha ──
    첫 만남이 끝나면 그 사람의 메신저가 생긴다. 판마다 사람마다 한 번뿐이라
@@ -700,7 +722,7 @@ const PLACES=[
      자리였는데, 여기는 시간을 내서 가는 데가 아니라 지나다 들르는 데다 —
      meet:"out"인 자리에 해금을 걸면 「마주치는 자리」라는 설계와 어긋난다.
      사다리는 그대로 남는다: 레코드샵은 여전히 편의점을 딛고 열린다. */
-  {name:"편의점",   map:"town", meet:"out", bg:"place-conv.webp",     icon:"conv",    need:[],                    who:["jaeeon","minhyun"], item:"haribo",
+  {name:"편의점",   map:"town", meet:"out", meetOther:true, bg:"place-conv.webp", icon:"conv", need:[],            who:["jaeeon","minhyun"], item:"haribo",
    note:"학교 뒷문에서 이 분."},
   /* wendOnly — 평일엔 못 간다. 둘 다 학교에 매여 있고, 여기는 들르는 데가
      아니라 시간을 내서 가는 데다. pick — 누구랑 갈지 고른다. */
@@ -1032,6 +1054,24 @@ const freeOut=(id,now)=>{
   return isWend(d)||!AT_WORK.includes(pr.t);
 };
 const whoOut=(now)=>["jaeeon","minhyun"].filter(id=>freeOut(id,now));
+/* ── 이 자리에 지금 나올 수 있는 사람 ──
+   meetOther가 붙은 자리(편의점)는 「안 만난 쪽을 만나는 자리」다. 둘 다
+   나와 있는 시간이면 그대로 둘 다지만, 한 사람만 나올 수 있는 시간이면
+   그 자리에 서는 것은 **오프닝에서 안 만난 쪽**이다. 오프닝 상대가 편의점에
+   또 서 있으면 안 만난 사람의 방은 계속 잠긴 채로 남는다 — 지도를 도는
+   이유가 우연에 걸린다.
+
+   그래서 나올 수 있는 사람이 오프닝 상대 하나뿐인 시간에는 아무도 안 나온다.
+   화면은 이미 그 말을 할 줄 안다(「지금 밖은 Empty...」).
+
+   whoAt·canGoWith·giftSpots가 전부 이 함수를 본다 — 셋이 따로 세면 지도에는
+   뜨는데 들어가면 아무도 없는 자리가 생긴다. */
+const outAt=(p,now)=>{
+  const out=whoOut(now);
+  if(!p||!p.meetOther||out.length>1)return out;
+  const other=unmetOne();
+  return other?out.filter(id=>id===other):out;    // 모르면 지금까지대로
+};
 
 /* ── 아직 만나지 않은 사람 ──
    첫 자리에서 만난 사람의 방만 열린다. 다른 한 사람은 **학교에서** 만나야
@@ -1094,7 +1134,7 @@ const roomLock=(store,id,now)=>{
 const canGoWith=(id,met,now)=>PLACES.filter(p=>!p.into
   &&(p.who||[]).includes(id)
   &&placeOpen(p,met||[])&&placeHours(p,now)&&wendOnlyOk(p,now)&&!goneToday(p.name,now)
-  &&(p.meet!=="out"||whoOut(now).includes(id))).map(p=>p.name);
+  &&(p.meet!=="out"||outAt(p,now).includes(id))).map(p=>p.name);
 /* ── 단톡방은 나중에 생긴다 ──
    민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
    유저는 초대를 받는다 — 왜 초대됐는지는 모른 채로. 그게 이 앱의 모양이다.
@@ -1123,7 +1163,7 @@ const roomsOn=on=>ROOMS.filter(r=>r.id!=="group"||on);
    왜 안 되는지는 흐리게 남겨서 알려준다 — 아예 빼면 왜 없는지를 모른다.
    아직 안 열린 자리는 아예 안 보인다. 모르는 자리는 없는 자리다. */
 const giftSpots=(char,met,now)=>SPOTS.filter(p=>placeOpen(p,met)).map(p=>{
-  const canMeet=p.meet==="out" ? whoOut(now).includes(char)
+  const canMeet=p.meet==="out" ? outAt(p,now).includes(char)
               : p.pick ? true
               : (p.who||[]).includes(char);
   const why=!canMeet ? (p.meet==="out"?"지금은 아무도 없어요":"여기엔 안 와요")
@@ -1620,6 +1660,9 @@ return {
   loadExtend,
   SYS1_AFTER,
   sys1Due,
+  loadFirstMet,
+  saveFirstMet,
+  unmetOne,
   loadSys1,
   loadGetcha,
   saveGetcha,
@@ -1745,6 +1788,7 @@ return {
   AT_WORK,
   freeOut,
   whoOut,
+  outAt,
   atWorkNow,
   LOCK_LINES,
   SOON_LINES,
@@ -1876,6 +1920,9 @@ export const {
   loadExtend,
   SYS1_AFTER,
   sys1Due,
+  loadFirstMet,
+  saveFirstMet,
+  unmetOne,
   loadSys1,
   loadGetcha,
   saveGetcha,
@@ -2001,6 +2048,7 @@ export const {
   AT_WORK,
   freeOut,
   whoOut,
+  outAt,
   atWorkNow,
   LOCK_LINES,
   SOON_LINES,
