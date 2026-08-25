@@ -1199,10 +1199,14 @@ const SCENE_REASONS = ["memory_reveal","null_identity","confession","irreversibl
    매 요청에 실어 보낸다. 바뀌는 길은 하나다 — 워커가 검증된 응답 뒤에 낸
    story_transition Effect를 장부가 적용하는 것. 클라이언트가 제 손으로
    explained/acknowledged를 찍는 자리는 없다.
-     firstContact  unseen → pending → explained   민현의 병원 옥상 설명
+     firstContact  unseen → pending → explained → recognized  민현의 병원 옥상
      jaeeonMemory  hidden → opened → acknowledged 재언의 20년 기억
-     partnerKnown  {jaeeon,minhyun}               상대가 정해진 걸 아는가 */
-const STORY_FC=["unseen","pending","explained"];
+     partnerKnown  {jaeeon,minhyun}               상대가 정해진 걸 아는가
+
+   explained는 민현이 **말한** 자리고 recognized는 유저가 **받아들인** 자리다.
+   둘을 한 칸으로 뭉치면 말한 순간 아는 사이가 되어, 유저가 계속 「누구세요」를
+   쳐도 워커에 실리는 사실은 「이미 설명했다」 하나뿐이었다. */
+const STORY_FC=["unseen","pending","explained","recognized"];
 const STORY_JM=["hidden","opened","acknowledged"];
 const loadStory=()=>{try{
   const o=JSON.parse(localStorage.getItem("null_story"))||{};

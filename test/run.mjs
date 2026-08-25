@@ -5108,7 +5108,15 @@ eq('시간표 단추는 peek보다 좁다',
                                  from: 'unseen', to: '끝남' })),
     'firstContact의 상태가 아니다: unseen → 끝남');
   eq('두 상태 사슬이 계약대로다', [FIRST_CONTACT, JAEEON_MEMORY],
-    [['unseen', 'pending', 'explained'], ['hidden', 'opened', 'acknowledged']]);
+    [['unseen', 'pending', 'explained', 'recognized'], ['hidden', 'opened', 'acknowledged']]);
+  /* 말한 것과 통한 것은 다른 칸이다 — explained에서 recognized로만 간다 */
+  eq('설명 뒤에 받아들인 자리가 따로 있다',
+    makeEffect('r', { type: 'story_transition', key: 'firstContact',
+                      from: 'explained', to: 'recognized' }).to, 'recognized');
+  eq('받아들인 자리에서 설명으로는 못 돌아간다',
+    boom(() => makeEffect('r', { type: 'story_transition', key: 'firstContact',
+                                 from: 'recognized', to: 'explained' })),
+    'firstContact는 뒤로 못 간다: recognized → explained');
   eq('초대도 같은 규칙으로 id를 받는다',
     makeEffect('req-1', { type: 'invite', place: '빨래방', char: 'jaeeon' }).id,
     mintEffectId('req-1', 'invite', 'jaeeon', '빨래방'));
@@ -8564,6 +8572,21 @@ eq('시간표 단추는 peek보다 좁다',
     '병원 가 봐요. 약도 챙기고.', '감기 걸리면 병원 가요', '옥상에서 컵라면 먹었어요',
     '재활용 쓰레기 버리고 올게요', '옥상 문 잠겼던데요',
   ].filter(t => FIRSTMEET_EXPLAIN.test(t)), []);
+
+  /* ── 받아들임 판정 (explained → recognized) ──
+     설명했다와 통했다는 다른 사건이다. 여기서 보는 것은 유저 발화고,
+     기억해냈는지가 아니라 사실로 받아들였는지다 — 유저는 끝까지 기억 못 한다.
+     부정이 이긴다: 수긍하는 말이 같이 있어도 부정이 있으면 안 넘어간다. */
+  const takes = t => ENG.FIRSTMEET_TAKE.test(t) && !ENG.FIRSTMEET_DENY.test(t);
+  eq('받아들임 — 잡아야 할 것', [
+    '아 그때 그 사람이구나.', '그랬구나. 기억은 안 나는데.', '그런 일이 있었네요.',
+    '그랬나 봐요.', '아 옥상이었어요?',
+  ].filter(t => !takes(t)), []);
+  eq('받아들임 — 놓아줘야 할 것', [
+    '누구세요?', '그런 적 없는데요.', '모르겠는데요.',
+    '사람 잘못 보신 것 같아요.', '오늘 날씨 좋네요.',
+    '그랬구나. 근데 사람 잘못 보신 것 같은데요.',   // 부정이 이긴다
+  ].filter(t => takes(t)), []);
 
   /* ── 사유별 승인 조건 (E6) — 뭉뚱그리지 않는다 ── */
   const ST0 = { firstContact: 'unseen', jaeeonMemory: 'hidden',

@@ -220,15 +220,16 @@ console.log("── 11. 운영 기본·판 번호·배포 무변경 ──");
     return /if \(noFinalizer\) \{ picked = survivors\[0\]; break; \}/.test(src)
       && /String\(\(env && env\.NO_FINALIZER\) \|\| ""\) === "1"/.test(src);
   })(), true);
-  const diff = execSync("git diff --name-only HEAD", { cwd: ROOT }).toString().trim().split("\n").filter(Boolean);
-  eq("배포 파일에 diff가 없다",
-    diff.filter(f => ["index.html", "app.js", "app-ui.js", "app-data.js", "null.css",
-      "app/lib/db.ts", "app/lib/rules.ts", "app/App.tsx"].includes(f)), []);
-  /* README는 시험 수를 적는 자리라 시험이 늘면 같이 바뀐다 — 배포물이 아니다 */
-  eq("바뀐 것은 워커·도구·시험·README와 교체한 사진뿐이다",
-    diff.filter(f => !f.startsWith("tools/") && !f.startsWith("test/")
-      && f !== "worker.js" && f !== "README.md" && !f.startsWith("docs/")
-      && !f.endsWith(".webp")), []);
+  /* ── 「배포 파일에 diff가 없다」는 걷었다 ──
+     그건 실험이 도는 동안 작업 트리를 잠가두는 자물쇠였다. 실험은 끝났고
+     결과는 이미 배포됐다. 그대로 두면 앞으로의 모든 클라이언트 작업이
+     이 파일에서 걸린다 — 자물쇠가 지킬 것이 없는데 문만 막는 꼴이다.
+     실험이 재현 가능한지는 위 네 줄과 아래 §12(상한)가 지킨다.
+
+     대신 지킬 것은 남긴다: 실험 산출물은 저장소에 안 들어간다. */
+  const tracked = execSync("git ls-files replay-out-deepblind replay-out-deepblind-pure",
+    { cwd: ROOT }).toString().trim();
+  eq("실험 산출물은 커밋되지 않는다", tracked, "");
 }
 
 console.log("── 12. 상한이 코드로 강제된다 ──");

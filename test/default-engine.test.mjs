@@ -191,6 +191,45 @@ console.log("── 옛 배선은 살아 있다 ──");
     stagesOf(await run({ NO_CRITICS: "1" }, C01)), ["writer"]);
 }
 
+console.log("── 첫 만남: 말한 것과 통한 것 ──");
+{
+  /* N07은 이미 firstContact:"explained"다 — 민현이 병원 옥상을 말한 뒤다.
+     여기서 움직이는 것은 유저 쪽이고, 이번 턴 유저 발화만 본다. */
+  const say = text => {
+    const b = JSON.parse(JSON.stringify(N07));
+    b.history = [...b.history.slice(0, -1), { role: "user", sender: "user", content: text }];
+    return b;
+  };
+  const fcOf = r => (r.data.effects || [])
+    .filter(e => e.type === "story_transition" && e.key === "firstContact")
+    .map(e => `${e.from}→${e.to}`);
+  eq("받아들이면 한 칸 간다",
+    fcOf(await run({}, say("아 그때 그 사람이구나. 기억은 안 나는데."))),
+    ["explained→recognized"]);
+  eq("부정하면 안 움직인다",
+    fcOf(await run({}, say("사람 잘못 보신 것 같은데요."))), []);
+  eq("아무 상관 없는 말에도 안 움직인다",
+    fcOf(await run({}, say("오늘 급식 뭐였어요?"))), []);
+  /* 이미 통한 뒤에는 두 번 안 낸다 — 뒤로도 못 가고 같은 칸도 다시 안 찍는다 */
+  const done = JSON.parse(JSON.stringify(say("아 그때 그 사람이구나.")));
+  done.story = { ...done.story, firstContact: "recognized" };
+  eq("이미 통했으면 다시 안 찍는다", fcOf(await run({}, done)), []);
+  /* 사실이 상태마다 다르게 실린다 — 「설명했다」와 「받아들였다」는 다른 줄 */
+  const factsOf = b => {
+    const r = { ids: [] };
+    return run({}, b).then(x => {
+      r.ids = ((x.data.trace.turnContext || {}).facts || []).map(f => f.fact_id);
+      return r.ids;
+    });
+  };
+  eq("explained에는 미확인 줄이 실린다",
+    (await factsOf(say("네."))).includes("story.first_contact.explained"), true);
+  eq("recognized에는 받아들인 줄이 실린다",
+    (await factsOf(done)).includes("story.first_contact.recognized"), true);
+  eq("두 줄이 같이 실리지는 않는다",
+    (await factsOf(done)).includes("story.first_contact.explained"), false);
+}
+
 console.log("── 잠긴 자리 제안 (invite) ──");
 {
   /* 아직 안 열린 자리를 대사가 입에 올려도 그 턴은 그대로 나간다.

@@ -345,7 +345,13 @@ function contradicts(facts, fact_id, claimed) {
    이야기가 어디까지 왔나. 「예약했다」와 「일어났다」를 구별하는 것이
    이 세 칸이 있는 이유다 — 모델을 부르기 전에 explained/acknowledged를
    찍어버려서, 실패한 턴에 장면이 증발한 적이 있다. */
-const FIRST_CONTACT = ["unseen", "pending", "explained"];
+/* ── explained와 recognized는 다르다 ──
+   전에는 「설명했다」가 마지막 칸이었다. 그러면 민현이 병원 옥상을 말한
+   순간 이야기가 끝난 것으로 실려서, 유저가 「누구세요」를 몇 번을 더 쳐도
+   아는 사이로 굴었다. 말한 것과 통한 것은 다른 사건이다.
+   recognized는 **유저가 그 만남을 사실로 받아들인** 자리다. 기억하는 것과도
+   다르다 — 유저는 끝까지 기억 못 할 수 있고, 그래도 받아들일 수 있다. */
+const FIRST_CONTACT = ["unseen", "pending", "explained", "recognized"];
 const JAEEON_MEMORY = ["hidden", "opened", "acknowledged"];
 
 function makeStoryState(s) {
@@ -505,6 +511,14 @@ function materializeEffects(requestId, picked, ctx) {
     else if (st.firstContact === "pending" && explained)
       out.push(makeEffect(requestId, { type: "story_transition", key: "firstContact",
         from: "pending", to: "explained" }));
+    /* ── 통한 자리 ──
+       설명은 이미 나갔다. 여기서 움직이는 것은 **유저 쪽**이다 — 이번 턴에
+       유저가 그 만남을 사실로 받아들였을 때만 한 칸 간다. 인물이 무슨 말을
+       했는지는 안 본다. 아무 말도 안 받아들이면 explained에 그대로 서 있고,
+       다음 턴에도 「아직 확인되지 않았다」가 실린다. */
+    else if (st.firstContact === "explained" && g.firstMeetTaken)
+      out.push(makeEffect(requestId, { type: "story_transition", key: "firstContact",
+        from: "explained", to: "recognized" }));
   }
   /* ── 공개(disclosure) — 소유자가 출처를 실제로 밝힌 턴에만 (§8.5) ──
      제안은 disclose 갈래가 담고(picked.disclosure), 검증과 발행은 여기다:
@@ -2853,7 +2867,11 @@ function storyFacts(st) {
       "state", ["minhyun", "user"]));
   if (st.firstContact === "explained")
     F.push(makeFact("story.first_contact.explained",
-      "이민현이 병원 옥상에서 처음 만났다고 유저에게 이미 설명했다",
+      "이민현이 병원 옥상에서 처음 만났다고 유저에게 설명했다. 유저가 그것을 사실로 받아들였는지는 아직 확인되지 않았다 — 설명했다는 것만으로 아는 사이처럼 굴지 않는다",
+      "state", ["minhyun", "user"]));
+  if (st.firstContact === "recognized")
+    F.push(makeFact("story.first_contact.recognized",
+      "유저가 병원 옥상에서 만난 적이 있다는 것을 사실로 받아들였다. 유저는 그 일을 기억해내지는 못했다",
       "state", ["minhyun", "user"]));
   if (st.jaeeonMemory === "opened")
     F.push(makeFact("story.jaeeon_memory.opened",
@@ -4705,6 +4723,16 @@ const FIRSTMEET_REPLY = /무슨\s*(말|소리)|뭔\s*소리|누구(세요|야|�
    설명이 되면, 서 있던 질문이 설명 없이 조용히 닫힌다. 병원 옥상이라는
    짝이거나, 그 자리에서 만났다는 문장이어야 한다. */
 const FIRSTMEET_EXPLAIN = /병원\s*옥상|(옥상|병원)에서\s*.{0,6}(만났|봤|마주쳤)|재활[가-힣]{0,3}\s*병원|재활\s*치료/;
+/* ── 유저가 그 만남을 받아들였는가 (explained → recognized) ──
+   기억해내는 것과 다르다. 유저는 끝까지 기억 못 할 수 있고 그래도 받아들일
+   수 있다 — 「기억은 안 나는데 그랬나 봐요」가 정확히 그 자리다. 그래서
+   기억 낱말이 아니라 **수긍**을 본다.
+   판정은 두 조각이다: 수긍하는 말이 있고, 부정하는 말이 없어야 한다.
+   부정이 이긴다 — 「그랬구나, 근데 사람 잘못 보신 것 같은데요」는 수긍이
+   아니다. 반쪽만 보면 서 있던 질문이 조용히 닫힌다(EXPLAIN과 같은 이유). */
+const FIRSTMEET_TAKE = /그랬(구나|군요|나\s*봐|나\s*보네|어요)|그런\s*일이|그때\s*(그|그거|봤|만났|였)|아\s*그때|맞네(요)?|(병원|옥상)[가-힣]*\s*(이었|였|맞)/;
+/* 이게 있으면 위가 걸려도 전진 안 한다. 상태는 explained에 그대로 선다 */
+const FIRSTMEET_DENY = /그런\s*적\s*(은\s*)?없|아닌\s*것\s*같|잘못\s*(아신|보신|알)|사람\s*잘못|누구(세요|시|신데)|모르겠(는데|어|네|어요)/;
 /* 고백. 「저 떡볶이 좋아해요」 「민초 사랑해」가 걸리면 안 된다 — 좋아해와
    사랑해는 사람을 향해 문장을 열거나, 문장이 그 말 하나일 때만이다.
    「학생들이 선생님을 좋아해요」 같은 3인칭 진술도 고백이 아니다. */
@@ -5985,7 +6013,12 @@ export default {
                         firstMeetAsked: mode === "chat" && room === "minhyun"
                           && body.greet !== true
                           && (FIRSTMEET_ASK.test(lastUser)
-                              || (FIRSTMEET_OPEN.test(lastChar) && FIRSTMEET_REPLY.test(lastUser))) };
+                              || (FIRSTMEET_OPEN.test(lastChar) && FIRSTMEET_REPLY.test(lastUser))),
+                        /* 설명을 들은 유저가 그것을 받아들였는가. 감지는 여기
+                           한 번이고 materializeEffects는 결과만 본다(E4) */
+                        firstMeetTaken: mode === "chat" && room === "minhyun"
+                          && body.greet !== true
+                          && FIRSTMEET_TAKE.test(lastUser) && !FIRSTMEET_DENY.test(lastUser) };
 
       if (engineMode(env) === "legacy") {
         const t0 = Date.now();
@@ -6938,7 +6971,8 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          OPENAI_MODEL, GPT_STAGES, joinBlocks, toOpenAIMessages, openAIUsage, callOpenAI, stageModel,
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
-         MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
+         MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,
+         CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
          JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,
          sceneHead, criticPacket, finalizerPacket, readProblems,
          CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES,
