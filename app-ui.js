@@ -1250,7 +1250,7 @@ const SCENE_LINES=6;
    길게 누르기(600ms)와 우클릭 둘 다 연다 — 손가락과 마우스가 다 있어야 한다.
    짧게 누르는 것은 원래 하던 일(사진 확대)이라 안 건드린다.
    고친 말풍선에는 모서리에 ✎가 붙는다. 어디를 손봤는지 보이게. */
-function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart,fixed,onFix}){
+function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart,fixed,onFix,locked}){
   const [v,setV]=useState("");
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
   /* 고칠 것 메모. 말풍선을 길게 누르거나(600ms) 우클릭하면 열린다 —
@@ -1419,6 +1419,10 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
     </div>
     {watch?
       <div className="watchbar"><span className="rec"/>u can't join this one</div>
+      /* 아직 출근하지 않은 사람 — 입력창 자리에 이유가 선다. 방을 감추지
+         않는 건 이 사람이 없는 게 아니라 아직 안 온 것이기 때문이다 */
+      :locked?
+      <div className="lockbar">{LOCK_LINES.map((t,i)=><span key={i}>{t}</span>)}</div>
       :<div className="inputbar">
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
         <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>

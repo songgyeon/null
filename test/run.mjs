@@ -783,8 +783,8 @@ eq('점이 꺼진 사람은 안 건다',
 eq('선톡 함수 안에서도 막는다', /if\(!canGreet\(id\)\)return;/.test(web), true);
 /* 뽑고 나서 막으면 그 판은 아무도 안 건다. 새벽에는 제일 오래 조용한 쪽이
    늘 재언이라, 민현이 영영 안 걸린다 */
-eq('자는 쪽은 후보에서 먼저 뺀다',
-  /\["jaeeon","minhyun"\]\.filter\(id=>canGreet\(id\)\)\.map\(id=>\{/.test(web), true);
+eq('자는 쪽과 아직 출근 안 한 쪽을 후보에서 먼저 뺀다',
+  /\["jaeeon","minhyun"\]\s*\n\s*\.filter\(id=>canGreet\(id\)&&!roomLocked\(storeRef\.current,id\)\)\.map\(id=>\{/.test(web), true);
 /* filter(canGreet)로 넘기면 두 번째 인자로 인덱스가 들어가 now가 0이 된다.
    0은 1970년이고 그 해의 시각은 UTC 기준이라 어느 쪽으로 튈지 모른다 */
 eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter\(canGreet\)/.test(web), false);
@@ -970,10 +970,12 @@ eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.k
      보이고, 자리에서 만난 사람이 뽑혀 조용히 삼켜진다. 게다가 그 추첨은
      view가 바뀌면 정리와 함께 예약까지 취소돼서 자리로 넘어가는 순간 죽는다.
      실제로 다섯 띠 중 넷에서 첫인사가 안 왔다. 그래서 자리 여는 쪽에서 직접 건다 */
+  /* 다만 주말이면 안 건다 — 그 사람은 학교에서 만나야 하는데 실습이
+     월요일부터라 아직 출근을 안 했다. 월요일에 추첨이 데려온다 */
   eq('다른 한 사람이 첫인사를 보낸다',
-    /const other=o\.room==="jaeeon"\?"minhyun":"jaeeon";\s*\n\s*if\(canGreet\(other\)\)\{/.test(web), true);
+    /const other=o\.room==="jaeeon"\?"minhyun":"jaeeon";\s*\n\s*if\(canGreet\(other\)&&!roomLocked\(storeRef\.current,other\)\)\{/.test(web), true);
   /* 새벽이면 재언은 안 온다 — 여섯 시에 온다 */
-  eq('그 첫인사도 자는 사람은 거른다', /if\(canGreet\(other\)\)\{/.test(web), true);
+  eq('그 첫인사도 자는 사람은 거른다', /if\(canGreet\(other\)&&!roomLocked\(/.test(web), true);
   /* 직접 걸었으면 추첨은 일 분간 조용해야 한다. 안 그러면 둘이 같은 초에 온다 */
   eq('직접 건 뒤에는 추첨이 조용하다',
     /greetAtRef\.current=Date\.now\(\);\s*\/\/ 추첨은 일 분간 조용히/.test(web), true);
@@ -1347,6 +1349,49 @@ eq('생성된 파일이라고 적어둔다',
   /* .wbtn이 뒤에 나와서 한 클래스로는 진다 — 두 클래스로 못박아야 분홍이다 */
   eq('단추 색이 .wbtn에 안 먹힌다', /\.wbtn\.gcbtn\{/.test(css), true);
   eq('이 창만 어둡다', /\.dlg\.getcha\{background:linear-gradient\(180deg,#3d3170,#2b2352\)/.test(css), true);
+}
+
+/* ── 아직 출근하지 않은 사람 ──
+   첫 자리에서 만난 사람의 방만 열린다. 다른 한 사람은 학교에서 만나야
+   하는데 교생 실습이 월요일부터라 주말에는 그 자리가 없다. */
+{
+  const box = () => {
+    const mem = new Map();
+    return { localStorage: { getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
+      location: { search: '' } };
+  };
+  const g = box();
+  const D = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {roomLocked,LOCK_LINES};')(g.localStorage, g.location);
+  const SAT = new Date(2026, 0, 10, 14, 0);    // 토요일
+  const TUE = new Date(2026, 0, 6, 14, 0);     // 화요일
+  const empty = { msgs: {} };
+  const talked = { msgs: { jaeeon: [{ sender: 'jaeeon', text: '왔어요?', ts: 1 }] } };
+  eq('주말에 빈 방은 잠긴다', D.roomLocked(empty, 'jaeeon', SAT), true);
+  eq('평일에는 빈 방도 안 잠긴다', D.roomLocked(empty, 'jaeeon', TUE), false);
+  /* 말이 한 마디라도 오갔으면 이미 만난 것이다 — 다음 주말에도 안 잠긴다 */
+  eq('만난 방은 주말에도 안 잠긴다', D.roomLocked(talked, 'jaeeon', SAT), false);
+  /* 단톡·관전은 제 조건(groupReady)이 따로 있다 */
+  eq('단톡·관전은 여기 안 걸린다',
+    [D.roomLocked(empty, 'group', SAT), D.roomLocked(empty, 'health', SAT)], [false, false]);
+  eq('입력창에 설 두 줄이 정해져 있다', D.LOCK_LINES,
+    ['아직 츌근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა', '교생 실습은 월요일부터 ♡']);
+
+  const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
+  const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
+  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLocked\(store,view\)\}/.test(app), true);
+  /* 방을 감추지 않는다 — 이 사람이 없는 게 아니라 아직 안 온 것이다 */
+  eq('잠긴 방은 입력창 자리에 이유가 선다',
+    /:locked\?\s*\n\s*<div className="lockbar">\{LOCK_LINES\.map/.test(ui), true);
+  eq('관전방 자리와 같은 높이다', /\.lockbar\{flex:none;/.test(css), true);
+  /* 방을 여는 것도 선톡 경로다 — 여기를 안 막으면 「아직 출근하지
+     않았어요」 위에 타이핑 표시가 뜬다 */
+  eq('잠긴 방은 열어도 말이 안 온다',
+    /else if\(!roomLocked\(storeRef\.current,id\)\)greet\(id,700\)/.test(app), true);
 }
 
 /* ── 앱이 워커에 보내는 것이 웹과 같다 ──
@@ -8234,9 +8279,16 @@ eq('시간표 단추는 peek보다 좁다',
     const mine = sect.split('\n').filter(l => l.startsWith('　민현'));
     return mine.length === 4 && mine.every(l => l.includes('또 볼 줄은 몰랐는데. 저 알죠?'));
   })(), true);
+  /* 재언도 용건부터 만드는 건 같다. 다만 학교 밖 자리(도서관·빨래방)에서는
+     아직 새로 온 선생님인 줄 모르므로 「새로 오셨죠」로 열지 않는다 —
+     그 말은 이미 인사를 나눈 사이여야 나온다. 보건실만 학교 안이다. */
   eq('재언은 용건부터 만든다', (() => {
     const mine = sect.split('\n').filter(l => l.startsWith('　재언'));
-    return mine.length === 3 && mine.every(l => /새로 오/.test(l));
+    return [mine.length, mine.filter(l => /새로 오/.test(l)).length];
+  })(), [3, 1]);
+  eq('학교 밖에서는 아는 척하지 않는다', (() => {
+    const out = sect.split('\n').filter(l => l.startsWith('　재언') && !/편하게 앉으세요/.test(l));
+    return out.length === 2 && out.every(l => !/새로 오/.test(l));
   })(), true);
 
   /* 실제로 뽑아 본다 — 표와 문구가 이어져 있어도 고르는 쪽이 못 찾으면 소용없다 */

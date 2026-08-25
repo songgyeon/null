@@ -1547,8 +1547,11 @@ function App(){
       if(lines.length)setTimeout(()=>enqueue("health",lines),450);
     }catch(e){ console.error("%c[NULL] 첫 장면 실패 ▶ "+(e&&e.message||e),"color:#c23b50"); }
   };
+  /* 잠긴 방은 열어도 말이 안 온다. 여기를 안 막았더니 방을 여는 순간
+     선톡이 걸려서, 「아직 출근하지 않았어요」 위에 타이핑 표시가 떴다. */
   const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));
-    if(id==="health")seedWatch(); else greet(id,700)};
+    if(id==="health")seedWatch();
+    else if(!roomLocked(storeRef.current,id))greet(id,700)};
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
@@ -1697,8 +1700,13 @@ function App(){
        자리에서 만난 사람이 뽑혀 조용히 삼켜진다. 게다가 그 추첨은 view가
        바뀌면 정리와 함께 예약까지 취소돼서, 자리로 넘어가는 순간 죽는다.
        새벽이면 재언은 안 온다 — 여섯 시에 온다(canGreet). */
+    /* ── 안 만난 사람은 출근하는 날에 온다 ──
+       전에는 여기서 무조건 걸었다. 첫 자리에서 민현을 만났는데 삼 초 뒤에
+       재언이 먼저 말을 걸었다 — 만난 적도 없는 사람한테서, 번호가 어디서
+       났는지 설명 없이. 주말이면 그 사람은 아직 출근을 안 했으므로 안 건다.
+       월요일이 되면 아래 선톡 추첨이 데려온다(그때 첫 마디는 「첫 만남」이다). */
     const other=o.room==="jaeeon"?"minhyun":"jaeeon";
-    if(canGreet(other)){
+    if(canGreet(other)&&!roomLocked(storeRef.current,other)){
       greetAtRef.current=Date.now();               // 추첨은 일 분간 조용히
       setTimeout(()=>greet(other,0),2600+Math.random()*2600);
     }
@@ -1719,7 +1727,8 @@ function App(){
     if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
     /* 자는 쪽은 후보에서 먼저 뺀다. 뽑고 나서 막으면 그 판은 아무도 안 건다 —
        새벽에는 제일 오래 조용한 쪽이 늘 재언이라, 민현이 영영 안 걸린다 */
-    const cand=["jaeeon","minhyun"].filter(id=>canGreet(id)).map(id=>{
+    const cand=["jaeeon","minhyun"]
+      .filter(id=>canGreet(id)&&!roomLocked(storeRef.current,id)).map(id=>{
       const l=storeRef.current.msgs[id]||[];
       return {id,gap:l.length?(Date.now()-l[l.length-1].ts)/60000:-1};
     }).filter(c=>c.gap<0||c.gap>=180)
@@ -1747,6 +1756,7 @@ function App(){
        onMinimize={()=>setView("list")} onCart={()=>setCart(true)}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}
        fixed={new Set(edits.filter(e=>e.room===view&&e.mid).map(e=>e.mid))}
+       locked={roomLocked(store,view)}
        onFix={(mid,t)=>editLine(view,mid,t)}/>}
     {invite&&<div className="dlgov" onClick={()=>answerInvite(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>

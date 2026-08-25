@@ -781,6 +781,19 @@ const WEND_SLOTS=4;      // 주말은 이름이 없다. 유저가 넷을 직접 
 const weekNo=d=>Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5+3)/7);
 const isYajaWeek=(now)=>weekNo(now||nowClock())%2===0;
 const isWend=d=>{const w=(d||nowClock()).getDay();return w===0||w===6};
+/* ── 아직 출근하지 않은 사람 ──
+   첫 자리에서 만난 사람의 방만 열린다. 다른 한 사람은 학교에서 만나야
+   하는데 교생 실습이 월요일부터라 주말에는 그 자리가 없다. 그래서
+   주말 동안 그 방은 잠겨 있고 월요일 선톡으로 열린다.
+   상태를 따로 안 적는다 — 말이 한 마디라도 오갔으면 이미 만난 것이다.
+   그러면 다음 주말이 와도 안 잠기고, 판을 새로 열면 저절로 돌아온다.
+   단톡·관전은 제 조건(groupReady)이 따로 있어 여기 안 걸린다. */
+const roomLocked=(store,id,now)=>
+  (id==="jaeeon"||id==="minhyun")
+  && !(((store&&store.msgs&&store.msgs[id])||[]).length)
+  && isWend(now||worldNow());
+/* 잠긴 방의 입력창 자리에 서는 두 줄 */
+const LOCK_LINES=["아직 츌근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა","교생 실습은 월요일부터 ♡"];
 /* 오늘 시간표. 야자는 담당인 목요일에만 붙고, 주말은 아예 칸이 없다 —
    학교가 정해주는 하루가 아니라 유저가 적는 하루라서 */
 const daySlots=(now)=>{

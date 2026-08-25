@@ -1015,6 +1015,13 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:11px;letter-spacing:.08em;color:#2f9e5a;
  background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
 .rec{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5470;animation:recblink 1.2s infinite}
+/* 아직 출근하지 않은 사람의 방. 입력창과 같은 자리·같은 높이라
+   방을 열었을 때 화면이 안 흔들린다 */
+.lockbar{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;
+ padding:11px 14px calc(13px + env(safe-area-inset-bottom));font-size:11px;line-height:1.7;
+ letter-spacing:.04em;color:#8a7fc0;text-align:center;
+ background:#e4dff5;border-top:1px solid #b6a9e0;box-shadow:inset 0 1px 0 #fff}
+.lockbar span:last-child{color:#b39ad8;letter-spacing:.06em}
 .empty{margin:auto;text-align:center;color:#b0a6d8;font-size:11.5px;line-height:2;letter-spacing:.04em;padding:0 30px}
 .msgs::-webkit-scrollbar,.rooms::-webkit-scrollbar,.gal::-webkit-scrollbar{width:0}
 /* ── 캐릭터 프로필 — Y2K 미니홈피 카드 ── */
