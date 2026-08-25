@@ -1378,7 +1378,7 @@ eq('생성된 파일이라고 적어둔다',
   eq('단톡·관전은 여기 안 걸린다',
     [D.roomLocked(empty, 'group', SAT), D.roomLocked(empty, 'health', SAT)], [false, false]);
   eq('입력창에 설 두 줄이 정해져 있다', D.LOCK_LINES,
-    ['아직 츌근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა', '교생 실습은 월요일부터 ♡']);
+    ['아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა', '교생 실습은 월요일부터 ♡']);
 
   const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
   const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');

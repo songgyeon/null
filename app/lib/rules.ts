@@ -802,7 +802,7 @@ const roomLocked=(store,id,now)=>
   && !(((store&&store.msgs&&store.msgs[id])||[]).length)
   && isWend(now||worldNow());
 /* 잠긴 방의 입력창 자리에 서는 두 줄 */
-const LOCK_LINES=["아직 츌근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა","교생 실습은 월요일부터 ♡"];
+const LOCK_LINES=["아직 출근하지 않았어요 ૮ ⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝ ྀིა","교생 실습은 월요일부터 ♡"];
 /* 오늘 시간표. 야자는 담당인 목요일에만 붙고, 주말은 아예 칸이 없다 —
    학교가 정해주는 하루가 아니라 유저가 적는 하루라서 */
 const daySlots=(now)=>{
