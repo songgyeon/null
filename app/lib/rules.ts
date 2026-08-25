@@ -696,7 +696,11 @@ const PLACES=[
   {name:"보건실",   map:"school", hours:[8,17], wend:false, bg:"place-nurse.webp",   icon:"nurse",   need:[],                 who:["jaeeon"],  own:"jaeeon",  item:"bandaid",
    note:"커튼 안쪽 침대 두 개."},
   /* 옥상은 둘 다 만나본 뒤에 열린다 — 학교에서 유일하게 둘 다 오는 자리라서 */
-  {name:"옥상",     map:"school", hours:[8,22], wend:false, bg:"place-rooftop.webp", icon:"rooftop", need:["교실","보건실"],  who:["jaeeon","minhyun"], item:"can",
+  /* 둘 다 오는 자리라 누구랑 갈지 유저가 고른다(pick). 안 물으면 코드가
+     「말 많이 나눈 쪽」으로 대신 고르는데, 유저는 왜 그 사람이 왔는지 알
+     길이 없다. 편의점·빨래방은 우연히 마주치는 자리라 안 묻는 게 맞지만
+     여기는 시간 내서 가는 자리다. */
+  {name:"옥상",     map:"school", hours:[8,22], wend:false, pick:true, bg:"place-rooftop.webp", icon:"rooftop", need:["교실","보건실"],  who:["jaeeon","minhyun"], item:"can",
    note:"문은 잠겨 있어야 하는데 안 잠겨 있다."},
   {name:"체육관",   map:"school", hours:[8,18], wend:false, bg:"place-gym.webp", icon:"gym",     need:["옥상"],           who:["minhyun"],          item:"wrist",
    note:"구석에 매트가 쌓여 있다."},

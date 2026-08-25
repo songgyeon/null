@@ -1454,6 +1454,23 @@ eq('생성된 파일이라고 적어둔다',
     const all = w.map(x => x.text).join('');
     return (all.match(/처음부터 교생인 걸 아는 게 아니라/g) || []).length;
   })(), 1);
+  /* 둘 다 오는 자리는 유저가 고른다. 안 물으면 코드가 「말 많이 나눈 쪽」으로
+     대신 고르는데 유저는 그 규칙을 볼 수 없다. 우연히 마주치는 자리
+     (meet:"out")는 안 묻는 게 맞다 — 그게 그 자리의 성격이라서. */
+  eq('둘 다 오는 자리만 누구랑 갈지 묻는다', (() => {
+    const box2 = () => { const mem = new Map();
+      return { getItem: k => mem.has(k) ? mem.get(k) : null,
+        setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) } };
+    const D = new Function('localStorage', 'location',
+      readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+        .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+      + '\nreturn {PLACES};')(box2(), { search: '' });
+    const pick = D.PLACES.filter(p => p.pick).map(p => p.name).sort();
+    const two = D.PLACES.filter(p => !p.into && (p.who || []).length === 2 && p.meet !== 'out')
+      .map(p => p.name).sort();
+    return [pick, two];
+  })(), [['도서관', '레코드샵', '옥상'], ['도서관', '레코드샵', '옥상', '집']]);
+
   /* 세계가 언제 시작하는지가 제일 앞줄이다 — 뒤에 오는 조건절이 그걸 본다 */
   eq('첫 문장이 세계의 시작을 적는다', (() => {
     const w = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '')[0].text;
