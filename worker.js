@@ -2433,7 +2433,9 @@ ${jos(userName || "선생님", "이/가")} 너에게 "${name}"${josa(name, "을/
 - 받은 사실을 부정하지 않는다. 이미 손에 있다. 돌려주거나 무르는 일은 없다.
 - ${userName || "선생님"}에게 받은 것은 이것뿐이다. 가방에 있는 다른 물건을
   같이 받은 것처럼 세지 않는다 — 그중에는 네가 준 것이 섞여 있다.
-- 이 물건을 앞으로 쓰게 된다. 그 얘기를 지금 다 하지는 않는다.${
+- 이 물건을 앞으로 쓰게 된다. 그 얘기를 지금 다 하지는 않는다.
+- 반응 재료는 ${jos(userName || "선생님", "이/가")} 보낸 문구와 물건 이름에서만 가져온다.
+  내용물·글씨·순서·곡목록 같은 보이지 않는 세부를 묘사하지 않는다.${
   lore ? `\n- 이 물건은 너에게 이런 것이 된다: ${lore}\n  이 설명을 읊지 않는다. 그렇게 굴기만 한다.` : ""}${
   GIFT_ON_PROFILE[(gift && gift.key) || ""] ? `
 - 이건 네 **프로필 배경**에 걸린다. 유저가 프로필을 열면 보인다.
@@ -3935,6 +3937,39 @@ const QUOTE_BACK = /^(.+?)\s*(?:이)?(?:래요|래|라뇨|라니요|라니|랍�
 const bareSaid = t => (t || "").toString()
   .replace(/^[\s"'“”‘’「」]+/, "").replace(/[\s"'“”‘’「」.?!…~]+$/, "").trim();
 
+/* ── 유저의 말을 따옴표에 넣어 되묻는 것 ──
+   「"걔"요?」 「"그런가"라뇨」. 세계관에 적어둔 지시가 뚫려서 실제로 나왔다.
+
+   dropEcho는 유저의 말 **전체**에 인용 어미만 얹은 줄을 통째로 버린다. 여기는
+   다른 것이다 — 조각을 따옴표에 넣어 도로 들이미는 것이고, 버릴 줄이 아니라
+   **따옴표만 벗길** 줄이다. 지우면 되받기가 없어지고, 되받기는 특히 민현에게
+   보존해야 하는 문법이다. 따옴표가 없는 맨몸 되받기(「걔가 뭐예요」)는 이 함수가
+   아예 안 건드린다 — 따옴표 문자 자체가 유일한 표적이다.
+
+   조각이 유저의 직전 발화 안에 실제로 있을 때만 벗긴다. 인물이 제 말을 인용하거나
+   책 제목을 말하는 것까지 벗기면 멀쩡한 문장을 먹는다. 한 글자짜리는 안 본다 —
+   조사 하나가 우연히 겹치는 것은 인용이 아니다.
+
+   벗기는 것이지 지우는 것이 아니라서, 줄 수도 말맛도 그대로 남는다. */
+const QUOTED = /["“”「」]([^"“”「」\n]{1,40})["“”「」]/g;
+function unquoteUser(list, said) {
+  const heard = bareSaid(said);
+  if (!heard || heard.length < 2) return list;
+  return list.map(m => {
+    if (m.photo || !m.text) return m;
+    let hit = false;
+    const t = m.text.replace(QUOTED, (whole, inner) => {
+      const bare = bareSaid(inner);
+      /* 한 글자도 본다. 「"걔"요?」가 실제로 나온 그 줄이고, 조각이 짧을수록
+         되묻는 힘이 세다. 지우는 게 아니라 따옴표만 벗기는 것이라 헛짚어도
+         문장이 안 상한다 — 여기서는 넓게 잡는 쪽이 싸다. */
+      if (!bare || !heard.includes(bare)) return whole;
+      hit = true; return inner;
+    });
+    return hit ? { ...m, text: t } : m;
+  });
+}
+
 function dropEcho(list, said) {
   const heard = bareSaid(said);
   if (!heard) return list;
@@ -5056,7 +5091,16 @@ const SELECTED_COMMON = `[이 턴에 지켜야 할 것]
 사용자가 방금 한 말의 핵심에 먼저 직접 반응한다. 감정을 상담사처럼 다시 요약하거나 원인을 분석하는 질문으로 돌리지 않는다. 다음 말이 자연스럽게 없으면 질문 없이 끝내도 된다. 시간·날씨·식사·현재 위치는 방금 발화와 직접 관련될 때만 소재로 쓴다.
 
 [주어진 사실 안에서 전진]
-현재 사실·대화 기록·상태로 확인되는 내용만 확정한다. 아직 실행되지 않은 제안이나 약속은 제안 상태로 둔다. 주어지지 않은 과거 행동·시간·장소·감정·관계 이력을 만들어 설명하지 않는다. 대신 이미 주어진 사실 중 하나를 골라 감정이나 욕망이 드러나는 방향으로 반응한다.`;
+현재 사실·대화 기록·상태로 확인되는 내용만 확정한다. 아직 실행되지 않은 제안이나 약속은 제안 상태로 둔다. 주어지지 않은 과거 행동·시간·장소·감정·관계 이력을 만들어 설명하지 않는다. 대신 이미 주어진 사실 중 하나를 골라 감정이나 욕망이 드러나는 방향으로 반응한다.
+
+[말을 물릴 때]
+한 번 말한 사실은 대화 안에서 바꾸지 않는다. 유저가 사실관계를 바로잡으면("안 했는데요", "그런 거 없어요") 유저가 맞다. 지어낸 쪽을 다시 주장하거나 캐묻지 않는다.
+
+유저가 말하지 않은 것, 장면에 없는 것, 실존 작품·인물의 세부는 지어내지 않는다. 모르면 "잘 몰라요"로 끝낸다. 이들은 아는 척하지 않는 사람들이다.
+
+거절당하거나 지적당하거나 말이 꼬이면 해명하지 않고 말을 줄인다. 재언은 짧은 인정 한 마디 뒤 화제를 옮기고, 민현은 조용해진다. "말이 헛나왔어요" 같은 자기 해명 금지.
+
+다른 방의 신호는 관찰과 속마음에만 쓴다. 그걸로 유저를 추궁하지 않는다.`;
 
 /* 화자별 한 줄. **한 사람만 말하는 호출**에는 그 사람 것만 준다 —
    상대 이름이 보이면 모델이 상대 대사까지 쓰기 시작한다(§8.5 화자 순차). */
@@ -6108,9 +6152,9 @@ export default {
            모델 호출 구조는 그대로 두고 파싱과 검사만 같게 맞춘다. */
         const p0 = parseMessages(raw, fallbackSender, chars);
         const c0 = { id: "L", originalMessages: p0.messages,
-          messages: dropEcho(
+          messages: unquoteUser(dropEcho(
             trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(p0.messages)), chars), photoChars, fallbackSender, recentPhotos)),
-            lastSaid(msgs, mode)),
+            lastSaid(msgs, mode)), lastSaid(msgs, mode)),
           invite: p0.invite, give: p0.give, photo: p0.photo,
           parseStatus: p0.parseStatus, intruder: p0.intruder, signals: [] };
         const codes0 = hardFilter(c0, chars, hardCtx);
@@ -6204,9 +6248,9 @@ export default {
         const mkCand5 = (one, id) => {
           const parsed = parseMessages(one, fallbackSender, chars);
           return { id, originalMessages: parsed.messages,
-            messages: dropEcho(
+            messages: unquoteUser(dropEcho(
               trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed.messages)), chars), photoChars, fallbackSender, recentPhotos)),
-              lastSaid(msgs, mode)),
+              lastSaid(msgs, mode)), lastSaid(msgs, mode)),
             invite: parsed.invite, give: parsed.give, photo: parsed.photo,
             parseStatus: parsed.parseStatus, intruder: parsed.intruder, signals: [] };
         };
@@ -6582,9 +6626,9 @@ export default {
               partMsgs, budget, attempt, tier, speaker);
             devLog(`[NULL] 응답(공개 ${speaker}) ▶ ${raw.slice(0, 600)}`);
             const parsed = parseMessages(raw, speaker, [speaker]);
-            const messages = dropEcho(
+            const messages = unquoteUser(dropEcho(
               trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed.messages)), [speaker]), photoChars, speaker, recentPhotos)),
-              lastSaid(msgs, mode));
+              lastSaid(msgs, mode)), lastSaid(msgs, mode));
             const cand = { id: speaker, originalMessages: parsed.messages, messages,
               invite: null, give: null, photo: null,
               parseStatus: parsed.parseStatus, intruder: parsed.intruder, signals: [] };
@@ -6752,9 +6796,9 @@ export default {
         pieces.forEach((one, i) => {
           const id = "AB"[i] || `C${i}`;
           const parsed = parseMessages(one, fallbackSender, chars);
-          const messages = dropEcho(
+          const messages = unquoteUser(dropEcho(
             trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(parsed.messages)), chars), photoChars, fallbackSender, recentPhotos)),
-            lastSaid(msgs, mode));
+            lastSaid(msgs, mode)), lastSaid(msgs, mode));
           const cand = { id, originalMessages: parsed.messages, messages,
                          invite: parsed.invite, give: parsed.give, photo: parsed.photo,
                          parseStatus: parsed.parseStatus, signals: [] };
@@ -6885,9 +6929,9 @@ export default {
              대사와 건넨 물건이 갈린다. */
           const fp = parseMessages(finRaw, fallbackSender, chars);
           const fCand = { id: "F", originalMessages: fp.messages,
-            messages: dropEcho(
+            messages: unquoteUser(dropEcho(
               trimTics(sanitizePhotos(unlabel(splitLines(dropMeta(fp.messages)), chars), photoChars, fallbackSender, recentPhotos)),
-              lastSaid(msgs, mode)),
+              lastSaid(msgs, mode)), lastSaid(msgs, mode)),
             invite: fp.invite, give: fp.give, photo: fp.photo,
             parseStatus: fp.parseStatus, signals: [] };
           /* 마무리한 것도 같은 검사줄을 다시 통과한다 — 위를 썼다고 빠져나가면
@@ -7048,7 +7092,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,
          CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
-         JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance,
+         JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance, unquoteUser, QUOTED,
          sceneHead, criticPacket, finalizerPacket, readProblems,
          CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES,
          /* 축약 성격표 — 사실은 fact_id로, 사람 규칙은 rule_id로 가린다 */

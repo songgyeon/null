@@ -460,5 +460,87 @@ console.log("── 프롬프트에 더한 두 덩어리 ──");
   /* 견본 대사·고정 대사·새 금지어 목록을 안 만들었다 */
   eq("예시 대사를 안 넣었다", /\[좋은 예\]|\[예시\]|예시 대사/.test(src), false);
 }
+
+console.log("── A. 수리 ──");
+{
+  const src = readFileSync(join(ROOT, "worker.js"), "utf8");
+
+  /* A-1 — 네 줄이 가변부에 있고 고정부는 안 건드렸다 */
+  const FOUR = [
+    "한 번 말한 사실은 대화 안에서 바꾸지 않는다.",
+    "유저가 말하지 않은 것, 장면에 없는 것, 실존 작품·인물의 세부는 지어내지 않는다.",
+    "거절당하거나 지적당하거나 말이 꼬이면 해명하지 않고 말을 줄인다.",
+    "다른 방의 신호는 관찰과 속마음에만 쓴다. 그걸로 유저를 추궁하지 않는다.",
+  ];
+  eq("네 줄이 전부 있다", FOUR.filter(t => !src.includes(t)), []);
+  /* 가변부(SELECTED_COMMON)에 들어갔고 고정부(WORLD)에는 안 들어갔다 —
+     고정부에 넣으면 캐시가 통째로 다시 써진다 */
+  const common = src.slice(src.indexOf("const SELECTED_COMMON ="),
+                           src.indexOf("const SELECTED_VOICE ="));
+  const world = src.slice(src.indexOf("const WORLD = `"), src.indexOf("const WORLD = `") + 40000);
+  eq("네 줄은 가변부에 산다", FOUR.filter(t => !common.includes(t)), []);
+  eq("고정부는 안 건드렸다", FOUR.filter(t => world.includes(t)), []);
+
+  /* A-2 — buildGift 반응 재료 제한. 기존 「한 마디로 넘기지 않는다」는 살아 있다 */
+  const gift = src.slice(src.indexOf("function buildGift("), src.indexOf("function buildLeft("));
+  eq("보이지 않는 세부를 안 지어낸다",
+    gift.includes("내용물·글씨·순서·곡목록 같은 보이지 않는 세부를 묘사하지 않는다."), true);
+  eq("한 마디로 넘기지 않는다는 살아 있다",
+    gift.includes('"감사합니다" 한 마디로 넘기지 않는다.'), true);
+
+  /* A-3 — 따옴표 심문. 실제로 나온 두 줄을 그대로 넣어 잰다 */
+  const one = (text, said) => ENG.unquoteUser([{ text }], said)[0].text;
+  eq("유저_발화를_따옴표로_인용해_심문하지_않는다",
+    [one("“걔”요?", "걔 누구예요"), one("「그런가」라뇨", "그런가 왜요"),
+     one('"수영장"이요?', "비리로 수영장을요")],
+    ["걔요?", "그런가라뇨", "수영장이요?"]);
+  /* 되받아 되묻기는 민현 전용 문법이라 보존해야 한다 — 따옴표가 유일한 표적이다 */
+  eq("맨몸 되받기는 살린다", one("걔가 뭐예요", "걔 누구예요"), "걔가 뭐예요");
+  eq("유저가 안 한 말의 인용은 안 벗긴다",
+    one("「퍼펙트 데이즈」 봤어요", "오늘 뭐 했어요"), "「퍼펙트 데이즈」 봤어요");
+  eq("지우는 게 아니라 벗기는 것이다",
+    ENG.unquoteUser([{ text: "“걔”요?" }], "걔 누구예요").length, 1);
+  /* 다섯 갈래 전부가 같은 후처리를 탄다 — 한 자리만 놓치면 경로마다 다른 말이 나간다 */
+  eq("다섯 자리 전부에 걸었다", (src.match(/unquoteUser\(dropEcho\(/g) || []).length, 5);
+
+  /* A-4-1 — 규칙이 글로만 있으면 안 되고 **실제로 실려 나가야** 한다.
+     「헛나왔다를 다시 말하지 않는다」는 모델 행동이라 가짜 응답으로는 못 잰다.
+     후처리로 지우는 종류도 아니다 — 지우면 그건 규칙이 아니라 검열이다.
+     여기서 잴 수 있는 것은 하나다: 그 지시가 이번 턴 프롬프트에 실제로 붙었나.
+     실행으로 잰다 — 나간 요청의 system을 그대로 읽는다. */
+  /* 가변부는 system이 아니라 **대화 뒤**로 간다(캐시 지점 뒤). system만 읽으면
+     붙은 걸 못 본다 — 나간 요청 본문을 통째로 읽는다. */
+  const sentBody = async body => {
+    let seen = "";
+    const realFetch2 = globalThis.fetch;
+    const base2 = RP.fakeFetch();
+    globalThis.fetch = async (u, init) => {
+      if (!seen) seen = String(init.body);
+      return base2(u, init);
+    };
+    try {
+      await worker.fetch(new Request("https://x/?k=k", { method: "POST", body: JSON.stringify(body),
+        headers: { "CF-Connecting-IP": "9.5.8.1" } }),
+        { ANTHROPIC_API_KEY: "sk-t", ACCESS_KEY: "k", OPENAI_API_KEY: "sk-fake" });
+    } finally { globalThis.fetch = realFetch2; }
+    /* JSON 문자열이라 줄바꿈이 \\n으로 이스케이프돼 있다. 되돌려 놓고 찾는다 */
+    return JSON.parse(JSON.stringify(seen)).split("\\n").join("\n");
+  };
+  const sys1 = await sentBody(N07);
+  eq("네 줄이 실제로 나간 프롬프트에 실린다", FOUR.filter(t => !sys1.includes(t)), []);
+  const sysG2 = await sentBody(N11);
+  eq("단톡에도 실린다", FOUR.filter(t => !sysG2.includes(t)), []);
+  /* 선물 턴에는 buildGift의 제한도 같이 실린다 */
+  const giftBody = (() => {
+    const b = JSON.parse(JSON.stringify(N01));
+    b.gift = { key: "mug", name: "머그컵", note: "노래도 가끔 트세요" };
+    return b;
+  })();
+  const sysG = await sentBody(giftBody);
+  eq("선물 턴에 반응 재료 제한이 실린다",
+    sysG.includes("내용물·글씨·순서·곡목록 같은 보이지 않는 세부를 묘사하지 않는다."), true);
+  eq("쪽지 문구는 그대로 재료로 간다", sysG.includes("노래도 가끔 트세요"), true);
+}
+
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);
 process.exit(fail ? 1 : 0);
