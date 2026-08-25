@@ -908,6 +908,24 @@ const placeHours=(p,now)=>{
      wend가 없는 데는 평일과 같다 — 도서관·레코드샵·편의점·빨래방. */
   const w=wend&&("wend" in p)?p.wend:p.hours;
   if(w===false)return false;
+  /* ── 학교는 사람이 있을 때만 학교다 ──
+     hours는 고정된 숫자 두 개라 요일을 모른다. 교실·옥상의 22시는 야자가
+     끝나는 시각에 맞춘 것이었는데, 야자는 격주 목요일에만 붙는다 — 야자도
+     없는 수요일 저녁에 민현은 이미 집에 갔는데 교실 문은 열려 있었다.
+     체육관의 18시도 같은 종류의 숫자다.
+
+     시각표를 요일마다 새로 적지 않는다. 그러면 시계가 또 둘이 된다.
+     대신 위 주석이 이미 말한 규칙을 학교에도 그대로 적용한다 — 「방 목록에
+     자는 중이라고 떠 있는데 그 사람 집에 갈 수 있으면 그게 제일 이상하다」.
+     학교 자리는 그 자리 사람이 학교에 있을 때만 연다(atWorkNow).
+     hours는 그대로 위쪽 상한으로 남는다 — 둘 중 좁은 쪽이 이긴다.
+
+     학교 입구(into:"school")에는 who가 없다. 둘 중 하나라도 있으면 연다 —
+     아무도 없는 학교에 들어가 빈 복도를 도는 그림은 이 게임에 없다. */
+  if(p.map==="school"||p.into==="school"){
+    const who=(p.who&&p.who.length)?p.who:["jaeeon","minhyun"];
+    if(!who.some(id=>atWorkNow(id,d)))return false;
+  }
   if(!w)return true;
   const h=d.getHours(),[a,b]=w;
   return a<b ? (h>=a&&h<b) : (h>=a||h<b);
@@ -1112,6 +1130,10 @@ const placeWhen=(p,now)=>{
   const d=now||nowClock(), wend=d.getDay()===0||d.getDay()===6;
   const w=wend&&("wend" in p)?p.wend:p.hours;
   if(w===false)return "weekdays only";
+  /* 시각을 적어주면 거짓말이 된다 — 여덟 시가 아니라 사람이 없어서 닫혔다 */
+  if((p.map==="school"||p.into==="school")
+    && !((p.who&&p.who.length)?p.who:["jaeeon","minhyun"]).some(id=>atWorkNow(id,d)))
+    return "지금 학교는 Empty...";
   if(!w)return "";
   const pad=n=>String(n).padStart(2,"0");
   return `open ${pad(w[0])}:00 – ${pad(w[1])}:00`;

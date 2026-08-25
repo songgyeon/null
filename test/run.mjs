@@ -4544,6 +4544,54 @@ eq('못 가는 이유를 셋 다 말한다',
   eq('주말 낮엔 둘 다 있다', F(new Date(2026, 0, 10, 13)), ['jaeeon', 'minhyun']);
 }
 
+/* ── 학교는 사람이 있을 때만 학교다 ──
+   hours는 고정된 숫자 두 개라 요일을 모른다. 교실·옥상의 22시는 야자가
+   끝나는 시각인데 야자는 격주 목요일에만 붙는다 — 야자도 없는 수요일 저녁에
+   민현은 집에 갔는데 교실 문이 열려 있었다. 시각표를 요일마다 새로 적지 않고
+   생활 리듬(atWorkNow)을 그대로 본다. 둘 중 좁은 쪽이 이긴다. */
+{
+  const g = (() => {
+    const mem = new Map();
+    return { localStorage: { getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
+      location: { search: '' } };
+  })();
+  const S = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {placeHours,placeWhen,PLACE_BY};')(g.localStorage, g.location);
+  const at = (dd, h) => new Date(2026, 0, dd, h, 0);
+  const ALL = ['학교', '교실', '보건실', '옥상', '체육관'];
+  const row = d => ALL.filter(n => S.placeHours(S.PLACE_BY[n], d));
+  /* 1/7 수 — 야자가 없는 날. 민현은 16:20에, 재언은 17:00에 학교를 뜬다 */
+  eq('수업 중에는 학교가 다 열린다', row(at(7, 10)), ALL);
+  eq('점심에도 열린다 — 점심은 학교 안이다', row(at(7, 12)), ALL);
+  eq('7교시까지는 열린다', row(at(7, 16)), ALL);
+  /* 여기가 신고된 자리다 — 전에는 교실·옥상이 22시까지, 체육관이 18시까지
+     열려 있었다. 야자도 없는데 아무도 없는 학교였다 */
+  eq('야자 없는 날 퇴근 뒤에는 학교가 닫힌다', row(at(7, 17)), []);
+  eq('그 저녁 내내 닫혀 있다', [row(at(7, 19)), row(at(7, 21))], [[], []]);
+  /* 1/15 목 — 야자가 붙는 날. 민현이 남으므로 그 자리들만 열린다.
+     보건실은 재언 자리라 17시에 닫히고, 체육관은 hours(18)가 먼저 끊는다 */
+  eq('야자 날 저녁에는 민현 자리가 열린다', row(at(15, 19)), ['학교', '교실', '옥상']);
+  eq('야자 날에도 보건실은 재언을 따라 닫힌다',
+    S.placeHours(S.PLACE_BY['보건실'], at(15, 17)), false);
+  eq('hours가 더 좁으면 hours가 이긴다 — 체육관 18시',
+    [S.placeHours(S.PLACE_BY['체육관'], at(15, 17)),
+     S.placeHours(S.PLACE_BY['체육관'], at(15, 19))], [true, false]);
+  eq('야자 끝나면 그날도 닫힌다', row(at(15, 22)), []);
+  /* 주말은 wend:false가 먼저 끊는다 — 규칙이 겹쳐도 결과가 같아야 한다 */
+  eq('주말엔 학교가 없다', [row(at(10, 13)), row(at(11, 19))], [[], []]);
+  /* 시각을 적어주면 거짓말이 된다 — 여덟 시가 아니라 사람이 없어서 닫혔다 */
+  eq('닫힌 까닭을 시각으로 안 적는다',
+    [S.placeWhen(S.PLACE_BY['교실'], at(7, 19)), S.placeWhen(S.PLACE_BY['교실'], at(10, 13))],
+    ['지금 학교는 Empty...', 'weekdays only']);
+  /* 학교 밖 자리는 이 규칙에 안 걸린다 — 거기는 whoOut이 따로 잰다 */
+  eq('학교 밖 자리는 그대로다',
+    [S.placeHours(S.PLACE_BY['편의점'], at(7, 19)), S.placeHours(S.PLACE_BY['집'], at(7, 19))],
+    [true, true]);
+}
+
 /* 길이 없어졌는데 머리글에 ROAD가 남아 있었다. 사물함이라 NOCKER다 */
 eq('머리글이 사물함을 말한다',
   /<i className="rh">♡<\/i> NULL NOCKER<\/span>/.test(web) && !/NULL ROAD MAP/.test(web), true);
