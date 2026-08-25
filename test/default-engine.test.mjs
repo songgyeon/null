@@ -177,6 +177,44 @@ console.log("── Canon 판정의 한계 ──");
     [true, true, true, true]);
 }
 
+console.log("── sonnet45: 배선은 그대로, 쓰는 손만 ──");
+{
+  /* 쓰는 손을 되돌려 보는 깃발이다. 여기서 재는 것은 말맛이 아니라
+     **배선이 한 군데도 안 움직였다**는 것 하나다 — 그게 아니면 나온 대사의
+     차이를 모델 탓으로 읽을 수가 없다. 옛 solo로 돌아가면 사람 검사와
+     마무리가 같이 켜져서 그 비교가 성립하지 않는다(바로 위 블록 참고). */
+  const PACKETS = [["1:1", N01], ["단톡", N11], ["관전", WATCH],
+                   ["중요 장면", C01], ["발견 T14", T14], ["발견 T15", T15],
+                   ["T16", T16]];
+  for (const [label, body] of PACKETS) {
+    const base = await run({}, body);
+    const s45  = await run({ ENGINE_MODE: "sonnet45" }, body);
+    eq(`${label} — 단계가 무플래그와 같다`, stagesOf(s45), stagesOf(base));
+    eq(`${label} — 응답 코드가 같다`, s45.status, base.status);
+  }
+  /* 쓰는 자리만 갈린다. 검사는 저쪽이나 이쪽이나 같은 Haiku다 */
+  const c = await run({ ENGINE_MODE: "sonnet45" }, C01);
+  eq("sonnet45의 쓰는 자리는 Sonnet 4.5다",
+    c.sent.filter(x => x.stage === "writer").map(x => x.model),
+    ["claude-sonnet-4-5-20250929"]);
+  eq("sonnet45의 정사 검사는 그대로 Haiku다",
+    c.sent.filter(x => x.stage === "canon").map(x => x.model), ["claude-haiku-4-5"]);
+  eq("sonnet45는 저쪽 진영을 안 부른다", c.sent.filter(x => x.oai).length, 0);
+  eq("무플래그의 쓰는 자리는 저쪽이다", (await run({}, C01)).sent
+    .filter(x => x.stage === "writer").every(x => x.oai), true);
+  /* 이름을 그대로 「gpt41」로 적으면 대시보드가 거짓말을 한다 */
+  eq("trace에 sonnet45라고 적는다", c.data.trace.engine_mode, "sonnet45");
+  eq("trace의 쓰는 모델도 적힌다", c.data.trace.writer_model, "claude-sonnet-4-5-20250929");
+  eq("무플래그 trace는 gpt41 그대로다", (await run({}, C01)).data.trace.engine_mode, "gpt41");
+  /* 배선 판정은 전부 engineMode를 본다 — sonnet45는 거기서 gpt41을 돌려준다 */
+  eq("깃발은 배선을 안 건드린다",
+    [ENG.engineMode({ ENGINE_MODE: "sonnet45" }), ENG.writerSeat({ ENGINE_MODE: "sonnet45" }),
+     ENG.engineLabel({ ENGINE_MODE: "sonnet45" })], ["gpt41", "sonnet", "sonnet45"]);
+  eq("다른 갈래는 제 모델을 그대로 쓴다",
+    ["solo", "hybrid", "single", "legacy"].map(v => ENG.writerSeat({ ENGINE_MODE: v })),
+    ["own", "own", "own", "own"]);
+}
+
 console.log("── 옛 배선은 살아 있다 ──");
 {
   eq("solo를 명시하면 상급 Writer다", ENG.stageModel({ ENGINE_MODE: "solo" }, "writer").id,

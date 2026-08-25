@@ -190,11 +190,36 @@ function engineMode(env) {
      사람 검사·고르는 쪽·마무리는 기본 경로에서 안 부른다.
      옛 배선은 지우지 않았다: solo(상급 Writer + 검사 둘 + 마무리)와
      hybrid·legacy·single·single5는 명시한 깃발에서 그대로 돈다. */
+  /* ── sonnet45는 배선이 아니라 쓰는 손만 바꾸는 깃발이다 ──
+     기본(gpt41)과 **배선이 한 군데도 다르지 않다**: 일반 턴은 쓰는 자리
+     한 번, 고르는 단계 없음, 검사는 승인된 중요 장면의 정사 하나뿐,
+     사람 검사·마무리 없음. 바뀌는 것은 쓰는 자리에 앉는 모델 하나다.
+
+     옛 solo로 돌아가지 않는 이유가 이것이다 — solo는 Sonnet Writer와 함께
+     사람 검사와 마무리까지 도로 켠다. 그 배선이 502를 냈다. 모델을 비교하고
+     싶은데 배선까지 같이 바뀌면 나온 대사의 차이를 무엇 탓으로 읽을 수가
+     없다. 그래서 여기서는 gpt41의 배선을 그대로 돌려주고, 쓰는 손만
+     writerSeat이 가른다. */
   return v === "legacy" ? "legacy" : v === "single" ? "single"
        : v === "single5" ? "single5"
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku"
        : v === "solo" ? "solo"
-       : v === "hybrid" ? "hybrid" : "gpt41";
+       : v === "hybrid" ? "hybrid"
+       : v === "sonnet45" ? "gpt41" : "gpt41";
+}
+/* 쓰는 자리에 누가 앉나. 기본 배선(gpt41)에서만 갈린다 —
+   ENGINE_MODE=sonnet45면 상급 Writer, 그 밖에는 도전자(GPT)다.
+   다른 갈래(solo·hybrid·single…)는 제 자리 모델을 그대로 쓴다. */
+function writerSeat(env) {
+  const v = String((env && (env.ENGINE_MODE || env.engine_mode)) || "").trim().toLowerCase();
+  if (engineMode(env) !== "gpt41") return "own";
+  return v === "sonnet45" ? "sonnet" : "gpt";
+}
+/* 화면·trace에 적는 이름. 배선 이름만 적으면 sonnet45가 「gpt41」로 보인다 —
+   「고쳤는데 반영이 안 된다」를 헤매게 만드는 바로 그 거짓말이다. */
+function engineLabel(env) {
+  const em = engineMode(env);
+  return em === "gpt41" && writerSeat(env) === "sonnet" ? "sonnet45" : em;
 }
 /* G5 — 행동 규칙 프로필. hybrid-pair 구조 자체는 그대로고, Writer에 행동
    규칙을 얹고 Director의 판정 형식을 구조화한다. 운영 기본값은 빈 문자열
@@ -3641,7 +3666,7 @@ function stageModel(env, stage) {
   const m = ENGINE[key || stage];
   if (!m) return null;
   /* ENGINE_MODE=gpt41을 **명시했을 때만**. 운영 기본(solo)은 여기 안 온다 */
-  if (engineMode(env) === "gpt41" && GPT_STAGES.has(stage)) return ENGINE.gptWriter;
+  if (writerSeat(env) === "gpt" && GPT_STAGES.has(stage)) return ENGINE.gptWriter;
   /* override는 G2 스윕의 두 자리(single/anchor)에만 닿는다 — G3의
      sonnet45_fallback이 singleWriter 설정을 재사용해도 갈아끼워지지 않고,
      haiku_director는 더더욱 아니다. */
@@ -5502,7 +5527,7 @@ export default {
            턴의 호출 수만으로 새 배선인지 옛 배선인지 갈린다. */
         const em = engineMode(env);
         const oneCall = em === "gpt41" || em === "solo" || em === "single" || em === "single5";
-        const wiring = `${em} · 일반 턴 ${oneCall ? 1 : 2}호출`
+        const wiring = `${engineLabel(env)} · 일반 턴 ${oneCall ? 1 : 2}호출`
           + `${em === "gpt41" || em === "solo" ? " (고르는 단계 없음)" : ""}`;
         /* 중요 장면에 남은 검사가 몇인지도 적는다 — 기본 경로는 정사 하나다 */
         const critics = em === "gpt41" ? "정사 1 (중요 장면만) · 일반 턴 없음"
@@ -6379,7 +6404,7 @@ export default {
       let discloseLog = null;        // 선물 관측 장면의 기록 — 관측(observe)과 공개 여부 (trace 전용)
       let selectedLog = null;        // selected-v1이 쓴 재료·견본 id (trace 전용, 대사 원문 없음)
       const traceOf = picked => !traceOn ? {} : { trace: {
-        engine_mode: engineMode(env),
+        engine_mode: engineLabel(env),
         candidate_mode: cMode,
         ...(goldenNow ? { dialogue_ruleset: "golden-v1" } : {}),
         anchor_reason: singleNow && anchorWhy ? anchorWhy : null,
@@ -6980,7 +7005,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, buildPlace,
-         ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
+         ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
          single5Rules,
