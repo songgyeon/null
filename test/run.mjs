@@ -5518,15 +5518,23 @@ eq('시간표 단추는 peek보다 좁다',
     const g = JSON.parse(readFileSync(join(ROOT, 'test/selected-samples.json'), 'utf8'));
     return [g.samples.length, g.note.includes('런타임이 읽지 않는다')];
   })(), [36, true]);
-  /* 이 엔진이 안 쓰기로 한 것들. G3 비교 전용 자리(pairWriter5)는 예외다 —
-     운영 단계가 아니라 replay가 env로만 켜는 실험 팔이고, id도 MODELS의
-     등록 항목을 재사용한다. 그 블록만 잘라내고 나머지에 같은 검사를 건다. */
-  eq('엔진에 안 쓰기로 한 급이 없다 — G3 비교 자리만 예외', (() => {
-    const cut = eng.replace(/\/\* ── G3 비교 전용[^]*?noThinking: false \},\n/, '');
+  /* 이 엔진이 안 쓰기로 한 것들. 예외는 **쓰는 손을 갈아끼우는 자리 둘**뿐이다 —
+     G3 비교 전용(pairWriter5)과 ENGINE_MODE=sonnet5가 앉히는 자리(writer5).
+     둘 다 운영 기본 경로가 한 번도 안 보고, env를 명시해야만 켜지며, id도
+     MODELS의 등록 항목을 재사용한다. 그 두 블록만 잘라내고 나머지에 같은
+     검사를 건다 — 검사(canon·director)나 기본 writer에 저 급이 새면 걸린다. */
+  eq('엔진에 안 쓰기로 한 급이 없다 — 쓰는 손 교체 자리만 예외', (() => {
+    const cut = eng
+      .replace(/\/\* ── G3 비교 전용[^]*?noThinking: false \},\n/, '')
+      .replace(/\/\* ── 쓰는 자리를 최상급으로[^]*?noThinking: false \},\n/, '');
     return /sonnet-4-6|sonnet-5|opus/.test(cut);
   })(), false);
-  eq('G3 자리는 MODELS의 sonnet-5를 재사용한다',
-    /pairWriter5: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng), true);
+  eq('두 자리 다 MODELS의 sonnet-5를 재사용한다',
+    [/pairWriter5: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng),
+     /writer5: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng)], [true, true]);
+  /* 쓰는 손은 셋인데 배선은 하나다 — 셋 다 engineMode에서 gpt41을 돌려받는다 */
+  eq('쓰는 손 깃발이 배선을 안 건드린다',
+    /: v === "sonnet45" \|\| v === "sonnet5" \? "gpt41" : "gpt41";/.test(wk), true);
 
   /* ── 폴백 금지 ──
      실패하면 다른 모델로 넘어가지 않는다. 진짜 오류를 그대로 올린다. */

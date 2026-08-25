@@ -188,9 +188,11 @@ console.log("── sonnet45: 배선은 그대로, 쓰는 손만 ──");
                    ["T16", T16]];
   for (const [label, body] of PACKETS) {
     const base = await run({}, body);
-    const s45  = await run({ ENGINE_MODE: "sonnet45" }, body);
-    eq(`${label} — 단계가 무플래그와 같다`, stagesOf(s45), stagesOf(base));
-    eq(`${label} — 응답 코드가 같다`, s45.status, base.status);
+    for (const flag of ["sonnet45", "sonnet5"]) {
+      const r = await run({ ENGINE_MODE: flag }, body);
+      eq(`${label} · ${flag} — 단계가 무플래그와 같다`, stagesOf(r), stagesOf(base));
+      eq(`${label} · ${flag} — 응답 코드가 같다`, r.status, base.status);
+    }
   }
   /* 쓰는 자리만 갈린다. 검사는 저쪽이나 이쪽이나 같은 Haiku다 */
   const c = await run({ ENGINE_MODE: "sonnet45" }, C01);
@@ -213,6 +215,29 @@ console.log("── sonnet45: 배선은 그대로, 쓰는 손만 ──");
   eq("다른 갈래는 제 모델을 그대로 쓴다",
     ["solo", "hybrid", "single", "legacy"].map(v => ENG.writerSeat({ ENGINE_MODE: v })),
     ["own", "own", "own", "own"]);
+
+  /* ── 같은 자리에 앉는 세 번째 손 ── */
+  const c5 = await run({ ENGINE_MODE: "sonnet5" }, C01);
+  eq("sonnet5의 쓰는 자리는 최상급이다",
+    c5.sent.filter(x => x.stage === "writer").map(x => x.model), ["claude-sonnet-5"]);
+  eq("sonnet5의 정사 검사도 그대로 저비용이다",
+    c5.sent.filter(x => x.stage === "canon").map(x => x.model), ["claude-haiku-4-5"]);
+  eq("sonnet5도 저쪽 진영을 안 부른다", c5.sent.filter(x => x.oai).length, 0);
+  eq("sonnet5 trace 이름", c5.data.trace.engine_mode, "sonnet5");
+  eq("sonnet5 trace의 쓰는 모델", c5.data.trace.writer_model, "claude-sonnet-5");
+  /* payload가 맨몸이라야 한다 — 이 세대는 수동 thinking·비기본 샘플링에 400을 낸다.
+     자리표에서 재는 게 아니라 실제로 나간 요청 본문에서 잰다. */
+  const w5 = ENG.ENGINE.writer5;
+  eq("최상급 자리는 등록된 id를 재사용한다", w5.id, "claude-sonnet-5");
+  eq("최상급 자리는 thinking·effort를 안 싣는다", [w5.noThinking, w5.effort, w5.budget],
+    [false, null, undefined]);
+  /* 세 손이 같은 자리(GPT_STAGES)를 갈아끼운다 — 검사 자리는 어느 손에서도 안 바뀐다 */
+  eq("세 손이 같은 자리를 갈아끼운다",
+    ["", "sonnet45", "sonnet5"].map(v => ENG.stageModel(v ? { ENGINE_MODE: v } : {}, "writer").id),
+    [ENG.OPENAI_MODEL, "claude-sonnet-4-5-20250929", "claude-sonnet-5"]);
+  eq("검사 자리는 세 손 모두 같다",
+    ["", "sonnet45", "sonnet5"].map(v => ENG.stageModel(v ? { ENGINE_MODE: v } : {}, "canon").id),
+    ["claude-haiku-4-5", "claude-haiku-4-5", "claude-haiku-4-5"]);
 }
 
 console.log("── 옛 배선은 살아 있다 ──");
