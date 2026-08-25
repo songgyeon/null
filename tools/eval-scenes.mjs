@@ -127,9 +127,9 @@ export function clockFns() {
   const web = readFileSync(join(ROOT, "app-data.js"), "utf8");
   return new Function(
     'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
-    + web.slice(web.indexOf("const SPEED_PER_DAY="), web.indexOf("const loadExtend="))
+    + web.slice(web.indexOf("const ENROLL_DAYS"), web.indexOf("/* ── 이름이 불린 횟수 ──"))
     + web.slice(web.indexOf("const fmtClock="), web.indexOf("/* ── 계절"))
-    + 'return {saveMode,setSpeedAt,gameAt,fmtClock,isToday,fmtDivider,fmtListTime,fmtDay,dividerGap,nowClock,timeWord,dayWord};')();
+    + 'return {saveMode,setWorldAt,gameAt,fmtClock,isToday,fmtDivider,fmtListTime,fmtDay,dividerGap,nowClock,timeWord,dayWord};')();
 }
 
 /* fixture: { mode:"real"|"speed", anchor?, entries:[{ts, surface, shown}] }
@@ -139,7 +139,7 @@ export function clockFns() {
 export function scoreClock(fx) {
   const F = clockFns();
   F.saveMode(fx && fx.mode === "speed" ? "speed" : "real");
-  if (fx && fx.mode === "speed") F.setSpeedAt(0, Number(fx.anchor) || Date.now());
+  if (fx && fx.mode === "speed") F.setWorldAt(Number(fx.anchor) || Date.now());
   const mismatches = [];
   let epochBad = 0, total = 0;
   for (const e of (fx && fx.entries) || []) {

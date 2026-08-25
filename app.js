@@ -23,10 +23,10 @@ function App(){
   /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 */
   const [mode,setMode]=useState(loadMode);
   const storeRef=useRef(store); storeRef.current=store;
-  /* 스피드 모드의 시계를 여기서 감는다. 규칙들은 시각만 받는 순수 함수라
-     대화 수를 스스로 못 본다 — 여기가 store가 바뀔 때마다 지나가는 자리다.
-     리얼 모드면 nowClock이 이 값을 안 본다. */
-  setSpeedAt(speedCountOf(store),firstTsOf(store));
+  /* 세계 시계의 출발 자리를 여기서 세운다. 규칙들은 시각만 받는 순수 함수라
+     저장소를 스스로 못 본다 — 여기가 store가 바뀔 때마다 지나가는 자리다.
+     세는 것은 첫 말풍선의 시각 하나뿐이다. 말풍선 수는 안 들어간다. */
+  setWorldAt(firstTsOf(store));
   const profileRef=useRef(profile); profileRef.current=profile;
   const unlockedRef=useRef(unlocked); unlockedRef.current=unlocked;
   const giftsRef=useRef(gifts); giftsRef.current=gifts;
@@ -1252,10 +1252,10 @@ function App(){
     const m=storeRef.current.msgs||{};
     const shots=(m.jaeeon||[]).filter(x=>x.photo&&x.sender!=="user").length;
     if(shots>=PHOTO_EVENT_AT&&mark("photos",{kind:"photos",to:"jaeeon"}))return;
-    const all=Object.values(m).flat();
-    const firstTs=all.reduce((a,x)=>!a||x.ts<a?x.ts:a,0);
-    if(!firstTs)return;
-    const d=Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5));
+    /* 남은 날은 세계 시계가 센다 — 화면의 D-N과 같은 값이어야 한다.
+       현실 날짜로 따로 세면 스피드 모드에서 D-7 사건이 영영 안 뜬다. */
+    if(!firstTsOf(storeRef.current))return;
+    const d=daysLeft(storeRef.current);
     if(DDAY_MARKS.includes(d))mark("dday:"+d,{kind:"dday",name:String(d)});
   },[name,view,store.msgs]);
 
@@ -1563,9 +1563,9 @@ function App(){
   const [sys1,setSys1]=useState(false);
   useEffect(()=>{
     if(!name||loadSys1())return;
-    const first=Object.values((store&&store.msgs)||{}).flat()
-      .reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
-    if(!first||Date.now()-first<SYS1_AFTER)return;
+    /* 세계 시각으로 잰다 — 현실로 재면 스피드 모드의 첫날은 현실 여섯
+       시간인데 통보는 스무 시간 뒤에 와서 나흘째에 도착한다 */
+    if(!sys1Due(store))return;
     if(dLeft<=0)return;
     saveSys1(); setSys1(true);
   },[name,store,dLeft]);

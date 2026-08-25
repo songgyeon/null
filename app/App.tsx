@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { initDB, getMsgs, insertMsg, hasMsgTrack, getMeta, setMeta, wipeStory, wipeIfOldRevision, countMsgs, Msg } from './lib/db';
-import { sendChat, genAuto, rollSummary, IMG } from './lib/api';
+import { sendChat, genAuto, rollSummary, firstTsFromDB, IMG } from './lib/api';
 import { demoAnswer, demoProactive, demoGreetWhen, demoWatchOpen } from './lib/demoLines';
 import { stageDiff, loadSeenStage, saveSeenStage } from './lib/profiles';
 import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
@@ -36,7 +36,7 @@ import {
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
   talkedEnoughIn, applyStoryTransition, markPartnerKnown,
-  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, speedDaysOf, speedCountOf, setSpeedAt, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, setWorldAt, leaveTsOf, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
   readAutoQueue, pushAutoBatch, runAutoQueue,
@@ -1542,21 +1542,31 @@ function Root() {
   const [plate,setPlate]=useState<any>(null);      // 사물함 명패
   const [look,setLook]=useState<any>(null);        // 교실 문틈
   const viewRef=useRef(view); viewRef.current=view;
-  /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
-     하루씩 깎는다. 0이 되면 거기서 멈춘다. 웹도 같은 식으로 센다. */
-  const firstTs=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0);
-  const dLeft=firstTs?Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5)):ENROLL_DAYS;
-  /* 웹과 같은 두 시계. 앱에는 아직 모드를 고르는 자리가 없어서 늘 real이지만,
-     배선은 같이 해둔다 — speedOn만 켜지고 setSpeedDay를 안 부르면 dayKey가
-     「s0」에 얼어붙어 선물도 자리도 영영 하루치로 잠긴다. */
-  const dayN=speedOn()?speedDaysOf({msgs}):(firstTs?Math.floor((Date.now()-firstTs)/864e5):0);
-  setSpeedAt(speedCountOf({msgs}),firstTs);
+  /* ── 세계 시계의 출발 자리 ──
+     msgs는 방마다 **최근 1000개**만 들고 있다. 그걸로 첫 시각을 뽑으면
+     대화가 천 개를 넘는 순간 앵커가 앞으로 밀려서 D-일차가 도로 늘어난다.
+     그래서 DB의 첫 행에서 한 번 읽어 저장해두고(anchor), 그것만 본다. */
+  const [anchor,setAnchor]=useState(0);
+  /* 첫 판은 저장소가 비어 있어서 위 load가 0을 가져온다. 첫 말풍선이 찍히면
+     그때 세운다 — 그 시점엔 대화가 1000개 아래라 화면이 든 것이 곧 전부다. */
+  useEffect(()=>{
+    if(anchor)return;
+    const t=Object.values(msgs).flat()
+      .reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0);
+    if(t)setAnchor(t);
+  },[anchor,msgs]);
+  setWorldAt(anchor);
+  /* 실습 남은 날·지난 날·재회. 셋 다 웹과 같은 세계 시계 하나에서 나온다 —
+     여기서 따로 세면 웹과 앱의 D-N이 갈린다. 그 사고가 실제로 있었다. */
+  const clockStore={msgs:{anchor:anchor?[{ts:anchor,sender:'user'}]:[]}} as any;
+  const dLeft=anchor?daysLeft(clockStore):ENROLL_DAYS;
+  const dayN=anchor?daysSince(clockStore):0;
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
      그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다.
-     웹의 cameBack과 같은 식이다. */
-  const cameBack=firstTs
+     떠나는 날의 현실 시각은 leaveTsOf가 모드에 맞게 환산해 준다. */
+  const cameBack=anchor
     ? Object.values(msgs).flat().some((m:any)=>m.sender==='user'
-        && m.created_at>=firstTs+ENROLL_DAYS*864e5)
+        && m.created_at>=leaveTsOf(clockStore))
     : false;
 
   const reload=useCallback(async(room?:string)=>{
@@ -1580,6 +1590,12 @@ function Root() {
     /* 규칙이 들고 있는 것들을 화면 쪽으로 한 번 옮겨 온다. 저장은 계속
        규칙 파일이 하고(웹과 같은 열쇠), 화면은 그 사본을 그린다. */
     setScene(loadScene()); setBag(loadBag()); setMet(loadMet()); setGroupOn(loadGroupOn());
+    /* 모드도 여기서 가져온다. useState(loadMode)는 shim이 채워지기 **전에**
+       한 번 돌아서 늘 real로 굳었다 — 스피드 판으로 저장해두고 앱을 껐다
+       켜면 리얼 판이 됐다는 뜻이다. 값이 들어온 뒤에 다시 읽는다. */
+    setMode(loadMode());
+    /* 세계 시계의 앵커. 최근 1000개가 아니라 DB의 첫 행에서 읽는다 */
+    setAnchor(await firstTsFromDB());
     const n=await getMeta('user_name');
     const p=await getMeta('null_profile');
     if(p){try{setProfile(JSON.parse(p))}catch{}}
@@ -2336,6 +2352,9 @@ function Root() {
        설정까지 날리면 새로 시작할 때마다 열쇠를 다시 넣어야 한다 */
     await wipeStory(); resetShim(); greetAtRef.current=0; summingRef.current={};
     setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
+    /* 세계 시계도 처음으로 돌린다 — 앵커를 안 지우면 새 판이 옛 판의
+       D-일차를 그대로 물려받는다. 모드도 저장소가 비었으니 기본값으로. */
+    setAnchor(0); setWorldAt(0); setMode(loadMode());
     lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
   };
 

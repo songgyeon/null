@@ -27,28 +27,27 @@ const CHARS = {
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;
-/* ── 두 시계 ──
+/* ── 세계 시계는 하나다 ──
    리얼 모드는 진짜 달력을 본다. 하루가 진짜 하루고, 30일을 실제로 살아야
    끝이 난다 — 「당신이 말하지 않아도 세계는 돌아갑니다」를 진짜로 만드는 게
-   이 시계다. 대신 링크를 받고 십 분 놀다 가는 사람은 D-30·hidden 0/18에서
-   멈춘다. 제일 공들인 것이 제일 안 보인다.
+   이 시계다. 스피드 모드는 같은 시계를 네 배로 돌린다. 그뿐이다.
 
-   스피드 모드는 쌓인 대화를 날로 센다. 사다리를 새로 놓을 필요가 없었다 —
-   원래 숫자가 이미 「하루에 네 마디」로 놓여 있었다:
-     at   12  26  44  64  90  116
-     day   3   7  11  15  20   26      ≒ at ÷ 4
-   그 전제를 그대로 공식으로 쓴다. 리얼 모드에서 30일 걸려 닿는 자리에
-   같은 대화량으로 닿는다.
+     리얼      현실 1시간 = 게임 1시간
+     스피드    현실 1시간 = 게임 4시간
+     출발      게임 오전 8시 · 현실 6시간 뒤 다음 날 8시 · 현실 7.5일에 게임 30일
 
-   ── 다만 시각은 이걸로 안 굴린다 ──
-   한때 시각도 같은 식으로 굴렸다(한 마디 = 하루÷4 = 여섯 시간). 그러면
-   네 마디에 하루가 통째로 지나가서, 한 번 앉아 스무 마디를 나누면 그 사이에
-   닷새가 흐른다. 나눠지는 수를 바꿔봐야 「한 마디에 몇 시간」이라는 모양은
-   그대로다 — 말풍선이 시계를 미는 구조 자체가 문제였다.
-   그래서 뗀다. 진도(D-일차·해금·하루 한 번 도장)는 마디 수가 세고,
-   시각은 진짜 시간이 민다. 둘은 이제 다른 것을 센다.
+   ── 말풍선은 시간에 손대지 않는다 ──
+   한때 쌓인 대화를 날로 셌다(네 마디 = 하루). 그러면 인물이 두 줄로 답하느냐
+   세 줄로 답하느냐가 달력을 민다. 실제로 그렇게 됐다 — 민현이 수다스러운 판에서
+   재언 방의 D-일차가 같이 탔고, 첫날 아침 8시 47분에 이미 37일째였다.
+   나눠지는 수를 바꿔봐야 「한 마디에 몇 시간」이라는 모양은 그대로다.
+   그래서 구조를 뗀다. **시각·D-일차·요일·시간표·도장·재회·해금의 day 조건이
+   전부 이 시계 하나에서 나온다.** 말풍선 수가 남아서 세는 것은 관계 대화량과
+   해금의 at 조건뿐이다 — 그건 시간이 아니라 「얼마나 나눴나」다.
+
+   대가는 알고 고른 것이다: 앱을 닫아도 세계는 흐른다. 스피드 모드에서 이틀
+   안 열면 게임 여드레가 지나 있다. 그게 「당신이 말하지 않아도」의 뒷면이다.
    모드는 판마다 하나고 등록 화면에서 한 번 고른다. 중간에 바꾸면 D-N이 튄다. */
-const SPEED_PER_DAY=4;
 /* ── 세계 확정 ──
    등록의 Click 뒤에 확인 화면이 한 번 선다 — 「{이름}, 너는 이 세계에 /
    NULL 존재하게 할 수 있을까?」. YES를 누른 순간에만 세계가 생긴다.
@@ -69,90 +68,113 @@ const savePartner=id=>{try{
 const loadMode=()=>{try{return localStorage.getItem("null_mode")==="speed"?"speed":"real"}catch(e){return"real"}};
 const saveMode=v=>{try{localStorage.setItem("null_mode",v==="speed"?"speed":"real")}catch(e){}};
 const speedOn=()=>loadMode()==="speed";
-/* 제일 많이 나눈 방으로 센다. 해금은 방마다 at을 따로 보므로, 한쪽만 파도
-   다른 방 것은 그 방 대화 수가 막는다 — 날짜만 앞서가도 안 열린다.
-
-   단톡도 센다. 전에는 1:1 둘만 셌더니 스피드 모드에서 단톡에만 있으면
-   시계가 통째로 멈췄다 — 백스무 마디를 떠들어도 지난 날이 그대로고, 그러니
-   가상 시계도 안 돌아 같은 시각·같은 요일에 얼어붙는다. 그러다 1:1로 옮겨
-   몇 마디 하면 시간이 훅 뛴다. 유저가 말을 한 방은 다 세야 시계가 안 꼬인다.
-
-   관전(health)은 뺀다. 그건 유저가 말한 게 아니라 자리를 비운 사이에
-   자동으로 찍힌 것이라, 그걸로 날이 가면 안 켜고 둔 시간이 진도가 된다. */
-const speedCountOf=store=>{const m=(store&&store.msgs)||{};
-  return Math.max((m.jaeeon||[]).length,(m.minhyun||[]).length,(m.group||[]).length)};
-const speedDaysOf=store=>Math.floor(speedCountOf(store)/SPEED_PER_DAY);
 /* 시계가 출발하는 자리. 첫 마디가 있던 날이다 */
 const firstTsOf=store=>Object.values((store&&store.msgs)||{}).flat()
   .reduce((a,x)=>!a||(x&&x.ts<a)?(x&&x.ts)||a:a,0);
-/* ── 스피드 모드의 시계 ──
-   처음엔 날짜만 당기고 시각은 진짜 시계를 그대로 뒀다. 그런데 스피드 모드는
-   한 판이 실제 이십 분이다 — 새벽 세 시에 시작하면 판이 끝날 때까지 새벽
-   세 시고, 재언은 1시~4:30 자니까 한 번도 안 깬다. 시간표도 안 돌고 학교도
-   내내 닫혀 있다. 세계가 한 장면에 멈춘다.
+/* ── 세계 시계 ──
+   저장(ts·since·created_at)은 늘 **현실 epoch 그대로**다. 세계 시각은 그 위의
+   번역일 뿐이다 — 저장에 gameAt을 쓰면 앵커가 제 출력을 도로 먹어 시계가
+   발산한다(소스 검사로 막는다).
 
-   그래서 시각도 돌게 만들었는데, 말풍선 수로 굴린 것이 잘못이었다. 한 마디에
-   여섯 시간이 뛰니까 대화 한 번에 며칠이 지나갔다. 나눠지는 수를 바꿔도
-   모양은 같다 — 말풍선이 시계를 미는 한 「한 마디에 몇 시간」이다.
-
-   시각은 진짜 시간이 민다. 첫 마디가 있던 날 아침 여덟 시에서 출발해서,
-   그 뒤로 흐른 진짜 시간에 SPEED_RATE를 곱한 만큼 간다. 말풍선 수와는
-   아무 상관이 없다 — 앉아서 스무 마디를 나눠도 시계는 그 사이에 흐른
-   진짜 몇 분만큼만 간다. 멈추지도 않고 튀지도 않는다.
-
-   진도와는 이제 다른 것을 센다. 「만난 지 며칠」과 「지금 몇 시」가 어긋날 수
-   있는데, 그건 어긋나는 게 아니라 원래 다른 질문이다 — 앞은 이야기가 얼마나
-   갔나이고 뒤는 지금 이 사람이 깨어 있나다. 하루 한 번 도장(선물·자리·귀갓길)은
-   앞을 따른다. 시계를 따르면 십 분 놀다 가는 사람은 선물을 한 번밖에 못 준다. */
+   함수 넷의 몫이 다르다. 섞으면 어제 그 사고가 다시 난다:
+     gameAt(ts)   저장된 과거 epoch를 세계 시각으로 옮긴다. 개발 오프셋 없음
+     worldStart() 세계가 출발한 자리. 개발 오프셋 없음
+     worldNow()   세계가 보는 지금. **개발 오프셋은 여기에만 더한다**
+     worldDays()  worldNow - worldStart를 하루로 나눈 것
+   개발 오프셋을 gameAt에 넣으면 과거 말풍선 시각까지 통째로 움직이고,
+   일차 계산에서는 시작과 지금 양쪽에 들어가 상쇄돼 버린다. 지금에만 더한다. */
 const SPEED_START_HOUR=8;   // 여덟 시 출발 — 출근 시각이라 세계가 열려 있다
 const SPEED_RATE=4;         // 실제 1분이 게임 4분. 진짜 하루가 게임 나흘이다
-let SPEED_N=0, SPEED_ANCHOR=0;
-const setSpeedAt=(n,firstTs)=>{
-  SPEED_N=Math.max(0,Math.floor(Number(n)||0));
-  SPEED_ANCHOR=Number(firstTs)||0;
-};
-/* 진도의 하루. 마디 수가 센다 — 해금·D-N·도장이 이걸 본다 */
-const speedDay=()=>Math.floor(SPEED_N/SPEED_PER_DAY);
-/* ── 두 시계를 잇는 다리 ──
-   저장(ts·since·created_at)은 늘 **현실 epoch 그대로**다. 스피드 모드의
-   세계 시각은 그 위의 번역일 뿐이다 — 저장에 gameAt을 쓰면 앵커가 제
-   출력을 도로 먹어 시계가 발산한다(소스 검사로 막는다).
-   변환하는 자리는 딱 둘: 화면에 그릴 때, 그리고 생활리듬(잠·문 닫는 시각)을
-   잴 때. 리얼 모드면 그대로 돌려준다 — 번역할 것이 없다. */
+let WORLD_ANCHOR=0;         // 첫 말풍선의 현실 epoch
+let DEV_SKEW=0;             // 개발 전용 시간 이동(ms). 배포판에서는 늘 0
+const setWorldAt=firstTs=>{ WORLD_ANCHOR=Number(firstTs)||0 };
 const gameAt=ts=>{
   const t=Number(ts)||Date.now();
   if(!speedOn())return new Date(t);
-  const start=SPEED_ANCHOR||Date.now();
+  const start=WORLD_ANCHOR||Date.now();
   const a=new Date(start); a.setHours(SPEED_START_HOUR,0,0,0);
   return new Date(a.getTime()+Math.max(0,t-start)*SPEED_RATE);
 };
-/* 세계의 시각. 진짜 시간이 민다 — 잠·시간표·자리 여는 시각·요일이 이걸 본다.
-   따로 계산하지 않는다 — 같은 다리를 「지금」에 대면 이거다. 두 식이 따로
-   살면 화면의 시각과 세계의 시각이 도로 갈린다. */
-const speedNow=()=>gameAt(Date.now());
-/* 세계가 보는 지금. 리얼 모드면 진짜 지금이다 */
-const nowClock=()=>speedOn()?speedNow():new Date();
+/* 세계가 출발한 자리. 스피드면 첫날 오전 8시, 리얼이면 첫 말풍선 그 시각 */
+const worldStart=()=>gameAt(WORLD_ANCHOR||Date.now());
+/* 세계가 보는 지금. 잠·시간표·자리 여는 시각·요일·도장이 전부 이걸 본다 */
+const worldNow=()=>new Date(gameAt(Date.now()).getTime()+DEV_SKEW);
+/* 만난 지 며칠. **말풍선 수가 아니라 시계가 센다** */
+const worldDays=()=>Math.max(0,
+  Math.floor((worldNow().getTime()-worldStart().getTime())/864e5));
+/* 저장소를 들고 묻는 자리용 — 앵커를 그 저장소에서 직접 읽는다.
+   전역 앵커가 아직 안 세워진 첫 그림에서도 맞는 답이 나온다. */
+const worldDaysOf=store=>{
+  const first=firstTsOf(store);
+  if(!first)return 0;
+  const a=WORLD_ANCHOR; WORLD_ANCHOR=first;
+  const d=worldDays();
+  WORLD_ANCHOR=a;
+  return d;
+};
+/* 세계가 보는 지금. 옛 이름을 그대로 둔다 — 부르는 자리가 마흔 곳이 넘는다 */
+const nowClock=()=>worldNow();
+/* ── 개발 전용 시간 이동 ──
+   한 판에 30일을 봐야 할 때가 있다. 그렇다고 공개 스피드 모드의 비율을
+   건드리면 안 된다 — 그건 세계의 속도지 시험 도구가 아니다. 그래서 지금에만
+   더하는 오프셋을 따로 둔다. 저장된 ts도, 과거 말풍선의 시각도, 출발 자리도
+   안 움직인다. 움직이는 것은 「지금」 하나고, 일차·도장·시간표가 그걸 따라온다.
+   NULL_DEV가 켜진 빌드에만 실린다 — 켜는 자리는 빌드지 localStorage가 아니다.
+   콘솔 한 줄로 켤 수 있으면 테스터의 판이 조용히 달라진다. */
+const DEV_TIME = typeof NULL_DEV !== "undefined" && !!NULL_DEV;
+const loadSkew=()=>{try{return +localStorage.getItem("null_devskew")||0}catch(e){return 0}};
+/* 껐다 켜도 이동한 자리에 그대로 선다. 배포판은 값이 남아 있어도 안 읽는다 */
+if(DEV_TIME)DEV_SKEW=loadSkew();
+const setSkew=ms=>{ if(!DEV_TIME)return;
+  DEV_SKEW=Math.max(0,Number(ms)||0);
+  try{localStorage.setItem("null_devskew",String(DEV_SKEW))}catch(e){}};
+/* 세계 하루만큼 뛴다. 현실로는 스피드에서 여섯 시간이지만 오프셋은 세계 값이다 */
+const devAddDay=n=>setSkew(DEV_SKEW+(Number(n)||1)*864e5);
+/* 남은 날을 콕 집어 맞춘다 — D-7·D-0 단추가 이걸 부른다. 지금 남은 날을
+   받아서 그 차이만큼만 민다. 뒤로는 못 간다 — 오프셋을 음수로 두면 출발보다
+   이른 「지금」이 나와서 일차가 음수가 되고, 그 아래 규칙들이 다 깨진다. */
+const devToLeft=(curLeft,want)=>{
+  const d=(Number(curLeft)||0)-Math.max(0,Number(want)||0);
+  if(d>0)devAddDay(d);
+};
 /* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
 const loadExtend=()=>{try{return +localStorage.getItem("null_extend")||0}catch(e){return 0}};
 /* 첫날의 통보. 하루가 끝나기 전에 판돈을 알려준다 — 방법은 빼고.
    「24시간 안에」로 잡으면 그 시간에 앱을 안 연 사람에게는 영영 안 뜬다.
-   스무 시간이 지난 뒤 처음 여는 순간에 한 번만 띄운다. */
+   **세계 시각으로** 스무 시간이 지난 뒤 처음 여는 순간에 한 번만 띄운다 —
+   현실 시간으로 재면 스피드 모드의 첫날은 현실 여섯 시간이라 통보가
+   나흘째에 도착한다. */
 const SYS1_AFTER = 20*60*60*1000;
+const sys1Due=store=>{
+  const first=firstTsOf(store);
+  return !!first && worldNow().getTime()-gameAt(first).getTime() >= SYS1_AFTER;
+};
 const loadSys1=()=>{try{return localStorage.getItem("null_sys1")==="1"}catch(e){return false}};
 const saveSys1=()=>{try{localStorage.setItem("null_sys1","1")}catch(e){}};
-const daysLeft=store=>{
-  const span=ENROLL_DAYS+loadExtend();
-  if(speedOn())return Math.max(0,span-speedDaysOf(store));
-  const all=Object.values((store&&store.msgs)||{}).flat();
-  const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
-  return first?Math.max(0,span-Math.floor((Date.now()-first)/864e5)):span;
+/* 남은 날·지난 날. 둘 다 세계 시계 하나에서 나온다 */
+const daysLeft=store=>Math.max(0,ENROLL_DAYS+loadExtend()-worldDaysOf(store));
+/* 첫 대화로부터 며칠 지났나. 단계와 해금의 day 조건이 이걸 같이 본다 */
+const daysSince=store=>worldDaysOf(store);
+/* 떠나는 날의 현실 epoch. 재회 판정과 가방의 D-일차가 같이 본다 —
+   세계 하루는 스피드에서 현실 여섯 시간이므로 나눠서 되돌린다. */
+const leaveTsOf=store=>{
+  const first=firstTsOf(store);
+  if(!first)return 0;
+  const span=(ENROLL_DAYS+loadExtend())*864e5;
+  return first+(speedOn()?span/SPEED_RATE:span);
 };
-/* 첫 대화로부터 며칠 지났나. 단계와 해금이 이걸 같이 본다 */
-const daysSince=store=>{
-  if(speedOn())return speedDaysOf(store);
-  const all=Object.values((store&&store.msgs)||{}).flat();
-  const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
-  return first?Math.floor((Date.now()-first)/864e5):0;
+/* 떠난 뒤에 유저가 다시 말을 걸었나. 유저 발화만 센다 */
+const cameBackAt=store=>{
+  const leaveAt=leaveTsOf(store);
+  return !!leaveAt && Object.values((store&&store.msgs)||{}).flat()
+    .some(m=>m&&m.sender==="user"&&m.ts>=leaveAt);
+};
+/* 그 말풍선이 찍힌 날의 D-일차. 가방이 「받은 날」을 이걸로 적는다 */
+const dLeftAt=(store,ts)=>{
+  const first=firstTsOf(store);
+  if(!first||!ts)return null;
+  const gone=Math.floor((gameAt(ts).getTime()-gameAt(first).getTime())/864e5);
+  return Math.min(ENROLL_DAYS,Math.max(0,ENROLL_DAYS-gone));
 };
 /* ── 이름이 불린 횟수 ──
    유저는 NULL이다. 빈칸으로 있다가 이름이 불릴 때마다 한 칸씩 채워진다.
@@ -781,12 +803,11 @@ const nowLabel=(now)=>{
 /* 하루의 경계는 자정이 아니라 새벽 다섯 시다. 새벽 두 시에 여는 건 어제의
    연장이지 새 하루가 아니다 — 대화 도중에 날짜가 넘어가면 그게 제일 이상하다 */
 /* 「하루 한 번」 도장이 다 이걸 본다 — 선물·자리·귀갓길·관전 몫.
-   스피드 모드에서 진짜 달력을 그대로 보면, 대화로 날을 넘겨도 선물은 진짜
-   내일까지 못 준다. 그러면 빠른 게 빠른 게 아니다. 스피드 모드의 하루는
-   네 마디라, 네 마디 나누면 도장도 같이 넘어간다. */
+   **세계 시각의 달력**을 본다. 스피드 모드면 그 달력이 네 배로 도니까
+   현실 여섯 시간마다 도장이 새로 찍힌다. 말풍선 수는 여기 안 들어온다 —
+   네 마디 나눴다고 하루가 넘어가면 그게 어제 터진 그 구조다. */
 const dayKey=now=>{
-  if(speedOn())return "s"+speedDay();
-  const d=new Date(now||Date.now()); if(d.getHours()<5)d.setDate(d.getDate()-1);
+  const d=now?new Date(now):worldNow(); if(d.getHours()<5)d.setDate(d.getDate()-1);
   return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
 const loadDaySeen=()=>{try{return localStorage.getItem("null_dayseen")||""}catch(e){return""}};
 const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};

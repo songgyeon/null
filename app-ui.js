@@ -195,13 +195,9 @@ const STATUS_GONE={jaeeon:"잘 지내요. 항상.", minhyun:"모르는 걸로 �
    유저와 계속 대화하는 화면이 된다. 떠난 뒤를 둘로 나눈다 —
    기준은 D-0 뒤에 유저가 말을 했느냐. 유저 발화만 센다. */
 const STATUS_BACK={jaeeon:"아직 자리 있어요.", minhyun:"이제 와요?"};
-const cameBackOf=store=>{
-  const all=Object.values((store&&store.msgs)||{}).flat();
-  if(!all.length)return false;
-  const first=all.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
-  const leaveAt=first+(ENROLL_DAYS+loadExtend())*864e5;
-  return all.some(m=>m.sender==="user"&&m.ts>=leaveAt);
-};
+/* 떠나는 날은 세계 시계가 정한다 — 스피드 모드의 서른 날은 현실 7.5일이다.
+   현실 30일로 재면 재회가 영영 안 온다(cameBackAt이 그 환산을 들고 있다). */
+const cameBackOf=store=>cameBackAt(store);
 
 /* 본 단계와 지금 단계 사이에 실제로 달라진 것. 목록은 이게 비었는지만 본다.
    단계가 올랐어도 배경·곡·상메가 다 그대로면 알릴 일이 없다.
@@ -654,7 +650,7 @@ function Timetable({wend,onFillWend,onClose}){
    작은 대화상자에 흰 줄로 늘어놓으니 이 앱에서 혼자 다른 물건처럼 보였다.
    누가 어디서 줬는지가 물건보다 중요해서 얼굴을 앞에 놓는다.
    빌린 것은 따로 표시한다 — 돌려줄 게 남아 있으면 아직 안 끝난 것이다. */
-function Bag({bag,firstTs,onClose}){
+function Bag({bag,store,onClose}){
   const [cat,setCat]=useState("전체");
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
@@ -671,9 +667,9 @@ function Bag({bag,firstTs,onClose}){
       {rows.length?rows.map(b=>{
         const it=ITEMS[b.key], who=CHARS[b.from];
         /* 받은 날은 날짜가 아니라 남은 날로 적는다 — 이 앱에서 시간은 8월 16일이
-           아니라 D-18이다. 첫 대화 날짜를 모르면 그냥 안 적는다. */
-        const d=firstTs?Math.min(ENROLL_DAYS,Math.max(0,
-          ENROLL_DAYS-Math.floor((b.ts-firstTs)/864e5))):null;
+           아니라 D-18이다. 첫 대화 날짜를 모르면 그냥 안 적는다.
+           **세계 시계로 잰다** — 화면 어디에도 현실 날짜로 센 D는 없어야 한다. */
+        const d=dLeftAt(store,b.ts);
         return <div key={b.key} className="cgcard"><span className="cribbon"/>
           <img className="bagpic" src={`item-${b.key}.webp`} alt=""/>
           <div style={{flex:1,minWidth:0}}>
@@ -879,8 +875,8 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   const todayN=allMsgs.filter(m=>m.ts>=t0.getTime()).length;
   const totalN=allMsgs.length;
   /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
-     하루씩 깎는다. 0이 되면 거기서 멈춘다. 앱도 같은 식으로 센다. */
-  const firstTs=allMsgs.reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
+     하루씩 깎는다. 0이 되면 거기서 멈춘다. 앱도 같은 식으로 센다.
+     세는 것은 세계 시계 하나다(daysLeft → worldDays). */
   const dLeft=daysLeft(store);
   /* 빈칸 — 이름이 불린 만큼만 채운다 */
   const calls=countCalls(store,name);
@@ -1144,7 +1140,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       </div>}
     </div>
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
-    {dlg==="bag"&&<Bag bag={bag||[]} firstTs={firstTs} onClose={()=>setDlg(null)}/>}
+    {dlg==="bag"&&<Bag bag={bag||[]} store={store} onClose={()=>setDlg(null)}/>}
     {dlg==="timetable"&&<Timetable wend={wend} onFillWend={fillWend} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onClose={()=>setDlg(null)}/>}
@@ -1201,7 +1197,27 @@ function DayBar({left}){
   return <div className="dbar" title={"실습 D-"+left}>
     {Array.from({length:ENROLL_DAYS},(_,i)=>
       <i key={i} className={i<gone?"gone":i===gone?"now":""}/>)}
+    <DevTime left={left}/>
   </div>;
+}
+/* ── 개발 전용 시간 이동 ──
+   한 판에 서른 날을 봐야 할 때가 있다. 공개 스피드 모드의 비율은 세계의
+   속도지 시험 도구가 아니라서 건드리면 안 된다 — 「지금」에만 오프셋을
+   더하는 단추 셋을 따로 둔다. 과거 말풍선의 시각도 출발 자리도 안 움직인다.
+   DEV_TIME이 꺼진 빌드에서는 아무것도 안 그린다. 콘솔 한 줄로 켤 수 있게
+   두면 테스터의 판이 조용히 달라진다. */
+function DevTime({left}){
+  if(!DEV_TIME)return null;
+  /* 옮긴 뒤에는 새로 그린다. D-일차·도장·시간표·해금이 저마다 다른 자리에서
+     계산되고 일부는 ref에 얹혀 있어서, 여기서 state 하나 흔들어봐야 절반만
+     따라온다 — 반쯤 옮겨간 세계가 제일 헷갈린다. 오프셋은 저장돼 있으니
+     다시 켜지면 옮긴 자리 그대로다. */
+  const go=fn=>{ fn(); location.reload() };
+  return <span className="devtime">
+    <button onClick={()=>go(()=>devAddDay(1))}>+1d</button>
+    <button onClick={()=>go(()=>devToLeft(left,7))}>D-7</button>
+    <button onClick={()=>go(()=>devToLeft(left,0))}>D-0</button>
+  </span>;
 }
 /* 장면 모드에서 보여줄 줄 수. 한 턴에 말풍선이 두셋 나오니 대여섯이면
    방금 오간 말이 다 보이고, 그 위는 사진에 자리를 내준다. */

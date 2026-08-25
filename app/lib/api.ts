@@ -1,7 +1,7 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
 /* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
-import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner, loadStory, originPhase } from './rules';
+import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner, loadStory, originPhase, setWorldAt, daysSince } from './rules';
 import { loadGifts, loadDisclosed } from './profiles';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
@@ -111,16 +111,28 @@ export async function buildCounts() {
 
 /* 당신.txt에 채운 빈칸. 값이 있는 것만 보낸다 — 빈 항목까지 보내면
    프롬프트에 "좋아하는 것: " 같은 빈 줄이 생겨 모델이 헷갈린다. */
-/* 첫 대화로부터 며칠이 지났나. 단계는 대화 수와 날짜를 둘 다 넘어야 오른다 —
-   유저는 하루에 백 개씩 보내므로 대화 수만 보면 첫날 밤에 마지막 단계다.
-   서버는 유저별 저장소가 없어서 첫 대화가 언제였는지 모른다. 여기서 세어 보낸다. */
-export async function buildDays() {
+/* 세계 시계가 출발한 자리 — 저장소의 **첫 행**이다. 화면이 들고 있는 최근
+   1000개에서 뽑으면 대화가 천 개를 넘는 순간 앵커가 앞으로 밀려서 지난 날이
+   도로 줄어든다. DB에 직접 묻는다. */
+export async function firstTsFromDB() {
   let first = 0;
   for (const room of ['jaeeon', 'minhyun', 'group', 'health']) {
     const t = (await getFirstMsg(room))?.created_at || 0;
     if (t && (!first || t < first)) first = t;
   }
-  return first ? Math.floor((Date.now() - first) / 864e5) : 0;
+  return first;
+}
+
+/* 첫 대화로부터 며칠이 지났나. 단계는 대화 수와 날짜를 둘 다 넘어야 오른다 —
+   유저는 하루에 백 개씩 보내므로 대화 수만 보면 첫날 밤에 마지막 단계다.
+   서버는 유저별 저장소가 없어서 첫 대화가 언제였는지 모른다. 여기서 세어 보낸다.
+   **웹과 같은 세계 시계**로 센다 — 여기서 현실 날짜로 따로 세면 앱과 웹이
+   같은 판을 두고 다른 D-N을 워커에 보낸다. */
+export async function buildDays() {
+  const first = await firstTsFromDB();
+  if (!first) return 0;
+  setWorldAt(first);
+  return daysSince({ msgs: { anchor: [{ ts: first }] } } as any);
 }
 
 export async function buildUserProfile() {

@@ -862,6 +862,11 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 .dbar i{flex:1;background:#8a7fc0}
 .dbar i.gone{background:#f3effc}
 .dbar i.now{background:#ff7fae}
+/* 개발 전용 시간 이동. 배포판에서는 아예 안 그려진다(NULL_DEV) —
+   여기 있는 것만으로 켜지지 않으니 이 규칙은 죽은 채로 실려 있다 */
+.devtime{position:absolute;transform:translate(140px,-4px);display:flex;gap:2px;z-index:5}
+.devtime button{font:9px/1 inherit;padding:1px 3px;border:1px solid #b9addc;
+ background:#fff;color:#6b5fa8;cursor:pointer}
 .msgs{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 12px 10px;display:flex;flex-direction:column;gap:3px;
  background:#fdfcff;border-top:1px solid #fff;box-shadow:inset 1px 2px 4px rgba(93,84,144,.14)}
 /* 스크롤 끝의 여백을 컨테이너 padding-bottom에 기대지 않는다.

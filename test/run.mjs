@@ -1666,65 +1666,101 @@ eq('둘 다 넘으면 오른다', [stageOf(200, 10).name, stageOf(200, 18).name]
 const unlockedKeys = new Function(workerSrc.slice(workerSrc.indexOf('const UNLOCKS = ['),
   workerSrc.indexOf('// 유저가 \'당신.txt\'')) + ';return unlockedKeys')();
 const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
-/* ── 두 시계 ──
-   리얼 모드는 진짜 달력을 본다. 스피드 모드는 쌓인 대화를 날로 센다.
-   네 마디가 하루다 — 사다리가 그 비율로 놓여 있었다(at 12·26·44·64·90·116
-   ↔ day 3·7·11·15·20·26 ≒ at÷4).
-   시각은 이걸로 안 굴린다. 한때 같은 식으로 굴렸는데 한 마디에 여섯 시간이
-   뛰어서, 한 번 앉아 스무 마디를 나누면 닷새가 흘렀다. 나눠지는 수를 바꿔도
-   모양은 같다 — 말풍선이 시계를 미는 한 「한 마디에 몇 시간」이다.
-   그래서 뗐다. 진도는 마디 수가 세고, 시각은 진짜 시간이 민다. */
+/* ── 세계 시계는 하나다 ──
+   한때 스피드 모드가 쌓인 대화를 날로 셌다(네 마디 = 하루). 그러면 인물이
+   두 줄로 답하느냐 세 줄로 답하느냐가 달력을 민다. 실제로 그렇게 됐다 —
+   민현이 수다스러운 판에서 재언 방의 D-일차가 같이 탔고, 첫날 아침 8시 47분에
+   이미 37일째였다. 그래서 구조를 뗐다.
+   이제 시각·D-일차·요일·도장·재회가 전부 이 시계 하나에서 나온다:
+     리얼 1:1 · 스피드 1:4 · 게임 오전 8시 출발 · 현실 7.5일에 게임 30일 */
+const CLK = (dev) => new Function('__G',
+  'const NULL_DEV=__G.NULL_DEV, localStorage=__G.localStorage;'
+  + web.slice(web.indexOf('const ENROLL_DAYS'), web.indexOf('/* ── 이름이 불린 횟수 ──'))
+  + web.slice(web.indexOf('/* 하루의 경계는 자정이 아니라'), web.indexOf('const loadDaySeen='))
+  + 'return {saveMode,loadMode,speedOn,setWorldAt,worldNow,worldStart,worldDays,worldDaysOf,'
+  + 'gameAt,dayKey,daysLeft,daysSince,nowClock,cameBackAt,dLeftAt,sys1Due,leaveTsOf,'
+  + 'firstTsOf,SPEED_RATE,ENROLL_DAYS,DEV_TIME,devAddDay,devToLeft};')(
+  { NULL_DEV: !!dev, localStorage: (() => { const v = {};
+    return { getItem: k => (k in v ? v[k] : null), setItem: (k, x) => { v[k] = String(x) },
+             removeItem: k => { delete v[k] } } })() });
 {
-  const D = new Function(
-    'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
-    + web.slice(web.indexOf('const SPEED_PER_DAY='), web.indexOf('const loadExtend='))
-    + 'return {SPEED_PER_DAY,saveMode,speedOn,speedCountOf,speedDaysOf,'
-    + 'setSpeedAt,speedDay,speedNow,nowClock};')();
-  eq('네 마디가 하루다',
-    [D.speedDaysOf({ msgs: { jaeeon: Array(11) } }), D.speedDaysOf({ msgs: { jaeeon: Array(12) } })],
-    [2, 3]);
-  /* 많이 나눈 쪽으로 센다 — 한쪽만 파도 다른 방 것은 그 방 대화 수가 막는다 */
-  eq('많이 나눈 쪽으로 센다',
-    D.speedDaysOf({ msgs: { jaeeon: Array(116), minhyun: Array(0) } }), 29);
-  /* ── 단톡도 센다 ──
-     1:1 둘만 셌더니 스피드 모드에서 단톡에만 있으면 시계가 통째로 멈췄다.
-     백스무 마디를 떠들어도 지난 날이 그대로고, 가상 시계도 안 돌아 같은
-     시각·같은 요일에 얼어붙는다. 그러다 1:1로 옮기면 시간이 훅 뛴다 */
-  eq('단톡에서 떠들어도 날이 간다',
-    [0, 30, 120].map(n => D.speedDaysOf({ msgs: { jaeeon: Array(4), minhyun: Array(4), group: Array(n) } })),
-    [1, 7, 30]);
-  /* 관전은 유저가 말한 게 아니라 자리를 비운 사이에 찍힌 것이다 —
-     그걸로 날이 가면 안 켜고 둔 시간이 진도가 된다 */
-  eq('관전은 날을 못 민다',
-    D.speedDaysOf({ msgs: { jaeeon: Array(4), minhyun: Array(4), health: Array(120) } }), 1);
-  /* 116마디면 마지막 칸(day 26)에 닿는다 — 리얼 모드의 26일과 같은 자리다 */
-  eq('마지막 칸에 대화로 닿는다', D.speedDaysOf({ msgs: { jaeeon: Array(116) } }) >= 26, true);
+  const D = CLK();
+  const st = t => ({ msgs: { jaeeon: [{ ts: t, sender: 'user' }] } });
+  const at = ms => { const t = Date.now() - ms; D.setWorldAt(t); return st(t) };
   eq('기본은 리얼이다', D.speedOn(), false);
-  /* ── 시각은 진짜 시간이 민다 ──
-     말풍선 수로 굴리면 한 마디에 몇 시간이 뛴다. 나눠지는 수를 바꿔도 모양은
-     같아서, 구조를 뗐다. 첫 마디가 있던 날 아침 여덟 시에서 출발해 그 뒤로
-     흐른 진짜 시간 × SPEED_RATE만큼 간다. */
+
   D.saveMode('speed');
-  const anchor = Date.now() - 60 * 1000;        // 일 분 전에 시작했다
-  D.setSpeedAt(0, anchor);
-  const h0 = D.speedNow();
-  eq('아침 여덟 시에서 출발한다', h0.getHours(), 8);
-  /* 일 분이 흘렀으면 게임으로는 사 분이다 — 아직 여덟 시다 */
-  eq('일 분은 사 분이다', h0.getMinutes() >= 3 && h0.getMinutes() <= 5, true);
-  /* ── 여기가 핵심이다 ── 마디를 아무리 쌓아도 시계는 안 움직인다 */
-  eq('말풍선은 시계를 안 민다', (() => {
-    const before = D.speedNow().getTime();
-    D.setSpeedAt(200, anchor);
-    return Math.abs(D.speedNow().getTime() - before) < 5000;   // 흐른 진짜 시간만큼만
-  })(), true);
-  /* 진짜 시간이 흐르면 시계도 흐른다 — 세 시간 전에 시작했으면 열두 시간 */
-  D.setSpeedAt(0, Date.now() - 3 * 3600 * 1000);
-  eq('세 시간이 열두 시간이다', D.speedNow().getHours(), 20);
-  /* 진도는 여전히 마디 수가 센다 — 둘은 다른 것을 센다 */
-  D.setSpeedAt(48, anchor);
-  eq('진도는 마디가 센다', D.speedDay(), 12);
+  /* 150줄을 나누든 한 줄을 나누든 시계는 흐른 진짜 시간만 본다 */
+  const s12 = at(12 * 60 * 1000);
+  s12.msgs.jaeeon = Array.from({ length: 150 }, () => ({ ts: Date.now(), sender: 'char' }))
+    .concat(s12.msgs.jaeeon);
+  eq('현실 12분 · 150줄 → 첫날 08:4x · day 0 · D-30',
+    [D.worldNow().getHours(), D.worldNow().getMinutes() >= 45, D.worldDaysOf(s12), D.daysLeft(s12)],
+    [8, true, 0, 30]);
+  const s6 = at(6 * 3600 * 1000);
+  eq('현실 6시간 → 다음 날 08:00 · day 1 · D-29',
+    [D.worldNow().getHours(), D.worldDaysOf(s6), D.daysLeft(s6)], [8, 1, 29]);
+  /* 앱을 닫아둔 시간도 흐른다 — 「당신이 말하지 않아도 세계는 돌아갑니다」 */
+  const s2d = at(2 * 864e5);
+  eq('닫아둔 현실 이틀 → 게임 여드레', [D.worldDaysOf(s2d), D.daysLeft(s2d)], [8, 22]);
+  eq('현실 7.5일이면 서른 날이다', D.worldDaysOf(at(7.5 * 864e5)), 30);
+
+  /* ── 여기가 이번에 고친 것이다 ── 말풍선은 날짜에 손대지 않는다 */
+  const many = at(12 * 60 * 1000);
+  many.msgs = { jaeeon: Array(500).fill({ ts: many.msgs.jaeeon[0].ts, sender: 'char' }),
+                minhyun: Array(944).fill({ ts: many.msgs.jaeeon[0].ts, sender: 'char' }) };
+  eq('말풍선 1444개가 하루도 못 민다', D.worldDaysOf(many), 0);
+  eq('도장도 말풍선을 안 본다', D.dayKey(), D.dayKey());
+
   D.saveMode('real');
+  const r2d = at(2 * 864e5);
+  eq('리얼은 현실 이틀이 이틀이다', [D.worldDaysOf(r2d), D.daysLeft(r2d)], [2, 28]);
   eq('리얼 모드는 진짜 지금이다', Math.abs(D.nowClock() - Date.now()) < 4000, true);
+}
+/* ── 개발 전용 시간 이동 ──
+   한 판에 30일을 봐야 할 때가 있다. 공개 스피드 모드의 비율을 건드리지 않고
+   「지금」에만 오프셋을 더한다. 과거 말풍선의 시각은 안 움직인다. */
+{
+  const off = CLK(false), on = CLK(true);
+  eq('배포판에는 시간 이동이 없다', [off.DEV_TIME, on.DEV_TIME], [false, true]);
+  const t = Date.now() - 60 * 1000;
+  off.saveMode('speed'); off.setWorldAt(t); off.devAddDay(5);
+  eq('배포판에서는 눌러도 안 움직인다', off.worldDaysOf(off.firstTsOf ? { msgs: { j: [{ ts: t }] } } : {}), 0);
+
+  on.saveMode('speed'); on.setWorldAt(t);
+  const store = { msgs: { jaeeon: [{ ts: t, sender: 'user' }] } };
+  const past = on.gameAt(t).getTime();
+  on.devAddDay(1);
+  eq('+1일은 하루를 민다', on.worldDaysOf(store), 1);
+  eq('+1일이 과거 말풍선 시각을 안 바꾼다', on.gameAt(t).getTime(), past);
+  eq('출발 자리도 안 움직인다', on.worldStart().getTime(), past);
+  on.devToLeft(on.daysLeft(store), 7);
+  eq('D-7로 곧장 간다', on.daysLeft(store), 7);
+  on.devToLeft(on.daysLeft(store), 0);
+  eq('D-0로 곧장 간다', on.daysLeft(store), 0);
+}
+/* ── 시계 하나에서 나오는 것들 ── 도장·재회·가방 D-일차·첫날 통보 */
+{
+  const D = CLK();
+  D.saveMode('speed');
+  const t = Date.now() - 12 * 60 * 1000;
+  D.setWorldAt(t);
+  const store = { msgs: { jaeeon: [{ ts: t, sender: 'user' }] } };
+  /* 스피드의 서른 날은 현실 7.5일이다 — 현실 30일로 재면 재회가 영영 안 온다 */
+  eq('떠나는 날은 모드에 맞게 환산한다',
+    Math.round((D.leaveTsOf(store) - t) / 864e5 * 10) / 10, 7.5);
+  eq('아직은 재회가 아니다', D.cameBackAt(store), false);
+  eq('떠난 뒤 유저 발화면 재회다',
+    D.cameBackAt({ msgs: { jaeeon: [{ ts: t, sender: 'user' },
+      { ts: D.leaveTsOf(store) + 1000, sender: 'user' }] } }), true);
+  /* 가방의 「받은 날」도 세계 시계로 적는다 */
+  eq('방금 받은 것은 D-30이다', D.dLeftAt(store, t), 30);
+  eq('현실 여섯 시간 뒤에 받은 것은 D-29다', D.dLeftAt(store, t + 6 * 3600 * 1000), 29);
+  /* 첫날 통보는 세계 시각으로 스무 시간이다 — 현실로 재면 나흘째에 온다 */
+  eq('12분 만에는 아직 안 온다', D.sys1Due(store), false);
+  const t5 = Date.now() - 5.1 * 3600 * 1000;    // 게임으로 20.4시간
+  D.setWorldAt(t5);
+  eq('현실 다섯 시간이면 온다', D.sys1Due({ msgs: { jaeeon: [{ ts: t5 }] } }), true);
 }
 /* 규칙이 시계를 둘 두지 않는다 — 하나라도 new Date()로 새면 그것만 진짜
    시각을 보고, 스피드 모드에서 시간표와 잠이 딴말을 한다 */
@@ -1745,9 +1781,9 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
 {
   const F = new Function(
     'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
-    + web.slice(web.indexOf('const SPEED_PER_DAY='), web.indexOf('const loadExtend='))
+    + web.slice(web.indexOf('const ENROLL_DAYS'), web.indexOf('/* ── 이름이 불린 횟수 ──'))
     + web.slice(web.indexOf('const fmtClock='), web.indexOf('/* ── 지금이 언제인가'))
-    + 'return {saveMode,setSpeedAt,gameAt,fmtClock,isToday,fmtDivider,fmtListTime,fmtDay,dividerGap,nowClock};')();
+    + 'return {saveMode,setWorldAt,gameAt,fmtClock,isToday,fmtDivider,fmtListTime,fmtDay,dividerGap,nowClock};')();
   /* 리얼 모드 — 번역은 항등이다 */
   F.saveMode('real');
   const t = new Date(2026, 0, 6, 14, 30).getTime();
@@ -1758,7 +1794,7 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
   /* 스피드 모드 — 일곱 시간 전에 시작했으면 게임으로 하루가 넘게 흘렀다 */
   F.saveMode('speed');
   const anchor = Date.now() - 7 * 3600 * 1000;
-  F.setSpeedAt(0, anchor);
+  F.setWorldAt(anchor);
   const early = anchor + 15 * 60 * 1000;          // 십오 분째에 찍힌 말
   eq('십오 분째 말풍선은 아홉 시다', [F.gameAt(early).getHours(), F.gameAt(early).getMinutes()], [9, 0]);
   eq('말풍선도 번역돼 찍힌다', F.fmtClock(early), '오전 9:00');
@@ -1787,7 +1823,10 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
   const rules = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
   eq('앵커는 진짜 첫 ts다', /const firstTsOf=store=>Object\.values\(\(store&&store\.msgs\)\|\|\{\}\)\.flat\(\)/.test(rules)
     && !/firstTsOf=[\s\S]{0,120}gameAt\(/.test(rules), true);
-  eq('하루 열쇠는 그대로다', /const d=new Date\(now\|\|Date\.now\(\)\); if\(d\.getHours\(\)<5\)d\.setDate\(d\.getDate\(\)-1\);/.test(rules), true);
+  /* 하루 열쇠는 **세계 달력**을 본다 — 인자가 오면 그건 이미 번역된 세계
+     시각이라 다시 안 씌운다. 인자가 없으면 지금의 세계 시각이다 */
+  eq('하루 열쇠는 세계 달력이다',
+    /const d=now\?new Date\(now\):worldNow\(\); if\(d\.getHours\(\)<5\)d\.setDate\(d\.getDate\(\)-1\);/.test(rules), true);
   eq('도장도 그대로다', /const giftedToday=\(char,now\)=>loadGiftDay\(\)\[char\]===dayKey\(now\);/.test(rules)
     && /const goneToday=\(place,now\)=>loadGone\(\)\[place\]===dayKey\(now\);/.test(rules), true);
   eq('선톡 간격은 진짜 분으로 잰다', /const gapMin=list\.length\?Math\.round\(\(Date\.now\(\)-list\[list\.length-1\]\.ts\)\/60000\):-1;/.test(web), true);
@@ -1815,18 +1854,62 @@ const uk = (n, d) => unlockedKeys({ jaeeon: n, minhyun: n }, d).length;
   })(), true);
 }
 eq('시간표도 세계 시계를 본다', /function Timetable\(\{wend,onFillWend,onClose\}\)\{[\s\S]{0,220}const now=nowClock\(\);/.test(web), true);
-/* 시계는 store가 바뀔 때마다 감는다 — 규칙들은 대화 수를 스스로 못 본다 */
-for (const [label, src] of [['웹', web], ['앱', appSrc]])
-  eq(`${label}이 시계를 감는다`, /setSpeedAt\(speedCountOf\(/.test(src), true);
-/* 하루 한 번 도장이 다 dayKey를 본다 — 스피드 모드에서 진짜 달력을 그대로
-   보면 대화로 날을 넘겨도 선물은 진짜 내일까지 못 준다 */
-eq('스피드 모드의 하루는 대화가 정한다',
-  /if\(speedOn\(\)\)return "s"\+speedDay\(\);/.test(web), true);
-eq('남은 날도 두 시계를 본다',
-  /if\(speedOn\(\)\)return Math\.max\(0,span-speedDaysOf\(store\)\);/.test(web)
-  && /if\(speedOn\(\)\)return speedDaysOf\(store\);/.test(web), true);
-/* dayKey는 시각만 받는 순수 함수라 대화 수를 스스로 못 본다 — 앱이 넣어준다.
-   안 넣으면 「s0」에 얼어붙어 선물도 자리도 영영 하루치로 잠긴다 */
+/* 세계 시계의 출발 자리는 store가 바뀔 때마다 세운다 — 규칙들은 저장소를
+   스스로 못 본다. 세는 것은 첫 말풍선의 시각 하나고, 말풍선 수는 안 들어간다 */
+eq('웹이 첫 말풍선으로 시계를 세운다', /setWorldAt\(firstTsOf\(store\)\)/.test(web), true);
+eq('앱은 DB 첫 행으로 세운다',
+  /setAnchor\(await firstTsFromDB\(\)\)/.test(appSrc) && /setWorldAt\(anchor\)/.test(appSrc), true);
+/* ── 말풍선이 달력을 못 민다 ──
+   이 셋이 살아 있으면 인물의 수다가 D-일차를 태운다. 실제로 그렇게 됐다 */
+for (const [label, src] of [['웹', web], ['앱', appSrc],
+  ['앱 규칙', readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8')]])
+  eq(`${label}에 말풍선 달력이 안 남았다`,
+    /speedCountOf|speedDaysOf|SPEED_PER_DAY|speedDay\(\)/.test(src), false);
+/* 하루 한 번 도장·남은 날·지난 날이 다 같은 세계 시계를 본다 */
+eq('도장은 세계 달력을 본다',
+  /const dayKey=now=>\{\s*const d=now\?new Date\(now\):worldNow\(\);/.test(web), true);
+eq('남은 날도 세계 시계다',
+  /const daysLeft=store=>Math\.max\(0,ENROLL_DAYS\+loadExtend\(\)-worldDaysOf\(store\)\);/.test(web)
+  && /const daysSince=store=>worldDaysOf\(store\);/.test(web), true);
+/* 개발 오프셋은 「지금」에만 더한다 — gameAt에 넣으면 과거 말풍선 시각까지
+   같이 움직이고, 일차 계산에서는 시작과 지금 양쪽에 들어가 상쇄된다 */
+eq('개발 오프셋은 worldNow에만 있다',
+  /const worldNow=\(\)=>new Date\(gameAt\(Date\.now\(\)\)\.getTime\(\)\+DEV_SKEW\);/.test(web)
+  && !/DEV_SKEW/.test(web.slice(web.indexOf('const gameAt='), web.indexOf('const worldStart='))), true);
+/* 시간 이동은 빌드 플래그 뒤에 있다 — localStorage로 켜지면 콘솔 한 줄로
+   테스터의 판이 조용히 달라진다. 그리고 배포 기본값은 꺼진 채여야 한다 */
+eq('시간 이동은 빌드가 켠다',
+  /const DEV_TIME = typeof NULL_DEV !== "undefined" && !!NULL_DEV;/.test(web), true);
+eq('배포 기본값은 꺼져 있다',
+  /window\.NULL_DEV = false;/.test(readFileSync(join(ROOT, 'index.html'), 'utf8')), true);
+eq('단추도 그 플래그 뒤다',
+  /function DevTime\(\{left\}\)\{[\s\S]{0,120}if\(!DEV_TIME\)return null;/
+    .test(readFileSync(join(ROOT, 'app-ui.js'), 'utf8')), true);
+
+/* ── 앱도 같은 세계 시계를 본다 ──
+   여기가 이번에 제일 크게 갈려 있던 자리다. 앱은 화면이 든 **최근 1000개**로
+   첫 시각을 뽑고 현실 날짜로 D-일차를 따로 셌다 — 대화가 천 개를 넘으면
+   앵커가 앞으로 밀려 지난 날이 도로 줄고, 스피드 판에서도 리얼처럼 셌다. */
+{
+  const api = readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8');
+  eq('앱이 최근 1000개로 앵커를 안 잡는다', /firstTs=Object\.values\(msgs\)/.test(appSrc), false);
+  eq('앱의 앵커는 DB 첫 행이다',
+    /setAnchor\(await firstTsFromDB\(\)\)/.test(appSrc)
+    && /getFirstMsg\(room\)/.test(api), true);
+  eq('앱의 남은 날·지난 날도 규칙 것을 쓴다',
+    /const dLeft=anchor\?daysLeft\(clockStore\)/.test(appSrc)
+    && /const dayN=anchor\?daysSince\(clockStore\)/.test(appSrc), true);
+  eq('앱의 재회도 세계 시계로 잰다', /m\.created_at>=leaveTsOf\(clockStore\)/.test(appSrc), true);
+  eq('워커에 보내는 days도 세계 시계다',
+    /setWorldAt\(first\);[\s\S]{0,120}daysSince\(/.test(api), true);
+  /* 모드는 shim이 값을 퍼온 **뒤에** 읽어야 한다 — useState(loadMode)는 그
+     전에 한 번 돌아서 늘 real로 굳었다. 스피드 판이 껐다 켜면 리얼이 됐다 */
+  eq('모드는 저장소를 퍼온 뒤에 읽는다',
+    /await hydrateShim\(\);[\s\S]{0,700}setMode\(loadMode\(\)\)/.test(appSrc), true);
+  /* 새로 시작하면 앵커도 지운다 — 안 지우면 새 판이 옛 판의 D-일차를 문다 */
+  eq('새로 시작하면 시계도 처음으로',
+    /setAnchor\(0\); setWorldAt\(0\); setMode\(loadMode\(\)\)/.test(appSrc), true);
+}
 
 /* 모드는 판마다 하나고 등록 화면에서 고른다 — 중간에 바꾸면 D-N이 튄다 */
 for (const [label, src, re] of [
@@ -3985,7 +4068,7 @@ eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true
 /* gift가 준 것이면 bag은 받은 것이다. 작은 대화상자에 흰 줄로 늘어놓으니
    이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
 eq('bag이 gift와 같은 창을 쓴다',
-  /function Bag\(\{bag,firstTs,onClose\}\)/.test(web)
+  /function Bag\(\{bag,store,onClose\}\)/.test(web)
   && /<div className="cartscreen"><div className="cartwin">[\s\S]{0,200}✿ bag/.test(web), true);
 eq('bag이 gift와 같은 카드·칩을 쓴다',
   /className="cgcard"><span className="cribbon"\/>[\s\S]{0,120}bagpic/.test(web)
@@ -3999,7 +4082,7 @@ eq('여덟 개 그림이 전부 저장소에 있다',
 eq('준 사람은 오른쪽 작은 원으로 남는다', /className="bagwho" style=\{faceBg\(who\)\}/.test(web), true);
 /* 이 앱에서 시간은 8월 16일이 아니라 D-18이다 */
 eq('받은 날을 남은 날로 적는다',
-  /ENROLL_DAYS-Math\.floor\(\(b\.ts-firstTs\)\/864e5\)/.test(web)
+  /const d=dLeftAt\(store,b\.ts\);/.test(web)
   && /className="bagmeta">\{b\.where\}\{d!=null\?" · D-"\+d:""\}/.test(web), true);
 /* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */
 eq('준 사람 이름을 글로 또 안 적는다', /에게서/.test(web), false);
