@@ -30,9 +30,18 @@ const AV_V = "?v=5";
 /* 캐릭터 / 방 정의 */
 const CHARS = {
   jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"100%",pos:"50% 40%",
-    gallery:["jaeeon-work.webp","jaeeon-chart.webp","jaeeon-cook.webp","jaeeon-rooftop.webp","jaeeon-shelf.webp","jaeeon-laundry.webp","jaeeon-driveseat.webp","jaeeon-conv.webp","jaeeon-record.webp"]},
+    gallery:["jaeeon-work.webp","jaeeon-chart.webp","jaeeon-cook.webp","jaeeon-rooftop.webp","jaeeon-shelf.webp","jaeeon-laundry.webp","jaeeon-driveseat.webp","jaeeon-conv.webp","jaeeon-record.webp",
+      /* 자리마다 거리가 있다 — 중거리(mid)와 클로즈업(near). 눈 감은 최근접은
+         여기 없다: 그건 KISS_SHOT이고 관계 단계가 열어준다 */
+      "jaeeon-nurse-mid.webp","jaeeon-nurse-near.webp",
+      "jaeeon-laundry-seat.webp","jaeeon-laundry-mid.webp","jaeeon-laundry-near.webp",
+      "jaeeon-home-mid.webp","jaeeon-home-near.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp"]},
+    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
+      "minhyun-laundry-mid.webp","minhyun-laundry-near.webp",
+      "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp",
+      "minhyun-home-mid.webp","minhyun-home-near.webp",
+      "minhyun-fridge.webp"]},
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;
@@ -1050,6 +1059,23 @@ const placeHours=(p,now)=>{
   const h=d.getHours(),[a,b]=w;
   return a<b ? (h>=a&&h<b) : (h>=a||h<b);
 };
+/* ── 키스타임 층 (⑨) ──
+   자리마다 거리가 셋이다: 자리 배경(중거리) → 대화 중 클로즈업(눈 뜸) →
+   최근접(눈 감음). 얼굴을 숨겼다 보여주는 게 아니라, 처음부터 보이는
+   사람한테 점점 가까워지는 곡선이다.
+
+   ⚠️ 이 표는 **사진첩에도 자리 사진에도 안 들어간다.** 0단계에서 이 사진이
+   나가면 관계 단계 급발진의 이미지판이다. 여는 것은 관계 단계와 장면 조건
+   이중 게이트뿐이고, 그 배선이 서기 전까지 어느 화면도 이 표를 안 본다.
+   시험이 그 사실을 잰다. */
+const KISS_SHOT={
+  "보건실": {jaeeon:"jaeeon-nurse-kiss"},
+  "빨래방": {jaeeon:"jaeeon-laundry-kiss", minhyun:"minhyun-laundry-kiss"},
+  "집":     {jaeeon:"jaeeon-home-kiss",    minhyun:"minhyun-home-kiss"},
+  "옥상":   {minhyun:"minhyun-rooftop-kiss"},
+};
+const kissShot=(place,char)=>((KISS_SHOT[place]||{})[char])||null;
+
 /* ── 자리에 깔리는 그 사람 사진 ──
    들어간 순간엔 빈 방이고, 그 사람이 입을 열면 그 사람이 화면이 된다.
    눈앞에 있는 사람 사진을 문자로 보내는 건 이상하니까 배경이 그 일을 한다.
@@ -1059,19 +1085,22 @@ const placeHours=(p,now)=>{
 const SCENE_SHOT={
   /* 교실은 민현 자리다 — PLACES의 who가 민현뿐이라 재언은 여기 오지 않는다 */
   "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]}},
-  "보건실":   {jaeeon:["jaeeon-work","jaeeon-chart"],
+  "보건실":   {jaeeon:["jaeeon-work","jaeeon-chart","jaeeon-nurse-mid","jaeeon-nurse-near"],
                minhyun:["minhyun-candy"]},
-  "옥상":     {jaeeon:["jaeeon-rooftop"], minhyun:["minhyun-vending"]},
-  "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-conv","minhyun-ramen"]},
+  "옥상":     {jaeeon:["jaeeon-rooftop"],
+               minhyun:["minhyun-vending","minhyun-rooftop-mid","minhyun-rooftop-near"]},
+  "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-conv","minhyun-ramen","minhyun-fridge"]},
   "도서관":   {jaeeon:["jaeeon-shelf"], minhyun:["minhyun-shelf"]},
   "레코드샵": {jaeeon:["jaeeon-record"], minhyun:["minhyun-crate","minhyun-record","minhyun-mirror"]},
   /* 밤에 처음 켜면 여기서 재언을 만난다. 사진도 밤 코인세탁소다 —
      건조기 앞에 앉아 수건을 개고 있고 창밖에 비가 온다 */
-  "빨래방":   {minhyun:["minhyun-laundry"], jaeeon:["jaeeon-laundry"]},
+  "빨래방":   {minhyun:["minhyun-laundry","minhyun-laundry-mid","minhyun-laundry-near"],
+               jaeeon:["jaeeon-laundry","jaeeon-laundry-seat","jaeeon-laundry-mid","jaeeon-laundry-near"]},
   "체육관":   {minhyun:["minhyun-gym"]},
   /* 재언 집이지만 민현도 산다. 재언은 부엌에 서 있고, 민현은 막 일어난
      참이거나 엘리베이터에서 올라오는 길이다 */
-  "집":       {jaeeon:["jaeeon-cook"], minhyun:["minhyun-morning","minhyun-elevator"]},
+  "집":       {jaeeon:["jaeeon-cook","jaeeon-home-mid","jaeeon-home-near"],
+               minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
      빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
   /* 귀갓길은 같이 버스를 탄 자리다. 정류장 사진은 기다리는 그림이라
@@ -1878,6 +1907,8 @@ return {
   saveBag,
   placeOpen,
   placeHours,
+  KISS_SHOT,
+  kissShot,
   SCENE_SHOT,
   WAY,
   WAY_BG,
@@ -2158,6 +2189,8 @@ export const {
   saveBag,
   placeOpen,
   placeHours,
+  KISS_SHOT,
+  kissShot,
   SCENE_SHOT,
   WAY,
   WAY_BG,

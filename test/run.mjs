@@ -466,6 +466,41 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('앞뒤 두 장을 쓴다', [D.FLASH_FRONT, D.FLASH_BACK], ['card-rooftop.webp', 'card-note.webp']);
 }
 
+/* ── 거리 곡선 ──
+   자리마다 사진이 셋이다: 자리 배경(중거리) → 대화 중 클로즈업(눈 뜸) →
+   최근접(눈 감음). 얼굴을 숨겼다 보여주는 게 아니라, 처음부터 보이는
+   사람한테 점점 가까워지는 곡선이다. */
+{
+  const at = web.indexOf('const SCENE_SHOT=');
+  const scene = web.slice(at, web.indexOf('\n};', at));
+  const kAt = web.indexOf('const KISS_SHOT=');
+  const kiss = web.slice(kAt, web.indexOf('\n};', kAt));
+  const gal = web.slice(web.indexOf('const CHARS ='), web.indexOf('const ENROLL_DAYS'));
+  const KISS = [...kiss.matchAll(/"([a-z-]+-kiss)"/g)].map(m => m[1]);
+
+  eq('키스타임 사진이 여섯이다', KISS.length, 6);
+  eq('그 사진이 전부 저장소에 있다', KISS.filter(k => !exists(k + '.webp')), []);
+
+  /* ⚠️ 0단계에서 이 사진이 나가면 관계 단계 급발진의 이미지판이다.
+     사진첩에도 자리 사진에도 안 들어간다 — 여는 것은 관계 단계 게이트뿐이다. */
+  eq('키스타임 사진은 사진첩에 없다', KISS.filter(k => gal.includes(k)), []);
+  eq('키스타임 사진은 자리 사진에도 없다', KISS.filter(k => scene.includes(k)), []);
+  /* 아직 어느 화면도 이 표를 안 본다 — 게이트가 서기 전에는 부르는 데가 없어야 한다 */
+  eq('여는 함수는 있고 부르는 데는 없다',
+    [/const kissShot=\(place,char\)=>/.test(web), (web.match(/[^t] kissShot\(|=kissShot\(|\(kissShot\(/g) || []).length], [true, 0]);
+
+  /* 자리마다 거리가 늘었다 — 중거리와 클로즈업은 자리 사진과 사진첩에 든다 */
+  const NEAR = [...scene.matchAll(/"([a-z-]+-(?:mid|near|seat|fridge))"/g)].map(m => m[1]);
+  eq('늘어난 자리 사진이 전부 저장소에 있다',
+    [...new Set(NEAR)].filter(k => !exists(k + '.webp')), []);
+  eq('늘어난 자리 사진이 사진첩에도 있다',
+    [...new Set(NEAR)].filter(k => !gal.includes(k)), []);
+  /* 옥상은 셋이 다 있다 — 중거리·클로즈업·최근접 */
+  eq('옥상에 거리 셋이 다 있다',
+    [scene.includes('minhyun-rooftop-mid'), scene.includes('minhyun-rooftop-near'),
+     kiss.includes('minhyun-rooftop-kiss')], [true, true, true]);
+}
+
 /* ── 사진은 창에 담는다 ──
    이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
    사진만 검은 공백에 떠 있었다. 그 사진들은 전부 표면 위에 놓인 물건을 찍은
@@ -1097,9 +1132,18 @@ eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.k
     eq('뽑을 게 없으면 평일 표로 떨어진다', /if\(open\.length\)return open\[/.test(web), true);
   }
   /* 밤에 처음 켜면 빨래방에서 재언을 만난다. 그 자리에 그의 사진이 없었다 —
-     빈 방 그대로 있었다. 사진은 있었는데 표에 안 걸려 있었을 뿐이다 */
-  eq('빨래방에도 재언이 깔린다',
-    /"빨래방":\s*\{minhyun:\["minhyun-laundry"\], ?jaeeon:\["jaeeon-laundry"\]\}/.test(web), true);
+     빈 방 그대로 있었다. 사진은 있었는데 표에 안 걸려 있었을 뿐이다.
+     그 뒤로 자리마다 사진이 여럿이 됐다(중거리·클로즈업). 개수를 못박지 않고
+     **그가 그 자리에 있는가**만 잰다 — 사진이 늘어날 때마다 시험을 고칠 일이 아니다 */
+  eq('빨래방에도 재언이 깔린다', (() => {
+    /* 「빨래방」이 적힌 표가 둘이다 — 자리 사진(SCENE_SHOT)과 키스타임(KISS_SHOT).
+       앞의 것을 집으면 엉뚱한 표를 재게 된다. 자리 사진 표 안에서만 찾는다 */
+    const at = web.indexOf('const SCENE_SHOT=');
+    const tbl = web.slice(at, web.indexOf('\n};', at));
+    const i = tbl.indexOf('"빨래방":');
+    const t = tbl.slice(i, i + 300);
+    return i > 0 && /jaeeon:\[[^\]]*"jaeeon-laundry"/.test(t) && /minhyun:\[[^\]]*"minhyun-laundry"/.test(t);
+  })(), true);
   eq('그 사진이 저장소에 있다', exists('jaeeon-laundry.webp'), true);
   /* 첫 자리 다섯 곳에는 전부 그 사람이 깔려야 한다. 빈 방으로 시작해서
      입을 열면 그 사람이 화면이 되는 게 자리의 규칙이다 */
@@ -7599,6 +7643,16 @@ eq('시간표 단추는 peek보다 좁다',
           'null_met', 'null_auto_q', 'null_batch', 'null_scene'];
         const shot = W => keys.map(k => {
           const v = W.ls(k);
+          /* 자리에 깔리는 얼굴은 여럿 중에 무작위로 뽑는다(sceneShot). 판마다
+             다른 게 설계다 — 이 시험이 잴 것은 「실패를 걷고 이어서 돌린 끝이
+             같은가」지 「같은 얼굴이 뽑혔는가」가 아니다. 그 한 칸만 뺀다.
+             한 판 안에서 얼굴이 두 번 안 바뀌는 것은 swapShot의 sc.shot 자물쇠가
+             지키고, 그건 바로 아래에서 따로 잰다. */
+          if (k === 'null_scene') {
+            const o = v && typeof v === 'object' ? { ...v } : v;
+            if (o && typeof o === 'object') delete o.shot;
+            return [k, JSON.stringify(o)];
+          }
           if (k !== 'null_store_v1') return [k, JSON.stringify(v)];
           /* ts·id는 실행마다 다르다. 그리고 이어서 돌린 쪽은 모델을 다시
              안 부르므로(그게 계약이다) 인물의 답은 빼고 지문만 견준다 */
@@ -7612,6 +7666,11 @@ eq('시간표 단추는 peek보다 좁다',
           shot(W).forEach(([k, v], i) => { if (v !== base[i][1]) diffs.push([f, k, v, base[i][1]]) });
         }
         eq('실패를 걷고 이어서 돌린 끝이 무실패와 같다', diffs, []);
+        /* 한 판 안에서는 얼굴이 한 번만 뽑힌다 — 열 번 주고받는 동안 얼굴이
+           계속 바뀌면 어지럽다. 이미 뽑혔으면 다시 안 뽑는 자물쇠가 그걸 지킨다 */
+        eq('한 자리에서 얼굴은 한 번만 뽑는다',
+          /if\(!sc\|\|sc\.room!==room\|\|sc\.shot\)return;/
+            .test(readFileSync(join(ROOT, 'app.js'), 'utf8')), true);
       }
     }
 
