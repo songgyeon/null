@@ -1313,28 +1313,27 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         </div>
       </div>
       :tab==="map"
-      ?<div className={"gal mapscroll"+(level==="school"?" inside":"")}>{/* 그림은 길, 버튼은 실제 장소 상태다 */}
-        <div className="roadhead">
-          {level==="school"
-            ?<span className="rt rback" role="button" tabIndex={0}
-               onClick={()=>setLevel("town")}
-               onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setLevel("town")}}}>
-               ◁ <i className="rh">♡</i> SCHOOL</span>
-            :<span className="rt"><i className="rh">♡</i> NULL NOCKER</span>}
-          <span className="rbar"><i style={{width:(visitedN/SPOTS.length*100)+"%"}}/></span>
-          <span className="rn">{visitedN} / {SPOTS.length}</span>
-        </div>
-        {/* ── 사물함 여덟 칸. 학교 안에서는 뒤에 희미하게 깔린다 ── */}
+      ?<div className="gal mapscroll">{/* 그림은 길, 버튼은 실제 장소 상태다 */}
+        {/* 창 위에 머리글을 안 얹는다. 사물함 그림이 제 머리에 이름표와 빈 홈을
+            달고 있어서 같은 것을 하나 더 놓으면 제목도 진도도 두 벌이 된다 —
+            진도는 그 빈 홈 안에만 있다(.cabbar).
+            학교 안에서 나가는 길은 TV 화면 넷 말고 아무 데나 누르는 것이다 */}
+        {/* ── 사물함 여덟 칸 ── */}
         {(()=>{
-          const cabinet=dim=><div className={"cab"+(dim?" cabback":"")} aria-hidden={dim||null}>
+          const cabinet=()=><div className="cab">
             <img className="cabframe" src="cab-icons/frame.webp" alt="" aria-hidden="true"/>
+            {/* 그림 머리의 빈 홈 */}
+            <span className="cabbar">
+              <i style={{width:(visitedN/SPOTS.length*100)+"%"}}/>
+              <b>{visitedN} / {SPOTS.length}</b>
+            </span>
             {CAB_SLOT.map((s,i)=>{
               const style={left:CAB_COL[i%2]+"%",top:CAB_ROW[i>>1]+"%",width:CAB_DOOR_W+"%"};
               /* START와 NULL은 자리가 아니다. 열 것도 잠글 것도 없다 */
               if(s.kind)return <span key={s.kind} className="cabdoor plate" style={style}
-                role={dim?null:"button"} tabIndex={dim?null:0}
-                onClick={dim?null:()=>onPlate(s)}
-                onKeyDown={dim?null:e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onPlate(s)}}}
+                role="button" tabIndex={0}
+                onClick={()=>onPlate(s)}
+                onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onPlate(s)}}}
                 aria-label={s.say}>
                 <img src={`cab-icons/${s.kind}.webp`} alt=""/></span>;
               const p=PLACE_BY[s.place], open=placeOpen(p,met);
@@ -1343,37 +1342,38 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
               const nowOk=placeHours(p)&&wendOnlyOk(p)&&!goneToday(p.name);
               const been=p.into?false:met.includes(p.name);
               /* 잠긴 문도 눌린다. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
-                 왜 안 되는지는 창이 말한다. 다만 뒤에 깔린 사물함은 안 눌린다 */
-              const live=!dim;
+                 왜 안 되는지는 창이 말한다 */
               /* 학교는 자리가 아니라 문이다. 물어보지 않고 바로 안으로 들어간다 */
               const go=p.into?()=>setLevel(p.into):()=>onGoPlace(p.name);
               return <span key={p.name}
                 className={"cabdoor"+(open?"":" lock")+(open&&!nowOk&&!p.into?" shut":"")+(been?" been":"")}
                 style={style}
-                role={live?"button":null} tabIndex={live?0:null}
-                onClick={live?(open?go:()=>onGoPlace(p.name)):null}
-                onKeyDown={live?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();
-                  open?go():onGoPlace(p.name)}}:null}
+                role="button" tabIndex={0}
+                onClick={open?go:()=>onGoPlace(p.name)}
+                onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();
+                  open?go():onGoPlace(p.name)}}}
                 aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
                 <img src={`cab-icons/${p.icon}-${open?"open":"lock"}.webp`} alt=""/></span>;
             })}
           </div>;
-          if(level==="town")return cabinet(false);
-          /* 학교 문을 누르면 사물함이 뒤로 물러나고, 열린 문 안의 TV가
-             한가운데에 뿅 나온다. 화면을 가득 채우지는 않는다 —
-             여기는 사물함 안이지 다른 화면이 아니다 */
-          /* 나갈 데가 머리글 하나뿐이면 못 찾는다. 뒤에 깔린 사물함을 누르면
-             돌아간다 — 열린 문 바깥은 전부 「닫기」다.
-             열린 문짝도 「닫기」다. 전에는 .cabpop이 통째로 클릭을 삼켜서
-             활짝 열린 그 문을 눌러도 아무 일이 없었다 — 문을 눌러 닫는 건
-             제일 먼저 해보는 손짓이다. 이제 삼키는 건 TV 화면 넷뿐이고,
-             문짝·테두리·바닥은 전부 닫힌다. */
+          if(level==="town")return cabinet();
+          /* 학교 문을 누르면 그 문이 열린 사물함으로 바뀐다. 열린 칸 안에
+             TV가 있고 그 안에 학교 네 자리가 있다 — 원화가 사물함 한 장으로
+             그려져 있어서 잘라 띄우지 않는다. 마을과 같은 자리, 같은 크기다 */
+          /* 나갈 데가 머리글 하나뿐이면 못 찾는다. TV 화면 넷 말고는
+             어디를 눌러도 닫힌다 — 열린 문짝도 「닫기」다. 문을 눌러 닫는 건
+             제일 먼저 해보는 손짓이다 */
           return <div className="cabin" role="button" tabIndex={0}
             onClick={()=>setLevel("town")}
             onKeyDown={e=>{if(e.key==="Escape"||e.key==="Enter"){e.preventDefault();setLevel("town")}}}>
-            {cabinet(true)}
-            <div className="cabpop">
-              <img src="cab-icons/open.webp" alt="" aria-hidden="true"/>
+            <div className="cab cabpop">
+              <img className="cabframe" src="cab-icons/open.webp" alt="" aria-hidden="true"/>
+              {/* 그림 머리의 빈 홈은 여기도 있다. 마을에서만 차 있고 여기는
+                  비어 있으면 같은 사물함인데 한쪽만 덜 그린 것처럼 보인다 */}
+              <span className="cabbar">
+                <i style={{width:(visitedN/SPOTS.length*100)+"%"}}/>
+                <b>{visitedN} / {SPOTS.length}</b>
+              </span>
               {PLACES.filter(p=>p.map==="school").map(p=>{
                 const q=TV_QUAD[p.name]; if(!q)return null;
                 const open=placeOpen(p,met), nowOk=placeHours(p)&&!goneToday(p.name);

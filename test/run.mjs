@@ -5060,9 +5060,12 @@ eq('못 가는 이유를 셋 다 말한다',
   })(), '지금은 아무도 없어요');
 }
 
-/* 길이 없어졌는데 머리글에 ROAD가 남아 있었다. 사물함이라 NOCKER다 */
-eq('머리글이 사물함을 말한다',
-  /<i className="rh">♡<\/i> NULL NOCKER<\/span>/.test(web) && !/NULL ROAD MAP/.test(web), true);
+/* 길이 없어졌는데 머리글에 ROAD가 남아 있었다. 사물함이라 NOCKER였고,
+   새 원화가 제 머리에 이름표와 빈 홈을 달고 나오면서 그마저 걷었다 —
+   창 위에 같은 것을 하나 더 얹으면 제목도 진도도 두 벌이 된다.
+   진도는 그림 안의 빈 홈 하나뿐이다 */
+eq('지도 머리글을 안 쓴다',
+  /roadhead|NULL ROAD MAP|NULL NOCKER/.test(web), false);
 
 /* ── 캐비닛 지도 ──
    길이던 지도를 사물함으로 바꿨다. 이 앱은 가짜 OS인데 지도만 혼자 야외
@@ -5085,22 +5088,35 @@ eq('머리글이 사물함을 말한다',
   eq('문짝이 열림·잠김 짝으로 다 있다',
     ICONS.flatMap(k => [`cab-icons/${k}-open.webp`, `cab-icons/${k}-lock.webp`])
       .filter(f => !exists(f)), []);
-  eq('프레임·명패·TV가 있다',
-    ['frame', 'start', 'null', 'tv'].map(k => `cab-icons/${k}.webp`).filter(f => !exists(f)), []);
-  /* 칸 좌표는 프레임 그림에서 칸 안쪽을 재서 넣은 값이다. 4행 2열 */
-  eq('칸 좌표가 4행 2열이다',
-    /const CAB_COL=\[27\.50,72\.39\];/.test(web)
-    && /const CAB_ROW=\[13\.36,35\.88,58\.48,81\.19\];/.test(web), true);
-  /* 문짝은 구멍(40.73%)보다 넓어야 경첩이 프레임에 얹히고, 칸 간격(22.5%)보다
-     좁아야 위아래가 안 겹친다. 그림이 정사각이라 폭이 곧 높이다 */
-  eq('문짝이 구멍보다 넓고 칸 간격보다 좁다', /const CAB_DOOR_W=43;/.test(web), true);
+  /* tv.webp는 뺐다 — 열린 문 그림(open.webp)이 TV를 통째로 들고 있어서
+     따로 있을 이유가 없었고, 부르는 데도 없었다 */
+  eq('프레임·명패·열린 문이 있다',
+    ['frame', 'start', 'null', 'open'].map(k => `cab-icons/${k}.webp`).filter(f => !exists(f)), []);
+  eq('안 쓰는 그림을 안 남긴다', exists('cab-icons/tv.webp'), false);
+  /* 칸 좌표는 원화에서 칸 안쪽을 재서 넣은 값이다. 숫자를 박아두면 그림을
+     갈아끼울 때마다 시험이 먼저 깨진다 — 모양만 붙든다. 4행 2열 */
+  const NUMS = k => (web.match(new RegExp('const ' + k + '=\\[([^\\]]+)\\]')) || [, ''])[1]
+    .split(',').map(Number).filter(n => !isNaN(n));
+  const CCOL = NUMS('CAB_COL'), CROW = NUMS('CAB_ROW');
+  eq('칸 좌표가 4행 2열이다', [CCOL.length, CROW.length], [2, 4]);
+  eq('좌표가 그림 안에 있다',
+    CCOL.concat(CROW).filter(n => n <= 0 || n >= 100), []);
+  eq('행이 위에서 아래로 간다', CROW.slice(1).every((v, i) => v > CROW[i]), true);
+  /* 문짝은 원화에서 잘라 제자리에 다시 얹는 것이라(tools/build-cab-art.py)
+     좌우가 서로를 물면 한 칸이 두 겹으로 보인다. 열 간격보다 좁아야 한다 */
+  const CDW = Number((web.match(/const CAB_DOOR_W=([\d.]+);/) || [, 0])[1]);
+  eq('문짝이 열 간격보다 좁다', CDW > 0 && CDW < CCOL[1] - CCOL[0], true);
+  /* 그림을 잘라내는 자리와 화면에 얹는 자리가 갈리면 문짝이 어긋난다.
+     자르는 쪽은 이 스크립트 하나다 */
+  eq('문짝을 자르는 데가 하나다', exists('tools/build-cab-art.py'), true);
   /* START와 NULL은 갈 자리가 아니다. 창은 뜨되 자리로 안 간다 */
   eq('명패는 자리가 아니다', /if\(s\.kind\)return <span key=\{s\.kind\} className="cabdoor plate"/.test(web), true);
   /* 잠긴 문도 눌린다. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
      왜 안 되는지는 창이 말한다 */
-  eq('잠긴 문도 눌러진다', /const live=!dim;/.test(web), true);
+  eq('잠긴 문도 눌러진다',
+    /className=\{"cabdoor"\+\(open\?"":" lock"\)[\s\S]{0,400}?role="button" tabIndex=\{0\}/.test(web), true);
   eq('잠긴 문을 누르면 묻는 창이 뜬다',
-    /onClick=\{live\?\(open\?go:\(\)=>onGoPlace\(p\.name\)\):null\}/.test(web), true);
+    /onClick=\{open\?go:\(\)=>onGoPlace\(p\.name\)\}/.test(web), true);
   /* 두 줄로 끊고 글자를 줄인다 — 한 줄로 늘어놓으면 창이 옆으로 벌어지고
      얼굴이 잘린다 */
   eq('잠겼다고 말해준다',
@@ -5121,19 +5137,19 @@ eq('머리글이 사물함을 말한다',
   eq('학교를 누르면 안으로 들어간다',
     /const go=p\.into\?\(\)=>setLevel\(p\.into\)/.test(web)
     && /const \[level,setLevel\]=useState\("town"\)/.test(web), true);
-  /* 사물함이 뒤로 물러나고 열린 문이 한가운데에 뿅 나온다.
-     화면을 가득 채우지 않는다 — 여기는 사물함 안이지 다른 화면이 아니다 */
-  /* 사물함은 화면보다 훨씬 길다. 그 한가운데를 잡으면 열린 문이 화면 밖
-     저 아래에 뜬다 — 실제로 그랬다. 보이는 자리 안에서 가운데를 잡는다 */
-  eq('TV가 보이는 자리 한가운데에 뜬다',
-    /\.cabin\{position:relative;width:100%;height:100%;min-height:340px;overflow:hidden;cursor:pointer;/.test(web)
-    && /\.cabpop\{position:relative;z-index:2;width:88%/.test(web), true);
-  eq('학교 안은 스크롤이 없다',
-    /\.mapscroll\.inside\{display:flex;flex-direction:column;overflow:hidden\}/.test(web)
-    && /level==="school"\?" inside":""/.test(web), true);
-  eq('뒤에 사물함이 희미하게 남는다',
-    /\.cab\.cabback\{position:absolute;left:0;top:0;width:100%;opacity:\.3/.test(web)
-    && /cabinet\(true\)/.test(web), true);
+  /* 열린 칸만 오려 한가운데에 띄웠던 때가 있다. 원화가 사물함 한 장으로
+     그려져 있는데 그 가운데만 잘라 얹으니 사물함 안이 아니라 화면 위에
+     얹힌 판때기로 보였다. 이제 마을과 같은 그릇에 그림만 갈아끼운다 —
+     같은 자리, 같은 크기, 같은 스크롤 */
+  eq('학교 안도 마을과 같은 사물함 한 장이다',
+    /<div className="cab cabpop">/.test(web)
+    && /<img className="cabframe" src="cab-icons\/open\.webp"/.test(web)
+    && /<div className="gal mapscroll">/.test(web), true);
+  eq('오려 띄우던 자국이 안 남았다',
+    /cabback|mapscroll\.inside|cabinet\(true\)/.test(web), false);
+  /* 그림 머리의 빈 홈은 두 화면에 다 있다. 한쪽만 차 있으면 덜 그린 것처럼 보인다 */
+  eq('두 화면 다 빈 홈을 채운다',
+    (web.match(/<span className="cabbar">/g) || []).length, 2);
   /* 상자를 두르면 창 안에 창이 하나 더 생긴다. 글자색만 달리한다 */
   eq('규칙 줄에 상자를 안 두른다',
     /\.askrule\{margin:0 14px 11px;text-align:center;font-size:10\.5px/.test(web)
@@ -5141,11 +5157,12 @@ eq('머리글이 사물함을 말한다',
   /* 열린 문 그림을 안 쓰면 그냥 TV만 뜬다. 여기는 사물함 안이다 */
   eq('열린 문 그림을 쓴다',
     /src="cab-icons\/open\.webp"/.test(web) && exists('cab-icons/open.webp'), true);
-  /* 뒤에 깔린 사물함은 눌리면 안 된다 — 안 보이는 문을 누르게 된다 */
-  eq('뒤에 깔린 문은 안 눌린다', /const live=!dim;/.test(web), true);
+  /* 뒤에 사물함을 희미하게 깔던 때가 있었다. 그때는 안 보이는 문이 눌려서
+     dim이면 손잡이를 떼야 했다. 이제 깔리는 사물함이 없으니 그 갈래도 없다 */
+  eq('안 보이는 사물함을 안 깐다', /cabback|cabinet\(true\)|const live=!dim/.test(web), false);
   /* 명패 둘은 갈 자리가 아니지만 누르면 한 마디 한다. 눌러도 아무 일이
      없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다 */
-  eq('명패도 눌린다', /onClick=\{dim\?null:\(\)=>onPlate\(s\)\}/.test(web), true);
+  eq('명패도 눌린다', /onClick=\{\(\)=>onPlate\(s\)\}/.test(web), true);
   eq('명패가 할 말이 있다',
     /say:"NULL에게 닿기를"/.test(web) && /say:"NULL 기다릴게"/.test(web), true);
   /* 얼굴은 .kao로 따로 뺀다 — 픽셀 글꼴에 저 글자들이 없다 */
@@ -5166,8 +5183,9 @@ eq('머리글이 사물함을 말한다',
   eq('길 그림도 걷었다',
     ['null-roadmap-road.webp', 'school-roadmap-bg.webp', 'map-icons/heart-sign.png']
       .filter(f => exists(f)), []);
-  /* 머리글은 남는다 — 진도 막대와 뒤로가기가 거기 있다 */
-  eq('머리글은 그대로다', /className="roadhead"/.test(web), true);
+  /* 머리글까지 같이 걷었다. 진도는 사물함 그림 안의 빈 홈이 그린다 */
+  eq('진도는 그림 안의 빈 홈이 그린다',
+    /<span className="cabbar">/.test(web) && /\.cabbar\{position:absolute/.test(web), true);
 }
 
 /* 지우고 바로 다시 여는 것으로는 모자랐다 — 다시 열리기 전 몇 밀리초 사이에
@@ -5308,15 +5326,19 @@ eq('주말 칸이 기존 빈칸과 이름이 안 겹친다',
 eq('학교는 자리가 아니라 문이다',
   /\{name:"학교",\s*map:"town", into:"school"/.test(web)
   && /const SPOTS=PLACES\.filter\(p=>!p\.into\)/.test(web), true);
+/* 진도 표시가 둘이다 — 마을은 그림 머리의 빈 홈(.cabbar), 학교 안은 머리글.
+   둘 다 SPOTS로 세야 학교 문짝이 진도에 안 섞인다 */
 eq('진도는 갈 수 있는 자리로만 센다',
-  (web.match(/SPOTS\.length/g) || []).length, 2);
+  (web.match(/visitedN\/SPOTS\.length\*100/g) || []).length === 2
+  && (web.match(/\{visitedN\} \/ \{SPOTS\.length\}/g) || []).length === 2
+  && !/PLACES\.length/.test(web), true);
 eq('학교를 누르면 안으로 들어간다',
   /const go=p\.into\?\(\)=>setLevel\(p\.into\)/.test(web)
   && /const \[level,setLevel\]=useState\("town"\)/.test(web), true);
 /* 학교 안은 길이 아니라 건물이다. 마을은 사물함이고 학교 안은 TV라
    화면부터 다르다 — 같은 그림에 표지판만 다르게 세우던 때와 다르다 */
 eq('마을과 학교 안은 화면이 다르다',
-  /if\(level==="town"\)return cabinet\(false\);/.test(web)
+  /if\(level==="town"\)return cabinet\(\);/.test(web)
   && /return <div className="cabin" role="button"/.test(web), true);
 /* 나갈 데가 머리글 하나뿐이면 못 찾는다. 열린 문 바깥은 전부 「닫기」다 */
 eq('뒤를 누르면 마을로 돌아온다',
@@ -5327,20 +5349,59 @@ eq('뒤를 누르면 마을로 돌아온다',
    고르자마자 사물함이 닫히고 창만 덩그러니 남는다. 앱도 같이 본다 */
 {
   const cab = readFileSync(join(ROOT, 'app/screens/Cabinet.tsx'), 'utf8');
-  eq('문을 눌러도 닫힌다', /<div className="cabpop">/.test(web)
+  eq('문을 눌러도 닫힌다', /<div className="cab cabpop">/.test(web)
     && !/cabpop" onClick/.test(web), true);
   eq('앱도 문을 안 삼킨다', !/<Pressable onPress=\{\(\) => \{\}\}/.test(cab), true);
+  /* 앱은 그림 크기를 미리 못 안다. 그래서 적어두는데, 적어둔 값이 실제
+     그림과 갈리면 문짝 여덟이 통째로 어긋난다 — 두 시계다. 그림에서 잰다 */
+  {
+    const size = f => {                    /* WebP VP8L/VP8X 머리에서 크기를 읽는다 */
+      const b = readFileSync(join(ROOT, f));
+      if (b.slice(12, 16).toString() === 'VP8X')
+        return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+      if (b.slice(12, 16).toString() === 'VP8L') {
+        const v = b.readUInt32LE(21);
+        return [(v & 0x3fff) + 1, ((v >> 14) & 0x3fff) + 1];
+      }
+      return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+    };
+    const [fw, fh] = size('cab-icons/frame.webp');
+    const [ow, oh] = size('cab-icons/open.webp');
+    const [dw, dh] = size('cab-icons/school-open.webp');
+    eq('닫힌 사물함과 열린 사물함이 같은 크기다', [ow, oh], [fw, fh]);
+    eq('앱이 적어둔 프레임 크기가 그림과 같다',
+      new RegExp('const FRAME_W = ' + fw + ', FRAME_H = ' + fh + ';').test(cab), true);
+    eq('앱이 적어둔 문짝 크기가 그림과 같다',
+      new RegExp('const DOOR_W_PX = ' + dw + ', DOOR_H_PX = ' + dh + ';').test(cab), true);
+  }
+  /* TV 칸 높이를 앱이 따로 적어두던 때가 있었다. 빌드가 못 내보내서 놓은
+     임시 다리였는데, 규칙이 바뀌면 앱만 옛 값을 든다 */
+  eq('앱이 TV 칸 높이를 따로 안 적는다',
+    /TV_QUAD_H,/.test(cab) && !/const TV_QUAD_H =/.test(cab), true);
+  /* 뒤에 사물함을 희미하게 깔던 것도 웹과 같이 걷었다 */
+  eq('앱도 안 보이는 사물함을 안 깐다', /cabback|live:boolean/.test(cab), false);
   eq('자리를 고를 때는 안 닫힌다',
     /const go=e=>\{if\(e\)e\.stopPropagation\(\);onGoPlace\(p\.name\)\}/.test(web), true);
 }
 /* TV 화면 위에 테두리를 두르면 그림 위에 그림이 하나 더 얹힌다 */
 eq('TV 칸에는 다녀온 테두리를 안 두른다', /\.tvq\.been\{/.test(web), false);
-/* 나가기는 단추를 더 놓지 않고 제목 자리가 대신한다 */
-eq('머리글이 뒤로가기다', /className="rt rback" role="button"/.test(web), true);
+/* 나가기는 단추를 더 놓지 않는다. TV 화면 넷 말고 아무 데나 누르면 닫힌다 */
+eq('아무 데나 누르면 나간다',
+  /<div className="cabin" role="button"[\s\S]{0,120}onClick=\{\(\)=>setLevel\("town"\)\}/.test(web), true);
 /* 체육관은 TV 안에, 학교는 사물함 문짝에 있다 */
 eq('학교·체육관이 각자 자리에 있다',
-  /"체육관":\{x:35\.4, y:45\.0\}/.test(web)
+  /"체육관":\s*\{x:[\d.]+, y:[\d.]+\}/.test(web)
   && ['cab-icons/school-open.webp','cab-icons/school-lock.webp'].filter(f => !exists(f)).length === 0, true);
+/* TV 네 칸이 서로를 안 물고 화면 안에 있어야 한다 */
+{
+  const Q = [...web.slice(web.indexOf('const TV_QUAD='), web.indexOf('const TV_QUAD_W='))
+    .matchAll(/\{x:([\d.]+), y:([\d.]+)\}/g)].map(m => [Number(m[1]), Number(m[2])]);
+  const QW = Number((web.match(/const TV_QUAD_W=([\d.]+)/) || [, 0])[1]);
+  const QH = Number((web.match(/TV_QUAD_H=([\d.]+)/) || [, 0])[1]);
+  eq('TV 칸이 넷이다', Q.length, 4);
+  eq('TV 칸이 화면 안에 있다',
+    Q.filter(([x, y]) => x < 0 || y < 0 || x + QW > 100 || y + QH > 100), []);
+}
 /* peek은 메뉴바 맨 끝, LIVE는 「두 사람」 방 위의 딱지 — 원래 자리다.
    시간표 단추가 들어오면서 한 번 자리를 옮겼다가 되돌렸다. 390에서 여덟이
    한 줄에 앉는다(재봤다: peek 오른쪽 끝 385, 여백 5) */
