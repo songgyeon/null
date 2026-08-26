@@ -1581,3 +1581,12 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 @media (min-aspect-ratio:1/1){
   .screen.splash{background-image:url("ui/bg-desktop.webp")}
 }
+
+/* ── 창 사이 간격 ──
+   space-between으로 남는 세로를 창 사이에 나눠줬더니 이번엔 뚝뚝 떨어졌다.
+   참고 화면은 창 사이가 좁다 — 창이 큰 것이지 사이가 넓은 게 아니다.
+   그래서 다시 가운데로 모으되, 옆 여백을 26→13px로 줄여 창을 키운다.
+   창은 비율이 고정이라 폭이 커지면 높이도 같이 커져서 화면이 찬다. */
+.spstack{justify-content:center;gap:9px;padding:0 13px 44px}
+.spstack .w1{width:196px}
+.spstack .w2{width:236px}
