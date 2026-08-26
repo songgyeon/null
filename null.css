@@ -1610,6 +1610,11 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    위로 올린다. */
 .spcd    {position:absolute;left: 5.90%;top: 2.00%;width:24.00%;height:auto;aspect-ratio:1/1;align-self:auto}
 .spcard  {position:absolute;left: 6.46%;top:18.60%;width:86.81%}
-.spstack .w1{position:absolute;left: 6.46%;top:54.62%;width:48.19%;align-self:auto;margin:0}
+.spstack .w1{position:absolute;left: 6.46%;top:54.62%;width:48.19%;height:auto;aspect-ratio:1359/793;align-self:auto;margin:0}
 .spstack .w2{position:absolute;left:39.00%;top:72.54%;width:54.26%;align-self:auto;margin:0}
 .spstack .w3{position:absolute;left: 6.46%;top:87.39%;width:86.18%;align-self:auto;margin:0}
+
+/* 시스템오류창은 .spcurwrap이 감싸고 있어서, 바깥만 넓히면 안쪽 창이
+   224px에 묶인 채로 남는다. 안쪽이 wrapper를 꽉 채우게 한다 —
+   높이는 aspect-ratio가 내므로 창이 낮아지지 않는다. */
+.spstack .w2 .spwin{width:100%}
