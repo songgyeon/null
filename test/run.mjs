@@ -4125,7 +4125,12 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['125', '4752a9f9e032']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['125', '3481bcf55b5d']);
+    /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
+       일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
+       두 번호가 갈리면 한쪽만 새것이 된다 */
+    eq('그림도 같은 판 번호를 쓴다',
+      new RegExp('const AV="\\?v=' + v[0][2] + '";').test(web), true);
   }
   eq('데이터는 바벨을 안 탄다', /<script src="app-data\.js/.test(html), true);
   eq('화면과 앱은 바벨을 탄다',
@@ -4751,7 +4756,7 @@ eq('bag이 gift와 같은 카드·칩을 쓴다',
   && /ITEM_CATS\.map\(c=>[\s\S]{0,80}className=\{"cchip"/.test(web), true);
 /* 가방은 물건이 주인공이다. 얼굴을 크게 놓으니 물건은 글자뿐이고 얼굴만
    네 번 박히는 화면이 됐다 */
-eq('물건 그림이 앞에 온다', /className="bagpic" src=\{`item-\$\{b\.key\}\.webp`\}/.test(web), true);
+eq('물건 그림이 앞에 온다', /className="bagpic" src=\{av\(`item-\$\{b\.key\}\.webp`\)\}/.test(web), true);
 eq('여덟 개 그림이 전부 저장소에 있다',
   ['note','bandaid','can','haribo','book','lp','coin','key']
     .filter(k => !exists(`item-${k}.webp`)), []);
@@ -5155,7 +5160,7 @@ eq('지도 머리글을 안 쓴다',
      같은 자리, 같은 크기, 같은 스크롤 */
   eq('학교 안도 마을과 같은 사물함 한 장이다',
     /<div className="cab cabpop">/.test(web)
-    && /<img className="cabframe" src="cab-icons\/open\.webp"/.test(web)
+    && /<img className="cabframe" src=\{av\("cab-icons\/open\.webp"\)\}/.test(web)
     && /<div className="gal mapscroll">/.test(web), true);
   eq('오려 띄우던 자국이 안 남았다',
     /cabback|mapscroll\.inside|cabinet\(true\)/.test(web), false);
@@ -5168,7 +5173,7 @@ eq('지도 머리글을 안 쓴다',
     && !/\.askrule\{[^}]*background:/.test(web), true);
   /* 열린 문 그림을 안 쓰면 그냥 TV만 뜬다. 여기는 사물함 안이다 */
   eq('열린 문 그림을 쓴다',
-    /src="cab-icons\/open\.webp"/.test(web) && exists('cab-icons/open.webp'), true);
+    /av\("cab-icons\/open\.webp"\)/.test(web) && exists('cab-icons/open.webp'), true);
   /* 뒤에 사물함을 희미하게 깔던 때가 있었다. 그때는 안 보이는 문이 눌려서
      dim이면 손잡이를 떼야 했다. 이제 깔리는 사물함이 없으니 그 갈래도 없다 */
   eq('안 보이는 사물함을 안 깐다', /cabback|cabinet\(true\)|const live=!dim/.test(web), false);

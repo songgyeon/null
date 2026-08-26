@@ -372,10 +372,18 @@ const ROOMS = [
 ];
 const roomOf = id => ROOMS.find(r=>r.id===id);
 
+/* ── 그림 판 번호 ──
+   그림은 파일 이름이 안 바뀐 채 내용만 바뀐다. 사물함을 새 원화로 갈아끼웠는데
+   화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
+   쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
+   붙인다. 번호가 갈리면 시험이 잡는다. */
+const AV="?v=125";
+const av=s=>s?s+AV:s;
+
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
 const PHOTO_FILES={};
 Object.values(CHARS).forEach(c=>c.gallery.forEach(f=>{PHOTO_FILES[f.replace(/\.webp$/,"")]=f}));
-const photoSrc = k => (k&&PHOTO_FILES[k])||null;
+const photoSrc = k => (k&&av(PHOTO_FILES[k]))||null;
 
 /* .hidden: 대화가 쌓이면 백엔드가 해금해준다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS와 같아야 한다.

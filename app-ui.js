@@ -719,7 +719,7 @@ function Diary({onDone}){
   const alt=[DIARY_HEAD,...DIARY_LINES,DIARY_TAIL_A+"□"+DIARY_TAIL_B].join(" ");
   return <div className={"diary"+(out?" out":"")}>
     <div className="dpage">
-      <img className="dshot" src={DIARY_IMG} alt={alt}/>
+      <img className="dshot" src={av(DIARY_IMG)} alt={alt}/>
       {/* ── 빈칸은 상자가 아니라 **사진**에 앉는다 ──
           자리를 상자 기준 퍼센트로 잡으면, 화면이 낮아져 사진이 상자 안에서
           작아지는 순간 칸이 딴 데로 간다. 폰에서 키보드가 올라오면 바로 그
@@ -772,9 +772,9 @@ function Flash({onDone}){
         (실제로 그랬다: 클래스는 바뀌는데 앞면이 그대로 있었다) */}
     <div className="fwrap" style={{"--rise":FLASH_RISE+"ms","--turn":FLASH_TURN+"ms"}}>
     <div className={"fcard"+(turn?" turn":"")}>
-      <div className="fside ffront"><img src={FLASH_FRONT} alt="눈 내리는 병원 옥상"/></div>
+      <div className="fside ffront"><img src={av(FLASH_FRONT)} alt="눈 내리는 병원 옥상"/></div>
       <div className="fside fback">
-        <img src={FLASH_BACK} alt={FLASH_ALT.join(" ")}/>
+        <img src={av(FLASH_BACK)} alt={FLASH_ALT.join(" ")}/>
         {/* 빈칸은 상자가 아니라 사진에 앉는다 — .dfit과 같은 이유다 */}
         <div className="dfit">
           {FLASH_BOX.map((b,i)=>
@@ -960,7 +960,7 @@ function Bag({bag,store,onClose}){
            **세계 시계로 잰다** — 화면 어디에도 현실 날짜로 센 D는 없어야 한다. */
         const d=dLeftAt(store,b.ts);
         return <div key={b.key} className="cgcard"><span className="cribbon"/>
-          <img className="bagpic" src={`item-${b.key}.webp`} alt=""/>
+          <img className="bagpic" src={av(`item-${b.key}.webp`)} alt=""/>
           <div style={{flex:1,minWidth:0}}>
             <div className="cgname">{it.name}</div>
             {/* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */}
@@ -1041,7 +1041,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
         {hits.length?hits.map(g=>
           <button key={g.key} className="citem" onClick={()=>setPick(g)}>
             {g.badge&&<span className={"cbadge"+(g.badge==="HOT"?" mint":"")}>{g.badge}</span>}
-            <span className="cthumb"><img src={`gicon-${g.key}.webp`} alt=""/></span>
+            <span className="cthumb"><img src={av(`gicon-${g.key}.webp`)} alt=""/></span>
             <span className="ciname">{g.name}</span>
             <span className="cprice">♡ {g.cost}</span>
           </button>)
@@ -1052,7 +1052,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
 
     {pick&&<div className="cwrap">
       <div className="cgcard"><span className="cribbon"/>
-        <span className="cgthumb"><img src={`gicon-${pick.key}.webp`} alt=""/></span>
+        <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
           <div className="cgname">{pick.name}</div>
           <div className="itemsay">{pick.say}</div>
@@ -1321,7 +1321,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         {/* ── 사물함 여덟 칸 ── */}
         {(()=>{
           const cabinet=()=><div className="cab">
-            <img className="cabframe" src="cab-icons/frame.webp" alt="" aria-hidden="true"/>
+            <img className="cabframe" src={av("cab-icons/frame.webp")} alt="" aria-hidden="true"/>
             {/* 그림 머리의 빈 홈 */}
             <span className="cabbar">
               <i style={{width:(visitedN/SPOTS.length*100)+"%"}}/>
@@ -1335,7 +1335,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
                 onClick={()=>onPlate(s)}
                 onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onPlate(s)}}}
                 aria-label={s.say}>
-                <img src={`cab-icons/${s.kind}.webp`} alt=""/></span>;
+                <img src={av(`cab-icons/${s.kind}.webp`)} alt=""/></span>;
               const p=PLACE_BY[s.place], open=placeOpen(p,met);
               /* 못 가는 이유는 셋이다 — 시간, 주말 전용, 오늘 이미 다녀옴.
                  문에는 흐리게만 알리고 왜인지는 눌렀을 때 창이 말한다 */
@@ -1353,7 +1353,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
                 onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();
                   open?go():onGoPlace(p.name)}}}
                 aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
-                <img src={`cab-icons/${p.icon}-${open?"open":"lock"}.webp`} alt=""/></span>;
+                <img src={av(`cab-icons/${p.icon}-${open?"open":"lock"}.webp`)} alt=""/></span>;
             })}
           </div>;
           if(level==="town")return cabinet();
@@ -1367,7 +1367,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
             onClick={()=>setLevel("town")}
             onKeyDown={e=>{if(e.key==="Escape"||e.key==="Enter"){e.preventDefault();setLevel("town")}}}>
             <div className="cab cabpop">
-              <img className="cabframe" src="cab-icons/open.webp" alt="" aria-hidden="true"/>
+              <img className="cabframe" src={av("cab-icons/open.webp")} alt="" aria-hidden="true"/>
               {/* 그림 머리의 빈 홈은 여기도 있다. 마을에서만 차 있고 여기는
                   비어 있으면 같은 사물함인데 한쪽만 덜 그린 것처럼 보인다 */}
               <span className="cabbar">
@@ -1446,7 +1446,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
               onClick={()=>un?setZoom({src:h.file,label:h.label,
                 note:(h.note||"").replace("{name}",name||"당신")}):setGuess(h.key)}>
-              <img src={h.file} alt="" loading="lazy"/>
+              <img src={av(h.file)} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
               {un
                 ?<div className="hlabel">{h.label}</div>
