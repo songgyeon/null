@@ -456,6 +456,10 @@ function makeTurnContext(state, t) {
     sceneReason: o.sceneReason || "",            // 승인된 것만 들어온다
     facts:    Array.isArray(o.facts) ? o.facts.slice() : [],
     recent:   Array.isArray(o.recent) ? o.recent.slice() : [],
+    /* ④ 엽서 뒷면에 유저가 채운 셋. 가변부에서만 쓰인다(buildFlash) —
+       Fact 목록에는 안 넣는다: 정사가 아니라 유저가 지어낸 그날의 말이라
+       Canon Critic이 「목록에 없다」고 잡을 근거가 아니다. */
+    flash:    (o.flash && typeof o.flash === "object") ? { ...o.flash } : null,
   };
 }
 
@@ -2418,6 +2422,33 @@ const GIFT_ON_PROFILE = { mug: 1, photobook: 1, beanie: 1, earphone: 1 };
 
 /* 방금 받은 선물. 프론트가 장바구니에서 보낸 것이다.
    매 턴 바뀌므로 반드시 가변부에 넣는다 — 고정부에 넣으면 캐시가 깨진다. */
+/* ── ④ 엽서 뒷면 ──
+   유저가 병원 옥상 엽서의 뒷면에 채운 셋. 민현 방에서만 온다 —
+   재언은 그 종이를 본 적이 없다.
+
+   ⚠️ **가변부에만** 넣는다. 고정부에 넣으면 값이 바뀔 때마다 캐시가 통째로
+   깨진다. 이 함수를 buildSystem 쪽에서 부르면 안 되는 이유다.
+
+   이건 유저가 지어낸 그날의 말이지 정사가 아니다. 그래서 「기억한다」고만
+   하고, 확인·인용·해석은 시키지 않는다 — 그러면 유저가 쓴 문장을 모델이
+   되받아 설명하기 시작한다. */
+function buildFlash(flash, room) {
+  if (room !== "minhyun" || !flash || typeof flash !== "object") return "";
+  const g = k => String(flash[k] || "").slice(0, 20).trim();
+  const face = g("face"), said = g("said"), wish = g("wish");
+  if (!face && !said && !wish) return "";
+  const L = [];
+  if (face) L.push(`- 그때 네 표정을 그 사람은 "${face}"이라고 적어뒀다.`);
+  if (said) L.push(`- 그때 네가 한 말은 "${said}"였다.`);
+  if (wish) L.push(`- 다시 만나면 "${wish}" 하고 싶다고 적혀 있다.`);
+  return `
+## [병원 옥상, 그날]
+${L.join("\n")}
+- 네가 기억하는 것이다. 확인받으려 하지 않고, 그대로 읊지도 않는다.
+- 먼저 꺼내지 않는다. 그 얘기가 나왔을 때만 이 결로 군다.
+`;
+}
+
 function buildGift(gift, userName, room) {
   const name = ((gift && gift.name) || "").toString().slice(0, 40).trim();
   if (!name) return "";
@@ -3397,6 +3428,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           + buildStage(mode, room, counts, days) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName, room) + buildEvent(event, userName)
+          + buildFlash(ctx && ctx.flash, room)
           /* ── 화자별 투영 ──
              1:1은 그 인물이 아는 것. 단톡·관전은 **둘 다 아는 것의 교집합**.
              한 사람만 아는 사실에 딱지를 붙여 공동 Writer에 같이 넣지 않는다 —
@@ -6052,6 +6084,7 @@ export default {
         firstContact: story.firstContact, jaeeonMemory: story.jaeeonMemory,
         partnerKnown: story.partnerKnown, schoolMet: story.schoolMet,
         originPhase: body.origin_phase,
+        flash: body.flash,
         /* 누구를 골랐는지도 문맥의 일부다 — story에서 이미 정규화됐다
            (jaeeon·minhyun 밖의 값은 null). 여기 빠지면 TurnContext만
            상대를 모르는 반쪽이 된다. */
@@ -7112,6 +7145,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          directorPacket, readDecision, DIRECTOR_RULES,
          /* G5 — golden-v1 행동 규칙 */
          dialogueRuleset, goldenV1Rules, GOLDEN_DIRECTOR_RULES, readGoldenDecision, GOLDEN_REJECT_CODES,
+         buildFlash,
          SELECTED_DIRECTOR_RULES, SELECTED_COMMON, SELECTED_VOICE, selectedRules,
          intentOf, turnMaterial, itemWords, mentionsItem,
          /* G3 — sonnet5-pair-haiku */

@@ -1066,6 +1066,11 @@ function App(){
     if(payload.mode==="chat"){
       payload.story=loadStory();
       if(CHARS[bucket])payload.origin_phase=originPhase(bucket);
+      /* ④ 유저가 엽서 뒷면에 채운 셋. 민현 방에서만 실린다 — 재언은 그 종이를
+         본 적이 없다. 워커에서는 **가변부에만** 들어간다(고정부에 넣으면
+         캐시가 통째로 깨진다). 재언 일기(③)와 달리 이건 나가는 유일한 빈칸이고,
+         그게 문서가 못박은 「서버 전달 경계」다. */
+      if(bucket==="minhyun"){ const fl=loadFlash(); if(fl)payload.flash=fl; }
     }
     inflightRef.current[bucket]=rid;
     setBusy(b=>({...b,[bucket]:true}));
@@ -1209,6 +1214,20 @@ function App(){
        인물이 방금 등록값을 입에 올린 바로 다음일 때만 연다 — 아무 데서나
        나오는 「어떻게 알아?」에 열리면 그게 오발이다.
        단체방에서는 방금 말한 그 사람의 상태만 바뀐다. */
+    /* ── ④ 엽서를 덮고 **다음 턴에** 한 번 ──
+       복귀하자마자가 아니다. 덮은 그 턴은 유저가 붙잡혔던 말이 그대로 나가고,
+       그 다음에 유저가 다시 말을 걸면 그때 이 한 줄이 온다.
+       조립이라 모델을 안 부른다 — originGate와 같은 층이다. 셋 중 둘째만
+       쓴다: 복귀 직후에 셋을 다 쏟으면 되울림이 아니라 요약이 된다.
+       도장을 못 찍으면 안 내보낸다. 내보내고 못 적으면 다음 턴에 또 온다. */
+    if(!resumed&&room==="minhyun"&&loadFlash()&&!flashSaid()){
+      const line=flashSayLine();
+      if(line&&markFlashSaid()){
+        setBusy(b=>({...b,[room]:true}));
+        enqueue(room,[{sender:"minhyun",text:line}]);
+        return;
+      }
+    }
     const lastSaid=[...prevList].reverse().find(m=>m.sender&&m.sender!=="user"&&!m.sys);
     const gate=lastSaid&&originGate(text,lastSaid.text,lastSaid.sender,profileRef.current,name);
     if(gate){
@@ -1827,7 +1846,13 @@ function App(){
 
   return <div className="phone">
     {diary&&<Diary onDone={diaryDone}/>}
-    {flash&&<Flash onDone={()=>{const f=flash;setFlash(null);send(f.room,f.text,true)}}/>}
+    {flash&&<Flash onDone={()=>{const f=flash;setFlash(null);
+      /* 엽서를 끝까지 채웠다 = 민현이 그날 얘기를 **한** 것이다.
+         explained는 「말했다」이지 「유저가 받아들였다」가 아니다 —
+         recognized까지 여기서 찍지 않는다. 그건 대화가 정한다.
+         덮기를 못 누르고 나가면 여기 안 온다: 상태가 그대로라 pending 경로다. */
+      applyStoryTransition({key:"firstContact",to:"explained"});
+      send(f.room,f.text,true)}}/>}
     {kiss&&<KissTime shot={{shot:kiss}} onDone={()=>setKiss(null)}/>}
     {enrolling==="intro"&&<Intro onGo={()=>setEnrolling("enroll")}/>}
     {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")}

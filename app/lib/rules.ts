@@ -283,6 +283,27 @@ const userPics=()=>{
   return out;
 };
 
+/* ── ④ 플래시백 다음 턴에 나가는 한 줄 ──
+   조립이다. 모델을 안 부른다 — originGate와 같은 층이고, 같은 이유다:
+   모델에게 맡기면 매번 다르게 둘러대다가 결국 설명이 된다.
+
+   셋 중 **둘째(said)만** 쓴다. 복귀하자마자 셋을 다 쏟으면 되울림이 아니라
+   요약이 된다. 「___라고」는 인용 구문이라 유저가 뭘 넣어도 조사가 안 깨진다.
+
+   한 번만 나간다. 도장은 따로 찍는다 — null_flash가 차 있다는 것만으로는
+   「아직 말 안 했다」와 「이미 말했다」를 못 가른다. */
+const FLASH_SAY_A="선생님, 그때 제가 ", FLASH_SAY_B="라고 했잖아요.";
+const flashSayLine=()=>{
+  const f=loadFlash();
+  const t=((f||{}).said||"").trim();
+  return t?FLASH_SAY_A+t+FLASH_SAY_B:null;
+};
+const flashSaid=()=>{try{return localStorage.getItem("null_flash_said")==="1"}catch(e){return true}};
+const markFlashSaid=()=>{try{
+  localStorage.setItem("null_flash_said","1");
+  return flashSaid();
+}catch(e){return false}};
+
 const loadFirstMet=()=>{try{
   const v=localStorage.getItem("null_first");
   if(v==="jaeeon"||v==="minhyun")return v;
@@ -1883,6 +1904,11 @@ return {
   loadFlash,
   saveFlash,
   userPics,
+  FLASH_SAY_A,
+  FLASH_SAY_B,
+  flashSayLine,
+  flashSaid,
+  markFlashSaid,
   loadFirstMet,
   saveFirstMet,
   unmetOne,
@@ -2180,6 +2206,11 @@ export const {
   loadFlash,
   saveFlash,
   userPics,
+  FLASH_SAY_A,
+  FLASH_SAY_B,
+  flashSayLine,
+  flashSaid,
+  markFlashSaid,
   loadFirstMet,
   saveFirstMet,
   unmetOne,

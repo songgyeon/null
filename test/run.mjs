@@ -442,7 +442,7 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('유저의 말을 붙이기 전에 잡는다',
     web.indexOf('setFlash({room,text});') < web.indexOf('const userMsg={id:Date.now()+Math.random(),sender:"user",text,ts:Date.now()};'), true);
   eq('덮은 뒤에 그 말이 그대로 나간다',
-    /onDone=\{\(\)=>\{const f=flash;setFlash\(null\);send\(f\.room,f\.text,true\)\}\}/.test(web), true);
+    /const f=flash;setFlash\(null\);[^]*?send\(f\.room,f\.text,true\)\}\}/.test(web), true);
   /* 다시 부를 때 또 잡히면 영영 안 나간다 */
   eq('되보낼 때는 안 잡는다', /const send=\(room,text,resumed\)=>\{/.test(web), true);
 
@@ -9653,6 +9653,95 @@ eq('시간표 단추는 peek보다 좁다',
   /* 「엄마가 사탕을 줬다」에서 멈춘다 — 누구에게 줬는지는 어떤 화면도 발설하지 않는다 */
   eq('사탕을 누구에게 줬는지는 안 적는다',
     D.DIARY_LINES.some(l => /목걸이|재언|민현|삼촌/.test(l)), false);
+}
+
+/* ══════════ ④ 엽서 뒷면 — 나가는 유일한 빈칸 ══════════
+   문서의 「서버 전달 경계」: 서버로 가는 빈칸은 민현 온보딩(④) 하나뿐이고
+   재언 일기(③)·이름(⑤)·히든(⑥)·선물(⑧)은 전부 클라이언트 온리다.
+   ④는 나가되 **가변부에만** 나간다 — 고정부에 넣으면 값이 바뀔 때마다
+   캐시가 통째로 깨진다. */
+{
+  const mem = new Map();
+  const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+    setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
+  const D = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {saveFlash,loadFlash,flashSayLine,flashSaid,markFlashSaid,FLASH_SAY_A,FLASH_SAY_B,FLASH_KEYS};')(ls, { search: '' });
+
+  /* ── 복귀 대사는 조립이다 ── 모델을 안 부른다 */
+  eq('아직 안 채웠으면 나갈 줄이 없다', D.flashSayLine(), null);
+  D.saveFlash({ face: '이상한', said: '진짜요', wish: '또 보고' });
+  eq('둘째 칸만 끼운다', D.flashSayLine(), '선생님, 그때 제가 진짜요라고 했잖아요.');
+  /* 셋을 한 번에 쏟으면 되울림이 아니라 요약이 된다 — 나머지 둘은 안 들어간다 */
+  eq('나머지 둘은 이 줄에 없다',
+    /이상한|또 보고/.test(D.flashSayLine()), false);
+  /* 「___라고」는 인용 구문이라 받침이 뭐든 조사가 안 깨진다 */
+  eq('받침이 달라도 문장이 안 깨진다', (() => {
+    const out = [];
+    for (const w of ['네', '싫어', '책임져요', '몰라']) {
+      D.saveFlash({ face: 'x', said: w, wish: 'y' });
+      out.push(D.flashSayLine());
+    }
+    return out;
+  })(), ['선생님, 그때 제가 네라고 했잖아요.', '선생님, 그때 제가 싫어라고 했잖아요.',
+         '선생님, 그때 제가 책임져요라고 했잖아요.', '선생님, 그때 제가 몰라라고 했잖아요.']);
+  /* 한 번만 나간다. null_flash가 차 있다는 것만으로는 「아직 안 했다」와
+     「이미 했다」를 못 가르므로 도장을 따로 찍는다 */
+  eq('처음엔 도장이 없다', D.flashSaid(), false);
+  eq('찍으면 남는다', [D.markFlashSaid(), D.flashSaid()], [true, true]);
+  /* 도장을 못 찍으면 안 내보낸다 — 내보내고 못 적으면 다음 턴에 또 온다 */
+  eq('못 적으면 안 내보낸다',
+    /if\(line&&markFlashSaid\(\)\)\{/.test(web), true);
+  /* 덮은 그 턴이 아니라 **다음 턴**이다 */
+  eq('되보내는 턴에는 안 나간다',
+    /if\(!resumed&&room==="minhyun"&&loadFlash\(\)&&!flashSaid\(\)\)\{/.test(web), true);
+  /* 모델을 안 부른다 — originGate와 같은 층이다 */
+  eq('모델을 안 부른다', (() => {
+    const i = web.indexOf('if(!resumed&&room==="minhyun"&&loadFlash()&&!flashSaid())');
+    const blk = web.slice(i, web.indexOf('const lastSaid=', i));
+    return [/enqueue\(room,\[\{sender:"minhyun",text:line\}\]\)/.test(blk), /request\(/.test(blk)];
+  })(), [true, false]);
+
+  /* ── 나가되 가변부에만 ── */
+  eq('민현 방에서만 싣는다',
+    /if\(bucket==="minhyun"\)\{ const fl=loadFlash\(\); if\(fl\)payload\.flash=fl; \}/.test(web), true);
+  const B = ENG.buildFlash;
+  const F = { face: '이상한', said: '진짜요', wish: '또 보고' };
+  eq('재언 방에는 안 실린다', B(F, 'jaeeon'), '');
+  eq('단톡·관전에도 안 실린다', [B(F, 'group'), B(F, 'health')], ['', '']);
+  eq('안 채웠으면 줄이 없다', [B(null, 'minhyun'), B({}, 'minhyun')], ['', '']);
+  eq('셋이 다 들어간다', (() => {
+    const t = B(F, 'minhyun');
+    return [t.includes('"이상한"'), t.includes('"진짜요"'), t.includes('"또 보고"')];
+  })(), [true, true, true]);
+  /* 유저가 지어낸 그날의 말이지 정사가 아니다 — 확인·인용을 시키지 않는다 */
+  eq('읊지 말라고 적혀 있다',
+    /확인받으려 하지 않고, 그대로 읊지도 않는다/.test(B(F, 'minhyun')), true);
+  /* 채운 값이 길어도 프롬프트가 안 부푼다 */
+  eq('한 칸에 스무 자까지', (() => {
+    const t = B({ said: '가'.repeat(80) }, 'minhyun');
+    return t.includes('가'.repeat(21));
+  })(), false);
+
+  /* ⚠️ 고정부에는 절대 안 간다. 고정부를 짓는 함수가 이 값을 아예 못 본다 */
+  eq('고정부는 이 값을 모른다', (() => {
+    const sys = ENG.buildSystem('chat', 'minhyun', '연', null, [], null, null, null, null, null, 3, '');
+    return JSON.stringify(sys).includes('이상한') || JSON.stringify(sys).includes('병원 옥상, 그날');
+  })(), false);
+  eq('고정부 조립에서 buildFlash를 안 부른다', (() => {
+    const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+    const i = wk.indexOf('function buildSystem(');
+    const blk = wk.slice(i, wk.indexOf('\nfunction ', i + 10));
+    return /buildFlash/.test(blk);
+  })(), false);
+
+  /* ── 엽서를 끝까지 채우면 민현이 말한 것이다 ── */
+  eq('덮으면 explained로 간다',
+    /applyStoryTransition\(\{key:"firstContact",to:"explained"\}\)/.test(web), true);
+  /* recognized까지 여기서 찍지 않는다 — 그건 유저가 받아들인 자리고 대화가 정한다 */
+  eq('recognized는 여기서 안 찍는다',
+    /applyStoryTransition\(\{key:"firstContact",to:"recognized"\}\)/.test(web), false);
 }
 
 /* ══════════ ⑥ 히든 제목 빈칸 · ⑧ 선물 빈칸 ══════════
