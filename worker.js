@@ -4993,10 +4993,17 @@ function detectScene(ctx) {
    어느 사진인지는 **여기서 안 정한다.** 자리·인물별 사진표는 클라이언트에
    하나 있고, 워커는 「누가·어디서」만 말한다 — 표를 양쪽에 두면 사진을
    한 장 갈 때마다 두 군데가 갈린다. 표에 그 짝이 없으면 화면은 그냥 안 뜬다. */
+/* 어느 단계부터 열리는가. 마지막 칸(시한)은 80마디 + 18일이라 서른 날짜리
+   판에서 열여드레를 채워야 열린다 — 실습이 끝나갈 무렵에야 처음 열리는
+   셈이라 대부분의 판에서 한 번도 못 본다. 한 칸 내려 「균열」(40마디 + 10일)로
+   둔다. 여기가 관계가 흔들리기 시작하는 자리라 고백이 놓일 자리이기도 하다.
+   더 당기거나 미루려면 이 숫자 하나만 고치면 된다. */
+const KISS_STAGE = STAGES.length - 2;
+
 function kissMoment(routed, ctx) {
   if (!routed || routed.tier !== "critical" || routed.reason !== "confession") return null;
   const c = ctx || {};
-  if (Number(c.stageIdx) < STAGES.length - 1) return null;   // ① 최상위 단계
+  if (Number(c.stageIdx) < KISS_STAGE) return null;           // ① 관계 단계
   const place = String(c.place || "").trim();
   if (!place) return null;                                    // ③ 마주 앉아 있을 것
   if (c.room !== "jaeeon" && c.room !== "minhyun") return null;

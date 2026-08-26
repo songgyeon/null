@@ -500,14 +500,20 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   {
     const K = ENG.kissMoment;
     const ok = { tier: 'critical', reason: 'confession' };
-    /* 최상위가 몇 번째인지도 워커의 표에서 읽는다 — 숫자로 박으면
+    /* 어느 단계부터 열리는지도 워커의 표에서 읽는다 — 숫자로 박으면
        단계가 하나 늘어난 날 이 시험만 옛 판을 재게 된다 */
-    const top = ENG.STAGES.length - 1;
+    const top = ENG.STAGES.length - 2;   // 균열(40마디·10일)
     const base = { room: 'jaeeon', stageIdx: top, place: '보건실' };
-    eq('최상위 단계에서 고백하면 열린다', K(ok, base), { char: 'jaeeon', place: '보건실' });
+    eq('그 단계에서 고백하면 열린다', K(ok, base), { char: 'jaeeon', place: '보건실' });
     /* ① 단계 — 한 칸만 모자라도 안 열린다. 대화 수만으로는 못 앞당긴다 */
     eq('단계가 모자라면 안 열린다',
-      [top - 1, 1, 0].map(i => K(ok, { ...base, stageIdx: i })), [null, null, null]);
+      [top - 1, 0].map(i => K(ok, { ...base, stageIdx: i })), [null, null]);
+    /* 더 위 단계에서도 열린다 — 문턱이지 정확히 그 칸이어야 하는 게 아니다 */
+    eq('그 위 단계에서도 열린다',
+      K(ok, { ...base, stageIdx: ENG.STAGES.length - 1 }), { char: 'jaeeon', place: '보건실' });
+    /* 서른 날짜리 판에서 열여드레를 채워야 열리면 대부분 한 번도 못 본다 */
+    eq('마지막 칸이 아니라 그 앞이다',
+      [ENG.STAGES[top].at, ENG.STAGES[top].day], [40, 10]);
     /* ② 말 — 고백 장면이 아니면 안 열린다. 다른 중요 장면도 아니다 */
     eq('고백이 아니면 안 열린다',
       [{ tier: 'critical', reason: 'memory_reveal' }, { tier: 'critical', reason: 'null_identity' },
