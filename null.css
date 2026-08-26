@@ -1504,14 +1504,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    390×34(11:1)라, 가로로 두 배 늘이면 재질이 뭉개지고 오른쪽 소켓 셋이
    실제 창 컨트롤과 두 벌로 겹친다. 비율이 맞는 판이 오면 그때 얹는다. */
 
-/* ── 상태줄 ──
-   긴 왼쪽 우물 + 짧은 오른쪽 시각 우물. 이 화면의 칸 구조와 실제로 같다.
-   그래서 HTML 쪽 칸 테두리는 끈다 — 안 끄면 우물이 두 겹이 된다 */
-.statusbar{
-  border-style:solid;border-width:0 24px;padding:6px 0;margin:0 12px env(safe-area-inset-bottom);
-  border-image:url("ui/chrome-statusbar.webp") 0 90 fill / 0 24px / 0 stretch}
-.statusbar>span{background:none;border:0;box-shadow:none;padding:3px 2px}
-.statusbar>span:last-child{text-align:right}
+/* 상태줄 그림도 뺐다 — 왼쪽 우물은 맞는데 오른쪽 시각 우물의 폭이
+   「오후 6:09」보다 좁아서 글자가 우물 밖으로 나간다. */
 
 /* 탭 그림은 안 얹었다 — 폴더 홈이 가운데에 있어 늘리면 홈까지 늘어나고,
    탭마다 글자 길이가 달라 홈 자리가 칸마다 어긋난다. */
@@ -1521,8 +1515,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* ── 시각 구분선 ──
    가운데가 한 칸 비어 있는 긴 선. 그 빈 칸에 시각이 앉는다 */
-.divider{position:relative;padding:5px 14px;color:#8a7fc0}
-.divider::before{content:"";position:absolute;inset:0;z-index:-1;
+.divider{align-self:stretch;margin:12px 10px 8px;padding:6px 14px;text-align:center;color:#8a7fc0;
   background:url("ui/chat-divider.webp") center/100% 100% no-repeat}
 
 /* ── 받는 말풍선 ──
@@ -1546,11 +1539,9 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
   border-style:solid;border-width:0 22px;
   border-image:url("ui/gift-to.webp") 0 74 fill / 0 22px / 0 stretch}
 
-/* ── 등록 기록 줄 ──
-   짧은 라벨 캡슐 + 훨씬 긴 값 우물. 반복 부품이라 폭은 CSS가 정한다 */
-.eline{background:none;border:0;box-shadow:none;
-  border-style:solid;border-width:0 18px;
-  border-image:url("ui/enroll-row.webp") 0 46 fill / 0 18px / 0 stretch}
+/* 등록 기록 줄 그림은 뺐다 — .eline은 그림 한 장이 아니라 라벨과 값 두
+   칸이 각자 테두리를 갖는 구조다. 배경만 바꾼다고 얹히지 않고, border를
+   비우면 네 줄이 통째로 사라진다(실제로 그랬다). */
 
 /* ── 히든 자물쇠 ──
    화면 가운데를 가리지 않는 작은 부품이다. 원래 SVG 자물쇠를 대신한다 */
@@ -1559,12 +1550,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
   background:url("ui/hidden-lock.webp") center/contain no-repeat;
   filter:drop-shadow(1px 1px 0 rgba(43,36,78,.35))}
 
-/* ── 주 단추 ──
-   오른쪽 끝에 작은 하트 소켓이 있는 빈 알약. 글자는 HTML이다 */
-.wbtn.go{background:none;border:0;box-shadow:none;color:#fff;
-  text-shadow:0 1px 0 rgba(150,90,130,.45);
-  border-style:solid;border-width:0 26px;padding:11px 4px;
-  border-image:url("ui/btn-cta.webp") 0 96 fill / 0 26px / 0 stretch}
+/* 주 단추 그림도 뺐다 — 세로로 늘이면 알약이 얇게 눌리고 글자가 위로 붙는다. */
 
 /* ── 반짝이 ──
    화면 여기저기 떠 있는 장식. 그린 것으로 바꾼다 */
