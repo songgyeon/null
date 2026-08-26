@@ -53,9 +53,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* 세로가 모자라면 flex가 창들을 눌러버리고, overflow:hidden이라 안쪽 버튼이
    잘려나간다. 창은 절대 줄이지 않는다 — 모자라면 차라리 위아래가 잘리는 게 낫다. */
 .spstack>*{flex:none}
-.spstack .w1{align-self:flex-start;width:182px;margin-top:14px}
-.spstack .w2{align-self:flex-end;width:194px;margin-top:-6px}
-.spstack .w3{align-self:stretch;margin-top:8px}
+.spstack .w1{align-self:flex-start;width:182px;margin-top:8px}
+.spstack .w2{align-self:flex-end;width:224px;margin-top:-10px}
+.spstack .w3{align-self:stretch;margin-top:2px}
 .spcurwrap{position:relative}
 /* 키라키라 반짝이 */
 .spark{position:absolute;pointer-events:none;z-index:6;
@@ -501,7 +501,7 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  color:#4a4276;cursor:pointer;background:linear-gradient(180deg,#fff0f7,#ffc2dd);border:1px solid #5d5490;
  box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #f0c8de,2px 2px 0 rgba(93,84,144,.22)}
 .spgo:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 #f0c8de}
-.spgo:disabled{opacity:.5;cursor:default}
+.spgo:disabled{opacity:.72;cursor:default}
 .spbar{display:block;height:11px;background:#fff;border:1px solid #8a7fc0;overflow:hidden;
  box-shadow:inset 1px 1px 0 rgba(93,84,144,.3)}
 .spbar i{display:block;height:100%;background:repeating-linear-gradient(90deg,#ff9ec6 0 7px,#ffd0e6 7px 14px);
@@ -1486,3 +1486,98 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    그대로 붙어 있어야 하므로 흐르는 쪽에만 flex를 준다. */
 .etbrun{flex:1;min-width:0;overflow:hidden;white-space:nowrap;contain:paint}
 .etbrun>i{display:inline-block;padding-left:100%;font-style:normal;animation:slide 17s linear infinite}
+
+
+/* ══ PR#6 blankware 적용 · 3차 — 오프닝 ══
+   배경 + 창 넷(메인 부팅·오류 라일락·시스템오류 핑크·로딩) + CD를 팩 PNG로.
+   그림에 슬롯이 이미 배킹돼 있어 창 크기를 그림 비율로 못박고 DOM 조각을
+   각 슬롯 좌표에 절대 배치한다 — 내용 크기에 맞춰 늘리면 슬롯과 어긋난다.
+   좌표는 재업로드본을 여백까지 잘라낸 뒤 10% 격자를 얹어 읽은 값이다. */
+.screen.splash{background:#efe6fb url("ui/bg-mobile.webp") center/cover no-repeat}
+
+/* CD — 그림이 왔으니 CSS로 그리던 원판을 버린다. 도는 것은 그림 자체 */
+.spcd{visibility:visible;align-self:flex-start;margin-left:-2px;margin-right:0;width:82px;height:82px;border-radius:0;
+ background:url("ui/opal-cd.webp") center/contain no-repeat;
+ box-shadow:none;animation:spin 9s linear infinite}
+.spcd::before,.spcd::after{display:none}
+
+/* 메인 부팅 창 1425×889 — 타이틀 y2-10 · 꿈결 판 y13-58 · 흰 슬롯 y63-74 · 분홍 알약 y78-92 */
+.spcard{position:relative;width:100%;aspect-ratio:1425/889;
+ background:url("ui/boot-main.webp") 0 0/100% 100% no-repeat;
+ border:0;border-radius:0;box-shadow:none;overflow:visible}
+.spcard .sptb{position:absolute;left:11%;top:1.8%;right:26%;height:7.9%;margin:0;padding:0;
+ background:none !important;border-bottom:0;display:flex;align-items:center;
+ font-size:10.5px;text-shadow:0 1px 2px rgba(150,90,150,.5)}
+.spcard .sptb .dots{display:none}
+.spcard .spbody{position:absolute;inset:0;padding:0;display:block}
+/* 꿈결 판 y12~59 — 로고를 그 가운데에 앉힌다 */
+.spcard .splogo{position:absolute;left:8%;top:12%;right:8%;height:47%;margin:0;
+ display:flex;align-items:center;justify-content:center;text-align:center}
+.spcard .spinput{position:absolute;left:3.5%;top:63.5%;width:91%;height:10.5%;margin:0;
+ background:transparent;border:0;box-shadow:none;text-align:center}
+.spcard .spgo{position:absolute;left:3.5%;top:78.6%;width:91.5%;height:14.9%;margin:0;padding:0;
+ background:none;border:0;box-shadow:none;color:#6d2f78;font-size:12px;
+ text-shadow:0 1px 0 rgba(255,255,255,.85)}
+.spcard .spgo::before{display:none}
+.spcard .spgo:active{transform:translate(1px,1px);box-shadow:none}
+
+.spstack .w1,.spstack .w2 .spwin,.spstack .w3{border:0;border-radius:0;box-shadow:none;overflow:visible;position:relative}
+/* 창 제목이 흰 글씨였다 — 그림 타이틀 띠가 파스텔이라 흰 글씨는 안 보인다.
+   진보라로 바꾸고 흰 그림자를 깔아 띠 위에서 뜨게 한다 */
+.spstack .w1 .sptb,.spstack .w2 .sptb,.spstack .w3 .sptb{position:absolute;margin:0;border-bottom:0;
+ background:none !important;padding:0;display:flex;align-items:center;
+ color:#6f4b8e;text-shadow:0 1px 0 rgba(255,255,255,.85)}
+.spstack .w1 .sptb .dots,.spstack .w2 .sptb .dots,.spstack .w3 .sptb .dots{display:none}
+.spstack .w1 .spbd,.spstack .w2 .spbd,.spstack .w3 .spbd{position:absolute;inset:0;margin:0;
+ background:none !important;display:block}
+/* 단추는 .spbd의 자식이라 %가 창이 아니라 본문칸 기준으로 풀린다 —
+   본문칸을 판 안쪽으로 좁힌 뒤로 단추가 계속 위로 떴다.
+   창을 기준으로 삼도록 .spbd를 inset:0으로 되돌리고 글자 줄만 안쪽에 앉힌다 */
+.spstack .w1 .spbtn,.spstack .w2 .spbtn{position:absolute;margin:0;padding:0;background:none;border:0;
+ box-shadow:none;display:flex;align-items:center;justify-content:center;color:#8a5f92;font-size:10px}
+.spstack .w1 .spbtn:active,.spstack .w2 .spbtn:active{transform:translate(1px,1px)}
+
+/* 라일락 오류창 1359×793 — 타이틀 y3-10 · 단추판 x69-94 y76-91 */
+.spstack .w1{width:200px;height:117px;background:url("ui/boot-error.webp") 0 0/100% 100% no-repeat}
+.spstack .w1 .sptb{left:12%;top:4.5%;right:34%;height:10.7%;font-size:7.5px}
+/* 본문 자리는 그림에서 잰 흰 판 안쪽이다 — error 판 x 4~94.6%, y 19.5~90.1%.
+   눈대중 padding으로는 글이 판 위로 올라가거나 왼쪽으로 삐져나갔다 */
+/* 판 위쪽에 붙어 아래가 텅 비어 있었다. 단추가 오른쪽 아래를 쓰니
+   글은 그 위 영역의 세로 가운데에 앉는다 */
+/* 창 200×117 · 판 y 22.8~105.4px · 단추 위 86.5px.
+   %로 주면 padding-top이 폭 기준으로 풀려 글이 창 밖으로 나간다 — px로 못박는다 */
+/* padding을 %로 주면 세로값이 폭 기준으로 풀려 글이 창을 넘는다 —
+   글줄 자체를 판 사각형에 절대배치하고 그 안에서 가운데 맞춘다 */
+/* 창 200×117 · 실측 판 x6~94% y19~84% → px로 못박는다 (%는 세로가 폭 기준으로 풀린다) */
+.spstack .w1 .spbd{position:absolute;inset:0;padding:20px 12px 31px 20px;
+ display:flex;align-items:center;font-size:9px;line-height:1.6;white-space:nowrap;
+ background:transparent;border:0}
+/* 단추 글씨가 판 위로 떠 있었다 — 판 위치를 눈대중했기 때문이다.
+   그림에서 행/열 프로파일로 다시 쟀다: x 70.4~93.5%, y 73.9~88.9% */
+.spstack .w1 .spbtn{left:70.5%;top:74%;width:22%;height:12%;font-size:9.5px}
+
+/* 핑크 시스템오류창 1756×896 — 창틀 y13-84, 타이틀 y14-27, 단추판 x69-87 y59-78 */
+.spstack .w2 .spwin{width:224px;aspect-ratio:1480/587;height:auto;background:url("ui/boot-syserr.webp") 0 0/100% 100% no-repeat}
+.spstack .w2 .sptb{left:8%;top:1%;right:24%;height:19%;font-size:7.5px}
+/* 창 212×108 · 판 y 31.5~82px · 단추 위 63.7px, 단추 왼쪽 150px */
+/* 창 212×108 · 실측 판 x11~68% y29~70% — 오른쪽은 Cancel판(x70~)을 피해 비운다 */
+.spstack .w2 .spbd{position:absolute;inset:0;padding:21px 60px 28px 14px;
+ display:flex;align-items:center;font-size:9px;line-height:1.6;white-space:nowrap;
+ background:transparent;border:0}
+.spstack .w2 .spbtn{left:75%;top:69%;width:19%;height:19%;font-size:8px}
+
+/* 로딩창 2100×274 — 타이틀 y6-36 · 게이지 슬롯 x4-96 y46-74 */
+.spstack .w3{width:100%;aspect-ratio:2100/274;height:auto;background:url("ui/boot-loading.webp") 0 0/100% 100% no-repeat}
+.spstack .w3 .sptb{left:5%;top:4%;right:30%;height:26%;font-size:7.5px}
+.spstack .w3 .spbd{padding:0}
+/* 트랙도 잰 값이다 — x 3.8~93.4%, y 51.8~69.3%. 전에는 5%/47%로 눈대중해서 칸을 넘었다 */
+.spstack .w3 .spbar{position:absolute;left:3.4%;right:6%;top:48.5%;bottom:30.5%;height:auto;
+ background:transparent;border:0;box-shadow:none;border-radius:0;overflow:hidden}
+/* 게이지는 창 분홍(#efb5de) 한 갈래로 간다. 무지개로 깔면 그림의 파스텔과 싸워
+   띠가 아니라 색종이가 된다 */
+.spstack .w3 .spbar i{background:linear-gradient(180deg,#f8d3e9,#efb5de 55%,#e3a3d2)}
+
+/* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다 */
+@media (min-aspect-ratio:1/1){
+  .screen.splash{background-image:url("ui/bg-desktop.webp")}
+}
