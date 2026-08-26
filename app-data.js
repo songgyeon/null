@@ -255,6 +255,25 @@ const saveFlash=o=>{try{
   return out;
 }catch(e){return null}};
 
+/* ── {이름} pics ──
+   cam 탭은 원래 「받은 사진」이었다. 여기 서는 둘은 받은 게 아니라 유저가
+   쓴 것이다 — 재언의 옛 일기 마지막 칸, 병원 옥상 엽서의 세 칸.
+   그래서 두 사람 다음에 자기 이름으로 따로 선다. 채운 것만 나온다.
+
+   빈칸 값은 여전히 기기 밖으로 안 나간다. 여기서 하는 일은 이미 저장돼
+   있는 값을 사진 위 제자리에 얹어 보여주는 것뿐이다. */
+const userPics=()=>{
+  const out=[];
+  const d=loadDiary();
+  if(d)out.push({src:DIARY_IMG,label:"재언의 옛 일기",
+    fill:[{...DIARY_BOX,text:d}]});
+  const f=loadFlash();
+  if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
+    /* 채운 칸은 뒷면에 있다 — 앞면은 옥상 사진 한 장이다 */
+    backFill:FLASH_BOX.map(b=>({...b,text:f[b.key]||""}))});
+  return out;
+};
+
 const loadFirstMet=()=>{try{
   const v=localStorage.getItem("null_first");
   if(v==="jaeeon"||v==="minhyun")return v;
@@ -324,6 +343,11 @@ const countCalls=(store,name)=>{
   return n;
 };
 const filledLetters=(calls,name)=>Math.min((name||"").length,Math.floor(calls/CALL_PER_LETTER));
+/* 이름이 다 차기까지 몇 번인가. 글자 수 × CALL_PER_LETTER다 —
+   한 칸씩 켜지던 것을 한 줄이 차오르는 것으로 바꿨어도 「몇 번이면 끝인가」는
+   같은 셈이어야 한다. 두 군데서 따로 세면 화면과 완성 시점이 갈린다. */
+const callsToFull=name=>Math.max(1,(name||"").length*CALL_PER_LETTER);
+const callPct=(calls,name)=>Math.max(0,Math.min(1,(calls||0)/callsToFull(name)));
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
   {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},

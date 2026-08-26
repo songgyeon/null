@@ -42,7 +42,7 @@ import {
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
   readAutoQueue, pushAutoBatch, runAutoQueue,
   roomLock, loadGetcha, saveGetcha,
-  HID_MAX, hidMask, hidGuess, GIFT_WISH_MAX, GIFT_NOTE_A, GIFT_NOTE_B, giftNote,
+  HID_MAX, hidMask, hidGuess, GIFT_WISH_MAX, GIFT_NOTE_A, GIFT_NOTE_B, giftNote, userPics,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -905,11 +905,12 @@ const ct=StyleSheet.create({
   noteT:{...F,fontSize:11,lineHeight:22,color:'#8a4f74'},
   /* 긴 빈칸 — 남는 폭을 다 먹는다. ㅁ 네 개짜리로 좁히면 무엇을 바라는지가
      아니라 몇 글자까지 되는지를 먼저 세게 된다 */
-  /* 오른쪽에 붙인다 — 틀이 「ㅁㅁㅁㅁ면」이라 빈칸과 「면」이 붙어 있어야
-     한 낱말로 읽힌다. 가운데로 놓으면 채운 말과 어미가 갈라져 보인다 */
-  wish:{...F,flexGrow:1,flexShrink:1,minWidth:96,paddingLeft:6,paddingRight:2,paddingVertical:0,
-    fontSize:11,lineHeight:22,color:'#8a4f74',textAlign:'right',
-    borderBottomWidth:1,borderStyle:'dashed',borderColor:'#e0c8b4'},
+  /* 밑줄이 아니라 칸이다. 밑줄은 「여기 뭘 적으세요」라는 서식이고, 칸은
+     ㅁㅁㅁㅁ 자리 자체다 — 이 앱의 다른 빈칸들과 같은 물건이어야 한다.
+     글자는 가운데에 선다. 한쪽으로 쏠리면 칸 안에서 말이 흘러내린다. */
+  wish:{...F,flexGrow:1,flexShrink:1,minWidth:96,paddingHorizontal:8,paddingVertical:2,
+    fontSize:11,lineHeight:20,color:'#8a4f74',textAlign:'center',
+    borderWidth:1,borderColor:'#e3d3c4',borderRadius:5,backgroundColor:'#fff'},
   backT:{...F,fontSize:11,letterSpacing:3,color:P.ink},
 });
 
@@ -1166,6 +1167,20 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
                 </View>
               </React.Fragment>;
             })}
+            {/* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
+                자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */}
+            {(()=>{ const mine=userPics(); if(!mine.length)return null;
+              return <React.Fragment key="__me">
+                <Text style={[rl.sect,{color:'#8f7ccb'}]}>✧ {name||'당신'} · {mine.length} pics</Text>
+                <View style={rl.galgrid}>
+                  {mine.map((m:any)=><TouchableOpacity key={m.src} style={rl.galcell}
+                    onPress={()=>setZoom({uri:IMG+m.src, label:m.label,
+                      ...(m.back?{back:IMG+m.back}:{}), ...(m.fill?{fill:m.fill}:{}),
+                      ...(m.backFill?{backFill:m.backFill}:{})})}>
+                    <Image source={{uri:IMG+m.src}} style={rl.galimg} resizeMode="cover"/>
+                  </TouchableOpacity>)}
+                </View>
+              </React.Fragment>; })()}
             {!album.size&&<View style={{paddingVertical:70,alignItems:'center'}}>
               <Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>
               <Text style={ch.empty}>nothing here yet{'\n'}whatever they send lands here</Text>

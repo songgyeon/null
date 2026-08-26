@@ -658,15 +658,37 @@ function ModeAsk({which,now,onYes,onNo}){
    부르는 자리가 셋이다(사진첩·히든·말풍선). 셋이 각자 그리면 같은 사진이
    화면마다 다르게 열린다. */
 function PhotoWin({shot,onClose,onNext}){
+  /* 훅은 조건부 return 위에 있어야 한다 — 밑으로 내려가면 사진이 없는
+     렌더에서 훅 수가 달라져 React가 터진다 */
+  const [back,setBack]=useState(false);
+  const key=typeof shot==="string"?shot:(shot&&shot.src)||"";
+  useEffect(()=>{setBack(false)},[key]);   // 딴 사진을 열면 다시 앞면부터
   if(!shot)return null;
-  const src=typeof shot==="string"?shot:shot.src;
-  const label=typeof shot==="string"?"":shot.label;
-  const note=typeof shot==="string"?"":shot.note;
+  const one=typeof shot==="string";
+  const src=one?shot:shot.src;
+  const label=one?"":shot.label;
+  const note=one?"":shot.note;
+  /* 뒷면이 있는 것은 엽서 하나다. 누르면 넘어간다 — 뒤집는 단추를 따로
+     달지 않는다. 엽서를 뒤집는 데 단추가 필요한 적은 없었다 */
+  const flip=one?null:shot.back;
+  const now=back&&flip?flip:src;
+  const fill=(back&&flip?(shot.backFill||[]):(one?[]:(shot.fill||[])))||[];
   return <div className="pvwin" onClick={onClose}>
     <div className="dlg pvdlg" onClick={e=>e.stopPropagation()}>
       <div className="tb">photo<WinDots onClose={onClose}/></div>
-      <div className="pvbody">
-        <img src={src} alt={label||""}/>
+      <div className={"pvbody"+(flip?" flip":"")}
+        onClick={flip?()=>setBack(b=>!b):null}>
+        {/* 빈칸은 사진 상자가 아니라 **사진**에 앉아야 한다. 사진은 창 폭을
+            꽉 채우고 높이는 비율대로 따라오므로 사진 상자가 곧 사진이다 —
+            여기서 감싸면 퍼센트가 그대로 사진 위에 떨어진다. 설명 칸까지
+            같이 감싸면 그만큼 아래로 밀린다 */}
+        <div className="pvshot">
+          <img src={now} alt={label||""}/>
+          {!!fill.length&&<div className="pvfit">
+            {fill.map((f,i)=><span key={i} className="pvfill" style={{left:f.left+"%",top:f.top+"%",
+              width:f.w+"%",height:f.h+"%"}}>{f.text}</span>)}
+          </div>}
+        </div>
         {label&&<div className="pvcap">
           <div className="lt">{label}</div>
           {note&&<div className="ln">{note}</div>}
@@ -1134,10 +1156,11 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 앱도 같은 식으로 센다.
      세는 것은 세계 시계 하나다(daysLeft → worldDays). */
   const dLeft=daysLeft(store);
-  /* 빈칸 — 이름이 불린 만큼만 채운다 */
+  /* 빈칸 — 이름이 불린 만큼만 채운다. 한 글자에 한 칸이 아니라 한 줄이
+     차오른다: 이름이 두 자면 칸도 두 개뿐이라 채워지는 게 안 보였다 */
   const calls=countCalls(store,name);
-  const lit=filledLetters(calls,name);
-  const letters=(name||"").split("");
+  const pct=callPct(calls,name);
+  const nameCh=(name||"").split("");
   const dayN=daysSince(store);
   const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
@@ -1145,6 +1168,17 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
      커서가 다 서 있으면 채워야 할 자리가 아니라 서식이 된다 */
   const [guess,setGuess]=useState(null);
   const [typed,setTyped]=useState("");
+  /* 이름 줄이 어디서 끝나야 하는지 — 위 「두 사람」 방의 시각이 시작하는 자리.
+     한 번 재고 목록이 움직일 때마다 다시 잰다. null이면 남는 폭을 다 쓴다 */
+  const nmRef=useRef(null);
+  const [nmW,setNmW]=useState(null);
+  useEffect(()=>{
+    const bar=nmRef.current; if(!bar)return;
+    const t=document.querySelector(".roomcard.watch .rtime");
+    if(!t){if(nmW!==null)setNmW(null);return}
+    const w=t.getBoundingClientRect().left-bar.getBoundingClientRect().left;
+    if(w>40&&(nmW===null||Math.abs(w-nmW)>.5))setNmW(w);
+  });
   useEffect(()=>{setGuess(null);setTyped("")},[tab]);   // 탭을 옮기면 커서도 접는다
   const [now,setNow]=useState(Date.now()); // 접속 상태·쿨타임 갱신용
   const [autoAt,setAutoAt]=useState(loadAutoAt);
@@ -1256,11 +1290,23 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
             </div>
           </React.Fragment>;
         })}
-          <div className={"nmcard"+(lit>=letters.length?" done":"")}>
+          <div className={"nmcard"+(pct>=1?" done":"")}>
           <div className="nmline">
             <span className="k">NULL</span>
-            {letters.map((c,i)=>
-              <span key={i} className={"nmbx"+(i<lit?" on":i===lit?" next":"")}>{i<lit?c:"□"}</span>)}
+            {/* 줄 끝은 위 「두 사람」 방의 월 숫자가 시작하는 자리다. 재보고
+                맞춘다 — 시각 글자는 날짜가 바뀌면 폭도 바뀌므로 숫자로 박으면
+                하루 만에 어긋난다. 못 재면(그 방에 아직 시각이 없으면)
+                남는 폭을 그냥 다 쓴다 */}
+            <span className="nmbar" ref={nmRef} style={nmW?{width:nmW,flex:"none"}:null}>
+              <i className="nmfill" style={{width:(pct*100)+"%"}}/>
+              {/* 이름을 줄 전체에 펴 놓는다. 왼쪽에 몰아두면 두 자짜리 이름은
+                  30%만 차도 벌써 다 켜져서, 차오르는 것이 안 보인다.
+                  진한 벌은 폭이 같은 채로 잘라내기만 한다 — 폭을 줄이면
+                  글자 자리가 같이 움직여서 옅은 벌과 어긋난다 */}
+              <span className="nmtx dim">{nameCh.map((c,i)=><b key={i}>{c}</b>)}</span>
+              <span className="nmcut" style={{clipPath:`inset(0 ${(100-pct*100).toFixed(2)}% 0 0)`}}>
+                <span className="nmtx on">{nameCh.map((c,i)=><b key={i}>{c}</b>)}</span></span>
+            </span>
           </div>
       <span className="nmpct">
         <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 1c.5 3.6 2.9 6 6.5 7-3.6 1-6 3.4-6.5 7-.5-3.6-2.9-6-6.5-7 3.6-1 6-3.4 6.5-7z" fill="#c3b2f0"/></svg>
@@ -1371,6 +1417,15 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
               </div>
             </React.Fragment>;
           }).filter(Boolean);
+          /* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
+             자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */
+          const mine=userPics();
+          if(mine.length)secs.push(<React.Fragment key="__me">
+            <div className="sect">✧ {name||"당신"} · {mine.length} pics</div>
+            <div className="galgrid">
+              {mine.map(m=><img key={m.src} src={m.src} alt="" loading="lazy" onClick={()=>setZoom(m)}/>)}
+            </div>
+          </React.Fragment>);
           return secs.length?secs:<div className="empty" style={{marginTop:60}}>
             <span style={{fontSize:13,color:"#ff8fbe"}}>✧ ✦ ✧</span><br/>
             nothing here yet{"\n"}whatever they send lands here

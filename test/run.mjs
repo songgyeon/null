@@ -568,7 +568,8 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('알약이 창 안에 붙는다', /\.pvfoot\{flex:none;display:flex/.test(pvCss), true);
   /* 두 모양을 다 받는다 — 말풍선은 파일 이름 한 줄, 사진첩·히든은 설명이 붙는다 */
   eq('설명 있는 사진도 같은 창이다',
-    /const label=typeof shot==="string"\?"":shot\.label;/.test(web)
+    /const one=typeof shot==="string";/.test(web)
+    && /const label=one\?"":shot\.label;/.test(web)
     && /\{label&&<div className="pvcap">/.test(web), true);
   /* 앱도 같은 창이다 — 두 판이 갈리면 같은 사진이 두 앱에서 다르게 열린다 */
   const pvApp = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
@@ -9657,6 +9658,96 @@ eq('시간표 단추는 peek보다 좁다',
   /* 자유 노트는 물러난다 — 남아 있으면 두 길이 서로 다른 쪽지를 만든다 */
   eq('빈 종이가 물러났다',
     [/textarea className="cmemo"/.test(web), /placeholder="P\.S\. ♡"/.test(web + appSrc2)], [false, false]);
+}
+
+/* ══════════ 이름 줄 · {이름} pics · 엽서 뒤집기 ══════════
+   이름 칸은 글자마다 하나였다. 이름이 두 자면 칸도 둘이라, 불릴 때마다
+   뭐가 채워지는지 안 보이고 한 번 켜지면 그걸로 절반이었다. 한 줄로 바꾼다.
+
+   cam 탭은 「받은 사진」이었다. 유저가 채운 둘(일기·엽서)은 받은 게 아니라
+   자기가 쓴 것이라 자기 이름으로 따로 선다. 엽서는 눌러서 뒤집는다. */
+{
+  const mem = new Map();
+  const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+    setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
+  const D = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {callsToFull,callPct,CALL_PER_LETTER,userPics,saveDiary,saveFlash,DIARY_IMG,DIARY_BOX,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
+  const dlg2 = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
+  const appSrc3 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+  const css2 = readFileSync(join(ROOT, 'null.css'), 'utf8');
+
+  /* 완성까지 몇 번인가 — 화면과 셈이 같은 자를 봐야 한다 */
+  eq('완성은 글자 수 × 부르는 횟수다',
+    [D.callsToFull('연'), D.callsToFull('연아')],
+    [D.CALL_PER_LETTER, D.CALL_PER_LETTER * 2]);
+  eq('이름이 비어도 0으로 안 나눈다', [D.callsToFull(''), D.callPct(0, '')], [1, 0]);
+  eq('비율은 0에서 1 사이다',
+    [D.callPct(0, '연아'), D.callPct(3, '연아'), D.callPct(8, '연아'), D.callPct(99, '연아')],
+    [0, .375, 1, 1]);
+  /* 칸 여럿이 한 줄로 물러났다 — 남아 있으면 두 그림이 같이 뜬다 */
+  eq('글자마다 칸 하나이던 것이 물러났다',
+    [/className=\{"nmbx"/.test(web), /className="nmbar"/.test(web)], [false, true]);
+  /* 진한 벌은 잘라서 덮는다. 폭을 줄이면 안쪽 글자 자리가 같이 움직여
+     옅은 벌과 한 글자씩 어긋난다 */
+  eq('덮는 쪽은 폭이 아니라 보이는 데만 준다',
+    /className="nmcut" style=\{\{clipPath:`inset\(0 \$\{\(100-pct\*100\)/.test(web), true);
+  /* 줄 끝은 재서 맞춘다 — 시각 글자는 날짜가 바뀌면 폭도 바뀌므로 숫자로
+     박으면 하루 만에 어긋난다. 반올림도 안 한다: 1px씩 밀린다 */
+  eq('줄 끝을 재서 맞춘다',
+    /document\.querySelector\("\.roomcard\.watch \.rtime"\)/.test(web)
+    && /const w=t\.getBoundingClientRect\(\)\.left-bar\.getBoundingClientRect\(\)\.left;/.test(web), true);
+  eq('재놓고 더 자라지 않는다', /style=\{nmW\?\{width:nmW,flex:"none"\}:null\}/.test(web), true);
+
+  /* {이름} pics — 채운 것만 선다 */
+  eq('아무것도 안 채웠으면 없다', D.userPics().length, 0);
+  D.saveDiary('어린애');
+  eq('일기를 채우면 한 장', D.userPics().map(x => [x.src, (x.fill || []).map(f => f.text)]),
+    [[D.DIARY_IMG, ['어린애']]]);
+  D.saveFlash({ face: '이상한', said: '진짜요', wish: '또 보고' });
+  const mine = D.userPics();
+  eq('엽서까지 채우면 두 장', mine.length, 2);
+  /* 앞면은 옥상 사진 한 장이다 — 채운 칸은 뒷면에 있다 */
+  eq('엽서 앞면에는 채운 칸이 없다', [(mine[1].fill || []).length, mine[1].src], [0, D.FLASH_FRONT]);
+  eq('뒷면에 셋이 제자리로 간다',
+    [mine[1].back, mine[1].backFill.map(f => [f.key, f.text])],
+    [D.FLASH_BACK, [['face', '이상한'], ['said', '진짜요'], ['wish', '또 보고']]]);
+  /* 빈칸 값은 여전히 기기 밖으로 안 나간다 — 여기서 하는 일은 보여주기뿐 */
+  eq('보여줘도 서버로는 안 간다',
+    /userPics|null_flash|null_diary/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
+  eq('cam 탭이 유저 몫을 따로 세운다',
+    /const mine=userPics\(\);/.test(web) && /\{name\|\|"당신"\} · \{mine\.length\} pics/.test(web), true);
+  eq('앱도 같은 구역을 세운다',
+    /const mine=userPics\(\); if\(!mine\.length\)return null;/.test(appSrc3)
+    && /\{name\|\|'당신'\} · \{mine\.length\} pics/.test(appSrc3), true);
+
+  /* 엽서는 눌러서 뒤집는다 — 뒤집는 단추를 따로 달지 않는다 */
+  eq('누르면 넘어간다',
+    /onClick=\{flip\?\(\)=>setBack\(b=>!b\):null\}/.test(web)
+    && /const now=back&&flip\?flip:src;/.test(web), true);
+  eq('뒷면 단추가 없다', /뒤집기|FLIP|flip ♡/.test(web), false);
+  eq('딴 사진을 열면 다시 앞면부터', /useEffect\(\(\)=>\{setBack\(false\)\},\[key\]\);/.test(web), true);
+  eq('앱도 눌러서 뒤집는다',
+    /<Pressable disabled=\{!flip\} onPress=\{\(\)=>setBack\(b=>!b\)\}>/.test(dlg2)
+    && /useEffect\(\(\)=>\{ setBack\(false\) \}, \[keyOf\]\);/.test(dlg2), true);
+  /* 빈칸은 사진 상자가 아니라 사진에 앉는다 — 설명 칸까지 감싸면 그만큼 밀린다 */
+  eq('빈칸이 사진에 앉는다',
+    /<div className="pvshot">/.test(web)
+    && /\.pvshot\{position:relative\}/.test(css2)
+    && /\.pvfit\{position:absolute;inset:0;pointer-events:none\}/.test(css2), true);
+
+  /* ⑧ 빈칸은 밑줄이 아니라 칸이다. 글자는 가운데 */
+  eq('선물 빈칸이 칸이다',
+    [/input\.cwish\{[^}]*text-align:center/.test(css2),
+     /input\.cwish\{[^}]*border:1px solid/.test(css2),
+     /input\.cwish\{[^}]*border-bottom:1px dashed/.test(css2)], [true, true, false]);
+  eq('앱의 선물 빈칸도 칸이다', (() => {
+    const m = appSrc3.match(/wish:\{[^}]*\}/);
+    return m && [/textAlign:'center'/.test(m[0]),
+                 /borderWidth:1,borderColor:'#e3d3c4',borderRadius:5/.test(m[0]),
+                 /dashed/.test(m[0])];
+  })(), [true, true, false]);
 }
 
   eq('앱도 전환을 실제로 적용한다',

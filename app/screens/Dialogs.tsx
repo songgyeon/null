@@ -19,7 +19,7 @@
    난다. 그래서 형제로 나란히 눕히고 쌓이는 차례만 z로 정한다.
    z는 웹과 같은 값이다: 대화창 40, 문틈 42(토스트 45보다는 아래 —
    구경 중에도 알림은 보여야 한다). */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, Pressable, TextInput, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CHARS, AV_V, jos, DIARY_IMG, DIARY_BOX, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX } from '../lib/rules';
@@ -456,16 +456,28 @@ const gc = StyleSheet.create({
    것이라 이미 자기 세계를 들고 온다 — 검정은 그 세계를 버리고 두 번째 세계를
    하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라 가까이 본 게 된다.
    부르는 자리가 셋이다(사진첩·히든·말풍선). 셋이 각자 그리면 어긋난다. */
+type PvFill = {left:number; top:number; w:number; h:number; text:string};
 export function PhotoWin({shot, onClose}:
-  {shot:string|{uri:string; label?:string; note?:string}|null; onClose:()=>void}) {
+  {shot:string|{uri:string; label?:string; note?:string;
+                back?:string; fill?:PvFill[]; backFill?:PvFill[]}|null; onClose:()=>void}) {
   /* 사진마다 비율이 다르다(1024×1536도 있고 1122×1402도 있다). 웹은 height:auto로
      원본 비율이 저절로 나오는데 RN은 미리 알려줘야 해서, 흔한 쪽으로 그려두고
      사진이 도착하면 실제 값으로 고친다. 안 그러면 얼굴이 늘어난다. */
   const [ratio, setRatio] = useState(1024/1536);
+  /* 훅은 조건부 return 위에 있어야 한다 — 밑으로 내려가면 사진이 없는
+     렌더에서 훅 수가 달라져 터진다 */
+  const [back, setBack] = useState(false);
+  const keyOf = typeof shot === 'string' ? shot : ((shot && shot.uri) || '');
+  useEffect(()=>{ setBack(false) }, [keyOf]);   // 딴 사진을 열면 다시 앞면부터
   if (!shot) return null;
-  const uri   = typeof shot === 'string' ? shot : shot.uri;
-  const label = typeof shot === 'string' ? '' : (shot.label || '');
-  const note  = typeof shot === 'string' ? '' : (shot.note || '');
+  const one   = typeof shot === 'string';
+  const label = one ? '' : (shot.label || '');
+  const note  = one ? '' : (shot.note || '');
+  /* 뒷면이 있는 것은 엽서 하나다. 누르면 넘어간다 — 뒤집는 단추를 따로
+     달지 않는다. 엽서를 뒤집는 데 단추가 필요한 적은 없었다 */
+  const flip  = one ? undefined : shot.back;
+  const uri   = (back && flip) ? flip : (one ? shot : shot.uri);
+  const fill  = ((back && flip) ? (one ? [] : shot.backFill) : (one ? [] : shot.fill)) || [];
   return <View style={[dl.ov, pv.ov, {zIndex:50}]}>
     <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
     <View style={[dl.wrap, pv.wrap]}>
@@ -476,10 +488,22 @@ export function PhotoWin({shot, onClose}:
           <Dots onClose={onClose}/>
         </LinearGradient>
         <View style={pv.body}>
-          <Image source={{uri}} resizeMode="contain"
-            onLoad={(e:any)=>{ const s = e && e.nativeEvent && e.nativeEvent.source;
-              if (s && s.width && s.height) setRatio(s.width/s.height) }}
-            style={[pv.img, {aspectRatio:ratio}]}/>
+          <Pressable disabled={!flip} onPress={()=>setBack(b=>!b)}>
+            <View>
+              <Image source={{uri}} resizeMode="contain"
+                onLoad={(e:any)=>{ const s = e && e.nativeEvent && e.nativeEvent.source;
+                  if (s && s.width && s.height) setRatio(s.width/s.height) }}
+                style={[pv.img, {aspectRatio:ratio}]}/>
+              {/* 유저가 채운 칸 — 사진 위 제자리에 앉는다. 사진이 contain으로
+                  그려지고 이 층도 같은 비율 상자라 퍼센트가 사진 위에 떨어진다 */}
+              {!!fill.length && <View pointerEvents="none"
+                style={[StyleSheet.absoluteFillObject]}>
+                {fill.map((f,i)=><Text key={i} numberOfLines={1} style={[pv.fill,{
+                  left:(f.left+'%') as any, top:(f.top+'%') as any,
+                  width:(f.w+'%') as any, height:(f.h+'%') as any}]}>{f.text}</Text>)}
+              </View>}
+            </View>
+          </Pressable>
           {!!label && <View style={pv.cap}>
             <Text style={pv.capT}>{label}</Text>
             {!!note && <Text style={pv.capN}>{note}</Text>}
@@ -503,6 +527,8 @@ const pv = StyleSheet.create({
     borderWidth:1, borderColor:'#cfc6ee', backgroundColor:'rgba(255,253,255,.96)'},
   capT:{...F, marginBottom:4, fontSize:10, letterSpacing:1.4, color:'#8a7fc0'},
   capN:{...F, fontSize:11.5, lineHeight:19, color:'#4a4276'},
+  /* 유저가 채운 칸 — 종이 위 연필이라 창의 보랏빛이 아니다 */
+  fill:{...F, position:'absolute', fontSize:11, lineHeight:14, color:'#5b4a3a', textAlign:'center'},
   foot:{flexDirection:'row', alignItems:'center', gap:7, padding:11},
   btn:{flex:1, height:38, borderColor:'#ff8fbe'},
   btnT:{...F, fontSize:11, letterSpacing:1.2, color:'#fff'},
