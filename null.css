@@ -1582,11 +1582,23 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
   .screen.splash{background-image:url("ui/bg-desktop.webp")}
 }
 
-/* ── 창 사이 간격 ──
-   space-between으로 남는 세로를 창 사이에 나눠줬더니 이번엔 뚝뚝 떨어졌다.
-   참고 화면은 창 사이가 좁다 — 창이 큰 것이지 사이가 넓은 게 아니다.
-   그래서 다시 가운데로 모으되, 옆 여백을 26→13px로 줄여 창을 키운다.
-   창은 비율이 고정이라 폭이 커지면 높이도 같이 커져서 화면이 찬다. */
-.spstack{justify-content:center;gap:9px;padding:0 13px 44px}
-.spstack .w1{width:196px}
-.spstack .w2{width:236px}
+/* ── 창 자리 ── 참고 화면(1440×2827, 앱 영역 y291~2662)에서 창 테두리를
+   따라 사각형을 직접 재서 넣었다. 화면 전체 대비:
+     옆 여백 6.5% · main 86.8% · error 48.3% · syserr 54% · loading 86.2%
+     창 사이 4.7% / 2.1% / 1.3% (세로)
+
+   ⚠️ 두 가지를 조심해야 한다.
+   ① 폭은 .spstack의 안쪽(=화면의 87%) 기준으로 다시 풀어야 한다. 화면
+      기준 값을 그대로 쓰면 여백이 두 번 먹혀 로딩창이 안쪽으로 밀린다.
+   ② margin-top의 %는 세로가 아니라 **가로** 기준으로 풀린다. 세로 간격을
+      %로 주면 화면이 길쭉할수록 좁아진다 — px로 못박는다(높이 790 기준). */
+.spstack{justify-content:center;gap:0;padding:0 6.5% 5%}
+.spstack .w1{width:55.5%;margin-top:37px}    /* 48.3/87 · 4.7%×790 */
+.spstack .w2{width:62.1%;margin-top:17px}    /* 54/87   · 2.1%×790 */
+.spstack .w3{width:100%;align-self:stretch;margin-top:10px}  /* 86.2/87 · 1.3%×790 */
+
+/* CD와 로고 — 참고 화면과 같은 자로 재보니 CD는 크기가 맞았고(툴바가 60px
+   먹어서 커 보였다) 실제로 작은 건 NULL_ 글자였다. 참고에서 로고가 판 폭의
+   49%인데 여기선 35%였다. 둘 다 그 비율로 올린다. */
+.spcd{width:92px;height:92px}
+.spcard .splogo{font-size:46px}
