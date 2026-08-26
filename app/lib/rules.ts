@@ -1131,6 +1131,35 @@ const KISS_SHOT={
 };
 const kissShot=(place,char)=>((KISS_SHOT[place]||{})[char])||null;
 
+/* ── ⑨ 키스타임 ──
+   판정은 여기서 안 한다. 최상위 단계인지·고백이 실제로 있었는지는 워커가
+   재고(kissMoment) 「누가·어디서」만 내려온다. 여기가 하는 일은 둘뿐이다 —
+   그 짝의 사진이 있는지 보는 것, 그리고 이미 본 것인지 보는 것.
+
+   한 짝에 한 번이다. 같은 자리에서 두 번째 고백에 같은 얼굴이 또 뜨면
+   연출이 아니라 반응이 된다. 여섯 짝이 저마다 한 번씩 온다. */
+const loadKissSeen=()=>{try{
+  const v=JSON.parse(localStorage.getItem("null_kiss"));
+  return Array.isArray(v)?v.filter(x=>typeof x==="string"):[];
+}catch(e){return[]}};
+const saveKissSeen=k=>{try{
+  const a=loadKissSeen();
+  if(a.includes(k))return true;
+  localStorage.setItem("null_kiss",JSON.stringify([...a,k]));
+  return loadKissSeen().includes(k);
+}catch(e){return false}};
+/* 워커가 준 것을 사진 한 장으로 바꾼다. 표에 없거나 이미 본 짝이면 null —
+   그때는 화면이 그냥 안 뜨고 대사만 나간다 */
+const kissNext=k=>{
+  if(!k||typeof k!=="object")return null;
+  const shot=kissShot(String(k.place||""),String(k.char||""));
+  if(!shot||loadKissSeen().includes(shot))return null;
+  return {shot,char:String(k.char),place:String(k.place)};
+};
+/* ④ 엽서와 같은 셈을 쓴다 — 천천히 떠오르고, 잠깐 그대로 있다가, 접힌다.
+   접촉은 화면 밖이다. 눈 감은 얼굴에서 끝난다 */
+const KISS_RISE=1600, KISS_HOLD=2600, KISS_OUT=900;
+
 /* ── 자리에 깔리는 그 사람 사진 ──
    들어간 순간엔 빈 방이고, 그 사람이 입을 열면 그 사람이 화면이 된다.
    눈앞에 있는 사람 사진을 문자로 보내는 건 이상하니까 배경이 그 일을 한다.
@@ -1977,6 +2006,12 @@ return {
   placeHours,
   KISS_SHOT,
   kissShot,
+  loadKissSeen,
+  saveKissSeen,
+  kissNext,
+  KISS_RISE,
+  KISS_HOLD,
+  KISS_OUT,
   SCENE_SHOT,
   WAY,
   WAY_BG,
@@ -2268,6 +2303,12 @@ export const {
   placeHours,
   KISS_SHOT,
   kissShot,
+  loadKissSeen,
+  saveKissSeen,
+  kissNext,
+  KISS_RISE,
+  KISS_HOLD,
+  KISS_OUT,
   SCENE_SHOT,
   WAY,
   WAY_BG,

@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, PhotoWin, LookOverlay, KAO } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -43,6 +43,7 @@ import {
   readAutoQueue, pushAutoBatch, runAutoQueue,
   roomLock, loadGetcha, saveGetcha,
   HID_MAX, hidMask, hidGuess, GIFT_WISH_MAX, GIFT_NOTE_A, GIFT_NOTE_B, giftNote, userPics,
+  kissNext, saveKissSeen, KISS_RISE, KISS_HOLD, KISS_OUT,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -1625,6 +1626,7 @@ function Root() {
   const [toast,setToast]=useState<string|null>(null);              // 짧은 확인 토스트
   const [profile,setProfile]=useState<Record<string,string>>({});  // 당신.txt 빈칸
   const [unlocked,setUnlocked]=useState<string[]>([]);             // .hidden 해금 key
+  const [kiss,setKiss]=useState<string|null>(null);               // ⑨ 지금 뜬 키스타임 사진
   const [stamp,setStamp]=useState(0);                              // 프로필 갱신 트리거
   const [autoAt,setAutoAt]=useState(0);                            // 마지막 peek 시각(쿨타임)
   /* 각본으로 도는 중인가. 이제 실패는 여기를 못 건드린다 — DEMO는 손으로
@@ -1948,6 +1950,19 @@ function Root() {
        적히면 안 되므로 commitAutoTurn(원자 장부)이 순서를 강제한다. */
     await applyEffects(data?.effects);
     await applyUnlocked(data);
+    await applyKiss(data);
+  };
+
+  /* ⑨ 워커는 「누가·어디서」만 준다. 그 짝의 사진이 있는지, 이미 본 짝인지는
+     여기서 본다 — 사진표가 양쪽에 있으면 한 장 갈 때마다 갈린다.
+     도장이 안 찍히면 화면도 안 띄운다: 띄우고 못 적으면 다음 판에 또 뜬다. */
+  const applyKiss = async(data:any)=>{
+    const km=kissNext(data&&data.kiss);
+    if(!km)return;
+    /* 도장은 규칙 파일의 것을 쓴다 — meta를 따로 읽으면 shim의 메모리와
+       두 벌이 되고, 그러면 웹과 앱이 「이미 봤나」를 다르게 센다 */
+    if(!saveKissSeen(km.shot))return;
+    setKiss(km.shot);
   };
 
   /* ── 관전 응답의 원자 반영 — 공용 엔진(runAutoQueue)에 어댑터를 물린다 ──
@@ -2812,6 +2827,9 @@ function Root() {
     {!!getcha&&<GetChaDialog name={(CHARS[getcha]||{}).name||'□□□'} onClose={()=>setGetcha(null)}/>}
     {diary&&<DiaryPage onDone={diaryDone}/>}
     {look&&<LookOverlay shot={look.shot} onClose={()=>setLook(null)}/>}
+    {/* ⑨ 답이 다 뜬 뒤에 화면이 통째로 그 얼굴이 된다 */}
+    {!!kiss&&<KissTime shot={kiss} rise={KISS_RISE} hold={KISS_HOLD} out={KISS_OUT}
+      onDone={()=>setKiss(null)}/>}
     {/* get cha 창이 떠 있는 동안에는 알림을 세워둔다 — 첫 만남에서 자리
         물건을 받으면 「bag — 에너지바」가 Get cha! 글자를 정확히 덮는다 */}
     {toast&&!getcha&&<View pointerEvents="none" style={mo.toast}><Text style={mo.toastT}>{toast}</Text></View>}

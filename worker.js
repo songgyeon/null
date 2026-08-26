@@ -4946,6 +4946,31 @@ function detectScene(ctx) {
   return "";
 }
 
+/* ── ⑨ 키스타임 ──
+   고백 장면 위에 **한 겹 더** 얹는다. 고백을 대신하지 않는다: 대사는
+   그대로 나가고, 그 위에 화면이 통째로 그 얼굴이 되는 순간이 얹힌다.
+
+   게이트가 둘인 이유는 §5-2(단계 급발진)의 그림판이기 때문이다. 0단계에서
+   이 얼굴이 나가면 「스무 마디 나눈 사람이 눈을 감고 있다」가 된다.
+     ① 최상위 관계 단계 — STAGES의 마지막이다. 대화 수와 날짜를 둘 다 넘어야
+        올라가므로 하루에 백 마디 쳐도 못 앞당긴다.
+     ② 고백 장면이 실제로 승인됐을 것 — 상태만으로는 안 열린다. 말이 있어야 한다.
+     ③ 지금 그 자리에 마주 앉아 있을 것 — 문자로 오는 얼굴은 POV가 아니라
+        「상대가 보낸 셀카」다.
+
+   어느 사진인지는 **여기서 안 정한다.** 자리·인물별 사진표는 클라이언트에
+   하나 있고, 워커는 「누가·어디서」만 말한다 — 표를 양쪽에 두면 사진을
+   한 장 갈 때마다 두 군데가 갈린다. 표에 그 짝이 없으면 화면은 그냥 안 뜬다. */
+function kissMoment(routed, ctx) {
+  if (!routed || routed.tier !== "critical" || routed.reason !== "confession") return null;
+  const c = ctx || {};
+  if (Number(c.stageIdx) < STAGES.length - 1) return null;   // ① 최상위 단계
+  const place = String(c.place || "").trim();
+  if (!place) return null;                                    // ③ 마주 앉아 있을 것
+  if (c.room !== "jaeeon" && c.room !== "minhyun") return null;
+  return { char: c.room, place };
+}
+
 /* 프론트가 보낸 사유를 그대로 믿지 않는다. 목록에 있는 말인지 보고,
    지금 상태가 그 말을 뒷받침하는지도 본다. 둘 다 맞아야 올라간다.
    예약이 없거나 거절됐어도 감지가 잡으면 그 사유로 올라간다. */
@@ -5994,6 +6019,10 @@ export default {
           lastUser, lastChar, stageIdx });
     const tier = routed.tier;
     if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);
+    /* ⑨ 고백 장면 위에 얹히는 한 겹. 여기서 **한 번** 재고, 아래 응답
+       자리들이 같은 값을 그대로 싣는다 — 자리마다 다시 재면 갈린다 */
+    const kissNow = kissMoment(routed, { room, stageIdx, place });
+    if (kissNow) console.log(`[NULL] 키스타임 ▶ ${kissNow.char} · ${kissNow.place}`);
     /* ── 이번 요청의 사실 원본. 여기서 **한 번** 만든다 ──
        단계마다 다시 조립하지 않는다. 그러면 같은 fact_id가 단계마다 달라지고,
        재시도 때 또 달라진다. 아래 모든 단계는 이 하나에서 투영만 받는다.
@@ -6377,6 +6406,7 @@ export default {
           ...(reqId ? { request_id: reqId } : {}),
           effects: effects5,
           ...s5TraceOf(picked),
+          ...(kissNow ? { kiss: kissNow } : {}),
           ...(tier === "critical" && routed.reason
               && routed.reason === String(body.scene_reason || "").trim()
             ? { scene_ack: routed.reason } : {}) }),
@@ -7037,6 +7067,7 @@ export default {
            **예약한 그 사유가 실제로 올라가서 답까지 나온 경우에만** 돌려준다.
            워커가 스스로 감지해 올린 장면(E4)은 예약이 아니므로 ack가 없다 —
            지울 예약 자체가 없다. 프론트는 제가 보낸 사유와 같을 때만 지운다. */
+        ...(kissNow ? { kiss: kissNow } : {}),
         ...(tier === "critical" && routed.reason
             && routed.reason === String(body.scene_reason || "").trim()
           ? { scene_ack: routed.reason } : {}) }),
@@ -7085,7 +7116,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          intentOf, turnMaterial, itemWords, mentionsItem,
          /* G3 — sonnet5-pair-haiku */
          S5PAIR_DIRECTOR_RULES, s5DirectorPacket, readS5Choice,
-         CRITICAL_REASONS, sceneTier, approveReason, detectScene, storyFacts, partnerSceneFacts,
+         CRITICAL_REASONS, sceneTier, approveReason, detectScene, kissMoment, storyFacts, partnerSceneFacts,
          userLine,
          OPENAI_MODEL, GPT_STAGES, joinBlocks, toOpenAIMessages, openAIUsage, callOpenAI, stageModel,
          unlockedKeys,

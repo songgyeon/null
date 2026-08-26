@@ -19,8 +19,8 @@
    난다. 그래서 형제로 나란히 눕히고 쌓이는 차례만 z로 정한다.
    z는 웹과 같은 값이다: 대화창 40, 문틈 42(토스트 45보다는 아래 —
    구경 중에도 알림은 보여야 한다). */
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, Pressable, TextInput, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Image, Pressable, TextInput, StyleSheet, Platform, Animated, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CHARS, AV_V, jos, DIARY_IMG, DIARY_BOX, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX } from '../lib/rules';
 import { IMG } from '../lib/api';
@@ -532,6 +532,43 @@ const pv = StyleSheet.create({
   foot:{flexDirection:'row', alignItems:'center', gap:7, padding:11},
   btn:{flex:1, height:38, borderColor:'#ff8fbe'},
   btnT:{...F, fontSize:11, letterSpacing:1.2, color:'#fff'},
+});
+
+/* ── ⑨ 키스타임 ──
+   화면이 통째로 그 얼굴이 되는 순간. 말풍선으로 오면 「상대가 보낸 셀카」로
+   읽히고 그건 POV가 아니다 — 그래서 창이 아니라 화면이다. 창틀도 여백도 없다.
+
+   단추가 없다. 유저가 고르는 장면이 아니라 유저가 보고 있는 것이라서
+   뜨고 잠깐 있다가 저절로 접힌다. 급하면 아무 데나 누르면 접힌다.
+
+   접촉은 화면 밖이다. 눈 감은 얼굴에서 끝난다.
+   판정은 여기 없다: 이 화면이 떴다는 것은 워커가 두 문을 다 봤다는 뜻이다. */
+export function KissTime({shot, rise, hold, out, onDone}:
+  {shot:string; rise:number; hold:number; out:number; onDone:()=>void}) {
+  const fade = useRef(new Animated.Value(0)).current;
+  const zoom = useRef(new Animated.Value(1.09)).current;
+  const done = useRef(false);
+  const close = () => {
+    if (done.current) return; done.current = true;
+    Animated.timing(fade, {toValue:0, duration:out, useNativeDriver:true}).start(onDone);
+  };
+  useEffect(()=>{
+    /* 다가오는 것이지 나타나는 게 아니다 — 살짝 크게 시작해 제자리에 앉는다 */
+    Animated.parallel([
+      Animated.timing(fade, {toValue:1, duration:rise, useNativeDriver:true}),
+      Animated.timing(zoom, {toValue:1, duration:rise, useNativeDriver:true}),
+    ]).start();
+    const t = setTimeout(close, rise + hold);
+    return ()=>clearTimeout(t);
+  },[]);
+  if (!shot) return null;
+  return <Pressable style={ks.ov} onPress={close}>
+    <Animated.Image source={{uri: IMG + shot + '.webp'}} resizeMode="cover"
+      style={[StyleSheet.absoluteFill, {opacity:fade, transform:[{scale:zoom}]}]}/>
+  </Pressable>;
+}
+const ks = StyleSheet.create({
+  ov:{...StyleSheet.absoluteFillObject, zIndex:58, backgroundColor:'#0d0918'},
 });
 
 export function LookOverlay({shot, onClose}:{shot:string; onClose:()=>void}) {

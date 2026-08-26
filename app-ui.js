@@ -802,6 +802,32 @@ function Flash({onDone}){
   </div>;
 }
 
+/* ── ⑨ 키스타임 ──
+   화면이 통째로 그 얼굴이 되는 순간. 말풍선으로 오면 「상대가 보낸 셀카」로
+   읽히고, 그건 POV가 아니다 — 그래서 ④ 엽서와 같은 화면 전환을 쓴다.
+
+   단추가 없다. 유저가 고르는 장면이 아니라 유저의 시야라서, 뜨고 잠깐
+   있다가 저절로 접힌다. 급하면 아무 데나 누르면 접힌다.
+
+   접촉은 화면 밖이다. 눈 감은 얼굴에서 끝난다 — 「분위기까지」의 시각판이다.
+   판정은 여기 없다: 이 화면이 떴다는 것은 워커가 이미 두 문을 다 봤다는 뜻이다. */
+function KissTime({shot,onDone}){
+  const [out,setOut]=useState(false);
+  const done=useRef(false);
+  const close=()=>{
+    if(done.current)return; done.current=true;
+    setOut(true); setTimeout(onDone,KISS_OUT);
+  };
+  useEffect(()=>{
+    const t=setTimeout(close,KISS_RISE+KISS_HOLD);
+    return()=>clearTimeout(t);
+  },[]);
+  return <div className={"kiss"+(out?" out":"")} onClick={close}
+    style={{"--rise":KISS_RISE+"ms","--out":KISS_OUT+"ms"}}>
+    <img className="kshot" src={shot.shot+".webp"} alt=""/>
+  </div>;
+}
+
 /* 탭하면 입력으로 바뀌는 빈칸 */
 /* 열린 상태를 밖에서 쥘 수 있다(open/onOpen). 등록 화면은 그렇게 해서
    엔터 한 번에 다음 칸으로 넘긴다. 안 넘기면 제 안의 edit로 혼자 돈다 —

@@ -480,6 +480,16 @@ function App(){
       sceneRef.current=o.scene; setScene(o.scene); return true;
     }
     if(o.op==="view"){ setView(o.room); return true }
+    /* ⑨ 고백에 답이 온 뒤에 화면이 통째로 그 얼굴이 된다. 말풍선 다음이라
+       장부 안에 있다 — 밖에 두면 답보다 얼굴이 먼저 뜬다.
+       한 짝에 한 번이다. 이미 봤으면 조용히 지나간다: 두 번째로 뜨면
+       연출이 아니라 답장이 된다. 표에 도장이 안 찍히면 화면도 안 띄운다 —
+       띄우고 못 적으면 다음 판에 또 뜬다. */
+    if(o.op==="kiss"){
+      if(!o.shot||loadKissSeen().includes(o.shot))return true;
+      if(!saveKissSeen(o.shot))return false;
+      setKiss(o.shot); return true;
+    }
     if(o.op==="goneTo"){
       const met=loadMet();
       if(met.includes(o.place)){ if(!metRef.current.includes(o.place))setMet(met); return true }
@@ -680,6 +690,10 @@ function App(){
        그때 그 자리일 때만 닫는다(applyOp가 본다). */
     if(payload.place_over&&scene)ops.push({op:"leave",id:id+"#out",room,since:scene.since,
       text:scene.place===WAY?"집에 도착했다":`${scene.place}에서 나왔다`});
+    /* ⑨ 워커는 「누가·어디서」만 준다. 그 짝의 사진이 있는지, 이미 본
+       짝인지는 여기서 본다 — 사진표가 양쪽에 있으면 한 장 갈 때마다 갈린다 */
+    const km=kissNext(data&&data.kiss);
+    if(km)ops.push({op:"kiss",shot:km.shot});
     const b=newBatch(id,room,{
       items:bubbles(id,room,(data&&data.messages)||[]),
       sys,effects:fx,toast,local_ops:ops,
@@ -1624,6 +1638,7 @@ function App(){
      엽서가 그 위로 뜬다 — 삼키면 유저가 방금 친 말이 어디로 갔는지 모른다.
      엽서를 덮은 뒤에 그 말이 나간다. */
   const [flash,setFlash]=useState(null);   // null | {room,text}
+  const [kiss,setKiss]=useState(null);     // null | 사진 key (⑨)
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
@@ -1813,6 +1828,7 @@ function App(){
   return <div className="phone">
     {diary&&<Diary onDone={diaryDone}/>}
     {flash&&<Flash onDone={()=>{const f=flash;setFlash(null);send(f.room,f.text,true)}}/>}
+    {kiss&&<KissTime shot={{shot:kiss}} onDone={()=>setKiss(null)}/>}
     {enrolling==="intro"&&<Intro onGo={()=>setEnrolling("enroll")}/>}
     {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}

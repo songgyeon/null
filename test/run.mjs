@@ -485,9 +485,90 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
      사진첩에도 자리 사진에도 안 들어간다 — 여는 것은 관계 단계 게이트뿐이다. */
   eq('키스타임 사진은 사진첩에 없다', KISS.filter(k => gal.includes(k)), []);
   eq('키스타임 사진은 자리 사진에도 없다', KISS.filter(k => scene.includes(k)), []);
-  /* 아직 어느 화면도 이 표를 안 본다 — 게이트가 서기 전에는 부르는 데가 없어야 한다 */
-  eq('여는 함수는 있고 부르는 데는 없다',
-    [/const kissShot=\(place,char\)=>/.test(web), (web.match(/[^t] kissShot\(|=kissShot\(|\(kissShot\(/g) || []).length], [true, 0]);
+  /* 게이트가 섰다(⑨). 이 표를 보는 데는 여전히 한 곳이어야 한다 —
+     kissNext 하나다. 화면이 표를 직접 뒤지기 시작하면 게이트를 안 거치는
+     길이 생긴다. 판정은 워커에, 표는 여기에, 문은 하나. */
+  eq('표를 보는 데가 하나다',
+    [/const kissShot=\(place,char\)=>/.test(web),
+     (web.match(/kissShot\(/g) || []).length], [true, 1]);   // 부르는 데는 kissNext 하나
+  eq('그 하나가 kissNext다',
+    /const kissNext=k=>\{[^]*?const shot=kissShot\(String\(k\.place\|\|""\),String\(k\.char\|\|""\)\);/.test(web), true);
+
+  /* ── ⑨ 두 문 ──
+     0단계에서 이 얼굴이 나가면 관계 단계 급발진의 그림판이다. 그래서
+     문이 둘이고, 판정은 워커 한 곳에서만 한다. */
+  {
+    const K = ENG.kissMoment;
+    const ok = { tier: 'critical', reason: 'confession' };
+    /* 최상위가 몇 번째인지도 워커의 표에서 읽는다 — 숫자로 박으면
+       단계가 하나 늘어난 날 이 시험만 옛 판을 재게 된다 */
+    const top = ENG.STAGES.length - 1;
+    const base = { room: 'jaeeon', stageIdx: top, place: '보건실' };
+    eq('최상위 단계에서 고백하면 열린다', K(ok, base), { char: 'jaeeon', place: '보건실' });
+    /* ① 단계 — 한 칸만 모자라도 안 열린다. 대화 수만으로는 못 앞당긴다 */
+    eq('단계가 모자라면 안 열린다',
+      [top - 1, 1, 0].map(i => K(ok, { ...base, stageIdx: i })), [null, null, null]);
+    /* ② 말 — 고백 장면이 아니면 안 열린다. 다른 중요 장면도 아니다 */
+    eq('고백이 아니면 안 열린다',
+      [{ tier: 'critical', reason: 'memory_reveal' }, { tier: 'critical', reason: 'null_identity' },
+       { tier: 'normal', reason: '' }, { tier: 'normal', reason: 'confession' }, null]
+        .map(r => K(r, base)), [null, null, null, null, null]);
+    /* ③ 자리 — 문자로 오는 얼굴은 POV가 아니라 「상대가 보낸 셀카」다 */
+    eq('마주 앉아 있지 않으면 안 열린다',
+      [K(ok, { ...base, place: '' }), K(ok, { ...base, place: null }), K(ok, { ...base, place: '  ' })],
+      [null, null, null]);
+    /* 방이 사람이어야 한다 — 단톡·관전에는 마주 볼 얼굴이 없다 */
+    eq('사람 방에서만 열린다',
+      [K(ok, { ...base, room: 'minhyun' }), K(ok, { ...base, room: 'group' }), K(ok, { ...base, room: 'health' })],
+      [{ char: 'minhyun', place: '보건실' }, null, null]);
+    /* 어느 사진인지는 여기서 안 정한다 — 표는 클라이언트에 하나뿐이다 */
+    eq('워커는 사진 이름을 모른다',
+      /kissShot|KISS_SHOT|-kiss"/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
+    /* 두 응답 자리가 같은 값을 싣는다 — 자리마다 다시 재면 갈린다 */
+    const wkSrc = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+    eq('한 번 재고 두 자리가 같이 쓴다',
+      [(wkSrc.match(/kissMoment\(routed,/g) || []).length,   // 정의 1 + 부르는 데 1
+       (wkSrc.match(/\.\.\.\(kissNow \? \{ kiss: kissNow \} : \{\}\)/g) || []).length], [2, 2]);
+  }
+  /* 한 짝에 한 번. 두 번째로 뜨면 연출이 아니라 답장이 된다 */
+  {
+    const mem = new Map();
+    const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
+    const D = new Function('localStorage', 'location',
+      readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+        .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+      + '\nreturn {kissNext,loadKissSeen,saveKissSeen,KISS_RISE,KISS_HOLD,KISS_OUT};')(ls, { search: '' });
+    eq('짝이 맞으면 사진이 나온다',
+      D.kissNext({ char: 'jaeeon', place: '보건실' }), { shot: 'jaeeon-nurse-kiss', char: 'jaeeon', place: '보건실' });
+    /* 표에 없는 짝(재언·옥상 / 민현·보건실)은 화면이 그냥 안 뜬다 */
+    eq('표에 없는 짝은 안 뜬다',
+      [D.kissNext({ char: 'jaeeon', place: '옥상' }), D.kissNext({ char: 'minhyun', place: '보건실' }),
+       D.kissNext({ char: 'jaeeon', place: '편의점' }), D.kissNext(null), D.kissNext('보건실')],
+      [null, null, null, null, null]);
+    D.saveKissSeen('jaeeon-nurse-kiss');
+    eq('한 번 본 짝은 다시 안 뜬다', D.kissNext({ char: 'jaeeon', place: '보건실' }), null);
+    eq('딴 짝은 그대로 남아 있다',
+      (D.kissNext({ char: 'minhyun', place: '옥상' }) || {}).shot, 'minhyun-rooftop-kiss');
+    eq('도장은 한 번만 찍힌다',
+      [D.saveKissSeen('jaeeon-nurse-kiss'), D.loadKissSeen()], [true, ['jaeeon-nurse-kiss']]);
+    /* 말풍선 다음이다 — 장부 안에 있어야 답보다 얼굴이 먼저 안 뜬다 */
+    eq('장부 안에서 뜬다',
+      /if\(km\)ops\.push\(\{op:"kiss",shot:km\.shot\}\);/.test(web)
+      && /if\(o\.op==="kiss"\)\{/.test(web), true);
+    /* 도장이 안 찍히면 화면도 안 띄운다 — 띄우고 못 적으면 다음 판에 또 뜬다 */
+    eq('못 적으면 안 띄운다',
+      /if\(!saveKissSeen\(o\.shot\)\)return false;\s*\n\s*setKiss\(o\.shot\);/.test(web), true);
+    /* 단추가 없다 — 유저가 고르는 장면이 아니라 유저가 보고 있는 것이다 */
+    eq('단추 없이 저절로 접힌다',
+      (() => {
+        const k = web.slice(web.indexOf('function KissTime('), web.indexOf('\n}', web.indexOf('function KissTime(')));
+        return [/setTimeout\(close,KISS_RISE\+KISS_HOLD\)/.test(k), /<button/.test(k), /onClick=\{close\}/.test(k)];
+      })(), [true, false, true]);
+    /* 접촉은 화면 밖이다 — 이 화면이 그리는 것은 눈 감은 얼굴 한 장뿐이다 */
+    eq('사진 한 장이 전부다',
+      /<img className="kshot" src=\{shot\.shot\+"\.webp"\} alt=""\/>/.test(web), true);
+  }
 
   /* 자리마다 거리가 늘었다 — 중거리와 클로즈업은 자리 사진과 사진첩에 든다 */
   const NEAR = [...scene.matchAll(/"([a-z-]+-(?:mid|near|seat|fridge))"/g)].map(m => m[1]);
