@@ -9673,32 +9673,17 @@ eq('시간표 단추는 peek보다 좁다',
   const D = new Function('localStorage', 'location',
     readFileSync(join(ROOT, 'app-data.js'), 'utf8')
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {callsToFull,callPct,CALL_PER_LETTER,userPics,saveDiary,saveFlash,DIARY_IMG,DIARY_BOX,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
+    + '\nreturn {userPics,saveDiary,saveFlash,DIARY_IMG,DIARY_BOX,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
   const dlg2 = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
   const appSrc3 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
   const css2 = readFileSync(join(ROOT, 'null.css'), 'utf8');
 
-  /* 완성까지 몇 번인가 — 화면과 셈이 같은 자를 봐야 한다 */
-  eq('완성은 글자 수 × 부르는 횟수다',
-    [D.callsToFull('연'), D.callsToFull('연아')],
-    [D.CALL_PER_LETTER, D.CALL_PER_LETTER * 2]);
-  eq('이름이 비어도 0으로 안 나눈다', [D.callsToFull(''), D.callPct(0, '')], [1, 0]);
-  eq('비율은 0에서 1 사이다',
-    [D.callPct(0, '연아'), D.callPct(3, '연아'), D.callPct(8, '연아'), D.callPct(99, '연아')],
-    [0, .375, 1, 1]);
-  /* 칸 여럿이 한 줄로 물러났다 — 남아 있으면 두 그림이 같이 뜬다 */
-  eq('글자마다 칸 하나이던 것이 물러났다',
-    [/className=\{"nmbx"/.test(web), /className="nmbar"/.test(web)], [false, true]);
-  /* 진한 벌은 잘라서 덮는다. 폭을 줄이면 안쪽 글자 자리가 같이 움직여
-     옅은 벌과 한 글자씩 어긋난다 */
-  eq('덮는 쪽은 폭이 아니라 보이는 데만 준다',
-    /className="nmcut" style=\{\{clipPath:`inset\(0 \$\{\(100-pct\*100\)/.test(web), true);
-  /* 줄 끝은 재서 맞춘다 — 시각 글자는 날짜가 바뀌면 폭도 바뀌므로 숫자로
-     박으면 하루 만에 어긋난다. 반올림도 안 한다: 1px씩 밀린다 */
-  eq('줄 끝을 재서 맞춘다',
-    /document\.querySelector\("\.roomcard\.watch \.rtime"\)/.test(web)
-    && /const w=t\.getBoundingClientRect\(\)\.left-bar\.getBoundingClientRect\(\)\.left;/.test(web), true);
-  eq('재놓고 더 자라지 않는다', /style=\{nmW\?\{width:nmW,flex:"none"\}:null\}/.test(web), true);
+  /* 칸은 글자 수만큼이고 안에 든 것은 언제나 □다 — 채워지는 것은 칸이지
+     이름이 아니다. 이름을 칸에 적으면 아직 안 불린 이름이 먼저 보인다 */
+  eq('칸에 이름을 넣지 않는다',
+    [/className=\{"nmbx"\+\(i<lit\?" on":i===lit\?" next":""\)\}>□<\/span>/.test(web),
+     /\{i<lit\?c:"□"\}/.test(web), /className="nmbar"/.test(web)], [true, false, false]);
+  eq('칸 수는 이름 글자 수다', /\{letters\.map\(\(c,i\)=>/.test(web), true);
 
   /* {이름} pics — 채운 것만 선다 */
   eq('아무것도 안 채웠으면 없다', D.userPics().length, 0);

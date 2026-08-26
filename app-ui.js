@@ -1156,11 +1156,11 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 앱도 같은 식으로 센다.
      세는 것은 세계 시계 하나다(daysLeft → worldDays). */
   const dLeft=daysLeft(store);
-  /* 빈칸 — 이름이 불린 만큼만 채운다. 한 글자에 한 칸이 아니라 한 줄이
-     차오른다: 이름이 두 자면 칸도 두 개뿐이라 채워지는 게 안 보였다 */
+  /* 빈칸 — 이름이 불린 만큼만 채운다. 칸에 글자를 넣지는 않는다:
+     채워지는 것은 칸이지 이름이 아니다 */
   const calls=countCalls(store,name);
-  const pct=callPct(calls,name);
-  const nameCh=(name||"").split("");
+  const lit=filledLetters(calls,name);
+  const letters=(name||"").split("");
   const dayN=daysSince(store);
   const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
@@ -1168,17 +1168,6 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
      커서가 다 서 있으면 채워야 할 자리가 아니라 서식이 된다 */
   const [guess,setGuess]=useState(null);
   const [typed,setTyped]=useState("");
-  /* 이름 줄이 어디서 끝나야 하는지 — 위 「두 사람」 방의 시각이 시작하는 자리.
-     한 번 재고 목록이 움직일 때마다 다시 잰다. null이면 남는 폭을 다 쓴다 */
-  const nmRef=useRef(null);
-  const [nmW,setNmW]=useState(null);
-  useEffect(()=>{
-    const bar=nmRef.current; if(!bar)return;
-    const t=document.querySelector(".roomcard.watch .rtime");
-    if(!t){if(nmW!==null)setNmW(null);return}
-    const w=t.getBoundingClientRect().left-bar.getBoundingClientRect().left;
-    if(w>40&&(nmW===null||Math.abs(w-nmW)>.5))setNmW(w);
-  });
   useEffect(()=>{setGuess(null);setTyped("")},[tab]);   // 탭을 옮기면 커서도 접는다
   const [now,setNow]=useState(Date.now()); // 접속 상태·쿨타임 갱신용
   const [autoAt,setAutoAt]=useState(loadAutoAt);
@@ -1290,23 +1279,13 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
             </div>
           </React.Fragment>;
         })}
-          <div className={"nmcard"+(pct>=1?" done":"")}>
+          <div className={"nmcard"+(lit>=letters.length?" done":"")}>
           <div className="nmline">
             <span className="k">NULL</span>
-            {/* 줄 끝은 위 「두 사람」 방의 월 숫자가 시작하는 자리다. 재보고
-                맞춘다 — 시각 글자는 날짜가 바뀌면 폭도 바뀌므로 숫자로 박으면
-                하루 만에 어긋난다. 못 재면(그 방에 아직 시각이 없으면)
-                남는 폭을 그냥 다 쓴다 */}
-            <span className="nmbar" ref={nmRef} style={nmW?{width:nmW,flex:"none"}:null}>
-              <i className="nmfill" style={{width:(pct*100)+"%"}}/>
-              {/* 이름을 줄 전체에 펴 놓는다. 왼쪽에 몰아두면 두 자짜리 이름은
-                  30%만 차도 벌써 다 켜져서, 차오르는 것이 안 보인다.
-                  진한 벌은 폭이 같은 채로 잘라내기만 한다 — 폭을 줄이면
-                  글자 자리가 같이 움직여서 옅은 벌과 어긋난다 */}
-              <span className="nmtx dim">{nameCh.map((c,i)=><b key={i}>{c}</b>)}</span>
-              <span className="nmcut" style={{clipPath:`inset(0 ${(100-pct*100).toFixed(2)}% 0 0)`}}>
-                <span className="nmtx on">{nameCh.map((c,i)=><b key={i}>{c}</b>)}</span></span>
-            </span>
+            {/* 칸은 글자 수만큼이고, 안에 든 것은 언제나 □다. 불린 만큼
+                앞에서부터 차오른다 — 채워지는 것은 칸이지 이름이 아니다 */}
+            {letters.map((c,i)=>
+              <span key={i} className={"nmbx"+(i<lit?" on":i===lit?" next":"")}>□</span>)}
           </div>
       <span className="nmpct">
         <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 1c.5 3.6 2.9 6 6.5 7-3.6 1-6 3.4-6.5 7-.5-3.6-2.9-6-6.5-7 3.6-1 6-3.4 6.5-7z" fill="#c3b2f0"/></svg>

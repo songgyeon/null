@@ -352,11 +352,6 @@ const countCalls=(store,name)=>{
   return n;
 };
 const filledLetters=(calls,name)=>Math.min((name||"").length,Math.floor(calls/CALL_PER_LETTER));
-/* 이름이 다 차기까지 몇 번인가. 글자 수 × CALL_PER_LETTER다 —
-   한 칸씩 켜지던 것을 한 줄이 차오르는 것으로 바꿨어도 「몇 번이면 끝인가」는
-   같은 셈이어야 한다. 두 군데서 따로 세면 화면과 완성 시점이 갈린다. */
-const callsToFull=name=>Math.max(1,(name||"").length*CALL_PER_LETTER);
-const callPct=(calls,name)=>Math.max(0,Math.min(1,(calls||0)/callsToFull(name)));
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
   {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},
@@ -1874,8 +1869,6 @@ return {
   CALL_PER_LETTER,
   countCalls,
   filledLetters,
-  callsToFull,
-  callPct,
   ROOMS,
   roomOf,
   PHOTO_FILES,
@@ -2167,8 +2160,6 @@ export const {
   CALL_PER_LETTER,
   countCalls,
   filledLetters,
-  callsToFull,
-  callPct,
   ROOMS,
   roomOf,
   PHOTO_FILES,
