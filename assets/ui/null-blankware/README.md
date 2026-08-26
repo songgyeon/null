@@ -91,6 +91,19 @@
 
 가방은 넓은 여백을 살리고 카드 하나만 강조한다. 슬롯과 아이템 카드는 반복 가능한 독립 부품이며, 제품 이미지와 텍스트는 기존 DOM/에셋을 그대로 얹는다.
 
+## Chat room
+
+| Asset | Existing target | Overlay that stays as HTML |
+|---|---|---|
+| `chat/chat-profile-header.png` | `.chatbar` | 뒤로가기, 아바타, 이름, 역할, 남은 날짜와 미터 fill |
+| `chat/chat-time-divider.png` | `.divider` / `.narr` | 시간과 상태 문장 |
+| `chat/chat-bubble-incoming.png` | `.mrow:not(.me) .bubble` | 상대 메시지와 사진 캡션 |
+| `chat/chat-bubble-outgoing.png` | `.mrow.me .bubble` | 사용자 메시지 |
+| `chat/chat-composer-bar.png` | `.inputbar` | 실제 input과 잠금 상태 |
+| `chat/chat-send-button.png` | `.rbtn.sendbtn` | 전송 아이콘, disabled/active 상태 |
+
+말풍선 두 장은 한 문장을 통째로 구운 이미지가 아니라 9-slice 가능한 좌·우 꼬리 표면이다. 텍스트 길이에 따라 가운데 영역만 늘리고 꼬리와 모서리 비율은 보존한다. 프로필 사진, 이름, 직업, 날짜 칸, 메시지, 시간, 전송 아이콘은 모두 DOM에 남긴다. `chat-composer-bar.png`의 우측 원형 소켓에는 별도 `chat-send-button.png`를 겹친다.
+
 ## Shared assets
 
 | Asset | Suggested use |

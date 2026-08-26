@@ -1,7 +1,7 @@
 {
   "name": "NULL BLANKWARE UI asset pack",
   "version": 1,
-  "assetCount": 37,
+  "assetCount": 43,
   "style": "bright dreamy Korean Y2K retro-computer stationery",
   "assets": [
     {"path":"background/bg-null-dream-desktop.png","width":1672,"height":941,"alpha":false,"applyTo":[".app-bg",".screen.splash desktop"]},
@@ -26,6 +26,12 @@
     {"path":"bag/bag-panel-shell.png","width":1086,"height":1448,"alpha":true,"applyTo":[".cartwin",".cwrap"]},
     {"path":"bag/inventory-slot-empty.png","width":1448,"height":1086,"alpha":true,"applyTo":["empty bag grid",".cnone"]},
     {"path":"bag/inventory-item-card.png","width":2172,"height":724,"alpha":true,"applyTo":[".cgcard"]},
+    {"path":"chat/chat-profile-header.png","width":2112,"height":324,"alpha":true,"applyTo":[".chatbar"]},
+    {"path":"chat/chat-time-divider.png","width":1670,"height":82,"alpha":true,"applyTo":[".divider",".narr"]},
+    {"path":"chat/chat-bubble-incoming.png","width":2172,"height":724,"alpha":true,"applyTo":[".mrow:not(.me) .bubble"]},
+    {"path":"chat/chat-bubble-outgoing.png","width":2172,"height":724,"alpha":true,"applyTo":[".mrow.me .bubble"]},
+    {"path":"chat/chat-composer-bar.png","width":2020,"height":778,"alpha":true,"applyTo":[".inputbar"]},
+    {"path":"chat/chat-send-button.png","width":1273,"height":1236,"alpha":true,"applyTo":[".rbtn.sendbtn"]},
     {"path":"opening/boot-main-window.png","width":1536,"height":1024,"alpha":false,"backgroundRemoval":true,"applyTo":[".spcard"]},
     {"path":"opening/boot-error-dialog-lilac.png","width":1659,"height":948,"alpha":false,"backgroundRemoval":true,"applyTo":[".spwin.w1"]},
     {"path":"opening/boot-system-error-dialog-pink.png","width":1756,"height":896,"alpha":false,"backgroundRemoval":true,"applyTo":[".spcurwrap.w2 > .spwin"]},

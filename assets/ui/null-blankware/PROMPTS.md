@@ -30,5 +30,11 @@ Bright dreamy `NULL BLANKWARE`: Korean Y2K retro-computer stationery, milky whit
 - **Bag panel shell:** tall inventory shell with a blank header recess and a restrained two-column by three-row tray; no products, labels or category marks.
 - **Bag empty slot:** one isolated 4:3 recessed tray with a calm cream center and faint opal edge; no empty-state copy or icon.
 - **Bag item card:** one wide repeatable card with a square blank thumbnail recess at left and two blank information recesses at right; no product or text.
+- **Chat profile header:** one wide shallow Korean Y2K messenger strip with a clean circular avatar well, blank name/subtitle wells, and one long continuous relationship-meter recess; no avatar, back button or copy baked in.
+- **Chat time divider:** extremely wide thin separator interrupted by one small blank centered capsule/clear zone for time or status; at most one tiny sparkle and no glyphs.
+- **Incoming chat bubble:** wide 3:1 milky-white speech-bubble surface with a restrained lilac pixel edge and a small left tail, clean enough for 9-slice scaling.
+- **Outgoing chat bubble:** matching wide 3:1 surface with a faint blush-to-ice-blue fill and a small right tail, no label or decoration.
+- **Chat composer:** very wide shallow bottom tray with one long blank recessed input well and a clean circular socket at right; no control or placeholder baked in.
+- **Chat send button:** isolated round opal pink-to-ice button with a blank center reserved for the HTML icon; readable at small size, no arrow or heart baked in.
 
 Reference family: the supplied retro-window, pastel UI, pixel-game and current NULL screenshots. Dynamic copy remains HTML.
