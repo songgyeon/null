@@ -35,7 +35,18 @@
 - 바의 진행 정도만 wrapper의 `width`, `overflow: hidden`, 또는 `clip-path`로 제어한다.
 - PNG 자체에는 네모 셀·포도색 블록·점선·도트가 없다.
 
-`core/meter-name-fill-long.png`와 `opening/boot-main-window.png`는 배경 제거 전 RGB 판본이다. 사용자가 후처리하기로 한 자산이므로 실제 합성 전 흰/체커 배경을 제거한다. 배경 두 장은 원래부터 불투명이다.
+`core/meter-name-fill-long.png`, `opening/boot-*.png` 네 장, `gift/*.png` 두 장은 배경 제거 전 RGB 판본이다. 사용자가 후처리하기로 한 자산이므로 실제 합성 전 흰/체커 배경을 제거한다. 배경 두 장은 원래부터 불투명이다.
+
+## Gift / wrap reason screen
+
+| Asset | Existing target | Overlay that stays as HTML |
+|---|---|---|
+| `gift/gift-wrap-panel-frame.png` | gift/wrap 최상위 세로 패널 | 제목, 아이템, 받는 사람, 장소, 버튼 전체 |
+| `gift/gift-reason-note-card.png` | `A NOTE` 아래 이유 입력 행 | 문장 앞·뒤 조각과 실제 input |
+
+`gift-wrap-panel-frame.png`는 중앙을 거의 비운 포장지형 셸이다. 왼쪽의 얇은 리본과 한 개의 매듭만 남기고, 아이템·인물·장소 카드가 올라갈 영역은 장식하지 않았다.
+
+`gift-reason-note-card.png`의 가운데 선큰 슬롯에 실제 입력창을 겹치고, 슬롯 좌우의 빈 여백에 “이걸 받고”와 “면 좋겠어!” 같은 동적 문장 조각을 올린다. 입력 자체를 PNG에 굽지 않는다. 기존 흰 사각 입력 박스와 외곽 shadow를 함께 남기면 이중 테두리가 생기므로 끈다.
 
 ## Shared assets
 
