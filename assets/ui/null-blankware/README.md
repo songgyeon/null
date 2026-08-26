@@ -35,7 +35,7 @@
 - 바의 진행 정도만 wrapper의 `width`, `overflow: hidden`, 또는 `clip-path`로 제어한다.
 - PNG 자체에는 네모 셀·포도색 블록·점선·도트가 없다.
 
-`core/meter-name-fill-long.png`, `opening/boot-*.png` 네 장, `gift/*.png` 두 장은 배경 제거 전 RGB 판본이다. 사용자가 후처리하기로 한 자산이므로 실제 합성 전 흰/체커 배경을 제거한다. 배경 두 장은 원래부터 불투명이다.
+`manifest.json`에서 `backgroundRemoval: true`인 파일은 배경 제거 전 RGB 판본이다. 사용자가 후처리하기로 한 자산이므로 실제 합성 전 흰/체커 배경을 제거한다. 배경 두 장은 원래부터 불투명이다.
 
 ## Gift / wrap reason screen
 
@@ -47,6 +47,49 @@
 `gift-wrap-panel-frame.png`는 중앙을 거의 비운 포장지형 셸이다. 왼쪽의 얇은 리본과 한 개의 매듭만 남기고, 아이템·인물·장소 카드가 올라갈 영역은 장식하지 않았다.
 
 `gift-reason-note-card.png`의 가운데 선큰 슬롯에 실제 입력창을 겹치고, 슬롯 좌우의 빈 여백에 “이걸 받고”와 “면 좋겠어!” 같은 동적 문장 조각을 올린다. 입력 자체를 PNG에 굽지 않는다. 기존 흰 사각 입력 박스와 외곽 shadow를 함께 남기면 이중 테두리가 생기므로 끈다.
+
+## Enroll / existence confirmation
+
+| Asset | Existing target | Overlay that stays as HTML |
+|---|---|---|
+| `enroll/enroll-confirm-window.png` | `.dlg.cwin` | 질문, 이름, 현실/이세계 정보, `YES` |
+| `enroll/enroll-profile-card.png` | `.ecard` | 이름과 모든 기록값, 모드, 남은 날짜, CTA |
+| `enroll/enroll-record-field.png` | `.eline` / `.blank` | 좌측 라벨과 우측 값 |
+| `enroll/enroll-mode-toggle.png` | `.emode` | `real`, `speed` 라벨과 선택 상태 |
+| `enroll/enroll-connecting-meter.png` | `.ebar` | 실제 진행률과 `CONNECTING` 수치 |
+
+확인창은 기존의 큰 딥네이비 면을 버리고 밝은 오팔 창으로 통일했다. `enroll-record-field.png`는 반복 행 부품이며, 각 행의 폭과 값 길이는 CSS가 결정한다. 미터는 셀·점선·칸막이 없는 연속 표면이므로 진행률 wrapper로 잘라 쓴다.
+
+## Map cabinet
+
+| Asset | Existing target | State |
+|---|---|---|
+| `map/locker-cabinet-shell.png` | `.cab` / `.cabframe` | 정확히 2열 × 4행의 빈 리세스 |
+| `map/locker-door-empty.png` | `.cabdoor` | 닫힘 / 미진행 |
+| `map/locker-door-unlocked.png` | `.cabdoor` | 닫힘 / 해금됨 |
+| `map/locker-door-open.png` | `.cabdoor` | 열림 / 내부 노출 |
+
+셸과 문을 합친 스크린샷이 아니라 독립 부품으로 만들었다. 기존 `cab-icons/*`와 문 안의 동적 라벨은 그대로 보존하고, 문 상태에 맞춰 표면 이미지만 교체한다.
+
+## Hidden archive
+
+| Asset | Existing target | Overlay that stays as HTML |
+|---|---|---|
+| `hidden/locked-photo-veil.png` | `.hcell.lock::after` | 기존 사진은 아래 레이어에 유지 |
+| `hidden/lock-pearl-badge.png` | `.hlock` | 잠금 의미와 실제 버튼 타깃 |
+| `hidden/name-guess-tag.png` | `.hlabel` / `.hin` | 힌트와 입력값 |
+
+잠긴 사진을 검고 흐리게 만드는 대신 밝은 반투명 veil을 얹는다. 잠금 배지는 화면 중앙을 가리지 않는 작은 독립 부품이며, 이름 추측 태그는 글자 없는 캡슐 표면이다.
+
+## Bag / inventory
+
+| Asset | Existing target | Overlay that stays as HTML |
+|---|---|---|
+| `bag/bag-panel-shell.png` | `.cartwin` / `.cwrap` | 제목, 탭, 수령 수량 |
+| `bag/inventory-slot-empty.png` | empty grid / `.cnone` | 빈 상태 안내문 |
+| `bag/inventory-item-card.png` | `.cgcard` | 아이템 사진, 이름, 설명, 날짜 |
+
+가방은 넓은 여백을 살리고 카드 하나만 강조한다. 슬롯과 아이템 카드는 반복 가능한 독립 부품이며, 제품 이미지와 텍스트는 기존 DOM/에셋을 그대로 얹는다.
 
 ## Shared assets
 
