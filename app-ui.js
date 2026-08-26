@@ -374,20 +374,20 @@ function Splash({onEnter}){
       </div>
       {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
       <div className="spwin w1" style={{animationDelay:".2s"}}>
-        <div className="sptb" style={{background:"linear-gradient(90deg,#b9a8ea,#8a7fc0)"}}>Error<WinDots/></div>
+        <div className="sptb">Error<WinDots/></div>
         <div className="spbd">이름을 입력해야 존재할 수 있어요.<div className="spbtn">ok</div></div>
       </div>
       {/* 커서는 창에 매달아 둔다 — 좌표로 놓으면 글자를 깔고 앉는다 */}
       <div className="spcurwrap w2">
         <div className="spwin" style={{animationDelay:".35s"}}>
-          <div className="sptb" style={{background:"linear-gradient(90deg,#ff7fae,#ff5fa8)"}}>System error<WinDots/></div>
+          <div className="sptb">System error<WinDots/></div>
           <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn">Cancel</div></div>
         </div>
         <SpCursor/>
       </div>
       <div className="spwin w3" style={{animationDelay:".5s"}}>
-        <div className="sptb" style={{background:"linear-gradient(90deg,#8fd8e8,#c3b2f0)"}}>loading...<WinDots/></div>
-        <div className="spbd" style={{background:"#fff8fc"}}>
+        <div className="sptb">loading...<WinDots/></div>
+        <div className="spbd">
           <span className="spbar"><i/></span>
         </div>
       </div>
