@@ -1045,7 +1045,7 @@ eq('후보를 거를 때 인덱스를 시각으로 넘기지 않는다', /filter
    모델이 스스로 막고 있던 것을 규칙으로 내린다 */
 eq('만나고 있으면 바로 준다',
   /const here=c=>withChar===c;/.test(web)
-  && /if\(!here\(c\)\)return;\s*\n\s*onSend\(c,pick,memo\); onClose\(\);/.test(web), true);
+  && /if\(!here\(c\)\)return;\s*\n\s*onSend\(c,pick,giftNote\(memo\)\); onClose\(\);/.test(web), true);
 /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면 지금 자리를
    말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
 eq('자리에 있으면 딴 사람은 못 고른다',
@@ -1671,7 +1671,7 @@ eq('생성된 파일이라고 적어둔다',
   const app2 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
   const dlg = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
   eq('앱도 같은 rules에서 잠금을 읽는다',
-    /roomLock, loadGetcha, saveGetcha,\n\} from '\.\/lib\/rules'/.test(app2), true);
+    /roomLock, loadGetcha, saveGetcha,\n(?:  .*\n)*\} from '\.\/lib\/rules'/.test(app2), true);
   eq('앱도 거는 길 넷을 다 막는다', [
     /if\(canGreet\(other\)&&!roomLock\(msgsForFlow\(\),other\)\)/.test(app2),   // 첫 자리
     /if\(roomLock\(msgsForFlow\(\),id\)\)return;/.test(app2),                   // greet 안쪽
@@ -9571,6 +9571,92 @@ eq('시간표 단추는 peek보다 좁다',
   /* 「엄마가 사탕을 줬다」에서 멈춘다 — 누구에게 줬는지는 어떤 화면도 발설하지 않는다 */
   eq('사탕을 누구에게 줬는지는 안 적는다',
     D.DIARY_LINES.some(l => /목걸이|재언|민현|삼촌/.test(l)), false);
+}
+
+/* ══════════ ⑥ 히든 제목 빈칸 · ⑧ 선물 빈칸 ══════════
+   ⑥ 잠긴 칸의 □는 원래 「몇 글자짜리 이름인가」만 알려주는 표시였다. 이제
+   그 자리에 커서가 서고, 제목을 맞히면 그 칸이 열린다. 퀴즈가 아니다 —
+   맞았다고도 틀렸다고도 알려주는 화면이 없다. 열린 칸이 답이다.
+
+   ⑧ 선물 쪽지는 빈 종이가 아니라 틀이다. 채우는 것은 「받고 어떻게 되면
+   좋겠는가」 한 자리뿐이고, 인물에게는 조립된 문장 한 줄이 간다. */
+{
+  const mem = new Map();
+  const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+    setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
+  const D = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {hidMask,hidGuess,HID_MAX,HIDDEN,HIDDEN_LABEL,giftNote,GIFT_WISH_MAX,GIFT_NOTE_A,GIFT_NOTE_B};')(ls, { search: '' });
+  const appSrc2 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
+
+  /* □ 하나가 글자 하나다 — 그게 유일한 힌트라 개수가 어긋나면 못 맞힌다 */
+  eq('□는 글자 수를 말한다', D.hidMask('재언의 가방'), '□□□ □□');
+  eq('빈 자리는 그대로 둔다', D.hidMask('민현 상담 기록 · 1'), '□□ □□ □□ □ □');
+  /* 제목을 그대로 치면 열린다. 띄어쓰기와 가운뎃점은 안 본다 —
+     몇 글자인지는 □가 이미 말해줬으니 막히는 건 낱말이어야지 서식이면 안 된다 */
+  eq('제목을 치면 맞는다', [
+    D.hidGuess('jaeeon-bag', '재언의 가방'),
+    D.hidGuess('jaeeon-bag', '재언의가방'),
+    D.hidGuess('hidden-jaeeon-diary-200x-03-07', '재언의 일기 3월 7일'),
+    D.hidGuess('hidden-minhyun-sns-2', '@mhy.wav 2'),
+  ], [true, true, true, true]);
+  /* 낱말이 다르면 안 열린다. 서식만 봐주는 것이지 「비슷하면」이 아니다 */
+  eq('딴 이름은 안 맞는다', [
+    D.hidGuess('jaeeon-bag', '재언 가방'),
+    D.hidGuess('jaeeon-bag', '민현의 가방'),
+    D.hidGuess('jaeeon-bag', ''),
+    D.hidGuess('jaeeon-bag', '   '),
+    D.hidGuess('없는키', '재언의 가방'),
+  ], [false, false, false, false, false]);
+  /* 열여덟 칸 전부 자기 제목으로 열리고, 남의 제목으로는 안 열린다 */
+  eq('열여덟 칸이 다 제 이름으로 열린다',
+    D.HIDDEN.filter(h => !D.hidGuess(h.key, h.label)).map(h => h.key), []);
+  eq('남의 이름으로는 안 열린다',
+    D.HIDDEN.filter(h => D.hidGuess(h.key, '재언의 가방') && h.key !== 'jaeeon-bag').map(h => h.key), []);
+  /* 판정도 값도 이 기기에서 끝난다 — 워커는 「맞혔는지」를 물어볼 데가 없다 */
+  eq('워커는 맞히기를 모른다',
+    /hidGuess|hidMask|HID_MAX/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
+  eq('맞힌 것도 payload에 안 실린다',
+    [...web.matchAll(/payload\.[A-Za-z_]+ *= *([^;\n]+)/g)].map(m => m[1])
+      .filter(v => /hidGuess|guessHidden/.test(v)), []);
+  /* 「정답!」이 뜨면 그때부터 이건 퀴즈다. 열린 칸이 답이어야 한다 */
+  eq('맞혀도 알려주지 않는다', (() => {
+    const f = web.slice(web.indexOf('const guessHidden=key=>{'), web.indexOf('const applyUnlocked=list=>{'));
+    return [/setToast\("저장이 안 돼요"\)/.test(f), /localBatch|markEvent|op:"event"/.test(f),
+            (f.match(/setToast/g) || []).length];
+  })(), [true, false, 1]);
+  /* 저장이 막히면 안 연다 — 화면만 열리고 다음 판에 다시 잠기면
+     무엇을 맞혔는지가 아니라 무엇이 고장 났는지를 세게 된다 */
+  eq('저장을 확인하고 연다',
+    /if\(!saveUnlocked\(next\)\|\|!loadUnlocked\(\)\.includes\(key\)\)/.test(web), true);
+  eq('앱도 저장을 먼저 하고 화면을 나중에 바꾼다',
+    /await setMeta\('null_unlocked',JSON\.stringify\(\[\.\.\.cur,key\]\)\);\s*\n\s*setUnlocked\(/.test(appSrc2), true);
+  /* 잠긴 칸을 눌렀을 때 뜨던 「still locked」 팻말이 커서로 바뀐다 */
+  eq('잠긴 칸을 누르면 커서가 선다',
+    [/:setGuess\(h\.key\)\}>/.test(web), /still locked ♡/.test(web),
+     /:setGuess\(h\.key\)\}>/.test(appSrc2), /'still locked'/.test(appSrc2)],
+    [true, false, true, false]);
+  /* 대화로 열리는 길은 그대로다 — 빈칸이 그 길을 대신하는 게 아니라 옆에 선다 */
+  eq('쌓여서 열리는 길이 남아 있다',
+    /const demoUnlocked=msgs=>/.test(web) && /h\.at&&d>=h\.day/.test(web), true);
+
+  /* ⑧ 틀은 확정 문안이다 — 글자가 바뀌면 유저가 채우는 자리도 바뀐다 */
+  eq('선물 쪽지 틀이 글자 그대로다',
+    D.GIFT_NOTE_A + 'ㅁㅁㅁㅁ' + D.GIFT_NOTE_B, '이걸 받고 ㅁㅁㅁㅁ면 좋겠어! (*ˊᵕˋ*)੭ ੈ 💝');
+  /* 인물에게 가는 것은 조립된 한 줄이다. 빈칸 값만 보내면 쪽지에 「웃으」라고만 적힌다 */
+  eq('조립해서 보낸다', D.giftNote('웃으'), '이걸 받고 웃으면 좋겠어! (*ˊᵕˋ*)੭ ੈ 💝');
+  eq('안 채우면 쪽지가 없다', [D.giftNote(''), D.giftNote('   '), D.giftNote(null)], ['', '', '']);
+  /* 60자 잘림에 걸리면 끝의 카오모지가 잘려 나간다 — 빈칸 쪽을 먼저 자른다 */
+  eq('조립한 줄이 쪽지 한도 안에 있다', D.giftNote('가'.repeat(80)).length <= 60, true);
+  eq('빈칸도 한도만큼만 받는다', D.giftNote('가'.repeat(80)).includes('가'.repeat(D.GIFT_WISH_MAX + 1)), false);
+  /* 주는 길 둘 다 조립된 줄을 보낸다 — 한쪽만 고치면 쪽지가 자리마다 달라진다 */
+  eq('주는 길 둘이 같은 줄을 보낸다',
+    [/onSend\(c,pick,giftNote\(memo\)\)/.test(web), /onSendAt\(to,pick,giftNote\(memo\),g\.place\)/.test(web),
+     /onSend\(c,pick,giftNote\(memo\)\)/.test(appSrc2)], [true, true, true]);
+  /* 자유 노트는 물러난다 — 남아 있으면 두 길이 서로 다른 쪽지를 만든다 */
+  eq('빈 종이가 물러났다',
+    [/textarea className="cmemo"/.test(web), /placeholder="P\.S\. ♡"/.test(web + appSrc2)], [false, false]);
 }
 
   eq('앱도 전환을 실제로 적용한다',

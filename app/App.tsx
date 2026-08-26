@@ -42,6 +42,7 @@ import {
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
   readAutoQueue, pushAutoBatch, runAutoQueue,
   roomLock, loadGetcha, saveGetcha,
+  HID_MAX, hidMask, hidGuess, GIFT_WISH_MAX, GIFT_NOTE_A, GIFT_NOTE_B, giftNote,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -816,7 +817,7 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
             onPress={()=>{ if(done)return;
               if(!sel){setTo(c);return}
               if(poor)return;
-              onSend(c,pick,memo); onBack(); }}>
+              onSend(c,pick,giftNote(memo)); onBack(); }}>
             <View style={[ct.radio,sel&&ct.radioOn]}/>
             <Face char={c} size={38} border={P.mid}/>
             <Text style={ct.toName}>{CHARS[c].name}</Text>
@@ -827,10 +828,17 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
           {sel&&!done&&<Text style={ct.hint}>{GIFT_HINT[c]}</Text>}
         </View>;
       })}
+      {/* ⑧ 쪽지는 빈 종이가 아니라 틀이다. 채우는 건 「받고 어떻게 되면
+          좋겠는가」 한 자리뿐 — 반응 방향이 정해지면 인물이 안 보이는
+          세부를 지어낼 자리가 없어진다. 나머지 글자는 안 지워진다 */}
       <View style={ct.sect}><View style={ct.sline}/>
         <Text style={ct.sectT}>A NOTE (선택)</Text><View style={ct.sline}/></View>
-      <TextInput style={ct.memo} value={memo} onChangeText={setMemo} maxLength={60}
-        multiline placeholder="P.S. ♡" placeholderTextColor="#cbbba8"/>
+      <View style={ct.note}>
+        <Text style={ct.noteT}>{GIFT_NOTE_A.trim()}</Text>
+        <TextInput style={ct.wish} value={memo} onChangeText={setMemo} maxLength={GIFT_WISH_MAX}
+          placeholder="ㅁㅁㅁㅁ" placeholderTextColor="#cbbba8"/>
+        <Text style={ct.noteT}>{GIFT_NOTE_B}</Text>
+      </View>
       <Bevel style={{marginTop:14,height:40}} onPress={back}>
         <Text style={ct.backT}>BACK...</Text></Bevel>
     </ScrollView>}
@@ -890,8 +898,18 @@ const ct=StyleSheet.create({
   hint:{...F,marginTop:5,marginLeft:64,fontSize:9,color:'#b4a7d6'},
   shut:{...F,marginBottom:10,paddingHorizontal:10,textAlign:'center',fontSize:9.5,
     letterSpacing:.6,lineHeight:18,color:'#b09ad4'},
-  memo:{...F,minHeight:76,padding:13,fontSize:11,lineHeight:22,color:'#8a4f74',
-    textAlignVertical:'top',backgroundColor:'#fffdf6',borderWidth:1,borderColor:'#ecd9c8',borderRadius:8},
+  /* 고정 글자와 빈칸이 같은 줄에 앉아야 「내가 채운 자리」가 보인다 —
+     위아래로 갈리면 그냥 입력칸에 설명이 붙은 그림이 된다 */
+  note:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:5,
+    padding:13,backgroundColor:'#fffdf6',borderWidth:1,borderColor:'#ecd9c8',borderRadius:8},
+  noteT:{...F,fontSize:11,lineHeight:22,color:'#8a4f74'},
+  /* 긴 빈칸 — 남는 폭을 다 먹는다. ㅁ 네 개짜리로 좁히면 무엇을 바라는지가
+     아니라 몇 글자까지 되는지를 먼저 세게 된다 */
+  /* 오른쪽에 붙인다 — 틀이 「ㅁㅁㅁㅁ면」이라 빈칸과 「면」이 붙어 있어야
+     한 낱말로 읽힌다. 가운데로 놓으면 채운 말과 어미가 갈라져 보인다 */
+  wish:{...F,flexGrow:1,flexShrink:1,minWidth:96,paddingLeft:6,paddingRight:2,paddingVertical:0,
+    fontSize:11,lineHeight:22,color:'#8a4f74',textAlign:'right',
+    borderBottomWidth:1,borderStyle:'dashed',borderColor:'#e0c8b4'},
   backT:{...F,fontSize:11,letterSpacing:3,color:P.ink},
 });
 
@@ -1076,7 +1094,7 @@ function Marquee({text,bare}:{text:string;bare?:boolean}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,met,groupOn,onGoPlace,onPlate}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,met,groupOn,onGoPlace,onPlate,onGuess}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   /* 단톡방은 민현이 나중에 판다 — 그전까지는 없는 방이다 */
@@ -1086,6 +1104,10 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
   const totalN=allMsgs.length;
   const [tab,setTab]=useState<'rooms'|'map'|'cam'|'hidden'>('rooms');
   const [zoom,setZoom]=useState<GalleryZoom|null>(null);
+  /* ⑥ 지금 커서가 서 있는 잠긴 칸. 한 번에 하나만 선다 */
+  const [guess,setGuess]=useState<string|null>(null);
+  const [typed,setTyped]=useState('');
+  useEffect(()=>{setGuess(null);setTyped('')},[tab]);   // 탭을 옮기면 커서도 접는다
   const [now,setNow]=useState(Date.now());
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
   const left=Math.max(0,(autoAt||0)+AUTO_COOL-now);
@@ -1159,20 +1181,31 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             <View style={rl.galgrid}>
               {HIDDEN.map(h=>{
                 const un=(unlocked||[]).includes(h.key);
-                /* 얼마나 남았는지 안 알려준다. 자물쇠만 있다 */
+                /* 얼마나 남았는지 안 알려준다. 자물쇠만 있다.
+                   ⑥ 잠긴 칸을 누르면 이름 자리에 커서가 선다. 제목을 맞히면
+                   열린다 — 맞혔다고 알려주는 화면은 없다. 열린 칸이 답이다 */
+                const typing=guess===h.key;
                 return <TouchableOpacity key={h.key} activeOpacity={un?0.7:0.85} style={[rl.galcell,{backgroundColor:'#2a2450'}]}
                   onPress={()=>un?setZoom({uri:IMG+h.key+'.webp',label:h.label,
                     note:((h as any).note||'').replace('{name}',name||'당신')})
-                    :onToast('still locked')}>
+                    :setGuess(h.key)}>
                   <Image source={{uri:IMG+h.key+'.webp'}} style={[rl.galimg,!un&&{opacity:.45}]} blurRadius={un?0:14} resizeMode="cover"/>
                   {!un&&<View style={rl.hlock}><Text style={{fontSize:18}}>🔒</Text></View>}
                   {/* 잠긴 이름은 물음표가 아니라 빈칸이다. 글자 수만큼 밑줄을
                       그으면 지워진 문서처럼 보인다 — 없는 게 아니라 가려진 것이다 */}
-                  <View style={rl.hlabel}><Text style={rl.hlabelT}>{un?h.label:h.label.replace(/\S/g,'_')}</Text></View>
+                  {un||!typing
+                    ? <View style={rl.hlabel}><Text style={rl.hlabelT}>{un?h.label:hidMask(h.label)}</Text></View>
+                    : <View style={rl.hlabel}><TextInput style={rl.hlabelIn} value={typed} autoFocus
+                        maxLength={HID_MAX} placeholder={hidMask(h.label)} placeholderTextColor="#b6a8dd"
+                        onBlur={()=>{setGuess(null);setTyped('')}}
+                        onChangeText={(v:string)=>{ setTyped(v);
+                          /* 다 치는 순간 열린다. 확인 단추가 없는 이유는 그게
+                             「제출」이 되고, 제출에는 채점이 따라붙기 때문이다 */
+                          if(hidGuess(h.key,v)){setGuess(null);setTyped('');onGuess&&onGuess(h.key)} }}/></View>}
                 </TouchableOpacity>;
               })}
             </View>
-            <Text style={rl.hnote}>LOCK! UNLOCK?{'\n'}keep talking · they open one by one</Text>
+            <Text style={rl.hnote}>LOCK! UNLOCK?{'\n'}keep talking · or type the name u already know</Text>
           </>
         : rooms.map((room:any)=>{
           const ms=msgs[room.id]||[]; const last=ms[ms.length-1]; const un=unread[room.id]||0;
@@ -1303,6 +1336,9 @@ const rl=StyleSheet.create({
   hlock:{...StyleSheet.absoluteFillObject,justifyContent:'center',alignItems:'center'},
   hlabel:{position:'absolute',left:0,right:0,bottom:0,paddingVertical:4,paddingHorizontal:7,backgroundColor:'rgba(43,36,78,.55)'},
   hlabelT:{...F,fontSize:9.5,color:'#fff',letterSpacing:1},
+  /* ⑥ 커서는 이름이 있던 그 자리에 선다. 창이 새로 뜨지 않아야
+     「이 이름을 적는 것」으로 읽힌다 */
+  hlabelIn:{...F,fontSize:9.5,color:'#fff',letterSpacing:1,padding:0,minHeight:14},
   hnote:{...F,textAlign:'center',marginTop:10,marginBottom:6,fontSize:10,color:P.dim,letterSpacing:1},
   wrap:{flex:1,marginHorizontal:12,backgroundColor:'rgba(255,255,255,.9)',borderWidth:1,borderColor:P.mid},
   sect:{...F,marginTop:12,marginBottom:6,marginLeft:4,fontSize:9.5,letterSpacing:4,color:P.dim},
@@ -1857,6 +1893,22 @@ function Root() {
   const applyEffects=async(fx:any)=>{
     if(!Array.isArray(fx)||!fx.length)return;
     for(const e of fx)await applyOneEffect(e);
+  };
+
+  /* ⑥ 제목을 맞혀서 연 칸. 장부를 안 탄다 — 두 사람이 한 일이 아니라
+     유저가 알아낸 것이라 관전방에 적힐 사건이 없다. 토스트도 없다:
+     「정답!」이 뜨면 그때부터 이건 퀴즈고, 퀴즈는 대화가 아니다.
+     웹 guessHidden과 같은 계약이다. */
+  const guessHidden = async(key:string)=>{
+    if(!HIDDEN.some(h=>h.key===key))return;
+    /* 저장된 목록을 근거로 삼는다. setUnlocked 안에서 바깥 변수를 채우면
+       React가 그 함수를 두 번 부를 때 저장이 갈린다 — 화면은 열렸는데
+       다음 판에 다시 잠기는 모양이 된다. 저장이 먼저, 화면이 나중이다. */
+    let cur:string[]=[];
+    try{ cur=JSON.parse((await getMeta('null_unlocked'))||'[]') }catch{}
+    if(cur.includes(key))return;
+    await setMeta('null_unlocked',JSON.stringify([...cur,key]));
+    setUnlocked(prev=>prev.includes(key)?prev:[...prev,key]);
   };
 
   const applyUnlocked = async(data:any)=>{
@@ -2690,6 +2742,7 @@ function Root() {
       onProfile={openProfile}/>;
   } else {
     screen=<RoomList msgs={msgs} unread={unread} unlocked={unlocked} counts={counts} album={album}
+      onGuess={guessHidden}
       seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
       onCart={()=>setView({type:'cart'})} demo={demo} name={name}

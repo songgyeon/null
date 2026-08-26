@@ -885,6 +885,20 @@ function App(){
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
   /* 해금도 장부를 탄다. 데모(?demo=1)만 여기로 들어온다 — 진짜 답은
      commitTurn이 unlocked를 장부에 적고 finishBatch가 적용한다. */
+  /* ⑥ 제목을 맞혀서 연 칸. 장부를 안 탄다 — 두 사람이 한 일이 아니라
+     유저가 알아낸 것이라 관전방에 적힐 사건이 없다. 토스트도 없다:
+     「정답!」이 뜨면 그때부터 이건 퀴즈고, 퀴즈는 대화가 아니다.
+     저장이 막히면 열지 않는다. 화면만 열리고 다음 판에 다시 잠기면
+     무엇을 맞혔는지가 아니라 무엇이 고장 났는지를 유저가 세게 된다. */
+  const guessHidden=key=>{
+    if(!HIDDEN_LABEL[key])return;
+    const now=loadUnlocked();
+    if(now.includes(key))return;
+    const next=[...now,key];
+    if(!saveUnlocked(next)||!loadUnlocked().includes(key)){setToast("저장이 안 돼요");return}
+    setUnlocked(next);
+  };
+
   const applyUnlocked=list=>{
     if(!Array.isArray(list)||!list.length)return;
     const fresh=list.filter(k=>HIDDEN_LABEL[k]&&!unlockedRef.current.includes(k));
@@ -1809,7 +1823,7 @@ function App(){
        groupOn={groupOn} onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>{if(loadWorld())return;setProfile(p=>({...p,[k]:v}))}} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
-       bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar}/>
+       bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar} onGuess={guessHidden}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onMinimize={()=>setView("list")} onCart={()=>setCart(true)}

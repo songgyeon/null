@@ -1037,7 +1037,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
               if(poor)return;
               /* 이미 마주 앉아 있으면 바로 준다. 아니면 아래에서 자리를 고른다 */
               if(!here(c))return;
-              onSend(c,pick,memo); onClose(); }}>
+              onSend(c,pick,giftNote(memo)); onClose(); }}>
             <span className="cradio"/>
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
@@ -1057,15 +1057,23 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           {giftSpots(to,met).map(g=>
             <button key={g.place} className={"cspot bevel"+(g.ok?"":" off")}
               disabled={!g.ok||poor}
-              onClick={()=>{ if(!g.ok||poor)return; onSendAt(to,pick,memo,g.place); onClose(); }}>
+              onClick={()=>{ if(!g.ok||poor)return; onSendAt(to,pick,giftNote(memo),g.place); onClose(); }}>
               <span className="csname">{g.place}</span>
               <span className="cswhy">{g.ok?"♡":g.why}</span>
             </button>)}
         </div>
       </React.Fragment>}
+      {/* ⑧ 쪽지는 빈 종이가 아니라 틀이다. 채우는 건 「받고 어떻게 되면
+          좋겠는가」 한 자리뿐 — 반응 방향이 정해지면 인물이 안 보이는
+          세부를 지어낼 자리가 없어진다. 나머지 글자는 안 지워진다 */}
       <div className="csect">A NOTE (optional)</div>
-      <textarea className="cmemo" value={memo} maxLength={60} placeholder="P.S. ♡"
-        onChange={e=>setMemo(e.target.value)}/>
+      <div className="cnote">
+        <span className="cnt">{GIFT_NOTE_A.trim()}</span>
+        <input className="cwish" value={memo} maxLength={GIFT_WISH_MAX}
+          placeholder="ㅁㅁㅁㅁ" aria-label="바라는 것"
+          onChange={e=>setMemo(e.target.value)}/>
+        <span className="cnt">{GIFT_NOTE_B}</span>
+      </div>
       <button className="cback" onClick={back}>BACK...</button>
     </div>}
   </div></div>;
@@ -1098,7 +1106,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar}){
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -1133,6 +1141,11 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   const dayN=daysSince(store);
   const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
+  /* 지금 커서가 서 있는 잠긴 칸(⑥). 한 번에 하나만 선다 — 열여덟 칸에
+     커서가 다 서 있으면 채워야 할 자리가 아니라 서식이 된다 */
+  const [guess,setGuess]=useState(null);
+  const [typed,setTyped]=useState("");
+  useEffect(()=>{setGuess(null);setTyped("")},[tab]);   // 탭을 옮기면 커서도 접는다
   const [now,setNow]=useState(Date.now()); // 접속 상태·쿨타임 갱신용
   const [autoAt,setAutoAt]=useState(loadAutoAt);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
@@ -1373,18 +1386,32 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         <div className="galgrid">
           {HIDDEN.map(h=>{
             const un=unlocked.includes(h.key);
+            /* 잠긴 칸을 누르면 이름 자리에 커서가 선다. 제목을 맞히면 열린다 —
+               맞혔다고 알려주는 화면은 없다. 열린 칸이 답이다.
+               틀렸다고 말해주는 화면도 없다. 계속 서 있는 커서가 그 말이다. */
+            const typing=guess===h.key;
             return <div key={h.key} className={"hcell"+(un?"":" lock")}
               onClick={()=>un?setZoom({src:h.file,label:h.label,
-                note:(h.note||"").replace("{name}",name||"당신")}):onToast("still locked ♡")}>
+                note:(h.note||"").replace("{name}",name||"당신")}):setGuess(h.key)}>
               <img src={h.file} alt="" loading="lazy"/>
               {!un&&<div className="hlock"><LockIcon/></div>}
-              <div className={"hlabel"+(un?"":" hid")}>
-                {un?h.label:h.label.split("").map((c,i)=>c===" "?" ":"□").join("")}
-              </div>
+              {un
+                ?<div className="hlabel">{h.label}</div>
+                :typing
+                  ?<input className="hlabel hid hin" autoFocus maxLength={HID_MAX} value={typed}
+                     placeholder={hidMask(h.label)} aria-label="제목"
+                     onClick={e=>e.stopPropagation()}
+                     onBlur={()=>{setGuess(null);setTyped("")}}
+                     onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")e.target.blur()}}
+                     onChange={e=>{const v=e.target.value; setTyped(v);
+                       /* 다 치는 순간 열린다. 확인 단추가 없는 이유는 그게
+                          「제출」이 되고, 제출에는 채점이 따라붙기 때문이다 */
+                       if(hidGuess(h.key,v)){setGuess(null);setTyped("");onGuess(h.key)}}}/>
+                  :<div className="hlabel hid">{hidMask(h.label)}</div>}
             </div>;
           })}
         </div>
-        <div className="hnote">LOCK! UNLOCK?<br/>keep talking · they open one by one</div>
+        <div className="hnote">LOCK! UNLOCK?<br/>keep talking · or type the name u already know</div>
       </div>}
     </div>
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>

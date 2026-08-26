@@ -370,6 +370,42 @@ const HIDDEN=[
 ];
 const HIDDEN_LABEL={};HIDDEN.forEach(h=>{HIDDEN_LABEL[h.key]=h.label});
 
+/* ── ⑥ 히든 제목 빈칸 ──
+   잠긴 칸에 적힌 □는 원래 「몇 글자짜리 이름인가」만 알려주는 표시였다.
+   이제 그 자리에 커서가 선다. 제목을 그대로 쳐서 맞히면 그 칸이 열린다.
+
+   퀴즈가 아니다. 맞았다고 알려주는 화면도, 틀렸다고 말해주는 화면도 없다 —
+   열린 칸이 그 자체로 답이다. 그래서 여기 있는 것은 판정 하나뿐이다.
+
+   띄어쓰기와 가운뎃점은 안 본다. 몇 글자인지는 □가 이미 말해줬으므로
+   막히는 것은 낱말이어야지 서식이면 안 된다.
+
+   판정도 값도 이 기기에서 끝난다. 제목은 이미 클라이언트에 다 있고
+   서버로 보낼 것이 없다 — 「맞혔는지」를 물어볼 데가 없다. */
+const HID_MAX=24;
+const hidMask=label=>(label||"").split("").map(c=>c===" "?" ":"□").join("");
+const hidNorm=s=>(s||"").toString().toLowerCase().replace(/[\s·.,'"“”’!?]/g,"");
+const hidGuess=(key,text)=>{
+  const label=HIDDEN_LABEL[key];
+  if(!label)return false;
+  const t=hidNorm(text);
+  return !!t&&t===hidNorm(label);
+};
+
+/* ── ⑧ 선물 빈칸 ──
+   자유 노트가 아니라 틀이다. 유저가 채우는 것은 「받고 어떻게 되면
+   좋겠는가」 하나뿐이고 나머지 글자는 고정이다 — 반응 방향이 주어지면
+   인물이 안 보이는 세부(내용물·글씨·곡목록)를 지어낼 이유가 사라진다.
+
+   인물에게 가는 것은 조립된 문장 한 줄이다. 빈칸 값만 보내면 쪽지에
+   「웃으」라고만 적힌다. */
+const GIFT_WISH_MAX=24;
+const GIFT_NOTE_A="이걸 받고 ", GIFT_NOTE_B="면 좋겠어! (*ˊᵕˋ*)੭ ੈ 💝";
+const giftNote=w=>{
+  const t=(w||"").toString().trim().slice(0,GIFT_WISH_MAX);
+  return t?GIFT_NOTE_A+t+GIFT_NOTE_B:"";
+};
+
 /* 선물 — 장바구니에서 검색해 인물에게 보낸다.
    보내고 나면 그때부터 그 인물의 프로필 배경이 될 수 있다.
    tags는 검색어다. 한글과 영어를 같이 넣어둔다 — 뭐라고 칠지 모르니까.
