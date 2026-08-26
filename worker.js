@@ -4105,12 +4105,43 @@ const isLeak = (t) => { const s = (t || "").trim(); return !!s && (LEAK_SHAPE.te
    ①만 보면 「이재언입니다」 같은 소개까지 자르고, ②만 보면 반말 한마디가
    걸린다. 둘 다일 때만이다. */
 const ID_TO_NAME = { jaeeon: "이재언", minhyun: "이민현" };
+/* 성을 뗀 이름도 본다. 이 표가 풀네임만 들고 있어서 아래 여덟 줄이 전부
+   그대로 나갔다 — 모델은 「이민현은」이 아니라 「민현은」이라고 썼다.
+       민현은 잠깐 아무 말도 하지 않는다.
+       민현은 그냥 눈을 감는다.
+       민현은 그냥 웃는다. 짧게, 소리도 별로 안 낸다.
+   유저가 「너 왜 자꾸 해설해」라고 묻자 「해설 아니에요」 하고 세 번 더 했다.
+   상대 이름은 여전히 안 본다(sender의 이름만 본다) — 민현이 「재언이 삼촌」을
+   말할 수 있어야 한다. */
+const ID_TO_SHORT = { jaeeon: "재언", minhyun: "민현" };
 const NARRATE_END = /다[.!?…]|다\s*$/;
 function isSelfNarration(text, sender) {
-  const nm = ID_TO_NAME[sender];
+  const nm = ID_TO_NAME[sender], sh = ID_TO_SHORT[sender];
   if (!nm) return false;
   const t = (text || "").trim();
-  return new RegExp(nm + "\\s*(?:은|는|이|가|도|의|만)").test(t) && NARRATE_END.test(t);
+  /* 「민현이가」처럼 이름 뒤에 「이」가 붙는 자리를 같이 본다 */
+  const subj = new RegExp("(?:이)?" + sh + "(?:이)?\\s*(?:은|는|이|가|도|의|만)");
+  return subj.test(t) && NARRATE_END.test(t);
+}
+
+/* ── 이름이 안 든 지문 ──
+   위의 표는 주어를 보는 것이라 이름이 없으면 못 잡는다. 같은 판에서
+   「말 뒤에 잠깐 조용해진다. 동전 몇 개를 주머니에서 꺼내 만지작거리다
+   내민다.」가 그렇게 나갔다.
+   맺음이 잣대다. 소설의 지문은 현재 서술형(-ㄴ다/-는다)으로 맺고, 이 둘은
+   말끝을 그렇게 안 맺는다 — 재언은 「-요/-어」, 민현은 「-요/-죠」다.
+   받침 ㄴ은 글자 안에 있어서 정규식으로는 못 집는다. 한글 낱자 셈으로 본다:
+   (코드-가)%28 이 4면 받침이 ㄴ이다.
+   넓지 않다는 것은 재봤다 — 문구집·데모 대사 8242줄 중 걸리는 것이 없고,
+   그 판의 지문 아홉 줄은 전부 걸린다. 「그만 웃겨야겠다」(ㅆ)나
+   「감사합니다」(받침 없음)는 안 걸린다. */
+const hasNieun = ch => {
+  const c = (ch || "").charCodeAt(0);
+  return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 === 4;
+};
+function isStageLine(text) {
+  const t = (text || "").trim().replace(/[.!?…~\s]+$/, "");
+  return t.length >= 2 && t.endsWith("다") && hasNieun(t[t.length - 2]);
 }
 
 /* ── 제 이름을 호칭 자리에 쓴 것 ──
@@ -4148,6 +4179,7 @@ function dropMeta(list) {
     if (isMeta(m && m.text)) { dropped("사고 유출", m && m.text, 120); continue; }
     if (isLeak(m && m.text)) { dropped("안이 비친 줄", m && m.text, 120); continue; }
     if (isSelfNarration(m && m.text, m && m.sender)) { dropped("지문", m && m.text, 120); continue; }
+    if (isStageLine(m && m.text)) { dropped("이름 없는 지문", m && m.text, 120); continue; }
     if (isSelfName(m && m.text, m && m.sender)) { dropped("제 이름을 호칭 자리에", m && m.text, 40); continue; }
     out.push(m);
   }
