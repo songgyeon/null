@@ -10,6 +10,7 @@ import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSyst
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -4114,6 +4115,17 @@ eq('앱도 같은 열쇠 자리를 본다',
     const v = [...html.matchAll(/(null\.css|app-data\.js|app-ui\.js|app\.js)\?v=(\d+)/g)];
     eq('갈라진 파일에 판 번호가 다 붙었다', v.length, 4);
     eq('넷이 같은 판이다', new Set(v.map(m => m[2])).size, 1);
+    /* 번호가 붙어 있는 것만으로는 모자랐다. 넷을 고쳐놓고 번호를 안 올려서
+       올라간 건 새것인데 사람 화면에는 옛것이 그대로 떴다 — 배포는 됐고
+       화면은 안 고쳐졌으니 어디가 잘못됐는지 알 데가 없다.
+       그래서 넷의 내용을 해시로 묶어 번호 옆에 적어둔다. 넷 중 하나라도
+       고치면 여기가 먼저 깨지고, 번호를 올리면서 이 값을 같이 고치게 된다.
+       ※ 이 시험이 깨지면 index.html의 ?v= 를 하나 올리고 아래 값을 새로 적는다 */
+    const seal = createHash('sha256');
+    for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
+      seal.update(readFileSync(join(ROOT, f)));
+    eq('판 번호가 지금 내용의 것이다',
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['125', '4752a9f9e032']);
   }
   eq('데이터는 바벨을 안 탄다', /<script src="app-data\.js/.test(html), true);
   eq('화면과 앱은 바벨을 탄다',
