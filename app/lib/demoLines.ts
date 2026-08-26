@@ -377,7 +377,7 @@ var DEMO_PIC = [
   /* "자" 한 자는 감자·의자·혼자에까지 걸렸다. 자는 얘기일 때만 */
   [/자요|자니|잤|잘 거|졸려|졸음|잠 /,   '',                'minhyun-nap'],
   [/옥상/,                               'jaeeon-rooftop',  'minhyun-stair'],
-  [/편의점/,                             'jaeeon-conv',     'minhyun-conv'],
+  [/편의점/,                             'jaeeon-conv',     'minhyun-fridge'],
   [/빨래|세탁/,                          'jaeeon-laundry',  'minhyun-laundry'],
   [/버스|정류장/,                        '',                'minhyun-busstop'],
   [/담배|라이터|골목/,                   '',                'minhyun-alley'],
@@ -389,7 +389,7 @@ var DEMO_PIC = [
 var DEMO_PIC_ANY = {
   jaeeon: ['jaeeon-work','jaeeon-chart','jaeeon-cook','jaeeon-rooftop','jaeeon-shelf',
            'jaeeon-laundry','jaeeon-driveseat','jaeeon-conv','jaeeon-record'],
-  minhyun:['minhyun-gate','minhyun-conv','minhyun-vending','minhyun-neon','minhyun-bench',
+  minhyun:['minhyun-gate','minhyun-fridge','minhyun-vending','minhyun-neon','minhyun-bench',
            'minhyun-morning','minhyun-winter','minhyun-mirror'],
 };
 /* 사진에 붙는 한 마디. 앞말이 무엇이든 어긋나지 않는 것만 둔다 —

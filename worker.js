@@ -1944,7 +1944,7 @@ const PHOTOS = {
     char: "minhyun",
     when: "밤에 셀프 빨래방. 세탁기 위에 앉아 캔을 들고 있다. 집에 안 갔냐는 얘기에.",
   },
-  "minhyun-conv": {
+  "minhyun-fridge": {
     char: "minhyun",
     when: "편의점 냉장고 앞. 젤리를 골라 들었다. 뭐 먹냐, 배고프다, 군것질·단 거 얘기에.",
   },

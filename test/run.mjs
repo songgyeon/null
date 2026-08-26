@@ -495,6 +495,51 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
     [...new Set(NEAR)].filter(k => !exists(k + '.webp')), []);
   eq('늘어난 자리 사진이 사진첩에도 있다',
     [...new Set(NEAR)].filter(k => !gal.includes(k)), []);
+  /* ── 물러난 사진 ──
+     새 사진이 옛 사진의 자리를 이어받으면 옛 것은 자리에서 빠진다. 안 빼면
+     같은 장면이 두 판으로 돌아 「이 사람이 여기서 뭘 하고 있었지」가 갈린다. */
+  eq('편의점 conv는 물러났다',
+    [/minhyun-conv/.test(web), exists('minhyun-conv.webp'),
+     readFileSync(join(ROOT, 'worker.js'), 'utf8').includes('"minhyun-conv"'),
+     readFileSync(join(ROOT, 'demo-lines.js'), 'utf8').includes('minhyun-conv')],
+    [false, false, false, false]);
+  /* 그 자리(편의점 냉장고 앞·젤리)는 새 사진이 그대로 이어받는다 */
+  eq('그 자리는 새 사진이 이어받았다',
+    /"minhyun-fridge": \{[\s\S]{0,120}편의점 냉장고 앞/
+      .test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), true);
+  /* 재언의 빨래방은 자리 사진이 한 장이다 — 앉는 순간 보이는 것이 늘 같아야
+     그 자리가 그 자리로 남는다. 옛 사진과 가까운 두 장은 사진첩 몫이다 */
+  eq('재언 빨래방 자리 사진은 자리배경 한 장이다', (() => {
+    const at2 = web.indexOf('const SCENE_SHOT=');
+    const t = web.slice(at2, web.indexOf('\n};', at2));
+    const i = t.indexOf('"빨래방":');
+    return (t.slice(i, i + 400).match(/jaeeon:\[([^\]]*)\]/) || [])[1];
+  })(), '"jaeeon-laundry-seat"');
+  eq('물러난 것들은 사진첩에 남는다',
+    ['jaeeon-laundry.webp', 'jaeeon-laundry-mid.webp', 'jaeeon-laundry-near.webp']
+      .filter(k => !gal.includes(k)), []);
+
+  /* ── 빈칸은 상자가 아니라 사진에 앉는다 ──
+     자리를 상자 기준 퍼센트로 잡으면, 화면이 낮아져 사진이 상자 안에서
+     작아지는 순간 칸이 딴 데로 간다. 폰에서 키보드가 올라오면 바로 그 일이
+     났다 — 빈칸 줄이 화면 밖으로 잘리고 커서가 엉뚱한 줄 위에 섰다.
+     사진과 빈칸 겹이 **같은 계산**으로 서야 한다: inset:0 + margin:auto + 비율. */
+  const fitCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('사진과 빈칸 겹이 같은 계산으로 선다', [
+    /\.dshot\{position:absolute;inset:0;margin:auto;[^}]*aspect-ratio:1024\/1536/.test(fitCss),
+    /\.dfit\{position:absolute;inset:0;margin:auto;[^}]*aspect-ratio:1024\/1536/.test(fitCss),
+  ], [true, true]);
+  /* 빈칸이 그 겹 안에 들어 있어야 퍼센트가 사진 기준이 된다 */
+  eq('빈칸이 그 겹 안에 있다', [
+    /<div className="dfit">\s*\n\s*<input className="dblank"/.test(web),
+    /<div className="dfit">\s*\n\s*\{FLASH_BOX\.map/.test(web),
+  ], [true, true]);
+  /* 사진 칸과 단추 칸을 격자로 가른다 — 세로 flex면 사진의 높이만 줄고
+     너비는 그대로라 비율이 깨진다 */
+  eq('사진 칸과 단추 칸이 갈려 있다',
+    [/\.diary\{[^}]*grid-template-rows:minmax\(0,1fr\) auto/.test(fitCss),
+     /\.flash\{[^}]*grid-template-rows:minmax\(0,1fr\) auto/.test(fitCss)], [true, true]);
+
   /* 옥상은 셋이 다 있다 — 중거리·클로즈업·최근접 */
   eq('옥상에 거리 셋이 다 있다',
     [scene.includes('minhyun-rooftop-mid'), scene.includes('minhyun-rooftop-near'),
@@ -1142,7 +1187,10 @@ eq('가방을 키만 보내던 자리가 없다', /bagRef\.current\.map\(b=>b\.k
     const tbl = web.slice(at, web.indexOf('\n};', at));
     const i = tbl.indexOf('"빨래방":');
     const t = tbl.slice(i, i + 300);
-    return i > 0 && /jaeeon:\[[^\]]*"jaeeon-laundry"/.test(t) && /minhyun:\[[^\]]*"minhyun-laundry"/.test(t);
+    /* 재언 쪽은 이제 자리배경 한 장이다 — 파일 이름을 박지 않고 그가 그 자리에
+       있는가만 잰다. 사진이 갈릴 때마다 고칠 일이 아니다 */
+    return i > 0 && /jaeeon:\[[^\]]*"jaeeon-laundry[^"]*"/.test(t)
+                 && /minhyun:\[[^\]]*"minhyun-laundry[^"]*"/.test(t);
   })(), true);
   eq('그 사진이 저장소에 있다', exists('jaeeon-laundry.webp'), true);
   /* 첫 자리 다섯 곳에는 전부 그 사람이 깔려야 한다. 빈 방으로 시작해서

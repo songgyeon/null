@@ -705,13 +705,18 @@ function Diary({onDone}){
   return <div className={"diary"+(out?" out":"")}>
     <div className="dpage">
       <img className="dshot" src={DIARY_IMG} alt={alt}/>
-      {/* 종이에 그려진 네모 위에 그대로 앉는다. 자리는 사진에서 잰 값이다.
-          비어 있는 칸이 채워지는 것 — 그게 이 게임이 하는 일이다 */}
-      <input className="dblank" value={v} autoFocus maxLength={DIARY_MAX}
-        style={{left:DIARY_BOX.left+"%",top:DIARY_BOX.top+"%",
-                width:DIARY_BOX.w+"%",height:DIARY_BOX.h+"%"}}
-        onChange={e=>setV(e.target.value)}
-        onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();done()}}}/>
+      {/* ── 빈칸은 상자가 아니라 **사진**에 앉는다 ──
+          자리를 상자 기준 퍼센트로 잡으면, 화면이 낮아져 사진이 상자 안에서
+          작아지는 순간 칸이 딴 데로 간다. 폰에서 키보드가 올라오면 바로 그
+          일이 났다. 이 겹(fit)이 object-fit:contain과 같은 자리·같은 크기로
+          서고, 빈칸은 그 안에서만 퍼센트를 센다. */}
+      <div className="dfit">
+        <input className="dblank" value={v} autoFocus maxLength={DIARY_MAX}
+          style={{left:DIARY_BOX.left+"%",top:DIARY_BOX.top+"%",
+                  width:DIARY_BOX.w+"%",height:DIARY_BOX.h+"%"}}
+          onChange={e=>setV(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();done()}}}/>
+      </div>
     </div>
     {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
     <button className="wbtn go dbtn" disabled={!t} onClick={done}>덮기 ♡</button>
@@ -755,15 +760,17 @@ function Flash({onDone}){
       <div className="fside ffront"><img src={FLASH_FRONT} alt="눈 내리는 병원 옥상"/></div>
       <div className="fside fback">
         <img src={FLASH_BACK} alt={FLASH_ALT.join(" ")}/>
-        {/* 종이에 그려진 네모 위에 그대로 앉는다. 자리는 사진에서 잰 값이다 */}
-        {FLASH_BOX.map((b,i)=>
-          <input key={b.key} ref={i===0?first:null} className="fblank"
-            value={v[b.key]} maxLength={FLASH_MAX} tabIndex={turn?0:-1}
-            style={{left:b.left+"%",top:b.top+"%",width:b.w+"%",height:b.h+"%"}}
-            onChange={e=>set(b.key,e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();
-              const n=e.target.closest(".fback").querySelectorAll(".fblank")[i+1];
-              if(n)n.focus(); else done()}}}/>)}
+        {/* 빈칸은 상자가 아니라 사진에 앉는다 — .dfit과 같은 이유다 */}
+        <div className="dfit">
+          {FLASH_BOX.map((b,i)=>
+            <input key={b.key} ref={i===0?first:null} className="fblank"
+              value={v[b.key]} maxLength={FLASH_MAX} tabIndex={turn?0:-1}
+              style={{left:b.left+"%",top:b.top+"%",width:b.w+"%",height:b.h+"%"}}
+              onChange={e=>set(b.key,e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();
+                const n=e.target.closest(".fback").querySelectorAll(".fblank")[i+1];
+                if(n)n.focus(); else done()}}}/>)}
+        </div>
       </div>
     </div>
     </div>

@@ -249,7 +249,7 @@ Night, a self-service laundromat. Sitting up on top of a running
 washing machine, a can in one hand, feet dangling. Flat fluorescent
 light, dark window behind.
 
-22. minhyun-conv
+22. minhyun-fridge
 Standing at the open fridge door of a convenience store, a bag of
 jelly sweets picked out in one hand. Cold white store light on his
 face.

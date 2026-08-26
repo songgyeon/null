@@ -524,17 +524,38 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
    이 앱의 다른 창은 전부 가짜 OS다. 여기만 물건이다 — 20년 전 공책이고,
    물건은 흉내내면 물건이 아니게 된다. 그래서 CSS로 줄공책을 그리지 않고
    사진을 그대로 놓는다. 창틀도 메뉴바도 없다. */
-.diary{position:absolute;inset:0;z-index:58;display:flex;flex-direction:column;
- align-items:center;justify-content:center;gap:14px;padding:20px 16px;
+/* 사진 칸과 단추 칸을 격자로 가른다. 세로 flex로 두면 화면이 낮아질 때
+   flex가 사진의 **높이만** 줄이고 너비는 그대로 둬서 비율이 깨진다 —
+   그러면 빈칸이 딴 데로 간다. 격자의 첫 줄은 definite라 max-height가
+   실제로 물고, 그때 aspect-ratio가 너비를 따라 줄인다. */
+.diary{position:absolute;inset:0;z-index:58;display:grid;
+ grid-template-rows:minmax(0,1fr) auto;justify-items:center;align-items:center;
+ gap:14px;padding:20px 16px;
  background:rgba(20,13,36,.86);animation:fade .3s steps(3) both}
 .diary.out{animation:dclose .42s steps(5) both}
 @keyframes dclose{0%{opacity:1}100%{opacity:0;transform:translateY(10px)}}
 /* 사진은 서랍에서 꺼낸 것처럼 천천히 앉는다 */
-.dpage{position:relative;width:100%;max-width:330px;flex:0 1 auto;min-height:0;
- border-radius:3px;overflow:hidden;box-shadow:0 16px 34px rgba(10,6,24,.6);
+/* ── 상자가 사진과 같은 비율이라야 한다 ──
+   전에는 상자가 화면 높이에 맞춰 줄면서 사진만 잘렸다. 빈칸은 **상자** 기준
+   퍼센트로 앉으므로, 상자와 사진의 모양이 갈리는 순간 칸이 딴 데로 간다.
+   폰에서 키보드가 올라오면 바로 그 일이 났다 — 빈칸 줄은 화면 밖으로 잘리고
+   커서는 엉뚱한 줄 위에 섰다. 상자에 사진 비율을 박고 사진은 그 안을 채운다. */
+.dpage{position:relative;width:100%;max-width:330px;height:100%;
  animation:dopen .5s ease-out both}
 @keyframes dopen{0%{opacity:0;transform:translateY(14px) scale(.985)}100%{opacity:1;transform:none}}
-.dshot{display:block;width:100%;height:auto}
+/* 사진도 fit 겹과 **같은 계산으로** 앉힌다 — inset:0 + margin:auto + 비율.
+   한쪽만 object-fit에 맡기면 상자가 낮아질 때 둘이 갈린다(실제로 갈렸다). */
+.dshot{position:absolute;inset:0;margin:auto;display:block;
+ aspect-ratio:1024/1536;width:auto;height:auto;max-width:100%;max-height:100%;
+ border-radius:3px;box-shadow:0 16px 34px rgba(10,6,24,.6)}
+/* ── 사진이 실제로 그려진 칸 ──
+   object-fit:contain이 그리는 자리와 **같은 자리**에 서는 빈 겹이다.
+   inset:0 + margin:auto + aspect-ratio가 그 계산을 그대로 한다.
+   빈칸은 이 안에서만 퍼센트를 센다 — 상자 기준으로 세면 화면이 낮아져
+   사진이 상자 안에서 작아지는 순간 칸이 딴 데로 간다. */
+.dfit{position:absolute;inset:0;margin:auto;pointer-events:none;
+ aspect-ratio:1024/1536;max-width:100%;max-height:100%}
+.dfit>*{pointer-events:auto}
 /* ── 그려진 네모 ──
    사진에 이미 네모가 그려져 있다. 그 안에 그대로 앉는다 — 칸을 새로 그리지
    않는다. 종이 위에 적히는 것이라 글자는 연필 색이고, 커서만 이 앱의 분홍이다.
@@ -549,8 +570,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* ── 민현의 옛 일기 — 병원 옥상 ──
    말풍선으로 오지 않는다. 말풍선은 「상대가 보낸 사진」이고, 이건 유저의
    기억이 올라오는 것이라 화면이 통째로 그 엽서가 된다. */
-.flash{position:absolute;inset:0;z-index:58;display:flex;flex-direction:column;
- align-items:center;justify-content:center;gap:16px;padding:20px 16px;
+.flash{position:absolute;inset:0;z-index:58;display:grid;
+ grid-template-rows:minmax(0,1fr) auto;justify-items:center;align-items:center;
+ gap:16px;padding:20px 16px;
  background:#0d0918;animation:fade .5s ease-out both}
 .flash.out{animation:fclose .46s ease-in both}
 @keyframes fclose{0%{opacity:1}100%{opacity:0;transform:scale(.985)}}
@@ -560,16 +582,16 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* 앉는 것과 넘어가는 것을 두 겹으로 나눈다. 한 겹에 얹으면 앉는 애니메이션이
    (fill:both라) transform을 끝까지 붙들어서 넘어가는 게 화면에 안 나온다 —
    클래스는 바뀌는데 앞면이 그대로 있었다. 바깥이 앉고 안쪽이 넘어간다. */
-.fwrap{width:100%;max-width:330px;flex:0 1 auto;min-height:0;perspective:1400px;
+.fwrap{position:relative;width:100%;max-width:330px;height:100%;perspective:1400px;
  animation:frise var(--rise,1400ms) ease-out both}
 @keyframes frise{0%{opacity:0;transform:translateY(26px) scale(.94)}100%{opacity:1;transform:none}}
-.fcard{position:relative;width:100%;aspect-ratio:1024/1536;transform-style:preserve-3d;
+.fcard{position:relative;width:100%;height:100%;transform-style:preserve-3d;
  transition:transform var(--turn,1200ms) cubic-bezier(.5,0,.2,1)}
 .fcard.turn{transform:rotateY(180deg)}
 .fside{position:absolute;inset:0;border-radius:4px;overflow:hidden;
  backface-visibility:hidden;-webkit-backface-visibility:hidden;
  box-shadow:0 18px 40px rgba(0,0,0,.6)}
-.fside img{display:block;width:100%;height:100%;object-fit:cover}
+.fside img{display:block;width:100%;height:100%;object-fit:contain}
 .fback{transform:rotateY(180deg)}
 /* ── 그려진 네모 셋 ──
    엽서에 이미 네모가 그려져 있다. 그 안에 그대로 앉는다. 검은 펜으로 적힌

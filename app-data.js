@@ -28,7 +28,7 @@ const CHARS = {
       "jaeeon-laundry-seat.webp","jaeeon-laundry-mid.webp","jaeeon-laundry-near.webp",
       "jaeeon-home-mid.webp","jaeeon-home-near.webp"]},
   minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
-    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-conv.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
+    gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
       "minhyun-laundry-mid.webp","minhyun-laundry-near.webp",
       "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp",
       "minhyun-home-mid.webp","minhyun-home-near.webp",
@@ -1080,13 +1080,17 @@ const SCENE_SHOT={
                minhyun:["minhyun-candy"]},
   "옥상":     {jaeeon:["jaeeon-rooftop"],
                minhyun:["minhyun-vending","minhyun-rooftop-mid","minhyun-rooftop-near"]},
-  "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-conv","minhyun-ramen","minhyun-fridge"]},
+  "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-fridge","minhyun-ramen"]},
   "도서관":   {jaeeon:["jaeeon-shelf"], minhyun:["minhyun-shelf"]},
   "레코드샵": {jaeeon:["jaeeon-record"], minhyun:["minhyun-crate","minhyun-record","minhyun-mirror"]},
   /* 밤에 처음 켜면 여기서 재언을 만난다. 사진도 밤 코인세탁소다 —
      건조기 앞에 앉아 수건을 개고 있고 창밖에 비가 온다 */
+  /* 재언의 빨래방은 자리 사진이 한 장이다 — 앉아서 수건을 개고 있는 그 장면이
+     이 자리의 기본이다. 옛 사진(jaeeon-laundry)은 여기서 물러나고 사진첩에만
+     남는다. 가까운 두 장(mid·near)도 사진첩 몫이다 — 자리에 앉는 순간 보이는
+     것은 늘 같은 그림이라야 그 자리가 그 자리로 남는다. */
   "빨래방":   {minhyun:["minhyun-laundry","minhyun-laundry-mid","minhyun-laundry-near"],
-               jaeeon:["jaeeon-laundry","jaeeon-laundry-seat","jaeeon-laundry-mid","jaeeon-laundry-near"]},
+               jaeeon:["jaeeon-laundry-seat"]},
   "체육관":   {minhyun:["minhyun-gym"]},
   /* 재언 집이지만 민현도 산다. 재언은 부엌에 서 있고, 민현은 막 일어난
      참이거나 엘리베이터에서 올라오는 길이다 */
