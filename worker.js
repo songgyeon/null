@@ -2453,7 +2453,7 @@ function buildFlash(flash, room) {
   const L = [];
   if (face) L.push(`- 그때 네 표정을 그 사람은 "${face}"이라고 적어뒀다.`);
   if (said) L.push(`- 그때 네가 한 말은 "${said}"였다.`);
-  if (wish) L.push(`- 다시 만나면 "${wish}" 하고 싶다고 적혀 있다.`);
+  if (wish) L.push(`- 다시 만나면 "${wish}"고 싶다고 적혀 있다.`);
   return `
 ## [병원 옥상, 그날]
 ${L.join("\n")}

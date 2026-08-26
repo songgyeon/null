@@ -226,14 +226,14 @@ const FLASH_ALT=[
   "한 대 더 꺼내길래 그만 피우라고 했다.",
   "내가 책임지겠다고.",
   "걔는 □ 표정으로 날 보면서 □ 라고 했다.",
-  "다시 만나면 □ 하고 싶다.",
+  "다시 만나면 □ 고 싶다.",
 ];
 /* 셋의 뜻. 저장도 이 열쇠로 하고, 나중에 가변부로 나갈 때도 이 이름이다 */
 const FLASH_KEYS=["face","said","wish"];
 const FLASH_BOX=[
-  {key:"face", left:24.71, top:59.83, w:33.11, h:4.17},
-  {key:"said", left:32.13, top:66.47, w:37.11, h:4.23},
-  {key:"wish", left:36.04, top:73.50, w:30.27, h:4.23},
+  {key:"face", left:24.71, top:59.90, w:33.01, h:4.04},
+  {key:"said", left:32.13, top:66.47, w:37.01, h:4.17},
+  {key:"wish", left:36.04, top:73.50, w:30.08, h:4.10},
 ];
 const FLASH_MAX=10;
 /* ── 얼마나 천천히 ──
@@ -377,7 +377,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=126";
+const AV="?v=127";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */

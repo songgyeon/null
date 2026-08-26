@@ -427,7 +427,7 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
     '한 대 더 꺼내길래 그만 피우라고 했다.',
     '내가 책임지겠다고.',
     '걔는 □ 표정으로 날 보면서 □ 라고 했다.',
-    '다시 만나면 □ 하고 싶다.',
+    '다시 만나면 □ 고 싶다.',
   ]);
   eq('빈칸은 상대의 반응과 내 소망 셋이다', D.FLASH_KEYS, ['face', 'said', 'wish']);
   eq('빈칸 자리가 셋이고 순서가 같다', D.FLASH_BOX.map(b => b.key), D.FLASH_KEYS);
@@ -4125,7 +4125,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['126', '75fa52643ad3']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['127', 'a038aaff1da3']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -9841,6 +9841,11 @@ eq('시간표 단추는 peek보다 좁다',
     const t = B(F, 'minhyun');
     return [t.includes('"이상한"'), t.includes('"진짜요"'), t.includes('"또 보고"')];
   })(), [true, true, true]);
+  /* 사진에 적힌 틀과 같은 말로 적어야 한다. 원화가 마지막 줄을
+     「□ 하고 싶다」에서 「□고 싶다」로 고쳐 오면서 빈칸이 동사 어간을
+     받게 됐다 — 워커가 「"또 보고" 하고 싶다」라고 적으면 두 벌이 된다 */
+  eq('소망 문장이 사진과 같은 틀이다',
+    B({ wish: '또 보고' }, 'minhyun').includes('다시 만나면 "또 보고"고 싶다고 적혀 있다'), true);
   /* 유저가 지어낸 그날의 말이지 정사가 아니다 — 확인·인용을 시키지 않는다 */
   eq('읊지 말라고 적혀 있다',
     /확인받으려 하지 않고, 그대로 읊지도 않는다/.test(B(F, 'minhyun')), true);
