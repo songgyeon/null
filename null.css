@@ -1600,5 +1600,5 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* CD와 로고 — 참고 화면과 같은 자로 재보니 CD는 크기가 맞았고(툴바가 60px
    먹어서 커 보였다) 실제로 작은 건 NULL_ 글자였다. 참고에서 로고가 판 폭의
    49%인데 여기선 35%였다. 둘 다 그 비율로 올린다. */
-.spcd{width:92px;height:92px}
+.spcd{width:140px;height:140px;margin-top:-48px;margin-bottom:-6px}
 .spcard .splogo{font-size:46px}
