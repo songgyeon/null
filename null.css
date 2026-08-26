@@ -162,14 +162,37 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dlgline{font-size:12px;line-height:1.9;color:#6b5fa8}
 .dlgbtns{display:flex;gap:7px;margin-top:10px}
 /* ── 모드 팝업 ──
-   등록의 real/speed를 누르면 뜬다. 비율이 아니라 살아지는 방식을 말하고,
-   되돌릴 수 없다는 것을 따로 세운다 — 설명 문단에 섞으면 안 읽힌다. */
-.mdhead{display:flex;align-items:baseline;gap:7px;font-size:15px;letter-spacing:.1em;color:#7a68c4}
-.mdhead b{font-weight:normal;color:#ff7fae}
-.mdhead .kao{font-size:10.5px;letter-spacing:0;color:#a897dd;white-space:nowrap}
-.mdlock{margin-top:2px;padding:7px 9px;border-radius:8px;font-size:10.5px;letter-spacing:.02em;
- color:#8d6fb8;background:rgba(199,182,245,.22);border:1px dashed #c3b2f0}
-.mdrow{display:flex;gap:7px;margin-top:11px}
+   등록의 real/speed를 누르면 뜬다.
+
+   고른 것이 제목이 된다. 확인창이 확인해야 하는 건 「무엇을 골랐는가」인데,
+   전에는 고른 값이 제일 작고 그걸 설명하는 문장이 제일 컸다.
+
+   「현실 하루에 게임 나흘」은 문장이 아니라 비율이다. 이 앱은 이미 눈금으로
+   말하는 법을 갖고 있다(이름 칸, D-day 막대) — 한 칸 대 네 칸을 보여주면
+   읽지 않고도 안다.
+
+   경고는 점선 상자에서 꺼낸다. 이 앱에서 점선 둥근 상자는 「채워야 할 빈칸」이라
+   경고를 담으면 입력 안 한 칸처럼 보인다. 자물쇠 한 줄로 단추 위에 붙인다. */
+.dlgbody.mdbody{gap:0;padding:17px 16px 15px}
+.mdpick{display:flex;align-items:baseline;gap:9px}
+.mdpick b{font-weight:normal;font-size:26px;letter-spacing:.02em;color:#ff5fa8}
+.mdpick em{font-style:normal;font-size:12px;color:#c0aee6}
+.mdtx{margin-top:11px;font-size:11.5px;line-height:1.8;color:#8a7fc0}
+/* 비율. 현실 한 칸, 게임 네 칸 */
+.mdratio{margin-top:15px;padding:13px 13px 12px;border-radius:9px;background:#fff;
+ border:1px solid #e6ddf8;box-shadow:inset 1px 1px 0 rgba(93,84,144,.07)}
+.mdrr{display:flex;align-items:center;gap:9px}
+.mdrr+.mdrr{margin-top:9px}
+.mdrr .k{flex:none;width:32px;font-size:9px;letter-spacing:.16em;color:#9a8fc8}
+.mdrr .bx{flex:1;display:flex;gap:4px}
+.mdrr .bx span{flex:1;height:15px;border-radius:3px;background:#f4effd;border:1px solid #ddd2f4}
+.mdrr .bx span.on{border-color:#ff9ec6;background:linear-gradient(180deg,#ffc4dd,#ff8fbe)}
+.mdrr .n{flex:none;font-size:9.5px;letter-spacing:.08em;color:#b0a6d8}
+.mdrr .n b{font-weight:normal;color:#e0568f}
+.mdlock{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:15px;
+ font-size:10px;letter-spacing:.04em;color:#b09ecf}
+.mdlock svg{flex:none}
+.mdrow{display:flex;gap:9px;margin-top:15px}
 .mdrow .wbtn{flex:1;max-width:none}
 /* 확정 단추. 겟챠의 분홍을 그대로 쓴다 — 이 앱에서 분홍은 「되돌아오지 않는 쪽」이다 */
 .wbtn.go{border-color:#ff8fbe;color:#fff;text-shadow:0 1px 0 rgba(190,90,130,.55);

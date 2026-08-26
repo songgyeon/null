@@ -339,38 +339,73 @@ const dy = StyleSheet.create({
    앱을 꺼둔 동안에도 세계가 흐르는가, 엔딩이 언제 오는가.
    그리고 중간에 못 바꾼다는 것이 주석에만 있었다. 화면이 말 안 하는
    되돌릴 수 없는 선택은 선택이 아니라 함정이다. */
-export const MODE_ASK:{[k:string]:{body:string; kao:string}} = {
-  real:{body:'하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.',
+export const MODE_ASK:{[k:string]:{days:number; body:string; kao:string}} = {
+  real:{days:1, body:'하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.',
         kao:'٩(❛ัᴗ❛ั ๑)'},
-  speed:{body:'빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.',
-        kao:'˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙'},
+  speed:{days:4, body:'빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.',
+        kao:'˚₊·͟͟͞͞ ➳❥'},
 };
+/* 비율은 문장이 아니다. 이 앱은 이미 눈금으로 말하는 법을 갖고 있다
+   (이름 칸, D-day 막대). 한 칸 대 네 칸을 보여주면 읽지 않고도 안다. */
+function MdRow({k, on, n}:{k:string; on:number; n:number}) {
+  return <View style={md.rr}>
+    <Text style={md.rrK}>{k}</Text>
+    <View style={md.rrBx}>
+      {[0,1,2,3].map(i => <View key={i} style={[md.cell, i < on && md.cellOn]}/>)}
+    </View>
+    <Text style={md.rrN}><Text style={md.rrNb}>{n}</Text>일</Text>
+  </View>;
+}
 export function ModeDialog({which, now, onYes, onNo}:
   {which:string; now:boolean; onYes:()=>void; onNo:()=>void}) {
   if (!which) return null;
   const m = MODE_ASK[which] || MODE_ASK.real;
   return <Dlg title="null.exe" onClose={onNo} z={41}>
-    <View style={md.head}>
-      <Text style={md.name}>{which}</Text>
+    {/* 고른 것이 제목이 된다. 확인창이 확인해야 하는 건 「무엇을 골랐는가」다 */}
+    <View style={md.pick}>
+      <Text style={md.pickT}>{which}</Text>
       <Text style={[md.kao, KAO]}>{m.kao}</Text>
     </View>
     <Text style={md.body}>{m.body}</Text>
-    {/* 되돌릴 수 없다는 말은 따로 세운다 — 설명에 섞으면 안 읽힌다 */}
-    <Text style={md.lock}>한 번 정하면 바꿀 수 없어요</Text>
-    <View style={dl.btns}>
+    <View style={md.ratio}>
+      <MdRow k="현 실" on={1} n={1}/>
+      <MdRow k="게 임" on={m.days} n={m.days}/>
+    </View>
+    {/* 경고는 점선 상자에서 꺼낸다 — 이 앱에서 점선 둥근 상자는 「채워야 할
+        빈칸」이라 경고를 담으면 입력 안 한 칸처럼 보인다 */}
+    <View style={md.lock}>
+      <View style={md.lockIco}><View style={md.lockArc}/><View style={md.lockBox}/></View>
+      <Text style={md.lockT}>한 번 정하면 바꿀 수 없어요</Text>
+    </View>
+    <View style={md.btns}>
       <Btn label="back" onPress={onNo}/>
       <Btn pink label={now ? 'ok ♡' : '이걸로 ♡'} onPress={onYes}/>
     </View>
   </Dlg>;
 }
 const md = StyleSheet.create({
-  head:{flexDirection:'row', alignItems:'baseline', gap:7, paddingHorizontal:2},
-  name:{...F, fontSize:16, letterSpacing:1.5, color:'#ff7fae'},
-  kao:{fontSize:10.5, color:'#a06a90'},
-  body:{...F, paddingHorizontal:2, fontSize:12.5, lineHeight:23, color:'#8a4f74'},
-  lock:{...F, marginTop:2, paddingVertical:7, paddingHorizontal:9, borderRadius:8,
-    fontSize:10.5, lineHeight:17, color:'#a06a90',
-    backgroundColor:'rgba(199,182,245,.22)', borderWidth:1, borderColor:'#e7b9d2'},
+  pick:{flexDirection:'row', alignItems:'baseline', gap:9, paddingHorizontal:2},
+  pickT:{...F, fontSize:26, letterSpacing:.5, color:'#ff5fa8'},
+  kao:{fontSize:12, color:'#c0aee6'},
+  body:{...F, marginTop:11, paddingHorizontal:2, fontSize:11.5, lineHeight:21, color:'#8a7fc0'},
+  ratio:{marginTop:15, paddingTop:13, paddingHorizontal:13, paddingBottom:12, borderRadius:9,
+    backgroundColor:'#fff', borderWidth:1, borderColor:'#e6ddf8'},
+  rr:{flexDirection:'row', alignItems:'center', gap:9},
+  rrK:{...F, width:32, fontSize:9, letterSpacing:1.4, color:'#9a8fc8'},
+  rrBx:{flex:1, flexDirection:'row', gap:4},
+  cell:{flex:1, height:15, borderRadius:3, backgroundColor:'#f4effd', borderWidth:1, borderColor:'#ddd2f4'},
+  cellOn:{backgroundColor:'#ff9ec6', borderColor:'#ff9ec6'},
+  rrN:{...F, fontSize:9.5, letterSpacing:.7, color:'#b0a6d8'},
+  rrNb:{color:'#e0568f'},
+  lock:{flexDirection:'row', alignItems:'center', justifyContent:'center', gap:6, marginTop:15},
+  /* RN에는 svg가 없다. 자물쇠는 네모 하나와 고리 하나로 그린다 */
+  lockIco:{width:10, height:11, alignItems:'center', justifyContent:'flex-end'},
+  lockArc:{width:6, height:4, borderTopLeftRadius:3, borderTopRightRadius:3,
+    borderWidth:1.3, borderBottomWidth:0, borderColor:'#c9b8e8'},
+  lockBox:{width:9, height:6.5, borderRadius:1.6, borderWidth:1.2,
+    borderColor:'#c9b8e8', backgroundColor:'#efe9fc'},
+  lockT:{...F, fontSize:10, letterSpacing:.4, color:'#b09ecf'},
+  btns:{flexDirection:'row', gap:9, marginTop:15},
 });
 
 export function GetChaDialog({name, onClose}:{name:string; onClose:()=>void}) {

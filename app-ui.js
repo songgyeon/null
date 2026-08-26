@@ -599,23 +599,41 @@ function Intro({onGo}){
 
    자재는 있는 것을 쓴다 — 겟챠 창과 같은 .dlgov/.dlg다. */
 const MODE_ASK={
-  real:{t:"real",
+  real:{t:"real", days:1,
     body:"하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.",
     kao:"٩(❛ัᴗ❛ั ๑)"},
-  speed:{t:"speed",
+  speed:{t:"speed", days:4,
     body:"빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.",
-    kao:"˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙"},
+    kao:"˚₊·͟͟͞͞ ➳❥"},
 };
+/* 비율은 문장이 아니다. 이 앱은 이미 눈금으로 말하는 법을 갖고 있다
+   (이름 칸, D-day 막대). 한 칸 대 네 칸을 보여주면 읽지 않고도 안다. */
+const MdRow=({k,on,n})=><div className="mdrr">
+  <span className="k">{k}</span>
+  <span className="bx">{[0,1,2,3].map(i=><span key={i} className={i<on?"on":""}/>)}</span>
+  <span className="n"><b>{n}</b>일</span>
+</div>;
 function ModeAsk({which,now,onYes,onNo}){
   const m=MODE_ASK[which]||MODE_ASK.real;
   return <div className="dlgov" onClick={onNo}>
     <div className="dlg" onClick={e=>e.stopPropagation()}>
       <div className="tb">null.exe<WinDots onClose={onNo}/></div>
-      <div className="dlgbody">
-        <div className="mdhead"><b>{m.t}</b> <span className="kao">{m.kao}</span></div>
-        <div className="dlgline">{m.body}</div>
-        {/* 되돌릴 수 없다는 말은 따로 세운다 — 설명에 섞으면 안 읽힌다 */}
-        <div className="mdlock">한 번 정하면 바꿀 수 없어요</div>
+      <div className="dlgbody mdbody">
+        {/* 고른 것이 제목이 된다. 확인창이 확인해야 하는 건 「무엇을 골랐는가」다 —
+            전에는 고른 값이 제일 작고 그걸 설명하는 문장이 제일 컸다 */}
+        <div className="mdpick"><b>{m.t}</b> <em className="kao">{m.kao}</em></div>
+        <div className="mdtx">{m.body}</div>
+        <div className="mdratio">
+          <MdRow k="현 실" on={1} n={1}/>
+          <MdRow k="게 임" on={m.days} n={m.days}/>
+        </div>
+        {/* 경고는 점선 상자에서 꺼낸다. 이 앱에서 점선 둥근 상자는 「채워야 할
+            빈칸」이라 경고를 담으면 입력 안 한 칸처럼 보인다. 자물쇠 한 줄이면 된다 */}
+        <div className="mdlock">
+          <svg width="10" height="11" viewBox="0 0 12 13" aria-hidden="true">
+            <path d="M4 5V3.6a2 2 0 0 1 4 0V5" fill="none" stroke="#c9b8e8" strokeWidth="1.3" strokeLinecap="round"/>
+            <rect x="2" y="5" width="8" height="6.5" rx="1.6" fill="#efe9fc" stroke="#c9b8e8" strokeWidth="1.2"/>
+          </svg>한 번 정하면 바꿀 수 없어요</div>
         <div className="mdrow">
           <button className="wbtn" onClick={onNo}>back</button>
           <button className="wbtn go" onClick={onYes}>{now?"ok ♡":"이걸로 ♡"}</button>

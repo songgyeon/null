@@ -2347,6 +2347,32 @@ for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]]) {
      '빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.',
      '한 번 정하면 바꿀 수 없어요'].filter(t => !src.includes(t)), []);
 }
+/* ── 고른 것이 제목이 된다 ──
+   확인창이 확인해야 하는 건 「무엇을 골랐는가」인데, 전에는 고른 값이 제일
+   작고 그걸 설명하는 문장이 제일 컸다. */
+{
+  const mdCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('고른 값이 제일 크다', (() => {
+    const pick = (mdCss.match(/\.mdpick b\{[^}]*font-size:(\d+(?:\.\d+)?)px/) || [])[1];
+    const body = (mdCss.match(/\.mdtx\{[^}]*font-size:(\d+(?:\.\d+)?)px/) || [])[1];
+    return pick && body && Number(pick) > Number(body);
+  })(), true);
+  /* 「현실 하루에 게임 나흘」은 문장이 아니라 비율이다 — 눈금으로 말한다 */
+  for (const [label, src] of [['웹', web], ['앱', dlgSrc]])
+    eq(`${label}은 비율을 눈금으로 말한다`,
+      /현 실/.test(src) && /게 임/.test(src) && /\[0,1,2,3\]\.map/.test(src), true);
+  eq('real은 한 칸 · speed는 네 칸',
+    [/real:\{t:"real", days:1,/.test(web), /speed:\{t:"speed", days:4,/.test(web),
+     /real:\{days:1,/.test(dlgSrc), /speed:\{days:4,/.test(dlgSrc)], [true, true, true, true]);
+  /* 경고는 점선 상자에서 꺼낸다 — 이 앱에서 점선 둥근 상자는 「채워야 할 빈칸」이라
+     경고를 담으면 입력 안 한 칸처럼 보인다 */
+  eq('경고가 점선 상자에 안 담긴다',
+    /\.mdlock\{[^}]*(dashed|border:1px)/.test(mdCss), false);
+  eq('자물쇠 한 줄로 단추 위에 붙는다',
+    /\.mdlock\{display:flex;align-items:center;justify-content:center/.test(mdCss)
+    && /<svg width="10" height="11"[\s\S]{0,320}한 번 정하면 바꿀 수 없어요/.test(web), true);
+  eq('앱도 자물쇠 한 줄이다', /lockIco|lockArc|lockBox/.test(dlgSrc), true);
+}
 for (const [label, src] of [['웹', web], ['앱', appSrc]])
   eq(`${label}이 고른 것을 저장한다`,
     /onMode=\{m=>\{setMode\(m\);saveMode\(m\)\}\}/.test(src), true);
