@@ -1848,4 +1848,3 @@ function seenPhotos(msgs){
   loadShots().forEach(k=>set.add(String(k).replace(/\.webp$/,"")));
   return set;
 }
-

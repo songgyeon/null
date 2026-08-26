@@ -412,7 +412,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
   const [askMode,setAskMode]=useState(null);
   const filled=ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
-  return <div className={"enr"+(out?" out":"")}>
+  return <div className={"enr refprofile"+(out?" out":"")}>
     <div className="ecard">
       {/* ── 같은 말을 두 번 하지 않는다 ──
           이 문장은 원래 여기 흐르고 있었다. 지금은 바로 앞 화면(Intro)이
@@ -1026,7 +1026,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
      재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
   const here=c=>withChar===c;
 
-  return <div className="cartscreen"><div className="cartwin">
+  return <div className={"cartscreen"+(pick?" refgift":"")}><div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
 
     {!pick&&<React.Fragment>
@@ -1050,7 +1050,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       <div className="cfoot">TAP TO WRAP ♡</div>
     </React.Fragment>}
 
-    {pick&&<div className="cwrap">
+    {pick&&<div className="cwrap refwrap">
       <div className="cgcard"><span className="cribbon"/>
         <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
@@ -1204,7 +1204,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   },[menu]);
   const mb=(id,label,onClick)=><span className={"mbtn"+(menu===id?" open":"")}
     onClick={e=>{e.stopPropagation();onClick?onClick():setMenu(menu===id?null:id)}}>{label}</span>;
-  return <div className="screen desk">
+  return <div className={"screen desk ref-"+tab}>
     <Sparkles/>
     <div className="tb"><StarGlyph/>NULL messenger<WinDots/></div>
     <div className="menubar">
@@ -1395,7 +1395,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         })()}
       </div>
       :tab==="cam"
-      ?<div className="gal">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
+      ?<div className="gal refcam">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
             자리 사진은 말풍선이 아니라 배경이라 대화 기록에 안 남는다 —
             seenPhotos가 따로 적어둔 것을 같이 들고 온다 */}
         {(()=>{
@@ -1430,7 +1430,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           </div>;
         })()}
       </div>
-      :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
+      :<div className="gal refhidden">{/* .hidden 탭: 잠긴 기록 */}
         <div className="progline">
           <span className="t">ENCRYPTED</span>
           <span className="bar"><i style={{width:(unlocked.length/HIDDEN.length*100)+"%"}}/></span>
