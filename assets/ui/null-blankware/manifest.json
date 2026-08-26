@@ -1,0 +1,30 @@
+{
+  "name": "NULL BLANKWARE UI asset pack",
+  "version": 1,
+  "assetCount": 20,
+  "style": "bright dreamy Korean Y2K retro-computer stationery",
+  "assets": [
+    {"path":"background/bg-null-dream-desktop.png","width":1672,"height":941,"alpha":false,"applyTo":[".app-bg",".screen.splash desktop"]},
+    {"path":"background/bg-null-dream-mobile.png","width":941,"height":1672,"alpha":false,"applyTo":[".app-bg mobile",".screen.splash mobile"]},
+    {"path":"core/window-frame-main.png","width":1536,"height":1024,"alpha":true,"applyTo":["messenger","bag","gift outer chrome"]},
+    {"path":"core/meter-name-fill-long.png","width":1903,"height":826,"alpha":false,"backgroundRemoval":true,"applyTo":[".nmcard"]},
+    {"path":"core/button-primary-cta.png","width":1961,"height":802,"alpha":true,"applyTo":["primary CTA surfaces"]},
+    {"path":"opening/boot-main-window.png","width":1536,"height":1024,"alpha":true,"applyTo":[".spcard"]},
+    {"path":"opening/boot-error-dialog-lilac.png","width":1664,"height":945,"alpha":true,"applyTo":[".spwin.w1"]},
+    {"path":"opening/boot-system-error-dialog-pink.png","width":1774,"height":887,"alpha":true,"applyTo":[".spcurwrap.w2 > .spwin"]},
+    {"path":"opening/boot-loading-window.png","width":2172,"height":724,"alpha":true,"applyTo":[".spwin.w3"]},
+    {"path":"opening/opal-cd-missing-sector.png","width":1254,"height":1254,"alpha":true,"applyTo":[".spcd"]},
+    {"path":"stickers/sticker-heart-null-fill.png","width":1312,"height":1199,"alpha":true,"applyTo":["blank/fill decoration"]},
+    {"path":"stickers/sticker-sparkle-4point.png","width":1254,"height":1254,"alpha":true,"applyTo":[".spark"]},
+    {"path":"stickers/sticker-bubble-opal.png","width":1254,"height":1254,"alpha":true,"applyTo":[".bub"]},
+    {"path":"stickers/decal-null-cursor.png","width":2172,"height":724,"alpha":true,"applyTo":["empty/locked states"]},
+    {"path":"icons/icon-rooms.png","width":1254,"height":1254,"alpha":true,"applyTo":["rooms"]},
+    {"path":"icons/icon-map.png","width":1254,"height":1254,"alpha":true,"applyTo":["map"]},
+    {"path":"icons/icon-cam.png","width":1254,"height":1254,"alpha":true,"applyTo":["cam"]},
+    {"path":"icons/icon-hidden.png","width":1254,"height":1254,"alpha":true,"applyTo":["hidden"]},
+    {"path":"icons/icon-bag.png","width":1254,"height":1254,"alpha":true,"applyTo":["bag"]},
+    {"path":"icons/icon-gift.png","width":1254,"height":1254,"alpha":true,"applyTo":["gift"]}
+  ],
+  "doNotRegenerate": ["jaeeon-*","minhyun-*","place-*","hidden-*","gicon-*","item-*","cab-icons/*"],
+  "nameMeterRules": {"target":".nmcard","hide":[".nmbx"],"remove":[".nmcard::before"],"dynamicFill":"clip wrapper width; keep text in HTML"}
+}
