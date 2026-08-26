@@ -335,8 +335,6 @@ const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21">
 </svg>;
 
 function Splash({onEnter}){
-  /* 앱과 공유하는 예전 오류 문구는 화면에서 제거했다:
-     이름을 입력해야 존재할 수 있어요. / 당신을 찾을 수 없습니다. */
   const [v,setV]=useState("");
   const [armed,setArmed]=useState(false);   // 자동재생이 됐는가
   const audio=useRef(null);
@@ -363,24 +361,36 @@ function Splash({onEnter}){
   return <div className="screen splash" onClick={wake}>
     <Bubbles/>
     <Sparkles/>
-    {/* 현이 준 세 창 원본을 그대로 쓴다. 글자와 입력만 DOM으로 얹는다. */}
-    <div className="spstage">
-      <section className="spplate spnull" aria-label="NULL">
-        <img src="ui/reference-windows/window-shell-large.webp" alt=""/>
-        <div className="splogo">NULL<i className="cur">_</i></div>
-      </section>
-      <section className="spplate sphello" aria-label="인사">
-        <img src="ui/reference-windows/input-wide.webp" alt=""/>
-        <div className="sphelloText">안녕.</div>
-      </section>
-      <section className="spplate spentry" aria-label="이름 입력">
-        <img src="ui/reference-windows/input-slim.webp" alt=""/>
-        <div className="spentryBody">
-          <input id="null-name" className="spinput" value={v} maxLength={12} placeholder="널 입력해줘."
+    <div className="spstack">
+      <span className="spcd"/>
+      <div className="spcard">
+        <div className="sptb">null.exe<WinDots/></div>
+        <div className="spbody">
+          <div className="splogo">NULL<i className="cur">_</i></div>
+          <input className="spinput" value={v} maxLength={12} placeholder="안녕, 널 입력해줘."
             onChange={e=>setV(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
+          <button className="spgo" disabled={!v.trim()} onClick={go}>Click!</button>
         </div>
-      </section>
-      <button className="spgo spstagego" disabled={!v.trim()} onClick={go}>Click!</button>
+      </div>
+      {/* 이 화면에서 이야기를 말하는 건 이 셋뿐이다 */}
+      <div className="spwin w1" style={{animationDelay:".2s"}}>
+        <div className="sptb" style={{background:"linear-gradient(90deg,#b9a8ea,#8a7fc0)"}}>Error<WinDots/></div>
+        <div className="spbd">이름을 입력해야 존재할 수 있어요.<div className="spbtn">ok</div></div>
+      </div>
+      {/* 커서는 창에 매달아 둔다 — 좌표로 놓으면 글자를 깔고 앉는다 */}
+      <div className="spcurwrap w2">
+        <div className="spwin" style={{animationDelay:".35s"}}>
+          <div className="sptb" style={{background:"linear-gradient(90deg,#ff7fae,#ff5fa8)"}}>System error<WinDots/></div>
+          <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn">Cancel</div></div>
+        </div>
+        <SpCursor/>
+      </div>
+      <div className="spwin w3" style={{animationDelay:".5s"}}>
+        <div className="sptb" style={{background:"linear-gradient(90deg,#8fd8e8,#c3b2f0)"}}>loading...<WinDots/></div>
+        <div className="spbd" style={{background:"#fff8fc"}}>
+          <span className="spbar"><i/></span>
+        </div>
+      </div>
     </div>
     <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
   </div>;
@@ -1256,9 +1266,9 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     </span></div>
     <div className="tabs">
       <span className={"tab"+(tab==="rooms"?" on":"")} onClick={()=>setTab("rooms")}>rooms ({roomsOn(groupOn).length})</span>
-      <span className={"tab mapasset"+(tab==="map"?" on":"")} onClick={()=>setTab("map")}>map</span>
-      <span className={"tab camasset"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
-      <span className={"tab hid hiddenasset"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
+      <span className={"tab"+(tab==="map"?" on":"")} onClick={()=>setTab("map")}>map</span>
+      <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
+      <span className={"tab hid"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
       <span className="tabdeco"><Sticker.cursor size={15}/></span>
     </div>
     <div className="roomswrap">
@@ -1303,9 +1313,6 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
             {letters.map((c,i)=>
               <span key={i} className={"nmbx"+(i<lit?" on":i===lit?" next":"")}>□</span>)}
           </div>
-          <span className="nmbar" aria-label={`이름 채움 ${lit}/${letters.length}`}>
-            <i style={{width:(letters.length?lit/letters.length*100:0)+"%"}}/>
-          </span>
       <span className="nmpct">
         <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 1c.5 3.6 2.9 6 6.5 7-3.6 1-6 3.4-6.5 7-.5-3.6-2.9-6-6.5-7 3.6-1 6-3.4 6.5-7z" fill="#c3b2f0"/></svg>
         <svg width="9" height="9" viewBox="0 0 16 16"><path d="M8 1c.5 3.6 2.9 6 6.5 7-3.6 1-6 3.4-6.5 7-.5-3.6-2.9-6-6.5-7 3.6-1 6-3.4 6.5-7z" fill="#e0d5f7"/></svg>
