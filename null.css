@@ -1582,23 +1582,34 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
   .screen.splash{background-image:url("ui/bg-desktop.webp")}
 }
 
-/* ── 창 자리 ── 참고 화면(1440×2827, 앱 영역 y291~2662)에서 창 테두리를
-   따라 사각형을 직접 재서 넣었다. 화면 전체 대비:
-     옆 여백 6.5% · main 86.8% · error 48.3% · syserr 54% · loading 86.2%
-     창 사이 4.7% / 2.1% / 1.3% (세로)
+/* ── 창 자리 — 참고 화면에서 잰 사각형 그대로 ──
+   flex로 쌓으면서 gap·margin·align을 맞추다 계속 어긋났다(가운데로 몰리고,
+   펴면 떨어지고, 폭은 여백이 두 번 먹히고, margin-top의 %는 가로로 풀린다).
+   근사를 그만두고 **잰 값 자체가 되게** 절대좌표로 박는다.
 
-   ⚠️ 두 가지를 조심해야 한다.
-   ① 폭은 .spstack의 안쪽(=화면의 87%) 기준으로 다시 풀어야 한다. 화면
-      기준 값을 그대로 쓰면 여백이 두 번 먹혀 로딩창이 안쪽으로 밀린다.
-   ② margin-top의 %는 세로가 아니라 **가로** 기준으로 풀린다. 세로 간격을
-      %로 주면 화면이 길쭉할수록 좁아진다 — px로 못박는다(높이 790 기준). */
-.spstack{justify-content:center;gap:0;padding:0 6.5% 5%}
-.spstack .w1{width:55.5%;margin-top:37px}    /* 48.3/87 · 4.7%×790 */
-.spstack .w2{width:62.1%;margin-top:17px}    /* 54/87   · 2.1%×790 */
-.spstack .w3{width:100%;align-self:stretch;margin-top:10px}  /* 86.2/87 · 1.3%×790 */
+   참고 화면 1440×2827, 앱 영역 y291~2662 기준 (L=왼쪽, T=위, W=폭):
+     CD       L  5.90%  T  6.66%  W 28.75%
+     main     L  6.46%  T 18.60%  W 86.81%
+     error    L  6.46%  T 54.62%  W 48.19%
+     syserr   L 39.00%  T 72.54%  W 54.26%
+     loading  L  6.46%  T 87.39%  W 86.18%
 
-/* CD와 로고 — 참고 화면과 같은 자로 재보니 CD는 크기가 맞았고(툴바가 60px
-   먹어서 커 보였다) 실제로 작은 건 NULL_ 글자였다. 참고에서 로고가 판 폭의
-   49%인데 여기선 35%였다. 둘 다 그 비율로 올린다. */
-.spcd{width:140px;height:140px;margin-top:-48px;margin-bottom:-6px}
-.spcard .splogo{font-size:46px}
+   높이는 안 적는다 — 창마다 aspect-ratio가 걸려 있어 폭에서 저절로 나온다.
+   실제로 그림 비율로 되짚어보니 잰 높이와 맞는다:
+     main 86.81%→32.9%(잰 값 32.90) · error 48.19%→17.1%(17.12)
+     loading 86.18%→6.8%(6.71). syserr만 아래변이 로딩창 윗변에 걸려
+     잘못 잡혀서, 폭 54.26%에서 비율로 되돌려 13.07%로 둔다. */
+/* 퍼센트가 화면 높이로 풀리려면 부모 높이가 정해져 있어야 한다.
+   .splash는 display:block이라 내용만큼 늘어나서(935px) 로딩창의 top:87.39%가
+   화면 밖 817px로 나갔다 — 로딩창이 안 보이던 이유다. */
+.screen.splash{position:relative;height:100%;overflow:hidden}
+.spstack{display:block;padding:0;justify-content:normal;gap:0}
+.spstack>*{margin:0}
+/* 잰 28.75%는 오른쪽 배경 CD와 폴더까지 물어서 나온 값이다 — 그대로 두면
+   CD 아래가 창 제목줄을 덮는다. 창 윗변(18.6%)에 안 닿는 선까지만 키우고
+   위로 올린다. */
+.spcd    {position:absolute;left: 5.90%;top: 2.00%;width:24.00%;height:auto;aspect-ratio:1/1;align-self:auto}
+.spcard  {position:absolute;left: 6.46%;top:18.60%;width:86.81%}
+.spstack .w1{position:absolute;left: 6.46%;top:54.62%;width:48.19%;align-self:auto;margin:0}
+.spstack .w2{position:absolute;left:39.00%;top:72.54%;width:54.26%;align-self:auto;margin:0}
+.spstack .w3{position:absolute;left: 6.46%;top:87.39%;width:86.18%;align-self:auto;margin:0}

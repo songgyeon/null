@@ -327,12 +327,6 @@ const Bubbles=()=><div className="bubbles">{BUBS.map((b,i)=>
   <span key={i} className="bub" style={{left:b[0]+"%",width:b[1],height:b[1],
     animationDuration:`${b[2]}s,${(b[2]*0.28).toFixed(1)}s`,animationDelay:b[3]+"s"}}/>)}</div>;
 
-/* 데스크톱에 놓인 마우스 포인터. 아무 데도 안 붙어 있는 게 이 화면의 농담이다.
-   System error 창의 왼쪽 아래 모서리에 매달아 둔다 — 화면 좌표로 놓으면
-   높이가 바뀔 때마다 글자를 깔고 앉는다. */
-const SpCursor=()=><svg className="spcursor" viewBox="0 0 15 21">
-  <path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L13 12 Z" fill="#fff" stroke="#4a4276" strokeWidth="1.2" strokeLinejoin="round"/>
-</svg>;
 
 function Splash({onEnter}){
   const [v,setV]=useState("");
@@ -383,7 +377,6 @@ function Splash({onEnter}){
           <div className="sptb" style={{background:"linear-gradient(90deg,#ff7fae,#ff5fa8)"}}>System error<WinDots/></div>
           <div className="spbd">당신을 찾을 수 없습니다.<div className="spbtn">Cancel</div></div>
         </div>
-        <SpCursor/>
       </div>
       <div className="spwin w3" style={{animationDelay:".5s"}}>
         <div className="sptb" style={{background:"linear-gradient(90deg,#8fd8e8,#c3b2f0)"}}>loading...<WinDots/></div>
