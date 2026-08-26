@@ -1536,3 +1536,20 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  .tabs{gap:3px;padding-left:7px;padding-right:7px}.tab{padding-left:6px;padding-right:6px}
  .tabdeco{display:none}
 }
+
+/* 현이 준 원본 창 3장 — 창 비율을 보존하고 내부 좌표만 비율로 잡는다. */
+.spstage{width:min(94vw,430px);height:min(80vh,640px);transform:translate(-50%,-51%)}
+.spnull{left:1%;top:0;width:98%;height:54%;aspect-ratio:auto}
+.spnull .splogo{left:8%;right:8%;top:35%;font-size:clamp(36px,11vw,52px)}
+.sphello{left:5%;right:auto;top:55%;width:90%;height:14%;aspect-ratio:auto}
+.sphelloText{left:11%;right:11%;top:60%;font-size:clamp(14px,4vw,18px)}
+.spentry{left:2%;bottom:auto;top:70%;width:96%;height:13%;aspect-ratio:auto}
+.spentryBody{inset:0;display:block}
+.spentry .spinput{position:absolute;left:7.5%;right:7.5%;top:43%;width:85%;height:42%;margin:0;padding:0 14px;
+ border:0;border-radius:5px;background:transparent;box-shadow:none;font-size:clamp(13px,3.8vw,17px)}
+.spentry .spinput::placeholder{color:#b89ab9;font-size:clamp(11px,3.2vw,14px)}
+.spstagego{position:absolute;left:19%;right:19%;bottom:1%;width:62%;height:10%;margin:0;border-radius:14px;
+ background:linear-gradient(180deg,#ffc8e3,#f19bc8 55%,#da84b6);border:2px solid rgba(255,255,255,.95);
+ box-shadow:0 4px 0 rgba(112,83,170,.24),inset 0 1px 0 #fff}
+@media (max-height:620px){.spstage{height:560px;transform:translate(-50%,-48%) scale(.9)}}
+@media (max-width:360px){.spstage{width:344px;height:590px}.spnull{left:1%;width:98%}.sphello{width:90%;top:55%}.spentry{width:96%}}

@@ -363,28 +363,24 @@ function Splash({onEnter}){
   return <div className="screen splash" onClick={wake}>
     <Bubbles/>
     <Sparkles/>
-    {/* 창 그림은 빈 PNG, 글자와 입력은 DOM이다. 작은 화면에서도 글자가
-        그림 안의 같은 좌표에 남도록 세 창을 한 좌표계에 묶는다. */}
+    {/* 현이 준 세 창 원본을 그대로 쓴다. 글자와 입력만 DOM으로 얹는다. */}
     <div className="spstage">
       <section className="spplate spnull" aria-label="NULL">
-        <img src="assets/blankware/window-main-glossy.png" alt=""/>
+        <img src="ui/reference-windows/window-shell-large.webp" alt=""/>
         <div className="splogo">NULL<i className="cur">_</i></div>
       </section>
       <section className="spplate sphello" aria-label="인사">
-        <img src="assets/blankware/window-transparent-frame.png" alt=""/>
+        <img src="ui/reference-windows/input-wide.webp" alt=""/>
         <div className="sphelloText">안녕.</div>
       </section>
       <section className="spplate spentry" aria-label="이름 입력">
-        <img src="assets/blankware/window-opening-null.png" alt=""/>
+        <img src="ui/reference-windows/input-slim.webp" alt=""/>
         <div className="spentryBody">
-          <label htmlFor="null-name">널 입력해줘.</label>
-          <input id="null-name" className="spinput" value={v} maxLength={12} placeholder=""
+          <input id="null-name" className="spinput" value={v} maxLength={12} placeholder="널 입력해줘."
             onChange={e=>setV(e.target.value)} onFocus={wake} onKeyDown={e=>e.key==="Enter"&&go()}/>
-          <button className="spgo" disabled={!v.trim()} onClick={go}>Click!</button>
         </div>
       </section>
-      <img className="spdeco spheart" src="assets/blankware/sticker-fill-heart.png" alt=""/>
-      <img className="spdeco spcursorasset" src="assets/blankware/cursor-square-sparkle.png" alt=""/>
+      <button className="spgo spstagego" disabled={!v.trim()} onClick={go}>Click!</button>
     </div>
     <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
   </div>;
