@@ -43,6 +43,10 @@
 |---|---|---|
 | `gift/gift-wrap-panel-frame.png` | gift/wrap 최상위 세로 패널 | 제목, 아이템, 받는 사람, 장소, 버튼 전체 |
 | `gift/gift-reason-note-card.png` | `A NOTE` 아래 이유 입력 행 | 문장 앞·뒤 조각과 실제 input |
+| `gift/gift-item-card.png` | `.cgcard` | 선물 이미지, 이름, 설명, 가격/상태 |
+| `gift/gift-recipient-card.png` | `.cto` | 라디오, 아바타, 인물명, 선택 상태 |
+| `gift/gift-location-option.png` | `.cspot` | 장소명과 이용 가능 조건 |
+| `gift/gift-wrap-button.png` | `.csend` / `.wbtn` | `WRAP` 라벨과 실제 클릭 상태 |
 
 `gift-wrap-panel-frame.png`는 중앙을 거의 비운 포장지형 셸이다. 왼쪽의 얇은 리본과 한 개의 매듭만 남기고, 아이템·인물·장소 카드가 올라갈 영역은 장식하지 않았다.
 
@@ -78,6 +82,9 @@
 | `hidden/locked-photo-veil.png` | `.hcell.lock::after` | 기존 사진은 아래 레이어에 유지 |
 | `hidden/lock-pearl-badge.png` | `.hlock` | 잠금 의미와 실제 버튼 타깃 |
 | `hidden/name-guess-tag.png` | `.hlabel` / `.hin` | 힌트와 입력값 |
+| `hidden/hidden-unlocked-photo-frame.png` | `.hcell:not(.lock)` | 해금 사진과 캡션 |
+| `hidden/hidden-success-badge.png` | 성공 상태 / `.hlabel` 주변 | 성공 문구 또는 진행 수치 |
+| `hidden/hidden-retry-dialog.png` | 오답·재시도 overlay | 제목, 안내문, CTA |
 
 잠긴 사진을 검고 흐리게 만드는 대신 밝은 반투명 veil을 얹는다. 잠금 배지는 화면 중앙을 가리지 않는 작은 독립 부품이며, 이름 추측 태그는 글자 없는 캡슐 표면이다.
 
@@ -103,6 +110,27 @@
 | `chat/chat-send-button.png` | `.rbtn.sendbtn` | 전송 아이콘, disabled/active 상태 |
 
 말풍선 두 장은 한 문장을 통째로 구운 이미지가 아니라 9-slice 가능한 좌·우 꼬리 표면이다. 텍스트 길이에 따라 가운데 영역만 늘리고 꼬리와 모서리 비율은 보존한다. 프로필 사진, 이름, 직업, 날짜 칸, 메시지, 시간, 전송 아이콘은 모두 DOM에 남긴다. `chat-composer-bar.png`의 우측 원형 소켓에는 별도 `chat-send-button.png`를 겹친다.
+
+## Messenger common chrome
+
+| Asset | Existing target | Overlay that stays as HTML |
+|---|---|---|
+| `chrome/messenger-titlebar.png` | `.tb` | 앱 이름과 창 컨트롤 기능 |
+| `chrome/messenger-menubar.png` | `.menubar` | `you/file/chat/etc.`, gift, bag, 시간 버튼 |
+| `chrome/messenger-tab-states.png` | `.tab`, `.tab.on`, locked/disabled | 탭 라벨과 선택 상태 |
+| `chrome/messenger-statusbar.png` | `.statusbar` | 하단 문구와 현재 시각 |
+| `chrome/messenger-dropdown.png` | `.dd`, `.dditem` | 드롭다운 행 라벨과 아이콘 |
+
+`messenger-tab-states.png`는 네 칸이 한 줄에 있는 상태 시트다. 필요한 칸을 `background-position`으로 잘라 쓰거나 Claude가 네 개 상태로 분리해 배치한다.
+
+## CAM gallery
+
+| Asset | Existing target | Overlay that stays as HTML |
+|---|---|---|
+| `cam/cam-album-label.png` | `.sect` | 인물명과 사진 수 |
+| `cam/cam-photo-frame.png` | `.galcell` / `.galgrid img` | 실제 사진과 장식 sparkle |
+| `cam/cam-empty-slot.png` | 빈 `.galcell` 또는 lock 이전 상태 | 빈 상태 문구/아이콘 |
+| `cam/cam-album-divider.png` | 앨범 그룹 사이 divider | 섹션명 또는 진행 수치 |
 
 ## Shared assets
 

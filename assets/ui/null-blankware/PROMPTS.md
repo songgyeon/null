@@ -36,5 +36,21 @@ Bright dreamy `NULL BLANKWARE`: Korean Y2K retro-computer stationery, milky whit
 - **Outgoing chat bubble:** matching wide 3:1 surface with a faint blush-to-ice-blue fill and a small right tail, no label or decoration.
 - **Chat composer:** very wide shallow bottom tray with one long blank recessed input well and a clean circular socket at right; no control or placeholder baked in.
 - **Chat send button:** isolated round opal pink-to-ice button with a blank center reserved for the HTML icon; readable at small size, no arrow or heart baked in.
+- **Messenger titlebar:** extremely wide shallow blank chrome bar with a restrained pink-to-lilac-to-ice gradient, a broad clean title zone and three empty control sockets.
+- **Messenger menubar:** wide two-level stationery tray with four blank left menu wells, two small action wells and two right utility pills; no labels or icons.
+- **Messenger tab states:** one row of four matching blank folder-tab surfaces showing inactive, active, hover and locked/disabled depth without baked glyphs.
+- **Messenger statusbar:** very wide shallow status tray with one long left recess and one short right time recess.
+- **Messenger dropdown:** compact bright three-row menu shell with quiet lilac separators; one targeted edit removed the accidental dark surrounding field.
+- **CAM album label:** wide capsule label with a circular marker well and a long clean text region.
+- **CAM photo frame:** portrait 2:3 blank photo frame with a quiet opal edge and an empty center reserved for the live image.
+- **CAM empty slot:** matching portrait 2:3 pale opal slot for an absent photo, intentionally icon- and text-free.
+- **CAM album divider:** extremely wide thin divider interrupted by one blank center capsule for a live section label.
+- **Gift item card:** repeatable wide card with transparent square thumbnail opening, long information recess, small cost/status capsule and a slim ribbon rail.
+- **Gift recipient card:** wide row with a radio well, transparent circular avatar opening, long name bay and right-side action socket.
+- **Gift location option:** wide two-zone location row with a broad place-name bay and a smaller availability bay.
+- **Gift wrap button:** wide primary blank pill with a broad live-label area and one small blank circular socket at the right edge.
+- **Hidden unlocked photo frame:** portrait 2:3 opal frame with a transparent photo opening, no photo, lock, label or baked decoration.
+- **Hidden success badge:** compact pearl-opal seal with a blank center for live success copy, deliberately no check, heart or star.
+- **Hidden retry dialog:** compact bright auxiliary shell with empty title, body and CTA zones; no dark panel or baked control glyphs.
 
 Reference family: the supplied retro-window, pastel UI, pixel-game and current NULL screenshots. Dynamic copy remains HTML.

@@ -1,7 +1,7 @@
 {
   "name": "NULL BLANKWARE UI asset pack",
   "version": 1,
-  "assetCount": 43,
+  "assetCount": 59,
   "style": "bright dreamy Korean Y2K retro-computer stationery",
   "assets": [
     {"path":"background/bg-null-dream-desktop.png","width":1672,"height":941,"alpha":false,"applyTo":[".app-bg",".screen.splash desktop"]},
@@ -46,7 +46,23 @@
     {"path":"icons/icon-cam.png","width":1254,"height":1254,"alpha":true,"applyTo":["cam"]},
     {"path":"icons/icon-hidden.png","width":1254,"height":1254,"alpha":true,"applyTo":["hidden"]},
     {"path":"icons/icon-bag.png","width":1254,"height":1254,"alpha":true,"applyTo":["bag"]},
-    {"path":"icons/icon-gift.png","width":1254,"height":1254,"alpha":true,"applyTo":["gift"]}
+    {"path":"icons/icon-gift.png","width":1254,"height":1254,"alpha":true,"applyTo":["gift"]},
+    {"path":"chrome/messenger-titlebar.png","width":2172,"height":724,"alpha":true,"applyTo":[".tb"]},
+    {"path":"chrome/messenger-menubar.png","width":2172,"height":724,"alpha":true,"applyTo":[".menubar"]},
+    {"path":"chrome/messenger-tab-states.png","width":2135,"height":736,"alpha":true,"applyTo":[".tab",".tab.on","tab locked/disabled"]},
+    {"path":"chrome/messenger-statusbar.png","width":2172,"height":724,"alpha":true,"applyTo":[".statusbar"]},
+    {"path":"chrome/messenger-dropdown.png","width":1024,"height":1536,"alpha":false,"backgroundRemoval":true,"applyTo":[".dd",".dditem"]},
+    {"path":"cam/cam-album-label.png","width":2172,"height":724,"alpha":true,"applyTo":[".sect"]},
+    {"path":"cam/cam-photo-frame.png","width":1024,"height":1536,"alpha":true,"applyTo":[".galcell",".galgrid img"]},
+    {"path":"cam/cam-empty-slot.png","width":1024,"height":1536,"alpha":true,"applyTo":["empty .galcell"]},
+    {"path":"cam/cam-album-divider.png","width":2172,"height":724,"alpha":true,"applyTo":["gallery section divider"]},
+    {"path":"gift/gift-item-card.png","width":2172,"height":724,"alpha":true,"applyTo":[".cgcard"]},
+    {"path":"gift/gift-recipient-card.png","width":2172,"height":724,"alpha":true,"applyTo":[".cto"]},
+    {"path":"gift/gift-location-option.png","width":2172,"height":724,"alpha":true,"applyTo":[".cspot"]},
+    {"path":"gift/gift-wrap-button.png","width":2172,"height":724,"alpha":true,"applyTo":[".csend",".wbtn"]},
+    {"path":"hidden/hidden-unlocked-photo-frame.png","width":1024,"height":1536,"alpha":true,"applyTo":[".hcell:not(.lock)"]},
+    {"path":"hidden/hidden-success-badge.png","width":1254,"height":1254,"alpha":true,"applyTo":["hidden success state",".hlabel"]},
+    {"path":"hidden/hidden-retry-dialog.png","width":1536,"height":1024,"alpha":true,"applyTo":["hidden retry/error overlay"]}
   ],
   "doNotRegenerate": ["jaeeon-*","minhyun-*","place-*","hidden-*","gicon-*","item-*","cab-icons/*"],
   "nameMeterRules": {"target":".nmcard","hide":[".nmbx"],"remove":[".nmcard::before"],"dynamicFill":"clip wrapper width; keep text in HTML"}
