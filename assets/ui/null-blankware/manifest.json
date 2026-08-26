@@ -9,7 +9,7 @@
     {"path":"core/window-frame-main.png","width":1536,"height":1024,"alpha":true,"applyTo":["messenger","bag","gift outer chrome"]},
     {"path":"core/meter-name-fill-long.png","width":1903,"height":826,"alpha":false,"backgroundRemoval":true,"applyTo":[".nmcard"]},
     {"path":"core/button-primary-cta.png","width":1961,"height":802,"alpha":true,"applyTo":["primary CTA surfaces"]},
-    {"path":"opening/boot-main-window.png","width":1536,"height":1024,"alpha":true,"applyTo":[".spcard"]},
+    {"path":"opening/boot-main-window.png","width":1536,"height":1024,"alpha":false,"backgroundRemoval":true,"applyTo":[".spcard"]},
     {"path":"opening/boot-error-dialog-lilac.png","width":1664,"height":945,"alpha":true,"applyTo":[".spwin.w1"]},
     {"path":"opening/boot-system-error-dialog-pink.png","width":1774,"height":887,"alpha":true,"applyTo":[".spcurwrap.w2 > .spwin"]},
     {"path":"opening/boot-loading-window.png","width":2172,"height":724,"alpha":true,"applyTo":[".spwin.w3"]},

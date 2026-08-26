@@ -35,7 +35,7 @@
 - 바의 진행 정도만 wrapper의 `width`, `overflow: hidden`, 또는 `clip-path`로 제어한다.
 - PNG 자체에는 네모 셀·포도색 블록·점선·도트가 없다.
 
-이 파일만 배경 제거 전 RGB 판본이다. 사용자가 후처리하기로 한 자산이므로 실제 합성 전 흰/체커 배경을 제거한다. 배경 두 장은 원래부터 불투명이다.
+`core/meter-name-fill-long.png`와 `opening/boot-main-window.png`는 배경 제거 전 RGB 판본이다. 사용자가 후처리하기로 한 자산이므로 실제 합성 전 흰/체커 배경을 제거한다. 배경 두 장은 원래부터 불투명이다.
 
 ## Shared assets
 
