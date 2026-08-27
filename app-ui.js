@@ -438,7 +438,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
               :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
                  open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
                  onNext={()=>{const n=ENR_FIELDS.findIndex((g,j)=>j>i&&g.k!=="age");setFocus(n)}}/>}
-            <span>{f.tail}</span>
+            <span className="etail">{f.tail}</span>
           </div>)}
         {/* ── 이 판을 어떻게 살 것인가 ──
             등록 화면이 이미 「이 판을 어떻게 살지」 정하는 자리라 여기 둔다.

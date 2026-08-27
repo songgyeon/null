@@ -1627,7 +1627,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile .e-dislikes{left:7.38%;top:50.22%;width:61.60%;height:5.28%;background-image:url("assets/ui/profile-v2/hates.webp")}
 .enr.refprofile .e-mode{left:35.65%;top:58.28%;width:50.00%;height:5.55%;padding:0;background-image:url("assets/ui/profile-v2/mode.webp")}
 .enr.refprofile .e-days{left:7.38%;top:65.71%;width:45.30%;height:5.46%;background-image:url("assets/ui/profile-v2/days.webp")}
-.enr.refprofile .eline>span:not(.lab):not(.emode):not(.nullv),.enr.refprofile .eline>.emhint{display:none}
+.enr.refprofile .etail,.enr.refprofile .emhint{display:none}
 .enr.refprofile .blank,.enr.refprofile .blankin,.enr.refprofile .nullv{width:100%!important;height:100%;padding:0;border:0;background:transparent;box-shadow:none;color:#625381;font:inherit;line-height:1;display:flex;align-items:center}
 .enr.refprofile .emode{display:grid;grid-template-columns:1fr 1fr;width:100%;height:100%;padding:3%;border:0;background:transparent}
 .enr.refprofile .emode b{display:flex;align-items:center;justify-content:center;border:0;background:transparent;box-shadow:none;color:#75688f;font-size:clamp(8px,2.2vw,12px)}
