@@ -1869,7 +1869,7 @@ function GameApp(){
     return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
-  return <div className={"phone"+(!name?" opening":"")}>
+  return <div className="phone">
     {diary&&<Diary onDone={diaryDone}/>}
     {flash&&<Flash onDone={()=>{const f=flash;setFlash(null);
       /* 엽서를 끝까지 채웠다 = 민현이 그날 얘기를 **한** 것이다.

@@ -376,13 +376,7 @@ function Splash({onEnter}){
       return !!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")};
     const fit=()=>{const n=box.current;
       if(!n||!n.parentNode||typing())return;
-      const w=n.parentNode.clientWidth||390;
-      const h=n.parentNode.clientHeight||844;
-      /* 데스크톱 사이트로 연 세로 화면은 390px 판 전체를 한 덩어리로 키운다.
-         창만 넓히면 글자와 단추 좌표가 그림 슬롯에서 벗어나므로 scale도 같은
-         좌표 상자에 건다. 키보드가 뜬 동안에는 위의 typing guard가 값을 지킨다. */
-      n.style.setProperty("--open-scale",String(Math.min(w/390,h/844)*.96));
-      setPh(h)};
+      setPh(n.parentNode.clientHeight||0)};
     fit();
     window.addEventListener("resize",fit);
     window.addEventListener("orientationchange",fit);

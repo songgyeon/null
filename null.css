@@ -1467,7 +1467,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    그림에 슬롯이 이미 배킹돼 있어 창 크기를 그림 비율로 못박고 DOM 조각을
    각 슬롯 좌표에 절대 배치한다 — 내용 크기에 맞춰 늘리면 슬롯과 어긋난다.
    좌표는 재업로드본을 여백까지 잘라낸 뒤 10% 격자를 얹어 읽은 값이다. */
-.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=142") center/cover no-repeat}
+.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=144") center/cover no-repeat}
 
 /* CD — 그림이 왔으니 CSS로 그리던 원판을 버린다. 도는 것은 그림 자체 */
 .spcd{visibility:visible;align-self:flex-start;margin-left:-2px;margin-right:0;width:82px;height:82px;border-radius:0;
@@ -1551,11 +1551,9 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    띠가 아니라 색종이가 된다 */
 .spstack .w3 .spbar i{background:linear-gradient(180deg,#f8d3e9,#efb5de 55%,#e3a3d2)}
 
-/* 실제 데스크톱과 모바일 브라우저의 '데스크톱 사이트'를 함께 잡는다.
-   오프닝만 폰 390px 틀에서 꺼내 화면 전체를 쓰고, 내부 UI의 폰 틀은 유지한다. */
-@media (min-width:501px){
-  .phone.opening{width:100vw;max-width:none;height:100dvh;max-height:none;border:0;border-radius:0;box-shadow:none;background:#efe6fb}
-  .phone.opening>.screen.splash{inset:0;border-radius:0;background-image:url("ui/bg-opening-desktop.jpg?v=142")}
+/* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다 */
+@media (min-aspect-ratio:1/1){
+  .screen.splash{background-image:url("ui/bg-desktop.webp?v=144")}
 }
 
 /* ── 창 자리 — 참고 화면에서 잰 사각형 그대로 ──
@@ -1595,74 +1593,46 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    높이는 aspect-ratio가 내므로 창이 낮아지지 않는다. */
 .spstack .w2 .spwin{width:100%}
 
-/* 세로형 데스크톱 사이트: 모바일 390×844 좌표판을 통째로 확대한다.
-   그림·글씨·단추가 같은 transform을 받아 슬롯 좌표가 흐트러지지 않는다. */
-@media (min-width:501px) and (max-aspect-ratio:1/1){
-  .phone.opening .spstack{left:50%;right:auto;top:50%;bottom:auto;width:390px;height:844px!important;
-    transform:translate(-50%,-50%) scale(var(--open-scale,1));transform-origin:center}
-}
-
-/* 가로 데스크톱은 세로판을 억지로 키우지 않고 창들을 두 칸으로 펼친다.
-   각 창의 배경 비율과 안쪽 % 좌표는 그대로라 글씨는 커진 슬롯을 따라간다. */
-@media (min-width:501px) and (min-aspect-ratio:1/1){
-  .phone.opening .spstack{left:0;right:0;top:0;bottom:auto;width:100%;height:100%!important;transform:none}
-  .phone.opening .spcd{left:3%;top:3%;width:clamp(92px,11vw,190px)}
-  .phone.opening .spcard{left:5%;top:9%;width:clamp(390px,48vw,760px)}
-  .phone.opening .spstack .w1{left:61%;top:12%;width:clamp(220px,26vw,430px)}
-  .phone.opening .spstack .w2{left:63%;top:44%;width:clamp(250px,29vw,480px)}
-  .phone.opening .spstack .w3{left:46%;top:78%;width:clamp(380px,45vw,740px)}
-  .phone.opening .spcard .sptb{font-size:clamp(12px,1.1vw,18px)}
-  .phone.opening .spcard .splogo{font-size:clamp(46px,4.8vw,82px)}
-  .phone.opening .spcard .spinput{padding:0 4%;font-size:clamp(17px,1.55vw,27px)}
-  .phone.opening .spcard .spinput::placeholder{font-size:clamp(13px,1.15vw,20px)}
-  .phone.opening .spcard .spgo{font-size:clamp(14px,1.25vw,22px)}
-  .phone.opening .spstack .w1 .sptb,.phone.opening .spstack .w2 .sptb,
-  .phone.opening .spstack .w3 .sptb{font-size:clamp(9px,.85vw,15px)}
-  .phone.opening .spstack .w1 .spbd{padding:10% 6% 15.5% 10%;font-size:clamp(10px,.95vw,17px)}
-  .phone.opening .spstack .w2 .spbd{padding:9.4% 26.8% 12.5% 6.25%;font-size:clamp(10px,.95vw,17px)}
-  .phone.opening .spstack .w1 .spbtn{font-size:clamp(10px,.9vw,16px)}
-  .phone.opening .spstack .w2 .spbtn{font-size:clamp(9px,.8vw,14px)}
-  .phone.opening .sptap{bottom:2.5%;font-size:clamp(11px,.8vw,15px)}
-}
-
-/* Profile v2: the 864x1536 author layout is the coordinate system. Each PNG is
-   still a separate control; the composed reference never ships in the page. */
-.enr.refprofile{position:fixed;z-index:999;left:50%;right:auto;top:0;bottom:auto;width:100vw;height:100dvh;transform:translateX(-50%);padding:0;overflow:hidden;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
-.enr.refprofile .ecard{position:absolute;left:5%;top:10.94%;width:90%;height:72.72%;min-height:0;max-width:none;margin:0;padding:0;border:0;background:transparent url("assets/ui/profile-v2/window.webp") center/100% 100% no-repeat;box-shadow:none;animation:none}
-.enr.refprofile .etb{position:absolute;left:9%;right:4%;top:2.2%;height:7%;z-index:5;padding:0;border:0;background:transparent;color:#fff;font-size:clamp(8px,2.1vw,11px);letter-spacing:.08em;line-height:1;text-shadow:0 1px 2px rgba(91,72,151,.7)}
+/* Profile v2: the supplied 864x1536 portrait is the coordinate system. The
+   card is only a transparent stage: every visible bar/button is its own PNG.
+   Its size comes from width alone, so a keyboard can shorten dvh without ever
+   squeezing the artwork. */
+.enr.refprofile{position:fixed;z-index:999;left:50%;right:auto;top:0;bottom:auto;width:100vw;height:100dvh;transform:translateX(-50%);padding:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
+.enr.refprofile .ecard{position:absolute;left:50%;top:19.45vw;width:83.1vw;height:auto;aspect-ratio:519/808;min-height:0;max-width:none;margin:0;padding:0;border:0;transform:translateX(-50%);background:none;box-shadow:none;animation:none}
+.enr.refprofile .etb{position:absolute;left:4%;right:4%;top:1.6%;height:7%;z-index:5;padding:0;border:0;background:transparent;color:transparent;font-size:0;line-height:1;text-shadow:none}
 .enr.refprofile .etb .dots{position:absolute;right:1%;top:0;z-index:20;width:25%;height:100%;opacity:0;pointer-events:auto}
 .enr.refprofile .etb .dots span{height:100%;width:33%}
 .enr.refprofile .ebody{position:absolute;inset:0;padding:0}
 .enr.refprofile .eprofiletitle{position:absolute;left:0;top:11.5%;width:100%;text-align:center;color:#66558e;font-size:clamp(11px,2.9vw,15px);letter-spacing:.18em}
 .enr.refprofile .enamelab,.enr.refprofile .lab{position:absolute;left:1%;bottom:100%;margin-bottom:4px;color:#776994;font-size:clamp(6px,1.45vw,7.5px);line-height:1;letter-spacing:.08em}
-.enr.refprofile .enamelab{left:9.87%;top:15.9%;bottom:auto}
-.enr.refprofile .ename,.enr.refprofile .eline,.enr.refprofile .ebar,.enr.refprofile .ego{position:absolute;margin:0;border:0;opacity:1;animation:none;box-shadow:none}
-.enr.refprofile .ename{left:9.87%;top:17.64%;width:64.16%;height:5.28%;min-height:0;padding:0 5%;display:flex;align-items:center;background:transparent url("assets/ui/profile-v2/name.webp") center/100% 100% no-repeat;color:#625381;font-size:clamp(9px,2.35vw,12px);letter-spacing:.04em}
+.enr.refprofile .enamelab{left:7.4%;top:15.9%;bottom:auto}
+.enr.refprofile .ename,.enr.refprofile .eline,.enr.refprofile .ebar,.enr.refprofile .ego{position:absolute;height:auto;margin:0;border:0;opacity:1;animation:none;box-shadow:none}
+.enr.refprofile .ename{left:7.38%;top:17.64%;width:69.5%;aspect-ratio:1536/192;min-height:0;padding:0 5%;display:flex;align-items:center;background:transparent url("assets/ui/profile-v2/name.webp") center/contain no-repeat;color:#625381;font-size:clamp(9px,2.35vw,12px);letter-spacing:.04em}
 .enr.refprofile .ename .namein{width:100%;height:100%;padding:0;border:0;background:transparent;box-shadow:none;color:inherit;font:inherit}
-.enr.refprofile .eline{display:flex;align-items:center;padding:0 5%;min-height:0;background-color:transparent;background-position:center;background-size:100% 100%;background-repeat:no-repeat;color:#625381;font-size:clamp(8px,2.15vw,11px);letter-spacing:.04em}
-.enr.refprofile .e-subject{left:9.87%;top:25.51%;width:41.82%;height:5.46%;background-image:url("assets/ui/profile-v2/subject.webp")}
-.enr.refprofile .e-age{left:9.87%;top:33.84%;width:24.47%;height:5.37%;background-image:url("assets/ui/profile-v2/age.webp")}
-.enr.refprofile .e-likes{left:9.87%;top:42.52%;width:59.37%;height:5.19%;background-image:url("assets/ui/profile-v2/likes.webp")}
-.enr.refprofile .e-dislikes{left:9.87%;top:50.22%;width:56.85%;height:5.28%;background-image:url("assets/ui/profile-v2/hates.webp")}
-.enr.refprofile .e-mode{left:35.98%;top:58.28%;width:46.17%;height:5.55%;padding:0;background-image:url("assets/ui/profile-v2/mode.webp")}
-.enr.refprofile .e-days{left:9.87%;top:65.71%;width:41.82%;height:5.46%;background-image:url("assets/ui/profile-v2/days.webp")}
+.enr.refprofile .eline{display:flex;align-items:center;padding:0 5%;min-height:0;background-color:transparent;background-position:center;background-size:contain;background-repeat:no-repeat;color:#625381;font-size:clamp(8px,2.15vw,11px);letter-spacing:.04em}
+.enr.refprofile .e-subject{left:7.38%;top:25.51%;width:45.3%;aspect-ratio:1536/286;background-image:url("assets/ui/profile-v2/subject.webp")}
+.enr.refprofile .e-age{left:7.38%;top:33.84%;width:26.5%;aspect-ratio:1536/488;background-image:url("assets/ui/profile-v2/age.webp")}
+.enr.refprofile .e-likes{left:7.38%;top:42.52%;width:64.3%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/likes.webp")}
+.enr.refprofile .e-dislikes{left:7.38%;top:50.22%;width:61.6%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/hates.webp")}
+.enr.refprofile .e-mode{left:35.65%;top:58.28%;width:50%;aspect-ratio:788/137;padding:0;background-image:url("assets/ui/profile-v2/mode.webp")}
+.enr.refprofile .e-days{left:7.38%;top:65.71%;width:45.3%;aspect-ratio:1536/292;background-image:url("assets/ui/profile-v2/days.webp")}
 .enr.refprofile .etail,.enr.refprofile .emhint{display:none}
 .enr.refprofile .blank:not(.filled){font-size:0}
 .enr.refprofile .blank,.enr.refprofile .blankin,.enr.refprofile .nullv{width:100%!important;height:100%;padding:0;border:0;background:transparent;box-shadow:none;color:#625381;font:inherit;line-height:1;display:flex;align-items:center}
 .enr.refprofile .emode{display:grid;grid-template-columns:1fr 1fr;width:100%;height:100%;padding:3%;border:0;background:transparent}
 .enr.refprofile .emode b{display:flex;align-items:center;justify-content:center;border:0;background:transparent;box-shadow:none;color:#75688f;font-size:clamp(7px,1.9vw,10px);letter-spacing:.08em}
 .enr.refprofile .emode b.on{color:#e55ca9;text-shadow:0 0 6px #fff}
-.enr.refprofile .ebar{left:9.87%;top:75.74%;width:79.22%;height:4.03%;padding:0;background-color:transparent;background-position:center;background-size:100% 100%;background-repeat:no-repeat;overflow:hidden}
+.enr.refprofile .ebar{left:7.38%;top:75.74%;width:85.8%;aspect-ratio:1536/111;padding:0;background-color:transparent;background-position:center;background-size:contain;background-repeat:no-repeat;overflow:hidden}
 .enr.refprofile .ebar.fill-0{background-image:url("assets/ui/profile-v2/progress-0.webp")}
 .enr.refprofile .ebar.fill-1{background-image:url("assets/ui/profile-v2/progress-1.webp")}
 .enr.refprofile .ebar.fill-2{background-image:url("assets/ui/profile-v2/progress-2.webp")}
 .enr.refprofile .ebar.fill-3{background-image:url("assets/ui/profile-v2/progress-3.webp")}
 .enr.refprofile .ebar.fill-4{background-image:url("assets/ui/profile-v2/progress-4.webp")}
 .enr.refprofile .ebar i{display:none}
-.enr.refprofile .emsg{position:absolute;left:9.87%;top:73.6%;width:79.22%;margin:0;color:#776994;font-size:clamp(6px,1.55vw,8px);letter-spacing:.08em}
-.enr.refprofile .ego{left:28.91%;top:84.24%;width:41.17%;height:9.67%;padding:0;background:transparent url("assets/ui/profile-v2/click.webp") center/100% 100% no-repeat;color:#625381;font-size:clamp(12px,3.3vw,17px);letter-spacing:.15em}
+.enr.refprofile .emsg{position:absolute;left:7.38%;top:73.6%;width:85.8%;margin:0;color:#776994;font-size:clamp(6px,1.55vw,8px);letter-spacing:.08em}
+.enr.refprofile .ego{left:28%;top:84.24%;width:44.6%;aspect-ratio:1536/373;padding:0;display:flex;align-items:center;justify-content:center;background:transparent url("assets/ui/profile-v2/click.webp") center/contain no-repeat;color:#625381;font-size:clamp(12px,3.3vw,17px);letter-spacing:.15em}
 .enr.refprofile .ego:active{transform:translateY(1px)}
-@media (min-width:601px){
+@media (min-aspect-ratio:1/1){
   .enr.refprofile{width:100vw;height:100dvh;background-image:url("assets/ui/profile-v2/background-desktop.webp")}
-  .enr.refprofile .ecard{left:50%;top:50%;width:min(390px,90vw);height:min(693px,90vh);transform:translate(-50%,-50%)}
+  .enr.refprofile .ecard{left:50%;top:50%;width:min(324px,83.1vw,57.81vh);transform:translate(-50%,-50%)}
 }
