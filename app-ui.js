@@ -492,9 +492,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
             {[["real","real"],["speed","speed"]].map(([k,t])=>
               <b key={k} className={mode===k?"on":""} onClick={()=>setAskMode(k)}>{t}</b>)}
           </span>
-          <span className="emhint">{mode==="speed"
-            ?<>하루가 4배로 Speed up! <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>
-            :<>현실 하루 = NULL 하루! ♡ <span className="kao">٩(❛ัᴗ❛ั ๑)</span></>}</span>
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
@@ -641,11 +638,11 @@ function Intro({onGo}){
    자재는 있는 것을 쓴다 — 겟챠 창과 같은 .dlgov/.dlg다. */
 const MODE_ASK={
   real:{t:"real", days:1,
-    body:"하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.",
+    body:"현실 하루 = NULL 하루! ♡",
     kao:"٩(❛ัᴗ❛ั ๑)"},
   speed:{t:"speed", days:4,
-    body:"빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.",
-    kao:"˚₊·͟͟͞͞ ➳❥"},
+    body:"하루가 4배로 Speed up!",
+    kao:"˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙"},
 };
 /* 비율은 문장이 아니다. 이 앱은 이미 눈금으로 말하는 법을 갖고 있다
    (이름 칸, D-day 막대). 한 칸 대 네 칸을 보여주면 읽지 않고도 안다. */
@@ -897,7 +894,7 @@ function Blank({value,onSave,width,open,onOpen,onNext,saveEmptyNow=false}){
   if(on)return <input className="blankin sunken" style={width?{width}:null} value={v} autoFocus maxLength={20}
     onChange={e=>{const n=e.target.value;setV(n);if(saveEmptyNow&&value&&!n.trim())onSave("")}}
     onBlur={()=>done(false)} onKeyDown={e=>e.key==="Enter"&&done(true)}/>;
-  return <span className={"blank"+(value?" filled":"")} onClick={()=>set(true)}>{value||"□□"}</span>;
+  return <span className={"blank"+(value?" filled":"")} onClick={()=>set(true)}>{value||""}</span>;
 }
 
 /* [편집 → 기록] 지금까지 채운 빈칸을 숫자로 보여준다.

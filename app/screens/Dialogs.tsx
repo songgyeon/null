@@ -340,10 +340,10 @@ const dy = StyleSheet.create({
    그리고 중간에 못 바꾼다는 것이 주석에만 있었다. 화면이 말 안 하는
    되돌릴 수 없는 선택은 선택이 아니라 함정이다. */
 export const MODE_ASK:{[k:string]:{days:number; body:string; kao:string}} = {
-  real:{days:1, body:'하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.',
+  real:{days:1, body:'현실 하루 = NULL 하루! ♡',
         kao:'٩(❛ัᴗ❛ั ๑)'},
-  speed:{days:4, body:'빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.',
-        kao:'˚₊·͟͟͞͞ ➳❥'},
+  speed:{days:4, body:'하루가 4배로 Speed up!',
+        kao:'˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙'},
 };
 /* 비율은 문장이 아니다. 이 앱은 이미 눈금으로 말하는 법을 갖고 있다
    (이름 칸, D-day 막대). 한 칸 대 네 칸을 보여주면 읽지 않고도 안다. */

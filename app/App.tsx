@@ -343,9 +343,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
                 <Text style={[en.modeT,mode===k&&en.modeTOn]}>{k}</Text>
               </TouchableOpacity>)}
           </View>
-          <Text style={en.modeH}>{mode==='speed'
-            ?'하루가 4배로 Speed up! ˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙'
-            :'현실 하루 = NULL 하루! ♡ ٩(❛ัᴗ❛ั ๑)'}</Text>
         </Animated.View>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <Animated.View style={[en.row,anim(rows[5])]}>
@@ -537,7 +534,6 @@ const en=StyleSheet.create({
   modeTOn:{color:'#6b5fa8'},
   /* 설명은 알약 밑으로 내린다 — 라벨 밑에 붙으면 어느 알약 얘기인지 안 보인다.
      66(라벨) + 5(gap) 만큼 들여써서 알약과 왼쪽을 맞춘다 */
-  modeH:{...F,width:'100%',paddingLeft:71,fontSize:9,color:'#a897dd'},
   bar:{marginTop:15,height:6,borderRadius:999,backgroundColor:'#eae1fb',borderWidth:1,borderColor:'#d9cbf3',overflow:'hidden'},
   fill:{height:'100%',backgroundColor:'#ff8fbe'},
   msg:{...F,marginTop:8,fontSize:8.5,letterSpacing:1.8,color:'#a290d4'},
