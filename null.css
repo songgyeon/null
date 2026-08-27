@@ -58,9 +58,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .spstack .w3{align-self:stretch;margin-top:2px}
 .spcurwrap{position:relative}
 /* 키라키라 반짝이 */
-.spark{position:absolute;pointer-events:none;z-index:6;
- clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
- animation:spk 2.6s ease-in-out infinite;filter:drop-shadow(0 0 3px rgba(255,255,255,.9))}
+@keyframes twinkle{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.spark{position:absolute;z-index:1;border-radius:50%;pointer-events:none;
+ animation:twinkle 2.6s ease-in-out infinite}
 /* ── 창 타이틀바 — Y2K 카드드 톤: 둥근 캐프슐 필드 + 3D 구슬 버튼 ── */
 .tb{position:relative;flex:none;display:flex;align-items:center;gap:8px;padding:9px 11px;
  background:linear-gradient(100deg,#f3b9d8 0%,#d5b3ef 34%,#b79ceb 62%,#a992e6 100%);
@@ -75,10 +75,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dots{position:relative;margin-left:auto;display:flex;gap:5px}
 /* 납작한 동그라미는 창틀에 그려 넣은 그림처럼 보였다. 위에서 빛을 받는
    구슬로 세운다 — 왼쪽 위에 흰 점, 아래 안쪽에 그늘, 바깥에 얕은 그림자 */
-.dots>span{position:relative;overflow:hidden;width:15px;height:15px;border-radius:50%;
- border:1px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;
- font-size:8px;line-height:1;color:#fff;
- box-shadow:inset 0 -2px 3px rgba(93,84,144,.34),0 1px 1.5px rgba(93,84,144,.32)}
+.dots>span{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+ width:19px;height:19px;border-radius:50%;color:#fff}
 .dots>span::after{content:"";position:absolute;inset:0;border-radius:50%;
  background:radial-gradient(circle at 33% 26%,rgba(255,255,255,.95),rgba(255,255,255,.34) 38%,rgba(255,255,255,0) 64%)}
 /* ─ □ ✕를 글자로 찍으면 글꼴마다 글자가 em 상자 안에 앉는 높이가 달라서
@@ -87,7 +85,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dots>span>i{position:relative;z-index:1;display:block;background:currentColor;border-radius:1px}
 .dots .d1>i{width:7px;height:2px}
 .dots .d2>i{width:7px;height:7px;background:none;border:1.5px solid currentColor}
-.dots .d3>i{width:9px;height:1.8px;transform:rotate(45deg)}
+.dots .d3>i{position:relative;width:9px;height:1.8px;transform:rotate(45deg)}
+.dots .d3>i::after{content:"";position:absolute;inset:0;border-radius:1px;
+ background:currentColor;transform:rotate(90deg)}
 .dots .d3>i::before{content:"";position:absolute;left:0;top:0;width:100%;height:100%;
  background:currentColor;border-radius:1px;transform:rotate(90deg)}
 /* 눌리면 들어가야 볼록했던 게 증명된다 */
@@ -617,20 +617,80 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  padding:11px 20px;font-size:11px;letter-spacing:.12em;
  transition:opacity .4s ease}
 /* ── ⑨ 키스타임 ──
-   ④ 엽서와 같은 문법이다: 검은 화면이 덮이고, 한 장이 천천히 다가와,
-   잠깐 있다가 접힌다. 다른 점은 종이가 아니라 **시야**라는 것 —
-   그래서 여백도 창틀도 없이 화면을 꽉 채운다.
+   이 화면이 맡는 것은 상대가 아니라 내 몸이다. 앞판은 한 장을 부드럽게
+   띄웠다 — 사진이 전부 일하고 화면은 확대만 했다. 키스는 매끄럽게 다가오지
+   않는다: 머뭇거리고, 숨이 가빠지고, 어느 순간 숨이 멈추고, 그 다음에 닿는다.
 
-   단추가 없다. 유저가 고르는 장면이 아니라 유저가 보고 있는 것이라서.
-   접촉은 화면 밖이다: 눈 감은 얼굴에서 끝난다. */
-.kiss{position:absolute;inset:0;z-index:58;display:flex;align-items:center;justify-content:center;
- background:#0d0918;cursor:pointer;animation:fade .5s ease-out both}
+     ① 숨      화면이 아주 조금 늘고 줄며 뛴다. 진폭은 1.6%뿐이다 —
+               더 주면 흔들림이 되고, 이건 흔들림이 아니라 숨이다
+     ② 숨 멈춤  마지막 컷에서 호흡이 완전히 선다. 이 정지가 제일 큰 소리다
+     ③ 초점 풀림 너무 가까우면 눈이 초점을 못 잡는다
+     ④ 어둠     가장자리에서 안으로 번져 들어온다. 경계는 흐릿하다
+
+   글도 단추도 없다. 유저가 고르는 장면이 아니라 유저의 시야라서.
+   접촉은 화면 밖이다 — 다 번진 검은 데서 끝난다. */
+.kiss{position:absolute;inset:0;z-index:58;overflow:hidden;
+ background:#05030f;cursor:pointer;animation:fade .5s ease-out both}
 .kiss.out{animation:kclose var(--out,900ms) ease-in both}
 @keyframes kclose{0%{opacity:1}100%{opacity:0}}
-/* 다가오는 것이지 나타나는 게 아니다 — 살짝 크게 시작해서 제자리에 앉는다 */
-.kshot{display:block;width:100%;height:100%;object-fit:cover;
- animation:krise var(--rise,1600ms) cubic-bezier(.2,0,.2,1) both}
-@keyframes krise{0%{opacity:0;transform:scale(1.09)}100%{opacity:1;transform:none}}
+
+/* ① 숨. 확대(다가감)와 겹치면 서로를 지우므로 층을 나눈다 —
+   이 겉층이 호흡만, 안쪽 .ksf 가 다가감만 담당한다 */
+.kseye{position:absolute;inset:0;animation:ksbreath var(--run,9600ms) linear both}
+@keyframes ksbreath{
+  0%{transform:scale(1)}            /* 평소 호흡 */
+  11%{transform:scale(1.010)}
+  22%{transform:scale(1)}
+  33%{transform:scale(1.011)}       /* 가까워진다 */
+  43%{transform:scale(1.001)}
+  52%{transform:scale(1.014)}
+  59%{transform:scale(1.002)}
+  65%{transform:scale(1.016)}       /* 마지막 들숨 */
+  69%{transform:scale(1.012)}
+  100%{transform:scale(1.012)}}     /* ② 여기서부터 숨이 멈춘다 */
+
+/* 다가감. 다음 컷은 앞 컷이 도달한 배율에서 이어받는다 */
+.ksf{position:absolute;inset:-4%;background:#05030f center 42%/cover no-repeat;
+ transform-origin:52% 46%;opacity:0}
+.ksf1{animation:ksf1 var(--run,9600ms) linear both}
+.ksf2{animation:ksf2 var(--run,9600ms) linear both}
+.ksf3{animation:ksf3 var(--run,9600ms) linear both;transform-origin:50% 52%}
+/* 첫 컷은 길게 둔다. 마주 보고만 있는 이 시간이 뒤의 모든 걸 만든다 */
+@keyframes ksf1{
+  0%{opacity:1;transform:scale(1)}
+  33%{opacity:1}
+  39%{opacity:0}
+  100%{opacity:0;transform:scale(1.05)}}
+@keyframes ksf2{
+  0%{opacity:0;transform:scale(1.02)}
+  33%{opacity:0}
+  39%{opacity:1}
+  57%{opacity:1}
+  63%{opacity:0}
+  100%{opacity:0;transform:scale(1.09)}}
+/* ③ 마지막 컷에서만 초점이 풀린다 */
+@keyframes ksf3{
+  0%{opacity:0;transform:scale(1.04);filter:blur(0px)}
+  57%{opacity:0}
+  63%{opacity:1;filter:blur(0px)}
+  76%{filter:blur(0px)}
+  88%{filter:blur(2px)}
+  100%{opacity:1;transform:scale(1.16);filter:blur(5px)}}
+
+/* ④ 가장자리에서 어둠이 번져 들어온다. 그라데이션 두 겹은 색이 뭉쳐
+   무늬가 됐다 — 번짐은 그림자 하나로 낸다. blur 를 크게 두고 spread 만
+   키우면 경계 없이 안쪽으로 스민다 */
+.ksvig{position:absolute;inset:0;z-index:2;animation:ksvig var(--run,9600ms) ease-in both}
+@keyframes ksvig{
+  0%{box-shadow:inset 0 0 90px 0 rgba(5,3,15,.35)}
+  55%{box-shadow:inset 0 0 130px 14px rgba(5,3,15,.5)}
+  80%{box-shadow:inset 0 0 200px 60px rgba(5,3,15,.75)}
+  100%{box-shadow:inset 0 0 260px 150px rgba(5,3,15,.98)}}
+
+/* 완전한 암전. 다 번진 뒤 한 박자 검다 — 닿은 건 이 검은 데서다 */
+.ksout{position:absolute;inset:0;z-index:4;background:#05030f;opacity:0;
+ animation:ksout var(--run,9600ms) linear both}
+@keyframes ksout{0%,88%{opacity:0}100%{opacity:1}}
 
 .wbtn.go.fbtn.hid{opacity:0;pointer-events:none}
 .wbtn.go.fbtn[disabled]{opacity:.45;cursor:default}
@@ -1660,11 +1720,45 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  font-size:11px;line-height:14px;letter-spacing:1px;color:#6b568f;
  text-shadow:0 1px 0 rgba(255,255,255,.8)}
 
+
+
 /* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다.
    창은 CSS가 그리니 배경만 갈아끼우면 된다 */
 @media (min-width:700px) and (min-aspect-ratio:1/1){
   .screen.splash{background-image:url("ui/bg-desktop.webp?v=158")}
 }
+
+/* 빈칸으로 Click! 했을 때 Error 창이 한 번 흔들린다 */
+@keyframes spnudge{0%{transform:none}22%{transform:translateX(-6px)}
+ 55%{transform:translateX(5px)}78%{transform:translateX(-2px)}100%{transform:none}}
+.spstack .w1.nudge{animation:spnudge .3s steps(4) both}
+/* 흔들림은 걷었다. 단추는 그냥 반짝인다 — 흰 빛 한 줄이 훑고 지나간다 */
+.spstack .w1.nudge{animation:none}
+.spcard .spgo{position:relative;overflow:hidden}
+.spcard .spgo::before{content:"";position:absolute;z-index:2;top:-40%;bottom:-40%;width:34%;
+ pointer-events:none;transform:skewX(-18deg);
+ background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75),rgba(255,255,255,0));
+ animation:spglint 2.6s ease-in-out infinite}
+@keyframes spglint{0%{left:-45%}42%{left:118%}100%{left:118%}}
+/* 빛줄이 안 보였다 — 오프닝 블록에 .spcard .spgo::before{display:none} 이
+   있어서, 뒤에 쓴 규칙이 display 를 되돌리지 않으면 그대로 숨는다 */
+.spcard .spgo::before{display:block}
+/* Click! 을 다른 단추들과 같은 몸으로 — 등록 화면 Click 과 같은 값이다.
+   유리 몸통 + 겹 테 세 겹. 빛줄은 그 위에서 훑는다 */
+.spcard .spgo{border:0;border-radius:11px;
+ color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.75);
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #c194ce,
+  0 0 0 4px #fbdcf2,
+  0 0 0 5px #c78fc8,
+  0 4px 10px rgba(150,104,200,.26)}
+.spcard .spgo:active{transform:translateY(2px);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8,
+  0 2px 6px rgba(150,104,200,.24)}
 
 /* ══════════════════════════════════════════════════════════════════
    real / speed 확정창 — 오프닝·등록과 같은 문법으로

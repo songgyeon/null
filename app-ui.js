@@ -863,12 +863,22 @@ function KissTime({shot,onDone}){
     setOut(true); setTimeout(onDone,KISS_OUT);
   };
   useEffect(()=>{
-    const t=setTimeout(close,KISS_RISE+KISS_HOLD);
+    const t=setTimeout(close,KISS_RUN);
     return()=>clearTimeout(t);
   },[]);
+  /* 세 컷을 겹쳐 두고 배율을 이어받게 한다 — 컷이 바뀔 때 배율이 리셋되면
+     뒤로 물러난 게 된다. 카메라는 한 번도 멈추지 않는다.
+     .kseye 는 숨만, 그 안의 .ksf 는 다가감만 맡는다. 한 층에 둘을 겹치면
+     서로를 지운다 */
+  const cuts=(shot&&shot.shots)||[shot&&shot.shot];
   return <div className={"kiss"+(out?" out":"")} onClick={close}
-    style={{"--rise":KISS_RISE+"ms","--out":KISS_OUT+"ms"}}>
-    <img className="kshot" src={shot.shot+".webp"} alt=""/>
+    style={{"--run":KISS_RUN+"ms","--out":KISS_OUT+"ms"}}>
+    <div className="kseye">
+      {[0,1,2].map(n=><div key={n} className={"ksf ksf"+(n+1)}
+        style={{backgroundImage:`url("${av((cuts[n]||cuts[0])+".webp")}")`}}/>)}
+    </div>
+    <div className="ksvig"/>
+    <div className="ksout"/>
   </div>;
 }
 

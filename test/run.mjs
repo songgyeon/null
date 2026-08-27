@@ -659,9 +659,15 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
     const D = new Function('localStorage', 'location',
       readFileSync(join(ROOT, 'app-data.js'), 'utf8')
         .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-      + '\nreturn {kissNext,loadKissSeen,saveKissSeen,KISS_RISE,KISS_HOLD,KISS_OUT};')(ls, { search: '' });
+      + '\nreturn {kissNext,kissCuts,loadKissSeen,saveKissSeen,KISS_RUN,KISS_OUT};')(ls, { search: '' });
     eq('짝이 맞으면 사진이 나온다',
-      D.kissNext({ char: 'jaeeon', place: '보건실' }), { shot: 'jaeeon-nurse-kiss', char: 'jaeeon', place: '보건실' });
+      D.kissNext({ char: 'jaeeon', place: '보건실' }),
+      { shot: 'jaeeon-nurse-kiss', shots: ['jaeeon-nurse-kiss', 'jaeeon-nurse-kiss', 'jaeeon-nurse-kiss'],
+        char: 'jaeeon', place: '보건실' });
+    /* 세 컷이 늘 셋이다 — -2·-3 이 아직 없는 짝은 앞 컷을 이어 쓴다.
+       화면이 세 층을 그리므로 여기서 모자라면 층이 빈 채로 뜬다 */
+    eq('컷은 언제나 셋이다',
+      [D.kissCuts('x').length, D.kissCuts('x')], [3, ['x', 'x', 'x']]);
     /* 표에 없는 짝(재언·옥상 / 민현·보건실)은 화면이 그냥 안 뜬다 */
     eq('표에 없는 짝은 안 뜬다',
       [D.kissNext({ char: 'jaeeon', place: '옥상' }), D.kissNext({ char: 'minhyun', place: '보건실' }),
@@ -684,11 +690,15 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
     eq('단추 없이 저절로 접힌다',
       (() => {
         const k = web.slice(web.indexOf('function KissTime('), web.indexOf('\n}', web.indexOf('function KissTime(')));
-        return [/setTimeout\(close,KISS_RISE\+KISS_HOLD\)/.test(k), /<button/.test(k), /onClick=\{close\}/.test(k)];
+        return [/setTimeout\(close,KISS_RUN\)/.test(k), /<button/.test(k), /onClick=\{close\}/.test(k)];
       })(), [true, false, true]);
-    /* 접촉은 화면 밖이다 — 이 화면이 그리는 것은 눈 감은 얼굴 한 장뿐이다 */
-    eq('사진 한 장이 전부다',
-      /<img className="kshot" src=\{shot\.shot\+"\.webp"\} alt=""\/>/.test(web), true);
+    /* 이 화면이 맡는 것은 상대가 아니라 내 몸이다 — 상대는 세 컷이 맡고
+       화면은 숨(.kseye)·초점(.ksf3)·번짐(.ksvig)·암전(.ksout)을 맡는다.
+       접촉은 화면 밖이다: 다 번진 검은 데서 끝난다 */
+    eq('숨과 어둠까지 화면이 맡는다',
+      [/<div className="kseye">/.test(web), /className=\{"ksf ksf"\+\(n\+1\)\}/.test(web),
+       /<div className="ksvig"\/>/.test(web), /<div className="ksout"\/>/.test(web)],
+      [true, true, true, true]);
   }
 
   /* 자리마다 거리가 늘었다 — 중거리와 클로즈업은 자리 사진과 사진첩에 든다 */
@@ -4242,7 +4252,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['172', '88bef6590309']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['173', 'd0ead06cd552']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */

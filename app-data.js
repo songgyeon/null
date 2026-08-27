@@ -377,7 +377,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=172";
+const AV="?v=173";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1175,11 +1175,28 @@ const kissNext=k=>{
   if(!k||typeof k!=="object")return null;
   const shot=kissShot(String(k.place||""),String(k.char||""));
   if(!shot||loadKissSeen().includes(shot))return null;
-  return {shot,char:String(k.char),place:String(k.place)};
+  return {shot,shots:kissCuts(shot),char:String(k.char),place:String(k.place)};
 };
-/* ④ 엽서와 같은 셈을 쓴다 — 천천히 떠오르고, 잠깐 그대로 있다가, 접힌다.
-   접촉은 화면 밖이다. 눈 감은 얼굴에서 끝난다 */
-const KISS_RISE=1600, KISS_HOLD=2600, KISS_OUT=900;
+/* ── 세 컷 ── 멀리 → 가까이 → 눈 감음.
+   표에 적힌 것은 짝마다 한 장뿐이라, -2·-3이 아직 없는 짝은 같은 장을 그대로
+   이어 쓴다. 컷이 안 갈릴 뿐 다가감·초점·어둠은 그대로 간다. 그림이 들어오는
+   날 이 표만 채우면 화면은 안 고쳐도 된다. */
+const KISS_CUTS={};
+const kissCuts=shot=>{
+  const a=KISS_CUTS[shot]||[shot];
+  return [a[0]||shot, a[1]||a[0]||shot, a[2]||a[1]||a[0]||shot];
+};
+/* ── 이 화면이 맡는 것은 상대가 아니라 내 몸이다 ──
+   앞판은 한 장을 부드럽게 띄우는 것이었다. 사진이 전부 일하고 화면은 확대만 했다.
+   키스는 매끄럽게 다가오지 않는다 — 머뭇거리고, 숨이 가빠지고, 어느 순간 숨이
+   멈추고, 그 다음에 닿는다. 상대는 사진이 맡고 화면은 숨·초점·어둠을 맡는다.
+   접촉은 화면 밖이다: 다 번진 검은 데서 끝난다.
+
+   KISS_RUN은 그 한 호흡의 길이다. KISS_OUT은 그 뒤에 화면이 접히는 시간. */
+const KISS_RUN=9600, KISS_OUT=900;
+/* 옛 이름 둘은 Expo가 아직 부른다. 같은 한 호흡을 두 토막으로 부르는 것뿐이라
+   합이 KISS_RUN이다 — 두 곳이 서로 다른 길이를 갖지 않게 여기서 갈라 쓴다 */
+const KISS_RISE=6300, KISS_HOLD=KISS_RUN-KISS_RISE;
 
 /* ── 자리에 깔리는 그 사람 사진 ──
    들어간 순간엔 빈 방이고, 그 사람이 입을 열면 그 사람이 화면이 된다.
