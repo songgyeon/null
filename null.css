@@ -1608,7 +1608,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* Profile v2: the 864x1536 author layout is the coordinate system. Each PNG is
    still a separate control; the composed reference never ships in the page. */
-.enr.refprofile{position:fixed;inset:0;padding:0;overflow:hidden;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
+.enr.refprofile{position:fixed;z-index:999;left:50%;right:auto;top:0;bottom:auto;width:min(100vw,390px);height:min(100dvh,693px);transform:translateX(-50%);padding:0;overflow:hidden;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
 .enr.refprofile .ecard{position:absolute;left:7.75%;top:10.94%;width:83.10%;height:72.72%;min-height:0;max-width:none;margin:0;padding:0;border:0;background:transparent url("assets/ui/profile-v2/window.webp") center/100% 100% no-repeat;box-shadow:none}
 .enr.refprofile .etb{position:absolute;left:4%;right:4%;top:1.6%;height:7%;z-index:5;padding:1.5% 3%;border:0;background:transparent;color:#625381;font-size:clamp(10px,2.7vw,14px)}
 .enr.refprofile .etb .dots{position:absolute;right:1%;top:0;width:25%;height:100%;opacity:0}
