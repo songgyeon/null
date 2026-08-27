@@ -2265,13 +2265,19 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    손으로 고치지 않고 통째로 붙인다.
    ══════════════════════════════════════════════════════════════════ */
 
-/* 앱(null.css)에서 오프닝 규칙만 떼어 담았다. 다른 화면 규칙은 없다. */
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:"Galmuri11","DungGeunMo",sans-serif;-webkit-font-smoothing:none;color:#4a4276;
- background:#c3b2f0;display:flex;align-items:center;justify-content:center}
-.phone{position:relative;width:min(100vw,390px);height:min(100dvh,844px);overflow:hidden;
- border-radius:18px;background:#ece8fa;box-shadow:0 18px 44px rgba(60,40,110,.35)}
+/* ── 단독 화면 파일의 데모 껍데기는 안 옮긴다 ──
+   그 파일들은 화면 하나를 폰 모양 상자에 담아 보여주려고 제 나름의
+   *·html,body·.phone·.screen 을 갖고 있다. 그걸 같이 옮겼더니 앱의
+   진짜 껍데기를 덮었다:
+
+   앱의 .phone 은 좁은 화면에서 height:100dvh 로 꽉 차는데, 데모 것은
+   height:min(100dvh,844px) 에 border-radius:18px 다. 뒤에 있으니 이겼고,
+   안드로이드 키보드가 올라와 dvh 가 줄면 껍데기까지 같이 줄어 화면이
+   위로 밀리고 아래가 하얗게 떴다.
+   .screen 도 마찬가지로 inset:4px 를 다시 적어서, 좁은 화면에서
+   inset:0 으로 내리는 미디어쿼리를 뒤에서 되돌리고 있었다.
+
+   화면 규칙만 옮기고 껍데기는 앱 것을 쓴다. */
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes blinkc{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
@@ -2527,15 +2533,6 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;-webkit-font-smoothing:none
   0 2px 6px rgba(150,104,200,.24)}
 
 
-/* 앱(null.css)에서 이 화면 규칙만 떼어 담았다. 다른 화면 규칙은 없다.
-   창 단추 글리프와 기본 리셋만 최소로 함께 넣는다. */
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:"Galmuri11","DungGeunMo",sans-serif;-webkit-font-smoothing:none;
- background:#c3b2f0;display:flex;align-items:center;justify-content:center}
-.phone{position:relative;width:min(100vw,390px);height:min(100dvh,844px);overflow:hidden;
- border-radius:18px;background:#ece8fa;box-shadow:0 18px 44px rgba(60,40,110,.35)}
-.screen{position:absolute;inset:4px;overflow:hidden;border-radius:14px}
 
 /* ─ □ ✕ 글리프 — 앱과 같은 값 */
 .dots{display:flex;gap:5px}
@@ -2990,12 +2987,7 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;-webkit-font-smoothing:none
   0 4px 10px rgba(150,104,200,.26)}
 
 
-/* 앱(null.css)에서 이 창 규칙만 떼어 담았다. 다른 화면 규칙은 없다. */
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:"Galmuri11","DungGeunMo",sans-serif;-webkit-font-smoothing:none;color:#4a4276;
- background:#c3b2f0 url("ui/bg-mobile.webp") center/cover no-repeat;
- display:flex;align-items:center;justify-content:center}
+/* 여기도 데모 껍데기는 안 옮긴다 — body 배경까지 덮고 있었다 */
 @keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .dots{position:relative;margin-left:auto;display:flex;gap:5px}
