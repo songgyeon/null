@@ -1632,8 +1632,12 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile .emode{display:grid;grid-template-columns:1fr 1fr;width:100%;height:100%;padding:3%;border:0;background:transparent}
 .enr.refprofile .emode b{display:flex;align-items:center;justify-content:center;border:0;background:transparent;box-shadow:none;color:#75688f;font-size:clamp(8px,2.2vw,12px)}
 .enr.refprofile .emode b.on{color:#e55ca9;text-shadow:0 0 6px #fff}
-.enr.refprofile .ebar{left:7.38%;top:75.74%;width:85.80%;height:4.03%;padding:0;background:transparent url("assets/ui/profile-v2/progress.webp") center/100% 100% no-repeat;overflow:hidden}
-.enr.refprofile .ebar i{height:100%;opacity:.25;background:linear-gradient(90deg,#ff85c5,#78d9ff)}
+.enr.refprofile .ebar{left:7.38%;top:75.74%;width:85.80%;height:4.03%;padding:0;background-color:transparent;background-position:center;background-size:100% 100%;background-repeat:no-repeat;overflow:hidden}
+.enr.refprofile .ebar.fill-1{background-image:url("assets/ui/profile-v2/progress-1.webp")}
+.enr.refprofile .ebar.fill-2{background-image:url("assets/ui/profile-v2/progress-2.webp")}
+.enr.refprofile .ebar.fill-3{background-image:url("assets/ui/profile-v2/progress-3.webp")}
+.enr.refprofile .ebar.fill-4{background-image:url("assets/ui/profile-v2/progress-4.webp")}
+.enr.refprofile .ebar i{display:none}
 .enr.refprofile .emsg{position:absolute;left:7.38%;top:73.6%;width:85.8%;margin:0;color:#776994;font-size:clamp(7px,1.8vw,10px)}
 .enr.refprofile .ego{left:28.00%;top:84.24%;width:44.60%;height:9.67%;padding:0;background:transparent url("assets/ui/profile-v2/click.webp") center/100% 100% no-repeat;color:#625381;font-size:clamp(14px,4vw,21px);letter-spacing:.12em}
 .enr.refprofile .ego:active{transform:translateY(1px)}
