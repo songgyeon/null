@@ -363,7 +363,12 @@ function Splash({onEnter}){
      자리만 위로 당겨지기 때문이다.
      그래서 키보드가 없을 때의 높이를 재서 못박는다. 키보드가 올라오면 아래가
      잘릴 뿐 겹치지는 않는다 — 입력칸은 높이의 35% 자리라 잘리는 데 안 들어간다.
-     타이핑 중에는 다시 재지 않는다. 그때 재면 줄어든 높이를 못박게 된다. */
+     타이핑 중에는 다시 재지 않는다. 그때 재면 줄어든 높이를 못박게 된다.
+
+     못박는 것은 **좌표 상자(.spstack)뿐**이다. 배경은 .screen.splash에
+     cover로 깔려 있어서, 화면까지 같이 늘리면 배경이 늘어난 상자를 덮느라
+     확대되고 보이는 칸에는 그 윗동강만 남는다 — 실제로 그렇게 날아갔다.
+     배경은 보이는 칸에 두고 좌표만 못박는다. */
   const box=useRef(null);
   const [ph,setPh]=useState(0);
   useEffect(()=>{
@@ -379,11 +384,10 @@ function Splash({onEnter}){
       window.removeEventListener("orientationchange",fit)};
   },[]);
 
-  return <div className="screen splash" ref={box} onClick={wake}
-    style={ph?{height:ph+"px"}:null}>
+  return <div className="screen splash" ref={box} onClick={wake}>
     <Bubbles/>
     <Sparkles/>
-    <div className="spstack">
+    <div className="spstack" style={ph?{height:ph+"px",bottom:"auto"}:null}>
       <span className="spcd"/>
       <div className="spcard">
         <div className="sptb">null.exe<WinDots/></div>
