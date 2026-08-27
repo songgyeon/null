@@ -4140,7 +4140,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['138', 'f2c22033fe27']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['139', '022d7626729c']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5264,7 +5264,7 @@ eq('지도 머리글을 안 쓴다',
 eq('리스타트는 표식만 남기고 다시 연다',
   /localStorage\.setItem\("null_wipe","1"\)/.test(web) && /location\.reload\(\)/.test(web), true);
 eq('다음 판 맨 앞에서 비운다',
-  /if\(localStorage\.getItem\("null_wipe"\)\)\s*window\.nullWipeStory\(\);/.test(web), true);
+  /if\(localStorage\.getItem\("null_wipe"\)\)\s*nullWipeStory\(\);/.test(web), true);
 /* 판 번호가 올랐다는 이유만으로는 안 지운다. 배포할 때마다 남의 판이
    날아가는 것은 고칠 값이 아니라 사고다 — 유저가 restart를 눌렀을 때만이다 */
 eq('판 번호가 올랐다고 남의 판을 안 지운다',
@@ -5294,7 +5294,7 @@ eq('판 번호가 웹과 앱에서 같다', (() => {
   return !!w && w === a;
 })(), true);
 eq('비운 뒤에 번호를 찍는다',
-  /window\.nullWipeStory\(\);\s*\n\s*localStorage\.setItem\("null_rev", window\.NULL_STORY_REV\)/.test(web)
+  /nullWipeStory\(\);\s*\n\s*localStorage\.setItem\("null_rev", window\.NULL_STORY_REV\)/.test(web)
   && /await wipeStory\(\);\s*\n\s*await setMeta\('null_rev', NULL_STORY_REV\)/.test(dbSrcTop), true);
 /* 먼저 퍼가면 지운 값을 화면이 들고 있다가 다음 저장 때 도로 써진다 */
 eq('앱은 퍼가기 전에 비운다',

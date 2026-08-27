@@ -1593,29 +1593,16 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    높이는 aspect-ratio가 내므로 창이 낮아지지 않는다. */
 .spstack .w2 .spwin{width:100%}
 
-/* ── Blankware component pass ────────────────────────────────────────
-   Each PNG is a reusable surface. Text, controls and state remain live DOM. */
-:root{--bw:"assets/ui/null-blankware"}
-.desk{background-image:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png")}
-.desk>.tb{min-height:45px;padding:10px 18px 10px 24px;background:transparent url("assets/ui/null-blankware/chrome/messenger-titlebar.png") center/100% 100% no-repeat;border:0}
-.desk>.menubar{min-height:42px;padding:7px 15px;background:transparent url("assets/ui/null-blankware/chrome/messenger-menubar.png") center/100% 100% no-repeat;border:0}
-.desk>.statusbar{min-height:31px;padding:6px 13px;background:transparent url("assets/ui/null-blankware/chrome/messenger-statusbar.png") center/100% 100% no-repeat;border:0}
-.desk>.tabs{padding:8px 12px 0;gap:6px}
-.desk>.tabs .tab{min-height:38px;border:0;border-radius:11px;background:rgba(255,255,255,.62);box-shadow:none;color:#77699d}
-.desk>.tabs .tab.on{background:linear-gradient(180deg,rgba(255,194,226,.92),rgba(210,191,248,.9));color:#554a7d}
-.desk>.tabs .tab::before{display:none}
-.desk>.roomswrap{margin:0 12px 8px;border:0;border-radius:18px;background:rgba(255,255,255,.74) url("assets/ui/null-blankware/core/window-frame-main.png") center/100% 100% no-repeat;box-shadow:none}
-
 /* Profile v2: the 864x1536 author layout is the coordinate system. Each PNG is
    still a separate control; the composed reference never ships in the page. */
 .enr.refprofile{position:fixed;z-index:999;left:50%;right:auto;top:0;bottom:auto;width:100vw;height:100dvh;transform:translateX(-50%);padding:0;overflow:hidden;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
-.enr.refprofile .ecard{position:absolute;left:5%;top:10.94%;width:90%;height:72.72%;min-height:0;max-width:none;margin:0;padding:0;border:0;background:transparent url("assets/ui/profile-v2/window.webp") center/100% 100% no-repeat;box-shadow:none}
+.enr.refprofile .ecard{position:absolute;left:5%;top:10.94%;width:90%;height:72.72%;min-height:0;max-width:none;margin:0;padding:0;border:0;background:transparent url("assets/ui/profile-v2/window.webp") center/100% 100% no-repeat;box-shadow:none;animation:none}
 .enr.refprofile .etb{position:absolute;left:9%;right:4%;top:2.2%;height:7%;z-index:5;padding:0;border:0;background:transparent;color:#fff;font-size:clamp(8px,2.1vw,11px);letter-spacing:.08em;line-height:1;text-shadow:0 1px 2px rgba(91,72,151,.7)}
-.enr.refprofile .etb .dots{position:absolute;right:1%;top:0;width:25%;height:100%;opacity:0}
+.enr.refprofile .etb .dots{position:absolute;right:1%;top:0;z-index:20;width:25%;height:100%;opacity:0;pointer-events:auto}
 .enr.refprofile .etb .dots span{height:100%;width:33%}
 .enr.refprofile .ebody{position:absolute;inset:0;padding:0}
 .enr.refprofile .eprofiletitle{position:absolute;left:0;top:11.5%;width:100%;text-align:center;color:#66558e;font-size:clamp(11px,2.9vw,15px);letter-spacing:.18em}
-.enr.refprofile .enamelab,.enr.refprofile .lab{position:absolute;left:1%;bottom:100%;margin-bottom:2px;color:#776994;font-size:clamp(6px,1.55vw,8px);line-height:1;letter-spacing:.08em}
+.enr.refprofile .enamelab,.enr.refprofile .lab{position:absolute;left:1%;bottom:100%;margin-bottom:4px;color:#776994;font-size:clamp(6px,1.45vw,7.5px);line-height:1;letter-spacing:.08em}
 .enr.refprofile .enamelab{left:9.87%;top:15.9%;bottom:auto}
 .enr.refprofile .ename,.enr.refprofile .eline,.enr.refprofile .ebar,.enr.refprofile .ego{position:absolute;margin:0;border:0;opacity:1;animation:none;box-shadow:none}
 .enr.refprofile .ename{left:9.87%;top:17.64%;width:64.16%;height:5.28%;min-height:0;padding:0 5%;display:flex;align-items:center;background:transparent url("assets/ui/profile-v2/name.webp") center/100% 100% no-repeat;color:#625381;font-size:clamp(9px,2.35vw,12px);letter-spacing:.04em}
@@ -1643,40 +1630,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile .emsg{position:absolute;left:9.87%;top:73.6%;width:79.22%;margin:0;color:#776994;font-size:clamp(6px,1.55vw,8px);letter-spacing:.08em}
 .enr.refprofile .ego{left:28.91%;top:84.24%;width:41.17%;height:9.67%;padding:0;background:transparent url("assets/ui/profile-v2/click.webp") center/100% 100% no-repeat;color:#625381;font-size:clamp(12px,3.3vw,17px);letter-spacing:.15em}
 .enr.refprofile .ego:active{transform:translateY(1px)}
-@media (min-width:601px){.enr.refprofile{width:390px;height:693px}}
-
-/* CAM: photo surfaces repeat; the gallery remains scrollable and clickable. */
-.ref-cam .gal{padding:18px 16px 28px}
-.ref-cam .sect{padding:10px 14px;margin:5px 0 10px;border:0;background:transparent url("assets/ui/null-blankware/cam/cam-album-label.png") center/100% 100% no-repeat}
-.ref-cam .galgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-bottom:18px}
-.ref-cam .galgrid img{width:100%;aspect-ratio:3/4;object-fit:cover;padding:7px 7px 19px;border:0;border-radius:15px;background:#222136 url("assets/ui/null-blankware/cam/cam-photo-frame.png") center/100% 100% no-repeat;box-shadow:none}
-
-/* Hidden: every lock/frame/tag is its own stateful layer. */
-.ref-hidden .refhidden{padding:14px 14px 26px}
-.ref-hidden .galgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
-.ref-hidden .hcell{aspect-ratio:3/4;border:0;border-radius:15px;background:transparent url("assets/ui/null-blankware/hidden/hidden-unlocked-photo-frame.png") center/100% 100% no-repeat;box-shadow:none;padding:8px 8px 25px}
-.ref-hidden .hcell.lock::after{content:"";position:absolute;inset:0;z-index:1;background:transparent url("assets/ui/null-blankware/hidden/locked-photo-veil.png") center/100% 100% no-repeat;pointer-events:none}
-.ref-hidden .hcell img{width:100%;height:100%;margin:0;border-radius:10px;object-fit:cover}
-.ref-hidden .hlock{z-index:2;width:46px;height:46px;background:transparent url("assets/ui/null-blankware/hidden/lock-pearl-badge.png") center/contain no-repeat}
-.ref-hidden .hlock svg{display:none}
-.ref-hidden .hlabel{z-index:3;left:8px;right:8px;bottom:5px;max-width:none;border:0;background:transparent url("assets/ui/null-blankware/hidden/name-guess-tag.png") center/100% 100% no-repeat;box-shadow:none}
-
-/* Bag: shell and repeatable inventory cards; close remains the real WinDots button. */
-.cartscreen.refbag{padding:18px;background:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png") center/cover no-repeat}
-.refbag .cartwin{inset:18px;border:0;border-radius:24px;background:transparent url("assets/ui/null-blankware/bag/bag-panel-shell.png") center/100% 100% no-repeat;box-shadow:none}
-.refbag .cartwin>.tb{background:transparent;border:0;color:#665886}
-.refbag .cbar,.refbag .cchips{background:transparent}
-.refbag .cwrap{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:12px 18px 24px}
-.refbag .cgcard{min-width:0;min-height:190px;border:0;border-radius:17px;background:transparent url("assets/ui/null-blankware/bag/inventory-item-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refbag .cnone{min-height:210px;background:transparent url("assets/ui/null-blankware/bag/inventory-slot-empty.png") center/100% 100% no-repeat}
-
-/* Gift wrap: no screenshot layer; every card and button stays clickable. */
-.cartscreen.refgift{padding:16px;background:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png") center/cover no-repeat}
-.refgift .cartwin{inset:16px;border:0;border-radius:24px;background:transparent url("assets/ui/null-blankware/gift/gift-wrap-panel-frame.png") center/100% 100% no-repeat;box-shadow:none;overflow:hidden}
-.refgift .cartwin>.tb{background:transparent;border:0;color:#665886}
-.refgift .refwrap{padding:12px 18px 26px;gap:10px;background:transparent}
-.refgift .cgcard{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-item-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cto{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-recipient-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cspot{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-location-option.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cnote{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-reason-note-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cback,.refgift .csend{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-wrap-button.png") center/100% 100% no-repeat;box-shadow:none}
+@media (min-width:601px){
+  .enr.refprofile{width:100vw;height:100dvh;background-image:url("assets/ui/profile-v2/background-desktop.webp")}
+  .enr.refprofile .ecard{left:50%;top:50%;width:min(390px,90vw);height:min(693px,90vh);transform:translate(-50%,-50%)}
+}

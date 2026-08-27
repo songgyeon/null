@@ -3,7 +3,8 @@
    app-data.js·app-ui.js 다음에 실려야 한다. */
 /* ── 앱 ── */
 function App(){
-  const [name,setName]=useState(()=>localStorage.getItem("null_name")||"");
+  const qaProfile=(()=>{try{return new URLSearchParams(location.search).get("qa")==="profile"}catch(e){return false}})();
+  const [name,setName]=useState(()=>qaProfile?"리리":(localStorage.getItem("null_name")||""));
   const [profile,setProfile]=useState(loadProfile);
   const [store,setStore]=useState(loadStore);
   const [unlocked,setUnlocked]=useState(loadUnlocked);
@@ -1743,7 +1744,7 @@ function App(){
   const [enrolling,setEnrolling]=useState(()=>{
     try{
       /* 좌표 검수용 읽기 전용 진입점. 저장된 판은 지우지 않는다. */
-      if(new URLSearchParams(location.search).get("qa")==="profile")return "enroll";
+      if(qaProfile)return "enroll";
       return localStorage.getItem("null_name")&&!loadWorld()?"enroll":false
     }catch(e){return false}
   });
@@ -1863,7 +1864,7 @@ function App(){
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {enrolling==="confirm"&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling("enroll")}/>}
-    {!name?<Splash onEnter={enter}/>
+    {!name&&!qaProfile?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        groupOn={groupOn} onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}

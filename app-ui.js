@@ -442,8 +442,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   /* 모드는 물어보고 바꾼다. 지금 켜진 걸 눌러도 창은 뜬다 —
      무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
   const [askMode,setAskMode]=useState(null);
-  const filled=ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
   const progressFilled=(name.trim()?1:0)+ENR_FIELDS.filter(f=>f.k!=="age"&&(profile[f.k]||"").trim()).length;
+  const filled=progressFilled;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr refprofile"+(out?" out":"")}>
     <div className="ecard">
@@ -495,7 +495,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
       </div>
     </div>
     {askMode&&<ModeAsk which={askMode} now={mode===askMode}
-      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>} 
+      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
   </div>;
 }
 
@@ -869,7 +869,8 @@ function Blank({value,onSave,width,open,onOpen,onNext}){
   useEffect(()=>setV(value||""),[value,on]);
   const done=next=>{onSave(v.trim());if(next&&onNext)onNext();else set(false)};
   if(on)return <input className="blankin sunken" style={width?{width}:null} value={v} autoFocus maxLength={20}
-    onChange={e=>setV(e.target.value)} onBlur={()=>done(false)} onKeyDown={e=>e.key==="Enter"&&done(true)}/>;
+    onChange={e=>{const n=e.target.value;setV(n);if(value&&!n.trim())onSave("")}}
+    onBlur={()=>done(false)} onKeyDown={e=>e.key==="Enter"&&done(true)}/>;
   return <span className={"blank"+(value?" filled":"")} onClick={()=>set(true)}>{value||"□□"}</span>;
 }
 
