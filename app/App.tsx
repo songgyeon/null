@@ -276,7 +276,7 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
 /* 등록 창의 제목줄. Marquee는 아래에 정의돼 있지만 함수 선언이라 끌어올려진다 */
 /* 같은 말을 두 번 하지 않는다 — 바로 앞 화면(Intro)이 전체 화면으로 그 말을
    하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 웹의 .etb와 같은 자리다. */
-function EnrTitle(){ return <Text style={en.tbT}>null.exe</Text>; }
+function EnrTitle(){ return <Text style={en.tbT}>NULL.exe</Text>; }
 function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   name:string; profile:Record<string,string>;
   onSaveField:(k:string,v:string)=>void; onRename:(n:string)=>void; onDone:()=>void;

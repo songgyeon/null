@@ -382,8 +382,8 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   const css=readFileSync(join(ROOT,'null.css'),'utf8');
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
-    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=157"\) center\/cover no-repeat\}/.test(css)
-      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=157"\)\}/.test(css)
+    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=158"\) center\/cover no-repeat\}/.test(css)
+      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=158"\)\}/.test(css)
       && (web.match(/return <div className="phone">/g)||[]).length===2
       && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
 }
@@ -434,15 +434,18 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
       && /\.enr\.refprofile \.ecard\{[^}]*top:20vw[^}]*width:82\.83vw[^}]*aspect-ratio:519\/808[^}]*background:none/.test(css)
       && /\.enr\.refprofile \.ename\{[^}]*aspect-ratio:1536\/192[^}]*background:[^}]*\/contain no-repeat/.test(css)
       && /\.enr\.refprofile \.enamelab\{[^}]*bottom:82\.36%/.test(css)
-      && /\.e-subject\{[^}]*top:25\.75054%/.test(css)
-      && /\.e-age\{[^}]*top:33\.69874%/.test(css)
-      && /\.e-likes\{[^}]*top:41\.63699%/.test(css)
+      && /\.e-subject\{[^}]*top:25\.95054%/.test(css)
+      && /\.e-age\{[^}]*top:33\.89874%/.test(css)
+      && /\.e-likes\{[^}]*top:41\.83699%/.test(css)
       && /\.e-likes\{[^}]*width:64\.3%/.test(css)
-      && /\.e-dislikes\{[^}]*top:49\.73335%[^}]*width:64\.3%/.test(css)
-      && /\.e-mode\{[^}]*top:57\.596%/.test(css)
+      && /\.e-dislikes\{[^}]*top:49\.93335%[^}]*width:64\.3%/.test(css)
+      && /\.e-mode\{[^}]*top:57\.996%/.test(css)
+      && /<div className="ewindowtitle">NULL\.exe<\/div>/.test(ui)
+      && /\.enr\.refprofile \.ewindowtitle\{[^}]*left:14\.5%[^}]*top:2\.75%[^}]*pointer-events:none[^}]*color:#fff/.test(css)
+      && /\.enr\.refprofile \.eprofiletitle,\.enr\.refprofile \.enamelab,[^}]*\.enr\.refprofile \.ego\{font-weight:600\}/.test(css)
       && /\.enr\.refprofile \.emode\{[^}]*gap:0[^}]*padding:0/.test(css)
-      && /\.enr\.refprofile \.emode b\{[^}]*padding:0[^}]*text-indent:0/.test(css)
-      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=157[^}]*\/contain no-repeat/.test(css),true);
+      && /\.enr\.refprofile \.emode b\{[^}]*padding:0[^}]*font-weight:600[^}]*text-indent:0/.test(css)
+      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=158[^}]*\/contain no-repeat/.test(css),true);
   eq('프로필 버튼과 글씨는 같은 카드 배율로 함께 커지고 줄어든다',
     /\.enr\.refprofile\{[^}]*-webkit-text-size-adjust:none[^}]*text-size-adjust:none/.test(css)
       && /\.enr\.refprofile \.ecard\{--pf-label-gap:1\.24cqw;--pf-title-size:3\.22cqw;--pf-label-size:1\.85cqw;--pf-name-size:2\.61cqw;--pf-line-size:2\.39cqw;--pf-mode-size:2\.07cqw;--pf-msg-size:1\.87cqw;--pf-click-size:3\.5cqw;--pf-click-width:44\.6cqw/.test(css)
@@ -3135,13 +3138,13 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   /* 등록 제목줄도 그 말을 다시 안 한다 — 바로 앞 화면(Intro)이 전체 화면으로
      그 말을 하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 그 다음 창이 같은
      문장을 또 흘리면 방금 읽은 것을 되돌려주는 게 된다. 자리는 새 문구로
-     채우지 않고 다른 창과 같은 이름(null.exe)을 쓴다 — 문구를 지어내지 않는다. */
+     채우지 않고 다른 창과 같은 이름(NULL.exe)을 쓴다 — 문구를 지어내지 않는다. */
   for (const [label, src, box] of [
     ['웹', web, web.slice(web.indexOf('function Enroll('), web.indexOf('function Intro('))],
     ['앱', appSrc, appSrc.slice(appSrc.indexOf('function EnrTitle('), appSrc.indexOf('function Intro('))],
   ]) {
     eq(`${label} 등록 제목줄은 그 말을 다시 안 한다`, /현실에서|교생\?/.test(box), false);
-    eq(`${label} 등록 제목줄은 다른 창과 같은 이름이다`, /null\.exe/.test(box), true);
+    eq(`${label} 등록 제목줄은 다른 창과 같은 이름이다`, /NULL\.exe/.test(box), true);
   }
   /* 그 문장이 사라진 게 아니라 제 화면으로 옮겨간 것이다 */
   eq('그 말은 배역 화면에 산다',
@@ -4224,7 +4227,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['157', '8638f642a074']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['158', '65cecdbc4851']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4499,7 +4502,7 @@ eq('채팅방 X가 목록으로 보낸다',
    창틀이 그 일을 한다. 등록 화면도 X가 생기면서 여섯에서 다섯이 됐다 */
 eq('안 눌리는 X는 다섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 5);
 eq('등록 화면 X도 눌린다',
-  /<div className="etb">null\.exe<WinDots onClose=\{onClose\}\/><\/div>/.test(web), true);
+  /<div className="etb"><WinDots onClose=\{onClose\}\/><\/div>\s*<div className="ewindowtitle">NULL\.exe<\/div>/.test(web), true);
 eq('확정 창의 X가 등록으로 돌려보낸다',
   /<div className="tb">null\.exe<WinDots onClose=\{onBack\}\/><\/div>/.test(web), true);
 

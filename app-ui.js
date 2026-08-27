@@ -465,7 +465,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
           온다 — 그 다음 창의 제목줄이 같은 문장을 또 흘리면 방금 읽은 것을
           되돌려주는 게 된다. 확정 화면에서 이미 같은 이유로 걷었다.
           자리를 새 문구로 채우지 않는다. 다른 창과 같은 이름을 쓴다. */}
-      <div className="etb">null.exe<WinDots onClose={onClose}/></div>
+      <div className="etb"><WinDots onClose={onClose}/></div>
+      <div className="ewindowtitle">NULL.exe</div>
       <div className="ebody">
         <div className="eprofiletitle">✧ NULL PROFILE ✧</div>
         <span className="enamelab">NAME</span>
