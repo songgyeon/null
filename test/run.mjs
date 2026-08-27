@@ -1289,6 +1289,49 @@ eq('자리 규칙을 하나도 안 봐준다',
   && /goneToday\(p\.name,now\) \? "오늘은 벌써 다녀왔어요"/.test(web)
   && /!wendOnlyOk\(p,now\)\s*\? "주말에만"/.test(web)
   && /!placeHours\(p,now\)\s*\? placeWhen\(p,now\)/.test(web), true);
+/* ── 지도의 문과 GO! 는 같은 것을 봐야 한다 ──
+   문은 placeHours만 보고 「열림」으로 그려졌는데, GO! 는 whoAt까지 봤다.
+   그래서 아무도 안 나와 있는 시각에는 멀쩡한 문에 「GO?」까지 물어놓고
+   눌러도 조용히 아무 일도 안 났다 — 고장인지 시간이 아닌 건지 알 수가 없다.
+   판정을 canGoNow 하나로 묶고, 세 자리가 전부 그것만 본다. */
+eq('갈 수 있나는 한 군데서 정한다',
+  /const canGoNow=\(p,now\)=>\{/.test(web)
+  && /if\(!placeHours\(p,now\)\|\|!wendOnlyOk\(p,now\)\|\|goneToday\(p\.name,now\)\)return false;/.test(web)
+  && /if\(p\.meet==="out"\)return outAt\(p,now\)\.length>0;/.test(web), true);
+/* 마을 문·학교 TV·GO! 셋 다 그 하나를 본다 */
+eq('문과 GO!가 같은 함수를 본다',
+  [(web.match(/const nowOk=canGoNow\(p\);/g) || []).length,
+   /const open=placeOpen\(p,met\), nowOk=canGoNow\(p\);/.test(web),
+   /if\(!canGoNow\(p\)\)\{/.test(web)], [1, true, true]);
+/* 마주치는 자리는 나와 있는 사람이 곧 문이다 — 실제로 돌려서 본다 */
+{
+  const mem = new Map();
+  const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+    setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
+  const G = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {canGoNow,placeHours,PLACE_BY,goneToday};')(ls, { search: '' });
+  /* 목요일 낮 두 시 — 편의점은 문이 열려 있지만 둘 다 학교 안이라 아무도 없다 */
+  const noon = new Date(2026, 7, 27, 14, 0, 0);
+  const conv = G.PLACE_BY['편의점'];
+  eq('문은 열렸는데 아무도 없으면 못 간다',
+    [G.placeHours(conv, noon), G.canGoNow(conv, noon)], [true, false]);
+  /* 밤이면 나와 있다 */
+  const night = new Date(2026, 7, 27, 22, 0, 0);
+  eq('나와 있으면 갈 수 있다', G.canGoNow(conv, night), true);
+  /* 오늘 다녀왔으면 못 간다 — 시각과 상관없다 */
+  ls.setItem('null_goneday', JSON.stringify({ '편의점': '2026-8-27' }));   // dayKey는 월이 1부터다
+  eq('오늘 다녀온 자리는 못 간다', G.canGoNow(conv, night), false);
+}
+/* 못 갈 때 조용히 끝나지 않는다 — 까닭마다 다른 말을 한다 */
+eq('못 가면 까닭을 말한다',
+  /goneToday\(place\)\s*\? `\$\{place\} — 오늘은 다녀왔어요`/.test(web)
+  && /: `\$\{place\} — 지금은 아무도 없어요`\);/.test(web)
+  && /if\(!who\)\{ setToast\(`\$\{place\} — 지금은 아무도 없어요`\); return \}/.test(web), true);
+/* 문이 닫힌 것과 사람이 없는 것은 다른 일이다 */
+eq('닫힘과 빔을 갈라 적는다', /" · EMPTY NOW":" · CLOSED NOW"/.test(web), true);
+
 /* 아직 안 열린 자리는 아예 안 보인다. 모르는 자리는 없는 자리다 */
 eq('안 열린 자리는 목록에 없다',
   /SPOTS\.filter\(p=>placeOpen\(p,met\)\)\.map/.test(web), true);
@@ -4257,7 +4300,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['174', '9b6026c8a98e']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['175', 'a4e4ed71c2b6']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */

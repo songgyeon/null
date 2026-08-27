@@ -377,7 +377,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=174";
+const AV="?v=175";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1416,6 +1416,18 @@ const giftSpots=(char,met,now)=>SPOTS.filter(p=>placeOpen(p,met)).map(p=>{
 
 /* 주말에만 가는 자리 */
 const wendOnlyOk=(p,now)=>!p.wendOnly||isWend(now||nowClock());
+
+/* ── 지금 갈 수 있나 ── 한 자리에서만 판정한다.
+   지도의 문과 GO! 가 서로 다른 것을 보고 있었다. 문은 placeHours만 보고
+   열려 있는데, GO! 는 whoAt까지 봐서 아무도 안 나와 있는 시각에는 눌러도
+   조용히 아무 일도 안 났다 — 문이 멀쩡히 열려 있고 「GO?」까지 물어놓고
+   말이다. 마주치는 자리(편의점·빨래방)는 「나와 있는 사람」이 곧 문이다. */
+const canGoNow=(p,now)=>{
+  if(!p||p.into)return false;
+  if(!placeHours(p,now)||!wendOnlyOk(p,now)||goneToday(p.name,now))return false;
+  if(p.meet==="out")return outAt(p,now).length>0;
+  return true;
+};
 
 /* 왜 지금은 못 가는지 한 줄. 주말의 학교는 시간이 아니라 날이 문제라
    시각을 적어주면 거짓말이 된다 — 여덟 시가 돼도 안 열린다 */

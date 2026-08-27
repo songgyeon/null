@@ -1402,7 +1402,10 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
               const p=PLACE_BY[s.place], open=placeOpen(p,met);
               /* 못 가는 이유는 셋이다 — 시간, 주말 전용, 오늘 이미 다녀옴.
                  문에는 흐리게만 알리고 왜인지는 눌렀을 때 창이 말한다 */
-              const nowOk=placeHours(p)&&wendOnlyOk(p)&&!goneToday(p.name);
+              /* 문의 「지금 갈 수 있나」와 GO! 의 판정은 같은 함수여야 한다.
+                 마주치는 자리는 나와 있는 사람이 곧 문이다 — 아무도 없는데
+                 열린 문으로 그려놓으면 눌러도 아무 일이 안 난다 */
+              const nowOk=canGoNow(p);
               const been=p.into?false:met.includes(p.name);
               /* 잠긴 문도 눌린다. 눌러도 아무 일이 없으면 고장 난 것처럼 보인다 —
                  왜 안 되는지는 창이 말한다 */
@@ -1415,7 +1418,12 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
                 onClick={open?go:()=>onGoPlace(p.name)}
                 onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();
                   open?go():onGoPlace(p.name)}}}
-                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open?(nowOk||p.into?"":" · CLOSED NOW"):" · LOCKED")}>
+                /* 문이 닫힌 것과 사람이 없는 것은 다른 일이다 — 여는 시각을
+                   읽어주면 그 시각에 가도 못 가는 자리를 기다리게 된다 */
+                aria-label={(ROAD_LABEL[p.icon]||"PLACE")+(open
+                  ?(nowOk||p.into?"":(placeHours(p)&&wendOnlyOk(p)&&!goneToday(p.name)
+                    ?" · EMPTY NOW":" · CLOSED NOW"))
+                  :" · LOCKED")}>
                 <img src={av(`cab-icons/${p.icon}-${open?"open":"lock"}.webp`)} alt=""/></span>;
             })}
           </div>;
@@ -1439,7 +1447,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
               </span>
               {PLACES.filter(p=>p.map==="school").map(p=>{
                 const q=TV_QUAD[p.name]; if(!q)return null;
-                const open=placeOpen(p,met), nowOk=placeHours(p)&&!goneToday(p.name);
+                const open=placeOpen(p,met), nowOk=canGoNow(p);
                 /* 다녀온 표시는 안 한다. TV 화면 위에 테두리를 두르면
                    그림 위에 그림이 하나 더 얹힌다 */
                 /* 여기서 클릭을 멈춘다. 안 멈추면 바깥의 「닫기」까지 굴러가서
