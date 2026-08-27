@@ -381,8 +381,10 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
 {
   const css=readFileSync(join(ROOT,'null.css'),'utf8');
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
+  /* 오프닝이 그림 창에서 CSS 창으로 갔다. 배경 한 장만 그림으로 남아서
+     선택자가 한 줄이 아니라 여러 줄이 됐다 — 배경이 무엇인지만 본다 */
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
-    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=158"\) center\/cover no-repeat\}/.test(css)
+    /\.screen\.splash\{[^}]*background:#efe6fb url\("ui\/bg-mobile\.webp\?v=158"\) center\/cover no-repeat\}/.test(css)
       && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=158"\)\}/.test(css)
       && (web.match(/return <div className="phone">/g)||[]).length===2
       && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
@@ -429,6 +431,26 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
      창틀 비율·에셋 배율·배경 방향을 셋으로 나눠 재야 했는데, 이제 그릴
      그림이 없다 — 좌표와 cqw만 남았고 그건 위의 「프로필 판을 CSS로
      그린다」가 본다 */
+}
+
+/* ── 오프닝은 그림 창이 아니라 CSS 창이다 ──
+   boot-main·boot-error·boot-syserr·boot-loading 네 장을 버렸다. 그림에
+   슬롯이 배킹돼 있어서 DOM 조각을 그 좌표에 절대배치해야 했고, 글이 한 줄
+   늘거나 화면이 좁아지면 조각이 슬롯을 벗어났다 — 좌표를 다시 재는 일이
+   끝나지 않았다. 이제 창이 내용만큼 자란다.
+   남는 그림은 배경 한 장과 CD뿐이다. CD는 금속 광택이라 그림이 낸다 */
+{
+  const css=readFileSync(join(ROOT,'null.css'),'utf8');
+  eq('오프닝 창을 CSS가 그린다', /boot-main|boot-error|boot-syserr|boot-loading/.test(css), false);
+  eq('배경과 CD만 그림으로 남는다',
+    /url\("ui\/bg-mobile\.webp/.test(css) && /url\("ui\/opal-cd\.webp"\)/.test(css), true);
+  /* 창 넷이 같은 몸이고 두께만 다르다 — 하나만 고치면 나머지가 어긋난다 */
+  eq('큰 창과 작은 창이 같은 몸이다',
+    /\.spcard,\.spstack \.w1,\.spstack \.w2 \.spwin,\.spstack \.w3\{/.test(css), true);
+  /* 창 안이 흐름이라야 내용이 늘어도 안 넘친다 */
+  eq('창 안은 흐름이다',
+    /\.spcard \.spbody,[\s\S]{0,120}position:relative;inset:auto/.test(css)
+    && /\.spcard \.spgo\{position:relative;left:auto;top:auto;width:100%/.test(css), true);
 }
 
 /* 오프닝 — 곡이 도는 동안 이름을 기다린다. 시간으로 끊지 않는다. */
@@ -4217,7 +4239,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['170', '92a94b300c2d']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['170', '7ffe5d86bf86']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */

@@ -1462,169 +1462,203 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .etbrun>i{display:inline-block;padding-left:100%;font-style:normal;animation:slide 17s linear infinite}
 
 
-/* ══ PR#6 blankware 적용 · 3차 — 오프닝 ══
-   배경 + 창 넷(메인 부팅·오류 라일락·시스템오류 핑크·로딩) + CD를 팩 PNG로.
-   그림에 슬롯이 이미 배킹돼 있어 창 크기를 그림 비율로 못박고 DOM 조각을
-   각 슬롯 좌표에 절대 배치한다 — 내용 크기에 맞춰 늘리면 슬롯과 어긋난다.
-   좌표는 재업로드본을 여백까지 잘라낸 뒤 10% 격자를 얹어 읽은 값이다. */
-.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=158") center/cover no-repeat}
+/* ══════════════════════════════════════════════════════════════════
+   오프닝 — 그림 창을 버리고 CSS로 짠다
 
-/* CD — 그림이 왔으니 CSS로 그리던 원판을 버린다. 도는 것은 그림 자체 */
-.spcd{visibility:visible;align-self:flex-start;margin-left:-2px;margin-right:0;width:82px;height:82px;border-radius:0;
+   그림 창에는 슬롯이 배킹돼 있어서 DOM 조각을 그 좌표에 절대배치해야 했다.
+   글이 한 줄 늘거나 화면이 좁아지면 조각이 슬롯을 벗어나고, 좌표를 다시
+   재는 일이 끝나지 않았다. 게다가 그림 크기가 고정이라 작은 창 둘이 큰
+   화면에서 우표처럼 남았다.
+
+   부품 문법은 프로필과 같다: 겹 테 칸, 유리 제목 띠, 크림 판, 십자 광선 별.
+   픽셀 글꼴은 자간·줄높이가 정수여야 격자에 맞는다 — 소수점이면 글자마다
+   반 픽셀씩 밀려 흐리게 뭉갠다.
+   ══════════════════════════════════════════════════════════════════ */
+.screen.splash{position:relative;height:100%;overflow:hidden;
+ background:#efe6fb url("ui/bg-mobile.webp?v=158") center/cover no-repeat}
+.spstack{position:absolute;inset:0;display:block;padding:0;gap:0}
+.spstack>*{margin:0}
+
+/* CD — CSS로 세 번 그려봤지만 계속 색종이처럼 보였다. 금속 광택은
+   그라데이션으로 흉내 낼 값이 아니라 그림이 낸다 */
+.spcd{position:absolute;left:-3%;top:-2%;width:30%;height:auto;aspect-ratio:1/1;
+ visibility:visible;border:0;border-radius:0;box-shadow:none;opacity:.58;
  background:url("ui/opal-cd.webp") center/contain no-repeat;
- box-shadow:none;animation:spin 9s linear infinite}
+ filter:saturate(.8) drop-shadow(0 4px 10px rgba(110,80,170,.2));
+ animation:spin 6s linear infinite}
 .spcd::before,.spcd::after{display:none}
 
-/* 메인 부팅 창 1425×889 — 타이틀 y2-10 · 꿈결 판 y13-58 · 흰 슬롯 y63-74 · 분홍 알약 y78-92 */
-.spcard{position:relative;width:100%;aspect-ratio:1425/889;
- background:url("ui/boot-main.webp") 0 0/100% 100% no-repeat;
- border:0;border-radius:0;box-shadow:none;overflow:visible}
-.spcard .sptb{position:absolute;left:11%;top:1.8%;right:26%;height:7.9%;margin:0;padding:0;
- background:none !important;border-bottom:0;display:flex;align-items:center;
- font-size:10.5px;text-shadow:0 1px 2px rgba(150,90,150,.5)}
-.spcard .sptb .dots{display:none}
-.spcard .spbody{position:absolute;inset:0;padding:0;display:block}
-/* 꿈결 판 y12~59 — 로고를 그 가운데에 앉힌다 */
-.spcard .splogo{position:absolute;left:8%;top:12%;right:8%;height:47%;margin:0;
- display:flex;align-items:center;justify-content:center;text-align:center}
-.spcard .spinput{position:absolute;left:3.5%;top:63.5%;width:91%;height:10.5%;margin:0;
- background:transparent;border:0;box-shadow:none;text-align:center}
-.spcard .spgo{position:absolute;left:3.5%;top:78.6%;width:91.5%;height:14.9%;margin:0;padding:0;
- background:none;border:0;box-shadow:none;color:#6d2f78;font-size:12px;
- text-shadow:0 1px 0 rgba(255,255,255,.85)}
-.spcard .spgo::before{display:none}
-.spcard .spgo:active{transform:translate(1px,1px);box-shadow:none}
+/* ── 유리 창틀 ── 큰 창과 작은 창이 같은 몸이고 두께만 다르다 */
+.spcard,.spstack .w1,.spstack .w2 .spwin,.spstack .w3{
+ border:0;overflow:visible;
+ background:
+  radial-gradient(120% 74% at 50% -12%,rgba(255,255,255,.95) 0 32%,rgba(255,255,255,0) 70%),
+  linear-gradient(146deg,#e8d8f2 0%,#fdf3fb 22%,#f6e8fa 42%,
+   #ddc9ee 62%,#eedcf6 82%,#d9c4ec 100%);
+ box-shadow:0 0 0 1px rgba(255,255,255,.7),
+  inset 0 1.5px 0 rgba(255,255,255,.78),
+  inset 0 -3px 6px rgba(150,116,196,.18),
+  0 12px 30px rgba(120,92,180,.3)}
+.spcard{position:absolute;left:6%;top:13%;width:88%;aspect-ratio:auto;
+ padding:3px;border-radius:17px;
+ background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,
+  #dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%)}
+.spstack .w1{position:absolute;left:3.5%;top:47%;width:57%;height:auto;aspect-ratio:auto;
+ padding:2.5px;border-radius:10px;align-self:auto;
+ background:linear-gradient(146deg,#ded4f6 0%,#f6f2fd 24%,#e6dffb 48%,
+  #cfc4f4 70%,#e2daf9 88%,#cdc2f0 100%)}
+.spstack .w2{position:absolute;left:38%;top:65.5%;width:58.5%;align-self:auto}
+.spstack .w2 .spwin{width:100%;padding:2.5px;border-radius:10px;
+ background:linear-gradient(146deg,#f6d4e8 0%,#fdf0f7 24%,#f8dcee 48%,
+  #eeb8d6 70%,#f9dcec 88%,#ecc0dc 100%)}
+.spstack .w3{position:absolute;left:6%;top:81.5%;width:88%;height:auto;aspect-ratio:auto;
+ padding:2.5px;border-radius:10px;align-self:auto;
+ background:linear-gradient(146deg,#d2e4f8 0%,#f2f8fd 24%,#dfeafb 48%,
+  #bed4f0 70%,#dcebfa 88%,#c4d8f2 100%)}
 
-/* ── Click! 을 다른 단추들과 같은 몸으로 ──
-   그림에 그려진 단추 위에 투명한 칸만 얹어 뒀었다. 등록 화면 Click과
-   같은 값으로 CSS가 직접 그린다 — 유리 몸통 + 겹 테 세 겹, 그 위를
-   흰 빛 한 줄이 훑는다. 자리는 그림에 맞춰둔 것 그대로다 */
-/* position 은 건드리지 않는다 — 이 단추는 그림의 단추 자리에 절대좌표로
-   앉아 있다. 견본에서 relative 를 그대로 가져왔더니 흐름으로 빠져나가
-   그림 밖에 섰다. overflow 만 받는다(빛줄을 단추 안에서 자르려고) */
-.spcard .spgo{overflow:hidden}
-.spcard .spgo::before{content:"";position:absolute;z-index:2;top:-40%;bottom:-40%;width:34%;
- pointer-events:none;transform:skewX(-18deg);
- background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75),rgba(255,255,255,0));
- animation:spglint 2.6s ease-in-out infinite}
-@keyframes spglint{0%{left:-45%}42%{left:118%}100%{left:118%}}
-/* 빛줄이 안 보였다 — 오프닝 블록에 .spcard .spgo::before{display:none} 이
-   있어서, 뒤에 쓴 규칙이 display 를 되돌리지 않으면 그대로 숨는다 */
-.spcard .spgo::before{display:block}
-/* Click! 을 다른 단추들과 같은 몸으로 — 등록 화면 Click 과 같은 값이다.
-   유리 몸통 + 겹 테 세 겹. 빛줄은 그 위에서 훑는다 */
-.spcard .spgo{border:0;border-radius:11px;
- color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.75);
+/* ── 제목 띠 ── 분홍에서 라일락으로. 바닥에 진한 선 한 줄 */
+.spcard .sptb,.spstack .w1 .sptb,.spstack .w2 .sptb,.spstack .w3 .sptb{
+ position:relative;left:auto;top:auto;right:auto;inset:auto;margin:0;
+ display:flex;align-items:center;border-bottom:0;
+ letter-spacing:1px;color:#fff;
+ text-shadow:0 1px 0 rgba(150,84,175,.85),0 2px 3px rgba(120,60,150,.5)}
+.spcard .sptb{height:40px;padding:0 10px 0 14px;font-size:15px;
+ border-radius:10px 10px 3px 3px;
+ background:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,
+  #dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%) !important;
+ box-shadow:inset 0 -2px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.9)}
+.spstack .w1 .sptb,.spstack .w2 .sptb{height:28px;padding:0 7px 0 11px;font-size:11px;
+ border-radius:8px 8px 2px 2px}
+/* Error — 라벤더. 시스템이 조용히 알려주는 창 */
+.spstack .w1 .sptb{
+ background:linear-gradient(96deg,#cfc0f8 0%,#c4bcfa 38%,#c8c8fb 70%,#d6cdfa 100%) !important;
+ box-shadow:inset 0 -2px 0 #9a86dc,inset 0 1px 0 rgba(255,255,255,.9);
+ text-shadow:0 1px 0 rgba(110,88,180,.85),0 2px 3px rgba(90,70,150,.45)}
+/* System error — 진분홍. 이 창이 이야기를 말하는 창이라 제일 세다 */
+.spstack .w2 .sptb{
+ background:linear-gradient(96deg,#fca8d6 0%,#fa9ad0 40%,#f79ade 74%,#eda6ea 100%) !important;
+ box-shadow:inset 0 -2px 0 #dd6fa8,inset 0 1px 0 rgba(255,255,255,.85);
+ text-shadow:0 1px 0 rgba(190,80,140,.9),0 2px 3px rgba(160,60,120,.45)}
+.spstack .w3 .sptb{height:28px;padding:0 7px 0 11px;font-size:11px;
+ border-radius:8px 8px 2px 2px;color:#fff;
+ text-shadow:0 1px 0 rgba(90,120,170,.85),0 1px 3px rgba(70,100,150,.45);
+ background:linear-gradient(96deg,#bfe2f6 0%,#c8dcf8 38%,#d6cef8 72%,#e2cdf6 100%) !important;
+ box-shadow:inset 0 -2px 0 #96b8e0,inset 0 1px 0 rgba(255,255,255,.9)}
+/* 위쪽 광택 한 줄 */
+.spcard .sptb::after,.spstack .w1 .sptb::after,
+.spstack .w2 .sptb::after,.spstack .w3 .sptb::after{
+ content:"";position:absolute;left:4px;right:4px;top:2px;height:44%;
+ border-radius:8px 8px 999px 999px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.02))}
+
+/* 창 단추 — 원판 색이 옅으면 글리프가 묻힌다 */
+.spcard .sptb .dots,.spstack .w1 .sptb .dots,
+.spstack .w2 .sptb .dots,.spstack .w3 .sptb .dots{
+ display:flex;position:relative;margin-left:auto;gap:6px}
+.spstack .sptb .dots>span,.spcard .sptb .dots>span{
+ width:20px;height:20px;border-radius:50%;border:0;
+ font:400 10px/1 system-ui,sans-serif;color:#fff;
+ text-shadow:0 1px 0 rgba(130,66,160,.9);
+ box-shadow:0 0 0 1.4px rgba(255,255,255,.9),
+  inset 0 1px 0 rgba(255,255,255,.9),
+  inset 0 -2px 3px rgba(150,110,180,.28)}
+.spstack .sptb .dots .d1,.spcard .sptb .dots .d1{background:linear-gradient(180deg,#f6a8ec,#e07fdd)}
+.spstack .sptb .dots .d2,.spcard .sptb .dots .d2{background:linear-gradient(180deg,#cfc0f8,#a98ff0)}
+.spstack .sptb .dots .d3,.spcard .sptb .dots .d3{background:linear-gradient(180deg,#a8cdf8,#6fa8ee)}
+.spstack .w1 .sptb .dots>span,.spstack .w2 .sptb .dots>span,
+.spstack .w3 .sptb .dots>span{width:15px;height:15px;font-size:8px}
+
+/* ── 크림 판 ── 네 귀에 눈금. 그냥 종이면 창 안이 헐렁하다 */
+.spcard .spbody,.spstack .w1 .spbd,.spstack .w2 .spbd,.spstack .w3 .spbd{
+ position:relative;inset:auto;left:auto;top:auto;margin:3px 0 0;display:block;
+ border-radius:3px 3px 13px 13px;background:#fdf7f1 !important;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,
+  inset 0 -4px 8px rgba(150,116,196,.09)}
+.spcard .spbody{padding:16px 18px 18px}
+.spcard .spbody::before,.spcard .spbody::after{content:"";position:absolute;width:9px;height:9px;
+ pointer-events:none;border-color:#e2d2ee;border-style:solid;border-width:0}
+.spcard .spbody::before{left:9px;top:9px;border-left-width:1px;border-top-width:1px}
+.spcard .spbody::after{right:9px;bottom:9px;border-right-width:1px;border-bottom-width:1px}
+
+/* ── NULL 로고 ── 글자 자체가 유리다. 칸과 같은 배합을 글자에 입힌다 */
+.spcard .splogo{position:relative;left:auto;top:auto;right:auto;height:auto;margin:0;
+ display:flex;align-items:flex-end;justify-content:center;gap:2px;
+ font-family:"Galmuri9","Galmuri11",sans-serif;
+ font-size:36px;line-height:36px;letter-spacing:.3em;text-indent:.3em;color:transparent;
+ background:linear-gradient(120deg,#fff 0 12%,#ffd0f0 30%,#b9e3ff 50%,#fff 68%,#c3b2f0 92%);
+ background-size:200% 100%;
+ -webkit-background-clip:text;background-clip:text;
+ -webkit-text-stroke:1.2px #b06f9e;
+ filter:drop-shadow(2px 2px 0 rgba(176,111,158,.32));
+ animation:shimmer 4.5s linear infinite}
+.spcard .splogo .cur{width:auto;height:auto;margin:0;background:none;border-radius:0;
+ font-size:inherit;line-height:inherit;-webkit-text-stroke:0;
+ -webkit-text-fill-color:#ff9ec6;color:#ff9ec6;
+ animation:blinkc 1s steps(1) infinite}
+
+/* ── 이름 칸 ── 프로필의 겹 테 칸과 같은 몸 */
+.spcard .spinput{position:relative;left:auto;top:auto;width:100%;height:36px;
+ margin:16px 0 0;padding:0 14px;border:0;border-radius:8px;
+ font-size:12px;letter-spacing:0;color:#463670;text-align:center;
+ text-shadow:0 1px 0 rgba(255,255,255,.65);
+ background:linear-gradient(180deg,#fff 0%,#fffdff 60%,#fdf6fc 100%);
+ box-shadow:
+  inset 0 1.5px 3px rgba(150,116,190,.14),
+  0 0 0 1px #d6bbe0,
+  0 0 0 3px #fdeef9,
+  0 0 0 3.5px #dcbcdd,
+  0 3px 8px rgba(150,112,196,.12)}
+
+/* ── Click ── 칸보다 한 단 두껍고 진하다 */
+.spcard .spgo{position:relative;left:auto;top:auto;width:100%;height:46px;
+ margin:16px 0 0;padding:2px;border:0;border-radius:11px;
+ font-family:inherit;font-size:15px;letter-spacing:1px;
+ color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.7);
+ background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);
+ box-shadow:0 5px 13px rgba(150,112,196,.24)}
+.spcard .spgo::before{display:none}
+.spcard .spgo::after{content:"";position:absolute;left:2px;right:2px;top:2px;bottom:2px;
+ z-index:-1;border-radius:9px;
  background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
   #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
- box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
-  inset 0 -2px 0 rgba(255,255,255,.55),
-  0 0 0 1.5px #c194ce,
-  0 0 0 4px #fbdcf2,
-  0 0 0 5px #c78fc8,
-  0 4px 10px rgba(150,104,200,.26)}
-.spcard .spgo:active{transform:translateY(2px);
- box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
-  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8,
-  0 2px 6px rgba(150,104,200,.24)}
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -2px 0 rgba(255,255,255,.6),
+  inset 0 12px 12px -10px rgba(255,255,255,.6)}
+.spcard .spgo:active{transform:translateY(2px);box-shadow:0 2px 6px rgba(150,104,200,.28)}
 
-.spstack .w1,.spstack .w2 .spwin,.spstack .w3{border:0;border-radius:0;box-shadow:none;overflow:visible;position:relative}
-/* 창 제목이 흰 글씨였다 — 그림 타이틀 띠가 파스텔이라 흰 글씨는 안 보인다.
-   진보라로 바꾸고 흰 그림자를 깔아 띠 위에서 뜨게 한다 */
-.spstack .w1 .sptb,.spstack .w2 .sptb,.spstack .w3 .sptb{position:absolute;margin:0;border-bottom:0;
- background:none !important;padding:0;display:flex;align-items:center;
- color:#6f4b8e;text-shadow:0 1px 0 rgba(255,255,255,.85)}
-.spstack .w1 .sptb .dots,.spstack .w2 .sptb .dots,.spstack .w3 .sptb .dots{display:none}
-.spstack .w1 .spbd,.spstack .w2 .spbd,.spstack .w3 .spbd{position:absolute;inset:0;margin:0;
- background:none !important;display:block}
-/* 단추는 .spbd의 자식이라 %가 창이 아니라 본문칸 기준으로 풀린다 —
-   본문칸을 판 안쪽으로 좁힌 뒤로 단추가 계속 위로 떴다.
-   창을 기준으로 삼도록 .spbd를 inset:0으로 되돌리고 글자 줄만 안쪽에 앉힌다 */
-.spstack .w1 .spbtn,.spstack .w2 .spbtn{position:absolute;margin:0;padding:0;background:none;border:0;
- box-shadow:none;display:flex;align-items:center;justify-content:center;color:#8a5f92;font-size:10px}
-.spstack .w1 .spbtn:active,.spstack .w2 .spbtn:active{transform:translate(1px,1px)}
+/* ── 오류창 본문 ── 글은 위, 단추는 오른쪽 아래. 겹치지 않게 자리를 나눈다 */
+.spstack .w1 .spbd,.spstack .w2 .spbd{position:relative;padding:13px 14px 40px;
+ font-size:11px;line-height:17px;letter-spacing:0;color:#4f3d76;
+ white-space:normal;word-break:keep-all;text-align:left}
+.spstack .w1 .spbtn,.spstack .w2 .spbtn{position:absolute;left:auto;top:auto;
+ right:12px;bottom:11px;width:auto;height:auto;padding:5px 15px;
+ font-size:11px;letter-spacing:1px;color:#463670;border:0;border-radius:999px;
+ text-shadow:0 1px 0 rgba(255,255,255,.7);
+ background:linear-gradient(96deg,#fbc8ee 0%,#e3cdfa 55%,#c9d6f6 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 0 1px #d6bbe0,0 2px 0 #e2cbee}
+.spstack .w1 .spbtn:active,.spstack .w2 .spbtn:active{transform:translateY(2px);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 0 1.5px #d1b2da}
 
-/* 라일락 오류창 1359×793 — 타이틀 y3-10 · 단추판 x69-94 y76-91 */
-.spstack .w1{width:200px;height:117px;background:url("ui/boot-error.webp") 0 0/100% 100% no-repeat}
-.spstack .w1 .sptb{left:12%;top:4.5%;right:34%;height:10.7%;font-size:7.5px}
-/* 본문 자리는 그림에서 잰 흰 판 안쪽이다 — error 판 x 4~94.6%, y 19.5~90.1%.
-   눈대중 padding으로는 글이 판 위로 올라가거나 왼쪽으로 삐져나갔다 */
-/* 판 위쪽에 붙어 아래가 텅 비어 있었다. 단추가 오른쪽 아래를 쓰니
-   글은 그 위 영역의 세로 가운데에 앉는다 */
-/* 창 200×117 · 판 y 22.8~105.4px · 단추 위 86.5px.
-   %로 주면 padding-top이 폭 기준으로 풀려 글이 창 밖으로 나간다 — px로 못박는다 */
-/* padding을 %로 주면 세로값이 폭 기준으로 풀려 글이 창을 넘는다 —
-   글줄 자체를 판 사각형에 절대배치하고 그 안에서 가운데 맞춘다 */
-/* 창 200×117 · 실측 판 x6~94% y19~84% → px로 못박는다 (%는 세로가 폭 기준으로 풀린다) */
-.spstack .w1 .spbd{position:absolute;inset:0;padding:20px 12px 31px 20px;
- display:flex;align-items:center;font-size:9px;line-height:1.6;white-space:nowrap;
- background:transparent;border:0}
-/* 단추 글씨가 판 위로 떠 있었다 — 판 위치를 눈대중했기 때문이다.
-   그림에서 행/열 프로파일로 다시 쟀다: x 70.4~93.5%, y 73.9~88.9% */
-.spstack .w1 .spbtn{left:70.5%;top:74%;width:22%;height:12%;font-size:9.5px}
+/* ── 로딩 막대 ── 아무것도 안 끝난다. 이 세계가 아직 안 열렸다 */
+.spstack .w3 .spbd{padding:13px 14px;background:#f7fafd !important}
+.spstack .w3 .spbar{position:relative;left:auto;right:auto;top:auto;bottom:auto;
+ display:block;width:100%;height:18px;border-radius:6px;overflow:hidden;
+ background:#eef0f8;border:0;
+ box-shadow:inset 0 1.5px 3px rgba(120,140,190,.24),
+  0 0 0 1px #c2cee2,0 0 0 3px #f2f6fc,0 0 0 3.5px #c4d0e4}
+.spstack .w3 .spbar i{display:block;height:100%;border-radius:6px;
+ background:linear-gradient(96deg,#a8d6f2 0%,#b6cef6 40%,#cbc6f8 74%,#dcc4f4 100%);
+ box-shadow:inset 0 -1.5px 0 rgba(255,255,255,.6)}
 
-/* 핑크 시스템오류창 1756×896 — 창틀 y13-84, 타이틀 y14-27, 단추판 x69-87 y59-78 */
-.spstack .w2 .spwin{width:224px;aspect-ratio:1480/587;height:auto;background:url("ui/boot-syserr.webp") 0 0/100% 100% no-repeat}
-.spstack .w2 .sptb{left:8%;top:1%;right:24%;height:19%;font-size:7.5px}
-/* 창 212×108 · 판 y 31.5~82px · 단추 위 63.7px, 단추 왼쪽 150px */
-/* 창 212×108 · 실측 판 x11~68% y29~70% — 오른쪽은 Cancel판(x70~)을 피해 비운다 */
-.spstack .w2 .spbd{position:absolute;inset:0;padding:21px 60px 28px 14px;
- display:flex;align-items:center;font-size:9px;line-height:1.6;white-space:nowrap;
- background:transparent;border:0}
-.spstack .w2 .spbtn{left:75%;top:69%;width:19%;height:19%;font-size:8px}
+/* 안내 한 줄 — 창들 아래가 아니라 화면 맨 아래에 붙는다 */
+.sptap{position:absolute;left:0;right:0;bottom:3.5%;margin:0;text-align:center;
+ font-size:11px;line-height:14px;letter-spacing:1px;color:#6b568f;
+ text-shadow:0 1px 0 rgba(255,255,255,.8)}
 
-/* 로딩창 2100×274 — 타이틀 y6-36 · 게이지 슬롯 x4-96 y46-74 */
-.spstack .w3{width:100%;aspect-ratio:2100/274;height:auto;background:url("ui/boot-loading.webp") 0 0/100% 100% no-repeat}
-.spstack .w3 .sptb{left:5%;top:4%;right:30%;height:26%;font-size:7.5px}
-.spstack .w3 .spbd{padding:0}
-/* 트랙도 잰 값이다 — x 3.8~93.4%, y 51.8~69.3%. 전에는 5%/47%로 눈대중해서 칸을 넘었다 */
-.spstack .w3 .spbar{position:absolute;left:3.4%;right:6%;top:48.5%;bottom:30.5%;height:auto;
- background:transparent;border:0;box-shadow:none;border-radius:0;overflow:hidden}
-/* 게이지는 창 분홍(#efb5de) 한 갈래로 간다. 무지개로 깔면 그림의 파스텔과 싸워
-   띠가 아니라 색종이가 된다 */
-.spstack .w3 .spbar i{background:linear-gradient(180deg,#f8d3e9,#efb5de 55%,#e3a3d2)}
-
-/* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다 */
+/* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다.
+   창은 CSS가 그리니 배경만 갈아끼우면 된다 */
 @media (min-width:700px) and (min-aspect-ratio:1/1){
   .screen.splash{background-image:url("ui/bg-desktop.webp?v=158")}
 }
-
-/* ── 창 자리 — 참고 화면에서 잰 사각형 그대로 ──
-   flex로 쌓으면서 gap·margin·align을 맞추다 계속 어긋났다(가운데로 몰리고,
-   펴면 떨어지고, 폭은 여백이 두 번 먹히고, margin-top의 %는 가로로 풀린다).
-   근사를 그만두고 **잰 값 자체가 되게** 절대좌표로 박는다.
-
-   참고 화면 1440×2827, 앱 영역 y291~2662 기준 (L=왼쪽, T=위, W=폭):
-     CD       L  5.90%  T  6.66%  W 28.75%
-     main     L  6.46%  T 18.60%  W 86.81%
-     error    L  6.46%  T 54.62%  W 48.19%
-     syserr   L 39.00%  T 72.54%  W 54.26%
-     loading  L  6.46%  T 87.39%  W 86.18%
-
-   높이는 안 적는다 — 창마다 aspect-ratio가 걸려 있어 폭에서 저절로 나온다.
-   실제로 그림 비율로 되짚어보니 잰 높이와 맞는다:
-     main 86.81%→32.9%(잰 값 32.90) · error 48.19%→17.1%(17.12)
-     loading 86.18%→6.8%(6.71). syserr만 아래변이 로딩창 윗변에 걸려
-     잘못 잡혀서, 폭 54.26%에서 비율로 되돌려 13.07%로 둔다. */
-/* 퍼센트가 화면 높이로 풀리려면 부모 높이가 정해져 있어야 한다.
-   .splash는 display:block이라 내용만큼 늘어나서(935px) 로딩창의 top:87.39%가
-   화면 밖 817px로 나갔다 — 로딩창이 안 보이던 이유다. */
-.screen.splash{position:relative;height:100%;overflow:hidden}
-.spstack{display:block;padding:0;justify-content:normal;gap:0}
-.spstack>*{margin:0}
-/* 잰 28.75%는 오른쪽 배경 CD와 폴더까지 물어서 나온 값이다 — 그대로 두면
-   CD 아래가 창 제목줄을 덮는다. 창 윗변(18.6%)에 안 닿는 선까지만 키우고
-   위로 올린다. */
-.spcd    {position:absolute;left: 5.90%;top: 2.00%;width:24.00%;height:auto;aspect-ratio:1/1;align-self:auto}
-.spcard  {position:absolute;left: 6.46%;top:18.60%;width:86.81%}
-.spstack .w1{position:absolute;left: 6.46%;top:54.62%;width:48.19%;height:auto;aspect-ratio:1359/793;align-self:auto;margin:0}
-.spstack .w2{position:absolute;left:39.00%;top:72.54%;width:54.26%;align-self:auto;margin:0}
-.spstack .w3{position:absolute;left: 6.46%;top:87.39%;width:86.18%;align-self:auto;margin:0}
-
-/* 시스템오류창은 .spcurwrap이 감싸고 있어서, 바깥만 넓히면 안쪽 창이
-   224px에 묶인 채로 남는다. 안쪽이 wrapper를 꽉 채우게 한다 —
-   높이는 aspect-ratio가 내므로 창이 낮아지지 않는다. */
-.spstack .w2 .spwin{width:100%}
 
 /* ══════════════════════════════════════════════════════════════════
    real / speed 확정창 — 오프닝·등록과 같은 문법으로
