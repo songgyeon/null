@@ -424,7 +424,7 @@ const ENR_FIELDS=[
   {k:"likes",    lab:"LIKES",   tail:"를 좋아하고"},
   {k:"dislikes", lab:"HATES",   tail:"를 싫어한다"},
 ];
-function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
+function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   const [out,setOut]=useState(false);
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 방 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
@@ -440,7 +440,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
   const [askMode,setAskMode]=useState(null);
   const filled=ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
-  return <div className={"enr"+(out?" out":"")}>
+  return <div className={"enr refprofile"+(out?" out":"")}>
     <div className="ecard">
       {/* ── 같은 말을 두 번 하지 않는다 ──
           이 문장은 원래 여기 흐르고 있었다. 지금은 바로 앞 화면(Intro)이
@@ -448,15 +448,17 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
           온다 — 그 다음 창의 제목줄이 같은 문장을 또 흘리면 방금 읽은 것을
           되돌려주는 게 된다. 확정 화면에서 이미 같은 이유로 걷었다.
           자리를 새 문구로 채우지 않는다. 다른 창과 같은 이름을 쓴다. */}
-      <div className="etb">null.exe<WinDots/></div>
+      <div className="etb">null.exe<WinDots onClose={onClose}/></div>
       <div className="ebody">
+        <div className="eprofiletitle">✧ NULL PROFILE ✧</div>
+        <span className="enamelab">NAME</span>
         {edit
           ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
              onChange={e=>setNv(e.target.value)} onBlur={saveName}
              onKeyDown={e=>e.key==="Enter"&&saveName()}/></div>
           :<div className="ename" onClick={()=>setEdit(true)} title="이름 고치기">{name}</div>}
         {ENR_FIELDS.map((f,i)=>
-          <div className="eline" key={f.k}>
+          <div className={`eline e-${f.k}`} key={f.k}>
             <span className="lab">{f.lab}</span>
             {/* 나이는 세계의 고정값이다 — 유저가 아니라 세계가 정한 칸. 행은 남기고 입력만 잠근다 */}
             {f.k==="age"
@@ -464,12 +466,12 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
               :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
                  open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
                  onNext={()=>{const n=ENR_FIELDS.findIndex((g,j)=>j>i&&g.k!=="age");setFocus(n)}}/>}
-            <span>{f.tail}</span>
+            <span className="etail">{f.tail}</span>
           </div>)}
         {/* ── 이 판을 어떻게 살 것인가 ──
             등록 화면이 이미 「이 판을 어떻게 살지」 정하는 자리라 여기 둔다.
             중간에 바꾸면 D-N이 튀므로 판마다 한 번이다. */}
-        <div className="eline"><span className="lab">MODE</span>
+        <div className="eline e-mode"><span className="lab">MODE</span>
           <span className="emode">
             {[["real","real"],["speed","speed"]].map(([k,t])=>
               <b key={k} className={mode===k?"on":""} onClick={()=>setAskMode(k)}>{t}</b>)}
@@ -479,8 +481,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
             :<>현실 하루 = NULL 하루! ♡ <span className="kao">٩(❛ัᴗ❛ั ๑)</span></>}</span>
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
-        <div className="eline"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
-        <div className="ebar"><i style={{width:(filled/ENR_FIELDS.length*100)+"%"}}/></div>
+        <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
+        <div className={`ebar fill-${filled}`}><i/></div>
         <div className={"emsg"+(filled===ENR_FIELDS.length?" done":"")}>
           {filled===ENR_FIELDS.length?"READY ✓":`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</div>
         {/* 다 안 채워도 들어갈 수 있다 — 비워두는 것도 이 이야기에서는 답이다 */}
@@ -972,7 +974,7 @@ function Bag({bag,store,onClose}){
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
   const lent=bag.filter(b=>ITEMS[b.key]&&ITEMS[b.key].lent).length;
-  return <div className="cartscreen"><div className="cartwin">
+  return <div className="cartscreen refbag"><div className="cartwin">
     <div className="tb">✿ bag<WinDots onClose={onClose}/></div>
     <div className="cbar">
       <span className="bagcount">RECEIVED {bag.length} / {Object.keys(ITEMS).length}</span>
@@ -1054,7 +1056,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
      재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
   const here=c=>withChar===c;
 
-  return <div className="cartscreen"><div className="cartwin">
+  return <div className={"cartscreen"+(pick?" refgift":"")}>
+    <div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
 
     {!pick&&<React.Fragment>
@@ -1078,7 +1081,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       <div className="cfoot">TAP TO WRAP ♡</div>
     </React.Fragment>}
 
-    {pick&&<div className="cwrap">
+    {pick&&<div className="cwrap refwrap">
       <div className="cgcard"><span className="cribbon"/>
         <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
@@ -1232,7 +1235,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   },[menu]);
   const mb=(id,label,onClick)=><span className={"mbtn"+(menu===id?" open":"")}
     onClick={e=>{e.stopPropagation();onClick?onClick():setMenu(menu===id?null:id)}}>{label}</span>;
-  return <div className="screen desk">
+  return <div className={"screen desk ref-"+tab}>
     <Sparkles/>
     <div className="tb"><StarGlyph/>NULL messenger<WinDots/></div>
     <div className="menubar">
@@ -1423,7 +1426,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         })()}
       </div>
       :tab==="cam"
-      ?<div className="gal">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
+      ?<div className="gal refcam">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
             자리 사진은 말풍선이 아니라 배경이라 대화 기록에 안 남는다 —
             seenPhotos가 따로 적어둔 것을 같이 들고 온다 */}
         {(()=>{
@@ -1458,7 +1461,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           </div>;
         })()}
       </div>
-      :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
+      :<div className="gal refhidden">{/* .hidden 탭: 잠긴 기록 */}
         <div className="progline">
           <span className="t">ENCRYPTED</span>
           <span className="bar"><i style={{width:(unlocked.length/HIDDEN.length*100)+"%"}}/></span>

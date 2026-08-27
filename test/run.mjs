@@ -4135,7 +4135,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['128', '54484a776b9a']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['135', '7e72c40f89fb']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4405,10 +4405,12 @@ eq('어둠막이 입력줄을 안 덮는다',
    채팅방 머리글만 남아 있었다 — 창 셋, 자리, 그리고 여기까지 같은 실수였다 */
 eq('채팅방 X가 목록으로 보낸다',
   /\{room\.name\}\{watch\?"\.cam":"\.chat"\}<WinDots onClose=\{onBack\}\/>/.test(web), true);
-/* 안 눌려도 되는 것은 오프닝의 가짜 오류창 넷과 등록 화면, 앱 창틀뿐이다.
+/* 안 눌려도 되는 것은 오프닝의 가짜 오류창 넷과 앱 창틀뿐이다.
    세계 확정 창의 X는 되돌아가기다 — 이 앱에 back 위젯은 어디에도 없으므로
-   창틀이 그 일을 한다 */
-eq('안 눌리는 X는 여섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 6);
+   창틀이 그 일을 한다. 등록 화면도 X가 생기면서 여섯에서 다섯이 됐다 */
+eq('안 눌리는 X는 다섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 5);
+eq('등록 화면 X도 눌린다',
+  /<div className="etb">null\.exe<WinDots onClose=\{onClose\}\/><\/div>/.test(web), true);
 eq('확정 창의 X가 등록으로 돌려보낸다',
   /<div className="tb">null\.exe<WinDots onClose=\{onBack\}\/><\/div>/.test(web), true);
 
@@ -4796,7 +4798,7 @@ eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true
    이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
 eq('bag이 gift와 같은 창을 쓴다',
   /function Bag\(\{bag,store,onClose\}\)/.test(web)
-  && /<div className="cartscreen"><div className="cartwin">[\s\S]{0,200}✿ bag/.test(web), true);
+  && /className="cartscreen[^"]*"><div className="cartwin">[\s\S]{0,200}✿ bag/.test(web), true);
 eq('bag이 gift와 같은 카드·칩을 쓴다',
   /className="cgcard"><span className="cribbon"\/>[\s\S]{0,120}bagpic/.test(web)
   && /ITEM_CATS\.map\(c=>[\s\S]{0,80}className=\{"cchip"/.test(web), true);
@@ -5257,7 +5259,11 @@ eq('지도 머리글을 안 쓴다',
 eq('리스타트는 표식만 남기고 다시 연다',
   /localStorage\.setItem\("null_wipe","1"\)/.test(web) && /location\.reload\(\)/.test(web), true);
 eq('다음 판 맨 앞에서 비운다',
-  /if\(localStorage\.getItem\("null_wipe"\) \|\| localStorage\.getItem\("null_rev"\)!==window\.NULL_STORY_REV\)\s*\n?\s*window\.nullWipeStory\(\);/.test(web), true);
+  /if\(localStorage\.getItem\("null_wipe"\)\)\s*window\.nullWipeStory\(\);/.test(web), true);
+/* 판 번호가 올랐다는 이유만으로는 안 지운다. 배포할 때마다 남의 판이
+   날아가는 것은 고칠 값이 아니라 사고다 — 유저가 restart를 눌렀을 때만이다 */
+eq('판 번호가 올랐다고 남의 판을 안 지운다',
+  /localStorage\.getItem\("null_rev"\)!==window\.NULL_STORY_REV[\s\S]{0,40}nullWipeStory/.test(web), false);
 /* ── clear()는 안 쓴다 ──
    여기는 이 게임만의 저장소가 아니다. 같은 출처에 다른 것이 들어 있으면
    그것까지 같이 날아간다. 열쇠도 이야기가 아니라 접속 설정이라 리스타트로
