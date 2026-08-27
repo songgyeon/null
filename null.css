@@ -1467,7 +1467,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    그림에 슬롯이 이미 배킹돼 있어 창 크기를 그림 비율로 못박고 DOM 조각을
    각 슬롯 좌표에 절대 배치한다 — 내용 크기에 맞춰 늘리면 슬롯과 어긋난다.
    좌표는 재업로드본을 여백까지 잘라낸 뒤 10% 격자를 얹어 읽은 값이다. */
-.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=144") center/cover no-repeat}
+.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=145") center/cover no-repeat}
 
 /* CD — 그림이 왔으니 CSS로 그리던 원판을 버린다. 도는 것은 그림 자체 */
 .spcd{visibility:visible;align-self:flex-start;margin-left:-2px;margin-right:0;width:82px;height:82px;border-radius:0;
@@ -1553,7 +1553,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다 */
 @media (min-aspect-ratio:1/1){
-  .screen.splash{background-image:url("ui/bg-desktop.webp?v=144")}
+  .screen.splash{background-image:url("ui/bg-desktop.webp?v=145")}
 }
 
 /* ── 창 자리 — 참고 화면에서 잰 사각형 그대로 ──
@@ -1598,18 +1598,18 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    Its size comes from width alone, so a keyboard can shorten dvh without ever
    squeezing the artwork. */
 .enr.refprofile{position:fixed;z-index:999;left:50%;right:auto;top:0;bottom:auto;width:100vw;height:100dvh;transform:translateX(-50%);padding:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
-.enr.refprofile .ecard{position:absolute;left:50%;top:19.45vw;width:83.1vw;height:auto;aspect-ratio:519/808;min-height:0;max-width:none;margin:0;padding:0;border:0;transform:translateX(-50%);background:none;box-shadow:none;animation:none}
+.enr.refprofile .ecard{position:absolute;left:50%;top:19.45vw;width:83.1vw;height:auto;aspect-ratio:519/808;min-height:0;max-width:none;margin:0;padding:0;border:0;transform:translateX(-50%);container-type:inline-size;background:none;box-shadow:none;animation:none}
 .enr.refprofile .etb{position:absolute;left:4%;right:4%;top:1.6%;height:7%;z-index:5;padding:0;border:0;background:transparent;color:transparent;font-size:0;line-height:1;text-shadow:none}
 .enr.refprofile .etb .dots{position:absolute;right:1%;top:0;z-index:20;width:25%;height:100%;opacity:0;pointer-events:auto}
 .enr.refprofile .etb .dots span{height:100%;width:33%}
 .enr.refprofile .ebody{position:absolute;inset:0;padding:0}
-.enr.refprofile .eprofiletitle{position:absolute;left:0;top:11.5%;width:100%;text-align:center;color:#66558e;font-size:clamp(11px,2.9vw,15px);letter-spacing:.18em}
-.enr.refprofile .enamelab,.enr.refprofile .lab{position:absolute;left:1%;bottom:100%;margin-bottom:4px;color:#776994;font-size:clamp(6px,1.45vw,7.5px);line-height:1;letter-spacing:.08em}
+.enr.refprofile .eprofiletitle{position:absolute;left:0;top:11.5%;width:100%;text-align:center;color:#66558e;font-size:clamp(11px,4.63cqw,27px);letter-spacing:.18em}
+.enr.refprofile .enamelab,.enr.refprofile .lab{position:absolute;left:1%;bottom:100%;margin-bottom:clamp(4px,1.2cqw,7px);color:#776994;font-size:clamp(6px,2.32cqw,13px);line-height:1;letter-spacing:.08em}
 .enr.refprofile .enamelab{left:7.4%;top:15.9%;bottom:auto}
 .enr.refprofile .ename,.enr.refprofile .eline,.enr.refprofile .ebar,.enr.refprofile .ego{position:absolute;height:auto;margin:0;border:0;opacity:1;animation:none;box-shadow:none}
-.enr.refprofile .ename{left:7.38%;top:17.64%;width:69.5%;aspect-ratio:1536/192;min-height:0;padding:0 5%;display:flex;align-items:center;background:transparent url("assets/ui/profile-v2/name.webp") center/contain no-repeat;color:#625381;font-size:clamp(9px,2.35vw,12px);letter-spacing:.04em}
+.enr.refprofile .ename{left:7.38%;top:17.64%;width:69.5%;aspect-ratio:1536/192;min-height:0;padding:0 5%;display:flex;align-items:center;background:transparent url("assets/ui/profile-v2/name.webp") center/contain no-repeat;color:#625381;font-size:clamp(9px,3.7cqw,21px);letter-spacing:.04em}
 .enr.refprofile .ename .namein{width:100%;height:100%;padding:0;border:0;background:transparent;box-shadow:none;color:inherit;font:inherit}
-.enr.refprofile .eline{display:flex;align-items:center;padding:0 5%;min-height:0;background-color:transparent;background-position:center;background-size:contain;background-repeat:no-repeat;color:#625381;font-size:clamp(8px,2.15vw,11px);letter-spacing:.04em}
+.enr.refprofile .eline{display:flex;align-items:center;padding:0 5%;min-height:0;background-color:transparent;background-position:center;background-size:contain;background-repeat:no-repeat;color:#625381;font-size:clamp(8px,3.4cqw,19px);letter-spacing:.04em}
 .enr.refprofile .e-subject{left:7.38%;top:25.51%;width:45.3%;aspect-ratio:1536/286;background-image:url("assets/ui/profile-v2/subject.webp")}
 .enr.refprofile .e-age{left:7.38%;top:33.84%;width:26.5%;aspect-ratio:1536/488;background-image:url("assets/ui/profile-v2/age.webp")}
 .enr.refprofile .e-likes{left:7.38%;top:42.52%;width:64.3%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/likes.webp")}
@@ -1620,7 +1620,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile .blank:not(.filled){font-size:0}
 .enr.refprofile .blank,.enr.refprofile .blankin,.enr.refprofile .nullv{width:100%!important;height:100%;padding:0;border:0;background:transparent;box-shadow:none;color:#625381;font:inherit;line-height:1;display:flex;align-items:center}
 .enr.refprofile .emode{display:grid;grid-template-columns:1fr 1fr;width:100%;height:100%;padding:3%;border:0;background:transparent}
-.enr.refprofile .emode b{display:flex;align-items:center;justify-content:center;border:0;background:transparent;box-shadow:none;color:#75688f;font-size:clamp(7px,1.9vw,10px);letter-spacing:.08em}
+.enr.refprofile .emode b{display:flex;align-items:center;justify-content:center;border:0;background:transparent;box-shadow:none;color:#75688f;font-size:clamp(7px,3.1cqw,17px);letter-spacing:.08em}
 .enr.refprofile .emode b.on{color:#e55ca9;text-shadow:0 0 6px #fff}
 .enr.refprofile .ebar{left:7.38%;top:75.74%;width:85.8%;aspect-ratio:1536/111;padding:0;background-color:transparent;background-position:center;background-size:contain;background-repeat:no-repeat;overflow:hidden}
 .enr.refprofile .ebar.fill-0{background-image:url("assets/ui/profile-v2/progress-0.webp")}
@@ -1629,10 +1629,10 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile .ebar.fill-3{background-image:url("assets/ui/profile-v2/progress-3.webp")}
 .enr.refprofile .ebar.fill-4{background-image:url("assets/ui/profile-v2/progress-4.webp")}
 .enr.refprofile .ebar i{display:none}
-.enr.refprofile .emsg{position:absolute;left:7.38%;top:73.6%;width:85.8%;margin:0;color:#776994;font-size:clamp(6px,1.55vw,8px);letter-spacing:.08em}
-.enr.refprofile .ego{left:28%;top:84.24%;width:44.6%;aspect-ratio:1536/373;padding:0;display:flex;align-items:center;justify-content:center;background:transparent url("assets/ui/profile-v2/click.webp") center/contain no-repeat;color:#625381;font-size:clamp(12px,3.3vw,17px);letter-spacing:.15em}
+.enr.refprofile .emsg{position:absolute;left:7.38%;top:73.6%;width:85.8%;margin:0;color:#776994;font-size:clamp(6px,2.47cqw,14px);letter-spacing:.08em}
+.enr.refprofile .ego{left:28%;top:84.24%;width:44.6%;aspect-ratio:1536/373;padding:0;display:flex;align-items:center;justify-content:center;background:transparent url("assets/ui/profile-v2/click.webp") center/contain no-repeat;color:#625381;font-size:clamp(12px,5.25cqw,30px);letter-spacing:.15em}
 .enr.refprofile .ego:active{transform:translateY(1px)}
 @media (min-aspect-ratio:1/1){
   .enr.refprofile{width:100vw;height:100dvh;background-image:url("assets/ui/profile-v2/background-desktop.webp")}
-  .enr.refprofile .ecard{left:50%;top:50%;width:min(324px,83.1vw,57.81vh);transform:translate(-50%,-50%)}
+  .enr.refprofile .ecard{left:50%;top:50%;width:min(83.1vw,57.81vh);transform:translate(-50%,-50%)}
 }

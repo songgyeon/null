@@ -382,8 +382,8 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   const css=readFileSync(join(ROOT,'null.css'),'utf8');
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
-    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=144"\) center\/cover no-repeat\}/.test(css)
-      && /@media \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=144"\)\}/.test(css)
+    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=145"\) center\/cover no-repeat\}/.test(css)
+      && /@media \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=145"\)\}/.test(css)
       && (web.match(/return <div className="phone">/g)||[]).length===2
       && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
 }
@@ -431,7 +431,10 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
       && /\.enr\.refprofile \.ename\{[^}]*aspect-ratio:1536\/192[^}]*background:[^}]*\/contain no-repeat/.test(css)
       && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/373[^}]*background:[^}]*\/contain no-repeat/.test(css),true);
   eq('프로필 배경은 화면 방향으로 고른다',
-    /@media \(min-aspect-ratio:1\/1\)\{[\s\S]*?\.enr\.refprofile\{[^}]*background-image:url\("assets\/ui\/profile-v2\/background-desktop\.webp"\)/.test(css),true);
+    /@media \(min-aspect-ratio:1\/1\)\{[\s\S]*?\.enr\.refprofile\{[^}]*background-image:url\("assets\/ui\/profile-v2\/background-desktop\.webp"\)/.test(css)
+      && /\.enr\.refprofile \.ecard\{[^}]*container-type:inline-size/.test(css)
+      && /width:min\(83\.1vw,57\.81vh\)/.test(css)
+      && !/width:min\(324px/.test(css),true);
 }
 
 /* 오프닝 — 곡이 도는 동안 이름을 기다린다. 시간으로 끊지 않는다. */
@@ -4197,7 +4200,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['144', '690696d900c2']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['145', '940628e1e619']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
