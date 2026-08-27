@@ -382,8 +382,8 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   const css=readFileSync(join(ROOT,'null.css'),'utf8');
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
-    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=153"\) center\/cover no-repeat\}/.test(css)
-      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=153"\)\}/.test(css)
+    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=154"\) center\/cover no-repeat\}/.test(css)
+      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=154"\)\}/.test(css)
       && (web.match(/return <div className="phone">/g)||[]).length===2
       && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
 }
@@ -441,15 +441,16 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
       && /\.e-mode\{[^}]*top:57\.596%/.test(css)
       && /\.enr\.refprofile \.emode\{[^}]*gap:0[^}]*padding:0/.test(css)
       && /\.enr\.refprofile \.emode b\{[^}]*padding:0[^}]*text-indent:0/.test(css)
-      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=153[^}]*\/contain no-repeat/.test(css),true);
-  eq('프로필의 큰 글씨만 한 단계 작게 유지한다',
-    /\.enr\.refprofile \.eprofiletitle\{[^}]*font-size:clamp\(10px,2\.67vw,14px\)/.test(css)
-      && /\.enr\.refprofile \.ename\{[^}]*font-size:clamp\(8\.25px,2\.16vw,11px\)/.test(css)
-      && /\.enr\.refprofile \.eline\{[^}]*font-size:clamp\(7\.5px,1\.98vw,10px\)/.test(css)
-      && /\.enr\.refprofile \.emode b\{[^}]*font-size:clamp\(6\.5px,1\.71vw,9px\)/.test(css)
-      && /\.enr\.refprofile \.ego\{[^}]*font-size:clamp\(11px,2\.9vw,15px\)/.test(css)
-      && /\.enr\.refprofile \.enamelab,\.enr\.refprofile \.lab\{[^}]*font-size:clamp\(6px,1\.45vw,7\.5px\)/.test(css)
-      && /\.enr\.refprofile \.emsg\{[^}]*font-size:clamp\(6px,1\.55vw,8px\)/.test(css),true);
+      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=154[^}]*\/contain no-repeat/.test(css),true);
+  eq('프로필 글씨는 터치 세로에서 편집 전후 같은 크기를 쓴다',
+    /\.enr\.refprofile\{[^}]*-webkit-text-size-adjust:none[^}]*text-size-adjust:none/.test(css)
+      && /@media \(orientation:portrait\) and \(pointer:coarse\)\{[\s\S]*?\.enr\.refprofile \.eprofiletitle\{font-size:5\.71cqw\}/.test(css)
+      && /@media \(orientation:portrait\) and \(pointer:coarse\)\{[\s\S]*?\.enr\.refprofile \.enamelab,\.enr\.refprofile \.lab\{font-size:3\.27cqw\}/.test(css)
+      && /@media \(orientation:portrait\) and \(pointer:coarse\)\{[\s\S]*?\.enr\.refprofile \.ename\{font-size:4\.61cqw\}/.test(css)
+      && /@media \(orientation:portrait\) and \(pointer:coarse\)\{[\s\S]*?\.enr\.refprofile \.eline\{font-size:4\.23cqw\}/.test(css)
+      && /@media \(orientation:portrait\) and \(pointer:coarse\)\{[\s\S]*?\.enr\.refprofile \.ego\{font-size:6\.2cqw\}/.test(css)
+      && /@media \(orientation:landscape\)\{\s*@container \(max-width:260px\)\{[\s\S]*?\.enr\.refprofile \.ebody\{--pf-label-gap:1\.2cqw\}/.test(css)
+      && /@container \(max-width:260px\)\{[\s\S]*?\.enr\.refprofile \.eprofiletitle\{font-size:4\.25cqw;line-height:1\}[\s\S]*?\.enr\.refprofile \.enamelab,\.enr\.refprofile \.lab\{font-size:2\.32cqw\}/.test(css),true);
   eq('프로필 배경은 화면 방향으로 고른다',
     /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{[\s\S]*?\.enr\.refprofile\{[^}]*background-image:url\("assets\/ui\/profile-v2\/background-desktop\.webp"\)/.test(css)
       && !/@media \(min-aspect-ratio:1\/1\)/.test(css)
@@ -4221,7 +4222,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['153', 'ad4e50d5d210']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['154', '8ea719ef60ce']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
