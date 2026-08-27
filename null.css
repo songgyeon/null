@@ -3977,3 +3977,14 @@ body{font-family:"Galmuri11","DungGeunMo",sans-serif;-webkit-font-smoothing:none
 .ksout{position:absolute;inset:0;z-index:4;background:#05030f;opacity:0;
  animation:ksout var(--run,9600ms) linear both}
 @keyframes ksout{0%,88%{opacity:0}100%{opacity:1}}
+
+/* ── 등록 화면이 안 굴러갔다 ──
+   overflow:hidden 에 세로 가운데 정렬이라, 창이 화면보다 길면 위아래가
+   잘린 채 그대로 멈췄다 — 작은 폰이나 키보드가 올라온 때가 그렇다.
+   넘치면 굴러가게 두고, 넘치지 않을 때만 가운데로 모은다.
+   justify-content:center 는 넘칠 때 위쪽까지 잘라먹으므로 margin:auto 를 쓴다.
+   ※ .enr.cssprofile 규칙이 이 파일에 두 벌 있다. 이 덮어쓰기는 맨 끝이라야 산다 */
+.enr.cssprofile{align-items:flex-start;justify-content:center;
+ overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+ -webkit-overflow-scrolling:touch}
+.enr.cssprofile .ecard{margin:auto}

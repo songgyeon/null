@@ -2691,8 +2691,8 @@ for (const [label, src] of [['웹', web], ['앱', appSrc]]) {
 const dlgSrc = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
 for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]]) {
   eq(`${label}의 모드 팝업 글월이 같다`,
-    ['하루가 진짜로 지나갑니다. 앱을 꺼도 세계는 흐르고, 엔딩까지 한 달입니다.',
-     '빠르게 진행됩니다. 현실 하루에 게임 나흘이 지나요.',
+    ['현실 하루 = NULL 하루! ♡',
+     '하루가 4배로 Speed up!',
      '한 번 정하면 바꿀 수 없어요'].filter(t => !src.includes(t)), []);
 }
 /* ── 고른 것이 제목이 된다 ──
@@ -2729,16 +2729,17 @@ for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]]) {
 for (const [label, src] of [['웹', web], ['앱', appSrc]])
   eq(`${label}이 고른 것을 저장한다`,
     /onMode=\{m=>\{setMode\(m\);saveMode\(m\)\}\}/.test(src), true);
-/* 두 모드의 글월이 같아야 한다 — 같은 것을 고르는데 설명이 다르면 다른 기능이다 */
-for (const [label, src] of [['웹', web], ['앱', appSrc]])
+/* 두 모드의 글월이 같아야 한다 — 같은 것을 고르는데 설명이 다르면 다른 기능이다.
+   글월이 사는 곳은 확정창 하나다(웹 MODE_ASK · 앱 Dialogs) */
+for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]])
   eq(`${label}의 모드 설명이 같다`,
     /현실 하루 = NULL 하루! ♡/.test(src) && /하루가 4배로 Speed up!/.test(src), true);
-/* 설명은 알약 밑으로 내린다 — 라벨 밑에 붙으면 어느 알약 얘기인지 안 보인다.
-   66(라벨) + 5(gap) 만큼 들여써야 알약과 왼쪽이 맞는다 */
-eq('웹 설명이 알약 밑에 선다', /\.emhint\{flex:0 0 100%;padding-left:71px/.test(web), true);
-eq('앱 설명이 알약 밑에 선다', /modeH:\{\.\.\.F,width:'100%',paddingLeft:71/.test(appSrc), true);
-/* 얼굴은 통째로 한 덩어리다 — 안 묶으면 다음 줄에 「)੭່˙」만 남는다 */
-eq('얼굴이 쪼개지지 않는다', /\.emhint \.kao\{white-space:nowrap\}/.test(web), true);
+/* ── 등록 화면에는 그 설명을 안 적는다 ──
+   알약 밑에 한 줄 더 붙여뒀더니 그 자리에서 두 번 말하는 것이 됐다.
+   무엇을 고르는지는 누르면 뜨는 확정창이 말한다 — 그 창이 그러라고 있다.
+   웹·앱 어느 쪽 등록 화면에도 그 줄이 없어야 한다. */
+eq('등록 화면은 모드 설명을 두 번 말하지 않는다',
+  [/className="emhint"/.test(web), /en\.modeH/.test(appSrc)], [false, false]);
 /* 고른 쪽은 Click! 단추와 같은 가족이다 — 눌리는 것으로 보여야 한다 */
 eq('고른 알약이 눌리는 모양이다',
   /\.emode b\.on\{[\s\S]{0,220}box-shadow:inset 0 1px 0 #fff,0 2px 0 #edbcd6\}/.test(web)
@@ -4300,7 +4301,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['178', 'aaa4ecba58bd']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['178', '923b1c1bc826']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
