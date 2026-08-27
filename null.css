@@ -654,7 +654,8 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  padding:13px 22px;margin-top:22px;font-size:12px;letter-spacing:.08em;
  animation:fade .3s steps(3) 1.15s both}
 .enr{position:absolute;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;
- padding:26px;background:linear-gradient(180deg,#dcd3f7 0%,#c9bff1 52%,#e6d3ef 100%)}
+ padding:26px;background:linear-gradient(180deg,rgba(74,52,120,.42),rgba(58,40,100,.5)),
+  #efe6fb url("ui/bg-mobile.webp?v=158") center/cover no-repeat}
 .enr.out{animation:enrOut .42s steps(5) both}
 @keyframes enrOut{
  0%{transform:scaleY(1);opacity:1}
@@ -1401,38 +1402,99 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .fixin{font:inherit;font-size:12px;line-height:1.6;padding:8px 9px;min-height:76px;
   resize:vertical;border-radius:6px;color:#4a3f66}
 
-/* ── 세계 확정 화면 ── 등록 카드(.enr/.ecard)와 같은 껍데기를 쓴다.
-   새 스타일을 만들지 않는다 — 이 넷은 글자 간격과 자리뿐이다 */
-/* ── 세계 확정 창 ── 이 창만 어둡다.
-   물음이 NULL을 가운데 두고 갈라지고, 그 칸이 커서까지 깜빡이는 입력칸으로
-   서 있다. 채워야 할 빈칸이 곧 이 게임이라는 말을 화면이 스스로 한다.
-   바탕이 어두우니 분홍 YES가 유일한 빛이 된다.
-   창·커서·단추는 있는 자재다(.dlg / .cur / .etcdel). 여기서 주는 것은
-   어두운 바탕과 그 위에서 읽히도록 바꾼 색뿐이다. */
-.dlg.cwin{background:linear-gradient(180deg,#3d3170,#2b2352);border-color:rgba(255,255,255,.9)}
-.cwin .tb{border-bottom-color:#6a56a8}
-.cq{text-align:center;font-size:14px;line-height:1.6;letter-spacing:.02em;color:#f0eaff}
-/* NULL이 앉은 빈칸. 방금 타이핑된 것처럼 뒤에서 커서가 깜빡인다 */
-.cslot{display:flex;justify-content:center;margin-top:10px}
-.cslot+.cq{margin-top:10px}
-.cbox{display:flex;align-items:center;justify-content:center;gap:5px;
-  min-width:128px;height:44px;padding:0 16px;border-radius:7px;
-  border:2px dashed #ff8fbe;background:rgba(255,255,255,.06);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
-.cbox b{font-weight:400;font-size:16.5px;letter-spacing:.14em;color:#ff9ec6}
-.cbox .ccar{width:2px;height:20px;background:#ff5fa8;animation:blinkc 1s steps(2) infinite}
-/* 현실 □□ · 이세계 교생 · 대상 — 한 줄로 나란히. 그 대비가 곧 이야기다 */
-.cfacts{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;
-  margin-top:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,.12);
-  font-size:8.5px;letter-spacing:.08em;color:#8f82c8}
-.cfacts b{font-weight:400;letter-spacing:.14em}
-.cfacts em{font-style:normal;color:#e9e0ff}
-.cfacts em.cnull{color:#ff9ec6;letter-spacing:.2em}
-.cyes{align-self:center;margin-top:15px;min-width:118px;padding:13px 26px;
-  justify-content:center;font-size:12.5px;letter-spacing:.18em}
-/* 단추 아래로 내려오면 단추에 붙는 말이 된다 — 「YES밖에 없다」는 농담이 산다.
-   .chint은 다른 화면이 이미 쓴다(왼쪽 여백 64px). 여기 것은 이름을 따로 쓴다 */
-.cwhint{margin-top:10px;text-align:center;font-size:9.5px;letter-spacing:.06em;color:#a394d8}
+/* ══════════════════════════════════════════════════════════════════
+   세계 확정창 — 다시
+
+   앞판이 못생긴 이유: NULL 을 흰 칸에 넣었다. 칸은 「채워라」는 문법인데
+   여기서 NULL 은 채울 것이 아니라 이미 정해진 이름이다 — 칸에 넣으니
+   입력 서식이 됐고, 아래 세 값까지 붙어 표가 됐다.
+
+   그래서 칸을 없앤다. NULL 이 문장의 주인공으로 크게 서고, 묻는 말이
+   그 위아래에 작게 붙는다 — 모드창의 큰 글자(.mdpick)와 같은 문법이다.
+   판에서 진한 것은 YES 하나뿐이라 「YES밖에 없다」가 색으로 성립한다.
+   ══════════════════════════════════════════════════════════════════ */
+.dlg.cwin{width:min(92vw,318px);overflow:visible;padding:5px;border:0;border-radius:16px;
+ background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,
+  #dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%) !important;
+ box-shadow:0 0 0 1px rgba(255,255,255,.85),
+  inset 0 1px 0 rgba(255,255,255,.95),
+  0 14px 36px rgba(120,92,180,.3) !important}
+.cwin .tb{position:relative;height:38px;padding:0 10px 0 15px;
+ display:flex;align-items:center;border-bottom:0 !important;
+ border-radius:11px 11px 3px 3px;font-size:14px;letter-spacing:1px;color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.55);
+ background:
+  radial-gradient(126% 96% at 50% -6%,rgba(255,255,255,.92) 0 30%,rgba(255,255,255,0) 72%),
+  linear-gradient(96deg,#f7b6de 0%,#f3a8e0 20%,#e6aef0 42%,
+   #d3b4f4 62%,#dfb0f2 80%,#cfbcf6 100%) !important;
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.98),
+  inset 0 -2.5px 0 #ac8fe0,
+  0 3px 7px rgba(140,106,190,.18) !important}
+.cwin .tb .dots>span{width:19px;height:19px;border:0;
+ box-shadow:0 0 0 1.4px rgba(255,255,255,.9),
+  inset 0 1px 0 rgba(255,255,255,.9),
+  inset 0 -2px 3px rgba(150,110,180,.28)}
+
+/* 크림 판 — 네 귀에 눈금 */
+.cwin .dlgbody{position:relative;margin-top:4px;padding:26px 22px 20px;gap:0;
+ border-radius:3px 3px 12px 12px;background:#fdfaff !important;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,
+  inset 0 -4px 8px rgba(150,116,196,.09)}
+.cwin .dlgbody::before,.cwin .dlgbody::after{content:"";position:absolute;
+ width:9px;height:9px;pointer-events:none;border-color:#e2d2ee;border-style:solid;border-width:0}
+.cwin .dlgbody::before{left:9px;top:9px;border-left-width:1px;border-top-width:1px}
+.cwin .dlgbody::after{right:9px;bottom:9px;border-right-width:1px;border-bottom-width:1px}
+
+/* 묻는 말 — 작게. 주인공은 가운데 글자다 */
+.cq{text-align:center;font-size:12px;line-height:1.7;letter-spacing:.5px;color:#7c6ca8}
+
+/* ── NULL ── 칸이 아니라 문장의 주인공. 오프닝 로고와 같은 유리 글자 */
+.cslot{display:flex;justify-content:center;margin:9px 0 8px}
+.cbox{position:relative;display:flex;align-items:baseline;justify-content:center;gap:3px;
+ min-width:0;height:auto;padding:0;border:0;border-radius:0;
+ background:none !important;box-shadow:none !important}
+.cbox b{font-family:"Galmuri9","Galmuri11",sans-serif;font-weight:400;
+ font-size:44px;line-height:1;letter-spacing:.24em;text-indent:.24em;
+ color:transparent;-webkit-text-stroke:1.4px #b06f9e;
+ background:linear-gradient(120deg,#fff 0 12%,#ffd0f0 30%,#b9e3ff 50%,#fff 68%,#c3b2f0 92%);
+ background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
+ filter:drop-shadow(2px 2px 0 rgba(176,111,158,.34));
+ animation:shimmer 4.5s linear infinite}
+.cbox .ccar{width:4px;height:30px;border-radius:1px;background:#ff9ec6;
+ animation:blinkc 1s steps(1) infinite}
+
+/* 세 값 — 표가 아니라 한 줄 각주. 현실만 비어 있다 */
+.cfacts{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 13px;margin-top:17px;
+ font-size:9px;letter-spacing:.3px;color:#a897dd}
+.cfacts b{font-weight:400;color:#c9b8e0}
+.cfacts em{font-style:normal;color:#7c6ca8}
+.cfacts .cnull{color:#d9c4e8;letter-spacing:1px}
+
+/* ── YES ── 판에서 유일하게 진한 것 */
+.etcdel.cyes{position:relative;overflow:hidden;display:block;width:60%;margin:20px auto 0;
+ padding:14px 0 15px;font-family:inherit;font-size:16px;letter-spacing:2px;
+ color:#fff;cursor:pointer;border:0;border-radius:999px;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.55);
+ background:linear-gradient(112deg,#fa96cf 0%,#f78ecb 22%,#ee92dc 44%,
+  #c99cf0 68%,#a8aef4 88%,#9cbdea 100%) !important;
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),
+  inset 0 -2px 0 rgba(255,255,255,.6),
+  0 0 0 1.2px #c98fbe,
+  0 0 0 3.5px #fde6f5,
+  0 0 0 4.5px #cf8fc8,
+  0 6px 16px rgba(150,80,175,.34) !important}
+.etcdel.cyes::after{content:"";position:absolute;top:0;bottom:0;width:32%;
+ pointer-events:none;transform:skewX(-18deg);
+ background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.55),rgba(255,255,255,0));
+ animation:cyesshine 2.6s linear infinite}
+@keyframes cyesshine{0%{left:-40%}55%{left:110%}100%{left:110%}}
+.etcdel.cyes:active{transform:translateY(2px);
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),
+  0 0 0 1.2px #c98fbe,0 0 0 3.5px #fde6f5,0 0 0 4.5px #cf8fc8,
+  0 2px 6px rgba(150,80,175,.3) !important}
+
+.cwhint{margin-top:19px;text-align:center;font-size:10px;letter-spacing:.3px;color:#a897dd}
+
 /* D-0 결과 카피 — 이름과 얼굴이 한 줄이다. 줄이 좁으면 얼굴만 내려간다 */
 .ddq .q .kao{color:#c86ea8;white-space:nowrap}
 
@@ -1561,7 +1623,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* ── 크림 판 ── 네 귀에 눈금. 그냥 종이면 창 안이 헐렁하다 */
 .spcard .spbody,.spstack .w1 .spbd,.spstack .w2 .spbd,.spstack .w3 .spbd{
  position:relative;inset:auto;left:auto;top:auto;margin:3px 0 0;display:block;
- border-radius:3px 3px 13px 13px;background:#fdf7f1 !important;
+ border-radius:3px 3px 13px 13px;background:#fdfaff !important;
  box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,
   inset 0 -4px 8px rgba(150,116,196,.09)}
 .spcard .spbody{padding:16px 18px 18px}
