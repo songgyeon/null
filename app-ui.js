@@ -457,7 +457,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
           {filled===ENR_FIELDS.length?"READY ✓":`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</div>
         {/* 다 안 채워도 들어갈 수 있다 — 비워두는 것도 이 이야기에서는 답이다 */}
         <button className="ego" onClick={leave}>Click!</button>
-      </div>
     </div>
     {askMode&&<ModeAsk which={askMode} now={mode===askMode}
       onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
@@ -944,7 +943,7 @@ function Bag({bag,store,onClose}){
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
   const lent=bag.filter(b=>ITEMS[b.key]&&ITEMS[b.key].lent).length;
-  return <div className="cartscreen"><div className="cartwin">
+  return <div className="cartscreen refbag"><div className="cartwin">
     <div className="tb">✿ bag<WinDots onClose={onClose}/></div>
     <div className="cbar">
       <span className="bagcount">RECEIVED {bag.length} / {Object.keys(ITEMS).length}</span>
@@ -1026,7 +1025,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
      재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
   const here=c=>withChar===c;
 
-  return <div className={"cartscreen"+(pick?" refgift":"")}><div className="cartwin">
+  return <div className={"cartscreen"+(pick?" refgift":"")}>
+    <div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
 
     {!pick&&<React.Fragment>
