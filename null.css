@@ -1593,97 +1593,65 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    높이는 aspect-ratio가 내므로 창이 낮아지지 않는다. */
 .spstack .w2 .spwin{width:100%}
 
-/* ── 2026 reference pass ──────────────────────────────────────────────
-   The supplied clean paintings are the chrome.  Live controls sit on the
-   painted recesses, so the web and app keep their real data and hit targets
-   without drawing a second, competing window on top. */
-.enr.refprofile{display:block;background:#fdf8f7 url("ui/reference/profile.png") center/100% 100% no-repeat}
-.enr.refprofile .ecard{position:absolute;inset:0;max-width:none;width:auto;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
-.enr.refprofile .etb{position:absolute;left:8%;right:6%;top:10.2%;height:4.2%;padding:0 4%;align-items:center;background:transparent;color:transparent;border:0}
-.enr.refprofile .etb .dots{display:none}
-.enr.refprofile .ebody{position:absolute;inset:0;padding:0}
-.enr.refprofile .ename{position:absolute;left:11%;right:11%;top:23.1%;height:4.6%;padding:0 3%;font-size:14px;color:#65578f;background:transparent;border:0}
-.enr.refprofile .namein{height:100%;padding:0;background:transparent;border:0;box-shadow:none}
-.enr.refprofile .eline{position:absolute;left:11%;margin:0;padding:0;height:4.1%;display:flex;align-items:center;gap:0;color:#695d92;animation:none}
-.enr.refprofile .eline .lab,.enr.refprofile .eline>span:last-child,.enr.refprofile .emhint{display:none}
-.enr.refprofile .eline .blank{width:100%!important;min-width:0;height:100%;padding:0 3%;display:flex;align-items:center;background:transparent;border:0;box-shadow:none}
-.enr.refprofile .eline .blankin{width:100%!important;height:100%;padding:0 3%;background:rgba(255,255,255,.2);border:0;box-shadow:none}
-.enr.refprofile .eline:nth-of-type(1){top:31.4%;width:45%}
-.enr.refprofile .eline:nth-of-type(2){top:39.0%;width:25%}
-.enr.refprofile .eline:nth-of-type(3){top:47.0%;width:62%}
-.enr.refprofile .eline:nth-of-type(4){top:54.3%;width:62%}
-.enr.refprofile .eline:nth-of-type(5){top:61.8%;left:29%;width:50%;height:4.4%}
-.enr.refprofile .eline:nth-of-type(6){top:69.0%;width:45%}
-.enr.refprofile .emode{width:100%;height:100%;display:grid;grid-template-columns:1fr 1fr;gap:0}
-.enr.refprofile .emode b{display:flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;box-shadow:none;color:#746997}
-.enr.refprofile .emode b.on{color:#fff;text-shadow:0 1px 2px #9a72ba;background:rgba(236,153,219,.22);border-radius:999px}
-.enr.refprofile .nullv{display:flex!important;align-items:center;width:100%;height:100%;padding:0 3%;font-size:12px;color:#978bb8}
-.enr.refprofile .ebar{position:absolute;left:12%;right:14%;top:75.6%;height:1.9%;margin:0;background:transparent;border:0;overflow:hidden}
-.enr.refprofile .ebar i{border-radius:999px;background:linear-gradient(90deg,#f5a9dc,#bfcff7)}
-.enr.refprofile .emsg{position:absolute;left:12%;top:72.2%;margin:0;font-size:9px;color:#766a98;letter-spacing:.12em}
-.enr.refprofile .ego{position:absolute;left:11%;right:11%;top:80.1%;height:6.5%;margin:0;padding:0;border:0;background:transparent;box-shadow:none;color:#625584;font-size:23px}
+/* ── Blankware component pass ────────────────────────────────────────
+   Each PNG is a reusable surface. Text, controls and state remain live DOM. */
+:root{--bw:"assets/ui/null-blankware"}
+.desk{background-image:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png")}
+.desk>.tb{min-height:45px;padding:10px 18px 10px 24px;background:transparent url("assets/ui/null-blankware/chrome/messenger-titlebar.png") center/100% 100% no-repeat;border:0}
+.desk>.menubar{min-height:42px;padding:7px 15px;background:transparent url("assets/ui/null-blankware/chrome/messenger-menubar.png") center/100% 100% no-repeat;border:0}
+.desk>.statusbar{min-height:31px;padding:6px 13px;background:transparent url("assets/ui/null-blankware/chrome/messenger-statusbar.png") center/100% 100% no-repeat;border:0}
+.desk>.tabs{padding:8px 12px 0;gap:6px}
+.desk>.tabs .tab{min-height:38px;border:0;border-radius:11px;background:rgba(255,255,255,.62);box-shadow:none;color:#77699d}
+.desk>.tabs .tab.on{background:linear-gradient(180deg,rgba(255,194,226,.92),rgba(210,191,248,.9));color:#554a7d}
+.desk>.tabs .tab::before{display:none}
+.desk>.roomswrap{margin:0 12px 8px;border:0;border-radius:18px;background:rgba(255,255,255,.74) url("assets/ui/null-blankware/core/window-frame-main.png") center/100% 100% no-repeat;box-shadow:none}
 
-/* CAM / HIDDEN use the supplied messenger paintings as one continuous shell. */
-.screen.desk.ref-cam,.screen.desk.ref-hidden{background-color:#fbf8f7;background-position:center;background-size:100% 100%;background-repeat:no-repeat}
-.screen.desk.ref-cam{background-image:url("ui/reference/cam.png")}
-.screen.desk.ref-hidden{background-image:url("ui/reference/hidden.png")}
-.screen.desk.ref-cam>.sparkles,.screen.desk.ref-hidden>.sparkles,
-.screen.desk.ref-cam>.tb,.screen.desk.ref-hidden>.tb,
-.screen.desk.ref-cam>.menubar,.screen.desk.ref-hidden>.menubar,
-.screen.desk.ref-cam>.marquee,.screen.desk.ref-hidden>.marquee,
-.screen.desk.ref-cam>.statusbar,.screen.desk.ref-hidden>.statusbar{display:none}
-.screen.desk.ref-cam>.tabs,.screen.desk.ref-hidden>.tabs{position:absolute;z-index:5;left:3%;right:3%;top:9.6%;height:4%;padding:0;gap:0;background:transparent}
-.screen.desk.ref-cam>.tabs .tab,.screen.desk.ref-hidden>.tabs .tab{flex:1;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:transparent}
-.screen.desk.ref-cam>.tabs .tab::before,.screen.desk.ref-hidden>.tabs .tab::before,.screen.desk.ref-cam .tabdeco,.screen.desk.ref-hidden .tabdeco{display:none}
-.screen.desk.ref-cam>.roomswrap,.screen.desk.ref-hidden>.roomswrap{position:absolute;inset:14.6% 4.5% 7.7%;margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:hidden}
-.screen.desk.ref-cam>.roomswrap::before,.screen.desk.ref-hidden>.roomswrap::before,.screen.desk.ref-cam .bub,.screen.desk.ref-hidden .bub{display:none}
-.screen.desk.ref-cam .refcam,.screen.desk.ref-hidden .refhidden{padding:10.8% 5.5% 2%;background:transparent}
-.screen.desk.ref-cam .refcam>.sect{display:none}
-.screen.desk.ref-cam .galgrid{gap:4.5%;margin:0 0 4%;grid-template-columns:repeat(2,1fr)}
-.screen.desk.ref-cam .galgrid img{aspect-ratio:1/1.43;border:0;border-radius:7%;box-shadow:none;background:#202033;padding:3% 3% 12%;object-fit:cover}
-.screen.desk.ref-hidden .progline{position:absolute;left:26%;right:7%;top:1%;height:7%;opacity:0}
-.screen.desk.ref-hidden .galgrid{gap:2.7% 5%;margin:0;grid-template-columns:repeat(2,1fr)}
-.screen.desk.ref-hidden .hcell{aspect-ratio:1/1.45;border:0;border-radius:3%;box-shadow:none;background:rgba(255,255,255,.08)}
-.screen.desk.ref-hidden .hcell img{margin:11% 8% 17%;width:84%;height:72%;border-radius:2%;object-fit:cover}
-.screen.desk.ref-hidden .hcell.lock img{opacity:0}
-.screen.desk.ref-hidden .hlock{opacity:.12}
-.screen.desk.ref-hidden .hlabel{left:9%;right:9%;bottom:3%;max-width:none;text-align:center;background:rgba(255,255,255,.35);border-color:rgba(174,157,216,.35)}
-.screen.desk.ref-hidden .hnote{display:none}
+/* Enroll: one shell plus repeated field/toggle/meter components. */
+.enr.refprofile{padding:24px;background:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png") center/cover no-repeat}
+.enr.refprofile .ecard{width:min(100%,350px);max-width:350px;border:0;border-radius:22px;background:transparent url("assets/ui/null-blankware/enroll/enroll-profile-card.png") center/100% 100% no-repeat;box-shadow:none;padding:7% 6% 6%}
+.enr.refprofile .etb{padding:8px 12px;background:transparent;border:0;color:#695b91}
+.enr.refprofile .ebody{padding:10px 16px 16px}
+.enr.refprofile .ename,.enr.refprofile .eline{border:0;background:transparent url("assets/ui/null-blankware/enroll/enroll-record-field.png") center/100% 100% no-repeat;margin:5px 0;padding:10px 13px;opacity:1;animation:none}
+.enr.refprofile .ename{min-height:44px}
+.enr.refprofile .eline{min-height:43px}
+.enr.refprofile .ename,.enr.refprofile .blank,.enr.refprofile .blankin{background-color:transparent;box-shadow:none}
+.enr.refprofile .emode{background:transparent url("assets/ui/null-blankware/enroll/enroll-mode-toggle.png") center/100% 100% no-repeat;border:0;padding:3px}
+.enr.refprofile .emode b{border:0;background:transparent;box-shadow:none}
+.enr.refprofile .ebar{height:18px;border:0;background:transparent url("assets/ui/null-blankware/enroll/enroll-connecting-meter.png") center/100% 100% no-repeat;padding:5px}
+.enr.refprofile .ego{border:0;background:transparent url("assets/ui/null-blankware/core/button-primary-cta.png") center/100% 100% no-repeat;box-shadow:none;font-size:17px}
 
-/* Bag: background and cabinet are separate clean assets; cards occupy its drawers. */
-.cartscreen:has(.bagcount){background:#fdf8f5 url("ui/reference/bag-bg.png") center/100% 100% no-repeat}
-.cartwin:has(.bagcount){inset:0;border:0;border-radius:0;background:transparent url("ui/reference/bag-cabinet.png") center/100% 100% no-repeat;box-shadow:none;overflow:visible}
-.cartwin:has(.bagcount) .tb{display:none}
-.cartwin:has(.bagcount) .cbar{position:absolute;left:0;right:0;top:7.4%;justify-content:center;padding:0;background:transparent}
-.cartwin:has(.bagcount) .bagcount{font-size:11px;color:#69588f}
-.cartwin:has(.bagcount) .baglent{display:none}
-.cartwin:has(.bagcount) .cchips{position:absolute;z-index:3;left:17%;right:13%;top:11%;height:3%;padding:0;gap:2%;justify-content:center}
-.cartwin:has(.bagcount) .cchip{flex:1;padding:0;border:0;background:transparent;box-shadow:none;color:#8d80b1;font-size:9px}
-.cartwin:has(.bagcount) .cchip.on{color:#fff;background:linear-gradient(90deg,#b590e6,#d98fd1);border-radius:999px;text-shadow:none}
-.cartwin:has(.bagcount) .cwrap{position:absolute;left:14%;right:14%;top:37.8%;bottom:12%;padding:0;display:grid;grid-template-columns:1fr 1fr;align-content:start;gap:2.8%;overflow:auto}
-.cartwin:has(.bagcount) .cgcard{min-width:0;aspect-ratio:1.12/1;padding:8%;display:flex;flex-direction:column;justify-content:center;gap:2%;border:0;border-radius:10%;background:rgba(255,255,255,.20);box-shadow:none;text-align:center}
-.cartwin:has(.bagcount) .cribbon,.cartwin:has(.bagcount) .bagmeta,.cartwin:has(.bagcount) .itemsay,.cartwin:has(.bagcount) .baglabel{display:none}
-.cartwin:has(.bagcount) .bagpic{width:52%;height:52%;object-fit:contain}
-.cartwin:has(.bagcount) .cgname{font-size:10px}
-.cartwin:has(.bagcount) .bagwho{position:absolute;right:6%;bottom:6%;width:25%;aspect-ratio:1;border-radius:50%}
-.cartwin:has(.bagcount) .cfoot{display:none}
+/* CAM: photo surfaces repeat; the gallery remains scrollable and clickable. */
+.ref-cam .gal{padding:18px 16px 28px}
+.ref-cam .sect{padding:10px 14px;margin:5px 0 10px;border:0;background:transparent url("assets/ui/null-blankware/cam/cam-album-label.png") center/100% 100% no-repeat}
+.ref-cam .galgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-bottom:18px}
+.ref-cam .galgrid img{width:100%;aspect-ratio:3/4;object-fit:cover;padding:7px 7px 19px;border:0;border-radius:15px;background:#222136 url("assets/ui/null-blankware/cam/cam-photo-frame.png") center/100% 100% no-repeat;box-shadow:none}
 
-/* Selected gift becomes the tall gift/wrap form from the reference. */
-.cartscreen.refgift{background:#fdf9f7 url("ui/reference/gift-wrap.png") center/100% 100% no-repeat}
-.cartscreen.refgift .cartwin{inset:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:hidden}
-.cartscreen.refgift .cartwin>.tb{display:none}
-.cartscreen.refgift .refwrap{position:absolute;inset:8.8% 9% 5%;padding:0;gap:1.3%;overflow-y:auto;background:transparent}
-.cartscreen.refgift .refwrap>.cgcard{height:14%;min-height:95px;padding:2% 5%;border:0;background:transparent;box-shadow:none}
-.cartscreen.refgift .refwrap>.cgcard .cribbon{display:none}
-.cartscreen.refgift .refwrap>.cgcard .cgthumb{width:26%;height:88%;border:0;background:transparent}
-.cartscreen.refgift .refwrap>.cgcard .itemsay{max-height:32px;overflow:hidden}
-.cartscreen.refgift .csect{height:4%;justify-content:center;color:#615485;font-size:11px}
-.cartscreen.refgift .csect::before,.cartscreen.refgift .csect::after{background:rgba(130,107,177,.18)}
-.cartscreen.refgift .cto{height:8.4%;min-height:60px;padding:1% 5%;border:0;background:rgba(255,255,255,.12);box-shadow:none}
-.cartscreen.refgift .cto.sel{background:rgba(237,190,232,.18)}
-.cartscreen.refgift .cwhere{grid-template-columns:repeat(3,1fr);gap:2%;margin:0}
-.cartscreen.refgift .cspot{min-height:66px;padding:4%;flex-direction:column;justify-content:center;text-align:center;border:0;background:rgba(255,255,255,.12);box-shadow:none}
-.cartscreen.refgift .cspot .cswhy{text-align:center}
-.cartscreen.refgift .cnote{min-height:54px;padding:2% 5%;justify-content:center;background:rgba(255,255,255,.1);border:0;box-shadow:none}
-.cartscreen.refgift .cback{min-height:54px;margin-top:1%;border:0;border-radius:999px;background:transparent;box-shadow:none;font-size:0}
-.cartscreen.refgift .cback::after{content:"WRAP";font-size:21px;color:#685987;letter-spacing:.18em}
+/* Hidden: every lock/frame/tag is its own stateful layer. */
+.ref-hidden .refhidden{padding:14px 14px 26px}
+.ref-hidden .galgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+.ref-hidden .hcell{aspect-ratio:3/4;border:0;border-radius:15px;background:transparent url("assets/ui/null-blankware/hidden/hidden-unlocked-photo-frame.png") center/100% 100% no-repeat;box-shadow:none;padding:8px 8px 25px}
+.ref-hidden .hcell.lock::after{content:"";position:absolute;inset:0;z-index:1;background:transparent url("assets/ui/null-blankware/hidden/locked-photo-veil.png") center/100% 100% no-repeat;pointer-events:none}
+.ref-hidden .hcell img{width:100%;height:100%;margin:0;border-radius:10px;object-fit:cover}
+.ref-hidden .hlock{z-index:2;width:46px;height:46px;background:transparent url("assets/ui/null-blankware/hidden/lock-pearl-badge.png") center/contain no-repeat}
+.ref-hidden .hlock svg{display:none}
+.ref-hidden .hlabel{z-index:3;left:8px;right:8px;bottom:5px;max-width:none;border:0;background:transparent url("assets/ui/null-blankware/hidden/name-guess-tag.png") center/100% 100% no-repeat;box-shadow:none}
+
+/* Bag: shell and repeatable inventory cards; close remains the real WinDots button. */
+.cartscreen.refbag{padding:18px;background:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png") center/cover no-repeat}
+.refbag .cartwin{inset:18px;border:0;border-radius:24px;background:transparent url("assets/ui/null-blankware/bag/bag-panel-shell.png") center/100% 100% no-repeat;box-shadow:none}
+.refbag .cartwin>.tb{background:transparent;border:0;color:#665886}
+.refbag .cbar,.refbag .cchips{background:transparent}
+.refbag .cwrap{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:12px 18px 24px}
+.refbag .cgcard{min-width:0;min-height:190px;border:0;border-radius:17px;background:transparent url("assets/ui/null-blankware/bag/inventory-item-card.png") center/100% 100% no-repeat;box-shadow:none}
+.refbag .cnone{min-height:210px;background:transparent url("assets/ui/null-blankware/bag/inventory-slot-empty.png") center/100% 100% no-repeat}
+
+/* Gift wrap: no screenshot layer; every card and button stays clickable. */
+.cartscreen.refgift{padding:16px;background:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png") center/cover no-repeat}
+.refgift .cartwin{inset:16px;border:0;border-radius:24px;background:transparent url("assets/ui/null-blankware/gift/gift-wrap-panel-frame.png") center/100% 100% no-repeat;box-shadow:none;overflow:hidden}
+.refgift .cartwin>.tb{background:transparent;border:0;color:#665886}
+.refgift .refwrap{padding:12px 18px 26px;gap:10px;background:transparent}
+.refgift .cgcard{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-item-card.png") center/100% 100% no-repeat;box-shadow:none}
+.refgift .cto{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-recipient-card.png") center/100% 100% no-repeat;box-shadow:none}
+.refgift .cspot{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-location-option.png") center/100% 100% no-repeat;box-shadow:none}
+.refgift .cnote{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-reason-note-card.png") center/100% 100% no-repeat;box-shadow:none}
+.refgift .cback,.refgift .csend{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-wrap-button.png") center/100% 100% no-repeat;box-shadow:none}
