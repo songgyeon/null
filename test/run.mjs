@@ -376,6 +376,60 @@ eq('웹 오프닝은 키보드에 안 줄어든다',
    그 윗동강만 남는다 — 실제로 그렇게 날아갔다 */
 eq('배경 깔린 화면은 안 못박는다',
   /<div className="screen splash" ref=\{box\} onClick=\{wake\}>/.test(web), true);
+eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
+  /<div className="spstack"[\s\S]{0,2200}<div className="sptap">\{armed\?"♪ NULL!":"TAP FOR MUSIC ♪"\}<\/div>[\s\S]{0,80}<\/div>\s*<\/div>;/.test(web), true);
+{
+  const css=readFileSync(join(ROOT,'null.css'),'utf8');
+  const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
+  eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
+    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=158"\) center\/cover no-repeat\}/.test(css)
+      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=158"\)\}/.test(css)
+      && (web.match(/return <div className="phone">/g)||[]).length===2
+      && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
+}
+
+/* ── 내부 UI 복구 경계 ──
+   오프닝·등록 프로필만 새 원화를 쓴다. 나머지 화면은 fd84219의 원래
+   메신저 DOM/CSS를 유지한다. 74b195c부터 붙은 ref 합성 UI도 복구 대상이다. */
+{
+  const css=readFileSync(join(ROOT,'null.css'),'utf8');
+  const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
+  const appWeb=readFileSync(join(ROOT,'app.js'),'utf8');
+  eq('내부 화면에 합성 원화 CSS가 없다',
+    /ui\/reference\/(?:cam|hidden|bag-bg|bag-cabinet|gift-wrap)\.png/.test(css),false);
+  eq('내부 화면에 Blankware CSS가 없다',/assets\/ui\/null-blankware\//.test(css),false);
+  eq('내부 화면의 ref 훅이 모두 빠졌다',[
+    /className="cartscreen refbag"/.test(ui),
+    /\?" refgift"/.test(ui),
+    /className="cwrap refwrap"/.test(ui),
+    /className=\{"screen desk ref-"\+tab\}/.test(ui),
+    /className="gal refcam"/.test(ui),
+    /className="gal refhidden"/.test(ui),
+  ],[false,false,false,false,false,false]);
+  eq('원래 내부 메신저 배경과 갤러리 비율을 유지한다',[
+    /\.desk\{background:#c3b2f0 url\("bg-desk\.webp"\) center\/cover no-repeat\}/.test(css),
+    /\.galgrid\{display:grid;grid-template-columns:repeat\(2,1fr\)/.test(css),
+    /\.galgrid img\{width:100%;aspect-ratio:2\/3/.test(css),
+    /\.hcell\{position:relative;aspect-ratio:2\/3/.test(css),
+  ],[true,true,true,true]);
+  eq('가방과 선물은 원래 공통 창 레이아웃을 쓴다',
+    /\.cartscreen\{position:absolute;inset:0/.test(css)
+      && /\.cartwin\{position:absolute;left:14px;right:14px;top:22px;bottom:22px/.test(css)
+      && /\.cwrap\{flex:1;min-height:0;overflow-y:auto/.test(css)
+      && /\.cgcard\{position:relative;overflow:hidden;display:flex/.test(css),true);
+  eq('즉시 빈값 저장은 프로필 두 화면에만 붙는다',
+    (ui.match(/saveEmptyNow/g)||[]).length,4);
+  eq('주말 시간표는 공용 Blank의 원래 저장 시점을 쓴다',
+    /<Blank value=\{r\.k\} width=\{54\} onSave=\{v=>onFillWend\(key,r\.n,v\)\}\/>/.test(ui),true);
+  const qa=appWeb.slice(appWeb.indexOf('function ProfileQA('),appWeb.indexOf('function App('));
+  eq('qa=profile은 실제 판과 저장소를 공유하지 않는다',
+    /return qaProfile\?<ProfileQA\/>:<GameApp\/>/.test(appWeb)
+      && !/localStorage|loadStore|loadProfile|RoomList|saveMode|saveWorld/.test(qa),true);
+  /* 프로필 판은 그림에서 CSS로 갔다. 칸마다 webp를 깔던 때는 이 자리에서
+     창틀 비율·에셋 배율·배경 방향을 셋으로 나눠 재야 했는데, 이제 그릴
+     그림이 없다 — 좌표와 cqw만 남았고 그건 위의 「프로필 판을 CSS로
+     그린다」가 본다 */
+}
 
 /* 오프닝 — 곡이 도는 동안 이름을 기다린다. 시간으로 끊지 않는다. */
 eq('오프닝이 웹·앱 둘 다 있다', /function Splash\(/.test(appSrc) && /function Splash\(/.test(web), true);
@@ -3074,13 +3128,13 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   /* 등록 제목줄도 그 말을 다시 안 한다 — 바로 앞 화면(Intro)이 전체 화면으로
      그 말을 하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 그 다음 창이 같은
      문장을 또 흘리면 방금 읽은 것을 되돌려주는 게 된다. 자리는 새 문구로
-     채우지 않고 다른 창과 같은 이름(null.exe)을 쓴다 — 문구를 지어내지 않는다. */
+     채우지 않고 다른 창과 같은 이름(NULL.exe)을 쓴다 — 문구를 지어내지 않는다. */
   for (const [label, src, box] of [
     ['웹', web, web.slice(web.indexOf('function Enroll('), web.indexOf('function Intro('))],
     ['앱', appSrc, appSrc.slice(appSrc.indexOf('function EnrTitle('), appSrc.indexOf('function Intro('))],
   ]) {
     eq(`${label} 등록 제목줄은 그 말을 다시 안 한다`, /현실에서|교생\?/.test(box), false);
-    eq(`${label} 등록 제목줄은 다른 창과 같은 이름이다`, /null\.exe/.test(box), true);
+    eq(`${label} 등록 제목줄은 다른 창과 같은 이름이다`, /NULL\.exe/.test(box), true);
   }
   /* 그 문장이 사라진 게 아니라 제 화면으로 옮겨간 것이다 */
   eq('그 말은 배역 화면에 산다',
@@ -4163,7 +4217,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['139', 'd511e3284bee']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['170', '92a94b300c2d']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4440,8 +4494,7 @@ eq('안 눌리는 X는 다섯뿐이다', (web.match(/<WinDots\/>/g) || []).lengt
 /* 제목은 띠 안의 글자가 아니라 띠 위에 얹은 한 줄이 됐다 —
    띠가 유리라 안쪽에 빛막이 흐르고, 글자를 그 안에 두면 막에 먹힌다 */
 eq('등록 화면 X도 눌린다',
-  /<div className="etb"><WinDots onClose=\{onClose\}\/><\/div>/.test(web)
-  && /<div className="ewindowtitle">NULL\.exe<\/div>/.test(web), true);
+  /<div className="etb"><WinDots onClose=\{onClose\}\/><\/div>\s*<div className="ewindowtitle">NULL\.exe<\/div>/.test(web), true);
 eq('확정 창의 X가 등록으로 돌려보낸다',
   /<div className="tb">null\.exe<WinDots onClose=\{onBack\}\/><\/div>/.test(web), true);
 
@@ -5290,7 +5343,7 @@ eq('지도 머리글을 안 쓴다',
 eq('리스타트는 표식만 남기고 다시 연다',
   /localStorage\.setItem\("null_wipe","1"\)/.test(web) && /location\.reload\(\)/.test(web), true);
 eq('다음 판 맨 앞에서 비운다',
-  /if\(localStorage\.getItem\("null_wipe"\)\)\s*window\.nullWipeStory\(\);/.test(web), true);
+  /if\(localStorage\.getItem\("null_wipe"\)\)\s*nullWipeStory\(\);/.test(web), true);
 /* 판 번호가 올랐다는 이유만으로는 안 지운다. 배포할 때마다 남의 판이
    날아가는 것은 고칠 값이 아니라 사고다 — 유저가 restart를 눌렀을 때만이다 */
 eq('판 번호가 올랐다고 남의 판을 안 지운다',
@@ -5320,7 +5373,7 @@ eq('판 번호가 웹과 앱에서 같다', (() => {
   return !!w && w === a;
 })(), true);
 eq('비운 뒤에 번호를 찍는다',
-  /window\.nullWipeStory\(\);\s*\n\s*localStorage\.setItem\("null_rev", window\.NULL_STORY_REV\)/.test(web)
+  /nullWipeStory\(\);\s*\n\s*localStorage\.setItem\("null_rev", window\.NULL_STORY_REV\)/.test(web)
   && /await wipeStory\(\);\s*\n\s*await setMeta\('null_rev', NULL_STORY_REV\)/.test(dbSrcTop), true);
 /* 먼저 퍼가면 지운 값을 화면이 들고 있다가 다음 저장 때 도로 써진다 */
 eq('앱은 퍼가기 전에 비운다',
@@ -7366,9 +7419,10 @@ eq('시간표 단추는 peek보다 좁다',
   {
     const dataSrc = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
     const CUT = '  const cameBack=cameBackOf(store);';   // 여기부터는 화면 조각(app-ui)을 부른다
-    eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes('function App(){'), true);
+    const APP_HEAD = web.includes('function GameApp(){') ? 'function GameApp(){' : 'function App(){';
+    eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes(APP_HEAD), true);
     const APP_SRC = 'function App(){'
-      + web.slice(web.indexOf('function App(){') + 'function App(){'.length, web.indexOf(CUT))
+      + web.slice(web.indexOf(APP_HEAD) + APP_HEAD.length, web.indexOf(CUT))
       + `\n  return { send, request, enqueue, commitTurn, resumeBatch, retry, openRoom, runAutoEvent,
         localBatch, headBatchOf,
         leaveScene, answerLeave, startWay: setWay, answerWay,

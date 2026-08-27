@@ -416,8 +416,8 @@ function Splash({onEnter}){
           <span className="spbar"><i/></span>
         </div>
       </div>
+      <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
     </div>
-    <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
   </div>;
 }
 
@@ -430,6 +430,9 @@ const ENR_FIELDS=[
 ];
 function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   const [out,setOut]=useState(false);
+  /* 진행 막대를 그림 다섯 장으로 갈아끼우던 때는 첫 요청에 한 칸이 비어
+     보여서 미리 받아뒀다. 지금은 막대가 CSS 한 줄(width %)이라 받아올 것이
+     없다 — 미리 받기도 같이 걷는다 */
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 방 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
   const [edit,setEdit]=useState(false);
@@ -476,7 +479,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
             {/* 나이는 세계의 고정값이다 — 유저가 아니라 세계가 정한 칸. 행은 남기고 입력만 잠근다 */}
             {f.k==="age"
               ?<span className="blank filled" title="세계의 고정값">25</span>
-              :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
+              :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
                  open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
                  onNext={()=>{const n=ENR_FIELDS.findIndex((g,j)=>j>i&&g.k!=="age");setFocus(n)}}/>}
             <span className="etail">{f.tail}</span>
@@ -505,7 +508,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
       </div>
     </div>
     {askMode&&<ModeAsk which={askMode} now={mode===askMode}
-      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>} 
+      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
   </div>;
 }
 
@@ -653,8 +656,11 @@ const MdRow=({k,on,n})=><div className="mdrr">
 </div>;
 function ModeAsk({which,now,onYes,onNo}){
   const m=MODE_ASK[which]||MODE_ASK.real;
+  /* 이 창만 옛 문법(납작한 띠·실선 테두리·회색 알약)에 남아 있어서 다른
+     앱에서 온 창처럼 보였다. 오프닝·등록과 같은 부품을 쓴다 — 제목은 띠의
+     ::before가 그리므로 여기 글자는 font-size:0으로 숨는다 */
   return <div className="dlgov" onClick={onNo}>
-    <div className="dlg" onClick={e=>e.stopPropagation()}>
+    <div className="dlg modedlg" onClick={e=>e.stopPropagation()}>
       <div className="tb">null.exe<WinDots onClose={onNo}/></div>
       <div className="dlgbody mdbody">
         {/* 고른 것이 제목이 된다. 확인창이 확인해야 하는 건 「무엇을 골랐는가」다 —
@@ -870,7 +876,7 @@ function KissTime({shot,onDone}){
 /* 열린 상태를 밖에서 쥘 수 있다(open/onOpen). 등록 화면은 그렇게 해서
    엔터 한 번에 다음 칸으로 넘긴다. 안 넘기면 제 안의 edit로 혼자 돈다 —
    프로필 창은 예전 그대로다. */
-function Blank({value,onSave,width,open,onOpen,onNext}){
+function Blank({value,onSave,width,open,onOpen,onNext,saveEmptyNow=false}){
   const ctl=typeof open==="boolean";
   const [edit,setEdit]=useState(false);
   const on=ctl?open:edit;
@@ -879,7 +885,8 @@ function Blank({value,onSave,width,open,onOpen,onNext}){
   useEffect(()=>setV(value||""),[value,on]);
   const done=next=>{onSave(v.trim());if(next&&onNext)onNext();else set(false)};
   if(on)return <input className="blankin sunken" style={width?{width}:null} value={v} autoFocus maxLength={20}
-    onChange={e=>setV(e.target.value)} onBlur={()=>done(false)} onKeyDown={e=>e.key==="Enter"&&done(true)}/>;
+    onChange={e=>{const n=e.target.value;setV(n);if(saveEmptyNow&&value&&!n.trim())onSave("")}}
+    onBlur={()=>done(false)} onKeyDown={e=>e.key==="Enter"&&done(true)}/>;
   return <span className={"blank"+(value?" filled":"")} onClick={()=>set(true)}>{value||"□□"}</span>;
 }
 
@@ -989,7 +996,7 @@ function Bag({bag,store,onClose}){
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
   const lent=bag.filter(b=>ITEMS[b.key]&&ITEMS[b.key].lent).length;
-  return <div className="cartscreen refbag"><div className="cartwin">
+  return <div className="cartscreen"><div className="cartwin">
     <div className="tb">✿ bag<WinDots onClose={onClose}/></div>
     <div className="cbar">
       <span className="bagcount">RECEIVED {bag.length} / {Object.keys(ITEMS).length}</span>
@@ -1071,7 +1078,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
      재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
   const here=c=>withChar===c;
 
-  return <div className={"cartscreen"+(pick?" refgift":"")}>
+  return <div className="cartscreen">
     <div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
 
@@ -1096,7 +1103,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       <div className="cfoot">TAP TO WRAP ♡</div>
     </React.Fragment>}
 
-    {pick&&<div className="cwrap refwrap">
+    {pick&&<div className="cwrap">
       <div className="cgcard"><span className="cribbon"/>
         <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
@@ -1183,7 +1190,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
       :<div style={{fontSize:16,color:"#8a4f74",letterSpacing:".08em"}}>{name}</div>}
     {ENR_FIELDS.map((f,i)=>
       <div className="dlgline" key={f.k}>
-        <Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
+        <Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
           open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
           onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/> {f.tail}</div>)}
     <div className="dlgbtns">
@@ -1250,7 +1257,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   },[menu]);
   const mb=(id,label,onClick)=><span className={"mbtn"+(menu===id?" open":"")}
     onClick={e=>{e.stopPropagation();onClick?onClick():setMenu(menu===id?null:id)}}>{label}</span>;
-  return <div className={"screen desk ref-"+tab}>
+  return <div className="screen desk">
     <Sparkles/>
     <div className="tb"><StarGlyph/>NULL messenger<WinDots/></div>
     <div className="menubar">
@@ -1441,7 +1448,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         })()}
       </div>
       :tab==="cam"
-      ?<div className="gal refcam">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
+      ?<div className="gal">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
             자리 사진은 말풍선이 아니라 배경이라 대화 기록에 안 남는다 —
             seenPhotos가 따로 적어둔 것을 같이 들고 온다 */}
         {(()=>{
@@ -1476,7 +1483,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           </div>;
         })()}
       </div>
-      :<div className="gal refhidden">{/* .hidden 탭: 잠긴 기록 */}
+      :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
         <div className="progline">
           <span className="t">ENCRYPTED</span>
           <span className="bar"><i style={{width:(unlocked.length/HIDDEN.length*100)+"%"}}/></span>

@@ -1467,7 +1467,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    그림에 슬롯이 이미 배킹돼 있어 창 크기를 그림 비율로 못박고 DOM 조각을
    각 슬롯 좌표에 절대 배치한다 — 내용 크기에 맞춰 늘리면 슬롯과 어긋난다.
    좌표는 재업로드본을 여백까지 잘라낸 뒤 10% 격자를 얹어 읽은 값이다. */
-.screen.splash{background:#efe6fb url("ui/bg-mobile.webp") center/cover no-repeat}
+.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=158") center/cover no-repeat}
 
 /* CD — 그림이 왔으니 CSS로 그리던 원판을 버린다. 도는 것은 그림 자체 */
 .spcd{visibility:visible;align-self:flex-start;margin-left:-2px;margin-right:0;width:82px;height:82px;border-radius:0;
@@ -1494,6 +1494,39 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  text-shadow:0 1px 0 rgba(255,255,255,.85)}
 .spcard .spgo::before{display:none}
 .spcard .spgo:active{transform:translate(1px,1px);box-shadow:none}
+
+/* ── Click! 을 다른 단추들과 같은 몸으로 ──
+   그림에 그려진 단추 위에 투명한 칸만 얹어 뒀었다. 등록 화면 Click과
+   같은 값으로 CSS가 직접 그린다 — 유리 몸통 + 겹 테 세 겹, 그 위를
+   흰 빛 한 줄이 훑는다. 자리는 그림에 맞춰둔 것 그대로다 */
+/* position 은 건드리지 않는다 — 이 단추는 그림의 단추 자리에 절대좌표로
+   앉아 있다. 견본에서 relative 를 그대로 가져왔더니 흐름으로 빠져나가
+   그림 밖에 섰다. overflow 만 받는다(빛줄을 단추 안에서 자르려고) */
+.spcard .spgo{overflow:hidden}
+.spcard .spgo::before{content:"";position:absolute;z-index:2;top:-40%;bottom:-40%;width:34%;
+ pointer-events:none;transform:skewX(-18deg);
+ background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75),rgba(255,255,255,0));
+ animation:spglint 2.6s ease-in-out infinite}
+@keyframes spglint{0%{left:-45%}42%{left:118%}100%{left:118%}}
+/* 빛줄이 안 보였다 — 오프닝 블록에 .spcard .spgo::before{display:none} 이
+   있어서, 뒤에 쓴 규칙이 display 를 되돌리지 않으면 그대로 숨는다 */
+.spcard .spgo::before{display:block}
+/* Click! 을 다른 단추들과 같은 몸으로 — 등록 화면 Click 과 같은 값이다.
+   유리 몸통 + 겹 테 세 겹. 빛줄은 그 위에서 훑는다 */
+.spcard .spgo{border:0;border-radius:11px;
+ color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.75);
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #c194ce,
+  0 0 0 4px #fbdcf2,
+  0 0 0 5px #c78fc8,
+  0 4px 10px rgba(150,104,200,.26)}
+.spcard .spgo:active{transform:translateY(2px);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8,
+  0 2px 6px rgba(150,104,200,.24)}
 
 .spstack .w1,.spstack .w2 .spwin,.spstack .w3{border:0;border-radius:0;box-shadow:none;overflow:visible;position:relative}
 /* 창 제목이 흰 글씨였다 — 그림 타이틀 띠가 파스텔이라 흰 글씨는 안 보인다.
@@ -1552,8 +1585,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .spstack .w3 .spbar i{background:linear-gradient(180deg,#f8d3e9,#efb5de 55%,#e3a3d2)}
 
 /* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다 */
-@media (min-aspect-ratio:1/1){
-  .screen.splash{background-image:url("ui/bg-desktop.webp")}
+@media (min-width:700px) and (min-aspect-ratio:1/1){
+  .screen.splash{background-image:url("ui/bg-desktop.webp?v=158")}
 }
 
 /* ── 창 자리 — 참고 화면에서 잰 사각형 그대로 ──
@@ -1593,18 +1626,152 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    높이는 aspect-ratio가 내므로 창이 낮아지지 않는다. */
 .spstack .w2 .spwin{width:100%}
 
-/* ── Blankware component pass ────────────────────────────────────────
-   Each PNG is a reusable surface. Text, controls and state remain live DOM. */
-:root{--bw:"assets/ui/null-blankware"}
-.desk{background-image:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png")}
-.desk>.tb{min-height:45px;padding:10px 18px 10px 24px;background:transparent url("assets/ui/null-blankware/chrome/messenger-titlebar.png") center/100% 100% no-repeat;border:0}
-.desk>.menubar{min-height:42px;padding:7px 15px;background:transparent url("assets/ui/null-blankware/chrome/messenger-menubar.png") center/100% 100% no-repeat;border:0}
-.desk>.statusbar{min-height:31px;padding:6px 13px;background:transparent url("assets/ui/null-blankware/chrome/messenger-statusbar.png") center/100% 100% no-repeat;border:0}
-.desk>.tabs{padding:8px 12px 0;gap:6px}
-.desk>.tabs .tab{min-height:38px;border:0;border-radius:11px;background:rgba(255,255,255,.62);box-shadow:none;color:#77699d}
-.desk>.tabs .tab.on{background:linear-gradient(180deg,rgba(255,194,226,.92),rgba(210,191,248,.9));color:#554a7d}
-.desk>.tabs .tab::before{display:none}
-.desk>.roomswrap{margin:0 12px 8px;border:0;border-radius:18px;background:rgba(255,255,255,.74) url("assets/ui/null-blankware/core/window-frame-main.png") center/100% 100% no-repeat;box-shadow:none}
+/* ══════════════════════════════════════════════════════════════════
+   real / speed 확정창 — 오프닝·등록과 같은 문법으로
+
+   이 창만 옛 문법(납작한 띠, 실선 테두리, 회색 알약)에 남아 있어서
+   다른 앱에서 온 창처럼 보였다. 같은 부품으로 바꾼다:
+   유리 창틀 · 분홍-라일락 띠에 별 하나 · 흰 판에 네 귀 눈금 ·
+   겹 테 세 겹을 두른 칸 · 유리 알약 단추.
+
+   비율 눈금은 그대로 둔다 — 한 칸 대 네 칸이 이 창의 알맹이다.
+   ══════════════════════════════════════════════════════════════════ */
+.dlg.modedlg{width:min(90vw,320px);overflow:visible;padding:5px;border:0;border-radius:15px;
+ container-type:inline-size;
+ background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,
+  #dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%);
+ box-shadow:0 0 0 1px rgba(255,255,255,.85),
+  inset 0 1px 0 rgba(255,255,255,.95),
+  0 16px 40px rgba(120,92,180,.34)}
+
+/* ── 제목 띠 ── 왼쪽에 별 하나, 흰 글자 */
+.dlg.modedlg>.tb{position:relative;height:11cqw;padding:0 3cqw 0 12.6cqw;
+ display:flex;align-items:center;justify-content:flex-end;
+ border:0;border-radius:3cqw 3cqw .75cqw .75cqw;font-size:0;
+ background:
+  radial-gradient(120% 62% at 50% -14%,rgba(255,255,255,.72) 0 22%,rgba(255,255,255,0) 62%),
+  linear-gradient(96deg,#f3bce4 0%,#efaee6 18%,#e2b0f0 38%,
+   #d3b6f4 56%,#dcaef0 74%,#c8b8f4 90%,#d6cbf8 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.98),
+  inset 0 -2.5px 0 #b9a2ea,
+  inset 0 -5px 6px rgba(160,124,208,.14),
+  0 3px 7px rgba(140,106,190,.18)}
+
+/* 글자는 배경 그림이 아니라 요소라 그대로 쓰되, 띠 왼쪽에 앉힌다 */
+.dlg.modedlg>.tb::before{content:"null.exe";position:absolute;left:12.6cqw;
+ font-size:4cqw;letter-spacing:.25cqw;color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.55),
+  1px 0 0 rgba(150,64,124,.5),-1px 0 0 rgba(150,64,124,.5)}
+
+/* 별 하나 — clip-path 로 꼭지를 깎아야 별이 된다 */
+.dlg.modedlg>.tb::after{content:"";position:absolute;left:5.2cqw;top:50%;
+ width:3.4cqw;height:3.4cqw;margin-top:-1.7cqw;background:#fff;
+ clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%);
+ filter:drop-shadow(0 1px 1px rgba(150,96,180,.4))}
+.dlg.modedlg>.tb .dots{position:relative;z-index:2;margin-left:auto}
+.dlg.modedlg>.tb .dots>span{width:5.5cqw;height:5.5cqw;min-width:19px;min-height:19px}
+
+/* ── 흰 판 ── 네 귀에 눈금 */
+.dlg.modedlg .mdbody{position:relative;margin-top:.75cqw;padding:5cqw 5.5cqw 5cqw;
+ gap:0;border-radius:.75cqw .75cqw 2.5cqw 2.5cqw;background:#fffdfe;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e6d8ee,
+  inset 0 -4px 8px rgba(150,116,196,.07)}
+.dlg.modedlg .mdbody::before,.dlg.modedlg .mdbody::after{content:"";position:absolute;
+ width:2.6cqw;height:2.6cqw;pointer-events:none;border-color:#e8daf2;border-style:solid;border-width:0}
+.dlg.modedlg .mdbody::before{left:2.6cqw;top:2.6cqw;border-left-width:1px;border-top-width:1px}
+.dlg.modedlg .mdbody::after{right:2.6cqw;bottom:2.6cqw;border-right-width:1px;border-bottom-width:1px}
+
+/* ── 고른 값 ── 이 창이 확인해야 하는 것 */
+.dlg.modedlg .mdpick{margin:0 0 2.5cqw;text-align:center;font-size:6.2cqw;line-height:1.1;
+ color:transparent;
+ background:linear-gradient(120deg,#f88fd4 0%,#ee86dd 34%,#c396ee 68%,#a8bef0 100%);
+ -webkit-background-clip:text;background-clip:text;
+ filter:drop-shadow(0 1.5px 0 rgba(255,255,255,.95)) drop-shadow(0 2px 3px rgba(150,104,200,.24))}
+.dlg.modedlg .mdpick b{font-weight:400}
+.dlg.modedlg .mdpick .kao{-webkit-text-fill-color:#e79ad2;font-size:3.4cqw;letter-spacing:0}
+.dlg.modedlg .mdtx{margin:0 0 4cqw;text-align:center;font-size:3.1cqw;line-height:1.75;
+ letter-spacing:.1cqw;color:#6b5a96;word-break:keep-all}
+
+/* ── 비율 눈금 ── 칸과 같은 겹 테를 둘러 판 위의 부품이 된다 */
+.dlg.modedlg .mdratio{display:flex;flex-direction:column;gap:3.4cqw;
+ margin:0 0 4.6cqw;padding:0;border:0;background:none;box-shadow:none}
+.dlg.modedlg .mdrr{display:flex;align-items:center;gap:3cqw;margin:0}
+.dlg.modedlg .mdrr .k{flex:none;font-size:3.1cqw;letter-spacing:.2cqw;color:#4f3d76}
+.dlg.modedlg .mdrr .bx{flex:1;display:flex;gap:1.2cqw;height:5cqw;padding:.9cqw;
+ border:0;border-radius:2cqw;background:#f3ecf6;
+ box-shadow:inset 0 1.5px 3px rgba(150,116,190,.24),
+  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8}
+.dlg.modedlg .mdrr .bx>span{flex:1;border-radius:1.2cqw;background:#e6dcf0;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.dlg.modedlg .mdrr .bx>span.on{
+ background:linear-gradient(96deg,#f88ecb 0%,#e07ed6 52%,#9c94f0 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.4)}
+.dlg.modedlg .mdrr .n{flex:none;min-width:9cqw;text-align:right;
+ font-size:3.1cqw;letter-spacing:0;color:#6b5a96}
+.dlg.modedlg .mdrr .n b{font-weight:400;font-size:4cqw;color:#c2427f}
+
+.dlg.modedlg .mdlock{display:flex;align-items:center;justify-content:center;gap:1.6cqw;
+ margin:0 0 4.6cqw;font-size:2.7cqw;letter-spacing:.06cqw;color:#a897dd}
+
+/* ── 단추 둘 ── 유리 알약. back 은 옅고 이걸로는 진하다 */
+.dlg.modedlg .mdrow{display:flex;gap:3cqw;margin:0}
+.dlg.modedlg .mdrow .wbtn{flex:1;position:relative;overflow:hidden;height:12cqw;padding:0;
+ display:flex;align-items:center;justify-content:center;
+ border:0;border-radius:2.75cqw;cursor:pointer;
+ font-family:inherit;font-size:3.6cqw;letter-spacing:.2cqw;
+ color:#5b4f9c;text-shadow:0 1px 0 rgba(255,255,255,.75);
+ background:linear-gradient(112deg,#f0e8fb 0%,#eae2f9 46%,#e4e0f6 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.9),inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #cdbadd,0 0 0 4px #f7f0fa,0 0 0 5px #cfbcda,
+  0 4px 10px rgba(150,104,200,.2)}
+.dlg.modedlg .mdrow .wbtn::before{content:"";position:absolute;left:3px;right:3px;top:2px;height:40%;
+ border-radius:2.5cqw 2.5cqw 999px 999px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0))}
+.dlg.modedlg .mdrow .wbtn.go{color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.5);
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8,
+  0 4px 10px rgba(150,104,200,.26)}
+.dlg.modedlg .mdrow .wbtn:active{transform:translateY(2px)}
+
+/* 창은 좁고 글자는 cqw 라 8.7px 까지 줄어 있었다 — 읽으라고 쓴 문장이
+   읽히지 않는다. 폭을 넓히고 글자·간격을 px 로 못박아 세로로 길게 세운다 */
+.dlg.modedlg{width:min(94vw,340px)}
+.dlg.modedlg .mdbody{padding:22px 22px 20px}
+.dlg.modedlg .mdpick{margin-bottom:11px;font-size:26px;line-height:1.15;gap:9px}
+.dlg.modedlg .mdpick .kao{font-size:13px}
+.dlg.modedlg .mdtx{margin-bottom:20px;font-size:12px;line-height:1.9;letter-spacing:.3px}
+.dlg.modedlg .mdratio{gap:15px;margin-bottom:20px}
+.dlg.modedlg .mdrr{gap:12px}
+.dlg.modedlg .mdrr .k{font-size:12px;letter-spacing:1px}
+.dlg.modedlg .mdrr .bx{height:22px;padding:4px;gap:5px;border-radius:8px}
+.dlg.modedlg .mdrr .bx>span{border-radius:5px}
+.dlg.modedlg .mdrr .n{min-width:38px;font-size:12px}
+.dlg.modedlg .mdrr .n b{font-size:16px}
+.dlg.modedlg .mdlock{margin-bottom:20px;font-size:10.5px;gap:6px}
+.dlg.modedlg .mdrow{gap:11px}
+.dlg.modedlg .mdrow .wbtn{height:48px;font-size:14px;letter-spacing:1px;border-radius:12px}
+.dlg.modedlg>.tb{height:42px;padding:0 12px 0 48px;border-radius:11px 11px 3px 3px}
+.dlg.modedlg>.tb::before{left:48px;font-size:15px;letter-spacing:1px}
+.dlg.modedlg>.tb::after{left:20px;width:13px;height:13px;margin-top:-6.5px}
+.dlg.modedlg>.tb .dots>span{width:21px;height:21px}
+
+/* 단추가 48px 이라 창 아래를 다 먹었다 — 한 단 낮춘다 */
+.dlg.modedlg .mdrow .wbtn{height:38px;font-size:12.5px;border-radius:10px}
+
+/* 단추가 여전히 창 폭을 다 먹는다 — 폭을 내용만큼만 잡고 가운데로 모은다 */
+.dlg.modedlg .mdrow{justify-content:center;gap:9px}
+.dlg.modedlg .mdrow .wbtn{flex:0 0 auto;min-width:88px;height:34px;padding:0 18px;
+ font-size:11.5px;letter-spacing:.8px;border-radius:9px}
+
+/* 두 단추를 붙여놓으니 한 덩어리로 보였다 — 갈라진 선택이니 사이를 벌린다 */
+.dlg.modedlg .mdrow{gap:26px}
+
+/* real / speed 글자가 작아 확정창의 알맹이로 안 읽혔다 — 한 단 키운다 */
+.dlg.modedlg .mdpick{font-size:32px}
+.dlg.modedlg .mdpick .kao{font-size:14px}
 
 /* ══════════════════════════════════════════════════════════════════
    등록 — profile-css.html 을 그대로 옮긴다
@@ -2048,39 +2215,3 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
   0 0 0 4px #fbdcf2,
   0 0 0 5px #c78fc8,
   0 4px 10px rgba(150,104,200,.26)}
-
-/* CAM: photo surfaces repeat; the gallery remains scrollable and clickable. */
-.ref-cam .gal{padding:18px 16px 28px}
-.ref-cam .sect{padding:10px 14px;margin:5px 0 10px;border:0;background:transparent url("assets/ui/null-blankware/cam/cam-album-label.png") center/100% 100% no-repeat}
-.ref-cam .galgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-bottom:18px}
-.ref-cam .galgrid img{width:100%;aspect-ratio:3/4;object-fit:cover;padding:7px 7px 19px;border:0;border-radius:15px;background:#222136 url("assets/ui/null-blankware/cam/cam-photo-frame.png") center/100% 100% no-repeat;box-shadow:none}
-
-/* Hidden: every lock/frame/tag is its own stateful layer. */
-.ref-hidden .refhidden{padding:14px 14px 26px}
-.ref-hidden .galgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
-.ref-hidden .hcell{aspect-ratio:3/4;border:0;border-radius:15px;background:transparent url("assets/ui/null-blankware/hidden/hidden-unlocked-photo-frame.png") center/100% 100% no-repeat;box-shadow:none;padding:8px 8px 25px}
-.ref-hidden .hcell.lock::after{content:"";position:absolute;inset:0;z-index:1;background:transparent url("assets/ui/null-blankware/hidden/locked-photo-veil.png") center/100% 100% no-repeat;pointer-events:none}
-.ref-hidden .hcell img{width:100%;height:100%;margin:0;border-radius:10px;object-fit:cover}
-.ref-hidden .hlock{z-index:2;width:46px;height:46px;background:transparent url("assets/ui/null-blankware/hidden/lock-pearl-badge.png") center/contain no-repeat}
-.ref-hidden .hlock svg{display:none}
-.ref-hidden .hlabel{z-index:3;left:8px;right:8px;bottom:5px;max-width:none;border:0;background:transparent url("assets/ui/null-blankware/hidden/name-guess-tag.png") center/100% 100% no-repeat;box-shadow:none}
-
-/* Bag: shell and repeatable inventory cards; close remains the real WinDots button. */
-.cartscreen.refbag{padding:18px;background:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png") center/cover no-repeat}
-.refbag .cartwin{inset:18px;border:0;border-radius:24px;background:transparent url("assets/ui/null-blankware/bag/bag-panel-shell.png") center/100% 100% no-repeat;box-shadow:none}
-.refbag .cartwin>.tb{background:transparent;border:0;color:#665886}
-.refbag .cbar,.refbag .cchips{background:transparent}
-.refbag .cwrap{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:12px 18px 24px}
-.refbag .cgcard{min-width:0;min-height:190px;border:0;border-radius:17px;background:transparent url("assets/ui/null-blankware/bag/inventory-item-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refbag .cnone{min-height:210px;background:transparent url("assets/ui/null-blankware/bag/inventory-slot-empty.png") center/100% 100% no-repeat}
-
-/* Gift wrap: no screenshot layer; every card and button stays clickable. */
-.cartscreen.refgift{padding:16px;background:url("assets/ui/null-blankware/background/bg-null-dream-mobile.png") center/cover no-repeat}
-.refgift .cartwin{inset:16px;border:0;border-radius:24px;background:transparent url("assets/ui/null-blankware/gift/gift-wrap-panel-frame.png") center/100% 100% no-repeat;box-shadow:none;overflow:hidden}
-.refgift .cartwin>.tb{background:transparent;border:0;color:#665886}
-.refgift .refwrap{padding:12px 18px 26px;gap:10px;background:transparent}
-.refgift .cgcard{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-item-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cto{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-recipient-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cspot{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-location-option.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cnote{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-reason-note-card.png") center/100% 100% no-repeat;box-shadow:none}
-.refgift .cback,.refgift .csend{border:0;background:transparent url("assets/ui/null-blankware/gift/gift-wrap-button.png") center/100% 100% no-repeat;box-shadow:none}
