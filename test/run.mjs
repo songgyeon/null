@@ -382,8 +382,8 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   const css=readFileSync(join(ROOT,'null.css'),'utf8');
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
-    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=156"\) center\/cover no-repeat\}/.test(css)
-      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=156"\)\}/.test(css)
+    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=157"\) center\/cover no-repeat\}/.test(css)
+      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=157"\)\}/.test(css)
       && (web.match(/return <div className="phone">/g)||[]).length===2
       && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
 }
@@ -437,11 +437,12 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
       && /\.e-subject\{[^}]*top:25\.75054%/.test(css)
       && /\.e-age\{[^}]*top:33\.69874%/.test(css)
       && /\.e-likes\{[^}]*top:41\.63699%/.test(css)
-      && /\.e-dislikes\{[^}]*top:49\.73335%/.test(css)
+      && /\.e-likes\{[^}]*width:64\.3%/.test(css)
+      && /\.e-dislikes\{[^}]*top:49\.73335%[^}]*width:64\.3%/.test(css)
       && /\.e-mode\{[^}]*top:57\.596%/.test(css)
       && /\.enr\.refprofile \.emode\{[^}]*gap:0[^}]*padding:0/.test(css)
       && /\.enr\.refprofile \.emode b\{[^}]*padding:0[^}]*text-indent:0/.test(css)
-      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=156[^}]*\/contain no-repeat/.test(css),true);
+      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=157[^}]*\/contain no-repeat/.test(css),true);
   eq('프로필 버튼과 글씨는 같은 카드 배율로 함께 커지고 줄어든다',
     /\.enr\.refprofile\{[^}]*-webkit-text-size-adjust:none[^}]*text-size-adjust:none/.test(css)
       && /\.enr\.refprofile \.ecard\{--pf-label-gap:1\.24cqw;--pf-title-size:3\.22cqw;--pf-label-size:1\.85cqw;--pf-name-size:2\.61cqw;--pf-line-size:2\.39cqw;--pf-mode-size:2\.07cqw;--pf-msg-size:1\.87cqw;--pf-click-size:3\.5cqw;--pf-click-width:44\.6cqw/.test(css)
@@ -4223,7 +4224,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['156', 'd1affc30794e']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['157', '8638f642a074']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
