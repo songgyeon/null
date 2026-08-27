@@ -430,6 +430,18 @@ const ENR_FIELDS=[
 ];
 function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   const [out,setOut]=useState(false);
+  /* 진행 단계마다 다른 이미지를 처음 요청하면 바가 잠깐 비어 보인다.
+     등록 화면이 뜰 때 다섯 장을 미리 디코드해 두어 값이 바뀌면 한 칸만 바로 바뀐다. */
+  const progressImages=useRef([]);
+  useEffect(()=>{
+    progressImages.current=Array.from({length:5},(_,i)=>{
+      const img=new Image();
+      img.src=`assets/ui/profile-v2/progress-${i}.webp${AV}`;
+      if(img.decode)img.decode().catch(()=>{});
+      return img;
+    });
+    return()=>{progressImages.current=[]};
+  },[]);
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 방 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
   const [edit,setEdit]=useState(false);
