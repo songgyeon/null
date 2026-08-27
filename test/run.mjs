@@ -397,6 +397,29 @@ eq('음악이 막혔을 때 켜라고 알려준다',
    앱을 열 때마다 나오면 그냥 방해다. */
 eq('등록 화면이 웹·앱 둘 다 있다',
   /function Enroll\(/.test(appSrc) && /function Enroll\(/.test(web), true);
+/* ── 프로필 판은 그림이 아니라 CSS다 ──
+   한때 칸마다 webp를 깔았다(profile-v2). 칸 하나를 옮기면 그림도 다시
+   뽑아야 했고, 폰 폭이 달라지면 글자만 커지고 칸은 안 커졌다.
+   지금은 좌표가 곧 디자인이다 — 390×680 판을 %로 환산해 쓰고 글자는
+   cqw로 묶어 카드 폭을 따라간다. 그래서 그림 파일이 하나도 안 든다. */
+{
+  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('프로필 판을 CSS로 그린다',
+    /\.enr\.cssprofile\{/.test(css) && /container-type:inline-size/.test(css)
+    && /aspect-ratio:390\/680/.test(css), true);
+  eq('프로필 칸에 그림을 안 쓴다', (() => {
+    const a = css.indexOf('.enr.cssprofile{'), b = css.indexOf('\n/*', css.indexOf('.enr.cssprofile .ego{'));
+    return /url\(/.test(css.slice(a, b > a ? b : a + 22000).replace(/url\("ui\/bg-mobile\.webp"\)/g, ''));
+  })(), false);
+  eq('옛 그림 판이 안 남았다', /refprofile|profile-v2/.test(css + web), false);
+}
+/* 다섯 칸을 센다 — 이름·SUBJECT·AGE·LIKES·HATES. AGE는 세계가 정한 값이라
+   처음부터 차 있어서 이름만 넣은 판은 2/5다. 막대와 글자가 같은 수를 봐야
+   한다 — 전에는 막대에 다섯 칸이 그려져 있는데 넷까지만 세서 끝까지 안 찼다 */
+eq('진도는 다섯 칸이고 막대와 글자가 같은 수를 본다',
+  /const ESTEPS=ENR_FIELDS\.length\+1;/.test(web)
+  && /className=\{`ebar fill-\$\{filled\}`\}/.test(web)
+  && /CONNECTING … \$\{filled\}\/\$\{ESTEPS\}/.test(web), true);
 /* 등록이 단계가 됐다(false|'intro'|'enroll'|'confirm') — 이름을 넣으면
    배역을 받는 자리(intro)로, 거기서 등록으로, Click 뒤 세계 확정(YES)으로
    간다. 웹과 앱이 같은 단계를 쓴다 */
@@ -4140,7 +4163,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['138', 'f2c22033fe27']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['139', 'd511e3284bee']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4414,8 +4437,11 @@ eq('채팅방 X가 목록으로 보낸다',
    세계 확정 창의 X는 되돌아가기다 — 이 앱에 back 위젯은 어디에도 없으므로
    창틀이 그 일을 한다. 등록 화면도 X가 생기면서 여섯에서 다섯이 됐다 */
 eq('안 눌리는 X는 다섯뿐이다', (web.match(/<WinDots\/>/g) || []).length, 5);
+/* 제목은 띠 안의 글자가 아니라 띠 위에 얹은 한 줄이 됐다 —
+   띠가 유리라 안쪽에 빛막이 흐르고, 글자를 그 안에 두면 막에 먹힌다 */
 eq('등록 화면 X도 눌린다',
-  /<div className="etb">null\.exe<WinDots onClose=\{onClose\}\/><\/div>/.test(web), true);
+  /<div className="etb"><WinDots onClose=\{onClose\}\/><\/div>/.test(web)
+  && /<div className="ewindowtitle">NULL\.exe<\/div>/.test(web), true);
 eq('확정 창의 X가 등록으로 돌려보낸다',
   /<div className="tb">null\.exe<WinDots onClose=\{onBack\}\/><\/div>/.test(web), true);
 

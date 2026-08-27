@@ -442,10 +442,15 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   /* 모드는 물어보고 바꾼다. 지금 켜진 걸 눌러도 창은 뜬다 —
      무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
   const [askMode,setAskMode]=useState(null);
-  const filled=ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
-  const progressFilled=(name.trim()?1:0)+ENR_FIELDS.filter(f=>f.k!=="age"&&(profile[f.k]||"").trim()).length;
+  /* 다섯 칸을 센다 — 이름·SUBJECT·AGE·LIKES·HATES. AGE는 세계가 정한
+     값이라 처음부터 차 있고, 그래서 이름만 넣은 판은 2/5에서 시작한다.
+     막대와 글자가 같은 수를 봐야 한다. 전에는 막대가 넷을 세고 글자가
+     넷을 세는데 막대에는 다섯 칸이 그려져 있어 끝까지 안 찼다. */
+  const ESTEPS=ENR_FIELDS.length+1;
+  const filled=(name.trim()?1:0)
+    +ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
-  return <div className={"enr refprofile"+(out?" out":"")}>
+  return <div className={"enr cssprofile"+(out?" out":"")}>
     <div className="ecard">
       {/* ── 같은 말을 두 번 하지 않는다 ──
           이 문장은 원래 여기 흐르고 있었다. 지금은 바로 앞 화면(Intro)이
@@ -453,7 +458,10 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
           온다 — 그 다음 창의 제목줄이 같은 문장을 또 흘리면 방금 읽은 것을
           되돌려주는 게 된다. 확정 화면에서 이미 같은 이유로 걷었다.
           자리를 새 문구로 채우지 않는다. 다른 창과 같은 이름을 쓴다. */}
-      <div className="etb">null.exe<WinDots onClose={onClose}/></div>
+      {/* 제목은 띠 안의 글자가 아니라 띠 위에 얹은 한 줄이다. 띠는 유리라
+          안쪽에 빛막이 흐르는데, 글자를 그 안에 두면 막에 먹힌다 */}
+      <div className="etb"><WinDots onClose={onClose}/></div>
+      <div className="ewindowtitle">NULL.exe</div>
       <div className="ebody">
         <div className="eprofiletitle">✧ NULL PROFILE ✧</div>
         <span className="enamelab">NAME</span>
@@ -487,11 +495,13 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
-        <div className={`ebar fill-${progressFilled}`}><i/></div>
-        <div className={"emsg"+(filled===ENR_FIELDS.length?" done":"")}>
-          {filled===ENR_FIELDS.length?"READY ✓":`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</div>
+        <div className={`ebar fill-${filled}`}><i/></div>
+        <div className={"emsg"+(filled===ESTEPS?" done":"")}>
+          {filled===ESTEPS?"READY ✓":`CONNECTING … ${filled}/${ESTEPS}`}</div>
         {/* 다 안 채워도 들어갈 수 있다 — 비워두는 것도 이 이야기에서는 답이다 */}
-        <button className="ego" onClick={leave}>Click!</button>
+        {/* 별 둘이 짝이다. 왼쪽 큰 별은 단추가 그리고, 오른쪽 작은 별만
+            자리를 따로 잡아야 해서 요소로 둔다 */}
+        <button className="ego" onClick={leave}>Click!<i className="egostar"/></button>
       </div>
     </div>
     {askMode&&<ModeAsk which={askMode} now={mode===askMode}
