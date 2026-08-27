@@ -1855,7 +1855,7 @@ function App(){
       send(f.room,f.text,true)}}/>}
     {kiss&&<KissTime shot={{shot:kiss}} onDone={()=>setKiss(null)}/>}
     {enrolling==="intro"&&<Intro onGo={()=>setEnrolling("enroll")}/>}
-    {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")}
+    {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")} onClose={()=>setEnrolling("intro")}
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {enrolling==="confirm"&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling("enroll")}/>}

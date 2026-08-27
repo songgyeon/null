@@ -396,7 +396,7 @@ const ENR_FIELDS=[
   {k:"likes",    lab:"LIKES",   tail:"를 좋아하고"},
   {k:"dislikes", lab:"HATES",   tail:"를 싫어한다"},
 ];
-function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
+function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   const [out,setOut]=useState(false);
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 방 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
@@ -420,15 +420,17 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
           온다 — 그 다음 창의 제목줄이 같은 문장을 또 흘리면 방금 읽은 것을
           되돌려주는 게 된다. 확정 화면에서 이미 같은 이유로 걷었다.
           자리를 새 문구로 채우지 않는다. 다른 창과 같은 이름을 쓴다. */}
-      <div className="etb">null.exe<WinDots/></div>
+      <div className="etb">null.exe<WinDots onClose={onClose}/></div>
       <div className="ebody">
+        <div className="eprofiletitle">✧ NULL PROFILE ✧</div>
+        <span className="enamelab">NAME</span>
         {edit
           ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
              onChange={e=>setNv(e.target.value)} onBlur={saveName}
              onKeyDown={e=>e.key==="Enter"&&saveName()}/></div>
           :<div className="ename" onClick={()=>setEdit(true)} title="이름 고치기">{name}</div>}
         {ENR_FIELDS.map((f,i)=>
-          <div className="eline" key={f.k}>
+          <div className={`eline e-${f.k}`} key={f.k}>
             <span className="lab">{f.lab}</span>
             {/* 나이는 세계의 고정값이다 — 유저가 아니라 세계가 정한 칸. 행은 남기고 입력만 잠근다 */}
             {f.k==="age"
@@ -441,7 +443,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
         {/* ── 이 판을 어떻게 살 것인가 ──
             등록 화면이 이미 「이 판을 어떻게 살지」 정하는 자리라 여기 둔다.
             중간에 바꾸면 D-N이 튀므로 판마다 한 번이다. */}
-        <div className="eline"><span className="lab">MODE</span>
+        <div className="eline e-mode"><span className="lab">MODE</span>
           <span className="emode">
             {[["real","real"],["speed","speed"]].map(([k,t])=>
               <b key={k} className={mode===k?"on":""} onClick={()=>setAskMode(k)}>{t}</b>)}
@@ -451,7 +453,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}){
             :<>현실 하루 = NULL 하루! ♡ <span className="kao">٩(❛ัᴗ❛ั ๑)</span></>}</span>
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
-        <div className="eline"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
+        <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
         <div className="ebar"><i style={{width:(filled/ENR_FIELDS.length*100)+"%"}}/></div>
         <div className={"emsg"+(filled===ENR_FIELDS.length?" done":"")}>
           {filled===ENR_FIELDS.length?"READY ✓":`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</div>
