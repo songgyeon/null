@@ -361,6 +361,16 @@ for (const [, names, mod] of appSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\
    아래쪽 오류창들은 접는다 — 어차피 키보드가 다 가린다. */
 eq('오프닝이 키보드를 피한다',
   /const kb=useKeyboardHeight\(\)/.test(appSrc) && /kb\?\{justifyContent:'flex-start'/.test(appSrc), true);
+/* 웹은 방식이 다르다. 앱의 오프닝은 flex로 쌓지만 웹은 좌표가 전부 높이의
+   %라(원화를 재서 넣은 값이다), 키보드가 창을 줄이면 아래 창 셋이 서로를
+   깔고 앉는다 — 370×430에서 재봤다: w1 235..339 · w2 312..392 · w3 376..417.
+   그림 높이는 폭이 정하므로(aspect-ratio) 저희끼리는 안 줄고 자리만 당겨진다.
+   그래서 키보드가 없을 때의 높이를 재서 못박는다. 타이핑 중에 다시 재면
+   줄어든 높이를 못박게 되므로 그때는 안 잰다. */
+eq('웹 오프닝은 키보드에 안 줄어든다',
+  /style=\{ph\?\{height:ph\+"px"\}:null\}/.test(web)
+  && /a\.tagName==="INPUT"\|\|a\.tagName==="TEXTAREA"/.test(web)
+  && /window\.addEventListener\("resize",fit\)/.test(web), true);
 
 /* 오프닝 — 곡이 도는 동안 이름을 기다린다. 시간으로 끊지 않는다. */
 eq('오프닝이 웹·앱 둘 다 있다', /function Splash\(/.test(appSrc) && /function Splash\(/.test(web), true);
@@ -4125,7 +4135,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['127', 'a038aaff1da3']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['128', '54484a776b9a']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */

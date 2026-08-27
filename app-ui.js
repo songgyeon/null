@@ -352,7 +352,35 @@ function Splash({onEnter}){
   },[]);
   const wake=()=>{const a=audio.current;if(!armed&&a)a.play().then(()=>setArmed(true)).catch(()=>{})};
   const go=()=>{const t=v.trim();if(t)onEnter(t)};
-  return <div className="screen splash" onClick={wake}>
+
+  /* ── 키보드가 올라와도 오프닝은 안 줄인다 ──
+     index.html이 interactive-widget=resizes-content를 주고 있어서, 키보드가
+     올라오면 창 높이가 그만큼 줄어든다. 채팅 화면은 그래야 입력칸이 키보드
+     바로 위에 붙는다. 그런데 이 화면의 좌표는 전부 높이의 %라, 높이가 줄면
+     아래 창 셋이 서로를 깔고 앉는다 — 370×430에서 재봤다:
+         w1 235..339 · w2 312..392 · w3 376..417   (두 번 겹친다)
+     그림들은 폭으로 높이가 정해져서(aspect-ratio) 저희끼리는 안 줄어드는데
+     자리만 위로 당겨지기 때문이다.
+     그래서 키보드가 없을 때의 높이를 재서 못박는다. 키보드가 올라오면 아래가
+     잘릴 뿐 겹치지는 않는다 — 입력칸은 높이의 35% 자리라 잘리는 데 안 들어간다.
+     타이핑 중에는 다시 재지 않는다. 그때 재면 줄어든 높이를 못박게 된다. */
+  const box=useRef(null);
+  const [ph,setPh]=useState(0);
+  useEffect(()=>{
+    const typing=()=>{const a=document.activeElement;
+      return !!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")};
+    const fit=()=>{const n=box.current;
+      if(!n||!n.parentNode||typing())return;
+      setPh(n.parentNode.clientHeight||0)};
+    fit();
+    window.addEventListener("resize",fit);
+    window.addEventListener("orientationchange",fit);
+    return()=>{window.removeEventListener("resize",fit);
+      window.removeEventListener("orientationchange",fit)};
+  },[]);
+
+  return <div className="screen splash" ref={box} onClick={wake}
+    style={ph?{height:ph+"px"}:null}>
     <Bubbles/>
     <Sparkles/>
     <div className="spstack">
