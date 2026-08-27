@@ -376,6 +376,8 @@ eq('웹 오프닝은 키보드에 안 줄어든다',
    그 윗동강만 남는다 — 실제로 그렇게 날아갔다 */
 eq('배경 깔린 화면은 안 못박는다',
   /<div className="screen splash" ref=\{box\} onClick=\{wake\}>/.test(web), true);
+eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
+  /<div className="spstack"[\s\S]{0,2200}<div className="sptap">\{armed\?"♪ NULL!":"TAP FOR MUSIC ♪"\}<\/div>[\s\S]{0,80}<\/div>\s*<\/div>;/.test(web), true);
 
 /* 오프닝 — 곡이 도는 동안 이름을 기다린다. 시간으로 끊지 않는다. */
 eq('오프닝이 웹·앱 둘 다 있다', /function Splash\(/.test(appSrc) && /function Splash\(/.test(web), true);
@@ -4140,7 +4142,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['139', '022d7626729c']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['140', '2186e3d40ff9']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */

@@ -416,8 +416,8 @@ function Splash({onEnter}){
           <span className="spbar"><i/></span>
         </div>
       </div>
+      <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
     </div>
-    <div className="sptap">{armed?"♪ NULL!":"TAP FOR MUSIC ♪"}</div>
   </div>;
 }
 
