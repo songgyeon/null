@@ -1,10 +1,32 @@
 /* NULL — 앱.
    상태를 들고 있는 곳. 저장소를 읽고, 워커를 부르고, 화면을 고른다.
    app-data.js·app-ui.js 다음에 실려야 한다. */
-/* ── 앱 ── */
+/* 프로필 좌표 검수는 실제 판과 상태를 하나도 공유하지 않는다.
+   전에는 App 안에서 등록 화면만 덮었다. 그 뒤의 RoomList도 함께 살아 있어서
+   오늘을 봤다고 저장하고, 야자 주에는 가방에 에너지바까지 넣었다. */
+function ProfileQA(){
+  const [name,setName]=useState("리리");
+  const [profile,setProfile]=useState({});
+  const [mode,setMode]=useState("real");
+  const [screen,setScreen]=useState("enroll");
+  return <div className="phone">
+    {screen==="enroll"&&<Enroll name={name} profile={profile}
+      onDone={()=>setScreen("confirm")} onClose={()=>{}}
+      mode={mode} onMode={setMode} onRename={setName}
+      onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
+    {screen==="confirm"&&<Confirm name={name}
+      onYes={()=>setScreen("enroll")} onBack={()=>setScreen("enroll")}/>}
+  </div>;
+}
+
 function App(){
   const qaProfile=(()=>{try{return new URLSearchParams(location.search).get("qa")==="profile"}catch(e){return false}})();
-  const [name,setName]=useState(()=>qaProfile?"리리":(localStorage.getItem("null_name")||""));
+  return qaProfile?<ProfileQA/>:<GameApp/>;
+}
+
+/* ── 실제 판 ── */
+function GameApp(){
+  const [name,setName]=useState(()=>localStorage.getItem("null_name")||"");
   const [profile,setProfile]=useState(loadProfile);
   const [store,setStore]=useState(loadStore);
   const [unlocked,setUnlocked]=useState(loadUnlocked);
@@ -1743,8 +1765,6 @@ function App(){
      건너뛰지 않는다 — 등록만 하고 닫은 사람은 아직 시작 전이다. */
   const [enrolling,setEnrolling]=useState(()=>{
     try{
-      /* 좌표 검수용 읽기 전용 진입점. 저장된 판은 지우지 않는다. */
-      if(qaProfile)return "enroll";
       return localStorage.getItem("null_name")&&!loadWorld()?"enroll":false
     }catch(e){return false}
   });
@@ -1849,7 +1869,7 @@ function App(){
     return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
-  return <div className="phone">
+  return <div className={"phone"+(!name?" opening":"")}>
     {diary&&<Diary onDone={diaryDone}/>}
     {flash&&<Flash onDone={()=>{const f=flash;setFlash(null);
       /* 엽서를 끝까지 채웠다 = 민현이 그날 얘기를 **한** 것이다.
@@ -1864,7 +1884,7 @@ function App(){
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {enrolling==="confirm"&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling("enroll")}/>}
-    {!name&&!qaProfile?<Splash onEnter={enter}/>
+    {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        groupOn={groupOn} onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}

@@ -376,7 +376,13 @@ function Splash({onEnter}){
       return !!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")};
     const fit=()=>{const n=box.current;
       if(!n||!n.parentNode||typing())return;
-      setPh(n.parentNode.clientHeight||0)};
+      const w=n.parentNode.clientWidth||390;
+      const h=n.parentNode.clientHeight||844;
+      /* 데스크톱 사이트로 연 세로 화면은 390px 판 전체를 한 덩어리로 키운다.
+         창만 넓히면 글자와 단추 좌표가 그림 슬롯에서 벗어나므로 scale도 같은
+         좌표 상자에 건다. 키보드가 뜬 동안에는 위의 typing guard가 값을 지킨다. */
+      n.style.setProperty("--open-scale",String(Math.min(w/390,h/844)*.96));
+      setPh(h)};
     fit();
     window.addEventListener("resize",fit);
     window.addEventListener("orientationchange",fit);
@@ -468,7 +474,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
             {/* 나이는 세계의 고정값이다 — 유저가 아니라 세계가 정한 칸. 행은 남기고 입력만 잠근다 */}
             {f.k==="age"
               ?<span className="blank filled" title="세계의 고정값">25</span>
-              :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
+              :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
                  open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
                  onNext={()=>{const n=ENR_FIELDS.findIndex((g,j)=>j>i&&g.k!=="age");setFocus(n)}}/>}
             <span className="etail">{f.tail}</span>
@@ -860,7 +866,7 @@ function KissTime({shot,onDone}){
 /* 열린 상태를 밖에서 쥘 수 있다(open/onOpen). 등록 화면은 그렇게 해서
    엔터 한 번에 다음 칸으로 넘긴다. 안 넘기면 제 안의 edit로 혼자 돈다 —
    프로필 창은 예전 그대로다. */
-function Blank({value,onSave,width,open,onOpen,onNext}){
+function Blank({value,onSave,width,open,onOpen,onNext,saveEmptyNow=false}){
   const ctl=typeof open==="boolean";
   const [edit,setEdit]=useState(false);
   const on=ctl?open:edit;
@@ -869,7 +875,7 @@ function Blank({value,onSave,width,open,onOpen,onNext}){
   useEffect(()=>setV(value||""),[value,on]);
   const done=next=>{onSave(v.trim());if(next&&onNext)onNext();else set(false)};
   if(on)return <input className="blankin sunken" style={width?{width}:null} value={v} autoFocus maxLength={20}
-    onChange={e=>{const n=e.target.value;setV(n);if(value&&!n.trim())onSave("")}}
+    onChange={e=>{const n=e.target.value;setV(n);if(saveEmptyNow&&value&&!n.trim())onSave("")}}
     onBlur={()=>done(false)} onKeyDown={e=>e.key==="Enter"&&done(true)}/>;
   return <span className={"blank"+(value?" filled":"")} onClick={()=>set(true)}>{value||"□□"}</span>;
 }
@@ -980,7 +986,7 @@ function Bag({bag,store,onClose}){
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
   const lent=bag.filter(b=>ITEMS[b.key]&&ITEMS[b.key].lent).length;
-  return <div className="cartscreen refbag"><div className="cartwin">
+  return <div className="cartscreen"><div className="cartwin">
     <div className="tb">✿ bag<WinDots onClose={onClose}/></div>
     <div className="cbar">
       <span className="bagcount">RECEIVED {bag.length} / {Object.keys(ITEMS).length}</span>
@@ -1062,7 +1068,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
      재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
   const here=c=>withChar===c;
 
-  return <div className={"cartscreen"+(pick?" refgift":"")}>
+  return <div className="cartscreen">
     <div className="cartwin">
     <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
 
@@ -1087,7 +1093,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       <div className="cfoot">TAP TO WRAP ♡</div>
     </React.Fragment>}
 
-    {pick&&<div className="cwrap refwrap">
+    {pick&&<div className="cwrap">
       <div className="cgcard"><span className="cribbon"/>
         <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
@@ -1174,7 +1180,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
       :<div style={{fontSize:16,color:"#8a4f74",letterSpacing:".08em"}}>{name}</div>}
     {ENR_FIELDS.map((f,i)=>
       <div className="dlgline" key={f.k}>
-        <Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)}
+        <Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
           open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
           onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/> {f.tail}</div>)}
     <div className="dlgbtns">
@@ -1241,7 +1247,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   },[menu]);
   const mb=(id,label,onClick)=><span className={"mbtn"+(menu===id?" open":"")}
     onClick={e=>{e.stopPropagation();onClick?onClick():setMenu(menu===id?null:id)}}>{label}</span>;
-  return <div className={"screen desk ref-"+tab}>
+  return <div className="screen desk">
     <Sparkles/>
     <div className="tb"><StarGlyph/>NULL messenger<WinDots/></div>
     <div className="menubar">
@@ -1432,7 +1438,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         })()}
       </div>
       :tab==="cam"
-      ?<div className="gal refcam">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
+      ?<div className="gal">{/* Cam: 받은 사진과 자리에서 본 사진. 안 겪은 건 존재하지 않는다.
             자리 사진은 말풍선이 아니라 배경이라 대화 기록에 안 남는다 —
             seenPhotos가 따로 적어둔 것을 같이 들고 온다 */}
         {(()=>{
@@ -1467,7 +1473,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           </div>;
         })()}
       </div>
-      :<div className="gal refhidden">{/* .hidden 탭: 잠긴 기록 */}
+      :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
         <div className="progline">
           <span className="t">ENCRYPTED</span>
           <span className="bar"><i style={{width:(unlocked.length/HIDDEN.length*100)+"%"}}/></span>

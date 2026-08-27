@@ -1467,7 +1467,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    그림에 슬롯이 이미 배킹돼 있어 창 크기를 그림 비율로 못박고 DOM 조각을
    각 슬롯 좌표에 절대 배치한다 — 내용 크기에 맞춰 늘리면 슬롯과 어긋난다.
    좌표는 재업로드본을 여백까지 잘라낸 뒤 10% 격자를 얹어 읽은 값이다. */
-.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=141") center/cover no-repeat}
+.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=142") center/cover no-repeat}
 
 /* CD — 그림이 왔으니 CSS로 그리던 원판을 버린다. 도는 것은 그림 자체 */
 .spcd{visibility:visible;align-self:flex-start;margin-left:-2px;margin-right:0;width:82px;height:82px;border-radius:0;
@@ -1551,9 +1551,11 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    띠가 아니라 색종이가 된다 */
 .spstack .w3 .spbar i{background:linear-gradient(180deg,#f8d3e9,#efb5de 55%,#e3a3d2)}
 
-/* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다 */
-@media (min-aspect-ratio:1/1){
-  .screen.splash{background-image:url("ui/bg-desktop.webp?v=141")}
+/* 실제 데스크톱과 모바일 브라우저의 '데스크톱 사이트'를 함께 잡는다.
+   오프닝만 폰 390px 틀에서 꺼내 화면 전체를 쓰고, 내부 UI의 폰 틀은 유지한다. */
+@media (min-width:501px){
+  .phone.opening{width:100vw;max-width:none;height:100dvh;max-height:none;border:0;border-radius:0;box-shadow:none;background:#efe6fb}
+  .phone.opening>.screen.splash{inset:0;border-radius:0;background-image:url("ui/bg-opening-desktop.jpg?v=142")}
 }
 
 /* ── 창 자리 — 참고 화면에서 잰 사각형 그대로 ──
@@ -1592,6 +1594,36 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    224px에 묶인 채로 남는다. 안쪽이 wrapper를 꽉 채우게 한다 —
    높이는 aspect-ratio가 내므로 창이 낮아지지 않는다. */
 .spstack .w2 .spwin{width:100%}
+
+/* 세로형 데스크톱 사이트: 모바일 390×844 좌표판을 통째로 확대한다.
+   그림·글씨·단추가 같은 transform을 받아 슬롯 좌표가 흐트러지지 않는다. */
+@media (min-width:501px) and (max-aspect-ratio:1/1){
+  .phone.opening .spstack{left:50%;right:auto;top:50%;bottom:auto;width:390px;height:844px!important;
+    transform:translate(-50%,-50%) scale(var(--open-scale,1));transform-origin:center}
+}
+
+/* 가로 데스크톱은 세로판을 억지로 키우지 않고 창들을 두 칸으로 펼친다.
+   각 창의 배경 비율과 안쪽 % 좌표는 그대로라 글씨는 커진 슬롯을 따라간다. */
+@media (min-width:501px) and (min-aspect-ratio:1/1){
+  .phone.opening .spstack{left:0;right:0;top:0;bottom:auto;width:100%;height:100%!important;transform:none}
+  .phone.opening .spcd{left:3%;top:3%;width:clamp(92px,11vw,190px)}
+  .phone.opening .spcard{left:5%;top:9%;width:clamp(390px,48vw,760px)}
+  .phone.opening .spstack .w1{left:61%;top:12%;width:clamp(220px,26vw,430px)}
+  .phone.opening .spstack .w2{left:63%;top:44%;width:clamp(250px,29vw,480px)}
+  .phone.opening .spstack .w3{left:46%;top:78%;width:clamp(380px,45vw,740px)}
+  .phone.opening .spcard .sptb{font-size:clamp(12px,1.1vw,18px)}
+  .phone.opening .spcard .splogo{font-size:clamp(46px,4.8vw,82px)}
+  .phone.opening .spcard .spinput{padding:0 4%;font-size:clamp(17px,1.55vw,27px)}
+  .phone.opening .spcard .spinput::placeholder{font-size:clamp(13px,1.15vw,20px)}
+  .phone.opening .spcard .spgo{font-size:clamp(14px,1.25vw,22px)}
+  .phone.opening .spstack .w1 .sptb,.phone.opening .spstack .w2 .sptb,
+  .phone.opening .spstack .w3 .sptb{font-size:clamp(9px,.85vw,15px)}
+  .phone.opening .spstack .w1 .spbd{padding:10% 6% 15.5% 10%;font-size:clamp(10px,.95vw,17px)}
+  .phone.opening .spstack .w2 .spbd{padding:9.4% 26.8% 12.5% 6.25%;font-size:clamp(10px,.95vw,17px)}
+  .phone.opening .spstack .w1 .spbtn{font-size:clamp(10px,.9vw,16px)}
+  .phone.opening .spstack .w2 .spbtn{font-size:clamp(9px,.8vw,14px)}
+  .phone.opening .sptap{bottom:2.5%;font-size:clamp(11px,.8vw,15px)}
+}
 
 /* Profile v2: the 864x1536 author layout is the coordinate system. Each PNG is
    still a separate control; the composed reference never ships in the page. */
