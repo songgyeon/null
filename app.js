@@ -1741,7 +1741,11 @@ function App(){
      이름이 저장돼 있어도 YES를 안 눌렀으면(loadWorld가 거짓) 메신저로
      건너뛰지 않는다 — 등록만 하고 닫은 사람은 아직 시작 전이다. */
   const [enrolling,setEnrolling]=useState(()=>{
-    try{return localStorage.getItem("null_name")&&!loadWorld()?"enroll":false}catch(e){return false}
+    try{
+      /* 좌표 검수용 읽기 전용 진입점. 저장된 판은 지우지 않는다. */
+      if(new URLSearchParams(location.search).get("qa")==="profile")return "enroll";
+      return localStorage.getItem("null_name")&&!loadWorld()?"enroll":false
+    }catch(e){return false}
   });
   const enter=n=>{localStorage.setItem("null_name",n);setName(n);setEnrolling("intro")};
   /* YES — 세계가 생기는 순간. 프로필이 잠기고 나이는 세계 고정값 25가 된다.
