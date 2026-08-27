@@ -439,6 +439,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
      무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
   const [askMode,setAskMode]=useState(null);
   const filled=ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
+  const progressFilled=(name.trim()?1:0)+ENR_FIELDS.filter(f=>f.k!=="age"&&(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr refprofile"+(out?" out":"")}>
     <div className="ecard">
@@ -482,7 +483,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
-        <div className={`ebar fill-${filled}`}><i/></div>
+        <div className={`ebar fill-${progressFilled}`}><i/></div>
         <div className={"emsg"+(filled===ENR_FIELDS.length?" done":"")}>
           {filled===ENR_FIELDS.length?"READY ✓":`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</div>
         {/* 다 안 채워도 들어갈 수 있다 — 비워두는 것도 이 이야기에서는 답이다 */}
@@ -490,7 +491,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
       </div>
     </div>
     {askMode&&<ModeAsk which={askMode} now={mode===askMode}
-      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
+      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>} 
   </div>;
 }
 
