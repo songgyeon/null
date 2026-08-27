@@ -44,18 +44,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @keyframes blinkc{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
 @keyframes recblink{0%,49%{opacity:1}50%,100%{opacity:.15}}
-@keyframes spk{0%,100%{transform:scale(.35) rotate(0deg);opacity:.15}50%{transform:scale(1) rotate(90deg);opacity:.95}}
-/* 창들을 세로 흐름에 얹는다. 흩어진 데스크톱처럼 보이는 건 좌우 정렬과
-   살짝 겹치는 음수 여백으로 낸다 — 좌표로 흩어놓으면 화면 높이가 바뀔 때마다
-   겹치거나 잘린다. */
-.spstack{position:absolute;left:0;right:0;top:0;bottom:0;z-index:12;
- display:flex;flex-direction:column;justify-content:center;gap:12px;padding:0 26px 52px}
-/* 세로가 모자라면 flex가 창들을 눌러버리고, overflow:hidden이라 안쪽 버튼이
-   잘려나간다. 창은 절대 줄이지 않는다 — 모자라면 차라리 위아래가 잘리는 게 낫다. */
-.spstack>*{flex:none}
-.spstack .w1{align-self:flex-start;width:182px;margin-top:8px}
-.spstack .w2{align-self:flex-end;width:224px;margin-top:-10px}
-.spstack .w3{align-self:stretch;margin-top:2px}
+/* 옛 세로 흐름 배치는 걷었다 — 새 오프닝은 전부 절대좌표다 */
 .spcurwrap{position:relative}
 /* 키라키라 반짝이 */
 @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
@@ -77,8 +66,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
    구슬로 세운다 — 왼쪽 위에 흰 점, 아래 안쪽에 그늘, 바깥에 얕은 그림자 */
 .dots>span{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
  width:19px;height:19px;border-radius:50%;color:#fff}
-.dots>span::after{content:"";position:absolute;inset:0;border-radius:50%;
- background:radial-gradient(circle at 33% 26%,rgba(255,255,255,.95),rgba(255,255,255,.34) 38%,rgba(255,255,255,0) 64%)}
+/* 점 셋의 유광 덧칠은 걷었다 — 준 파일의 점은 민무늬다 */
 /* ─ □ ✕를 글자로 찍으면 글꼴마다 글자가 em 상자 안에 앉는 높이가 달라서
    기기마다 다른 데로 쏠린다. 세 표시를 상자로 직접 그려 가운데를 못박는다.
    ::after(윤 나는 막)가 위에 깔리므로 표시는 z-index로 그 앞에 세운다 */
@@ -173,27 +161,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
    경고는 점선 상자에서 꺼낸다. 이 앱에서 점선 둥근 상자는 「채워야 할 빈칸」이라
    경고를 담으면 입력 안 한 칸처럼 보인다. 자물쇠 한 줄로 단추 위에 붙인다. */
-.dlgbody.mdbody{gap:0;padding:17px 16px 15px}
-.mdpick{display:flex;align-items:baseline;gap:9px}
-.mdpick b{font-weight:normal;font-size:26px;letter-spacing:.02em;color:#ff5fa8}
-.mdpick em{font-style:normal;font-size:12px;color:#c0aee6}
-.mdtx{margin-top:11px;font-size:11.5px;line-height:1.8;color:#8a7fc0}
-/* 비율. 현실 한 칸, 게임 네 칸 */
-.mdratio{margin-top:15px;padding:13px 13px 12px;border-radius:9px;background:#fff;
- border:1px solid #e6ddf8;box-shadow:inset 1px 1px 0 rgba(93,84,144,.07)}
-.mdrr{display:flex;align-items:center;gap:9px}
-.mdrr+.mdrr{margin-top:9px}
-.mdrr .k{flex:none;width:32px;font-size:9px;letter-spacing:.16em;color:#9a8fc8}
-.mdrr .bx{flex:1;display:flex;gap:4px}
-.mdrr .bx span{flex:1;height:15px;border-radius:3px;background:#f4effd;border:1px solid #ddd2f4}
-.mdrr .bx span.on{border-color:#ff9ec6;background:linear-gradient(180deg,#ffc4dd,#ff8fbe)}
-.mdrr .n{flex:none;font-size:9.5px;letter-spacing:.08em;color:#b0a6d8}
-.mdrr .n b{font-weight:normal;color:#e0568f}
-.mdlock{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:15px;
- font-size:10px;letter-spacing:.04em;color:#b09ecf}
-.mdlock svg{flex:none}
-.mdrow{display:flex;gap:9px;margin-top:15px}
-.mdrow .wbtn{flex:1;max-width:none}
+/* 옛 확정창 규칙은 걷었다 — 아래 새 판이 같은 선택자를 전부 다시 쓰는데
+   옛 값이 앞에 남아 line-height·테두리·둥근 모서리만 살아 섞였다 */
 /* 확정 단추. 겟챠의 분홍을 그대로 쓴다 — 이 앱에서 분홍은 「되돌아오지 않는 쪽」이다 */
 .wbtn.go{border-color:#ff8fbe;color:#fff;text-shadow:0 1px 0 rgba(190,90,130,.55);
  background:linear-gradient(180deg,#ffc4dd 0%,#ff9ec6 48%,#ff7fae 52%,#ff96bf 100%);
@@ -460,7 +429,9 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 @keyframes rise{0%{transform:translateY(0);opacity:0}6%{opacity:1}84%{opacity:.95}100%{transform:translateY(-940px);opacity:0}}
 @keyframes sway{0%{margin-left:-15px}100%{margin-left:15px}}
 .bubbles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-.bub{position:absolute;bottom:-70px;border-radius:50%;
+/* 이름이 겹친다 — 방 목록에도 .bub 가 있고 그게 뒤에 있어서 이겼다.
+   오프닝 것을 화면으로 묶어 쓴 순서와 상관없이 제 값을 쓰게 한다 */
+.screen.splash .bub{position:absolute;bottom:-70px;border-radius:50%;
  background:radial-gradient(circle at 30% 26%,#fff 0 9%,rgba(255,255,255,.55) 20%,rgba(255,255,255,0) 46%),
    radial-gradient(circle at 72% 74%,rgba(255,170,215,.7),rgba(160,205,255,.5) 55%,rgba(255,255,255,.05) 78%);
  border:1.5px solid rgba(255,255,255,.9);box-shadow:0 0 12px rgba(255,255,255,.45),inset 0 0 8px rgba(255,255,255,.5);
@@ -468,58 +439,11 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
 /* 오픈닝 화면 — 미니홈피 부텀 */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes shimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}
-@keyframes fill{0%{width:14%}100%{width:92%}}
-@keyframes flow{0%{background-position:0 0}100%{background-position:28px 0}}
 @keyframes pop{0%{opacity:0;transform:scale(.94)}100%{opacity:1;transform:scale(1)}}
-.splash{display:block;cursor:pointer;background:linear-gradient(180deg,#dcd3f7 0%,#c3b2f0 50%,#f0c2de 100%)}
-/* CD도 흐름에 얹는다. 좌표로 두면 짧은 화면에서 카드 뒤로 숨는다 */
-.spcd{align-self:flex-end;margin-right:-4px;width:76px;height:76px;border-radius:50%;z-index:5;flex:none;
- animation:spin 7s linear infinite;
- background:conic-gradient(from 0deg,#ffd0e6,#c3b2f0,#a8e6e0,#ffe9a8,#ffc2dd,#b9e3ff,#ffd0e6);
- box-shadow:0 0 0 1px rgba(255,255,255,.9),0 6px 20px rgba(60,40,100,.32)}
-.spcd::before{content:"";position:absolute;inset:9%;border-radius:50%;border:1px dashed rgba(255,255,255,.55)}
-.spcd::after{content:"";position:absolute;inset:38%;border-radius:50%;background:#fff;border:2px solid rgba(255,255,255,.9);
- box-shadow:inset 0 0 0 3px rgba(195,178,240,.5)}
-.spcard{width:100%;z-index:16;background:#fff8fc;border:1px solid #5d5490;
- border-radius:9px;overflow:hidden;box-shadow:5px 6px 0 rgba(60,45,100,.28);animation:pop .4s steps(3) both}
-.sptb{display:flex;align-items:center;gap:6px;padding:5px 8px;font-size:9.5px;color:#fff;letter-spacing:.06em;
- border-bottom:1px solid #5d5490;text-shadow:1px 1px 0 rgba(93,84,144,.5)}
-.spcard .sptb{background:linear-gradient(90deg,#ff8fbe,#c3b2f0)}
-.spbody{padding:34px 18px 22px;text-align:center}
-.splogo{font-family:"Galmuri9","Galmuri11",sans-serif;font-size:40px;letter-spacing:.3em;text-indent:.3em;
- background:linear-gradient(120deg,#fff 0 12%,#ffd0f0 30%,#b9e3ff 50%,#fff 68%,#c3b2f0 92%);background-size:200% 100%;
- -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1.2px #b06f9e;
- filter:drop-shadow(2px 2px 0 rgba(176,111,158,.32));animation:shimmer 4.5s linear infinite}
-.splogo .cur{-webkit-text-fill-color:#ff9ec6;color:#ff9ec6;-webkit-text-stroke:0;
- animation:blinkc 1s steps(1) infinite}
-.spsub{margin-top:16px;font-size:10.5px;letter-spacing:.24em;color:#b48ac2}
-.spinput{width:100%;margin-top:20px;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;text-align:center;
- outline:none;border-radius:0;background:#fff;border:1px solid #8a7fc0;
- box-shadow:inset 1px 1px 0 rgba(93,84,144,.28),inset 2px 2px 4px rgba(93,84,144,.12)}
-.spinput::placeholder{color:#dbb0c8;font-size:12px;letter-spacing:.08em}
-.spgo{width:100%;margin-top:9px;padding:10px;font-family:inherit;font-size:12.5px;letter-spacing:.3em;text-indent:.3em;
- color:#4a4276;cursor:pointer;background:linear-gradient(180deg,#fff0f7,#ffc2dd);border:1px solid #5d5490;
- box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #f0c8de,2px 2px 0 rgba(93,84,144,.22)}
-.spgo:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 #f0c8de}
-.spgo:disabled{opacity:.72;cursor:default}
-.spbar{display:block;height:11px;background:#fff;border:1px solid #8a7fc0;overflow:hidden;
- box-shadow:inset 1px 1px 0 rgba(93,84,144,.3)}
-.spbar i{display:block;height:100%;background:repeating-linear-gradient(90deg,#ff9ec6 0 7px,#ffd0e6 7px 14px);
- animation:fill 3.6s ease-in-out infinite, flow 1s linear infinite}
-.spnote{font-size:8.5px;letter-spacing:.16em;color:#c3aacd}
-.spwin{position:relative;z-index:14;border:1px solid #5d5490;border-radius:5px;overflow:hidden;
- box-shadow:3px 4px 0 rgba(60,45,100,.3);animation:pop .35s steps(3) both}
-.spwin .sptb{font-size:9px;padding:4px 7px}
-.spwin .spbd{padding:11px 11px 9px;font-size:9.5px;line-height:1.75;background:#fff;color:#6b5fa8}
-/* 버튼은 제 줄에서 오른쪽 아래. inline-block으로 두면 문장 뒤에 그대로 붙어
-   "당신을 찾을 수 없습니다. [Cancel]" 처럼 한 줄이 된다 — 대화상자가 아니라 문장이 된다. */
-.spbtn{display:block;width:fit-content;margin:11px 0 0 auto;padding:4px 14px;font-size:9px;color:#4a4276;
- background:#ece8fa;border:1px solid #5d5490;box-shadow:inset 1px 1px 0 #fff,inset -2px -2px 0 #cdc3ec}
-/* 커서 — CSS 보더로 만든 삼각형은 한쪽만 채워져서 작대기로 보였다. SVG로 그린다 */
-.spcursor{position:absolute;z-index:30;width:15px;height:21px;left:-6px;bottom:-15px;
- filter:drop-shadow(1px 2px 0 rgba(74,66,118,.45));transform:rotate(-8deg)}
-.sptap{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:10.5px;letter-spacing:.34em;color:#4a4276;
- z-index:19;animation:blinkc 1.6s steps(2) infinite}
+/* 옛 오프닝 그림(납작한 창·실선 테두리·줄무늬 막대)은 걷었다.
+   같은 선택자를 새 판이 전부 다시 쓰는데 옛 값이 앞에 남아 있어서,
+   새 판이 안 적은 속성만 옛 것이 살아 창 높이와 자리가 밀렸다. */
+
 /* ── 등록 화면 ──
    이름을 넣고 나서 메신저로 들어가기 전에 지나간다. 저절로 안 넘어간다.
 

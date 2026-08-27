@@ -2658,9 +2658,14 @@ for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]]) {
 {
   const mdCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('고른 값이 제일 크다', (() => {
-    const pick = (mdCss.match(/\.mdpick b\{[^}]*font-size:(\d+(?:\.\d+)?)px/) || [])[1];
-    const body = (mdCss.match(/\.mdtx\{[^}]*font-size:(\d+(?:\.\d+)?)px/) || [])[1];
-    return pick && body && Number(pick) > Number(body);
+    /* 같은 선택자를 여러 번 쓰고 뒤엣것이 이긴다 — 마지막 값을 읽는다 */
+    const last = k => {
+      const m = [...mdCss.matchAll(
+        new RegExp('\\.dlg\\.modedlg \\.' + k + '\\{[^}]*font-size:(\\d+(?:\\.\\d+)?)px', 'g'))];
+      return m.length ? Number(m[m.length - 1][1]) : null;
+    };
+    const pick = last('mdpick'), body = last('mdtx');
+    return pick !== null && body !== null && pick > body;
   })(), true);
   /* 「현실 하루에 게임 나흘」은 문장이 아니라 비율이다 — 눈금으로 말한다 */
   for (const [label, src] of [['웹', web], ['앱', dlgSrc]])
@@ -4252,7 +4257,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['173', 'd0ead06cd552']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['174', '9b6026c8a98e']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
