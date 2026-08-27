@@ -459,6 +459,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
           {filled===ENR_FIELDS.length?"READY ✓":`CONNECTING … ${filled}/${ENR_FIELDS.length}`}</div>
         {/* 다 안 채워도 들어갈 수 있다 — 비워두는 것도 이 이야기에서는 답이다 */}
         <button className="ego" onClick={leave}>Click!</button>
+      </div>
     </div>
     {askMode&&<ModeAsk which={askMode} now={mode===askMode}
       onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
