@@ -1616,7 +1616,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile .e-age{left:7.38%;top:33.89874%;width:26.5%;aspect-ratio:1536/488;background-image:url("assets/ui/profile-v2/age.webp?v=166")}
 .enr.refprofile .e-likes{left:7.38%;top:41.83699%;width:64.3%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/likes.webp?v=166")}
 .enr.refprofile .e-dislikes{left:7.38%;top:49.93335%;width:64.3%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/hates.webp?v=166")}
-.enr.refprofile .e-mode{left:35.65%;top:57.996%;width:50%;aspect-ratio:788/137;padding:0;background-image:url("assets/ui/profile-v2/mode.webp?v=166")}\n.enr.refprofile .e-likes .lab{margin-bottom:.35cqw}\n.enr.refprofile .e-mode .lab{margin-bottom:-.5cqw}
+.enr.refprofile .e-mode{left:35.65%;top:57.996%;width:50%;aspect-ratio:788/137;padding:0;background-image:url("assets/ui/profile-v2/mode.webp?v=166")}\n.enr.refprofile .e-likes .lab{margin-bottom:-.15cqw}\n.enr.refprofile .e-mode .lab{margin-bottom:-1cqw}
 .enr.refprofile .e-days{left:7.38%;top:65.71%;width:45.3%;aspect-ratio:1536/292;background-image:url("assets/ui/profile-v2/days.webp?v=166")}
 .enr.refprofile .etail,.enr.refprofile .emhint{display:none}
 .enr.refprofile .blank:not(.filled){font-size:0}
