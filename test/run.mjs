@@ -659,9 +659,15 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
     const D = new Function('localStorage', 'location',
       readFileSync(join(ROOT, 'app-data.js'), 'utf8')
         .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-      + '\nreturn {kissNext,loadKissSeen,saveKissSeen,KISS_RISE,KISS_HOLD,KISS_OUT};')(ls, { search: '' });
+      + '\nreturn {kissNext,kissCuts,loadKissSeen,saveKissSeen,KISS_RUN,KISS_OUT};')(ls, { search: '' });
     eq('짝이 맞으면 사진이 나온다',
-      D.kissNext({ char: 'jaeeon', place: '보건실' }), { shot: 'jaeeon-nurse-kiss', char: 'jaeeon', place: '보건실' });
+      D.kissNext({ char: 'jaeeon', place: '보건실' }),
+      { shot: 'jaeeon-nurse-kiss', shots: ['jaeeon-nurse-kiss', 'jaeeon-nurse-kiss', 'jaeeon-nurse-kiss'],
+        char: 'jaeeon', place: '보건실' });
+    /* 세 컷이 늘 셋이다 — -2·-3 이 아직 없는 짝은 앞 컷을 이어 쓴다.
+       화면이 세 층을 그리므로 여기서 모자라면 층이 빈 채로 뜬다 */
+    eq('컷은 언제나 셋이다',
+      [D.kissCuts('x').length, D.kissCuts('x')], [3, ['x', 'x', 'x']]);
     /* 표에 없는 짝(재언·옥상 / 민현·보건실)은 화면이 그냥 안 뜬다 */
     eq('표에 없는 짝은 안 뜬다',
       [D.kissNext({ char: 'jaeeon', place: '옥상' }), D.kissNext({ char: 'minhyun', place: '보건실' }),
@@ -684,11 +690,15 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
     eq('단추 없이 저절로 접힌다',
       (() => {
         const k = web.slice(web.indexOf('function KissTime('), web.indexOf('\n}', web.indexOf('function KissTime(')));
-        return [/setTimeout\(close,KISS_RISE\+KISS_HOLD\)/.test(k), /<button/.test(k), /onClick=\{close\}/.test(k)];
+        return [/setTimeout\(close,KISS_RUN\)/.test(k), /<button/.test(k), /onClick=\{close\}/.test(k)];
       })(), [true, false, true]);
-    /* 접촉은 화면 밖이다 — 이 화면이 그리는 것은 눈 감은 얼굴 한 장뿐이다 */
-    eq('사진 한 장이 전부다',
-      /<img className="kshot" src=\{shot\.shot\+"\.webp"\} alt=""\/>/.test(web), true);
+    /* 이 화면이 맡는 것은 상대가 아니라 내 몸이다 — 상대는 세 컷이 맡고
+       화면은 숨(.kseye)·초점(.ksf3)·번짐(.ksvig)·암전(.ksout)을 맡는다.
+       접촉은 화면 밖이다: 다 번진 검은 데서 끝난다 */
+    eq('숨과 어둠까지 화면이 맡는다',
+      [/<div className="kseye">/.test(web), /className=\{"ksf ksf"\+\(n\+1\)\}/.test(web),
+       /<div className="ksvig"\/>/.test(web), /<div className="ksout"\/>/.test(web)],
+      [true, true, true, true]);
   }
 
   /* 자리마다 거리가 늘었다 — 중거리와 클로즈업은 자리 사진과 사진첩에 든다 */
@@ -1279,6 +1289,49 @@ eq('자리 규칙을 하나도 안 봐준다',
   && /goneToday\(p\.name,now\) \? "오늘은 벌써 다녀왔어요"/.test(web)
   && /!wendOnlyOk\(p,now\)\s*\? "주말에만"/.test(web)
   && /!placeHours\(p,now\)\s*\? placeWhen\(p,now\)/.test(web), true);
+/* ── 지도의 문과 GO! 는 같은 것을 봐야 한다 ──
+   문은 placeHours만 보고 「열림」으로 그려졌는데, GO! 는 whoAt까지 봤다.
+   그래서 아무도 안 나와 있는 시각에는 멀쩡한 문에 「GO?」까지 물어놓고
+   눌러도 조용히 아무 일도 안 났다 — 고장인지 시간이 아닌 건지 알 수가 없다.
+   판정을 canGoNow 하나로 묶고, 세 자리가 전부 그것만 본다. */
+eq('갈 수 있나는 한 군데서 정한다',
+  /const canGoNow=\(p,now\)=>\{/.test(web)
+  && /if\(!placeHours\(p,now\)\|\|!wendOnlyOk\(p,now\)\|\|goneToday\(p\.name,now\)\)return false;/.test(web)
+  && /if\(p\.meet==="out"\)return outAt\(p,now\)\.length>0;/.test(web), true);
+/* 마을 문·학교 TV·GO! 셋 다 그 하나를 본다 */
+eq('문과 GO!가 같은 함수를 본다',
+  [(web.match(/const nowOk=canGoNow\(p\);/g) || []).length,
+   /const open=placeOpen\(p,met\), nowOk=canGoNow\(p\);/.test(web),
+   /if\(!canGoNow\(p\)\)\{/.test(web)], [1, true, true]);
+/* 마주치는 자리는 나와 있는 사람이 곧 문이다 — 실제로 돌려서 본다 */
+{
+  const mem = new Map();
+  const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+    setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
+  const G = new Function('localStorage', 'location',
+    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+    + '\nreturn {canGoNow,placeHours,PLACE_BY,goneToday};')(ls, { search: '' });
+  /* 목요일 낮 두 시 — 편의점은 문이 열려 있지만 둘 다 학교 안이라 아무도 없다 */
+  const noon = new Date(2026, 7, 27, 14, 0, 0);
+  const conv = G.PLACE_BY['편의점'];
+  eq('문은 열렸는데 아무도 없으면 못 간다',
+    [G.placeHours(conv, noon), G.canGoNow(conv, noon)], [true, false]);
+  /* 밤이면 나와 있다 */
+  const night = new Date(2026, 7, 27, 22, 0, 0);
+  eq('나와 있으면 갈 수 있다', G.canGoNow(conv, night), true);
+  /* 오늘 다녀왔으면 못 간다 — 시각과 상관없다 */
+  ls.setItem('null_goneday', JSON.stringify({ '편의점': '2026-8-27' }));   // dayKey는 월이 1부터다
+  eq('오늘 다녀온 자리는 못 간다', G.canGoNow(conv, night), false);
+}
+/* 못 갈 때 조용히 끝나지 않는다 — 까닭마다 다른 말을 한다 */
+eq('못 가면 까닭을 말한다',
+  /goneToday\(place\)\s*\? `\$\{place\} — 오늘은 다녀왔어요`/.test(web)
+  && /: `\$\{place\} — 지금은 아무도 없어요`\);/.test(web)
+  && /if\(!who\)\{ setToast\(`\$\{place\} — 지금은 아무도 없어요`\); return \}/.test(web), true);
+/* 문이 닫힌 것과 사람이 없는 것은 다른 일이다 */
+eq('닫힘과 빔을 갈라 적는다', /" · EMPTY NOW":" · CLOSED NOW"/.test(web), true);
+
 /* 아직 안 열린 자리는 아예 안 보인다. 모르는 자리는 없는 자리다 */
 eq('안 열린 자리는 목록에 없다',
   /SPOTS\.filter\(p=>placeOpen\(p,met\)\)\.map/.test(web), true);
@@ -2648,9 +2701,14 @@ for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]]) {
 {
   const mdCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('고른 값이 제일 크다', (() => {
-    const pick = (mdCss.match(/\.mdpick b\{[^}]*font-size:(\d+(?:\.\d+)?)px/) || [])[1];
-    const body = (mdCss.match(/\.mdtx\{[^}]*font-size:(\d+(?:\.\d+)?)px/) || [])[1];
-    return pick && body && Number(pick) > Number(body);
+    /* 같은 선택자를 여러 번 쓰고 뒤엣것이 이긴다 — 마지막 값을 읽는다 */
+    const last = k => {
+      const m = [...mdCss.matchAll(
+        new RegExp('\\.dlg\\.modedlg \\.' + k + '\\{[^}]*font-size:(\\d+(?:\\.\\d+)?)px', 'g'))];
+      return m.length ? Number(m[m.length - 1][1]) : null;
+    };
+    const pick = last('mdpick'), body = last('mdtx');
+    return pick !== null && body !== null && pick > body;
   })(), true);
   /* 「현실 하루에 게임 나흘」은 문장이 아니라 비율이다 — 눈금으로 말한다 */
   for (const [label, src] of [['웹', web], ['앱', dlgSrc]])
@@ -4242,7 +4300,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['172', '88bef6590309']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['177', 'e28c1a050526']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */

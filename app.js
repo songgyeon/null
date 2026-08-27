@@ -902,9 +902,21 @@ function GameApp(){
   };
   const answerAsk=ok=>{
     const place=ask, picked=askWho; setAsk(null); setAskWho(null);
-    const p=ok&&place&&PLACE_BY[place]; if(!p||!placeHours(p))return;
-    if(!wendOnlyOk(p)||goneToday(place))return;
-    const who=whoAt(p,picked); if(!who)return;
+    if(!ok||!place)return;
+    const p=PLACE_BY[place]; if(!p)return;
+    /* 못 가면 말은 해준다. 전에는 조용히 아무 일도 안 났다 — 문이 열려
+       있고 「GO?」까지 물어놓고 GO! 를 누르면 아무 데도 안 가는 것이라,
+       고장인지 시간이 아닌 건지 유저가 알 수가 없었다. */
+    if(!canGoNow(p)){
+      /* 까닭마다 다른 말을 한다. 아무도 없어서 못 가는데 여는 시각을
+         적어주면 거짓말이 된다 — 그 시각이 돼도 사람이 없으면 못 간다 */
+      setToast(
+        goneToday(place)              ? `${place} — 오늘은 다녀왔어요`
+        : (!placeHours(p)||!wendOnlyOk(p)) ? (placeWhen(p)||`${place} — 지금은 안 돼요`)
+        : `${place} — 지금은 아무도 없어요`);
+      return }
+    const who=whoAt(p,picked);
+    if(!who){ setToast(`${place} — 지금은 아무도 없어요`); return }
     /* 「같이 갈 사람은 Who?」로 고른 자리는 같이 간 것이다. 기록에도 그렇게 남긴다 —
        「레코드샵에 갔다」만 있으면 이력만 읽는 다음 턴이 혼자 간 것으로 읽는다 */
     const since=Date.now(), id="ask|"+who+"|"+place+"|"+since;
