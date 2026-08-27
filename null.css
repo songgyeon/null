@@ -1610,7 +1610,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    still a separate control; the composed reference never ships in the page. */
 .enr.refprofile{position:fixed;z-index:999;left:50%;right:auto;top:0;bottom:auto;width:100vw;height:100dvh;transform:translateX(-50%);padding:0;overflow:hidden;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
 .enr.refprofile .ecard{position:absolute;left:5%;top:10.94%;width:90%;height:72.72%;min-height:0;max-width:none;margin:0;padding:0;border:0;background:transparent url("assets/ui/profile-v2/window.webp") center/100% 100% no-repeat;box-shadow:none}
-.enr.refprofile .etb{position:absolute;left:4%;right:4%;top:1.6%;height:7%;z-index:5;padding:1.5% 3%;border:0;background:transparent;color:#625381;font-size:clamp(9px,2.35vw,12px);letter-spacing:.08em}
+.enr.refprofile .etb{position:absolute;left:9%;right:4%;top:2.2%;height:7%;z-index:5;padding:0;border:0;background:transparent;color:#fff;font-size:clamp(8px,2.1vw,11px);letter-spacing:.08em;line-height:1;text-shadow:0 1px 2px rgba(91,72,151,.7)}
 .enr.refprofile .etb .dots{position:absolute;right:1%;top:0;width:25%;height:100%;opacity:0}
 .enr.refprofile .etb .dots span{height:100%;width:33%}
 .enr.refprofile .ebody{position:absolute;inset:0;padding:0}
