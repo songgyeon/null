@@ -1467,7 +1467,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
    그림에 슬롯이 이미 배킹돼 있어 창 크기를 그림 비율로 못박고 DOM 조각을
    각 슬롯 좌표에 절대 배치한다 — 내용 크기에 맞춰 늘리면 슬롯과 어긋난다.
    좌표는 재업로드본을 여백까지 잘라낸 뒤 10% 격자를 얹어 읽은 값이다. */
-.screen.splash{background:#efe6fb url("ui/bg-mobile.webp") center/cover no-repeat}
+.screen.splash{background:#efe6fb url("ui/bg-mobile.webp?v=141") center/cover no-repeat}
 
 /* CD — 그림이 왔으니 CSS로 그리던 원판을 버린다. 도는 것은 그림 자체 */
 .spcd{visibility:visible;align-self:flex-start;margin-left:-2px;margin-right:0;width:82px;height:82px;border-radius:0;
@@ -1553,7 +1553,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다 */
 @media (min-aspect-ratio:1/1){
-  .screen.splash{background-image:url("ui/bg-desktop.webp")}
+  .screen.splash{background-image:url("ui/bg-desktop.webp?v=141")}
 }
 
 /* ── 창 자리 — 참고 화면에서 잰 사각형 그대로 ──
