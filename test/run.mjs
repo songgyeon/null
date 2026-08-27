@@ -382,8 +382,8 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   const css=readFileSync(join(ROOT,'null.css'),'utf8');
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
-    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=145"\) center\/cover no-repeat\}/.test(css)
-      && /@media \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=145"\)\}/.test(css)
+    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=146"\) center\/cover no-repeat\}/.test(css)
+      && /@media \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=146"\)\}/.test(css)
       && (web.match(/return <div className="phone">/g)||[]).length===2
       && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
 }
@@ -425,8 +425,12 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   eq('qa=profile은 실제 판과 저장소를 공유하지 않는다',
     /return qaProfile\?<ProfileQA\/>:<GameApp\/>/.test(appWeb)
       && !/localStorage|loadStore|loadProfile|RoomList|saveMode|saveWorld/.test(qa),true);
-  eq('프로필은 합성 창 배경 없이 개별 에셋 비율을 유지한다',
+  eq('프로필은 방향별 메신저 창틀 안에서 개별 에셋 비율을 유지한다',
     !css.includes('profile-v2/window.webp')
+      && exists('assets/ui/profile-v2/window-mobile.webp')
+      && exists('assets/ui/profile-v2/window-desktop.webp')
+      && /\.enr\.refprofile::before\{[^}]*aspect-ratio:778\/1536[^}]*window-mobile\.webp/.test(css)
+      && /\.enr\.refprofile::before\{[^}]*aspect-ratio:991\/1536[^}]*window-desktop\.webp/.test(css)
       && /\.enr\.refprofile \.ecard\{[^}]*aspect-ratio:519\/808[^}]*background:none/.test(css)
       && /\.enr\.refprofile \.ename\{[^}]*aspect-ratio:1536\/192[^}]*background:[^}]*\/contain no-repeat/.test(css)
       && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/373[^}]*background:[^}]*\/contain no-repeat/.test(css),true);
@@ -4200,7 +4204,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['145', '940628e1e619']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['146', '0017cd870d85']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
