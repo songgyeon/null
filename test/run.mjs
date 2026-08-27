@@ -382,8 +382,8 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   const css=readFileSync(join(ROOT,'null.css'),'utf8');
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
-    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=155"\) center\/cover no-repeat\}/.test(css)
-      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=155"\)\}/.test(css)
+    /\.screen\.splash\{background:#efe6fb url\("ui\/bg-mobile\.webp\?v=156"\) center\/cover no-repeat\}/.test(css)
+      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{\s*\.screen\.splash\{background-image:url\("ui\/bg-desktop\.webp\?v=156"\)\}/.test(css)
       && (web.match(/return <div className="phone">/g)||[]).length===2
       && !/phone\.opening|--open-scale|bg-opening-desktop/.test(css+ui+web),true);
 }
@@ -441,17 +441,17 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
       && /\.e-mode\{[^}]*top:57\.596%/.test(css)
       && /\.enr\.refprofile \.emode\{[^}]*gap:0[^}]*padding:0/.test(css)
       && /\.enr\.refprofile \.emode b\{[^}]*padding:0[^}]*text-indent:0/.test(css)
-      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=155[^}]*\/contain no-repeat/.test(css),true);
+      && /\.enr\.refprofile \.ego\{[^}]*aspect-ratio:1536\/527[^}]*click\.webp\?v=156[^}]*\/contain no-repeat/.test(css),true);
   eq('프로필 버튼과 글씨는 같은 카드 배율로 함께 커지고 줄어든다',
     /\.enr\.refprofile\{[^}]*-webkit-text-size-adjust:none[^}]*text-size-adjust:none/.test(css)
-      && /\.enr\.refprofile \.ecard\{--pf-label-gap:1\.24cqw;--pf-title-size:5\.25cqw;--pf-label-size:2\.78cqw;--pf-name-size:4\.32cqw;--pf-line-size:4\.01cqw;--pf-mode-size:3\.4cqw;--pf-msg-size:2\.78cqw;--pf-click-size:5\.56cqw;--pf-click-width:44\.6cqw/.test(css)
+      && /\.enr\.refprofile \.ecard\{--pf-label-gap:1\.24cqw;--pf-title-size:3\.22cqw;--pf-label-size:1\.85cqw;--pf-name-size:2\.61cqw;--pf-line-size:2\.39cqw;--pf-mode-size:2\.07cqw;--pf-msg-size:1\.87cqw;--pf-click-size:3\.5cqw;--pf-click-width:44\.6cqw/.test(css)
       && /\.enr\.refprofile \.eprofiletitle\{[^}]*font-size:var\(--pf-title-size\)/.test(css)
       && /\.enr\.refprofile \.enamelab,\.enr\.refprofile \.lab\{[^}]*font-size:var\(--pf-label-size\)/.test(css)
       && /\.enr\.refprofile \.ename\{[^}]*font-size:var\(--pf-name-size\)/.test(css)
       && /\.enr\.refprofile \.eline\{[^}]*font-size:var\(--pf-line-size\)/.test(css)
       && /\.enr\.refprofile \.ego\{[^}]*width:var\(--pf-click-width\)[^}]*font-size:var\(--pf-click-size\)/.test(css)
-      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{[\s\S]*?\.enr\.refprofile \.ecard\{--pf-label-gap:1\.2cqw;--pf-title-size:4\.62cqw;[\s\S]*?--pf-click-size:5\.13cqw/.test(css)
-      && /@media \(orientation:landscape\) and \(pointer:coarse\)\{\s*@container \(max-width:260px\)\{[\s\S]*?\.enr\.refprofile \.ebody\{--pf-label-gap:1\.2cqw;--pf-title-size:5\.52cqw;[\s\S]*?--pf-click-size:6\.21cqw\}/.test(css),true);
+      && /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{[\s\S]*?\.enr\.refprofile \.ecard\{--pf-label-gap:1\.2cqw;--pf-title-size:4\.25cqw;[\s\S]*?--pf-click-size:4\.62cqw/.test(css)
+      && /@media \(orientation:landscape\) and \(pointer:coarse\)\{\s*@container \(max-width:260px\)\{[\s\S]*?\.enr\.refprofile \.ebody\{--pf-label-gap:1\.2cqw;--pf-title-size:4\.25cqw;[\s\S]*?--pf-click-size:4\.62cqw\}/.test(css),true);
   eq('프로필 배경은 화면 방향으로 고른다',
     /@media \(min-width:700px\) and \(min-aspect-ratio:1\/1\)\{[\s\S]*?\.enr\.refprofile\{[^}]*background-image:url\("assets\/ui\/profile-v2\/background-desktop\.webp"\)/.test(css)
       && !/@media \(min-aspect-ratio:1\/1\)/.test(css)
@@ -4223,7 +4223,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['155', 'a8cf20b793d7']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['156', 'd1affc30794e']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
