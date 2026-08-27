@@ -1599,7 +1599,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile{position:fixed;z-index:999;isolation:isolate;left:50%;right:auto;top:0;bottom:auto;width:100vw;height:100dvh;transform:translateX(-50%);padding:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-text-size-adjust:none;text-size-adjust:none;background:#f7f1fa url("assets/ui/profile-v2/background.webp") center/cover no-repeat}
 .enr.refprofile::before{content:"";position:absolute;z-index:0;left:50%;top:20vw;width:83.2vw;height:auto;aspect-ratio:991/1536;transform:translateX(-50%);pointer-events:none;background:transparent url("assets/ui/profile-v2/window-desktop.webp?v=158") center/contain no-repeat}
 .enr.refprofile .ecard{--pf-label-gap:1.24cqw;--pf-title-size:3.45cqw;--pf-label-size:1.85cqw;--pf-name-size:2.61cqw;--pf-line-size:2.39cqw;--pf-mode-size:2.07cqw;--pf-msg-size:1.87cqw;--pf-click-size:3.5cqw;--pf-click-width:44.6cqw;position:absolute;z-index:1;left:50%;top:20vw;width:82.83vw;height:auto;aspect-ratio:519/808;min-height:0;max-width:none;margin:0;padding:0;border:0;transform:translateX(-50%);container-type:inline-size;background:none;box-shadow:none;animation:none}
-.enr.refprofile .ewindowtitle{position:absolute;z-index:6;left:14.5%;top:2.75%;pointer-events:none;color:#fff;font-size:2.5cqw;font-weight:700;line-height:1;letter-spacing:.08em;text-shadow:0 1px 1px rgba(102,85,142,.45)}
+.enr.refprofile .ewindowtitle{position:absolute;z-index:6;left:14.5%;top:3.3%;pointer-events:none;color:#fff;font-size:3cqw;font-weight:700;line-height:1;letter-spacing:.08em;text-shadow:0 1px 1px rgba(102,85,142,.45)}
 .enr.refprofile .etb{position:absolute;left:-10.17%;right:-10.17%;top:-13%;height:15%;z-index:5;padding:0;border:0;background:transparent;color:transparent;font-size:0;line-height:1;text-shadow:none}
 .enr.refprofile .etb .dots{position:absolute;right:1%;top:0;z-index:20;width:25%;height:100%;opacity:0;pointer-events:auto}
 .enr.refprofile .etb .dots span{height:100%;width:33%}
@@ -1615,8 +1615,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .enr.refprofile .e-subject{left:7.38%;top:25.95054%;width:45.3%;aspect-ratio:1536/286;background-image:url("assets/ui/profile-v2/subject.webp?v=158")}
 .enr.refprofile .e-age{left:7.38%;top:33.89874%;width:26.5%;aspect-ratio:1536/488;background-image:url("assets/ui/profile-v2/age.webp?v=158")}
 .enr.refprofile .e-likes{left:7.38%;top:42.13699%;width:64.3%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/likes.webp?v=158")}
-.enr.refprofile .e-dislikes{left:7.38%;top:50.23335%;width:64.3%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/hates.webp?v=158")}
-.enr.refprofile .e-mode{left:35.65%;top:59.596%;width:50%;aspect-ratio:788/137;padding:0;background-image:url("assets/ui/profile-v2/mode.webp?v=158")}
+.enr.refprofile .e-dislikes{left:7.38%;top:51.03335%;width:64.3%;aspect-ratio:1536/207;background-image:url("assets/ui/profile-v2/hates.webp?v=158")}
+.enr.refprofile .e-mode{left:35.65%;top:61%;width:50%;aspect-ratio:788/137;padding:0;background-image:url("assets/ui/profile-v2/mode.webp?v=158")}
 .enr.refprofile .e-days{left:7.38%;top:65.71%;width:45.3%;aspect-ratio:1536/292;background-image:url("assets/ui/profile-v2/days.webp?v=158")}
 .enr.refprofile .etail,.enr.refprofile .emhint{display:none}
 .enr.refprofile .blank:not(.filled){font-size:0}
