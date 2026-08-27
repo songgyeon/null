@@ -728,10 +728,15 @@ input.cartq{width:100%;padding:8px 10px;font-size:14px;text-align:left}
  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
 .tab.on{position:relative;top:1px;color:#4a4276;border-color:#b9a7e6;background:#fff;
  box-shadow:inset 0 2px 0 #c3b2f0}
+/* ── 배경이 비쳐야 배경이다 ──
+   흰 62%에 blur(22px)를 얹으니 bg-desk의 별·하트가 판 밑에서 통째로 지워졌다.
+   화면 가운데 660px가 전부 이 판이라, 배경은 위아래 테두리에만 남았다.
+   흰 막을 절반 이하로 내리고 흐림도 한 자리로 줄인다 — 유리는 남고 그림이 보인다.
+   글자는 카드가 제 배경을 들고 있어서 이 값과 무관하다. */
 .roomswrap{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;margin:0 12px;
  border:1.5px solid rgba(255,255,255,.85);border-radius:8px;
- background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(20px) saturate(1.2);
- backdrop-filter:blur(22px) saturate(1.15);
+ background:rgba(255,255,255,.28);-webkit-backdrop-filter:blur(7px) saturate(1.3);
+ backdrop-filter:blur(7px) saturate(1.3);
  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 1px rgba(150,135,210,.22);overflow:hidden}
 /* 창 위쪽 무지개 1px — 목록이 좀 더 놓았다 */
 .roomswrap::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;z-index:2;
@@ -1382,7 +1387,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* 흐르는 띠 — 한 줄, 느리게. 이게 두 줄이 되는 순간 정신없어진다 */
 /* 흐르는 띄 + 그 아래 체커무늬 한 줄 — Y2K 샵집 띄 */
 .marquee{position:relative;flex:none;overflow:hidden;white-space:nowrap;padding:5px 0;max-width:100%;contain:paint;
- background:#fff;border-bottom:1px solid #e2dbf5}
+ background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+ border-bottom:1px solid rgba(226,219,245,.8)}
 .marquee>span{display:inline-block;padding-left:100%;font-size:9px;letter-spacing:.22em;
  color:#a898cf;animation:slide 26s linear infinite}
 @keyframes slide{to{transform:translateX(-100%)}}
