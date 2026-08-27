@@ -2037,7 +2037,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* 견본에는 이 줄이 없었다(정적 화면이라 안 그렸다). 실제로는 붙는데
    top:65%면 MODE 알약 아래끝(65.4%)을 3px 물고 앉는다 — 재봤다.
    알약이 끝나는 자리 바로 밑으로 내린다 */
-.enr.cssprofile .emhint{position:absolute;right:6.67%;top:66.3%;width:60%;
+.enr.cssprofile .emhint{position:absolute;right:6.67%;top:65%;width:60%;
  font-size:2.3cqw;line-height:1.35;letter-spacing:0;color:#a897dd;text-align:right}
 /* 안내가 들어갈 자리라 이 줄만 점선을 안 깐다 */
 .enr.cssprofile .e-mode::after{display:none}
