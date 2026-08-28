@@ -894,6 +894,10 @@ function GameApp(){
      out  — 그 시각에 밖에 나와 있을 수 있는 사람 중에서 뽑는다. 마주치는 자리라서.
      그 밖 — 자리 임자가 정해져 있다. 둘 다면 더 많이 말을 나눈 쪽. */
   const whoAt=(p,picked)=>{
+    /* 두 사람이 가능한 장소는 지도에서 고른 사람을 그대로 데려간다.
+       우연히 마주치는 장소는 그 시각 실제로 밖에 나온 사람만 고를 수 있다. */
+    if(picked&&(p.who||[]).includes(picked)
+      &&(p.meet!=="out"||outAt(p).includes(picked)))return picked;
     if(p.pick)return picked||null;
     if(p.meet==="out"){ const out=outAt(p); return out.length?out[Math.floor(Math.random()*out.length)]:null }
     const list=p.who||[]; if(list.length<2)return p.own||list[0];
@@ -922,13 +926,13 @@ function GameApp(){
     const since=Date.now(), id="ask|"+who+"|"+place+"|"+since;
     localBatch(id,who,{
       sys:[{id:id+"#0",room:who,
-        text:p.pick?`${jos(CHARS[who].name,"과/와")} ${place}에 갔다`:`${place}에 갔다`}],
+        text:picked?`${jos(CHARS[who].name,"과/와")} ${place}에 갔다`:`${place}에 갔다`}],
       /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
       local_ops:[{op:"stampGone",place},{op:"goneTo",place},
         {op:"event",ev:{kind:"met",to:who,name:place}},{op:"closeScene"},
-        {op:"openScene",scene:{room:who,place,since,...(p.pick?{came:"asked"}:{})}},
+        {op:"openScene",scene:{room:who,place,since,...(picked?{came:"asked"}:{})}},
         {op:"view",room:who}],
-      after_request:{extra:{place,...(p.pick?{came:"asked"}:{})}}});
+      after_request:{extra:{place,...(picked?{came:"asked"}:{})}}});
   };
 
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
@@ -1983,9 +1987,13 @@ function GameApp(){
       const shut=!!p&&!placeHours(p);            // 지금은 문 닫은 시각
       const wk=!away&&!!p&&!wendOnlyOk(p);       // 평일엔 못 가는 자리 — 같이 이동엔 안 본다
       const done=goneToday(ask);                 // 오늘 이미 다녀왔다
-      const out=!away&&p&&p.meet==="out"?whoOut():null; // 마주치는 자리 — 이동이면 상대가 정해져 있다
+      const out=!away&&p&&p.meet==="out"?outAt(p):null; // 이 장소에 실제로 나올 수 있는 사람만 본다
       const empty=!!out&&!out.length;
-      const need=!away&&!!p&&p.pick&&!askWho;    // 동행을 아직 안 골랐다 — 이동이면 이미 정해져 있다
+      /* 둘 다 갈 수 있는 장소면 자동으로 한 사람을 고르지 않는다.
+         마주치는 장소는 지금 실제로 밖에 있는 사람만 선택지에 남긴다. */
+      const pickWho=!away&&!!p&&(p.who||[]).length>1;
+      const whoChoices=!p?[]:(p.meet==="out"?outAt(p):(p.who||[]));
+      const need=pickWho&&whoChoices.length>0&&!askWho;
       /* 같이 있다가 발길 닿는 이동. 그 사람이 갈 수 있는 자리(who)여야 하고,
          열려 있어야 하고, 오늘 안 간 데여야 한다. 귀갓길에서는 못 옮긴다 — 곧 내린다.
          근무·수업·점심·야자 중에는 학교 안에서만 옮긴다 — 점심의 보건실→옥상은
@@ -2005,7 +2013,7 @@ function GameApp(){
       const no=!klass&&!mv&&(away||locked||shut||wk||done||empty);
       /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
          심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
-      const done_=`오늘치 ${jos(ask,"은/는")} Complete...`;
+      const done_=`${ask} — DONE 4 TODAY ♡`;
       /* 얼굴은 픽셀 글꼴에 글자가 없어서 .kao로 따로 그린다.
          이유와 얼굴은 한 갈래로 고른다. 따로 고르던 때는 갈래가 어긋났다 —
          잠겼고 오늘 다녀온 자리에서 이유는 빈 줄인데 우는 얼굴만 남아서,
@@ -2014,26 +2022,26 @@ function GameApp(){
       const {t:why,k:kao}=away&&!mv
         ? (done?R(done_,"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡")
            :shut&&!locked?R(placeWhen(p))
-           :R(`현재 위치는 ${scene.place}...`))
+           :R(`NOW @ ${scene.place}...`))
         :locked?R("")
         :done?R(done_,"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡")
-        :wk?R("여기는 Weekend only! ♡","٩(❛ัᴗ❛ั ๑)")
-        :empty?R("지금 밖은 Empty...","՞ ⸝⸝> ̫ <⸝⸝ ՞")
+        :wk?R("WEEKEND ONLY ♡","٩(❛ัᴗ❛ั ๑)")
+        :empty?R("NO ONE HERE...","՞ ⸝⸝> ̫ <⸝⸝ ՞")
         :shut?R(placeWhen(p)):R("");
       return <Dialog title={ask} onClose={()=>answerAsk(false)} win="askwin">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
             {locked&&!away
-              ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
-              :klass?`${jos(ask,"은/는")} CLASS 중!`
-              :mv?`${ask}도 같이 GO?`
-              :no?`${jos(ask,"은/는")} 잠깐 OFF!`:`${jos(ask,"으로/로")} GO?`}</div>
+              ?<span className="asklock">MAP ERROR <i>♡</i><br/>NOT YET... <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
+              :klass?`${ask} — CLASS MODE ON!`
+              :mv?`${ask} — GO 2GETHER?`
+              :no?`${ask} — OFFLINE!`:`${ask} — LET'S GO?`}</div>
           {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
-          {!no&&!klass&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
+          {!no&&!klass&&<div className="askrule">ONE TRIP A DAY ♡ <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
           {no&&<div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>
             {why}{kao&&<> <span className="kao">{kao}</span></>}</div>}
           {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져 있다 */}
-          {!no&&!mv&&p&&p.pick&&<div className="askwho">
-            {(p.who||[]).map(c=><button key={c}
+          {!no&&!mv&&pickWho&&whoChoices.length>0&&<div className="askwho">
+            {whoChoices.map(c=><button key={c}
               className={"whobtn bevel"+(askWho===c?" on":"")}
               onClick={()=>setAskWho(c)}>
               <span className="cface" style={faceBg(CHARS[c])}/>{CHARS[c].name}</button>)}

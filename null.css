@@ -4360,7 +4360,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* 기본 메신저: 지정 배경을 가리지 않는다. 본문은 색판이 아니라 얇은 유리 한 장이다. */
 .phone>.screen.desk.glasswindow{inset:4px !important;width:auto !important;height:auto !important;
- background-color:transparent !important;background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=190") !important;
+ background-color:transparent !important;background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=192") !important;
  background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
 .phone>.screen.desk.glasswindow::before{content:"" !important;position:absolute;inset:0;pointer-events:none;
  background:rgba(239,230,255,.025) !important}
@@ -4486,7 +4486,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* 지정한 CD 원본과 그 위의 아주 얇은 연보라 유리 한 장. */
 .phone>.screen.desk.glasswindow,.phone>.cartscreen{
- background-color:#faf8ff !important;background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=190") !important;
+ background-color:#faf8ff !important;background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=192") !important;
  background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
 .phone>.screen.desk.glasswindow::before{background:rgba(226,213,255,.055) !important}
 .phone>.screen.desk.glasswindow .roomswrap{
@@ -4539,3 +4539,79 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .pfcard .pfclose{
  width:fit-content !important;min-width:104px !important;max-width:calc(100% - 36px) !important;
  margin:12px auto 18px !important;padding:11px 18px !important}
+
+/* v192 — bag / gift / you / map / place composer polish */
+/* gift와 bag은 메신저 안에 중첩되어 렌더링된다. 바깥 직계 자식일 때만 잡던
+   배경·높이 규칙을 실제 DOM 경로에도 적용한다. */
+.phone>.screen>.cartscreen{
+ background-color:#faf8ff !important;
+ background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=192") !important;
+ background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
+.phone>.screen>.cartscreen>.cartwin.glasswindow{
+ left:8px !important;right:8px !important;top:8px !important;bottom:8px !important}
+.phone>.screen>.cartscreen>.cartwin.bagwin{
+ top:5px !important;bottom:5px !important}
+
+/* 아이템 옆의 줄무늬 리본은 제거한다. DOM에서도 뺐지만 옛 캐시와 섞여도
+   다시 보이지 않게 한다. */
+.bagwin .cribbon,.giftwin .cribbon{display:none !important}
+.bagwin .cgcard,.giftwin .cgcard{padding-left:14px !important}
+
+/* 선물 장소 상태는 두 줄짜리 한국어 설명 대신 짧은 시스템 캡션으로 읽힌다. */
+.giftwin .cwhere{gap:8px}
+.giftwin .cspot{min-width:0;padding:10px 11px !important}
+.giftwin .cspot .csname{font-size:11px;white-space:nowrap}
+.giftwin .cspot .cswhy{min-width:0;max-width:96px;font-size:7.5px !important;line-height:1.3;
+ white-space:normal;overflow-wrap:anywhere}
+.giftwin .giftline{font-size:9.5px;line-height:1.85;letter-spacing:.1em}
+
+/* BACK... 알약을 오프닝 창의 작은 하단 탭으로 바꾼다. */
+.giftwin .cback{
+ display:flex !important;width:116px !important;min-width:116px !important;max-width:116px !important;
+ height:39px;margin:16px auto 2px !important;padding:0 16px !important;
+ align-items:center;justify-content:center;font-size:10.5px;letter-spacing:.15em;color:#67527f;
+ border:1px solid rgba(255,255,255,.96) !important;border-radius:7px 7px 11px 11px !important;
+ background:linear-gradient(180deg,#fff 0%,#f2ebfc 55%,#e4daf7 100%) !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(177,151,207,.72),0 3px 0 rgba(160,134,194,.24) !important}
+.giftwin .cback:active{transform:translateY(2px);box-shadow:inset 0 2px 5px rgba(104,78,145,.14),0 0 0 1px rgba(177,151,207,.72) !important}
+
+/* YOU: 긴 입력판을 짧은 값 칸으로, 이름 변경은 문구만 감싸는 버튼으로. */
+.dlgov.cssprofile .profileedit .ebody{
+ height:340px !important;min-height:340px !important;max-height:340px !important;
+ padding:15px 14px 13px !important}
+.dlgov.cssprofile .profileedit .ename{
+ width:176px !important;height:34px !important;margin:0 auto 10px !important;padding:0 11px !important;
+ align-self:center;justify-content:center;font-size:13px !important;box-sizing:border-box}
+.dlgov.cssprofile .profileedit .ename .namein{width:100%;text-align:center}
+.dlgov.cssprofile .profileedit .eline{
+ width:100%;grid-template-columns:168px max-content !important;justify-content:center !important;
+ gap:7px !important;margin:0 0 8px !important}
+.dlgov.cssprofile .profileedit .eline>.blank{
+ width:168px !important;max-width:168px !important;height:32px !important;padding:0 10px !important;
+ justify-content:center;font-size:12.5px !important}
+.dlgov.cssprofile .profileedit .etail{font-size:10.5px !important}
+.dlgov.cssprofile .profileedit .e-age{grid-template-columns:64px max-content !important}
+.dlgov.cssprofile .profileedit .e-age>.blank{
+ width:64px !important;max-width:64px !important;height:30px !important;padding:0 !important;
+ font-size:15px !important;font-weight:700;letter-spacing:.04em}
+.dlgov.cssprofile .profileedit .e-age>.blank::before,
+.dlgov.cssprofile .profileedit .e-age>.blank::after{content:none !important;display:none !important}
+.dlgov.cssprofile .profileedit .profiledone{
+ width:118px !important;height:35px !important;margin:10px auto 0 !important;padding:0 12px !important;
+ align-self:center;font-size:10.5px !important;border-radius:8px !important}
+
+/* 일반 채팅과 장소 채팅은 배경 사진의 명암에 상관없이 같은 색으로 보인다.
+   반투명도를 남기면 장소 사진 위에서만 입력창이 탁해지므로 판 자체는 불투명하게 둔다. */
+.chatwrap.glasswindow .inputbar,.scenewrap.glasswindow .inputbar{
+ background:linear-gradient(135deg,#fffaff 0%,#eee5fb 55%,#e3f1fc 100%) !important;
+ border-color:#fff !important}
+.chatwrap.glasswindow .inputbar .sunken,.scenewrap.glasswindow .inputbar .sunken{
+ color:#594a6e !important;background:#fff !important;border-color:#c7afd9 !important}
+.chatwrap.glasswindow .giftbtn,.scenewrap.glasswindow .giftbtn{
+ background:linear-gradient(145deg,#fff,#f0e9fb 58%,#dfecff) !important}
+.chatwrap.glasswindow .sendbtn,.scenewrap.glasswindow .sendbtn{
+ background:linear-gradient(135deg,#ffd4ec 0%,#e8d8ff 48%,#ccecff 100%) !important}
+
+/* 지도 선택창의 인물 버튼은 한 명만 가능한 시각에도 선택 단계가 보이게 한다. */
+.profileframe.askwin .askwho{margin-top:6px}
+.profileframe.askwin .whobtn{min-height:38px;border-radius:9px}

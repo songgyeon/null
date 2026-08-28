@@ -1014,7 +1014,7 @@ function Bag({bag,store,onClose}){
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
   const lent=bag.filter(b=>ITEMS[b.key]&&ITEMS[b.key].lent).length;
-  return <div className="cartscreen"><div className="cartwin glasswindow">
+  return <div className="cartscreen"><div className="cartwin glasswindow bagwin">
     <WindowChrome title="bag" onClose={onClose}/>
     <div className="cbar">
       <span className="bagcount">RECEIVED {bag.length} / {Object.keys(ITEMS).length}</span>
@@ -1029,7 +1029,7 @@ function Bag({bag,store,onClose}){
            아니라 D-18이다. 첫 대화 날짜를 모르면 그냥 안 적는다.
            **세계 시계로 잰다** — 화면 어디에도 현실 날짜로 센 D는 없어야 한다. */
         const d=dLeftAt(store,b.ts);
-        return <div key={b.key} className="cgcard"><span className="cribbon"/>
+        return <div key={b.key} className="cgcard">
           <img className="bagpic" src={av(`item-${b.key}.webp`)} alt=""/>
           <div style={{flex:1,minWidth:0}}>
             <div className="cgname">{it.name}</div>
@@ -1097,7 +1097,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
   const here=c=>withChar===c;
 
   return <div className="cartscreen">
-    <div className="cartwin glasswindow">
+    <div className="cartwin glasswindow giftwin">
     <WindowChrome title={`gift${pick?" / wrap":""}`} onClose={onClose}/>
 
     {!pick&&<React.Fragment>
@@ -1122,7 +1122,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
     </React.Fragment>}
 
     {pick&&<div className="cwrap">
-      <div className="cgcard"><span className="cribbon"/>
+      <div className="cgcard">
         <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
           <div className="cgname">{pick.name}</div>
@@ -1136,8 +1136,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
       {/* 현이 쓴 문장과 카모지는 상태 안내가 아니라 이 화면의 본문이다.
           만남·전송 여부에 따라 갈아 끼우거나 숨기지 않는다. */}
-      <div className="cshut giftline">선물은 What? 주인공은 Who? 장소는 Where?<br/>
-        만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
+      <div className="cshut giftline">PICK IT. PICK THEM. MEET IRL.<br/>
+        no teleporting gifts! <span className="kao">(っ˶'ᵕ'˶)っ♡</span></div>
       {(today("jaeeon")||today("minhyun"))&&<div className="cshut cday">
         <span>one a day ♡</span><span>each</span>
       </div>}
@@ -1167,7 +1167,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           자리 규칙은 하나도 안 봐준다. 여는 시간, 오늘 갔는지, 주말 전용,
           그리고 그 사람이 거기 있을 수 있는지까지 다 본다 */}
       {to&&!here(to)&&!given(to)&&!today(to)&&<React.Fragment>
-        <div className="csect">어디서 줄까요?</div>
+        <div className="csect">WHERE 2 MEET?</div>
         <div className="cwhere">
           {giftSpots(to,met).map(g=>
             <button key={g.place} className={"cspot bevel"+(g.ok?"":" off")}
@@ -1188,7 +1188,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           onChange={e=>setMemo(e.target.value)}/>
         <span className="cnt">{GIFT_NOTE_B}</span>
       </div>
-      <button className="cback" onClick={back}>BACK...</button>
+      <button className="cback" onClick={back}>◁ BACK</button>
     </div>}
   </div></div>;
 }

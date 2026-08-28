@@ -1437,9 +1437,9 @@ const giftSpots=(char,met,now)=>SPOTS.filter(p=>placeOpen(p,met)).map(p=>{
   const canMeet=p.meet==="out" ? outAt(p,now).includes(char)
               : p.pick ? true
               : (p.who||[]).includes(char);
-  const why=!canMeet ? (p.meet==="out"?"지금은 자리를 비웠어요":"이 장소에서는 만날 수 없어요")
-    : goneToday(p.name,now) ? "오늘은 벌써 다녀왔어요"
-    : !wendOnlyOk(p,now)    ? "주말에만"
+  const why=!canMeet ? "NOT HERE ૮ . . ა"
+    : goneToday(p.name,now) ? "DONE 4 TODAY ♡"
+    : !wendOnlyOk(p,now)    ? "WEEKEND ONLY ✦"
     : !placeHours(p,now)    ? placeWhen(p,now)
     : "";
   return {place:p.name, icon:p.icon, ok:!why, why};
@@ -1469,7 +1469,7 @@ const placeWhen=(p,now)=>{
   /* 시각을 적어주면 거짓말이 된다 — 여덟 시가 아니라 사람이 없어서 닫혔다 */
   if((p.map==="school"||p.into==="school")
     && !((p.who&&p.who.length)?p.who:["jaeeon","minhyun"]).some(id=>atWorkNow(id,d)))
-    return "지금 학교는 Empty...";
+    return "SCHOOL = EMPTY ( ._. )";
   if(!w)return "";
   const pad=n=>String(n).padStart(2,"0");
   return `open ${pad(w[0])}:00 – ${pad(w[1])}:00`;
