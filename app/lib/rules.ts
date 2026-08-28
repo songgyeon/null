@@ -7,6 +7,37 @@ import './shim';   // localStorage·location — 아래 규칙들이 딛고 서�
 
 function __build(): any {
 
+/* ── 보이는 높이를 직접 재서 못박는다 ──
+   안드로이드 크롬에서 키보드가 올라오면 100dvh 만으로는 안 맞았다.
+   껍데기는 키보드 뜨기 전 높이로 남고, 브라우저는 입력칸을 보이려고 페이지를
+   위로 굴린다 — 그래서 앱 아래에 흰 띠가 생기고 아래가 잘린 채 멈춘다.
+
+   dvh 는 「키보드가 올라온 뒤」를 늦게 따라오거나 아예 안 따라온다.
+   실제로 보이는 칸은 visualViewport 가 안다. 그 높이를 --vh 에 적고
+   껍데기를 거기에 맞춘다. 페이지 자체는 굴리지 않는다(scrollTo(0,0)) —
+   굴러갈 곳이 없어야 흰 띠가 안 생긴다.
+
+   여기서 재는 이유: 리액트가 뜨기 전에 첫 값이 박혀 있어야 첫 그림부터 맞는다. */
+/* 이 파일은 앱(Expo)과 시험(node)에서도 읽힌다 — 거기엔 창도 문서도 없다.
+   웹 화면일 때만 돈다 */
+if (typeof window !== "undefined" && typeof document !== "undefined") (function(){
+  var vv = window.visualViewport;
+  var fit = function(){
+    var h = (vv && vv.height) || window.innerHeight || 0;
+    if (!h) return;
+    document.documentElement.style.setProperty("--vh", h + "px");
+    /* 키보드가 올라오며 굴러간 만큼 되돌린다. 굴린 것은 브라우저지 유저가 아니다 */
+    if (window.scrollY) window.scrollTo(0, 0);
+  };
+  fit();
+  window.addEventListener("resize", fit);
+  window.addEventListener("orientationchange", fit);
+  if (vv) { vv.addEventListener("resize", fit); vv.addEventListener("scroll", fit); }
+  /* 칸에 커서가 들어간 직후가 제일 어긋난다 — 그 뒤로 한 번 더 잰다 */
+  document.addEventListener("focusin", function(){ setTimeout(fit, 250) });
+  document.addEventListener("focusout", function(){ setTimeout(fit, 250) });
+})();
+
 /* NULL — 데이터와 규칙.
    JSX가 없어서 바벨을 안 거친다. 브라우저가 그냥 읽는다.
    여기 있는 것은 전부 「무엇이 있는가」다 — 인물, 방, 선물, 장소, 시간표,
@@ -386,7 +417,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=179";
+const AV="?v=180";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
