@@ -3,246 +3,151 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>character hompy · opening windows prototype 03</title>
+<title>character hompy · opening grammar prototype 04</title>
 <style>
   @font-face{font-family:Galmuri;src:url("app/assets/fonts/Galmuri11.ttf") format("truetype");font-display:swap}
+  :root{
+    --ink:#4d3b72;--line:#d7c3e2;
+    --frame:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,#dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%);
+    --title:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,#dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%);
+    --candy:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,#e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+  }
   *{box-sizing:border-box}
-  html,body{width:100%;height:100%;margin:0}
-  body{overflow:hidden;color:#4f3d76;font-family:Galmuri,"Malgun Gothic",sans-serif;background:#21182d}
+  html,body{width:100%;min-height:100%;margin:0}
+  body{overflow:hidden;color:var(--ink);font-family:Galmuri,"Malgun Gothic",sans-serif;background:#21182d}
   button{font:inherit}
-
   .profile-screen{
-    position:relative;display:grid;place-items:center;width:100%;height:100%;min-height:680px;
-    padding:20px 10px;background-position:center;background-size:cover;background-repeat:no-repeat
+    position:relative;display:grid;place-items:center;width:100%;height:100dvh;min-height:650px;overflow:auto;padding:18px 9px;
+    background-position:center;background-size:cover;background-repeat:no-repeat
   }
   .profile-screen::before{
-    content:"";position:absolute;inset:0;background:
-      radial-gradient(circle at 50% 39%,rgba(246,226,255,.12),transparent 34%),
-      linear-gradient(180deg,rgba(25,17,39,.25),rgba(30,20,46,.55))
+    content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 43%,rgba(255,244,255,.2),transparent 38%),linear-gradient(180deg,rgba(31,20,46,.24),rgba(32,20,48,.56))
   }
-  .sparkles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-  .sparkles i{position:absolute;color:rgba(255,236,252,.8);font:18px/1 Arial,sans-serif;text-shadow:0 0 10px #fff}
-  .sparkles i:nth-child(1){left:8%;top:17%}.sparkles i:nth-child(2){right:9%;top:13%;font-size:12px}
-  .sparkles i:nth-child(3){left:13%;bottom:13%;font-size:11px}.sparkles i:nth-child(4){right:12%;bottom:18%}
-
-  /* 한 장짜리 프로필 카드가 아니라, 오프닝처럼 여러 창이 한 프로필을 만든다. */
-  .window-cluster{position:relative;z-index:2;width:min(430px,calc(100vw - 16px));height:660px}
-  .os-window{position:absolute;padding:3px;border-radius:17px}
-  .portrait-window{
-    z-index:2;left:0;top:0;width:315px;
-    background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,#dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%);
-    box-shadow:0 0 0 1px rgba(255,255,255,.72),inset 0 1.5px 0 rgba(255,255,255,.8),
-      inset 0 -3px 6px rgba(150,116,196,.18),0 13px 28px rgba(20,11,42,.42)
+  .ambient{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+  .ambient i{position:absolute;color:rgba(255,238,252,.88);font:18px/1 Arial,sans-serif;text-shadow:0 0 12px #fff}
+  .ambient i:nth-child(1){left:7%;top:16%}.ambient i:nth-child(2){right:9%;top:11%;font-size:12px}
+  .ambient i:nth-child(3){left:12%;bottom:14%;font-size:11px}.ambient i:nth-child(4){right:11%;bottom:18%}
+  .hompy-window{
+    position:relative;z-index:2;width:min(512px,calc(100vw - 18px));padding:4px;border-radius:22px;background:var(--frame);
+    box-shadow:0 0 0 1px rgba(255,255,255,.78),inset 0 2px 0 rgba(255,255,255,.86),inset 0 -4px 8px rgba(150,116,196,.18),0 18px 45px rgba(20,11,42,.45)
   }
-  .status-window{
-    z-index:6;right:0;top:315px;width:236px;padding:2.5px;border-radius:11px;
-    background:linear-gradient(146deg,#ded4f6 0%,#f6f2fd 24%,#e6dffb 48%,#cfc4f4 70%,#e2daf9 88%,#cdc2f0 100%);
-    box-shadow:0 0 0 1px rgba(255,255,255,.7),0 10px 23px rgba(31,19,57,.35)
-  }
-  .player-window{
-    z-index:5;left:13px;top:414px;width:365px;padding:2.5px;border-radius:11px;
-    background:linear-gradient(146deg,#d2e4f8 0%,#f2f8fd 24%,#dfeafb 48%,#bed4f0 70%,#dcebfa 88%,#c4d8f2 100%);
-    box-shadow:0 0 0 1px rgba(255,255,255,.7),0 10px 24px rgba(28,29,67,.32)
-  }
-  .counter-window{
-    z-index:4;right:17px;top:522px;width:264px;padding:2.5px;border-radius:11px;
-    background:linear-gradient(146deg,#f6d4e8 0%,#fdf0f7 24%,#f8dcee 48%,#eeb8d6 70%,#f9dcec 88%,#ecc0dc 100%);
-    box-shadow:0 0 0 1px rgba(255,255,255,.7),0 10px 22px rgba(51,24,60,.28)
-  }
-
   .titlebar{
-    position:relative;display:flex;align-items:center;letter-spacing:1px;color:#fff;
-    text-shadow:0 1px 0 rgba(150,84,175,.85),0 2px 3px rgba(120,60,150,.5)
+    position:relative;display:flex;align-items:center;height:52px;padding:0 12px 0 20px;border-radius:15px 15px 4px 4px;color:#fff;font-size:20px;letter-spacing:1px;
+    text-shadow:0 1px 0 rgba(150,84,175,.92),0 2px 3px rgba(120,60,150,.55);background:var(--title);box-shadow:inset 0 -3px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.95)
   }
-  .titlebar::after{
-    content:"";position:absolute;left:4px;right:4px;top:2px;height:44%;border-radius:8px 8px 999px 999px;
-    pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.02))
+  .titlebar::after{content:"";position:absolute;left:5px;right:5px;top:3px;height:45%;border-radius:12px 12px 999px 999px;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.88),rgba(255,255,255,.04))}
+  .window-title{position:relative;z-index:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .controls{position:relative;z-index:1;display:flex;margin-left:auto;gap:9px}
+  .controls span{
+    display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:#fff;font:400 15px/1 system-ui,sans-serif;text-shadow:0 1px 0 rgba(130,66,160,.9);
+    box-shadow:0 0 0 2px rgba(255,255,255,.92),inset 0 1px 0 rgba(255,255,255,.95),inset 0 -3px 4px rgba(150,110,180,.3),0 2px 5px rgba(89,63,128,.22)
   }
-  .portrait-window .titlebar{
-    height:40px;padding:0 10px 0 14px;border-radius:10px 10px 3px 3px;font-size:15px;
-    background:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,#dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%);
-    box-shadow:inset 0 -2px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.9)
-  }
-  .status-window .titlebar,.player-window .titlebar,.counter-window .titlebar{
-    height:28px;padding:0 7px 0 11px;border-radius:8px 8px 2px 2px;font-size:11px
-  }
-  .status-window .titlebar{
-    background:linear-gradient(96deg,#cfc0f8 0%,#c4bcfa 38%,#c8c8fb 70%,#d6cdfa 100%);
-    box-shadow:inset 0 -2px 0 #9a86dc,inset 0 1px 0 rgba(255,255,255,.9)
-  }
-  .player-window .titlebar{
-    background:linear-gradient(96deg,#bfe2f6 0%,#c8dcf8 38%,#d6cef8 72%,#e2cdf6 100%);
-    box-shadow:inset 0 -2px 0 #96b8e0,inset 0 1px 0 rgba(255,255,255,.9);
-    text-shadow:0 1px 0 rgba(90,120,170,.85),0 1px 3px rgba(70,100,150,.45)
-  }
-  .player-window .titlebar,.player-window .window-body{z-index:1}
-  .counter-window .titlebar{
-    background:linear-gradient(96deg,#fca8d6 0%,#fa9ad0 40%,#f79ade 74%,#eda6ea 100%);
-    box-shadow:inset 0 -2px 0 #dd6fa8,inset 0 1px 0 rgba(255,255,255,.85)
-  }
-  .title{position:relative;z-index:1;white-space:nowrap}
-  .dots{position:relative;z-index:1;display:flex;margin-left:auto;gap:6px}
-  .dots span{
-    display:grid;place-items:center;width:20px;height:20px;border-radius:50%;color:#fff;font:400 10px/1 system-ui,sans-serif;
-    text-shadow:0 1px 0 rgba(130,66,160,.9);
-    box-shadow:0 0 0 1.4px rgba(255,255,255,.9),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -2px 3px rgba(150,110,180,.28)
-  }
-  .small-dots{gap:5px}.small-dots span{width:15px;height:15px;font-size:8px}
-  .d1{background:linear-gradient(180deg,#f6a8ec,#e07fdd)}
-  .d2{background:linear-gradient(180deg,#cfc0f8,#a98ff0)}
-  .d3{background:linear-gradient(180deg,#a8cdf8,#6fa8ee)}
-
+  .controls span:nth-child(1){background:linear-gradient(180deg,#f7b3ee,#e27fdd)}
+  .controls span:nth-child(2){background:linear-gradient(180deg,#d7c9fb,#aa92ee)}
+  .controls span:nth-child(3){background:linear-gradient(180deg,#b7d8fb,#73a9eb)}
   .window-body{
-    position:relative;margin:3px 0 0;border-radius:3px 3px 13px 13px;background:#fdfaff;
-    box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,inset 0 -4px 8px rgba(150,116,196,.09)
+    position:relative;margin-top:4px;padding:28px 30px 30px;border-radius:4px 4px 17px 17px;background:#fdfaff;
+    box-shadow:inset 0 2px 0 #fff,inset 0 0 0 1px #e0d2ea,inset 0 -5px 10px rgba(150,116,196,.1)
   }
-  .window-body::before,.window-body::after{
-    content:"";position:absolute;width:9px;height:9px;border-color:#e2d2ee;border-style:solid;pointer-events:none
+  .window-body::before,.window-body::after{content:"";position:absolute;width:14px;height:14px;border-color:#e2d2ee;border-style:solid;pointer-events:none}
+  .window-body::before{left:14px;top:14px;border-width:1px 0 0 1px}.window-body::after{right:14px;bottom:14px;border-width:0 1px 1px 0}
+  .intro-line{display:flex;align-items:center;gap:10px;margin:0 2px 21px;color:#b497bf;font-size:11px;letter-spacing:.16em}
+  .intro-line::before,.intro-line::after{content:"";height:1px;flex:1;background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 9px)}
+  .intro-line b{color:#ed8fbd;font-weight:400}
+  .identity{display:grid;grid-template-columns:174px minmax(0,1fr);gap:26px;align-items:start}
+  .photo-column{min-width:0}.label{display:block;margin:0 0 8px 3px;color:#5d4b79;font-size:13px;letter-spacing:.08em}
+  .photo-frame{
+    position:relative;padding:7px 7px 29px;border-radius:14px;background:#fff;box-shadow:inset 0 1px 4px rgba(139,101,164,.1),0 0 0 1px #d6bbe0,0 0 0 4px #fdeef9,0 0 0 5px #dcbcdd,0 8px 18px rgba(126,91,163,.18)
   }
-  .window-body::before{left:9px;top:9px;border-width:1px 0 0 1px}
-  .window-body::after{right:9px;bottom:9px;border-width:0 1px 1px 0}
-
-  .portrait-body{padding:16px 18px 17px;text-align:center}
-  .polaroid{
-    position:relative;width:220px;margin:0 auto;padding:8px 8px 28px;border-radius:11px;background:#fff;
-    transform:rotate(-.5deg);
-    box-shadow:0 0 0 1px #d6bbe0,0 0 0 4px #faedf8,0 0 0 4.5px #dcbcdd,0 6px 15px rgba(126,91,163,.18)
+  .photo-frame::before{content:"✦";position:absolute;z-index:2;right:12px;bottom:8px;color:#ef98c5;font:12px Arial,sans-serif}
+  .portrait{display:block;width:100%;aspect-ratio:4/5;border-radius:8px;object-fit:cover;object-position:center 22%;background:#e8dfed}
+  .photo-caption{position:absolute;left:7px;right:25px;bottom:8px;color:#a38bb5;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .identity-fields{display:grid;gap:17px;min-width:0}.data-row{min-width:0}
+  .field-line{display:grid;grid-template-columns:minmax(0,1fr) 38px;align-items:center;gap:10px}
+  .value-box{
+    position:relative;display:flex;align-items:center;min-width:0;height:46px;padding:0 14px;border-radius:11px;color:#4f3d76;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    background:linear-gradient(180deg,#fff,#fdf8fc);box-shadow:inset 0 2px 4px rgba(150,116,190,.1),0 0 0 1px #d6bbe0,0 0 0 3px #fdeef9,0 0 0 4px #dcbcdd
   }
-  .tape{position:absolute;z-index:2;width:56px;height:14px;left:-14px;top:-8px;opacity:.7;transform:rotate(-11deg);background:linear-gradient(90deg,rgba(246,190,220,.85),rgba(255,220,237,.68))}
-  .portrait{display:block;width:100%;aspect-ratio:1;border-radius:7px;object-fit:cover;object-position:center 24%;background:#e8dfed}
-  .caption{position:absolute;left:7px;right:7px;bottom:7px;color:#a38bb5;font-size:9px;letter-spacing:.04em}
-  .nameplate{
-    position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:39px;margin-top:15px;border-radius:9px;
-    color:#4f3d76;font-size:17px;background:linear-gradient(180deg,#fff,#fdf7fc);
-    box-shadow:inset 0 1.5px 3px rgba(150,116,190,.12),0 0 0 1px #d6bbe0,0 0 0 3px #fdeef9,0 0 0 3.5px #dcbcdd
-  }
-  .nameplate::before{content:"✦";margin-right:9px;color:#43c2be;font:10px Arial,sans-serif}
-  .heart{margin-left:8px;color:#f197c3;font-family:Arial,sans-serif}
-
-  .status-body{display:grid;place-items:center;min-height:68px;padding:14px 16px 13px;color:#5d4b7c;text-align:center}
-  .status-text{margin:0;font-size:11px;line-height:1.6;word-break:keep-all}
-  .status-cursor{display:inline-block;width:6px;height:11px;margin-left:4px;vertical-align:-1px;background:#f59ac9;animation:blink 1s steps(1) infinite}
-
-  .player-body{min-height:65px;padding:12px 17px 13px;background:#f7fafd}
-  .music-row{display:grid;grid-template-columns:27px minmax(0,1fr) 20px;align-items:center;gap:9px}
-  .play{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;color:#fff;font:10px Arial,sans-serif;background:linear-gradient(180deg,#7dded8,#32b9bb);box-shadow:0 0 0 1px #50bbb9,0 0 0 2px #e8ffff}
-  .track{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f5a8f;font-size:9px}
-  .more{color:#34bbb8;font:700 15px Arial,sans-serif}
-  .progress{display:block;height:8px;margin:10px 0 0;border-radius:5px;background:#eef0f8;box-shadow:inset 0 1px 2px rgba(120,140,190,.24),0 0 0 1px #c2cee2}
-  .progress i{display:block;width:46%;height:100%;border-radius:5px;background:linear-gradient(96deg,#a8d6f2,#cbc6f8 72%,#dcc4f4);box-shadow:inset 0 -1px 0 rgba(255,255,255,.6)}
-  .cd{
-    position:absolute;z-index:0;right:-34px;top:21px;width:62px;height:62px;border-radius:50%;
-    background:conic-gradient(from 0deg,#ffd0e6,#c3b2f0,#a8e6e0,#ffe9a8,#ffc2dd,#b9e3ff,#ffd0e6);
-    box-shadow:0 0 0 1px rgba(255,255,255,.9),0 6px 18px rgba(35,24,70,.34);animation:spin 8s linear infinite
-  }
-  .cd::after{content:"";position:absolute;inset:38%;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 3px rgba(195,178,240,.5)}
-
-  .counter-body{padding:11px 14px 12px}
-  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .stat{position:relative;padding:5px 6px 4px;text-align:center}
-  .stat+ .stat{border-left:1px dashed #dac8e5}
-  .stat small{display:block;margin-bottom:4px;color:#c5a6ca;font-size:8px;letter-spacing:.16em}
-  .stat b{display:block;color:#f08abb;font:17px/1 Arial,sans-serif}.stat:last-child b{color:#34bbb8}
-
+  .value-box::after{content:"✦";margin-left:auto;padding-left:8px;color:#ef9bc8;font:11px Arial,sans-serif}
+  .value-box.age{width:92px;color:#4b3d70;background:var(--candy)}.value-box.age::after{content:"☾";color:#fff;font-size:15px}
+  .rail{position:relative;height:1px;background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 9px)}
+  .rail::after{content:"";position:absolute;right:-1px;top:-4px;width:8px;height:8px;border-radius:50%;background:#d7b7e6}
+  .section-rule{height:1px;margin:27px 0 23px;background:linear-gradient(90deg,transparent,#e8d7ee 9%,#e8d7ee 91%,transparent)}
+  .wide-row{margin-top:18px}.wide-row:first-child{margin-top:0}.wide-row .field-line{grid-template-columns:minmax(0,1fr) 92px}.wide-row .value-box{height:50px;font-size:15px}
+  .status-box::before{content:"♥";margin-right:10px;color:#ef94bd;font:12px Arial,sans-serif}.status-box::after{content:"_";color:#ed91bf;animation:blink 1s steps(1) infinite}
+  .music-box{display:grid;grid-template-columns:31px minmax(0,1fr) 44px;gap:11px;padding-right:11px}.music-box::after{display:none}
+  .play{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;color:#fff;font:11px Arial,sans-serif;background:linear-gradient(180deg,#7dded8,#32b9bb);box-shadow:0 0 0 1px #50bbb9,0 0 0 2px #e8ffff}
+  .track{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .equalizer{display:flex;align-items:end;justify-content:center;gap:3px;height:19px}.equalizer i{display:block;width:3px;border-radius:2px;background:linear-gradient(180deg,#f397c5,#9bd5dd)}
+  .equalizer i:nth-child(1){height:8px}.equalizer i:nth-child(2){height:17px}.equalizer i:nth-child(3){height:12px}.equalizer i:nth-child(4){height:6px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:25px}.stat .value-box{justify-content:center;height:58px;padding:0 12px;background:var(--candy)}
+  .stat .value-box::after{content:"✦";position:absolute;right:12px;color:#fff}.stat-value{font-size:24px;color:#fff;text-shadow:0 1px 0 rgba(127,87,163,.62)}
   .back{
-    position:absolute;z-index:7;left:50%;top:612px;transform:translateX(-50%);isolation:isolate;
-    width:172px;height:46px;padding:2px;border:0;border-radius:11px;cursor:pointer;color:#463670;
-    text-shadow:0 1px 0 rgba(255,255,255,.7);letter-spacing:1px;
-    background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);
-    box-shadow:0 5px 13px rgba(44,24,70,.36),0 0 0 1px rgba(255,255,255,.75)
+    position:relative;isolation:isolate;display:block;width:min(300px,82%);height:64px;margin:30px auto 2px;padding:4px;border:0;border-radius:19px;cursor:pointer;color:#fff;font-size:21px;letter-spacing:1px;
+    text-shadow:0 1px 0 rgba(128,83,162,.8),0 2px 3px rgba(119,72,151,.25);background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);box-shadow:0 7px 15px rgba(89,57,120,.22),0 0 0 1px rgba(255,255,255,.82)
   }
-  .back::after{
-    content:"";position:absolute;z-index:-1;inset:2px;border-radius:9px;
-    background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,#e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -2px 0 rgba(255,255,255,.6),inset 0 12px 12px -10px rgba(255,255,255,.6)
+  .back::before{content:"";position:absolute;z-index:-1;inset:4px;border-radius:15px;background:var(--candy);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),inset 0 -3px 0 rgba(255,255,255,.62),inset 0 18px 18px -14px rgba(255,255,255,.8)}
+  .back .star{margin:0 16px;color:#fff;font-family:Arial,sans-serif}.back:active{transform:translateY(2px);box-shadow:0 3px 8px rgba(89,57,120,.2)}
+  @keyframes blink{50%{opacity:0}}
+  @media(max-width:520px){
+    .profile-screen{align-items:start;padding:10px 9px 16px}.hompy-window{margin:auto 0;border-radius:19px}.titlebar{height:48px;padding-left:16px;font-size:18px}
+    .controls{gap:7px}.controls span{width:28px;height:28px;font-size:13px}.window-body{padding:24px 20px 25px}.intro-line{margin-bottom:18px}
+    .identity{grid-template-columns:132px minmax(0,1fr);gap:18px}.identity-fields{gap:15px}.label{font-size:12px;margin-bottom:7px}.value-box{height:42px;padding:0 11px;font-size:14px}
+    .field-line{grid-template-columns:minmax(0,1fr) 22px;gap:8px}.value-box.age{width:82px}.photo-frame{padding:6px 6px 27px}.photo-caption{font-size:8px}
+    .section-rule{margin:23px 0 20px}.wide-row{margin-top:16px}.wide-row .field-line{grid-template-columns:minmax(0,1fr) 46px}.wide-row .value-box{height:46px;font-size:13px}
+    .music-box{grid-template-columns:28px minmax(0,1fr) 34px;gap:8px;padding-right:8px}.track{font-size:11px}.stats{gap:14px;margin-top:22px}.stat .value-box{height:52px}.stat-value{font-size:21px}
+    .back{height:58px;margin-top:25px;font-size:18px}.back .star{margin:0 10px}
   }
-  .back:active{transform:translateX(-50%) translateY(2px);box-shadow:0 2px 6px rgba(34,18,54,.35)}
-  @keyframes blink{50%{opacity:0}}@keyframes spin{to{transform:rotate(360deg)}}
-
-  @media(max-width:420px){
-    .profile-screen{padding:10px 8px}.window-cluster{width:100%;height:640px}
-    .portrait-window{width:min(292px,82vw)}.polaroid{width:202px}
-    .status-window{top:300px;width:224px}.player-window{left:4px;top:396px;width:calc(100% - 34px)}
-    .counter-window{right:8px;top:504px;width:252px}.back{top:594px}
-  }
-  @media(max-height:720px){
-    .profile-screen{align-items:start;overflow:auto;min-height:0;padding-top:8px;padding-bottom:8px}
-    .window-cluster{transform:scale(.92);transform-origin:top center;margin-bottom:-50px}
-  }
+  @media(max-width:365px){.window-body{padding-left:16px;padding-right:16px}.identity{grid-template-columns:116px minmax(0,1fr);gap:15px}.identity-fields{gap:12px}.value-box{height:39px;font-size:13px}.controls span{width:26px;height:26px}.titlebar{font-size:16px}}
+  @media(max-height:760px) and (min-width:521px){.profile-screen{align-items:start}.hompy-window{transform:scale(.88);transform-origin:top center;margin-bottom:-85px}}
 </style>
 </head>
 <body>
   <main class="profile-screen" id="screen">
-    <span class="sparkles" aria-hidden="true"><i>✦</i><i>✧</i><i>✦</i><i>✧</i></span>
-    <div class="window-cluster" aria-label="오프닝 다중 창 문법을 사용한 캐릭터 프로필 시안">
-      <section class="os-window portrait-window">
-        <header class="titlebar">
-          <span class="title">✦ <span id="window-title">jaeeon.hompy</span></span>
-          <span class="dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span><span class="d3">×</span></span>
-        </header>
-        <div class="window-body portrait-body">
-          <figure class="polaroid">
-            <i class="tape" aria-hidden="true"></i>
-            <img class="portrait" id="portrait" src="jaeeon-profile.webp" alt="이재언" />
-            <figcaption class="caption" id="caption">보건교사 · 29세</figcaption>
-          </figure>
-          <div class="nameplate"><span id="name">이재언</span><span class="heart">♡</span></div>
-        </div>
-      </section>
-
-      <section class="os-window status-window">
-        <header class="titlebar">
-          <span class="title">✦ status.txt</span>
-          <span class="dots small-dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span></span>
-        </header>
-        <div class="window-body status-body">
-          <p class="status-text"><span id="status">어디 안 가요.</span><i class="status-cursor" aria-hidden="true"></i></p>
-        </div>
-      </section>
-
-      <section class="os-window player-window">
-        <header class="titlebar">
-          <span class="title">✦ playlist.exe</span>
-          <span class="dots small-dots" aria-hidden="true"><span class="d2">−</span><span class="d3">×</span></span>
-        </header>
-        <div class="window-body player-body">
-          <div class="music-row">
-            <span class="play">▶</span><span class="track" id="track">The Pale Cinema — Strangers, Again</span><span class="more">···</span>
+    <span class="ambient" aria-hidden="true"><i>✦</i><i>✧</i><i>✦</i><i>✧</i></span>
+    <section class="hompy-window" aria-label="오프닝 UI 문법으로 구성한 캐릭터 프로필 시안">
+      <header class="titlebar">
+        <span class="window-title">✦ <span id="window-title">jaeeon.hompy</span></span>
+        <span class="controls" aria-hidden="true"><span>−</span><span>□</span><span>×</span></span>
+      </header>
+      <div class="window-body">
+        <p class="intro-line"><b>♥</b> NULL CHARACTER PROFILE <b>♥</b></p>
+        <div class="identity">
+          <div class="photo-column">
+            <span class="label">PHOTO</span>
+            <figure class="photo-frame"><img class="portrait" id="portrait" src="jaeeon-profile.webp" alt="이재언" /><figcaption class="photo-caption" id="photo-caption">NO.01 · ONLINE</figcaption></figure>
           </div>
-          <span class="progress" aria-hidden="true"><i></i></span>
-        </div>
-        <i class="cd" aria-hidden="true"></i>
-      </section>
-
-      <section class="os-window counter-window">
-        <header class="titlebar">
-          <span class="title">✦ null.log</span>
-          <span class="dots small-dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span></span>
-        </header>
-        <div class="window-body counter-body">
-          <div class="stats">
-            <div class="stat"><small>TODAY</small><b>1</b></div>
-            <div class="stat"><small>TALK</small><b id="talk">396</b></div>
+          <div class="identity-fields">
+            <div class="data-row"><span class="label">NAME</span><div class="field-line"><span class="value-box" id="name">이재언</span><i class="rail"></i></div></div>
+            <div class="data-row"><span class="label">ROLE</span><div class="field-line"><span class="value-box" id="role">보건교사</span><i class="rail"></i></div></div>
+            <div class="data-row"><span class="label">AGE</span><div class="field-line"><span class="value-box age"><span id="age">29</span></span><i class="rail"></i></div></div>
           </div>
         </div>
-      </section>
-
-      <button class="back" type="button">◁ BACK</button>
-    </div>
+        <div class="section-rule"></div>
+        <div class="wide-row"><span class="label">STATUS</span><div class="field-line"><span class="value-box status-box" id="status">어디 안 가요.</span><i class="rail"></i></div></div>
+        <div class="wide-row">
+          <span class="label">BGM</span>
+          <div class="field-line"><span class="value-box music-box"><span class="play">▶</span><span class="track" id="track">The Pale Cinema — Strangers, Again</span><span class="equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span><i class="rail"></i></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="label">TODAY</span><span class="value-box"><b class="stat-value" id="today">1</b></span></div>
+          <div class="stat"><span class="label">TALK</span><span class="value-box"><b class="stat-value" id="talk">396</b></span></div>
+        </div>
+        <button class="back" type="button"><span class="star">✦</span>BACK<span class="star">✦</span></button>
+      </div>
+    </section>
   </main>
 <script>
   const profiles={
-    jaeeon:{title:"jaeeon.hompy",name:"이재언",caption:"보건교사 · 29세",status:"어디 안 가요.",track:"The Pale Cinema — Strangers, Again",portrait:"jaeeon-profile.webp",background:"jaeeon-lobby.webp",talk:"396"},
-    minhyun:{title:"minhyun.hompy",name:"이민현",caption:"고등학생 · 20세",status:"수업 중. 아마도.",track:"Luca Riot — Ask Again Tomorrow",portrait:"minhyun-profile.webp",background:"minhyun-shop.webp",talk:"301"}
+    jaeeon:{title:"jaeeon.hompy",name:"이재언",role:"보건교사",age:"29",status:"어디 안 가요.",track:"The Pale Cinema — Strangers, Again",portrait:"jaeeon-profile.webp",background:"jaeeon-lobby.webp",number:"NO.01 · ONLINE",today:"1",talk:"396"},
+    minhyun:{title:"minhyun.hompy",name:"이민현",role:"고등학생",age:"20",status:"수업 중. 아마도.",track:"Luca Riot — Ask Again Tomorrow",portrait:"minhyun-profile.webp",background:"minhyun-shop.webp",number:"NO.02 · ONLINE",today:"1",talk:"301"}
   };
   const key=new URLSearchParams(location.search).get("char")==="minhyun"?"minhyun":"jaeeon";
   const p=profiles[key];
-  document.getElementById("window-title").textContent=p.title;
-  document.getElementById("name").textContent=p.name;
-  document.getElementById("caption").textContent=p.caption;
-  document.getElementById("status").textContent=p.status;
-  document.getElementById("track").textContent=p.track;
-  document.getElementById("talk").textContent=p.talk;
+  for(const id of ["window-title","name","role","age","status","track","photo-caption","today","talk"]){
+    const property=id==="window-title"?"title":id==="photo-caption"?"number":id;
+    document.getElementById(id).textContent=p[property];
+  }
   const portrait=document.getElementById("portrait");portrait.src=p.portrait;portrait.alt=p.name;
   document.getElementById("screen").style.backgroundImage=`url("${p.background}")`;
 </script>
