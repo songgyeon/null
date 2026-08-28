@@ -549,10 +549,13 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('빈칸 자리가 셋이고 순서가 같다', D.FLASH_BOX.map(b => b.key), D.FLASH_KEYS);
 
   /* ── 언제 뜨나 ──
-     오프닝 상대가 민현이고, 아직 안 채웠고, 그가 이미 말을 걸어둔 뒤다.
+     실제로 민현을 만났고, 아직 안 채웠고, 그가 이미 말을 걸어둔 뒤다.
      유저가 친 말은 삼키지 않는다 — 붙잡아 뒀다가 덮은 뒤에 그대로 보낸다. */
-  eq('오프닝이 민현일 때만 뜬다',
-    /if\(!resumed&&room==="minhyun"&&loadFirstMet\(\)==="minhyun"&&!loadFlash\(\)/.test(web), true);
+  eq('실제 민현 첫 만남 뒤에 뜬다',
+    /const metMinhyun=loadGetcha\("minhyun"\)[\s\S]{0,160}sceneRef\.current\.firstEncounter/.test(web)
+    && /if\(!resumed&&room==="minhyun"&&metMinhyun&&!loadFlash\(\)/.test(web), true);
+  eq('게임 전체 첫 상대만 보던 조건은 걷었다',
+    /room==="minhyun"&&loadFirstMet\(\)==="minhyun"/.test(web), false);
   eq('그가 말을 걸어둔 뒤다',
     /&&prevList\.some\(m=>m\.sender==="minhyun"\)\)\{\s*\n\s*setFlash\(\{room,text\}\);/.test(web), true);
   /* 붙이기 전에 붙잡는다 — 붙이고 나서 잡으면 말은 떠 있는데 답이 없는 방이 된다 */
@@ -562,6 +565,20 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
     /const f=flash;setFlash\(null\);[^]*?send\(f\.room,f\.text,true\)\}\}/.test(web), true);
   /* 다시 부를 때 또 잡히면 영영 안 나간다 */
   eq('되보낼 때는 안 잡는다', /const send=\(room,text,resumed\)=>\{/.test(web), true);
+
+  /* 재언을 먼저 만난 뒤 편의점에서 민현을 만나도 그 장소가 민현의 첫 만남이다.
+     일반 place 요청을 보내기 전에 문구집의 편의점 세 줄을 고정으로 앉힌다. */
+  eq('편의점에서 안 만난 민현을 실제 첫 만남으로 잡는다',
+    /const firstEncounter=who==="minhyun"&&place==="편의점"&&!loadGetcha\(who\);/.test(web), true);
+  eq('첫 만남 scene이 새로고침 뒤에도 남는다',
+    /\.\.\.\(firstEncounter\?\{firstEncounter:true\}:\{\}\)/.test(web), true);
+  eq('편의점 첫 만남은 모델 대신 장소 각본을 쓴다',
+    /const firstLines=firstEncounter\?demoProactive\(who,place,name\):null;/.test(web)
+    && /after_request:firstEncounter\?\{lines:firstLines\}/.test(web), true);
+  eq('고정 첫 마디를 장부 뒤에 재생한다',
+    /if\(Array\.isArray\(after\.lines\)\)[\s\S]{0,220}enqueue\(room,lines\)/.test(web), true);
+  eq('첫 만남에서 헤어지면 메신저를 얻는다',
+    /getchaRef\.current!==sc\.room&&!sc\.firstEncounter/.test(web), true);
 
   /* ── 얼마나 천천히 ──
      화면과 코드가 같은 숫자를 본다. 한쪽에만 적으면 「천천히」가 두 뜻이 되고,
@@ -1830,7 +1847,7 @@ eq('생성된 파일이라고 적어둔다',
      마주 서 있다 — 번호는 헤어지면서 주고받는 것이다. 자리를 닫는 길이
      여럿이라(나가기·귀갓길·자리 이동·시간 끝) 닫는 자리 한 곳에서 잡는다. */
   eq('첫 자리가 닫히는 순간에 연다',
-    /const sceneClosed=sc=>\{\s*\n\s*if\(!sc\|\|getchaRef\.current!==sc\.room\)return;/.test(app), true);
+    /const sceneClosed=sc=>\{[\s\S]{0,260}getchaRef\.current!==sc\.room&&!sc\.firstEncounter/.test(app), true);
   eq('열면서 적어둔다 — 새로고침으로 다시 안 뜬다',
     /getchaRef\.current=null;\s*\n\s*saveGetcha\(sc\.room\); setGetcha\(sc\.room\);/.test(app), true);
   eq('창이 화면에 붙어 있다', /\{getcha&&<GetCha char=\{getcha\} onClose=/.test(app), true);
@@ -4307,7 +4324,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['196', '9b3c1cd61a45']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['197', '5c1717ae8fa0']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5725,7 +5742,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('웹이 같이 간 자리를 알린다',
     /place:iv\.place,came:"invited"/.test(web)                       // 초대 수락
     && /after_request:\{extra:\{place,came:"asked"\}\}/.test(web)     // 같이 자리 옮기기
-    && /after_request:\{extra:\{place,\.\.\.\(picked\?\{came:"asked"\}:\{\}\)\}\}/.test(web), true);
+    && /after_request:firstEncounter\?\{lines:firstLines\}\s*:\{extra:\{place,\.\.\.\(picked\?\{came:"asked"\}:\{\}\)\}\}/.test(web), true);
   /* 첫 턴에만 보내면 두 번째 말부터 도로 남남이 된다 */
   eq('자리에 있는 내내 보낸다',
     /\.\.\.\(sc\.came\?\{came:sc\.came\}:\{\}\)/.test(web)

@@ -468,7 +468,9 @@ function GameApp(){
   /* 첫 자리가 닫히는 순간 — 헤어지면서 번호를 주고받는다. 자리를 닫는 길이
      여럿이라(나가기·귀갓길·자리 이동·시간 끝) 닫는 자리 한 곳에서 잡는다. */
   const sceneClosed=sc=>{
-    if(!sc||getchaRef.current!==sc.room)return;
+    /* 첫 만남인 자리는 새로고침을 해도 scene에 표가 남는다. ref만 보면
+       새로고침 뒤에는 헤어져도 메신저가 생기지 않는다. */
+    if(!sc||(getchaRef.current!==sc.room&&!sc.firstEncounter))return;
     getchaRef.current=null;
     saveGetcha(sc.room); setGetcha(sc.room);
   };
@@ -677,6 +679,14 @@ function GameApp(){
      장부를 쓸 때의 세계가 아니라 실제로 보낼 때의 세계여야 한다. */
   const runAfter=(room,after)=>{
     if(!after||!room)return;
+    /* 지도에서 실제로 처음 마주친 사람의 첫 마디. 장소 각본은 이미 문구집에
+       있으므로 모델을 부르지 않는다. 장부에 줄 자체를 넣어 새로고침에도
+       어느 장소의 첫 마디였는지가 바뀌지 않게 한다. */
+    if(Array.isArray(after.lines)){
+      const lines=after.lines.filter(x=>x&&x.text);
+      if(lines.length){ setBusy(b=>({...b,[room]:true})); enqueue(room,lines) }
+      return;
+    }
     const ms=storeRef.current.msgs[room]||[];
     request(room,{mode:"chat",room,user_name:name,
       history:buildHistory(sinceSum(room,ms)),signals:buildSignals(room),
@@ -921,6 +931,11 @@ function GameApp(){
       return }
     const who=whoAt(p,picked);
     if(!who){ setToast(`${place} — 지금은 아무도 없어요`); return }
+    /* 학교가 끝났다고 사람이 사라지는 것은 아니다. 아직 만나지 않은 민현을
+       편의점에서 실제로 마주치면 이 자리가 첫 만남이다. 메신저가 먼저 관계를
+       만들지 않는다 — 장소의 첫 마디를 읽고 헤어진 뒤에 방이 열린다. */
+    const firstEncounter=who==="minhyun"&&place==="편의점"&&!loadGetcha(who);
+    const firstLines=firstEncounter?demoProactive(who,place,name):null;
     /* 「같이 갈 사람은 Who?」로 고른 자리는 같이 간 것이다. 기록에도 그렇게 남긴다 —
        「레코드샵에 갔다」만 있으면 이력만 읽는 다음 턴이 혼자 간 것으로 읽는다 */
     const since=Date.now(), id="ask|"+who+"|"+place+"|"+since;
@@ -930,9 +945,11 @@ function GameApp(){
       /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
       local_ops:[{op:"stampGone",place},{op:"goneTo",place},
         {op:"event",ev:{kind:"met",to:who,name:place}},{op:"closeScene"},
-        {op:"openScene",scene:{room:who,place,since,...(picked?{came:"asked"}:{})}},
+        {op:"openScene",scene:{room:who,place,since,...(picked?{came:"asked"}:{}),
+          ...(firstEncounter?{firstEncounter:true}:{})}},
         {op:"view",room:who}],
-      after_request:{extra:{place,...(picked?{came:"asked"}:{})}}});
+      after_request:firstEncounter?{lines:firstLines}
+        :{extra:{place,...(picked?{came:"asked"}:{})}}});
   };
 
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
@@ -1235,7 +1252,9 @@ function GameApp(){
        뒤에 그대로 다시 보낸다(resumed). 붙이고 나서 붙잡으면 말은 떠 있는데
        답이 없는 방이 되고, 삼키면 방금 친 말이 어디로 갔는지 모른다.
        모델은 이 순간에 안 부른다 — 기억이 올라오는 동안에는 아무도 말하지 않는다. */
-    if(!resumed&&room==="minhyun"&&loadFirstMet()==="minhyun"&&!loadFlash()
+    const metMinhyun=loadGetcha("minhyun")
+      ||(sceneRef.current&&sceneRef.current.room==="minhyun"&&sceneRef.current.firstEncounter);
+    if(!resumed&&room==="minhyun"&&metMinhyun&&!loadFlash()
        &&prevList.some(m=>m.sender==="minhyun")){
       setFlash({room,text});
       return;
@@ -1832,7 +1851,8 @@ function GameApp(){
     if(isSchoolPlace(o.place))markSchoolMet(o.room);
     /* 세계가 시작된 자리에 있던 쪽. 편의점이 이 값을 보고 안 만난 쪽을 세운다 */
     saveFirstMet(o.room);
-    const sc={room:o.room,place:o.place,since:Date.now(),...(o.bg?{bg:o.bg}:{})};
+    const sc={room:o.room,place:o.place,since:Date.now(),
+      ...(!loadGetcha(o.room)?{firstEncounter:true}:{}),...(o.bg?{bg:o.bg}:{})};
     setScene(sc); saveScene(sc); setView(o.room);
     /* ── 첫 마디는 정해져 있다 ──
        전에는 여기서 모델을 불렀다. 그런데 모델에게는 기록이 하나도 없으니
