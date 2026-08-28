@@ -4824,6 +4824,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  left:14% !important;top:302px !important;width:72% !important;height:38px !important;
  font-size:12.5px !important;letter-spacing:.04em !important}
 .youprofile .yourename .kao{font-size:11px;letter-spacing:0;white-space:nowrap}
+.youprofile .yourename,.youprofile .yourename .kao{
+ color:#fff !important;-webkit-text-fill-color:#fff !important}
 
 /* 상태와 엿보기는 알약 대신 타이틀바 키와 같은 짧은 사각 버튼이다. */
 .menubar .toolkey{
