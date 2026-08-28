@@ -504,7 +504,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
         <button className="ego" onClick={leave}>Click!<i className="egostar"/></button>
       </div>
     </div>
-    {askMode&&<ModeAsk which={askMode} now={mode===askMode}
+    {askMode&&<ModeAsk which={askMode}
       onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
   </div>;
 }
@@ -651,7 +651,7 @@ const MdRow=({k,on,n})=><div className="mdrr">
   <span className="bx">{[0,1,2,3].map(i=><span key={i} className={i<on?"on":""}/>)}</span>
   <span className="n"><b>{n}</b>일</span>
 </div>;
-function ModeAsk({which,now,onYes,onNo}){
+function ModeAsk({which,onYes,onNo}){
   const m=MODE_ASK[which]||MODE_ASK.real;
   /* 이 창만 옛 문법(납작한 띠·실선 테두리·회색 알약)에 남아 있어서 다른
      앱에서 온 창처럼 보였다. 오프닝·등록과 같은 부품을 쓴다 — 제목은 띠의
@@ -677,7 +677,10 @@ function ModeAsk({which,now,onYes,onNo}){
           </svg>한 번 정하면 바꿀 수 없어요</div>
         <div className="mdrow">
           <button className="wbtn" onClick={onNo}>back</button>
-          <button className="wbtn go" onClick={onYes}>{now?"ok ♡":"이걸로 ♡"}</button>
+          {/* 이미 고른 모드냐 아니냐로 글자를 갈랐더니, real 은 ok 인데
+              speed 만 「이걸로」라 두 모드가 다른 창처럼 보였다.
+              같은 것을 고르는 자리니 같은 단추다 */}
+          <button className="wbtn go" onClick={onYes}>ok ♡</button>
         </div>
       </div>
     </div>

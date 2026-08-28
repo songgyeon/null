@@ -356,7 +356,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
           <Text style={en.goT}>Click!</Text></TouchableOpacity>
       </View>
     </View>
-    {!!askMode&&<ModeDialog which={askMode} now={mode===askMode}
+    {!!askMode&&<ModeDialog which={askMode}
       onYes={()=>{onMode(askMode);setAskMode('')}} onNo={()=>setAskMode('')}/>}
   </Animated.View>;
 }

@@ -356,8 +356,8 @@ function MdRow({k, on, n}:{k:string; on:number; n:number}) {
     <Text style={md.rrN}><Text style={md.rrNb}>{n}</Text>일</Text>
   </View>;
 }
-export function ModeDialog({which, now, onYes, onNo}:
-  {which:string; now:boolean; onYes:()=>void; onNo:()=>void}) {
+export function ModeDialog({which, onYes, onNo}:
+  {which:string; onYes:()=>void; onNo:()=>void}) {
   if (!which) return null;
   const m = MODE_ASK[which] || MODE_ASK.real;
   return <Dlg title="null.exe" onClose={onNo} z={41}>
@@ -379,7 +379,7 @@ export function ModeDialog({which, now, onYes, onNo}:
     </View>
     <View style={md.btns}>
       <Btn label="back" onPress={onNo}/>
-      <Btn pink label={now ? 'ok ♡' : '이걸로 ♡'} onPress={onYes}/>
+      <Btn pink label="ok ♡" onPress={onYes}/>
     </View>
   </Dlg>;
 }
