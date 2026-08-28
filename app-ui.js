@@ -276,7 +276,7 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
     <div className="pfdim" onClick={e=>{if(e.target===e.currentTarget)setFull(true)}}>
       <Sparkles/>
       <div className="pfcard glasswindow">
-        <WindowChrome title={`${char}.hompy`} onClose={onBack}/>
+        <WindowChrome title={`${char}.hompy`} onClose={()=>setFull(true)}/>
         <div className="pftop">
           <div className="pfpola">
             <span className="tape t1"/><span className="tape t2"/>
@@ -301,7 +301,7 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
         <button className="pfclose bevel" onClick={onBack}>◁ BACK</button>
       </div>
     </div>
-    {full&&<div className="bgfull" style={{backgroundImage:`url("${bg}")`}} onClick={()=>setFull(false)}>
+    {full&&<div className="bgfull" style={{backgroundImage:`url("${bg}")`}} onClick={onBack}>
       <span className="bgclose">tap to close</span>
     </div>}
   </div>;
@@ -1226,7 +1226,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
         <span className="etail">{f.tail}</span>
       </div>)}
     <button className="ego yourename" onClick={transform}>
-      <span>변신! <span className="kao">⸜( ˃ ᵕ ˂ )⸝♡</span></span><i className="egostar"/>
+      <span>변신! <span className="kao">⸜( &gt;᎑&lt; )⸝♡</span></span><i className="egostar"/>
     </button>
     </ProfileFrame>
     </div>
@@ -1315,12 +1315,12 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       {/* 🎁 선물은 메뉴 항목이다 — 버튼은 peek 하나뿐이어야 그게 특별한
           동작으로 보인다. 메뉴바는 조용해야 한다. */}
       <span className="mbtn ico" style={{marginLeft:"auto"}} title="give something"
-        onClick={()=>{setMenu(null);onCart()}}><img className="navpixel" src={av("ui/icon-gift.png")} alt=""/>gift</span>
+        onClick={()=>{setMenu(null);onCart()}}><img className="navpixel" src={av("ui/null-gift-icon.svg")} alt=""/>gift</span>
       {/* gift는 준 것, bag은 받은 것. 나란히 둔다 — 한쪽만 있으면 주기만 하는 앱이 된다 */}
       {/* 알약은 안 붙인다. 가방은 알림함이 아니라 서랍이다 — 새로 들어온 게
           있다고 숫자가 뜨면 그걸 없애려고 여는 창이 된다 */}
       <span className="mbtn ico" title="what they gave u"
-        onClick={()=>{setMenu(null);setDlg("bag")}}><img className="navpixel" src={av("ui/icon-bag.png")} alt=""/>bag</span>
+        onClick={()=>{setMenu(null);setDlg("bag")}}><img className="navpixel" src={av("ui/null-bag-icon.svg")} alt=""/>bag</span>
       {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
       <button className="toolkey nowbtn" title="timetable"
         onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>
@@ -1727,7 +1727,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         {/* 선물은 만나서만 준다. 그러니 단추도 만난 자리에 있어야 한다 —
             메뉴바에만 두면 자리에서는 열 수가 없다 */}
         <button className="giftbtn rbtn" onClick={onCart} title="give something">
-          <img className="ico" src={av("ui/icon-gift.png")} alt=""/>
+          <img className="ico" src={av("ui/null-gift-icon.svg")} alt=""/>
         </button>
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send0()}/>
         <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send0}
@@ -1815,7 +1815,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
          방을 열 때마다 화면이 흔들린다. */
       :<div className={"inputbar"+(locked?" locked":"")}>
         <button className="giftbtn rbtn" disabled={!!locked} onClick={onCart} title="give something">
-          <img className="ico" src={av("ui/icon-gift.png")} alt=""/>
+          <img className="ico" src={av("ui/null-gift-icon.svg")} alt=""/>
         </button>
         <input className="sunken" value={locked?"":v} disabled={!!locked}
           onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>

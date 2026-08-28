@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>you.txt · profile UI prototype</title>
+<style>
+  @font-face{font-family:Galmuri;src:url("app/assets/fonts/Galmuri11.ttf") format("truetype");font-display:swap}
+  :root{
+    --ink:#56486f;--muted:#a18eb5;--line:#dec9e7;--pink:#ff9bca;--lilac:#b9a4f1;
+    --blue:#8ecdf1;--paper:rgba(255,252,255,.92);--glass:rgba(246,235,253,.78)
+  }
+  *{box-sizing:border-box}
+  html,body{min-height:100%;margin:0}
+  body{
+    display:grid;place-items:center;padding:24px 12px;
+    color:var(--ink);font-family:Galmuri,"Malgun Gothic",sans-serif;
+    background:
+      radial-gradient(circle at 18% 18%,rgba(255,255,255,.95) 0 4px,transparent 5px),
+      radial-gradient(circle at 83% 29%,rgba(255,255,255,.8) 0 3px,transparent 4px),
+      radial-gradient(circle at 74% 78%,rgba(255,255,255,.75) 0 5px,transparent 6px),
+      linear-gradient(135deg,#f7deef,#ded8ff 52%,#cfe8ff);
+    background-size:160px 160px,210px 210px,260px 260px,auto
+  }
+  .window{
+    width:min(410px,calc(100vw - 24px));padding:7px;border-radius:24px;
+    background:linear-gradient(145deg,rgba(255,255,255,.9),rgba(230,213,249,.76));
+    border:1px solid rgba(255,255,255,.95);
+    box-shadow:0 0 0 2px rgba(193,166,230,.62),0 24px 60px rgba(88,62,127,.25),inset 0 1px #fff
+  }
+  .titlebar{
+    height:54px;display:flex;align-items:center;padding:0 13px 0 18px;border-radius:17px 17px 6px 6px;
+    color:#fff;text-shadow:0 1px 1px #977ab3;font-size:20px;letter-spacing:.04em;
+    background:linear-gradient(180deg,#ffe6f6 0%,#f5a8dc 47%,#c0a8f0 100%);
+    box-shadow:inset 0 2px rgba(255,255,255,.8),inset 0 -3px rgba(132,104,181,.18)
+  }
+  .titlebar .spark{margin-right:10px}.dots{display:flex;gap:7px;margin-left:auto}
+  .dots i{width:27px;height:27px;display:grid;place-items:center;border-radius:50%;font-style:normal;
+    border:1.5px solid #fff;background:linear-gradient(180deg,#fff7ff,#dba6ee);box-shadow:0 1px 0 #9a80bd;color:#fff}
+  .dots i:last-child{background:linear-gradient(180deg,#edfaff,#87c9ef)}
+  .sheet{
+    position:relative;margin-top:6px;padding:24px 24px 22px;border-radius:7px 7px 18px 18px;
+    background:var(--paper);border:1px solid rgba(255,255,255,.95);
+    box-shadow:inset 0 0 0 1px rgba(214,195,229,.66)
+  }
+  .sheet::before,.sheet::after{content:"";position:absolute;width:16px;height:16px;opacity:.65}
+  .sheet::before{left:11px;top:11px;border-left:1px solid var(--line);border-top:1px solid var(--line)}
+  .sheet::after{right:11px;bottom:11px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .intro{margin:0 0 20px;text-align:center}.intro b{display:block;font-size:15px;color:#765d8e}
+  .intro span{display:block;margin-top:7px;font:11px Arial,sans-serif;letter-spacing:.12em;color:#b296bd}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:14px 12px}
+  .field{display:block;min-width:0}.field.wide{grid-column:1/-1}
+  .label{display:flex;align-items:center;gap:6px;margin:0 0 6px 6px;font-size:10px;letter-spacing:.14em;color:#9a80ad}
+  .label::before{content:"✦";font-size:8px;color:#f2a4cb}
+  .control{position:relative;display:flex;align-items:center;height:48px;padding:4px;border-radius:15px;
+    border:2px solid #dcbce2;background:linear-gradient(180deg,#fff,#f9f4fc);
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.95),0 2px 0 rgba(166,129,188,.2)}
+  input{width:100%;height:100%;min-width:0;border:0;outline:0;padding:0 12px;background:transparent;
+    color:#544269;font:15px Galmuri,"Malgun Gothic",sans-serif;caret-color:#f17fb7}
+  input::placeholder{color:#d5c5dd}
+  .age .control{overflow:hidden;padding:0;background:linear-gradient(110deg,#ffc5e2,#c8b5f3 58%,#9dd8f3)}
+  .age input{color:#fff;text-shadow:0 1px rgba(108,74,145,.35)}
+  .age .moon{padding-right:12px;color:#fff;font:17px Arial,sans-serif}
+  .sentence{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+  .tail{align-self:center;white-space:nowrap;padding:7px 10px;border-radius:999px;
+    color:#886f9b;background:#f4edf8;font-size:11px;box-shadow:inset 0 0 0 1px #eadcf0}
+  .transform{width:100%;height:57px;margin-top:23px;border:2px solid #fff;border-radius:18px;cursor:pointer;
+    color:#fff;-webkit-text-fill-color:#fff;text-shadow:0 1px rgba(113,78,153,.35);
+    font:700 15px Galmuri,"Malgun Gothic",sans-serif;letter-spacing:.02em;
+    background:linear-gradient(105deg,#ff9dce 0%,#d7a9ee 48%,#8fcff0 100%);
+    box-shadow:0 0 0 2px #d9b7df,0 4px 0 rgba(142,103,173,.28),inset 0 2px rgba(255,255,255,.7)
+  }
+  .transform span{font-family:Arial,"Noto Sans Symbols 2",sans-serif;font-weight:700;letter-spacing:0}
+  .transform:hover{filter:saturate(1.08) brightness(1.03)}
+  .transform:active{transform:translateY(2px);box-shadow:0 0 0 2px #d9b7df,0 2px 0 rgba(142,103,173,.25),inset 0 2px #fff}
+  .note{margin:14px 0 0;text-align:center;font:10px Arial,sans-serif;color:#af9abb;letter-spacing:.08em}
+  @media(max-width:420px){
+    body{padding:12px 8px}.window{width:100%}.sheet{padding:21px 18px 19px}
+    .grid{grid-template-columns:minmax(0,1fr) 90px;gap:13px 10px}.tail{padding:7px 8px}
+  }
+</style>
+</head>
+<body>
+  <main class="window" aria-label="you.txt 프로필 수정 시안">
+    <header class="titlebar"><span class="spark">✦</span>you.txt
+      <span class="dots" aria-hidden="true"><i>−</i><i>□</i><i>×</i></span>
+    </header>
+    <form class="sheet" onsubmit="return false">
+      <p class="intro"><b>MY LITTLE NULL</b><span>edit your tiny universe ♡</span></p>
+      <div class="grid">
+        <label class="field wide"><span class="label">NAME</span><span class="control"><input value="리리" maxlength="12" /></span></label>
+        <label class="field"><span class="label">SUBJECT</span><span class="control"><input value="국어" maxlength="20" /></span></label>
+        <label class="field age"><span class="label">AGE</span><span class="control"><input value="25" readonly /><b class="moon">☾</b></span></label>
+        <label class="field wide"><span class="label">LOVES</span><span class="sentence"><span class="control"><input value="시" maxlength="20" /></span><span class="tail">를 좋아하고</span></span></label>
+        <label class="field wide"><span class="label">NOPE</span><span class="sentence"><span class="control"><input value="무례" maxlength="20" /></span><span class="tail">를 싫어한다</span></span></label>
+      </div>
+      <button class="transform" type="submit">✦&nbsp; 변신! <span>⸜( &gt;᎑&lt; )⸝♡</span> &nbsp;✦</button>
+      <p class="note">profile UI prototype · no dotted lines, no overlap</p>
+    </form>
+  </main>
+</body>
+</html>
