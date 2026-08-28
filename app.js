@@ -2013,7 +2013,7 @@ function GameApp(){
       const no=!klass&&!mv&&(away||locked||shut||wk||done||empty);
       /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
          심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
-      const done_=`${ask} — DONE 4 TODAY ♡`;
+      const done_="DONE 4 TODAY ♡";
       /* 얼굴은 픽셀 글꼴에 글자가 없어서 .kao로 따로 그린다.
          이유와 얼굴은 한 갈래로 고른다. 따로 고르던 때는 갈래가 어긋났다 —
          잠겼고 오늘 다녀온 자리에서 이유는 빈 줄인데 우는 얼굴만 남아서,
@@ -2022,21 +2022,22 @@ function GameApp(){
       const {t:why,k:kao}=away&&!mv
         ? (done?R(done_,"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡")
            :shut&&!locked?R(placeWhen(p))
-           :R(`NOW @ ${scene.place}...`))
+           :R(`현재 위치는 ${scene.place}...`))
         :locked?R("")
         :done?R(done_,"(⸝⸝o̴̶̷᷄ ·̭ o̴̶̷̥᷅⸝⸝)♡")
-        :wk?R("WEEKEND ONLY ♡","٩(❛ัᴗ❛ั ๑)")
-        :empty?R("NO ONE HERE...","՞ ⸝⸝> ̫ <⸝⸝ ՞")
+        :wk?R("여기는 Weekend only! ♡","٩(❛ัᴗ❛ั ๑)")
+        :empty?R("지금 밖은 Empty...","՞ ⸝⸝> ̫ <⸝⸝ ՞")
         :shut?R(placeWhen(p)):R("");
       return <Dialog title={ask} onClose={()=>answerAsk(false)} win="askwin">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
             {locked&&!away
-              ?<span className="asklock">MAP ERROR <i>♡</i><br/>NOT YET... <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
-              :klass?`${ask} — CLASS MODE ON!`
-              :mv?`${ask} — GO 2GETHER?`
-              :no?`${ask} — OFFLINE!`:`${ask} — LET'S GO?`}</div>
+              ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
+              :klass?`${jos(ask,"은/는")} CLASS 중!`
+              :mv?`${ask}도 같이 GO?`
+              :done?`${ask} — OFFLINE!`
+              :no?`${jos(ask,"은/는")} 잠깐 OFF!`:`${jos(ask,"으로/로")} GO?`}</div>
           {/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */}
-          {!no&&!klass&&<div className="askrule">ONE TRIP A DAY ♡ <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
+          {!no&&!klass&&<div className="askrule">앗! 하루에 1번만 갈 수 있어요 <span className="kao">(υl|l◔ㅅ◔)՞՞</span></div>}
           {no&&<div style={{textAlign:"center",paddingBottom:8,fontSize:10,letterSpacing:".08em",color:"#b4a7d6"}}>
             {why}{kao&&<> <span className="kao">{kao}</span></>}</div>}
           {/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져 있다 */}

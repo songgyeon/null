@@ -408,7 +408,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=191";
+const AV="?v=193";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -550,7 +550,6 @@ const GIFT_CATS=["전체","소품","옷","간식","기록"];
    선물과 가방이 같은 표를 본다. 한쪽만 고치면 두 창의 말이 갈린다. */
 const CAT_EN={"전체":"ALL","소품":"STUFF","옷":"WEAR","간식":"SNACK","기록":"TRACE"};
 /* 받는 사람이 어떻게 받을지 미리 한 줄. 고를 때만 보인다 — 스포일러가 아니라 결의 예고다. */
-const GIFT_HINT={jaeeon:"“…뭐 이런 걸.”", minhyun:"“이걸 왜 줘요.”"};
 /* ♡ — 주고받은 말에서 나온다. 열 마디에 하나. 쓴 만큼 깎인다.
    따로 버는 화면을 만들지 않는 이유: 대화가 곧 재화여야 이 앱의 이야기와 맞는다. */
 const HEART_PER=10;
@@ -1437,9 +1436,9 @@ const giftSpots=(char,met,now)=>SPOTS.filter(p=>placeOpen(p,met)).map(p=>{
   const canMeet=p.meet==="out" ? outAt(p,now).includes(char)
               : p.pick ? true
               : (p.who||[]).includes(char);
-  const why=!canMeet ? "NOT HERE ૮ . . ა"
-    : goneToday(p.name,now) ? "DONE 4 TODAY ♡"
-    : !wendOnlyOk(p,now)    ? "WEEKEND ONLY ✦"
+  const why=!canMeet ? (p.meet==="out"?"지금은 자리를 비웠어요":"이 장소에서는 만날 수 없어요")
+    : goneToday(p.name,now) ? "오늘은 벌써 다녀왔어요"
+    : !wendOnlyOk(p,now)    ? "주말에만"
     : !placeHours(p,now)    ? placeWhen(p,now)
     : "";
   return {place:p.name, icon:p.icon, ok:!why, why};
@@ -1469,7 +1468,7 @@ const placeWhen=(p,now)=>{
   /* 시각을 적어주면 거짓말이 된다 — 여덟 시가 아니라 사람이 없어서 닫혔다 */
   if((p.map==="school"||p.into==="school")
     && !((p.who&&p.who.length)?p.who:["jaeeon","minhyun"]).some(id=>atWorkNow(id,d)))
-    return "SCHOOL = EMPTY ( ._. )";
+    return "지금 학교는 Empty...";
   if(!w)return "";
   const pad=n=>String(n).padStart(2,"0");
   return `open ${pad(w[0])}:00 – ${pad(w[1])}:00`;

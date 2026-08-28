@@ -1136,8 +1136,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
       {/* 현이 쓴 문장과 카모지는 상태 안내가 아니라 이 화면의 본문이다.
           만남·전송 여부에 따라 갈아 끼우거나 숨기지 않는다. */}
-      <div className="cshut giftline">PICK IT. PICK THEM. MEET IRL.<br/>
-        no teleporting gifts! <span className="kao">(っ˶'ᵕ'˶)っ♡</span></div>
+      <div className="cshut giftline">선물은 What? 주인공은 Who? 장소는 Where?<br/>
+        만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
       {(today("jaeeon")||today("minhyun"))&&<div className="cshut cday">
         <span>one a day ♡</span><span>each</span>
       </div>}
@@ -1160,14 +1160,12 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
               {done?"SENT ♡":today(c)?"TOMORROW ♡":(withChar&&!here(c))?"NOT HERE"
                 :(sel?(poor?`NEED ♡${pick.cost-hearts}`:(here(c)?"SEND ♡":"WHERE ♡")):"WRAP ♡")}</span>
           </button>
-          {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
       })}
       {/* 만나고 있지 않으면 만나러 간다. 선물이 지도를 도는 이유가 된다 —
           자리 규칙은 하나도 안 봐준다. 여는 시간, 오늘 갔는지, 주말 전용,
           그리고 그 사람이 거기 있을 수 있는지까지 다 본다 */}
       {to&&!here(to)&&!given(to)&&!today(to)&&<React.Fragment>
-        <div className="csect">WHERE 2 MEET?</div>
         <div className="cwhere">
           {giftSpots(to,met).map(g=>
             <button key={g.place} className={"cspot bevel"+(g.ok?"":" off")}

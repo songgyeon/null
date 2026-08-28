@@ -24,7 +24,7 @@
 import {
   PLACE_BY, WAY, AUTO_AWAY, AT_WORK,
   placeOpen, placeHours, placeWhen, wendOnlyOk, goneToday,
-  presence, whoOut, isWend, canGreet, sceneOver, openingFor, jos,
+  presence, whoOut, outAt, isWend, canGreet, sceneOver, openingFor, jos,
 } from './rules';
 
 /* 창이 읽는 모양. 창은 이 열넷만 보고 그린다 — PLACE_BY를 다시 뒤져
@@ -69,9 +69,11 @@ export function askState(place, {scene, met, picked} = {}): AskState {
   const shut = !!p && !placeHours(p);            // 지금은 문 닫은 시각
   const wk = !away && !!p && !wendOnlyOk(p);     // 평일엔 못 가는 자리 — 같이 이동엔 안 본다
   const done = goneToday(place);                 // 오늘 이미 다녀왔다
-  const out = !away && p && p.meet === 'out' ? whoOut() : null; // 마주치는 자리 — 이동이면 상대가 정해져 있다
+  const out = !away && p && p.meet === 'out' ? outAt(p) : null; // 이 장소에 실제로 나올 수 있는 사람만 본다
   const empty = !!out && !out.length;
-  const need = !away && !!p && !!p.pick && !picked; // 동행을 아직 안 골랐다 — 이동이면 이미 정해져 있다
+  const pickWho = !away && !!p && (p.who || []).length > 1;
+  const whoChoices = !p ? [] : (p.meet === 'out' ? outAt(p) : (p.who || []));
+  const need = pickWho && whoChoices.length > 0 && !picked;
   /* 같이 있다가 발길 닿는 이동. 그 사람이 갈 수 있는 자리(who)여야 하고,
      열려 있어야 하고, 오늘 안 간 데여야 한다. 귀갓길에서는 못 옮긴다 — 곧 내린다.
      근무·수업·점심·야자 중에는 학교 안에서만 옮긴다 — 점심의 보건실→옥상은
@@ -91,7 +93,7 @@ export function askState(place, {scene, met, picked} = {}): AskState {
   const no = !klass && !mv && !!(away || locked || shut || wk || done || empty);
   /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
      심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
-  const done_ = `오늘치 ${jos(place, '은/는')} Complete...`;
+  const done_ = 'DONE 4 TODAY ♡';
   /* 얼굴은 픽셀 글꼴에 글자가 없어서 창이 따로 그린다 — 웹의 .kao와 같은 몫.
      이유와 얼굴은 한 갈래로 고른다. 따로 고르던 때는 갈래가 어긋났다 —
      잠겼고 오늘 다녀온 자리에서 이유는 빈 줄인데 우는 얼굴만 남아서,
@@ -112,12 +114,13 @@ export function askState(place, {scene, met, picked} = {}): AskState {
      다른 두 문장이 들어간다. */
   const title = klass ? `${jos(place, '은/는')} CLASS 중!`
     : mv ? `${place}도 같이 GO?`
+      : done ? `${place} — OFFLINE!`
       : no ? `${jos(place, '은/는')} 잠깐 OFF!`
         : `${jos(place, '으로/로')} GO?`;
   /* 시간을 내서 가는 자리는 누구랑 갈지 고른다 — 같이 이동이면 이미 정해져 있다 */
-  const canPick = !no && !mv && !!p && !!p.pick;
+  const canPick = !no && !mv && pickWho && whoChoices.length > 0;
   return {away, locked, shut, wk, done, empty, need, mv, klass, no, why, kao, title,
-    canPick, who: (p && p.who) || []};
+    canPick, who: whoChoices};
 }
 
 /* ── 누구를 만나나 ──
@@ -128,8 +131,10 @@ export function askState(place, {scene, met, picked} = {}): AskState {
    지금 이야기가 붙어 있는 쪽이 나오는 게 자연스러워서다. */
 export function whoAt(p, picked, msgs) {
   if (!p) return null;
+  if (picked && (p.who || []).includes(picked)
+    && (p.meet !== 'out' || outAt(p).includes(picked))) return picked;
   if (p.pick) return picked || null;
-  if (p.meet === 'out') { const out = whoOut(); return out.length ? out[Math.floor(Math.random() * out.length)] : null; }
+  if (p.meet === 'out') { const out = outAt(p); return out.length ? out[Math.floor(Math.random() * out.length)] : null; }
   const list = p.who || []; if (list.length < 2) return p.own || list[0];
   const n = id => ((msgs || {})[id] || []).length;
   return list.slice().sort((a, b) => n(b) - n(a))[0];

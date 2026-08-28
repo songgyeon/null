@@ -79,7 +79,6 @@ export const GIFTS: Gift[] = [
    tags:'CD 시디 믹스 음악 노래 기록 mix music'},
 ];
 export const GIFT_CATS = ['전체','소품','옷','간식','기록'];
-export const GIFT_HINT: Record<string,string> = {jaeeon:'“…뭐 이런 걸.”', minhyun:'“이걸 왜 줘요.”'};
 /* 받은 선물이 배경으로 걸리기 시작하는 단계. 그 전에는 받아두기만 한다. */
 export const GIFT_AT = 2;
 /* ♡ — 주고받은 말에서 나온다. 열 마디에 하나, 쓴 만큼 깎인다. */

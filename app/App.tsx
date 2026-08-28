@@ -38,7 +38,7 @@ import {
   talkedEnoughIn, applyStoryTransition, markPartnerKnown, markSchoolMet, isSchoolPlace, atWorkNow,
   loadDiary, saveDiary,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, setWorldAt, leaveTsOf, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
-  GIFTS, GIFT_CATS, GIFT_HINT, giftSpots as giftSpotsOf,
+  GIFTS, GIFT_CATS, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
   readAutoQueue, pushAutoBatch, runAutoQueue,
   roomLock, loadGetcha, saveGetcha,
@@ -822,7 +822,6 @@ function CartScreen({gifts,hearts,onSend,onBack}:any) {
               <Text style={done?ct.sentT:ct.sendT}>
                 {done?'SENT ♡':(sel?(poor?`NEED ♡${pick.cost-hearts}`:'SEND ♡'):'WRAP ♡')}</Text></View>
           </TouchableOpacity>
-          {sel&&!done&&<Text style={ct.hint}>{GIFT_HINT[c]}</Text>}
         </View>;
       })}
       {/* ⑧ 쪽지는 빈 종이가 아니라 틀이다. 채우는 건 「받고 어떻게 되면
@@ -2698,8 +2697,8 @@ function Root() {
     const who=whoAt(PLACE_BY[place],picked,msgsForFlow());
     const p=PLACE_BY[place];
     if(who) await goPlace(place,who,
-      p&&p.pick?`${jos(CHARS[who].name,'과/와')} ${place}에 갔다`:undefined,
-      p&&p.pick?'asked':undefined);
+      picked?`${jos(CHARS[who].name,'과/와')} ${place}에 갔다`:undefined,
+      picked?'asked':undefined);
   };
   /* 같이 있다가 발길 닿는 이동. 떠나는 자리를 먼저 정리한다 */
   const answerMove=async(ok:boolean)=>{

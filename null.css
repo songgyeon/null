@@ -387,7 +387,7 @@ input.csearch::placeholder{color:#b9addc}
 .csent{flex:none;padding:8px 16px;font-size:10.5px;letter-spacing:.12em;color:#a99bd0;border-radius:999px;
  background:#f4f0fc;border:1.5px solid #fff;box-shadow:0 0 0 1px #e4dbf8}
 .chint{margin:5px 0 0 64px;font-size:9px;color:#b4a7d6}
-/* 어디서 줄까요 — 갈 수 있는 자리와 못 가는 이유를 같이 놓는다.
+/* 장소 선택 — 갈 수 있는 자리와 못 가는 이유를 같이 놓는다.
    못 가는 자리를 아예 빼면 왜 없는지를 모른다 */
 .cwhere{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 12px 10px}
 .cspot{display:flex;align-items:center;justify-content:space-between;gap:6px;
@@ -4615,3 +4615,131 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* 지도 선택창의 인물 버튼은 한 명만 가능한 시각에도 선택 단계가 보이게 한다. */
 .profileframe.askwin .askwho{margin-top:6px}
 .profileframe.askwin .whobtn{min-height:38px;border-radius:9px}
+
+/* v193 — fixed-screen visual language for gift, you.txt, and chat */
+/* cwrap is a scrolling flex column. Its children used to shrink to the viewport,
+   which crushed the selected gift into a thin oval and clipped the icon. */
+.giftwin .cwrap{gap:9px !important;padding:12px 14px 14px !important}
+.giftwin .cwrap>*{flex-shrink:0 !important}
+.giftwin .cgcard{
+ min-height:82px !important;padding:10px 12px !important;gap:11px !important;
+ border-radius:11px !important;box-sizing:border-box !important}
+.giftwin .cgthumb{width:62px !important;height:62px !important;border-radius:10px !important}
+.giftwin .cgthumb img{width:50px !important;height:50px !important;object-fit:contain !important}
+.giftwin .cgname{font-size:13px !important}
+.giftwin .itemsay{font-size:9px !important;margin-top:3px !important}
+.giftwin .cgprice{margin-top:5px !important}
+
+/* The daily rule belongs to the recipient controls, so it gets one compact rail
+   instead of two loose words floating at opposite edges. */
+.giftwin .cday{
+ display:flex !important;justify-content:center !important;gap:9px !important;
+ width:calc(100% - 8px) !important;margin:-1px auto 1px !important;padding:5px 10px !important;
+ border:1px solid rgba(205,185,226,.66) !important;border-radius:7px !important;
+ background:linear-gradient(90deg,rgba(255,255,255,.62),rgba(233,222,249,.58),rgba(255,255,255,.62)) !important;
+ color:#9b83b9 !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.8) !important}
+.giftwin .cday span:last-child::before{content:"·";margin-right:9px;color:#d2b4d6}
+.giftwin .cto{min-height:56px !important;border-radius:11px !important;padding:9px 11px !important}
+.giftwin .cface{width:34px !important;height:34px !important}
+.giftwin .csend,.giftwin .csent{padding:7px 12px !important;border-radius:9px !important}
+.giftwin .cwhere{margin:2px 4px 6px !important;gap:7px !important}
+.giftwin .cspot{
+ display:grid !important;grid-template-columns:1fr !important;align-content:center !important;
+ gap:2px !important;min-height:47px !important;padding:7px 10px !important;border-radius:9px !important}
+.giftwin .cspot .csname{font-size:10.5px !important;line-height:1.25 !important}
+.giftwin .cspot .cswhy{
+ max-width:none !important;width:100% !important;text-align:left !important;font-size:7.5px !important;
+ line-height:1.35 !important;white-space:normal !important;overflow-wrap:break-word !important}
+.giftwin .cnote{margin-top:1px !important}
+.giftwin .cback{
+ align-self:flex-start !important;width:86px !important;min-width:86px !important;max-width:86px !important;
+ height:34px !important;margin:3px 0 2px 2px !important;padding:0 10px !important;
+ border-radius:9px !important;font-size:9.5px !important;letter-spacing:.1em !important;
+ background:linear-gradient(135deg,#f8dff0 0%,#eadff8 55%,#dcecff 100%) !important}
+
+/* you.txt returns to the fixed profile composition: label, compact value, Korean tail.
+   The popup stays shorter, but no longer turns into unlabeled floating inputs. */
+.dlgov.cssprofile .profileedit.profileframe{width:min(310px,calc(100vw - 24px)) !important;max-width:310px !important}
+.dlgov.cssprofile .profileedit .ebody{
+ height:370px !important;min-height:370px !important;max-height:370px !important;
+ padding:16px 17px 14px !important;align-items:flex-start !important}
+.dlgov.cssprofile .profileedit .enamelab,
+.dlgov.cssprofile .profileedit .eline>.lab{
+ display:block !important;position:static !important;min-width:0 !important;
+ font-size:8px !important;line-height:1.2 !important;letter-spacing:.16em !important;color:#655180 !important}
+.dlgov.cssprofile .profileedit .enamelab{margin:0 0 5px 1px !important}
+.dlgov.cssprofile .profileedit .ename{
+ width:174px !important;height:34px !important;margin:0 0 10px !important;padding:0 11px !important;
+ align-self:flex-start !important;justify-content:flex-start !important;font-size:12.5px !important}
+.dlgov.cssprofile .profileedit .ename .namein{text-align:left !important}
+.dlgov.cssprofile .profileedit .eline{
+ display:grid !important;grid-template-columns:164px max-content !important;
+ grid-template-rows:11px 32px !important;align-items:center !important;justify-content:start !important;
+ column-gap:7px !important;row-gap:3px !important;width:100% !important;margin:0 0 7px !important}
+.dlgov.cssprofile .profileedit .eline>.lab{grid-column:1/-1 !important;grid-row:1 !important;margin-left:1px !important}
+.dlgov.cssprofile .profileedit .eline>.blank{
+ grid-column:1 !important;grid-row:2 !important;width:164px !important;max-width:164px !important;
+ height:32px !important;padding:0 10px !important;justify-content:flex-start !important;font-size:12px !important}
+.dlgov.cssprofile .profileedit .eline>.etail{
+ grid-column:2 !important;grid-row:2 !important;font-size:9.5px !important;white-space:nowrap !important}
+.dlgov.cssprofile .profileedit .e-subject{grid-template-columns:138px max-content !important}
+.dlgov.cssprofile .profileedit .e-subject>.blank{width:138px !important;max-width:138px !important}
+.dlgov.cssprofile .profileedit .e-age{grid-template-columns:58px max-content !important}
+.dlgov.cssprofile .profileedit .e-age>.blank{
+ width:58px !important;max-width:58px !important;height:30px !important;padding:0 !important;
+ justify-content:center !important;font-size:14px !important;font-weight:700 !important}
+.dlgov.cssprofile .profileedit .e-age>.blank::before,
+.dlgov.cssprofile .profileedit .e-age>.blank::after{content:none !important;display:none !important}
+.dlgov.cssprofile .profileedit .profiledone{
+ width:104px !important;height:34px !important;margin:4px auto 0 !important;padding:0 10px !important;
+ align-self:center !important;border-radius:9px !important;font-size:9.5px !important}
+
+/* The chat room uses the same CD surface and opening-window frame as the fixed UI.
+   Message hierarchy comes from tint and spacing, not heavy purple outlines. */
+.phone>.screen.chatwrap.glasswindow{
+ background-color:#f7f2fb !important;
+ background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=193") !important;
+ background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
+.chatwrap.glasswindow .chatbar{
+ min-height:45px !important;margin:5px 0 0 !important;padding:6px 9px !important;gap:8px !important;
+ border:1px solid rgba(255,255,255,.84) !important;border-radius:5px 5px 10px 10px !important;
+ background:linear-gradient(110deg,rgba(255,255,255,.76),rgba(238,226,249,.66),rgba(223,240,255,.62)) !important;
+ -webkit-backdrop-filter:blur(4px) !important;backdrop-filter:blur(4px) !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(197,176,218,.36) !important}
+.chatwrap.glasswindow .chatbar>.backbtn{
+ width:34px !important;height:34px !important;min-width:34px !important;padding:0 !important;margin:0 !important;
+ border-radius:9px !important;color:#d77dad !important;background:rgba(255,255,255,.73) !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(201,174,218,.56),0 2px 4px rgba(103,77,145,.1) !important}
+.chatwrap.glasswindow .chatbar>div:last-child{flex:1;min-width:0}
+.chatwrap.glasswindow .cname{font-size:12.5px !important;color:#55436f !important}
+.chatwrap.glasswindow .csub{margin-top:2px !important;gap:6px !important;font-size:8.5px !important;color:#9a84b5 !important}
+.chatwrap.glasswindow .dbar{width:94px !important;height:5px !important;gap:1px !important;border-color:#c9b4dc !important}
+.chatwrap.glasswindow .msgs{
+ margin:5px 0 0 !important;padding:14px 11px 12px !important;gap:2px !important;
+ border-color:rgba(255,255,255,.78) !important;border-radius:10px !important;
+ background:linear-gradient(150deg,rgba(255,253,255,.72),rgba(244,237,250,.6),rgba(237,247,255,.58)) !important;
+ -webkit-backdrop-filter:blur(3px) saturate(1.03) !important;backdrop-filter:blur(3px) saturate(1.03) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.94),0 0 0 1px rgba(198,177,218,.28) !important}
+.chatwrap.glasswindow .mrow{gap:7px !important}
+.chatwrap.glasswindow .mrow .sp{width:24px !important}
+.chatwrap.glasswindow .mavatar{
+ width:24px !important;height:24px !important;border-color:rgba(135,108,173,.58) !important;
+ box-shadow:0 0 0 1px rgba(255,255,255,.86),0 2px 4px rgba(93,70,132,.14) !important}
+.chatwrap.glasswindow .mcol{max-width:78% !important}
+.chatwrap.glasswindow .bubble{
+ padding:8px 10px !important;border:1px solid rgba(164,137,194,.62) !important;border-radius:11px !important;
+ background:rgba(255,255,255,.82) !important;color:#514267 !important;font-size:12px !important;line-height:1.58 !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 5px rgba(93,70,132,.11) !important}
+.chatwrap.glasswindow .mrow:not(.me) .bubble{border-bottom-left-radius:3px !important}
+.chatwrap.glasswindow .mrow.me .bubble{
+ border-color:rgba(205,153,198,.58) !important;border-bottom-right-radius:3px !important;
+ background:linear-gradient(135deg,rgba(255,224,241,.82),rgba(239,225,251,.8),rgba(220,239,255,.82)) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 2px 5px rgba(121,84,145,.11) !important}
+.chatwrap.glasswindow .divider{
+ display:flex !important;align-items:center !important;gap:8px !important;width:78% !important;
+ margin:12px auto 7px !important;font-size:8.5px !important;color:#b28ac5 !important;letter-spacing:.08em !important}
+.chatwrap.glasswindow .divider::before,.chatwrap.glasswindow .divider::after{
+ content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(190,154,207,.55),transparent)}
+.chatwrap.glasswindow .inputbar,.scenewrap.glasswindow .inputbar{
+ min-height:50px !important;margin:5px 0 0 !important;padding:6px !important;border-radius:10px !important;
+ background:linear-gradient(135deg,#fffaff 0%,#eee5fb 55%,#e3f1fc 100%) !important}

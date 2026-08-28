@@ -417,7 +417,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=183";
+const AV="?v=193";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -559,7 +559,6 @@ const GIFT_CATS=["전체","소품","옷","간식","기록"];
    선물과 가방이 같은 표를 본다. 한쪽만 고치면 두 창의 말이 갈린다. */
 const CAT_EN={"전체":"ALL","소품":"STUFF","옷":"WEAR","간식":"SNACK","기록":"TRACE"};
 /* 받는 사람이 어떻게 받을지 미리 한 줄. 고를 때만 보인다 — 스포일러가 아니라 결의 예고다. */
-const GIFT_HINT={jaeeon:"“…뭐 이런 걸.”", minhyun:"“이걸 왜 줘요.”"};
 /* ♡ — 주고받은 말에서 나온다. 열 마디에 하나. 쓴 만큼 깎인다.
    따로 버는 화면을 만들지 않는 이유: 대화가 곧 재화여야 이 앱의 이야기와 맞는다. */
 const HEART_PER=10;
@@ -2011,7 +2010,6 @@ return {
   GIFTS,
   GIFT_CATS,
   CAT_EN,
-  GIFT_HINT,
   HEART_PER,
   heartsOf,
   GIFT_NAME,
@@ -2319,7 +2317,6 @@ export const {
   GIFTS,
   GIFT_CATS,
   CAT_EN,
-  GIFT_HINT,
   HEART_PER,
   heartsOf,
   GIFT_NAME,

@@ -4303,7 +4303,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['191', 'fda5af85dfac']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['193', '24091baa30b0']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4970,9 +4970,10 @@ eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true
    이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
 eq('bag이 gift와 같은 창을 쓴다',
   /function Bag\(\{bag,store,onClose\}\)/.test(web)
-  && /className="cartscreen"><div className="cartwin glasswindow">[\s\S]{0,200}<WindowChrome title="bag"/.test(web), true);
+  && /className="cartscreen"><div className="cartwin glasswindow bagwin">[\s\S]{0,200}<WindowChrome title="bag"/.test(web), true);
 eq('bag이 gift와 같은 카드·칩을 쓴다',
-  /className="cgcard"><span className="cribbon"\/>[\s\S]{0,120}bagpic/.test(web)
+  /className="cgcard">[\s\S]{0,120}bagpic/.test(web)
+  && !/className="cribbon"/.test(web)
   && /ITEM_CATS\.map\(c=>[\s\S]{0,80}className=\{"cchip"/.test(web), true);
 /* 가방은 물건이 주인공이다. 얼굴을 크게 놓으니 물건은 글자뿐이고 얼굴만
    네 번 박히는 화면이 됐다 */
@@ -5127,7 +5128,7 @@ eq('못 가는 이유를 셋 다 말한다',
   eq('제목이 웹·앱 같다',
     ['CLASS 중!', '도 같이 GO?', '잠깐 OFF!', ' GO?'].filter(t => !(web.includes(t) && flow.includes(t))), []);
   eq('이유가 웹·앱 같다',
-    ['Complete...', 'Weekend only! ♡', '밖은 Empty...', '현재 위치는'].filter(t =>
+    ['DONE 4 TODAY ♡', 'Weekend only! ♡', '밖은 Empty...', '현재 위치는'].filter(t =>
       !(web.includes(t) && flow.includes(t))), []);
   eq('단추가 웹·앱 같다',
     ['OK!', 'GO!', 'LATER...', '같이 GO!', '살짝 PEEK!'].filter(t =>
@@ -5143,6 +5144,7 @@ eq('못 가는 이유를 셋 다 말한다',
    도서관과 레코드샵은 들르는 데가 아니라 시간을 내서 가는 데다.
    평일엔 둘 다 학교에 매여 있다 */
 {
+  const appFlow = readFileSync(join(ROOT, 'app/lib/flow.ts'), 'utf8');
   const wend = [...web.matchAll(/\{name:"([^"]+)",[\s\S]{0,120}?wendOnly:true/g)].map(m => m[1]);
   eq('주말에만 가는 자리가 둘이다', wend.sort(), ['도서관', '레코드샵']);
   eq('그 둘은 동행을 고른다',
@@ -5150,7 +5152,9 @@ eq('못 가는 이유를 셋 다 말한다',
   /* 고를 수 있으려면 둘 다 후보여야 한다 */
   eq('고를 상대가 둘이다',
     ['도서관', '레코드샵'].filter(p => !/who:\["jaeeon","minhyun"\]/.test(PLACE_BY_WEB(p) || '')), []);
-  eq('안 고르면 못 간다', /disabled=\{need\}/.test(web) && /const need=!away&&!!p&&p\.pick&&!askWho;/.test(web), true);
+  eq('안 고르면 못 간다', /disabled=\{need\}/.test(web)
+    && /const need=pickWho&&whoChoices\.length>0&&!askWho;/.test(web)
+    && /const need = pickWho && whoChoices\.length > 0 && !picked;/.test(appFlow), true);
   eq('고른 사람이 그 자리에 온다', /if\(p\.pick\)return picked\|\|null;/.test(web), true);
 }
 
@@ -5708,7 +5712,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('웹이 같이 간 자리를 알린다',
     /place:iv\.place,came:"invited"/.test(web)                       // 초대 수락
     && /after_request:\{extra:\{place,came:"asked"\}\}/.test(web)     // 같이 자리 옮기기
-    && /after_request:\{extra:\{place,\.\.\.\(p\.pick\?\{came:"asked"\}:\{\}\)\}\}/.test(web), true);
+    && /after_request:\{extra:\{place,\.\.\.\(picked\?\{came:"asked"\}:\{\}\)\}\}/.test(web), true);
   /* 첫 턴에만 보내면 두 번째 말부터 도로 남남이 된다 */
   eq('자리에 있는 내내 보낸다',
     /\.\.\.\(sc\.came\?\{came:sc\.came\}:\{\}\)/.test(web)
