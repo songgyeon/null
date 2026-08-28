@@ -1096,7 +1096,6 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
   const back=()=>{setPick(null);setTo(null);setMemo("")};
   const given=c=>(gifts[c]||[]).includes(pick&&pick.key);
   const poor=pick&&hearts<pick.cost;
-  const noteOk=!!memo.trim();
   const today=c=>giftedToday(c);   // 이 사람 오늘 몫은 이미 나갔다
   /* 물건은 손에서 손으로 간다. 문자로는 못 준다 —
      재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
@@ -1144,7 +1143,6 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           만남·전송 여부에 따라 갈아 끼우거나 숨기지 않는다. */}
       <div className="cshut giftline">선물은 What? 주인공은 Who? 장소는 Where?<br/>
         만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
-      {(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
       {["jaeeon","minhyun"].map(c=>{
         /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
            지금 자리를 말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
@@ -1153,7 +1151,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           <button className={"cto"+(sel?" sel":"")} disabled={shut}
             onClick={()=>{ if(shut)return;
               if(!sel){setTo(c);return}
-              if(poor||!noteOk)return;
+              if(poor)return;
               /* 이미 마주 앉아 있으면 바로 준다. 아니면 아래에서 자리를 고른다 */
               if(!here(c))return;
               onSend(c,pick,giftNote(memo)); onClose(); }}>
@@ -1162,7 +1160,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
             <span className="ctoname">{CHARS[c].name}</span>
             <span className={shut?"csent":"csend"}>
               {done?"SENT ♡":today(c)?"TOMORROW ♡":(withChar&&!here(c))?"NOT HERE"
-                :(sel?(poor?`NEED ♡${pick.cost-hearts}`:!noteOk?"WRITE NOTE":(here(c)?"SEND ♡":"WHERE ♡")):"WRAP ♡")}</span>
+                :(sel?(poor?`NEED ♡${pick.cost-hearts}`:(here(c)?"SEND ♡":"WHERE ♡")):"WRAP ♡")}</span>
           </button>
           {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
@@ -1175,8 +1173,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
         <div className="cwhere">
           {giftSpots(to,met).map(g=>
             <button key={g.place} className={"cspot bevel"+(g.ok?"":" off")}
-              disabled={!g.ok||poor||!noteOk}
-              onClick={()=>{ if(!g.ok||poor||!noteOk)return; onSendAt(to,pick,giftNote(memo),g.place); onClose(); }}>
+              disabled={!g.ok||poor}
+              onClick={()=>{ if(!g.ok||poor)return; onSendAt(to,pick,giftNote(memo),g.place); onClose(); }}>
               <span className="csname">{g.place}</span>
               <span className="cswhy">{g.ok?"♡":g.why}</span>
             </button>)}
@@ -1187,7 +1185,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           세부를 지어낼 자리가 없어진다. 나머지 글자는 안 지워진다 */}
       <div className="cnote">
         <span className="cnt">{GIFT_NOTE_A.trim()}</span>
-        <input className="cwish" value={memo} maxLength={GIFT_WISH_MAX} required
+        <input className="cwish" value={memo} maxLength={GIFT_WISH_MAX}
           placeholder="" aria-label="note"
           onChange={e=>setMemo(e.target.value)}/>
         <span className="cnt">{GIFT_NOTE_B}</span>

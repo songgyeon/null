@@ -4360,8 +4360,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* 기본 메신저: 지정 배경을 가리지 않는다. 본문은 색판이 아니라 얇은 유리 한 장이다. */
 .phone>.screen.desk.glasswindow{inset:4px !important;width:auto !important;height:auto !important;
- background-color:#fff !important;background-image:url("ui/bg-chat.png?v=188") !important;
- background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
+ background-color:transparent !important;background-image:url("ui/bg-chat.png?v=189") !important;
+ background-position:center !important;background-size:100% 100% !important;background-repeat:no-repeat !important}
 .phone>.screen.desk.glasswindow::before{content:"" !important;position:absolute;inset:0;pointer-events:none;
  background:rgba(239,230,255,.025) !important}
 .phone>.screen.desk.glasswindow .roomswrap{background:linear-gradient(145deg,rgba(230,217,255,.16),rgba(206,221,255,.09)) !important;
@@ -4388,3 +4388,76 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .desk .namecharge>i.on::after{content:"";position:absolute;inset:2px;background:#fff;
  clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)}
 @media(max-width:500px){.phone>.screen.desk.glasswindow{inset:0 !important}}
+
+/* v189 — scroll, centering, and glass corrections */
+/* rooms / map / cam / hidden: keep wheel and touch scrolling, hide the native grey rail. */
+.phone>.screen.desk.glasswindow .roomswrap{
+ min-height:0 !important;overflow:hidden !important;background:rgba(230,218,255,.055) !important;
+ -webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+.phone>.screen.desk.glasswindow .roomswrap>.rooms,
+.phone>.screen.desk.glasswindow .roomswrap>.gal,
+.phone>.screen.desk.glasswindow .roomswrap>.mapscroll,
+.phone>.screen.desk.glasswindow .roomswrap>.hiddenGal{
+ flex:1 1 auto !important;height:auto !important;min-height:0 !important;max-height:100% !important;
+ overflow-x:hidden !important;overflow-y:auto !important;overscroll-behavior:contain;
+ scrollbar-width:none !important;-ms-overflow-style:none !important}
+.phone>.screen.desk.glasswindow .roomswrap>.rooms::-webkit-scrollbar,
+.phone>.screen.desk.glasswindow .roomswrap>.gal::-webkit-scrollbar,
+.phone>.screen.desk.glasswindow .roomswrap>.mapscroll::-webkit-scrollbar,
+.phone>.screen.desk.glasswindow .roomswrap>.hiddenGal::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important}
+
+/* Every dialog uses the opening-window axis: true center, never upper-right. */
+.dlgov,.dlgov.cssprofile{
+ inset:0 !important;display:grid !important;place-items:center !important;
+ align-items:center !important;justify-content:center !important;
+ padding:12px !important;overflow:hidden !important;box-sizing:border-box !important}
+.dlgov>.dialogmount,.dlgov.cssprofile>.dialogmount{
+ width:min(320px,calc(100% - 8px)) !important;max-width:320px !important;
+ margin:auto !important;transform:none !important;align-self:center !important;justify-self:center !important}
+.dlgov>.dialogmount>.profileframe,.dlgov.cssprofile>.dialogmount>.profileframe{
+ position:relative !important;inset:auto !important;width:100% !important;max-width:320px !important;
+ margin:0 auto !important;transform:none !important;overflow:hidden !important}
+
+/* you.txt is compact and never owns a scrollbar. */
+.dlgov.cssprofile .profileedit.profileframe{height:auto !important;max-height:none !important}
+.dlgov.cssprofile .profileedit .ebody{
+ display:flex !important;flex-direction:column !important;height:430px !important;min-height:430px !important;
+ max-height:430px !important;padding:16px 14px 13px !important;overflow:hidden !important;box-sizing:border-box !important}
+.dlgov.cssprofile .profileedit .ename{height:39px !important;margin:0 0 10px !important;padding:0 12px !important}
+.dlgov.cssprofile .profileedit .eline{
+ grid-template-columns:minmax(0,1fr) max-content !important;gap:6px !important;margin:0 0 9px !important}
+.dlgov.cssprofile .profileedit .blank{height:36px !important;padding:0 11px !important}
+.dlgov.cssprofile .profileedit .etail{font-size:9.5px !important;line-height:1.2 !important}
+.dlgov.cssprofile .profileedit .e-age{grid-template-columns:108px max-content !important}
+.dlgov.cssprofile .profileedit .e-age>.blank{width:108px !important;max-width:108px !important}
+.dlgov.cssprofile .profileedit .profiledone{height:40px !important;margin-top:auto !important;border-radius:10px !important}
+
+/* Main messenger wallpaper must remain visible through one faint lavender pane. */
+.phone>.screen.desk.glasswindow{overflow:hidden !important;background-color:transparent !important}
+.phone>.screen.desk.glasswindow::before{background:rgba(230,216,255,.035) !important}
+.phone>.screen.desk.glasswindow .roomswrap,
+.phone>.screen.desk.glasswindow .rooms,
+.phone>.screen.desk.glasswindow .gal{background-color:transparent !important}
+
+/* Chat composer: remove grey floor, keep the gift/input/send controls opal. */
+.chatwrap.glasswindow .inputbar,.scenewrap.glasswindow .inputbar{
+ background:linear-gradient(135deg,rgba(255,250,255,.88),rgba(234,224,252,.78),rgba(221,239,255,.78)) !important;
+ border-color:rgba(255,255,255,.92) !important}
+.chatwrap.glasswindow .inputbar .sunken,.scenewrap.glasswindow .inputbar .sunken{
+ background:rgba(255,255,255,.86) !important;border-color:rgba(190,161,218,.62) !important}
+.chatwrap.glasswindow .sendbtn,.scenewrap.glasswindow .sendbtn{
+ background:linear-gradient(135deg,#ffd4ec 0%,#e8d8ff 48%,#ccecff 100%) !important;
+ border-color:rgba(255,255,255,.96) !important}
+.chatwrap.glasswindow .sendbtn::after,.scenewrap.glasswindow .sendbtn::after{background:#80649e !important}
+.chatwrap .msgs,.scenewrap .scenebody{scrollbar-width:none !important;-ms-overflow-style:none !important}
+.chatwrap .msgs::-webkit-scrollbar,.scenewrap .scenebody::-webkit-scrollbar{display:none !important;width:0 !important}
+
+/* Small toolbar controls share the same beveled grammar instead of pills. */
+.menubar .moonbtn{height:27px !important;min-width:52px !important;padding:0 8px !important;border-radius:8px !important;
+ background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(233,225,249,.88)) !important;
+ border:1px solid rgba(181,156,211,.68) !important;box-shadow:inset 0 1px 0 #fff,0 2px 0 rgba(151,122,190,.18) !important}
+.menubar .navpixel{width:14px !important;height:14px !important}
+
+/* Name progress is a row of opal pearls, not square placeholder glyphs. */
+.desk .namecharge{grid-template-columns:repeat(6,8px) !important;gap:5px !important}
+.desk .namecharge>i{width:8px !important;height:8px !important;border-radius:50% !important}

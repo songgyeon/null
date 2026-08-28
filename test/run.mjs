@@ -1265,7 +1265,7 @@ eq('자리에 있으면 딴 사람은 못 고른다',
   /shut=done\|\|today\(c\)\|\|\(!!withChar&&!here\(c\)\)/.test(web)
   && /\(withChar&&!here\(c\)\)\?"NOT HERE"/.test(web), true);
 eq('아니면 어디서 줄지 고른다',
-  /sel\?\(poor\?`NEED ♡\$\{pick\.cost-hearts\}`:!noteOk\?"WRITE NOTE":\(here\(c\)\?"SEND ♡":"WHERE ♡"\)\):"WRAP ♡"/.test(web), true);
+  /sel\?\(poor\?`NEED ♡\$\{pick\.cost-hearts\}`:\(here\(c\)\?"SEND ♡":"WHERE ♡"\)\):"WRAP ♡"/.test(web), true);
 /* 물건은 손에서 손으로 간다 — 그래서 선물이 만나러 가는 이유가 된다.
    상자는 안 두른다: 창 안에 창이 하나 더 생기고 이 창은 이미 테두리가 많다.
    웹과 앱이 같은 글월을 쓴다 — 한쪽만 고치면 두 화면의 말이 갈린다. */
@@ -1579,8 +1579,8 @@ eq('보내는 쪽에서도 막는다',
 eq('창에서도 막는다', /shut=done\|\|today\(c\)/.test(web), true);
 /* 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지 적어주는 편이 낫다.
    한쪽만 잠긴 날에도 규칙은 알려준다 */
-eq('왜 안 되는지 적어준다',
-    /className="cshut">one a day ♡ each</.test(web) && /\.cshut\{/.test(web), true);
+eq('임의 one a day 문구를 포장 화면에 덧붙이지 않는다',
+    /className="cshut">one a day ♡ each</.test(web), false);
 /* 이미 준 물건과 오늘 몫이 나간 것은 다른 이유다. 같은 회색 단추를 쓰되
    글자는 달라야 한다 — 「SENT」는 이 물건 얘기고 「TOMORROW」는 오늘 얘기다 */
 eq('이미 준 것과 오늘 몫은 다른 말이다',
@@ -4301,7 +4301,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['188', '93b42f9c296a']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['189', '269a6eae679d']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
