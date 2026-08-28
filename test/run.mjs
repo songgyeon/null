@@ -4301,7 +4301,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['184', '5aac9066d535']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['185', 'fe0f1571cb3e']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5083,7 +5083,7 @@ eq('쪽지가 흰 종이다',
   && !/A NOTE \(선택\)/.test(web), true);
 /* 남은 날이 30을 넘을 수는 없다. 첫 대화 시각이 물건보다 늦게 잡히면 D-31이 나왔다 */
 eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
-eq('bag 창이 gift 옆에 있다', web.indexOf('BagIcon size={14}/>bag') > web.indexOf('GiftIcon.cart size={14}/>gift'), true);
+eq('bag 창이 gift 옆에 있다', web.indexOf('ui/icon-bag.png') > web.indexOf('ui/icon-gift.png'), true);
 
 /* ── 하루에 한 자리는 한 번 ──
    같은 데를 하루에 세 번 가면 그건 다니는 게 아니라 새로고침이다.

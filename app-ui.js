@@ -1307,12 +1307,12 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       {/* 🎁 선물은 메뉴 항목이다 — 버튼은 peek 하나뿐이어야 그게 특별한
           동작으로 보인다. 메뉴바는 조용해야 한다. */}
       <span className="mbtn ico" style={{marginLeft:"auto"}} title="give something"
-        onClick={()=>{setMenu(null);onCart()}}><GiftIcon.cart size={14}/>gift</span>
+        onClick={()=>{setMenu(null);onCart()}}><img className="navpixel" src={av("ui/icon-gift.png")} alt=""/>gift</span>
       {/* gift는 준 것, bag은 받은 것. 나란히 둔다 — 한쪽만 있으면 주기만 하는 앱이 된다 */}
       {/* 알약은 안 붙인다. 가방은 알림함이 아니라 서랍이다 — 새로 들어온 게
           있다고 숫자가 뜨면 그걸 없애려고 여는 창이 된다 */}
       <span className="mbtn ico" title="what they gave u"
-        onClick={()=>{setMenu(null);setDlg("bag")}}><BagIcon size={14}/>bag</span>
+        onClick={()=>{setMenu(null);setDlg("bag")}}><img className="navpixel" src={av("ui/icon-bag.png")} alt=""/>bag</span>
       {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
       <button className="moonbtn bevel nowbtn" title="timetable"
         onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>

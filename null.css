@@ -4009,7 +4009,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .cartwin.glasswindow{left:12px;right:12px;top:18px;bottom:18px}
 
 /* 메신저 기본 배경 + 그 위의 연보라 유리판 */
-.desk,.cartscreen{background:#faf8ff url("ui/bg-chat.jpg?v=184") center/cover no-repeat}
+.desk,.cartscreen{background:#faf8ff url("ui/bg-chat.jpg?v=185") center/cover no-repeat}
 .desk::before,.cartscreen::before{content:"";position:absolute;inset:0;pointer-events:none;
  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(232,218,255,.14))}
 .roomswrap{margin:7px 9px 0;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;
@@ -4064,7 +4064,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .cto.sel .cradio{border-color:#a98bc8;box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 8px #b69bd4}
 .cwish{color:#6e5a83}.cwish::placeholder{color:#b9a9cb}
 /* etc.의 CD는 오프닝과 같은 투명 CD, 단추는 핑크 대신 푸른 오팔 */
-.etccd{width:76px;height:76px;border:0;background:url("ui/opal-cd.webp?v=184") center/contain no-repeat;
+.etccd{width:76px;height:76px;border:0;background:url("ui/opal-cd.webp?v=185") center/contain no-repeat;
  box-shadow:none;animation:spin 6s linear infinite}.etccd::after{content:none}
 .etctag{color:#6c5a84;border-radius:12px;background:linear-gradient(135deg,#e4f2ff,#eadffc)}
 .etcdel,.wbtn.kill{color:#655078;text-shadow:none;border-color:#fff;
@@ -4073,7 +4073,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* ══ 184 · 메신저 레퍼런스 정리 ══
    배경·CD·사진은 이미지, 창틀·탭·유리판·카드는 CSS가 맡는다. */
 .screen.desk{
- background:#fff url("ui/bg-chat.png?v=184") center/cover no-repeat !important;
+ background:#fff url("ui/bg-chat.png?v=185") center/cover no-repeat !important;
  padding:5px !important;
 }
 .screen.desk::before{background:rgba(239,230,255,.08)}
@@ -4138,3 +4138,26 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* 캐비넷 원화 바깥의 핑크 발광 테만 잘라낸다. 문과 클릭 위치는 그대로다. */
 .desk .cab .cabframe{clip-path:inset(6px round 10px);filter:saturate(.82)}
+
+/* 메뉴의 기프트·백은 제공된 픽셀 원화를 축소해도 번지지 않게 쓴다. */
+.menubar .navpixel{display:block;flex:none;width:18px;height:18px;object-fit:contain;
+ image-rendering:pixelated;image-rendering:crisp-edges;filter:none}
+
+/* you.txt에서는 영어 항목명을 모두 걷고 값+한글 조사만 남긴다. */
+.cssprofile .profileedit .enamelab,
+.cssprofile .profileedit .eline>.lab{display:none !important}
+.cssprofile .profileedit .eline{grid-template-columns:minmax(0,1fr) auto;gap:9px}
+.cssprofile .profileedit .ename{margin-top:2px}
+
+/* AGE 25 전용 오팔 칸 — 별과 초승달도 이미지 없이 CSS로 그린다. */
+.cssprofile .profileedit .e-age .blank{position:relative;max-width:128px;padding-left:34px;
+ color:#66527e;background:linear-gradient(105deg,#f9c5e4 0%,#e6cff6 52%,#cfe9ff 100%) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -2px 4px rgba(141,115,189,.13),
+  0 0 0 1px #d1b7df,0 3px 8px rgba(132,102,176,.13)}
+.cssprofile .profileedit .e-age .blank::before{content:"";position:absolute;left:13px;top:50%;
+ width:12px;height:12px;transform:translateY(-50%);background:#fff;
+ clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);
+ filter:drop-shadow(0 0 3px rgba(255,255,255,.85))}
+.cssprofile .profileedit .e-age .blank::after{content:"";position:absolute;right:13px;top:50%;
+ width:17px;height:17px;border-radius:50%;transform:translateY(-50%);
+ background:#fff;box-shadow:5px -2px 0 0 #d6e8fc}
