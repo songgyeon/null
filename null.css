@@ -4942,3 +4942,13 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  .youoverlay>.youprofile{width:min(320px,100%) !important}
  .pvframe{width:min(370px,100%)}
 }
+
+/* 상단 메뉴의 연보라 유리 농도와 단톡방·관전방 원형 아이콘 투명도만 유지한다.
+   오로라 외곽선과 rooms/map/cam/.hidden의 색감 증폭은 되살리지 않는다. */
+.phone>.screen.desk.glasswindow .menubar{
+ background:rgba(235,225,250,.78) !important;
+ -webkit-backdrop-filter:blur(5px) saturate(1.12) !important;
+ backdrop-filter:blur(5px) saturate(1.12) !important;
+}
+.rooms .groupavatar,
+.rooms .watchavatar{opacity:.78}
