@@ -408,7 +408,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=199";
+const AV="?v=200";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -803,6 +803,11 @@ const weekNo=d=>Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/8
 const isYajaWeek=(now)=>weekNo(now||nowClock())%2===0;
 const isYajaDay=(now)=>{const d=now||nowClock();return d.getDay()===4&&isYajaWeek(d)};
 
+/* 수업 여부와 상단 시간표가 같은 칸을 본다. 이 표를 둘로 적으면 화면에는
+   「쉬는시간」인데 교실은 여전히 CLASS 중인 것처럼 잠기는 틈이 생긴다. */
+const PERIODS=[[520,570,1],[580,630,2],[640,690,3],[700,750,4],
+               [810,860,5],[870,920,6],[930,980,7]];   // 분 단위 · 시작·끝·교시
+
 /* ── 접속 상태 ──
    시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다.
    재언은 근무 시간에 보건실에 있고, 민현은 학교에 매여 있다.
@@ -846,7 +851,9 @@ function presence(id, now){
        만나 옥상으로 가는 게 이 지도의 그림이다. 7교시(16:00~16:20)가 야자로
        새던 것도 분으로 세면 같이 잡힌다. */
     if(mm>=750&&mm<810) return {s:"away",t:"점심"};
-    if(mm<980)       return {s:"away",t:"수업 중"};
+    if(PERIODS.some(([a,b])=>mm>=a&&mm<b))return {s:"away",t:"수업 중"};
+    if(mm>=PERIODS[0][0]&&mm<PERIODS[PERIODS.length-1][1])
+      return {s:"away",t:"쉬는시간"};
     /* 7교시가 끝나면 야자가 있는 날만 학교에 남는다. 없는 날은 갈 데가
        없는 애가 밖에 있다 — 상태를 새로 만들지 않고 밤에 쓰던 것을 그대로
        쓴다. 어디 있다고 말하지 않는 말이라 이 애한테 맞고, AT_WORK가 아니라
@@ -1024,8 +1031,6 @@ const ITEM_CATS=["전체","간식","소품","기록"];
    야자는 2017년쯤 강제가 없어져서 지금은 희망자만 남는 자율학습이다. 그래서
    매일 붙지 않는다 — 유저가 감독으로 남는 날(격주 목요일)에만 붙는다.
    민현이 그날 남는 것도 강제가 아니라서 성격이 된다. 갈 데가 없는 애다. */
-const PERIODS=[[520,570,1],[580,630,2],[640,690,3],[700,750,4],
-               [810,860,5],[870,920,6],[930,980,7]];   // 분 단위 · 시작·끝·교시
 /* 마지막 칸이 NULL인 이유.
    학교가 하루를 채워준다 — 출근·수업·점심·퇴근·저녁까지는 시간표가 이 사람이
    어디서 뭘 하는지 정해준다. 그게 끝나면 정해주는 것이 없다. 교생의 하루는
@@ -1317,7 +1322,7 @@ const stampGone=(place,now)=>goneToday(place,now)||saveGone({...loadGone(),[plac
    밖에 없다. 주말엔 학교가 없으니 낮에도 나올 수 있다. */
 /* 점심도 학교 안이다 — 마주치는 자리(편의점·빨래방)에 나올 수는 없다.
    교실이 열리는 것(문틈 해제)과 학교 밖에 나오는 것은 다른 일이다. */
-const AT_WORK=["보건실","수업 중","점심","야자"];
+const AT_WORK=["보건실","수업 중","쉬는시간","점심","야자"];
 const freeOut=(id,now)=>{
   const d=now||nowClock(), pr=presence(id,d);
   if(!pr||pr.s==="off")return false;
