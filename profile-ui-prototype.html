@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>character hompy · opening CSS prototype 02</title>
+<title>character hompy · opening windows prototype 03</title>
 <style>
   @font-face{font-family:Galmuri;src:url("app/assets/fonts/Galmuri11.ttf") format("truetype");font-display:swap}
   *{box-sizing:border-box}
@@ -12,36 +12,73 @@
   button{font:inherit}
 
   .profile-screen{
-    position:relative;display:grid;place-items:center;width:100%;height:100%;min-height:650px;
-    padding:20px 12px;background-position:center;background-size:cover;background-repeat:no-repeat
+    position:relative;display:grid;place-items:center;width:100%;height:100%;min-height:680px;
+    padding:20px 10px;background-position:center;background-size:cover;background-repeat:no-repeat
   }
   .profile-screen::before{
     content:"";position:absolute;inset:0;background:
-      radial-gradient(circle at 50% 37%,rgba(245,226,255,.13),transparent 35%),
-      linear-gradient(180deg,rgba(24,16,38,.34),rgba(29,19,45,.58))
+      radial-gradient(circle at 50% 39%,rgba(246,226,255,.12),transparent 34%),
+      linear-gradient(180deg,rgba(25,17,39,.25),rgba(30,20,46,.55))
   }
   .sparkles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-  .sparkles i{position:absolute;color:rgba(255,235,251,.78);font:18px/1 Arial,sans-serif;text-shadow:0 0 10px #fff}
+  .sparkles i{position:absolute;color:rgba(255,236,252,.8);font:18px/1 Arial,sans-serif;text-shadow:0 0 10px #fff}
   .sparkles i:nth-child(1){left:8%;top:17%}.sparkles i:nth-child(2){right:9%;top:13%;font-size:12px}
   .sparkles i:nth-child(3){left:13%;bottom:13%;font-size:11px}.sparkles i:nth-child(4){right:12%;bottom:18%}
 
-  /* 오프닝 spcard 외곽 */
-  .profile-window{
-    position:relative;z-index:2;width:min(440px,calc(100vw - 24px));padding:3px;border-radius:17px;
+  /* 한 장짜리 프로필 카드가 아니라, 오프닝처럼 여러 창이 한 프로필을 만든다. */
+  .window-cluster{position:relative;z-index:2;width:min(430px,calc(100vw - 16px));height:660px}
+  .os-window{position:absolute;padding:3px;border-radius:17px}
+  .portrait-window{
+    z-index:2;left:0;top:0;width:315px;
     background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,#dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%);
-    box-shadow:0 0 0 1px rgba(255,255,255,.7),inset 0 1.5px 0 rgba(255,255,255,.78),
-      inset 0 -3px 6px rgba(150,116,196,.18),0 14px 34px rgba(16,9,34,.5)
+    box-shadow:0 0 0 1px rgba(255,255,255,.72),inset 0 1.5px 0 rgba(255,255,255,.8),
+      inset 0 -3px 6px rgba(150,116,196,.18),0 13px 28px rgba(20,11,42,.42)
   }
-  /* 오프닝 sptb */
+  .status-window{
+    z-index:6;right:0;top:315px;width:236px;padding:2.5px;border-radius:11px;
+    background:linear-gradient(146deg,#ded4f6 0%,#f6f2fd 24%,#e6dffb 48%,#cfc4f4 70%,#e2daf9 88%,#cdc2f0 100%);
+    box-shadow:0 0 0 1px rgba(255,255,255,.7),0 10px 23px rgba(31,19,57,.35)
+  }
+  .player-window{
+    z-index:5;left:13px;top:414px;width:365px;padding:2.5px;border-radius:11px;
+    background:linear-gradient(146deg,#d2e4f8 0%,#f2f8fd 24%,#dfeafb 48%,#bed4f0 70%,#dcebfa 88%,#c4d8f2 100%);
+    box-shadow:0 0 0 1px rgba(255,255,255,.7),0 10px 24px rgba(28,29,67,.32)
+  }
+  .counter-window{
+    z-index:4;right:17px;top:522px;width:264px;padding:2.5px;border-radius:11px;
+    background:linear-gradient(146deg,#f6d4e8 0%,#fdf0f7 24%,#f8dcee 48%,#eeb8d6 70%,#f9dcec 88%,#ecc0dc 100%);
+    box-shadow:0 0 0 1px rgba(255,255,255,.7),0 10px 22px rgba(51,24,60,.28)
+  }
+
   .titlebar{
-    position:relative;display:flex;align-items:center;height:40px;padding:0 10px 0 14px;border-radius:10px 10px 3px 3px;
-    color:#fff;font-size:15px;letter-spacing:1px;text-shadow:0 1px 0 rgba(150,84,175,.85),0 2px 3px rgba(120,60,150,.5);
-    background:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,#dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%);
-    box-shadow:inset 0 -2px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.9)
+    position:relative;display:flex;align-items:center;letter-spacing:1px;color:#fff;
+    text-shadow:0 1px 0 rgba(150,84,175,.85),0 2px 3px rgba(120,60,150,.5)
   }
   .titlebar::after{
     content:"";position:absolute;left:4px;right:4px;top:2px;height:44%;border-radius:8px 8px 999px 999px;
     pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.02))
+  }
+  .portrait-window .titlebar{
+    height:40px;padding:0 10px 0 14px;border-radius:10px 10px 3px 3px;font-size:15px;
+    background:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,#dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%);
+    box-shadow:inset 0 -2px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.9)
+  }
+  .status-window .titlebar,.player-window .titlebar,.counter-window .titlebar{
+    height:28px;padding:0 7px 0 11px;border-radius:8px 8px 2px 2px;font-size:11px
+  }
+  .status-window .titlebar{
+    background:linear-gradient(96deg,#cfc0f8 0%,#c4bcfa 38%,#c8c8fb 70%,#d6cdfa 100%);
+    box-shadow:inset 0 -2px 0 #9a86dc,inset 0 1px 0 rgba(255,255,255,.9)
+  }
+  .player-window .titlebar{
+    background:linear-gradient(96deg,#bfe2f6 0%,#c8dcf8 38%,#d6cef8 72%,#e2cdf6 100%);
+    box-shadow:inset 0 -2px 0 #96b8e0,inset 0 1px 0 rgba(255,255,255,.9);
+    text-shadow:0 1px 0 rgba(90,120,170,.85),0 1px 3px rgba(70,100,150,.45)
+  }
+  .player-window .titlebar,.player-window .window-body{z-index:1}
+  .counter-window .titlebar{
+    background:linear-gradient(96deg,#fca8d6 0%,#fa9ad0 40%,#f79ade 74%,#eda6ea 100%);
+    box-shadow:inset 0 -2px 0 #dd6fa8,inset 0 1px 0 rgba(255,255,255,.85)
   }
   .title{position:relative;z-index:1;white-space:nowrap}
   .dots{position:relative;z-index:1;display:flex;margin-left:auto;gap:6px}
@@ -50,111 +87,148 @@
     text-shadow:0 1px 0 rgba(130,66,160,.9);
     box-shadow:0 0 0 1.4px rgba(255,255,255,.9),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -2px 3px rgba(150,110,180,.28)
   }
+  .small-dots{gap:5px}.small-dots span{width:15px;height:15px;font-size:8px}
   .d1{background:linear-gradient(180deg,#f6a8ec,#e07fdd)}
   .d2{background:linear-gradient(180deg,#cfc0f8,#a98ff0)}
   .d3{background:linear-gradient(180deg,#a8cdf8,#6fa8ee)}
 
-  /* 오프닝 spbody */
-  .profile-body{
-    position:relative;margin:3px 0 0;padding:23px 22px 19px;border-radius:3px 3px 13px 13px;text-align:center;background:#fdfaff;
+  .window-body{
+    position:relative;margin:3px 0 0;border-radius:3px 3px 13px 13px;background:#fdfaff;
     box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,inset 0 -4px 8px rgba(150,116,196,.09)
   }
-  .profile-body::before,.profile-body::after{
+  .window-body::before,.window-body::after{
     content:"";position:absolute;width:9px;height:9px;border-color:#e2d2ee;border-style:solid;pointer-events:none
   }
-  .profile-body::before{left:9px;top:9px;border-width:1px 0 0 1px}
-  .profile-body::after{right:9px;bottom:9px;border-width:0 1px 1px 0}
+  .window-body::before{left:9px;top:9px;border-width:1px 0 0 1px}
+  .window-body::after{right:9px;bottom:9px;border-width:0 1px 1px 0}
 
+  .portrait-body{padding:16px 18px 17px;text-align:center}
   .polaroid{
-    position:relative;width:214px;margin:0 auto;padding:9px 9px 29px;border-radius:12px;background:#fff;
-    transform:rotate(-.45deg);
-    box-shadow:0 0 0 1px #d6bbe0,0 0 0 4px #faedf8,0 0 0 4.5px #dcbcdd,0 7px 18px rgba(126,91,163,.18)
+    position:relative;width:220px;margin:0 auto;padding:8px 8px 28px;border-radius:11px;background:#fff;
+    transform:rotate(-.5deg);
+    box-shadow:0 0 0 1px #d6bbe0,0 0 0 4px #faedf8,0 0 0 4.5px #dcbcdd,0 6px 15px rgba(126,91,163,.18)
   }
-  .tape{position:absolute;z-index:2;width:56px;height:14px;top:-9px;opacity:.72;transform:rotate(-11deg);background:linear-gradient(90deg,rgba(246,190,220,.8),rgba(255,220,237,.72))}
-  .tape.left{left:-13px}.tape.right{right:-15px;top:auto;bottom:15px;transform:rotate(11deg);background:linear-gradient(90deg,rgba(208,195,247,.78),rgba(229,219,253,.7))}
-  .portrait{display:block;width:100%;aspect-ratio:1;border-radius:8px;object-fit:cover;object-position:center 24%;background:#e8dfed}
-  .caption{position:absolute;left:8px;right:8px;bottom:8px;color:#a38bb5;font-size:9px;letter-spacing:.04em}
-
-  .name-row{
-    display:inline-flex;align-items:center;justify-content:center;min-width:184px;min-height:42px;margin:17px auto 0;padding:0 20px;border-radius:999px;
-    color:#4f3d76;font-size:18px;background:linear-gradient(96deg,#fff8fd,#f9f2fd 57%,#f1effd);
-    box-shadow:inset 0 1px 0 #fff,0 0 0 1px #d7c4e4,0 0 0 3px #fdf2fa,0 3px 9px rgba(140,104,176,.14)
+  .tape{position:absolute;z-index:2;width:56px;height:14px;left:-14px;top:-8px;opacity:.7;transform:rotate(-11deg);background:linear-gradient(90deg,rgba(246,190,220,.85),rgba(255,220,237,.68))}
+  .portrait{display:block;width:100%;aspect-ratio:1;border-radius:7px;object-fit:cover;object-position:center 24%;background:#e8dfed}
+  .caption{position:absolute;left:7px;right:7px;bottom:7px;color:#a38bb5;font-size:9px;letter-spacing:.04em}
+  .nameplate{
+    position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:39px;margin-top:15px;border-radius:9px;
+    color:#4f3d76;font-size:17px;background:linear-gradient(180deg,#fff,#fdf7fc);
+    box-shadow:inset 0 1.5px 3px rgba(150,116,190,.12),0 0 0 1px #d6bbe0,0 0 0 3px #fdeef9,0 0 0 3.5px #dcbcdd
   }
-  .name-row::before{content:"✦";margin-right:9px;color:#43c2be;font:10px Arial,sans-serif}
+  .nameplate::before{content:"✦";margin-right:9px;color:#43c2be;font:10px Arial,sans-serif}
   .heart{margin-left:8px;color:#f197c3;font-family:Arial,sans-serif}
-  .status{
-    position:relative;width:fit-content;max-width:88%;margin:11px auto 0;padding:9px 16px;border-radius:10px;color:#675280;font-size:10px;line-height:1.5;
-    background:linear-gradient(180deg,#fff,#faf5fc);box-shadow:inset 0 1px 0 #fff,0 0 0 1px #d8c8e5,0 3px 8px rgba(138,103,176,.12)
-  }
-  .status::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:#faf5fc;transform:translateX(-50%) rotate(45deg);box-shadow:1px 1px 0 #d8c8e5}
 
-  .music{
-    display:grid;grid-template-columns:28px minmax(0,1fr) 22px;align-items:center;gap:9px;width:100%;height:44px;margin-top:19px;padding:0 12px;
-    border:0;border-radius:9px;color:#6f5a8f;text-align:left;background:linear-gradient(180deg,#fff,#faf7fd);
-    box-shadow:inset 0 1.5px 3px rgba(150,116,190,.11),0 0 0 1px #d6bbe0,0 0 0 3px #fdeef9,0 0 0 3.5px #dcbcdd
-  }
+  .status-body{display:grid;place-items:center;min-height:68px;padding:14px 16px 13px;color:#5d4b7c;text-align:center}
+  .status-text{margin:0;font-size:11px;line-height:1.6;word-break:keep-all}
+  .status-cursor{display:inline-block;width:6px;height:11px;margin-left:4px;vertical-align:-1px;background:#f59ac9;animation:blink 1s steps(1) infinite}
+
+  .player-body{min-height:65px;padding:12px 17px 13px;background:#f7fafd}
+  .music-row{display:grid;grid-template-columns:27px minmax(0,1fr) 20px;align-items:center;gap:9px}
   .play{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;color:#fff;font:10px Arial,sans-serif;background:linear-gradient(180deg,#7dded8,#32b9bb);box-shadow:0 0 0 1px #50bbb9,0 0 0 2px #e8ffff}
-  .track{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px}
-  .more{color:#34bbb8;font:700 15px Arial,sans-serif;letter-spacing:1px}
+  .track{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f5a8f;font-size:9px}
+  .more{color:#34bbb8;font:700 15px Arial,sans-serif}
+  .progress{display:block;height:8px;margin:10px 0 0;border-radius:5px;background:#eef0f8;box-shadow:inset 0 1px 2px rgba(120,140,190,.24),0 0 0 1px #c2cee2}
+  .progress i{display:block;width:46%;height:100%;border-radius:5px;background:linear-gradient(96deg,#a8d6f2,#cbc6f8 72%,#dcc4f4);box-shadow:inset 0 -1px 0 rgba(255,255,255,.6)}
+  .cd{
+    position:absolute;z-index:0;right:-34px;top:21px;width:62px;height:62px;border-radius:50%;
+    background:conic-gradient(from 0deg,#ffd0e6,#c3b2f0,#a8e6e0,#ffe9a8,#ffc2dd,#b9e3ff,#ffd0e6);
+    box-shadow:0 0 0 1px rgba(255,255,255,.9),0 6px 18px rgba(35,24,70,.34);animation:spin 8s linear infinite
+  }
+  .cd::after{content:"";position:absolute;inset:38%;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 3px rgba(195,178,240,.5)}
 
-  .stats{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:15px}
-  .stat{padding:10px 8px 9px;border-radius:8px;background:linear-gradient(180deg,#fff,#f8f4fc);box-shadow:inset 0 1px 0 #fff,0 0 0 1px #d7c6e4,0 2px 0 #eee4f5}
-  .stat small{display:block;margin-bottom:5px;color:#c5a6ca;font-size:8px;letter-spacing:.18em}
+  .counter-body{padding:11px 14px 12px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{position:relative;padding:5px 6px 4px;text-align:center}
+  .stat+ .stat{border-left:1px dashed #dac8e5}
+  .stat small{display:block;margin-bottom:4px;color:#c5a6ca;font-size:8px;letter-spacing:.16em}
   .stat b{display:block;color:#f08abb;font:17px/1 Arial,sans-serif}.stat:last-child b{color:#34bbb8}
-  .stickers{margin:13px 0 0;color:#c8b3e5;font:13px/1 Arial,sans-serif;letter-spacing:8px;text-indent:8px}
 
-  /* 오프닝 spgo */
   .back{
-    position:relative;isolation:isolate;display:block;width:166px;height:46px;margin:15px auto 1px;padding:2px;border:0;border-radius:11px;cursor:pointer;
-    color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.7);letter-spacing:1px;
-    background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);box-shadow:0 5px 13px rgba(150,112,196,.24)
+    position:absolute;z-index:7;left:50%;top:612px;transform:translateX(-50%);isolation:isolate;
+    width:172px;height:46px;padding:2px;border:0;border-radius:11px;cursor:pointer;color:#463670;
+    text-shadow:0 1px 0 rgba(255,255,255,.7);letter-spacing:1px;
+    background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);
+    box-shadow:0 5px 13px rgba(44,24,70,.36),0 0 0 1px rgba(255,255,255,.75)
   }
   .back::after{
     content:"";position:absolute;z-index:-1;inset:2px;border-radius:9px;
     background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,#e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -2px 0 rgba(255,255,255,.6),inset 0 12px 12px -10px rgba(255,255,255,.6)
   }
-  .back:active{transform:translateY(2px);box-shadow:0 2px 6px rgba(150,104,200,.28)}
+  .back:active{transform:translateX(-50%) translateY(2px);box-shadow:0 2px 6px rgba(34,18,54,.35)}
+  @keyframes blink{50%{opacity:0}}@keyframes spin{to{transform:rotate(360deg)}}
 
   @media(max-width:420px){
-    .profile-screen{padding:12px 8px}.profile-window{width:100%}.profile-body{padding:20px 18px 17px}
-    .polaroid{width:190px}.name-row{margin-top:15px}.music{margin-top:18px}
+    .profile-screen{padding:10px 8px}.window-cluster{width:100%;height:640px}
+    .portrait-window{width:min(292px,82vw)}.polaroid{width:202px}
+    .status-window{top:300px;width:224px}.player-window{left:4px;top:396px;width:calc(100% - 34px)}
+    .counter-window{right:8px;top:504px;width:252px}.back{top:594px}
   }
   @media(max-height:720px){
-    .profile-screen{align-items:start;overflow:auto;min-height:0;padding-top:10px;padding-bottom:10px}
-    .profile-body{padding-top:17px}.polaroid{width:174px;padding-bottom:27px}
-    .name-row{min-height:38px;margin-top:14px}.status{margin-top:9px}.music{margin-top:16px}
-    .stats{margin-top:12px}.stickers{margin-top:10px}.back{height:42px;margin-top:11px}
+    .profile-screen{align-items:start;overflow:auto;min-height:0;padding-top:8px;padding-bottom:8px}
+    .window-cluster{transform:scale(.92);transform-origin:top center;margin-bottom:-50px}
   }
 </style>
 </head>
 <body>
   <main class="profile-screen" id="screen">
     <span class="sparkles" aria-hidden="true"><i>✦</i><i>✧</i><i>✦</i><i>✧</i></span>
-    <section class="profile-window" aria-label="캐릭터 홈피 프로필 CSS 시안">
-      <header class="titlebar">
-        <span class="title">✦ <span id="window-title">jaeeon.hompy</span></span>
-        <span class="dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span><span class="d3">×</span></span>
-      </header>
-      <div class="profile-body">
-        <figure class="polaroid">
-          <i class="tape left" aria-hidden="true"></i><i class="tape right" aria-hidden="true"></i>
-          <img class="portrait" id="portrait" src="jaeeon-profile.webp" alt="이재언" />
-          <figcaption class="caption" id="caption">보건교사 · 29세</figcaption>
-        </figure>
-        <div class="name-row"><span id="name">이재언</span><span class="heart">♡</span></div>
-        <p class="status" id="status">어디 안 가요.</p>
-        <button class="music" type="button" aria-label="프로필 음악 재생 시안">
-          <span class="play">▶</span><span class="track" id="track">The Pale Cinema — Strangers, Again</span><span class="more">···</span>
-        </button>
-        <div class="stats" aria-label="프로필 통계">
-          <div class="stat"><small>TODAY</small><b>1</b></div>
-          <div class="stat"><small>TALK</small><b id="talk">396</b></div>
+    <div class="window-cluster" aria-label="오프닝 다중 창 문법을 사용한 캐릭터 프로필 시안">
+      <section class="os-window portrait-window">
+        <header class="titlebar">
+          <span class="title">✦ <span id="window-title">jaeeon.hompy</span></span>
+          <span class="dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span><span class="d3">×</span></span>
+        </header>
+        <div class="window-body portrait-body">
+          <figure class="polaroid">
+            <i class="tape" aria-hidden="true"></i>
+            <img class="portrait" id="portrait" src="jaeeon-profile.webp" alt="이재언" />
+            <figcaption class="caption" id="caption">보건교사 · 29세</figcaption>
+          </figure>
+          <div class="nameplate"><span id="name">이재언</span><span class="heart">♡</span></div>
         </div>
-        <p class="stickers" aria-hidden="true">❉ ★ ♡ ✧</p>
-        <button class="back" type="button">◁ BACK</button>
-      </div>
-    </section>
+      </section>
+
+      <section class="os-window status-window">
+        <header class="titlebar">
+          <span class="title">✦ status.txt</span>
+          <span class="dots small-dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span></span>
+        </header>
+        <div class="window-body status-body">
+          <p class="status-text"><span id="status">어디 안 가요.</span><i class="status-cursor" aria-hidden="true"></i></p>
+        </div>
+      </section>
+
+      <section class="os-window player-window">
+        <header class="titlebar">
+          <span class="title">✦ playlist.exe</span>
+          <span class="dots small-dots" aria-hidden="true"><span class="d2">−</span><span class="d3">×</span></span>
+        </header>
+        <div class="window-body player-body">
+          <div class="music-row">
+            <span class="play">▶</span><span class="track" id="track">The Pale Cinema — Strangers, Again</span><span class="more">···</span>
+          </div>
+          <span class="progress" aria-hidden="true"><i></i></span>
+        </div>
+        <i class="cd" aria-hidden="true"></i>
+      </section>
+
+      <section class="os-window counter-window">
+        <header class="titlebar">
+          <span class="title">✦ null.log</span>
+          <span class="dots small-dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span></span>
+        </header>
+        <div class="window-body counter-body">
+          <div class="stats">
+            <div class="stat"><small>TODAY</small><b>1</b></div>
+            <div class="stat"><small>TALK</small><b id="talk">396</b></div>
+          </div>
+        </div>
+      </section>
+
+      <button class="back" type="button">◁ BACK</button>
+    </div>
   </main>
 <script>
   const profiles={
