@@ -111,10 +111,10 @@ function Avatar({room,size=42,onProfile,heat,nu}){
     ? {className:"avatar face clickable"+on,onClick:e=>{e.stopPropagation();onProfile(room.id)}}
     : {className:"avatar face"+on};
   if(room.type==="group"){ // 물방울
-    return <div className="avatar groupavatar" style={{...st,background:"linear-gradient(180deg,#ffffff,#e0ecfa)"}}><BubbleIcon size={size*.6}/></div>;
+    return <div className="avatar" style={{...st,background:"linear-gradient(180deg,#ffffff,#e0ecfa)"}}><BubbleIcon size={size*.6}/></div>;
   }
   if(room.type==="watch"){ // 관전방: 달
-    return <div className="avatar watchavatar" style={{...st,color:"#8a7fc0",background:"linear-gradient(180deg,#ffffff,#dde3f4)"}}><MoonIcon size={size*.5}/></div>;
+    return <div className="avatar" style={{...st,color:"#8a7fc0",background:"linear-gradient(180deg,#ffffff,#dde3f4)"}}><MoonIcon size={size*.5}/></div>;
   }
   return <div {...hit} style={{...st,...faceBg(CHARS[room.id])}}/>;
 }
