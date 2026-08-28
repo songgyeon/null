@@ -4468,14 +4468,20 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .phone>.screen.glasswindow{
  position:absolute !important;inset:4px !important;width:auto !important;height:auto !important;
  min-width:0 !important;min-height:0 !important}
-.phone>.cartscreen>.cartwin.glasswindow{
+.phone>.cartscreen>.cartwin.glasswindow,
+.phone>.screen>.cartscreen>.cartwin.glasswindow{
  position:absolute !important;left:12px !important;right:12px !important;
  top:18px !important;bottom:18px !important;width:auto !important;height:auto !important;
  min-width:0 !important;min-height:0 !important}
+.phone>.screen>.cartscreen{
+ position:absolute !important;inset:0 !important;width:auto !important;height:auto !important;
+ min-width:0 !important;min-height:0 !important;transform:none !important}
 .profileframe.glasswindow,.pfcard.glasswindow{position:relative}
 @media(max-width:500px){
  .phone>.screen.glasswindow{inset:0 !important}
- .phone>.cartscreen>.cartwin.glasswindow{left:8px !important;right:8px !important;top:8px !important;bottom:8px !important}
+ .phone>.cartscreen>.cartwin.glasswindow,
+ .phone>.screen>.cartscreen>.cartwin.glasswindow{
+  left:8px !important;right:8px !important;top:8px !important;bottom:8px !important}
 }
 
 /* 지정한 CD 원본과 그 위의 아주 얇은 연보라 유리 한 장. */
@@ -4528,3 +4534,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .profileframe.ttwin,.profileframe.askwin{width:min(320px,calc(100vw - 24px));max-width:320px}
 .profileframe.ttwin .ebody{min-height:0;padding:20px 16px 16px}
 .profileframe.askwin .ebody{min-height:0;padding:18px 16px 16px}
+
+/* v191 — 프로필 BACK은 문구만 감싸는 작은 공용 버튼으로 둔다. */
+.pfcard .pfclose{
+ width:fit-content !important;min-width:104px !important;max-width:calc(100% - 36px) !important;
+ margin:12px auto 18px !important;padding:11px 18px !important}
