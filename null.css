@@ -4360,8 +4360,8 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* 기본 메신저: 지정 배경을 가리지 않는다. 본문은 색판이 아니라 얇은 유리 한 장이다. */
 .phone>.screen.desk.glasswindow{inset:4px !important;width:auto !important;height:auto !important;
- background-color:transparent !important;background-image:url("ui/bg-chat.png?v=189") !important;
- background-position:center !important;background-size:100% 100% !important;background-repeat:no-repeat !important}
+ background-color:transparent !important;background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=190") !important;
+ background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
 .phone>.screen.desk.glasswindow::before{content:"" !important;position:absolute;inset:0;pointer-events:none;
  background:rgba(239,230,255,.025) !important}
 .phone>.screen.desk.glasswindow .roomswrap{background:linear-gradient(145deg,rgba(230,217,255,.16),rgba(206,221,255,.09)) !important;
@@ -4461,3 +4461,70 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* Name progress is a row of opal pearls, not square placeholder glyphs. */
 .desk .namecharge{grid-template-columns:repeat(6,8px) !important;gap:5px !important}
 .desk .namecharge>i{width:8px !important;height:8px !important;border-radius:50% !important}
+
+/* v190 — 고정된 오프닝 부품은 공유하고, 각 화면의 레이아웃 책임만 분리한다. */
+/* .glasswindow의 relative가 absolute screen/cartwin을 덮어 메신저 높이를
+   내용만큼 줄였다. 화면과 기능창은 다시 phone을 가득 채운다. */
+.phone>.screen.glasswindow{
+ position:absolute !important;inset:4px !important;width:auto !important;height:auto !important;
+ min-width:0 !important;min-height:0 !important}
+.phone>.cartscreen>.cartwin.glasswindow{
+ position:absolute !important;left:12px !important;right:12px !important;
+ top:18px !important;bottom:18px !important;width:auto !important;height:auto !important;
+ min-width:0 !important;min-height:0 !important}
+.profileframe.glasswindow,.pfcard.glasswindow{position:relative}
+@media(max-width:500px){
+ .phone>.screen.glasswindow{inset:0 !important}
+ .phone>.cartscreen>.cartwin.glasswindow{left:8px !important;right:8px !important;top:8px !important;bottom:8px !important}
+}
+
+/* 지정한 CD 원본과 그 위의 아주 얇은 연보라 유리 한 장. */
+.phone>.screen.desk.glasswindow,.phone>.cartscreen{
+ background-color:#faf8ff !important;background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=190") !important;
+ background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
+.phone>.screen.desk.glasswindow::before{background:rgba(226,213,255,.055) !important}
+.phone>.screen.desk.glasswindow .roomswrap{
+ background:rgba(229,218,252,.13) !important;
+ -webkit-backdrop-filter:blur(2px) saturate(1.04) !important;backdrop-filter:blur(2px) saturate(1.04) !important}
+
+/* 메신저 이후 기능창만 가운데 둔다. 고정 오프닝 안의 팝업에는 닿지 않는다.
+   짧은 화면에서는 창 전체가 위에서부터 굴러가고 회색 레일만 보이지 않는다. */
+.phone>.dlgov,.phone>.screen>.dlgov{
+ display:flex !important;align-items:flex-start !important;justify-content:center !important;
+ padding:12px !important;overflow-x:hidden !important;overflow-y:auto !important;
+ scrollbar-width:none !important;-ms-overflow-style:none !important;box-sizing:border-box !important}
+.phone>.dlgov::-webkit-scrollbar,.phone>.screen>.dlgov::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important}
+.phone>.dlgov>.dlg,.phone>.dlgov>.dialogmount,
+.phone>.screen>.dlgov>.dlg,.phone>.screen>.dlgov>.dialogmount{
+ flex:none !important;margin:auto !important;align-self:center !important}
+
+/* rooms / map / cam / hidden은 크기를 가진 본문 안에서만 굴러간다. */
+.phone>.screen.desk.glasswindow .roomswrap{flex:1 1 0 !important;min-height:0 !important;overflow:hidden !important}
+.phone>.screen.desk.glasswindow .roomswrap>.rooms,
+.phone>.screen.desk.glasswindow .roomswrap>.gal{
+ flex:1 1 auto !important;height:auto !important;min-height:0 !important;max-height:none !important;
+ overflow-x:hidden !important;overflow-y:auto !important;overscroll-behavior:contain;
+ -webkit-overflow-scrolling:touch;scrollbar-width:none !important;-ms-overflow-style:none !important}
+.phone>.screen.desk.glasswindow .roomswrap>.rooms::-webkit-scrollbar,
+.phone>.screen.desk.glasswindow .roomswrap>.gal::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important}
+.phone>.screen.desk.glasswindow .hiddenGal{padding-right:12px !important}
+
+/* DOM에 남아 있던 고정 문구와 닫힌 장소 이유를 다시 보인다. */
+.phone>.screen.desk>.marquee{display:block !important;flex:none}
+.cartwin .cspot.off .cswhy{font-size:8px !important}
+.cartwin .cday{display:flex;justify-content:space-between;align-items:center;padding-left:18px;padding-right:18px}
+
+/* 자리 화면은 X(접기)와 돌아가기(자리 종료)가 다른 기능이다. */
+.scenewrap.glasswindow .inputbar{
+ grid-template-columns:38px 38px minmax(0,1fr) 42px !important}
+.scenewrap.glasswindow .inputbar .backbtn{
+ display:flex !important;width:38px !important;height:38px !important;margin:0 !important;
+ align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.94) !important;
+ border-radius:10px !important;background:linear-gradient(145deg,#fff,#f0e9fb 58%,#dfecff) !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(177,151,207,.66),0 3px 6px rgba(99,73,140,.13) !important}
+.chatwrap.glasswindow .inputbar .backbtn{display:none !important}
+
+/* 시간표와 맵 선택창은 오프닝의 ProfileFrame/WindowChrome을 직접 쓴다. */
+.profileframe.ttwin,.profileframe.askwin{width:min(320px,calc(100vw - 24px));max-width:320px}
+.profileframe.ttwin .ebody{min-height:0;padding:20px 16px 16px}
+.profileframe.askwin .ebody{min-height:0;padding:18px 16px 16px}

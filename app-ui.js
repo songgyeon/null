@@ -955,10 +955,7 @@ function Timetable({wend,onFillWend,onClose}){
     ?Array.from({length:WEND_SLOTS},(_,n)=>({k:mine[n]||"",n,blank:true}))
     :[{k:"ON",n:-1,now:i<0,past:i>=0},
       ...slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i}))];
-  return <div className="dlgov" onClick={onClose}>
-    <div className="dlg ttwin" onClick={e=>e.stopPropagation()}>
-      <div className="tb">null.exe<WinDots onClose={onClose}/></div>
-      <div className="dlgbody">
+  return <Dialog title="null.exe" onClose={onClose} win="ttwin">
         <div className="ttpanel">
           <div className="tttag">TIMETABLE ♡</div>
           {rows.map(r=>r.blank
@@ -1004,9 +1001,7 @@ function Timetable({wend,onFillWend,onClose}){
         <div className="dlgbtns" style={{justifyContent:"center"}}>
           <button className="wbtn" onClick={onClose}>ok ♡</button>
         </div>
-      </div>
-    </div>
-  </div>;
+  </Dialog>;
 }
 
 /* [bag] 받은 것들.
@@ -1143,6 +1138,9 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           만남·전송 여부에 따라 갈아 끼우거나 숨기지 않는다. */}
       <div className="cshut giftline">선물은 What? 주인공은 Who? 장소는 Where?<br/>
         만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
+      {(today("jaeeon")||today("minhyun"))&&<div className="cshut cday">
+        <span>one a day ♡</span><span>each</span>
+      </div>}
       {["jaeeon","minhyun"].map(c=>{
         /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
            지금 자리를 말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */

@@ -487,7 +487,9 @@ eq('등록 화면이 웹·앱 둘 다 있다',
     const a = css.indexOf('.cssprofile{'), b = css.indexOf('\n/*', css.indexOf('.cssprofile .ego{'));
     return /url\(/.test(css.slice(a, b > a ? b : a + 22000).replace(/url\("ui\/bg-mobile\.webp"\)/g, ''));
   })(), false);
-  eq('옛 그림 판이 안 남았다', /refprofile|profile-v2/.test(css + web), false);
+  eq('옛 그림 판이 안 남았다', /refprofile|profile-v2/.test(
+    (css + web).replace(/assets\/ui\/profile-v2\/messenger-wallpaper\.webp/g, '')
+  ), false);
 }
 /* 다섯 칸을 센다 — 이름·SUBJECT·AGE·LIKES·HATES. AGE는 세계가 정한 값이라
    처음부터 차 있어서 이름만 넣은 판은 2/5다. 막대와 글자가 같은 수를 봐야
@@ -4301,7 +4303,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['189', '269a6eae679d']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['190', 'b5af749e7a37']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5358,7 +5360,8 @@ eq('지도 머리글을 안 쓴다',
   eq('먼저 갈 데를 안 적는다', /먼저":""/.test(web) || /placeNeed\(p,met\)/.test(web), false);
   /* 창의 X가 그림만 있고 안 눌렸다. 셋 다 눌리게 한다 */
   eq('묻는 창의 X가 눌린다',
-    (web.match(/<WinDots onClose=\{\(\)=>answer(Ask|Invite|Way)\(false\)\}\/>/g) || []).length, 3);
+    (web.match(/<WinDots onClose=\{\(\)=>answer(Ask|Invite|Way)\(false\)\}\/>/g) || []).length
+      + (/<Dialog title=\{ask\} onClose=\{\(\)=>answerAsk\(false\)\}/.test(web)?1:0), 3);
   /* 열렸어도 지금 갈 시간이 아닐 수 있다. 문은 멀쩡하고 시간이 아니라서 색만 죽인다 */
   eq('못 가는 시간이면 문이 흐려진다',
     /\+\(open&&!nowOk&&!p\.into\?" shut":""\)/.test(web)

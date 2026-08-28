@@ -2020,10 +2020,7 @@ function GameApp(){
         :wk?R("여기는 Weekend only! ♡","٩(❛ัᴗ❛ั ๑)")
         :empty?R("지금 밖은 Empty...","՞ ⸝⸝> ̫ <⸝⸝ ՞")
         :shut?R(placeWhen(p)):R("");
-      return <div className="dlgov" onClick={()=>answerAsk(false)}>
-      <div className="dlg" onClick={e=>e.stopPropagation()}>
-        <div className="tb">{ask}<WinDots onClose={()=>answerAsk(false)}/></div>
-        <div className="dlgbody">
+      return <Dialog title={ask} onClose={()=>answerAsk(false)} win="askwin">
           <div className="dlgline" style={{textAlign:"center",padding:"10px 0 4px",fontSize:13,color:"#8a4f74"}}>
             {locked&&!away
               ?<span className="asklock">my bad <i>♡</i><br/>아직은 못 가요 <span className="kao">𐔌՞꜆ ≧ ㅁ≦꜀՞𐦯</span></span>
@@ -2055,9 +2052,7 @@ function GameApp(){
               :<><button className="bevel pink" disabled={need} onClick={()=>answerAsk(true)}>GO!</button>
                  <button className="bevel" onClick={()=>answerAsk(false)}>LATER...</button></>}
           </div>
-        </div>
-      </div>
-    </div>; })()}
+    </Dialog>; })()}
     {/* 교실 문틈. 배경 위에 그 애 사진 한 장 — 말풍선도 도장도 없다.
         캐비닛 TV처럼 아무 데나 누르면 돌아간다 */}
     {look&&<div className="lookov" onClick={()=>setLook(null)}>
