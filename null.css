@@ -4009,7 +4009,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .cartwin.glasswindow{left:12px;right:12px;top:18px;bottom:18px}
 
 /* 메신저 기본 배경 + 그 위의 연보라 유리판 */
-.desk,.cartscreen{background:#faf8ff url("ui/bg-chat.jpg?v=183") center/cover no-repeat}
+.desk,.cartscreen{background:#faf8ff url("ui/bg-chat.jpg?v=184") center/cover no-repeat}
 .desk::before,.cartscreen::before{content:"";position:absolute;inset:0;pointer-events:none;
  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(232,218,255,.14))}
 .roomswrap{margin:7px 9px 0;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;
@@ -4064,8 +4064,77 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .cto.sel .cradio{border-color:#a98bc8;box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 8px #b69bd4}
 .cwish{color:#6e5a83}.cwish::placeholder{color:#b9a9cb}
 /* etc.의 CD는 오프닝과 같은 투명 CD, 단추는 핑크 대신 푸른 오팔 */
-.etccd{width:76px;height:76px;border:0;background:url("ui/opal-cd.webp?v=183") center/contain no-repeat;
+.etccd{width:76px;height:76px;border:0;background:url("ui/opal-cd.webp?v=184") center/contain no-repeat;
  box-shadow:none;animation:spin 6s linear infinite}.etccd::after{content:none}
 .etctag{color:#6c5a84;border-radius:12px;background:linear-gradient(135deg,#e4f2ff,#eadffc)}
 .etcdel,.wbtn.kill{color:#655078;text-shadow:none;border-color:#fff;
  background:linear-gradient(135deg,#cfefff,#e4d4fa);box-shadow:0 0 0 1px #bea7d7,0 3px 0 #c6b4df}
+
+/* ══ 184 · 메신저 레퍼런스 정리 ══
+   배경·CD·사진은 이미지, 창틀·탭·유리판·카드는 CSS가 맡는다. */
+.screen.desk{
+ background:#fff url("ui/bg-chat.png?v=184") center/cover no-repeat !important;
+ padding:5px !important;
+}
+.screen.desk::before{background:rgba(239,230,255,.08)}
+
+/* 전광판 띠와 유리판 위 무지개 선은 걷는다. */
+.desk>.marquee{display:none !important}
+.roomswrap::before{content:none !important;display:none !important}
+.rain{display:none !important}
+
+/* cam 레퍼런스의 얇은 오팔 탭. 네 칸 폭이 항상 정확히 같다. */
+.desk>.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;
+ padding:9px 9px 0}
+.desk>.tabs .tab{top:0;min-width:0;padding:8px 3px 9px;text-align:center;
+ overflow:hidden;border:1px solid rgba(255,255,255,.96);border-bottom:0;
+ border-radius:11px 11px 4px 4px;color:#8977a3;
+ background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(236,228,251,.77));
+ box-shadow:0 0 0 1px rgba(190,169,221,.55),inset 0 1px 0 #fff;
+ text-shadow:0 1px 0 #fff}
+.desk>.tabs .tab::before{left:9%;right:9%;top:2px;height:38%;opacity:.8}
+.desk>.tabs .tab.on{top:0;color:#634f7d;
+ background:linear-gradient(135deg,rgba(255,220,240,.92),rgba(226,220,255,.92) 55%,rgba(211,239,255,.92));
+ box-shadow:0 0 0 1px #baa1d5,inset 0 1px 0 #fff,inset 0 -2px 4px rgba(155,125,196,.13)}
+
+/* 배경이 읽히는 연보라 유리 한 장. */
+.desk .roomswrap{margin:6px 9px 0;border-radius:15px;
+ border:1.5px solid rgba(255,255,255,.9);
+ background:linear-gradient(145deg,rgba(240,231,255,.48),rgba(215,211,255,.35) 52%,rgba(211,238,255,.32));
+ -webkit-backdrop-filter:blur(8px) saturate(1.13);backdrop-filter:blur(8px) saturate(1.13);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.96),0 0 0 1px rgba(166,140,207,.24),0 8px 22px rgba(105,82,158,.12)}
+.desk .roomcard{border:1px solid rgba(255,255,255,.76);border-radius:12px;margin-bottom:6px;
+ background:linear-gradient(135deg,rgba(255,255,255,.62),rgba(238,229,255,.4));
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 3px 9px rgba(126,101,171,.08)}
+.desk .roomcard::after{display:none}
+
+/* cam / hidden은 사진을 유지하고, 액자만 CSS로 새로 만든다. */
+.desk .galgrid{gap:10px}
+.desk .galgrid img,.desk .hcell{border:5px solid rgba(255,255,255,.88);border-radius:12px;
+ background:rgba(244,238,255,.7);outline:1px solid rgba(176,153,211,.46);
+ box-shadow:inset 0 0 0 1px rgba(226,211,243,.8),0 5px 12px rgba(112,87,159,.13)}
+.desk .hlabel{left:8px;right:8px;bottom:8px;max-width:none;border-radius:7px;
+ background:rgba(255,255,255,.78);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
+
+/* you.txt: 등록 화면보다 짧되, 문장 네 줄과 여백이 답답하지 않은 높이. */
+.cssprofile .profileedit.profileframe{width:min(350px,calc(100vw - 24px));max-height:min(680px,calc(100dvh - 28px))}
+.cssprofile .profileedit .ebody{min-height:505px;padding:28px 20px 22px}
+.cssprofile .profileedit .ename{margin-bottom:18px}
+.cssprofile .profileedit .eline{grid-template-columns:72px minmax(0,1fr) auto;margin-bottom:17px}
+.cssprofile .profileedit .profiledone{margin-top:auto}
+
+/* NULL 기다렸어: CD는 더 옅고, 배경 너머로 비치는 정도만 남긴다. */
+.etccd{opacity:.5;filter:saturate(.85) brightness(1.08);mix-blend-mode:multiply}
+
+/* 채팅은 전용 클래스가 빠졌던 상태를 기준으로 다시 고정한다. */
+.screen.chatwrap{position:absolute;inset:4px;width:auto;height:auto;min-height:0}
+.chatwrap .msgs{overflow-y:auto !important;min-height:0}
+.chatwrap .inputbar{min-height:50px;padding-bottom:2px !important}
+@media(max-width:500px){
+ .screen.chatwrap{inset:0;width:auto;height:auto;border-radius:0}
+ .cssprofile .profileedit.profileframe{max-height:calc(100dvh - 16px)}
+ .cssprofile .profileedit .ebody{min-height:min(505px,calc(100dvh - 112px));padding:24px 17px 18px}
+}
+
+/* 캐비넷 원화 바깥의 핑크 발광 테만 잘라낸다. 문과 클릭 위치는 그대로다. */
+.desk .cab .cabframe{clip-path:inset(6px round 10px);filter:saturate(.82)}

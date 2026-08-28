@@ -581,7 +581,7 @@ function Dialog({title,onClose,children,cls,win,compact=true,raw=false}){
     <div className="dialogmount" onClick={e=>e.stopPropagation()}>
       <ProfileFrame title={title} onClose={onClose} compact={compact} frameClass={win||""}
         bodyClass={(raw?"":"dlgbody")+(cls?" "+cls:"")}>
-        {cls==="etc"&&<div className="rain"/>}{children}
+        {children}
       </ProfileFrame>
     </div>
   </div>;
@@ -1186,7 +1186,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       <div className="cnote">
         <span className="cnt">{GIFT_NOTE_A.trim()}</span>
         <input className="cwish" value={memo} maxLength={GIFT_WISH_MAX}
-          placeholder="바라는 것" aria-label="바라는 것"
+          placeholder="" aria-label="바라는 것"
           onChange={e=>setMemo(e.target.value)}/>
         <span className="cnt">{GIFT_NOTE_B}</span>
       </div>
@@ -1342,7 +1342,6 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       <span className={"tab"+(tab==="map"?" on":"")} onClick={()=>setTab("map")}>map</span>
       <span className={"tab"+(tab==="cam"?" on":"")} onClick={()=>setTab("cam")}>cam</span>
       <span className={"tab hid"+(tab==="hidden"?" on":"")} onClick={()=>setTab("hidden")}>.hidden</span>
-      <span className="tabdeco"><Sticker.cursor size={15}/></span>
     </div>
     <div className="roomswrap">
       {BUBBLES.map((b,i)=><span key={i} className="bub"
@@ -1737,7 +1736,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
   }
   const send=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
   const senderMeta=s=>s==="user"?null:(CHARS[s]||{name:s,color:"#9aa3d8",pale:"#e2e6f5",dk:"#6b5fa8"});
-  return <div className={"screen"+(watch?" watchbg":"")}>
+  return <div className={"screen chatwrap"+(watch?" watchbg":"")}>
     <div className="tb" style={{background:watch?"linear-gradient(90deg,#aab3d6,#c9c0ee)":`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
       {/* 창의 X는 창을 닫는다. 그림만 그려놓고 안 눌리면 창이 아니라 그림이다 */}
       {room.name}{watch?".cam":".chat"}<WinDots onClose={onBack}/>
