@@ -3,100 +3,171 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>you.txt · profile UI prototype</title>
+<title>character profile · opening CSS prototype</title>
 <style>
   @font-face{font-family:Galmuri;src:url("app/assets/fonts/Galmuri11.ttf") format("truetype");font-display:swap}
-  :root{
-    --ink:#56486f;--muted:#a18eb5;--line:#dec9e7;--pink:#ff9bca;--lilac:#b9a4f1;
-    --blue:#8ecdf1;--paper:rgba(255,252,255,.92);--glass:rgba(246,235,253,.78)
-  }
+  :root{--ink:#4f3d76;--pink:#f08abb;--mint:#34bbb8}
   *{box-sizing:border-box}
-  html,body{min-height:100%;margin:0}
-  body{
-    display:grid;place-items:center;padding:24px 12px;
-    color:var(--ink);font-family:Galmuri,"Malgun Gothic",sans-serif;
-    background:
-      radial-gradient(circle at 18% 18%,rgba(255,255,255,.95) 0 4px,transparent 5px),
-      radial-gradient(circle at 83% 29%,rgba(255,255,255,.8) 0 3px,transparent 4px),
-      radial-gradient(circle at 74% 78%,rgba(255,255,255,.75) 0 5px,transparent 6px),
-      linear-gradient(135deg,#f7deef,#ded8ff 52%,#cfe8ff);
-    background-size:160px 160px,210px 210px,260px 260px,auto
+  html,body{width:100%;height:100%;margin:0}
+  body{overflow:hidden;color:var(--ink);font-family:Galmuri,"Malgun Gothic",sans-serif;background:#1c1727}
+  button{font:inherit}
+
+  .profile-screen{
+    position:relative;display:grid;place-items:center;width:100%;height:100%;min-height:560px;
+    padding:22px 12px;background-position:center;background-size:cover;background-repeat:no-repeat
   }
-  .window{
-    width:min(410px,calc(100vw - 24px));padding:7px;border-radius:24px;
-    background:linear-gradient(145deg,rgba(255,255,255,.9),rgba(230,213,249,.76));
-    border:1px solid rgba(255,255,255,.95);
-    box-shadow:0 0 0 2px rgba(193,166,230,.62),0 24px 60px rgba(88,62,127,.25),inset 0 1px #fff
+  .profile-screen::before{
+    content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(23,17,38,.38),rgba(31,21,49,.56))
   }
+  .sparkles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .sparkles i{position:absolute;color:rgba(255,231,250,.8);font:18px/1 Arial,sans-serif;text-shadow:0 0 10px #fff}
+  .sparkles i:nth-child(1){left:8%;top:18%}.sparkles i:nth-child(2){right:9%;top:12%;font-size:12px}
+  .sparkles i:nth-child(3){left:13%;bottom:13%;font-size:11px}.sparkles i:nth-child(4){right:12%;bottom:19%}
+
+  /* 오프닝 spcard의 외곽값을 그대로 사용한 캐릭터 프로필 창 */
+  .profile-window{
+    position:relative;z-index:2;width:min(386px,calc(100vw - 24px));padding:3px;border-radius:17px;
+    background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,#dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%);
+    box-shadow:0 0 0 1px rgba(255,255,255,.7),inset 0 1.5px 0 rgba(255,255,255,.78),
+      inset 0 -3px 6px rgba(150,116,196,.18),0 12px 30px rgba(18,10,38,.45)
+  }
+  /* 오프닝 sptb */
   .titlebar{
-    height:54px;display:flex;align-items:center;padding:0 13px 0 18px;border-radius:17px 17px 6px 6px;
-    color:#fff;text-shadow:0 1px 1px #977ab3;font-size:20px;letter-spacing:.04em;
-    background:linear-gradient(180deg,#ffe6f6 0%,#f5a8dc 47%,#c0a8f0 100%);
-    box-shadow:inset 0 2px rgba(255,255,255,.8),inset 0 -3px rgba(132,104,181,.18)
+    position:relative;display:flex;align-items:center;height:40px;padding:0 10px 0 14px;border-radius:10px 10px 3px 3px;
+    color:#fff;font-size:15px;letter-spacing:1px;text-shadow:0 1px 0 rgba(150,84,175,.85),0 2px 3px rgba(120,60,150,.5);
+    background:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,#dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%);
+    box-shadow:inset 0 -2px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.9)
   }
-  .titlebar .spark{margin-right:10px}.dots{display:flex;gap:7px;margin-left:auto}
-  .dots i{width:27px;height:27px;display:grid;place-items:center;border-radius:50%;font-style:normal;
-    border:1.5px solid #fff;background:linear-gradient(180deg,#fff7ff,#dba6ee);box-shadow:0 1px 0 #9a80bd;color:#fff}
-  .dots i:last-child{background:linear-gradient(180deg,#edfaff,#87c9ef)}
-  .sheet{
-    position:relative;margin-top:6px;padding:24px 24px 22px;border-radius:7px 7px 18px 18px;
-    background:var(--paper);border:1px solid rgba(255,255,255,.95);
-    box-shadow:inset 0 0 0 1px rgba(214,195,229,.66)
+  .titlebar::after{
+    content:"";position:absolute;left:4px;right:4px;top:2px;height:44%;border-radius:8px 8px 999px 999px;
+    pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.02))
   }
-  .sheet::before,.sheet::after{content:"";position:absolute;width:16px;height:16px;opacity:.65}
-  .sheet::before{left:11px;top:11px;border-left:1px solid var(--line);border-top:1px solid var(--line)}
-  .sheet::after{right:11px;bottom:11px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .intro{margin:0 0 20px;text-align:center}.intro b{display:block;font-size:15px;color:#765d8e}
-  .intro span{display:block;margin-top:7px;font:11px Arial,sans-serif;letter-spacing:.12em;color:#b296bd}
-  .grid{display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:14px 12px}
-  .field{display:block;min-width:0}.field.wide{grid-column:1/-1}
-  .label{display:flex;align-items:center;gap:6px;margin:0 0 6px 6px;font-size:10px;letter-spacing:.14em;color:#9a80ad}
-  .label::before{content:"✦";font-size:8px;color:#f2a4cb}
-  .control{position:relative;display:flex;align-items:center;height:48px;padding:4px;border-radius:15px;
-    border:2px solid #dcbce2;background:linear-gradient(180deg,#fff,#f9f4fc);
-    box-shadow:inset 0 0 0 2px rgba(255,255,255,.95),0 2px 0 rgba(166,129,188,.2)}
-  input{width:100%;height:100%;min-width:0;border:0;outline:0;padding:0 12px;background:transparent;
-    color:#544269;font:15px Galmuri,"Malgun Gothic",sans-serif;caret-color:#f17fb7}
-  input::placeholder{color:#d5c5dd}
-  .age .control{overflow:hidden;padding:0;background:linear-gradient(110deg,#ffc5e2,#c8b5f3 58%,#9dd8f3)}
-  .age input{color:#fff;text-shadow:0 1px rgba(108,74,145,.35)}
-  .age .moon{padding-right:12px;color:#fff;font:17px Arial,sans-serif}
-  .sentence{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
-  .tail{align-self:center;white-space:nowrap;padding:7px 10px;border-radius:999px;
-    color:#886f9b;background:#f4edf8;font-size:11px;box-shadow:inset 0 0 0 1px #eadcf0}
-  .transform{width:100%;height:57px;margin-top:23px;border:2px solid #fff;border-radius:18px;cursor:pointer;
-    color:#fff;-webkit-text-fill-color:#fff;text-shadow:0 1px rgba(113,78,153,.35);
-    font:700 15px Galmuri,"Malgun Gothic",sans-serif;letter-spacing:.02em;
-    background:linear-gradient(105deg,#ff9dce 0%,#d7a9ee 48%,#8fcff0 100%);
-    box-shadow:0 0 0 2px #d9b7df,0 4px 0 rgba(142,103,173,.28),inset 0 2px rgba(255,255,255,.7)
+  .titlebar .title{position:relative;z-index:1;white-space:nowrap}
+  .dots{position:relative;z-index:1;display:flex;margin-left:auto;gap:6px}
+  .dots span{
+    display:grid;place-items:center;width:20px;height:20px;border-radius:50%;border:0;color:#fff;
+    font:400 10px/1 system-ui,sans-serif;text-shadow:0 1px 0 rgba(130,66,160,.9);
+    box-shadow:0 0 0 1.4px rgba(255,255,255,.9),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -2px 3px rgba(150,110,180,.28)
   }
-  .transform span{font-family:Arial,"Noto Sans Symbols 2",sans-serif;font-weight:700;letter-spacing:0}
-  .transform:hover{filter:saturate(1.08) brightness(1.03)}
-  .transform:active{transform:translateY(2px);box-shadow:0 0 0 2px #d9b7df,0 2px 0 rgba(142,103,173,.25),inset 0 2px #fff}
-  .note{margin:14px 0 0;text-align:center;font:10px Arial,sans-serif;color:#af9abb;letter-spacing:.08em}
-  @media(max-width:420px){
-    body{padding:12px 8px}.window{width:100%}.sheet{padding:21px 18px 19px}
-    .grid{grid-template-columns:minmax(0,1fr) 90px;gap:13px 10px}.tail{padding:7px 8px}
+  .dots .d1{background:linear-gradient(180deg,#f6a8ec,#e07fdd)}
+  .dots .d2{background:linear-gradient(180deg,#cfc0f8,#a98ff0)}
+  .dots .d3{background:linear-gradient(180deg,#a8cdf8,#6fa8ee)}
+
+  /* 오프닝 spbody */
+  .profile-body{
+    position:relative;margin:3px 0 0;padding:19px 18px 17px;border-radius:3px 3px 13px 13px;background:#fdfaff;
+    box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,inset 0 -4px 8px rgba(150,116,196,.09)
+  }
+  .profile-body::before,.profile-body::after{
+    content:"";position:absolute;width:9px;height:9px;border-color:#e2d2ee;border-style:solid;pointer-events:none
+  }
+  .profile-body::before{left:9px;top:9px;border-width:1px 0 0 1px}
+  .profile-body::after{right:9px;bottom:9px;border-width:0 1px 1px 0}
+
+  .identity{display:grid;grid-template-columns:136px minmax(0,1fr);gap:16px;align-items:center}
+  .polaroid{
+    position:relative;margin:0;padding:7px 7px 26px;border-radius:11px;background:#fff;
+    box-shadow:0 0 0 1px #d6bbe0,0 0 0 4px #faedf8,0 0 0 4.5px #dcbcdd,0 5px 14px rgba(126,91,163,.17)
+  }
+  .portrait{display:block;width:100%;aspect-ratio:1;border-radius:7px;object-fit:cover;object-position:center 24%;background:#e8dfed}
+  .caption{position:absolute;left:6px;right:6px;bottom:7px;text-align:center;color:#a38bb5;font-size:9px;letter-spacing:.04em}
+  .identity-copy{min-width:0;text-align:left}
+  .role{margin:0 0 9px;color:#9c86b7;font-size:9px;line-height:1.45;letter-spacing:.05em}
+  .name{margin:0;color:#4f3d76;font-size:22px;line-height:1.2;white-space:nowrap}
+  .name::before{content:"✦";margin-right:7px;color:#52c9c3;font:10px Arial,sans-serif;vertical-align:middle}
+  .heart{color:#f29bc4;font-family:Arial,sans-serif}
+  .status{
+    position:relative;margin:15px 0 0;padding:10px 9px;border-radius:10px;color:#675280;font-size:10px;line-height:1.5;text-align:center;
+    background:linear-gradient(180deg,#fff,#faf5fc);box-shadow:inset 0 1px 0 #fff,0 0 0 1px #d8c8e5,0 3px 8px rgba(138,103,176,.12)
+  }
+  .status::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:#faf5fc;transform:translateX(-50%) rotate(45deg);box-shadow:1px 1px 0 #d8c8e5}
+
+  .music{
+    display:grid;grid-template-columns:26px minmax(0,1fr) 22px;align-items:center;gap:9px;width:100%;height:42px;margin-top:19px;padding:0 11px;
+    border:0;border-radius:9px;color:#6f5a8f;text-align:left;background:linear-gradient(180deg,#fff,#faf7fd);
+    box-shadow:inset 0 1.5px 3px rgba(150,116,190,.11),0 0 0 1px #d6bbe0,0 0 0 3px #fdeef9,0 0 0 3.5px #dcbcdd
+  }
+  .play{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;color:#fff;font:10px Arial,sans-serif;background:linear-gradient(180deg,#7dded8,#32b9bb);box-shadow:0 0 0 1px #50bbb9,0 0 0 2px #e8ffff}
+  .track{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;letter-spacing:.02em}
+  .more{color:#34bbb8;font:700 15px Arial,sans-serif;letter-spacing:1px}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+  .stat{padding:10px 8px 9px;border-radius:8px;text-align:center;background:linear-gradient(180deg,#fff,#f8f4fc);box-shadow:inset 0 1px 0 #fff,0 0 0 1px #d7c6e4,0 2px 0 #eee4f5}
+  .stat small{display:block;margin-bottom:5px;color:#c5a6ca;font-size:8px;letter-spacing:.18em}
+  .stat b{display:block;font:17px/1 Arial,sans-serif;color:#f08abb}.stat:last-child b{color:#34bbb8}
+  .stickers{margin:13px 0 0;text-align:center;color:#c8b3e5;font:13px/1 Arial,sans-serif;letter-spacing:8px;text-indent:8px}
+
+  /* 오프닝 spgo와 같은 겹테 + 내부 그라데이션 */
+  .back{
+    position:relative;isolation:isolate;display:block;width:156px;height:44px;margin:14px auto 1px;padding:2px;border:0;border-radius:11px;cursor:pointer;
+    color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.7);letter-spacing:1px;
+    background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);box-shadow:0 5px 13px rgba(150,112,196,.24)
+  }
+  .back::after{
+    content:"";position:absolute;z-index:-1;inset:2px;border-radius:9px;
+    background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,#e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -2px 0 rgba(255,255,255,.6),inset 0 12px 12px -10px rgba(255,255,255,.6)
+  }
+  .back:active{transform:translateY(2px);box-shadow:0 2px 6px rgba(150,104,200,.28)}
+
+  @media(max-width:360px){
+    .profile-screen{padding:12px 8px}.profile-window{width:100%}.profile-body{padding:17px 14px 15px}
+    .identity{grid-template-columns:122px minmax(0,1fr);gap:13px}.name{font-size:19px}.status{font-size:9px}
+  }
+  @media(max-height:620px){
+    .profile-screen{align-items:start;overflow:auto;padding-top:10px;padding-bottom:10px}.profile-body{padding-top:16px}
+    .identity{grid-template-columns:118px minmax(0,1fr)}.music{margin-top:15px}.stats{margin-top:12px}.stickers{margin-top:10px}.back{margin-top:11px}
   }
 </style>
 </head>
 <body>
-  <main class="window" aria-label="you.txt 프로필 수정 시안">
-    <header class="titlebar"><span class="spark">✦</span>you.txt
-      <span class="dots" aria-hidden="true"><i>−</i><i>□</i><i>×</i></span>
-    </header>
-    <form class="sheet" onsubmit="return false">
-      <p class="intro"><b>MY LITTLE NULL</b><span>edit your tiny universe ♡</span></p>
-      <div class="grid">
-        <label class="field wide"><span class="label">NAME</span><span class="control"><input value="리리" maxlength="12" /></span></label>
-        <label class="field"><span class="label">SUBJECT</span><span class="control"><input value="국어" maxlength="20" /></span></label>
-        <label class="field age"><span class="label">AGE</span><span class="control"><input value="25" readonly /><b class="moon">☾</b></span></label>
-        <label class="field wide"><span class="label">LOVES</span><span class="sentence"><span class="control"><input value="시" maxlength="20" /></span><span class="tail">를 좋아하고</span></span></label>
-        <label class="field wide"><span class="label">NOPE</span><span class="sentence"><span class="control"><input value="무례" maxlength="20" /></span><span class="tail">를 싫어한다</span></span></label>
+  <main class="profile-screen" id="screen">
+    <span class="sparkles" aria-hidden="true"><i>✦</i><i>✧</i><i>✦</i><i>✧</i></span>
+    <section class="profile-window" aria-label="캐릭터 프로필 CSS 시안">
+      <header class="titlebar">
+        <span class="title">✦ <span id="window-title">jaeeon.hompy</span></span>
+        <span class="dots" aria-hidden="true"><span class="d1">−</span><span class="d2">□</span><span class="d3">×</span></span>
+      </header>
+      <div class="profile-body">
+        <div class="identity">
+          <figure class="polaroid">
+            <img class="portrait" id="portrait" src="jaeeon-profile.webp" alt="이재언" />
+            <figcaption class="caption" id="caption">보건교사 · 29세</figcaption>
+          </figure>
+          <div class="identity-copy">
+            <p class="role">NULL SCHOOL<br />CHARACTER FILE</p>
+            <h1 class="name"><span id="name">이재언</span> <span class="heart">♡</span></h1>
+            <p class="status" id="status">어디 안 가요.</p>
+          </div>
+        </div>
+
+        <button class="music" type="button" aria-label="프로필 음악 재생 시안">
+          <span class="play">▶</span><span class="track" id="track">The Pale Cinema — Strangers, Again</span><span class="more">···</span>
+        </button>
+        <div class="stats" aria-label="프로필 통계">
+          <div class="stat"><small>TODAY</small><b>1</b></div>
+          <div class="stat"><small>TALK</small><b id="talk">396</b></div>
+        </div>
+        <p class="stickers" aria-hidden="true">❉ ★ ♡ ✧</p>
+        <button class="back" type="button">◁ BACK</button>
       </div>
-      <button class="transform" type="submit">✦&nbsp; 변신! <span>⸜( &gt;᎑&lt; )⸝♡</span> &nbsp;✦</button>
-      <p class="note">profile UI prototype · no dotted lines, no overlap</p>
-    </form>
+    </section>
   </main>
+<script>
+  const profiles={
+    jaeeon:{title:"jaeeon.hompy",name:"이재언",caption:"보건교사 · 29세",status:"어디 안 가요.",track:"The Pale Cinema — Strangers, Again",portrait:"jaeeon-profile.webp",background:"jaeeon-lobby.webp",talk:"396"},
+    minhyun:{title:"minhyun.hompy",name:"이민현",caption:"국어 교생 · 25세",status:"수업 중. 아마도.",track:"Luca Riot — Ask Again Tomorrow",portrait:"minhyun-profile.webp",background:"minhyun-shop.webp",talk:"301"}
+  };
+  const key=new URLSearchParams(location.search).get("char")==="minhyun"?"minhyun":"jaeeon";
+  const p=profiles[key];
+  document.getElementById("window-title").textContent=p.title;
+  document.getElementById("name").textContent=p.name;
+  document.getElementById("caption").textContent=p.caption;
+  document.getElementById("status").textContent=p.status;
+  document.getElementById("track").textContent=p.track;
+  document.getElementById("talk").textContent=p.talk;
+  const portrait=document.getElementById("portrait");portrait.src=p.portrait;portrait.alt=p.name;
+  document.getElementById("screen").style.backgroundImage=`url("${p.background}")`;
+</script>
 </body>
 </html>
