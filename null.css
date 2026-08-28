@@ -4942,3 +4942,87 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  .youoverlay>.youprofile{width:min(320px,100%) !important}
  .pvframe{width:min(370px,100%)}
 }
+
+/* ══ 205 · 메신저의 오로라 외곽 문법을 모든 떠 있는 창에 공유 ══ */
+:root{
+ --null-aurora:linear-gradient(145deg,#f9d9ed 0%,#e9b7eb 27%,#ceb1f0 50%,#afe0f8 75%,#f5c9e8 100%);
+ --null-aurora-rings:0 0 0 2px rgba(167,123,201,.92),0 0 0 5px rgba(255,255,255,.76),0 0 0 7px rgba(211,181,236,.64);
+}
+
+/* 데스크톱 메신저의 바깥 껍데기. 안쪽 screen 크기와 위치는 바꾸지 않는다. */
+.phone{
+ background:var(--null-aurora) !important;
+ border-color:rgba(255,255,255,.98) !important;
+ box-shadow:var(--null-aurora-rings),inset 0 2px 0 #fff,
+  inset 0 -7px 11px rgba(116,73,168,.22),6px 6px 0 rgba(94,69,142,.24),
+  0 28px 66px rgba(72,52,124,.34) !important;
+}
+
+/* ProfileFrame 계열(you.txt·프로필·시간표·선택/알림·사진)과 gift/bag. */
+.profileframe.ecard,
+.pfcard.glasswindow,
+.cartwin.glasswindow{
+ background:var(--null-aurora) !important;
+ border:2px solid rgba(255,255,255,.98) !important;
+ box-shadow:var(--null-aurora-rings),inset 0 2px 0 #fff,
+  inset 0 -6px 10px rgba(116,73,168,.18),0 14px 30px rgba(72,52,124,.27) !important;
+}
+
+/* ProfileFrame으로 아직 옮기지 않은 특수 팝업도 같은 테두리만 쓴다. */
+.dlg:not(.profileframe){
+ border:5px solid transparent !important;
+ background:
+  linear-gradient(180deg,#fff 0%,#f2ecfe 46%,#eae1fb 100%) padding-box,
+  var(--null-aurora) border-box !important;
+ box-shadow:var(--null-aurora-rings),0 12px 26px rgba(72,52,124,.27) !important;
+}
+
+/* 채팅/장면 입력창은 안쪽 흰 표면을 유지하고 외곽 4px만 오로라로 감싼다. */
+.chatwrap.glasswindow .inputbar,
+.scenewrap.glasswindow .inputbar{
+ border:4px solid transparent !important;
+ background:
+  linear-gradient(135deg,#fffaff 0%,#eee5fb 55%,#e3f1fc 100%) padding-box,
+  var(--null-aurora) border-box !important;
+ box-shadow:0 0 0 1px rgba(167,123,201,.82),0 0 0 3px rgba(255,255,255,.74),
+  0 0 0 5px rgba(211,181,236,.54),0 5px 13px rgba(89,57,120,.16) !important;
+}
+
+/* 메뉴 글자는 선명하게 두고, 그 뒤의 연보라 유리만 78% 농도로 둔다. */
+.phone>.screen.desk.glasswindow .menubar{
+ background:rgba(235,225,250,.78) !important;
+ -webkit-backdrop-filter:blur(5px) saturate(1.12) !important;
+ backdrop-filter:blur(5px) saturate(1.12) !important;
+}
+
+/* 단톡방과 관전방은 카드가 아니라 원형 아이콘만 78%로 비친다. */
+.rooms .groupavatar,
+.rooms .watchavatar{opacity:.78}
+
+/* 배치와 크기는 그대로, rooms/map/cam/.hidden의 빛과 색만 한 단계 올린다. */
+.phone>.screen.desk.glasswindow .tab{
+ color:#70538f !important;
+ border-color:rgba(183,143,211,.88) !important;
+ background:linear-gradient(155deg,#fff 0%,#f5c1e3 42%,#c8b5f1 72%,#acdff7 100%) !important;
+ box-shadow:inset 0 2px 0 rgba(255,255,255,.94),0 0 0 1px rgba(255,255,255,.8),
+  0 3px 0 rgba(142,101,181,.2),0 0 10px rgba(235,171,224,.18) !important;
+ filter:saturate(1.2) brightness(1.05);
+}
+.phone>.screen.desk.glasswindow .tab.on{
+ color:#56386e !important;
+ border-color:#9e69bd !important;
+ background:linear-gradient(135deg,#ff9dcd 0%,#d797eb 50%,#7dcff4 100%) !important;
+ box-shadow:inset 0 2px 0 rgba(255,255,255,.92),0 0 0 2px rgba(255,255,255,.86),
+  0 3px 0 rgba(126,82,166,.26),0 0 12px rgba(216,145,218,.24) !important;
+ filter:saturate(1.32) brightness(1.07);
+}
+
+/* 모바일은 화면 크기를 줄이지 않고 가장자리 위에 같은 오로라 링을 얹는다. */
+@media(max-width:500px){
+ .phone::after{
+  content:"";position:absolute;z-index:90;inset:0;pointer-events:none;border-radius:0;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.96),inset 0 0 0 4px rgba(167,123,201,.9),
+   inset 0 0 0 6px rgba(255,255,255,.72),inset 0 0 0 8px rgba(211,181,236,.58),
+   inset 0 0 13px rgba(172,210,248,.52);
+ }
+}
