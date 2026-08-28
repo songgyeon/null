@@ -4137,7 +4137,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 }
 
 /* 캐비넷 원화 바깥의 핑크 발광 테만 잘라낸다. 문과 클릭 위치는 그대로다. */
-.desk .cab .cabframe{clip-path:inset(10px round 10px);filter:saturate(.82);outline:0 !important;box-shadow:none !important}
+.desk .cab .cabframe{clip-path:none;filter:saturate(.82);outline:0 !important;box-shadow:none !important}
 .desk .cabdoor.been img{filter:none !important}
 .desk .cab,.desk .cabin{outline:0 !important;box-shadow:none !important;background:transparent !important}
 
@@ -4743,3 +4743,130 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .chatwrap.glasswindow .inputbar,.scenewrap.glasswindow .inputbar{
  min-height:50px !important;margin:5px 0 0 !important;padding:6px !important;border-radius:10px !important;
  background:linear-gradient(135deg,#fffaff 0%,#eee5fb 55%,#e3f1fc 100%) !important}
+
+/* v194 — shared frames, compact controls, unclipped cabinet */
+/* 선택한 선물에서 돌아가는 버튼은 내용의 첫 줄에 놓인다. 분홍 선물 동작과
+   헷갈리지 않도록 차가운 하늘·라일락 계열의 작은 사각 키로 분리한다. */
+.giftwin .cback{
+ display:flex !important;align-items:center !important;justify-content:center !important;
+ align-self:flex-start !important;width:82px !important;min-width:82px !important;max-width:82px !important;
+ height:31px !important;margin:0 0 3px 1px !important;padding:0 10px !important;
+ border:1px solid rgba(255,255,255,.96) !important;border-radius:5px !important;
+ color:#565b86 !important;font-size:9.5px !important;letter-spacing:.06em !important;
+ background:linear-gradient(135deg,#d9f1ff 0%,#deddfb 50%,#c9c3f2 100%) !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(154,145,202,.62),0 3px 0 rgba(122,113,176,.18) !important}
+.giftwin .cback:active{transform:translateY(2px) !important;
+ box-shadow:inset 0 2px 4px rgba(93,84,144,.16),0 0 0 1px rgba(154,145,202,.62) !important}
+
+/* 사진 보기 역시 등록 화면과 같은 ProfileFrame을 실제 DOM에서 공유한다. */
+.pvwin{padding:10px !important;background:rgba(74,66,118,.34) !important}
+.pvframe{width:min(370px,100%);max-height:100%;cursor:default}
+.pvframe>.profileframe.pvdlg{
+ width:100% !important;max-width:370px !important;max-height:100% !important;margin:0 !important}
+.profileframe.pvdlg>.pvframebody{
+ display:flex !important;flex-direction:column !important;min-height:0 !important;height:auto !important;
+ max-height:calc(100dvh - 82px) !important;aspect-ratio:auto !important;overflow:hidden !important;
+ padding:0 0 9px !important}
+.profileframe.pvdlg .pvbody{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 10px 0 !important}
+.profileframe.pvdlg .pvbody img{width:100%;max-height:calc(100dvh - 188px);object-fit:contain;background:#f7f2fb}
+.profileframe.pvdlg .pvfoot{justify-content:center;padding:9px 10px 2px !important}
+.profileframe.pvdlg .pvnext,.profileframe.pvdlg .pvclose{
+ position:relative;height:32px;padding:0 14px;border:1px solid rgba(255,255,255,.96);border-radius:6px;
+ font-family:inherit;font-size:10px;color:#5d4f78;background:linear-gradient(135deg,#fff,#eee5fb 58%,#dcecff);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(177,151,207,.62),0 2px 0 rgba(137,112,173,.17);cursor:pointer}
+.profileframe.pvdlg .pvnext{width:38px;padding:0;color:#82659a}
+.profileframe.pvdlg .pvnext:active,.profileframe.pvdlg .pvclose:active{transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(93,84,144,.13)}
+
+/* 프로필 수정창은 비슷한 칸을 재현하지 않는다. 등록 화면의 cssprofile,
+   ProfileFrame, ename, eline, blank, ego를 그대로 쓰고 영문 라벨만 렌더하지 않는다. */
+.dlgov.youoverlay{padding:10px !important}
+.youoverlay>.youprofile{
+ position:relative !important;inset:auto !important;z-index:auto !important;display:block !important;
+ width:min(350px,100%) !important;height:auto !important;margin:auto !important;padding:0 !important;
+ overflow:visible !important;background:none !important}
+.youprofile>.profileframe.youframe{width:100% !important;max-width:350px !important;margin:0 !important}
+.youprofile .etail{
+ position:absolute !important;display:flex !important;align-items:center;height:5%;margin:0 !important;
+ font-size:2.75cqw;line-height:1;color:#745f8d;white-space:nowrap}
+.youprofile .e-subject .etail{left:49.2%;top:19.41%}
+.youprofile .e-age .etail{left:31.3%;top:29.41%}
+.youprofile .e-likes .etail{left:74.9%;top:39.41%}
+.youprofile .e-dislikes .etail{left:74.9%;top:49.41%}
+
+/* 상태와 엿보기는 알약 대신 타이틀바 키와 같은 짧은 사각 버튼이다. */
+.menubar .toolkey{
+ position:relative;flex:none;display:flex;align-items:center;justify-content:center;gap:4px;
+ min-width:54px;height:27px;margin-left:4px;padding:0 7px;overflow:hidden;
+ border:1px solid rgba(255,255,255,.96);border-radius:5px;font-family:inherit;font-size:9px;
+ line-height:1;letter-spacing:0;color:#5e527b;white-space:nowrap;cursor:pointer;
+ background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(228,224,249,.95));
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(166,145,202,.58),0 2px 0 rgba(130,107,173,.16)}
+.menubar .toolkey::after{content:"";position:absolute;left:3px;right:3px;top:2px;height:35%;
+ border-radius:3px 3px 1px 1px;background:linear-gradient(180deg,rgba(255,255,255,.8),transparent);pointer-events:none}
+.menubar .toolkey>span,.menubar .toolkey>svg{position:relative;z-index:2}
+.menubar .toolkey:active{transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(93,84,144,.15),0 0 0 1px rgba(166,145,202,.58)}
+.menubar .nowbtn{min-width:52px;margin-left:5px;color:#536081;
+ background:linear-gradient(180deg,#f7fcff,#dfefff)}
+.menubar .peekbtn{min-width:58px;color:#765578;
+ background:linear-gradient(135deg,#fff7fc,#f0e3fa 56%,#dfeeff)}
+.menubar .peekbtn.cool{color:#9484aa;background:linear-gradient(180deg,#fbfaff,#ece8f5)}
+.menubar .toolkey .fill{position:absolute;z-index:1;left:0;top:0;bottom:0;width:0;
+ background:linear-gradient(90deg,rgba(235,188,222,.42),rgba(191,208,247,.48));transition:width .4s linear;pointer-events:none}
+
+/* 시간표의 떠 있는 영어 알약과 하단 알약을 작은 명찰/키로 바꾼다. */
+.tttag{
+ top:-11px;padding:4px 12px 5px;border:1px solid rgba(255,255,255,.96);border-radius:5px;
+ color:#67527f;text-shadow:none;letter-spacing:.1em;
+ background:linear-gradient(135deg,#fff5fb,#eadff8 58%,#dcecff);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(177,151,207,.64),0 2px 0 rgba(145,119,182,.16)}
+.tttag::before{display:none !important}
+.ttbuttons{display:flex;justify-content:center;margin-top:8px}
+.ttclose{
+ min-width:82px;height:32px;padding:0 14px;border:1px solid rgba(255,255,255,.96);border-radius:6px;
+ font-family:inherit;font-size:10px;color:#5e527b;background:linear-gradient(135deg,#fff,#eee5fb 58%,#dcecff);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(177,151,207,.62),0 2px 0 rgba(137,112,173,.17);cursor:pointer}
+.ttclose:active{transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(93,84,144,.13)}
+
+/* 이름이 불릴 때마다 폭이 늘어나는 하나의 연속 게이지. */
+.desk .nmcard{padding:8px 12px !important}
+.desk .nmcard::before{content:none !important;display:none !important}
+.desk .nmline{order:1;display:flex;flex:1;align-items:center;gap:9px;min-width:0}
+.desk .nmline>.k{margin-right:0}
+.desk .namegauge{
+ position:relative;display:block;flex:1;min-width:0;height:8px;overflow:hidden;border-radius:4px;
+ border:1px solid rgba(174,151,207,.48);background:rgba(255,255,255,.42);
+ box-shadow:inset 0 1px 2px rgba(104,78,145,.12),0 1px 0 rgba(255,255,255,.78)}
+.desk .namegauge>i{display:block;width:0;height:100%;border-radius:3px;
+ background:linear-gradient(90deg,#f3b6dc 0%,#d7cdf8 52%,#c7eaff 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 6px rgba(209,163,231,.48);transition:width .35s ease}
+
+/* 관전방 아래의 큰 연보라 판은 없애고, 참여 불가 상태만 얇게 남긴다. */
+.chatwrap .watchbar{
+ min-height:24px;margin:0 10px 6px;padding:5px 0 3px !important;gap:7px;
+ border:0;border-top:1px solid rgba(174,148,205,.48);background:transparent !important;
+ box-shadow:none !important;color:#806b9d;font-size:9px;letter-spacing:.03em}
+.chatwrap .watchbar .rec{width:7px;height:7px}
+
+/* 오프닝 일기·옥상 엽서의 덮기 단추도 핫핑크 알약을 쓰지 않는다. */
+.diary .wbtn.go.dbtn,.flash .wbtn.go.fbtn{
+ width:auto;min-width:88px;max-width:none;height:32px;padding:0 15px;border:1px solid rgba(255,255,255,.96);
+ border-radius:6px;color:#5e527b;text-shadow:none;font-size:10px;letter-spacing:.08em;
+ background:linear-gradient(135deg,#fafdff 0%,#e8e3fb 55%,#d8eaff 100%);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(166,145,202,.64),0 2px 0 rgba(130,107,173,.17)}
+.diary .wbtn.go.dbtn::before,.flash .wbtn.go.fbtn::before{
+ left:3px;right:3px;top:2px;height:34%;border-radius:4px 4px 1px 1px}
+.diary .wbtn.go.dbtn:active,.flash .wbtn.go.fbtn:active{
+ transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(93,84,144,.14),0 0 0 1px rgba(166,145,202,.64)}
+
+/* 원본 가장자리를 자르던 10px 마스크를 최종 규칙에서도 명시적으로 해제한다. */
+.desk .cab .cabframe{clip-path:none !important}
+
+/* 새 캐시에서도 모든 메신저 표면은 같은 월페이퍼를 본다. */
+.phone>.screen.desk.glasswindow,.phone>.cartscreen,.phone>.screen>.cartscreen,
+.phone>.screen.chatwrap.glasswindow{
+ background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=194") !important}
+
+@media(max-width:500px){
+ .youoverlay>.youprofile{width:min(350px,100%) !important}
+ .pvframe{width:min(370px,100%)}
+}

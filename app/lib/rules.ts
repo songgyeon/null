@@ -210,7 +210,7 @@ const sys1Due=store=>{
    첫 항목이 같은 값을 들고 있다 — 그 창은 오프닝이 닫힐 때 처음 뜨므로
    맨 앞이 오프닝 방이다. 없으면 null이고, 없는 것은 모르는 것이지
    틀린 것이 아니다 — 부르는 쪽이 「모르면 지금까지대로」로 받는다. */
-/* ── 재언의 옛 일기 ──
+/* ── 유저의 옛 일기 ──
    재언 방에 처음 들어가는 순간, 선톡 앞에 한 번. 20년 전 공부방 아이가
    쓴 것이고, 유저는 그걸 읽고 마지막 한 칸을 채운다.
 
@@ -297,15 +297,15 @@ const saveFlash=o=>{try{
 
 /* ── {이름} pics ──
    cam 탭은 원래 「받은 사진」이었다. 여기 서는 둘은 받은 게 아니라 유저가
-   쓴 것이다 — 재언의 옛 일기 마지막 칸, 병원 옥상 엽서의 세 칸.
+   쓴 것이다 — 유저의 옛 일기 마지막 칸, 병원 옥상 엽서의 세 칸.
    그래서 두 사람 다음에 자기 이름으로 따로 선다. 채운 것만 나온다.
 
    빈칸 값은 여전히 기기 밖으로 안 나간다. 여기서 하는 일은 이미 저장돼
    있는 값을 사진 위 제자리에 얹어 보여주는 것뿐이다. */
-const userPics=()=>{
+const userPics=name=>{
   const out=[];
   const d=loadDiary();
-  if(d)out.push({src:DIARY_IMG,label:"재언의 옛 일기",
+  if(d)out.push({src:DIARY_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
     fill:[{...DIARY_BOX,text:d}]});
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
@@ -417,7 +417,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=193";
+const AV="?v=194";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */

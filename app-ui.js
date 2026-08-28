@@ -731,8 +731,8 @@ function PhotoWin({shot,onClose,onNext}){
   const now=back&&flip?flip:src;
   const fill=(back&&flip?(shot.backFill||[]):(one?[]:(shot.fill||[])))||[];
   return <div className="pvwin" onClick={onClose}>
-    <div className="dlg pvdlg" onClick={e=>e.stopPropagation()}>
-      <div className="tb">photo<WinDots onClose={onClose}/></div>
+    <div className="pvframe" onClick={e=>e.stopPropagation()}>
+    <ProfileFrame title="사진 보기" onClose={onClose} frameClass="pvdlg" bodyClass="pvframebody">
       <div className={"pvbody"+(flip?" flip":"")}
         onClick={flip?()=>setBack(b=>!b):null}>
         {/* 빈칸은 사진 상자가 아니라 **사진**에 앉아야 한다. 사진은 창 폭을
@@ -752,17 +752,18 @@ function PhotoWin({shot,onClose,onNext}){
         </div>}
       </div>
       <div className="pvfoot">
-        {onNext&&<button className="wbtn sh" onClick={onNext} aria-label="다음 사진">
+        {onNext&&<button className="pvnext" onClick={onNext} aria-label="다음 사진">
           <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 17c0-5 4-8 9-8M11 4l4 5-4 5" stroke="currentColor" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg></button>}
-        <button className="wbtn go" onClick={onClose}>덮기 ♡</button>
+        <button className="pvclose" onClick={onClose}>닫기 ♡</button>
       </div>
+    </ProfileFrame>
     </div>
   </div>;
 }
 
-/* ── 재언의 옛 일기 ──
+/* ── 유저의 옛 일기 ──
    재언 방에 처음 들어가는 순간, 선톡 앞에 한 번.
 
    이 앱의 다른 창은 전부 가짜 OS다. 여기만 종이다 — 20년 전 것이고
@@ -957,14 +958,14 @@ function Timetable({wend,onFillWend,onClose}){
       ...slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i}))];
   return <Dialog title="null.exe" onClose={onClose} win="ttwin">
         <div className="ttpanel">
-          <div className="tttag">TIMETABLE ♡</div>
+          <div className="tttag">오늘의 시간표 ♡</div>
           {rows.map(r=>r.blank
             ?<div key={r.n} className="ttrow mine">
                <span className="n"><Blank value={r.k} width={54} onSave={v=>onFillWend(key,r.n,v)}/></span>
                <span className="ln"/><span className="mk">{r.k?"♡":""}</span>
              </div>
             :<div key={r.n} className={"ttrow"+(r.now?" now":r.past?" past":" next")}>
-               <span className="n">{r.k}</span><span className="ln"/>
+               <span className="n">{r.k==="ON"?"시작":r.k==="OFF"?"끝":r.k}</span><span className="ln"/>
                <span className="mk">{r.past?"♡":r.now?<><span className="kao">(՞៸៸›⩊‹៸៸՞)</span>🩷</>:""}</span>
              </div>)}
         </div>
@@ -998,8 +999,8 @@ function Timetable({wend,onFillWend,onClose}){
                  :<>지금은 {jos(L,"이에요/예요")} <i>♡</i></>}</b>
              {wk?<>NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span></>:foot}
            </div>; })()}
-        <div className="dlgbtns" style={{justifyContent:"center"}}>
-          <button className="wbtn" onClick={onClose}>ok ♡</button>
+        <div className="dlgbtns ttbuttons">
+          <button className="ttclose" onClick={onClose}>확인 ♡</button>
         </div>
   </Dialog>;
 }
@@ -1122,6 +1123,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
     </React.Fragment>}
 
     {pick&&<div className="cwrap">
+      <button className="cback" onClick={back}>‹ 뒤로</button>
       <div className="cgcard">
         <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
@@ -1186,7 +1188,6 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           onChange={e=>setMemo(e.target.value)}/>
         <span className="cnt">{GIFT_NOTE_B}</span>
       </div>
-      <button className="cback" onClick={back}>◁ BACK</button>
     </div>}
   </div></div>;
 }
@@ -1201,16 +1202,17 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
   /* 등록 화면과 같은 칸을 같은 순서로 채운다. 거기서 엔터로 넘어가는데
      여기서는 안 넘어가면 그게 더 이상하다 — 항목도 ENR_FIELDS 하나만 본다. */
   const [focus,setFocus]=useState(-1);
-  return <Dialog title="you.txt" onClose={onClose} compact={false} raw win="profileedit">
-    <div className="eprofiletitle">✧ NULL PROFILE ✧</div>
-    <span className="enamelab">NAME</span>
+  /* 등록 화면의 ProfileFrame·ename·eline·blank·ego를 그대로 쓴다.
+     이 창만 닮은 칸을 따로 만들면 원본이 바뀔 때 다시 갈라진다. */
+  return <div className="dlgov youoverlay" onClick={onClose}>
+    <div className="cssprofile youprofile" onClick={e=>e.stopPropagation()}>
+    <ProfileFrame title="프로필" onClose={onClose} frameClass="youframe">
     {renaming
       ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
         onChange={e=>setNv(e.target.value)} onBlur={doRename} onKeyDown={e=>e.key==="Enter"&&doRename()}/></div>
       :<div className="ename" onClick={()=>{setNv(name);setRenaming(true)}}>{name}</div>}
     {ENR_FIELDS.map((f,i)=>
       <div className={`eline e-${f.k}`} key={f.k}>
-        <span className="lab">{f.lab}</span>
         {f.k==="age"
           ?<span className="blank filled" title="세계의 고정값">25</span>
           :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
@@ -1218,8 +1220,12 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
             onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/>}
         <span className="etail">{f.tail}</span>
       </div>)}
-    <button className="ego profiledone" onClick={()=>{setNv(name);setRenaming(true)}}>이름 변경</button>
-  </Dialog>;
+    <button className="ego yourename" onClick={()=>{setNv(name);setRenaming(true)}}>
+      <span>이름 변경</span><i className="egostar"/>
+    </button>
+    </ProfileFrame>
+    </div>
+  </div>;
 }
 
 /* ── 방 목록: 메신저 창 ── */
@@ -1256,6 +1262,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   const calls=countCalls(store,name);
   const lit=filledLetters(calls,name);
   const letters=(name||"").split("");
+  const namePct=Math.min(100,calls/Math.max(1,letters.length*CALL_PER_LETTER)*100);
   const dayN=daysSince(store);
   const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
   const [zoom,setZoom]=useState(null);
@@ -1310,26 +1317,26 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       <span className="mbtn ico" title="what they gave u"
         onClick={()=>{setMenu(null);setDlg("bag")}}><img className="navpixel" src={av("ui/icon-bag.png")} alt=""/>bag</span>
       {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
-      <button className="moonbtn bevel nowbtn" title="timetable"
-        onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>
-      <button className={"moonbtn bevel"+(left>0&&!autoLoading?" cool":"")}
-        title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
+      <button className="toolkey nowbtn" title="시간표"
+        onClick={()=>setDlg("timetable")}><span>{({OFF:"일과 끝",NULL:"빈 시간"})[nowLabel()]||nowLabel()}</span></button>
+      <button className={"toolkey peekbtn"+(left>0&&!autoLoading?" cool":"")}
+        title={autoLoading?"살펴보는 중":left>0?"잠시 뒤 다시":"두 사람 엿보기"}
         onClick={()=>{ if(autoLoading)return;
-          if(left>0){onToast("too soon · "+mmss(left));return}
+          if(left>0){onToast("잠시 뒤 · "+mmss(left));return}
           const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
         {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
         {/* 달은 「peek」일 때만 뜬다. 360 폭에서 이 줄은 이미 빠듯해서,
             글자가 길어지는 두 상태(남은 시간·흐르는 중)에는 달이 쓰던
             자리를 글자가 쓴다. 안 그러면 단추가 창 밖으로 밀린다 */}
         {!autoLoading&&left<=0&&<MoonIcon/>}
-        <span>{autoLoading?"···":left>0?mmss(left):"peek"}</span>
+        <span>{autoLoading?"확인 중":left>0?mmss(left):"엿보기"}</span>
       </button>
     </div>
     {/* 「time passing...」은 단추에 안 들어간다 — 들어가면 줄이 넘친다.
         전광판이 원래 상태를 흘려보내는 자리라 그 말을 여기서 한다 */}
     <div className="marquee"><span>
       {autoLoading
-        ?<>✧ time passing... &nbsp; ♡ &nbsp; 두 사람을 Peeking... <span className="kao">|ૂ•ᴗ•⸝⸝)”♥</span> &nbsp; ✧</>
+        ?<>✧ 시간이 흐르는 중... &nbsp; ♡ &nbsp; 두 사람을 살펴보는 중... <span className="kao">|ૂ•ᴗ•⸝⸝)”♥</span> &nbsp; ✧</>
         :<>✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp;
           {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧</>}
     </span></div>
@@ -1376,17 +1383,12 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           <div className={"nmcard"+(lit>=letters.length?" done":"")}>
           <div className="nmline">
             <span className="k">NULL</span>
-            {/* 칸은 글자 수만큼이고, 안에 든 것은 언제나 □다. 불린 만큼
-                앞에서부터 차오른다 — 채워지는 것은 칸이지 이름이 아니다 */}
-            <span className="namecharge" aria-label={`${lit} / ${letters.length}`}>
-              {Array.from({length:6},(_,i)=><i key={i}
-                className={i<Math.round(lit/Math.max(1,letters.length)*6)?"on":""}/>) }
+            {/* 이름이 한 번 불릴 때마다 실제 폭이 늘어난다. 글자 단위로 뭉쳐
+                켜지는 동그라미가 아니라 하나의 연속된 존재 게이지다. */}
+            <span className="namegauge" aria-label={`이름 호명 진행 ${Math.round(namePct)}%`}>
+              <i style={{width:namePct+"%"}}/>
             </span>
           </div>
-      <span className="nmpct">
-        <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 1c.5 3.6 2.9 6 6.5 7-3.6 1-6 3.4-6.5 7-.5-3.6-2.9-6-6.5-7 3.6-1 6-3.4 6.5-7z" fill="#c3b2f0"/></svg>
-        <svg width="9" height="9" viewBox="0 0 16 16"><path d="M8 1c.5 3.6 2.9 6 6.5 7-3.6 1-6 3.4-6.5 7-.5-3.6-2.9-6-6.5-7 3.6-1 6-3.4 6.5-7z" fill="#e0d5f7"/></svg>
-      </span>
         </div>
       </div>
       :tab==="map"
@@ -1502,7 +1504,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           }).filter(Boolean);
           /* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
              자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */
-          const mine=userPics();
+          const mine=userPics(name);
           if(mine.length)secs.push(<React.Fragment key="__me">
             <div className="sect">✧ {name||"당신"} · {mine.length} pics</div>
             <div className="galgrid">
@@ -1801,7 +1803,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       </button>}
     </div>
     {watch?
-      <div className="watchbar"><span className="rec"/>u can't join this one</div>
+      <div className="watchbar"><span className="rec"/>참여할 수 없는 대화예요</div>
       /* 아직 출근하지 않은 사람 — 까닭은 화면 한가운데가 말한다.
          여기는 자리를 그대로 두고 못 쓰게만 한다. 입력창을 빼버리면
          방을 열 때마다 화면이 흔들린다. */

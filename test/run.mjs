@@ -777,7 +777,8 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('막은 반투명이다', /\.pvwin\{[^}]*background:rgba\(74,66,118,\.42\)/.test(pvCss), true);
   /* 창틀은 이 앱의 그 창틀이다 — 사진용 창을 따로 그리지 않는다 */
   eq('앱의 창틀을 쓴다',
-    /className="dlg pvdlg"/.test(web) && /<div className="tb">photo<WinDots onClose=\{onClose\}\/><\/div>/.test(web), true);
+    /<ProfileFrame title="사진 보기" onClose=\{onClose\} frameClass="pvdlg" bodyClass="pvframebody">/.test(web)
+    && !/className="dlg pvdlg"/.test(web), true);
   /* 알약은 사진에 붙는다 — 전에는 사진에서 한참 떨어져 아무 관계도 없이 떠 있었다 */
   eq('알약이 창 안에 붙는다', /\.pvfoot\{flex:none;display:flex/.test(pvCss), true);
   /* 두 모양을 다 받는다 — 말풍선은 파일 이름 한 줄, 사진첩·히든은 설명이 붙는다 */
@@ -836,11 +837,14 @@ eq('채우는 칸이 you.txt와 같은 것들이다',
 eq('웹 등록 화면은 엔터로 다음 칸에 넘어간다',
   (web.match(/open=\{focus===i\}/g) || []).length >= 1
   && /onNext=\{\(\)=>setFocus\(i\+1/.test(web), true);
-/* you.txt도 같은 칸을 같은 순서로 채운다. 한쪽만 넘어가면 그게 더 이상하다 */
-eq('you.txt도 엔터로 넘어간다',
+/* 프로필 수정창도 같은 칸을 같은 순서로 채운다. 한쪽만 넘어가면 그게 더 이상하다 */
+eq('프로필 수정창도 엔터로 넘어간다',
   (web.match(/open=\{focus===i\}/g) || []).length, 2);
-eq('you.txt가 등록 화면과 같은 항목을 쓴다',
-  /you\.txt[\s\S]{0,900}ENR_FIELDS\.map/.test(web), true);
+eq('프로필 수정창이 등록 화면과 같은 항목을 쓴다', (() => {
+  const s = web.slice(web.indexOf('function ProfileDialog'), web.indexOf('/* ── 방 목록'));
+  return /<ProfileFrame title="프로필"/.test(s) && /ENR_FIELDS\.map/.test(s)
+    && /className="cssprofile youprofile"/.test(s);
+})(), true);
 eq('빈칸이 밖에서 여는 것과 혼자 여는 것을 둘 다 한다',
   /const ctl=typeof open==="boolean"/.test(web), true);
 /* 이름 옆의 「edit」 딱지는 뗐다 — 커서가 이미 그 말을 한다 */
@@ -3006,7 +3010,7 @@ eq('재회 판정은 유저 발화만 센다',
 /* flex 안에서 svg는 자리가 모자라면 폭 0까지 쭈그러든다. 글자는 최소 폭이
    있어서 버티는데 그림은 안 버틴다. peek 옆의 달이 그렇게 사라졌다. */
 eq('메뉴바 아이콘이 쭈그러들지 않는다', /\.menubar svg\{flex:none\}/.test(web), true);
-eq('관찰 버튼이 줄어들지 않는다', /\.moonbtn\{flex:none\}/.test(web), true);
+eq('관찰 버튼이 줄어들지 않는다', /\.menubar \.toolkey\{[^}]*flex:none/.test(web), true);
 /* 한 줄에 일곱 개가 앉는데 폭이 390이다. 줄이 넘치면 맨 끝 peek이 잘린다 */
 eq('메뉴바가 한 줄로 고정이다', /flex-wrap:nowrap/.test(web), true);
 eq('메뉴 글자가 안 접힌다', /\.mbtn\{[^}]*white-space:nowrap/.test(web), true);
@@ -3016,11 +3020,11 @@ eq('메뉴 글자가 안 접힌다', /\.mbtn\{[^}]*white-space:nowrap/.test(web)
 eq('달은 peek일 때만 뜬다',
   /\{!autoLoading&&left<=0&&<MoonIcon\/>\}\s*\n\s*<span>\{autoLoading/.test(web), true);
 eq('관찰 버튼은 세 상태가 같은 폭이다',
-  /\.menubar \.moonbtn\{padding:0 8px;gap:4px;min-width:60px;justify-content:center\}/.test(web), true);
+  /\.menubar \.peekbtn\{min-width:58px/.test(web), true);
 /* 「time passing...」은 단추에 안 들어간다 — 넣으면 119px이라 줄이 넘친다.
    전광판이 상태를 흘려보내는 자리라 그 말은 거기서 한다 */
 eq('흐르는 중이라는 말은 전광판이 한다',
-  /\{autoLoading\s*\n?\s*\?<>✧ time passing\.\.\./.test(web), true);
+  /\{autoLoading\s*\n?\s*\?<>✧ 시간이 흐르는 중\.\.\./.test(web), true);
 eq('단추에는 긴 글자가 안 들어간다', /time passing\.\.\.":left>0/.test(web), false);
 
 /* ── 대화 지우기 ──
@@ -4303,7 +4307,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['193', '24091baa30b0']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['194', '79311fa764ad']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5546,7 +5550,7 @@ eq('시간표 칸에는 교시를 안 쓴다',
   /\{k:"수업",at:520\},\{k:"점심",at:750\},\{k:"수업",at:810\}/.test(web)
   && !/1교시",at:/.test(web), true);
 eq('단추가 peek 옆에 같은 모양으로 선다',
-  /<button className="moonbtn bevel nowbtn"[^>]*onClick=\{\(\)=>setDlg\("timetable"\)\}/.test(web), true);
+  /<button className="toolkey nowbtn"[^>]*onClick=\{\(\)=>setDlg\("timetable"\)\}/.test(web), true);
 /* 야자 감독인 주에는 그 주 아무 때나 들어와도 보인다 */
 /* null.exe는 원래 「!! WARNING !!」 + 두 줄인 창이다. 야자 주에는 그 자리를
    바꿔 끼운다 — 상자를 하나 더 만들면 창 안에 창이 생긴다 */
@@ -5649,7 +5653,7 @@ eq('학교·체육관이 각자 자리에 있다',
    시간표 단추가 들어오면서 한 번 자리를 옮겼다가 되돌렸다. 390에서 여덟이
    한 줄에 앉는다(재봤다: peek 오른쪽 끝 385, 여백 5) */
 eq('peek은 메뉴바 맨 끝이다',
-  /<button className=\{"moonbtn bevel"\+\(left>0&&!autoLoading\?" cool":""\)\}[\s\S]{0,900}<\/button>\s*<\/div>\s*\{\/\*[\s\S]{0,200}\*\/\}\s*<div className="marquee">/.test(web), true);
+  /<button className=\{"toolkey peekbtn"\+\(left>0&&!autoLoading\?" cool":""\)\}[\s\S]{0,900}<\/button>\s*<\/div>\s*\{\/\*[\s\S]{0,200}\*\/\}\s*<div className="marquee">/.test(web), true);
 eq('LIVE는 방 위의 딱지다',
   /\{watch&&<div className="sectwrap"><span className="sect">LIVE<\/span><\/div>\}/.test(web), true);
 /* 옮겼다 되돌린 흔적은 남기지 않는다 — 안 쓰는 CSS가 팔레트를 흐린다 */
@@ -10170,16 +10174,18 @@ eq('시간표 단추는 peek보다 좁다',
   const appSrc3 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
   const css2 = readFileSync(join(ROOT, 'null.css'), 'utf8');
 
-  /* 이름 글자 수와 무관한 여섯 오팔 슬롯. □ 문자와 이름은 칸에 안 들어간다. */
-  eq('칸에 이름이나 네모를 넣지 않는다',
-    [/className="namecharge"/.test(web), />□<\/span>/.test(web), /\{i<lit\?c:/.test(web)], [true, false, false]);
-  eq('오팔 슬롯은 여섯 칸이다', /Array\.from\(\{length:6\}/.test(web), true);
+  /* 이름 글자 수와 무관한 하나의 연속 게이지. □ 문자와 이름은 칸에 안 들어간다. */
+  eq('게이지에 이름이나 네모를 넣지 않는다',
+    [/className="namegauge"/.test(web), />□<\/span>/.test(web), /\{i<lit\?c:/.test(web)], [true, false, false]);
+  eq('이름을 부를 때마다 게이지 폭이 늘어난다',
+    /const namePct=Math\.min\(100,calls\/Math\.max\(1,letters\.length\*CALL_PER_LETTER\)\*100\)/.test(web)
+    && /style=\{\{width:namePct\+"%"\}\}/.test(web), true);
 
   /* {이름} pics — 채운 것만 선다 */
   eq('아무것도 안 채웠으면 없다', D.userPics().length, 0);
   D.saveDiary('어린애');
-  eq('일기를 채우면 한 장', D.userPics().map(x => [x.src, (x.fill || []).map(f => f.text)]),
-    [[D.DIARY_IMG, ['어린애']]]);
+  eq('일기를 채우면 유저 이름으로 한 장', D.userPics('리리').map(x => [x.src, x.label, (x.fill || []).map(f => f.text)]),
+    [[D.DIARY_IMG, '리리의 옛 일기', ['어린애']]]);
   D.saveFlash({ face: '이상한', said: '진짜요', wish: '또 보고' });
   const mine = D.userPics();
   eq('엽서까지 채우면 두 장', mine.length, 2);
@@ -10192,9 +10198,9 @@ eq('시간표 단추는 peek보다 좁다',
   eq('보여줘도 서버로는 안 간다',
     /userPics|null_flash|null_diary/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
   eq('cam 탭이 유저 몫을 따로 세운다',
-    /const mine=userPics\(\);/.test(web) && /\{name\|\|"당신"\} · \{mine\.length\} pics/.test(web), true);
+    /const mine=userPics\(name\);/.test(web) && /\{name\|\|"당신"\} · \{mine\.length\} pics/.test(web), true);
   eq('앱도 같은 구역을 세운다',
-    /const mine=userPics\(\); if\(!mine\.length\)return null;/.test(appSrc3)
+    /const mine=userPics\(name\); if\(!mine\.length\)return null;/.test(appSrc3)
     && /\{name\|\|'당신'\} · \{mine\.length\} pics/.test(appSrc3), true);
 
   /* 엽서는 눌러서 뒤집는다 — 뒤집는 단추를 따로 달지 않는다 */

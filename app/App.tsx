@@ -1165,7 +1165,7 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             })}
             {/* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
                 자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */}
-            {(()=>{ const mine=userPics(); if(!mine.length)return null;
+            {(()=>{ const mine=userPics(name); if(!mine.length)return null;
               return <React.Fragment key="__me">
                 <Text style={[rl.sect,{color:'#8f7ccb'}]}>✧ {name||'당신'} · {mine.length} pics</Text>
                 <View style={rl.galgrid}>
@@ -1497,7 +1497,7 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
         {!!failed.detail&&<Text style={ch.retryWhy}>{failed.detail}</Text>}</TouchableOpacity>}
     </ScrollView>
     {watch
-      ? <View style={ch.wBar}><Text style={{fontSize:8}}>🔴</Text><Text style={ch.wT}>u can't join this one</Text></View>
+      ? <View style={ch.wBar}><Text style={{fontSize:8}}>🔴</Text><Text style={ch.wT}>참여할 수 없는 대화예요</Text></View>
       /* 잠긴 방도 입력창 자리는 그대로 둔다 — 빼버리면 방마다 화면 높이가
          달라진다. 까닭은 위 한가운데가 말한다 */
       : <View style={[ch.iBar,{marginBottom:kb}]}>
@@ -1535,8 +1535,8 @@ const ch=StyleSheet.create({
   retryWhy:{...F,marginTop:5,maxWidth:250,fontSize:9.5,lineHeight:14,color:'#a04255',opacity:.85},
   iBar:{flexDirection:'row',alignItems:'center',gap:8,padding:10,backgroundColor:P.chrome,borderTopWidth:1,borderTopColor:P.mid},
   input:{...F,flex:1,paddingHorizontal:12,paddingVertical:10,fontSize:16,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,borderTopColor:P.border,borderLeftColor:P.border,color:P.ink},
-  wBar:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,paddingVertical:12,backgroundColor:P.chrome,borderTopWidth:1,borderTopColor:P.mid},
-  wT:{...F,fontSize:11,color:'#2f9e5a',letterSpacing:1},
+  wBar:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7,marginHorizontal:10,paddingTop:6,paddingBottom:5,backgroundColor:'transparent',borderTopWidth:1,borderTopColor:'rgba(174,148,205,.48)'},
+  wT:{...F,fontSize:10,color:'#806b9d',letterSpacing:.35},
   lb:{flex:1,backgroundColor:'rgba(43,36,78,.85)',justifyContent:'center',alignItems:'center',padding:22},
 });
 
@@ -1670,7 +1670,7 @@ function Root() {
   const [groupOn,setGroupOn]=useState(false);      // 단톡방은 민현이 나중에 판다
   const [groupNew,setGroupNew]=useState(false);
   const [getcha,setGetcha]=useState<string|null>(null);   // 메신저를 얻은 사람
-  /* 재언의 옛 일기 — 그의 방에 처음 들어가는 순간, 첫 마디 앞에 한 번.
+  /* 유저의 옛 일기 — 재언 방에 처음 들어가는 순간, 첫 마디 앞에 한 번.
      채운 값은 이 기기 안에만 산다(웹의 null_diary와 같은 열쇠). */
   const [diary,setDiary]=useState(false);
   const [ask,setAsk]=useState<string|null>(null);  // 지도에서 고른 자리
@@ -2563,7 +2563,7 @@ function Root() {
     if(!canGreet(id))return;
     /* 아직 만나지 않은 사람은 학교에 있을 때만 먼저 건다 */
     if(roomLock(msgsForFlow(),id))return;
-    /* ── 재언의 첫 마디는 옛 일기 뒤다 ──
+    /* ── 재언의 첫 마디는 유저의 옛 일기 뒤다 ──
        선톡은 두 길로 나간다 — 방을 열 때, 그리고 목록에 앉아 있을 때의 추첨.
        방 여는 쪽만 막으면 추첨이 먼저 걸려서, 유저가 그의 첫 마디를 읽은 뒤에
        일기가 뜬다. 순서가 뒤집힌다.
@@ -2649,7 +2649,7 @@ function Root() {
   const openRoom=(id:string)=>{ setView({type:'chat',id}); setFailed(null); setUnread(u=>({...u,[id]:0}));
     if(id==='health') return seedWatch();
     if(roomLock(msgsForFlow(),id)) return;
-    /* 재언 방은 옛 일기가 먼저다 — 선톡을 먼저 걸면 말이 도착한 방 위에 종이가
+    /* 재언 방은 유저의 옛 일기가 먼저다 — 선톡을 먼저 걸면 말이 도착한 방 위에 종이가
        덮여서, 첫 마디를 못 읽은 채로 일기를 읽게 된다 */
     if(id==='jaeeon'&&!loadDiary()) return setDiary(true);
     greet(id,700); };

@@ -286,7 +286,7 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
    이 창만 본문이 어둡다. 앱이 전부 파스텔이라 파스텔 알림으로 띄우면
    「저장됐습니다」와 같은 무게가 된다. 뒤에는 방금 그 자리가 그대로 있다.
    웹 app-ui.js의 GetCha와 같은 창이다 — 문구도 모양도 같아야 한다. */
-/* ══ 재언의 옛 일기 ══ 웹의 Diary와 같은 종이·같은 글월.
+/* ══ 유저의 옛 일기 ══ 웹의 Diary와 같은 종이·같은 글월.
    재언 방에 처음 들어가는 순간, 그의 첫 마디 앞에 한 번.
 
    이 앱의 다른 창은 전부 가짜 OS다. 여기만 종이다 — 20년 전 것이고 화면에서
@@ -316,7 +316,7 @@ export function DiaryPage({onDone}:{onDone:(v:string)=>void}) {
     </View>
     {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
     <Bevel style={[dy.btn, !t && dy.btnOff]} disabled={!t}
-      inner={{backgroundColor:'#ff9ec6'}} onPress={()=>{ if(t) onDone(t) }}>
+      inner={{backgroundColor:'#e7e4fb'}} onPress={()=>{ if(t) onDone(t) }}>
       <Text style={dy.btnT}>덮기 ♡</Text></Bevel>
   </View>;
 }
@@ -329,9 +329,10 @@ const dy = StyleSheet.create({
   blank:{...F, position:'absolute', margin:0, paddingHorizontal:4, paddingVertical:0,
     fontSize:13, lineHeight:15, textAlign:'center', color:'#fdf3e2',
     backgroundColor:'transparent', borderWidth:0},
-  btn:{alignSelf:'center', minWidth:104, height:38, paddingHorizontal:20, borderColor:'#ff8fbe'},
+  btn:{alignSelf:'center', minWidth:88, height:32, paddingHorizontal:15, borderRadius:6,
+    borderColor:'#b69fda', backgroundColor:'#d8eaff'},
   btnOff:{opacity:.45},
-  btnT:{...F, fontSize:11, letterSpacing:1.4, color:'#fff'},
+  btnT:{...F, fontSize:10, letterSpacing:.8, color:'#5e527b'},
 });
 
 /* ══ 모드 팝업 ══ 웹의 ModeAsk와 같은 글월·같은 자리.
@@ -511,7 +512,7 @@ export function PhotoWin({shot, onClose}:
         </View>
         {/* 알약은 사진에 붙는다. 창 안이라 떠 있을 자리가 없다 */}
         <View style={pv.foot}>
-          <Bevel style={pv.btn} inner={{backgroundColor:'#ff9ec6'}} onPress={onClose}>
+          <Bevel style={pv.btn} inner={{backgroundColor:'#e7e4fb'}} onPress={onClose}>
             <Text style={pv.btnT}>덮기 ♡</Text></Bevel>
         </View>
       </View>
@@ -530,8 +531,8 @@ const pv = StyleSheet.create({
   /* 유저가 채운 칸 — 종이 위 연필이라 창의 보랏빛이 아니다 */
   fill:{...F, position:'absolute', fontSize:11, lineHeight:14, color:'#5b4a3a', textAlign:'center'},
   foot:{flexDirection:'row', alignItems:'center', gap:7, padding:11},
-  btn:{flex:1, height:38, borderColor:'#ff8fbe'},
-  btnT:{...F, fontSize:11, letterSpacing:1.2, color:'#fff'},
+  btn:{flex:1, height:32, borderRadius:6, borderColor:'#b69fda', backgroundColor:'#d8eaff'},
+  btnT:{...F, fontSize:10, letterSpacing:.8, color:'#5e527b'},
 });
 
 /* ── ⑨ 키스타임 ──
