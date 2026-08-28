@@ -1689,7 +1689,8 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
        배경 위에 얹혀서 여기서 한 말처럼 보였다 — 선물 받은 반응이 교실에서
        나오고 첫 연락이 교실에서 나왔다. 자리는 방의 연장이 아니라 장면이다. */
     const tail=msgs.filter(m=>!m.sys&&(m.text||"").trim()&&m.ts>=(scene.since||0)).slice(-SCENE_LINES);
-    return <div className="screen scenewrap glasswindow" style={bg?{backgroundImage:`url("${bg}")`}:null}>
+    const workFocus=scene.shot==="jaeeon-work.webp"?" scene-work-focus":"";
+    return <div className={`screen scenewrap glasswindow${workFocus}`} style={bg?{backgroundImage:`url("${bg}")`}:null}>
       <WindowChrome title={scene.place} onClose={onMinimize}/>
       <div className="scenebody">
         <div className="scenelines">

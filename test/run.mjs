@@ -4334,7 +4334,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['198', '82be26d2e271']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['199', '4b2f69730921']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4358,7 +4358,10 @@ eq('배경 파일이 전부 저장소에 있다',
     .filter(f => !exists(f)), []);
 eq('자리에 가면 말풍선을 걷는다',
   /const bg=scene&&\(scene\.shot\|\|scene\.bg\|\|PLACE_BG\[scene\.place\]\)/.test(web)
-  && /className="screen scenewrap glasswindow"/.test(web), true);
+  && /className=\{`screen scenewrap glasswindow\$\{workFocus\}`\}/.test(web), true);
+eq('보건실 work 사진만 머리 위를 보존한다',
+  /const workFocus=scene\.shot==="jaeeon-work\.webp"\?" scene-work-focus":""/.test(web)
+  && /\.scenewrap\.glasswindow\.scene-work-focus\{background-position:center top !important\}/.test(web), true);
 /* 사진이 없는 자리(교실)도 열려야 한다 — 배경만 없고 자리는 자리다 */
 eq('배경이 없어도 자리는 열린다', /if\(scene\)\{/.test(web), true);
 /* 훅이 자리 분기보다 아래 있으면 자리에 들어가고 나올 때 훅 개수가 달라져 리액트가 터진다 */
@@ -4369,6 +4372,9 @@ eq('스크롤 훅이 자리 분기보다 위에 있다',
 eq('아래쪽에 어둠막을 깐다',
   /\.scenewrap::before\{content:"";position:absolute;left:0;right:0;bottom:0;height:58%/.test(web)
   && /\.scenewrap \.stext\{[^}]*text-shadow/.test(web), true);
+eq('맵 선택창 버튼만 오프닝의 짧은 사각 키를 쓴다',
+  /\.profileframe\.askwin \.whobtn,\.profileframe\.askwin \.dlgbtns \.bevel\{[^}]*border-radius:8px !important/.test(web)
+  && /\.profileframe\.askwin \.whobtn\.on,\.profileframe\.askwin \.dlgbtns \.bevel\.pink\{/.test(web), true);
 /* 들어간 순간엔 빈 방이고 그 사람이 입을 열면 그 사람이 화면이 된다.
    짝은 지어내지 않았다 — 사진 설명이 이미 어디인지 말하고 있다 */
 eq('첫 답에 배경이 그 사람으로 바뀐다',

@@ -4327,6 +4327,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  background:rgba(255,253,251,.73) !important;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
  box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(198,179,220,.42) !important}
 .scenewrap.glasswindow{background-size:cover !important;background-position:center !important;background-repeat:no-repeat !important}
+.scenewrap.glasswindow.scene-work-focus{background-position:center top !important}
 .scenewrap.glasswindow::before{content:"" !important;position:absolute;inset:43px 5px 5px !important;height:auto !important;
  z-index:0;border-radius:4px 4px 11px 11px;pointer-events:none;
  background:linear-gradient(180deg,rgba(20,13,32,0) 38%,rgba(20,13,32,.62) 100%) !important}
@@ -4615,6 +4616,14 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* 지도 선택창의 인물 버튼은 한 명만 가능한 시각에도 선택 단계가 보이게 한다. */
 .profileframe.askwin .askwho{margin-top:6px}
 .profileframe.askwin .whobtn{min-height:38px;border-radius:9px}
+.profileframe.askwin .whobtn,.profileframe.askwin .dlgbtns .bevel{
+ border:1px solid rgba(255,255,255,.96) !important;border-radius:8px !important;
+ color:#5e527b !important;text-shadow:none !important;
+ background:linear-gradient(135deg,#fff 0%,#eee7fb 58%,#deedff 100%) !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(167,145,202,.62),0 3px 0 rgba(130,107,173,.16) !important}
+.profileframe.askwin .whobtn.on,.profileframe.askwin .dlgbtns .bevel.pink{
+ color:#674f78 !important;background:linear-gradient(135deg,#ffd6e9 0%,#eadcff 54%,#d5eaff 100%) !important}
+.profileframe.askwin .dlgbtns .bevel{min-height:40px;padding:9px 8px !important}
 
 /* v193 — fixed-screen visual language for gift, you.txt, and chat */
 /* cwrap is a scrolling flex column. Its children used to shrink to the viewport,
