@@ -859,9 +859,17 @@ eq('프로필 수정창도 엔터로 넘어간다',
   (web.match(/open=\{focus===i\}/g) || []).length, 2);
 eq('프로필 수정창이 등록 화면과 같은 항목을 쓴다', (() => {
   const s = web.slice(web.indexOf('function ProfileDialog'), web.indexOf('/* ── 방 목록'));
-  return /<ProfileFrame title="프로필"/.test(s) && /ENR_FIELDS\.map/.test(s)
+  return /<ProfileFrame title="you\.txt"/.test(s) && /ENR_FIELDS\.map/.test(s)
     && /className="cssprofile youprofile"/.test(s);
 })(), true);
+{
+  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  eq('you.txt는 등록 화면 비율을 끊고 짧게 쓴다',
+    /\.youprofile>\.profileframe\.youframe>\.ebody\{[^}]*aspect-ratio:auto !important;[^}]*height:420px !important/.test(css), true);
+  eq('you.txt의 값과 조사는 작은 글자로 돌아가지 않는다',
+    /\.youprofile \.ename,\.youprofile \.eline>\.blank\{[^}]*font-size:14px !important/.test(css)
+    && /\.youprofile \.etail\{[^}]*font-size:12px/.test(css), true);
+}
 eq('빈칸이 밖에서 여는 것과 혼자 여는 것을 둘 다 한다',
   /const ctl=typeof open==="boolean"/.test(web), true);
 /* 이름 옆의 「edit」 딱지는 뗐다 — 커서가 이미 그 말을 한다 */
@@ -2762,7 +2770,9 @@ for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]])
    무엇을 고르는지는 누르면 뜨는 확정창이 말한다 — 그 창이 그러라고 있다.
    웹·앱 어느 쪽 등록 화면에도 그 줄이 없어야 한다. */
 eq('등록 화면은 모드 설명을 두 번 말하지 않는다',
-  [/className="emhint"/.test(web), /en\.modeH/.test(appSrc)], [true, false]);
+  [/className="emhint"/.test(web), /en\.modeH/.test(appSrc)], [false, false]);
+eq('웹 모드 설명은 확인 팝업에만 한 번 있다',
+  (web.match(/현실 하루 = NULL 하루! ♡/g) || []).length, 1);
 /* 고른 쪽은 Click! 단추와 같은 가족이다 — 눌리는 것으로 보여야 한다 */
 eq('고른 알약이 눌리는 모양이다',
   /\.emode b\.on\{[\s\S]{0,220}box-shadow:inset 0 1px 0 #fff,0 2px 0 #edbcd6\}/.test(web)
@@ -4324,7 +4334,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['197', '5c1717ae8fa0']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['198', '82be26d2e271']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */

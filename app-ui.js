@@ -501,9 +501,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
             {[["real","real"],["speed","speed"]].map(([k,t])=>
               <b key={k} className={mode===k?"on":""} onClick={()=>setAskMode(k)}>{t}</b>)}
           </span>
-          <span className="emhint">{mode==="speed"
-            ?<>하루가 4배로 Speed up! <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>
-            :<>현실 하루 = NULL 하루! ♡ <span className="kao">٩(❛ัᴗ❛ั ๑)</span></>}</span>
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
@@ -1206,7 +1203,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
      이 창만 닮은 칸을 따로 만들면 원본이 바뀔 때 다시 갈라진다. */
   return <div className="dlgov youoverlay" onClick={onClose}>
     <div className="cssprofile youprofile" onClick={e=>e.stopPropagation()}>
-    <ProfileFrame title="프로필" onClose={onClose} frameClass="youframe">
+    <ProfileFrame title="you.txt" onClose={onClose} frameClass="youframe">
     {renaming
       ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
         onChange={e=>setNv(e.target.value)} onBlur={doRename} onKeyDown={e=>e.key==="Enter"&&doRename()}/></div>

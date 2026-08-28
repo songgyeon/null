@@ -4782,16 +4782,29 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .dlgov.youoverlay{padding:10px !important}
 .youoverlay>.youprofile{
  position:relative !important;inset:auto !important;z-index:auto !important;display:block !important;
- width:min(350px,100%) !important;height:auto !important;margin:auto !important;padding:0 !important;
+ width:min(320px,100%) !important;height:auto !important;margin:auto !important;padding:0 !important;
  overflow:visible !important;background:none !important}
-.youprofile>.profileframe.youframe{width:100% !important;max-width:350px !important;margin:0 !important}
+.youprofile>.profileframe.youframe{width:100% !important;max-width:320px !important;margin:0 !important}
+.youprofile>.profileframe.youframe>.ewindowtitle{
+ font-size:17px !important;letter-spacing:.08em !important}
+.youprofile>.profileframe.youframe>.ebody{
+ aspect-ratio:auto !important;height:420px !important;min-height:420px !important}
+.youprofile .ename,.youprofile .eline>.blank{
+ height:36px !important;font-size:14px !important}
+.youprofile .ename{width:46% !important}
+.youprofile .e-subject>.blank{width:35% !important}
+.youprofile .e-age>.blank{width:20% !important}
+.youprofile .e-likes>.blank,.youprofile .e-dislikes>.blank{width:56% !important}
 .youprofile .etail{
- position:absolute !important;display:flex !important;align-items:center;height:5%;margin:0 !important;
- font-size:2.75cqw;line-height:1;color:#745f8d;white-space:nowrap}
+ position:absolute !important;display:flex !important;align-items:center;height:36px;margin:0 !important;
+ font-size:12px;line-height:1;color:#745f8d;white-space:nowrap}
 .youprofile .e-subject .etail{left:49.2%;top:19.41%}
 .youprofile .e-age .etail{left:31.3%;top:29.41%}
 .youprofile .e-likes .etail{left:74.9%;top:39.41%}
 .youprofile .e-dislikes .etail{left:74.9%;top:49.41%}
+.youprofile .yourename{
+ left:25% !important;top:70% !important;width:50% !important;height:44px !important;
+ font-size:14px !important}
 
 /* 상태와 엿보기는 알약 대신 타이틀바 키와 같은 짧은 사각 버튼이다. */
 .menubar .toolkey{
@@ -4898,6 +4911,6 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=196") !important}
 
 @media(max-width:500px){
- .youoverlay>.youprofile{width:min(350px,100%) !important}
+ .youoverlay>.youprofile{width:min(320px,100%) !important}
  .pvframe{width:min(370px,100%)}
 }
