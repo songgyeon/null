@@ -1043,10 +1043,10 @@ function Bag({bag,store,onClose}){
           {who&&<span className="bagwho" style={faceBg(who)}><i>♡</i></span>}
         </div>;
       }):<div className="cnone">{bag.length
-        ?<>이 칸은 비었어요 ✧{"\n"}다른 칸을 열어봐요 ♡</>
-        :<>아직 받은 선물이 없어요 ✧{"\n"}지도를 둘러봐요 ♡</>}</div>}
+        ?<>this drawer : empty ✧{"\n"}try another tab ♡</>
+        :<>bag : 0 items ✧{"\n"}go get one on the map ♡</>}</div>}
     </div>
-    <div className="cfoot">둘에게 받은 것들 ♡</div>
+    <div className="cfoot">FROM THEM ♡</div>
   </div></div>;
 }
 
@@ -1093,6 +1093,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
   const back=()=>{setPick(null);setTo(null);setMemo("")};
   const given=c=>(gifts[c]||[]).includes(pick&&pick.key);
   const poor=pick&&hearts<pick.cost;
+  const noteOk=!!memo.trim();
   const today=c=>giftedToday(c);   // 이 사람 오늘 몫은 이미 나갔다
   /* 물건은 손에서 손으로 간다. 문자로는 못 준다 —
      재언이 직접 말한 적이 있다. 「말로 주는 CD가 어딨어요.」 */
@@ -1104,7 +1105,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
 
     {!pick&&<React.Fragment>
       <div className="cbar">
-        <input className="csearch" value={q} placeholder="어떤 선물을 찾고 있어?"
+        <input className="csearch" value={q} placeholder="what r u looking 4 ?"
           onChange={e=>setQ(e.target.value)}/>
         <span className="ccoin">♡ {hearts}</span>
       </div>
@@ -1118,9 +1119,9 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
             <span className="ciname">{g.name}</span>
             <span className="cprice">♡ {g.cost}</span>
           </button>)
-         :<div className="cnone">찾는 선물이 없어요</div>}
+         :<div className="cnone">no result</div>}
       </div>
-      <div className="cfoot">눌러서 포장하기 ♡</div>
+      <div className="cfoot">TAP TO WRAP ♡</div>
     </React.Fragment>}
 
     {pick&&<div className="cwrap">
@@ -1132,14 +1133,14 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           <div className="cgprice">♡ {pick.cost}</div>
         </div>
       </div>
-      <div className="csect">누구에게 줄까?</div>
+      <div className="csect">WHO GETS THIS</div>
       {/* 한 사람에게 하루에 하나. 눌렀는데 아무 일도 안 일어나는 것보다 왜
           안 되는지 적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
       {!withChar
         ?<div className="cshut">선물은 What? 주인공은 Who? 장소는 Where?<br/>
           만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
-        :(today("jaeeon")||today("minhyun"))&&<div className="cshut">한 사람에게 하루 한 번만 ♡</div>}
+        :(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
       {["jaeeon","minhyun"].map(c=>{
         /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
            지금 자리를 말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
@@ -1148,7 +1149,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           <button className={"cto"+(sel?" sel":"")} disabled={shut}
             onClick={()=>{ if(shut)return;
               if(!sel){setTo(c);return}
-              if(poor)return;
+              if(poor||!noteOk)return;
               /* 이미 마주 앉아 있으면 바로 준다. 아니면 아래에서 자리를 고른다 */
               if(!here(c))return;
               onSend(c,pick,giftNote(memo)); onClose(); }}>
@@ -1156,8 +1157,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
             <span className={shut?"csent":"csend"}>
-              {done?"보냈어요 ♡":today(c)?"내일 다시 ♡":(withChar&&!here(c))?"지금은 못 줘요"
-                :(sel?(poor?`♡ ${pick.cost-hearts} 더 필요해요`:(here(c)?"선물하기 ♡":"장소 고르기 ♡")):"포장하기 ♡")}</span>
+              {done?"SENT ♡":today(c)?"TOMORROW ♡":(withChar&&!here(c))?"NOT HERE"
+                :(sel?(poor?`NEED ♡${pick.cost-hearts}`:!noteOk?"WRITE NOTE":(here(c)?"SEND ♡":"WHERE ♡")):"WRAP ♡")}</span>
           </button>
           {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
@@ -1170,8 +1171,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
         <div className="cwhere">
           {giftSpots(to,met).map(g=>
             <button key={g.place} className={"cspot bevel"+(g.ok?"":" off")}
-              disabled={!g.ok||poor}
-              onClick={()=>{ if(!g.ok||poor)return; onSendAt(to,pick,giftNote(memo),g.place); onClose(); }}>
+              disabled={!g.ok||poor||!noteOk}
+              onClick={()=>{ if(!g.ok||poor||!noteOk)return; onSendAt(to,pick,giftNote(memo),g.place); onClose(); }}>
               <span className="csname">{g.place}</span>
               <span className="cswhy">{g.ok?"♡":g.why}</span>
             </button>)}
@@ -1180,15 +1181,14 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       {/* ⑧ 쪽지는 빈 종이가 아니라 틀이다. 채우는 건 「받고 어떻게 되면
           좋겠는가」 한 자리뿐 — 반응 방향이 정해지면 인물이 안 보이는
           세부를 지어낼 자리가 없어진다. 나머지 글자는 안 지워진다 */}
-      <div className="csect">쪽지 (선택)</div>
       <div className="cnote">
         <span className="cnt">{GIFT_NOTE_A.trim()}</span>
-        <input className="cwish" value={memo} maxLength={GIFT_WISH_MAX}
-          placeholder="" aria-label="바라는 것"
+        <input className="cwish" value={memo} maxLength={GIFT_WISH_MAX} required
+          placeholder="" aria-label="note"
           onChange={e=>setMemo(e.target.value)}/>
         <span className="cnt">{GIFT_NOTE_B}</span>
       </div>
-      <button className="cback" onClick={back}>돌아가기</button>
+      <button className="cback" onClick={back}>BACK...</button>
     </div>}
   </div></div>;
 }
@@ -1690,13 +1690,8 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
        배경 위에 얹혀서 여기서 한 말처럼 보였다 — 선물 받은 반응이 교실에서
        나오고 첫 연락이 교실에서 나왔다. 자리는 방의 연장이 아니라 장면이다. */
     const tail=msgs.filter(m=>!m.sys&&(m.text||"").trim()&&m.ts>=(scene.since||0)).slice(-SCENE_LINES);
-    return <div className="screen scenewrap" style={bg?{backgroundImage:`url("${bg}")`}:null}>
-      <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
-        {/* X는 나가기가 아니라 접기다. 자리는 그대로 두고 메신저로 돌아간다 —
-            교실에 앉아서 삼촌한테 카톡하는 건 되는 일이다.
-            자리를 뜨는 건 뒤로가기 쪽이고, 그쪽은 한 번 묻는다 */}
-        {scene.place}<WinDots onClose={onMinimize}/>
-      </div>
+    return <div className="screen scenewrap glasswindow" style={bg?{backgroundImage:`url("${bg}")`}:null}>
+      <WindowChrome title={scene.place} onClose={onMinimize}/>
       <div className="scenebody">
         <div className="scenelines">
           {tail.map((m,i)=>{
@@ -1734,11 +1729,8 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
   }
   const send=()=>{const t=v.trim();if(!t||busy)return;setV("");onSend(t)};
   const senderMeta=s=>s==="user"?null:(CHARS[s]||{name:s,color:"#9aa3d8",pale:"#e2e6f5",dk:"#6b5fa8"});
-  return <div className={"screen chatwrap"+(watch?" watchbg":"")}>
-    <div className="tb" style={{background:watch?"linear-gradient(90deg,#aab3d6,#c9c0ee)":`linear-gradient(90deg, ${rgba(room.color,.95)}, #c3b2f0)`}}>
-      {/* 창의 X는 창을 닫는다. 그림만 그려놓고 안 눌리면 창이 아니라 그림이다 */}
-      {room.name}{watch?".cam":".chat"}<WinDots onClose={onBack}/>
-    </div>
+  return <div className={"screen chatwrap glasswindow"+(watch?" watchbg":"")}>
+    <WindowChrome title={room.name+(watch?".cam":".chat")} onClose={onBack}/>
     <div className="chatbar">
       <button className="backbtn bevel" onClick={onBack}><BackIcon/></button>
       <Avatar room={room} size={31} onProfile={onProfile}/>
@@ -1812,6 +1804,9 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
          여기는 자리를 그대로 두고 못 쓰게만 한다. 입력창을 빼버리면
          방을 열 때마다 화면이 흔들린다. */
       :<div className={"inputbar"+(locked?" locked":"")}>
+        <button className="giftbtn rbtn" disabled={!!locked} onClick={onCart} title="give something">
+          <img className="ico" src={av("ui/icon-gift.png")} alt=""/>
+        </button>
         <input className="sunken" value={locked?"":v} disabled={!!locked}
           onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
         <button className="sendbtn rbtn" disabled={!!locked||!v.trim()||busy} onClick={send} style={{background:sendBg(room)}}><SendIcon/></button>
