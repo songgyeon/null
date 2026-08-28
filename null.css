@@ -4009,7 +4009,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .cartwin.glasswindow{left:12px;right:12px;top:18px;bottom:18px}
 
 /* 메신저 기본 배경 + 그 위의 연보라 유리판 */
-.desk,.cartscreen{background:#faf8ff url("ui/bg-chat.jpg?v=185") center/cover no-repeat}
+.desk,.cartscreen{background:#faf8ff url("ui/bg-chat.jpg?v=186") center/cover no-repeat}
 .desk::before,.cartscreen::before{content:"";position:absolute;inset:0;pointer-events:none;
  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(232,218,255,.14))}
 .roomswrap{margin:7px 9px 0;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;
@@ -4064,7 +4064,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .cto.sel .cradio{border-color:#a98bc8;box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 8px #b69bd4}
 .cwish{color:#6e5a83}.cwish::placeholder{color:#b9a9cb}
 /* etc.의 CD는 오프닝과 같은 투명 CD, 단추는 핑크 대신 푸른 오팔 */
-.etccd{width:76px;height:76px;border:0;background:url("ui/opal-cd.webp?v=185") center/contain no-repeat;
+.etccd{width:76px;height:76px;border:0;background:url("ui/opal-cd.webp?v=186") center/contain no-repeat;
  box-shadow:none;animation:spin 6s linear infinite}.etccd::after{content:none}
 .etctag{color:#6c5a84;border-radius:12px;background:linear-gradient(135deg,#e4f2ff,#eadffc)}
 .etcdel,.wbtn.kill{color:#655078;text-shadow:none;border-color:#fff;
@@ -4073,7 +4073,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* ══ 184 · 메신저 레퍼런스 정리 ══
    배경·CD·사진은 이미지, 창틀·탭·유리판·카드는 CSS가 맡는다. */
 .screen.desk{
- background:#fff url("ui/bg-chat.png?v=185") center/cover no-repeat !important;
+ background:#fff url("ui/bg-chat.png?v=186") center/cover no-repeat !important;
  padding:5px !important;
 }
 .screen.desk::before{background:rgba(239,230,255,.08)}
@@ -4161,3 +4161,48 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .cssprofile .profileedit .e-age .blank::after{content:"";position:absolute;right:13px;top:50%;
  width:17px;height:17px;border-radius:50%;transform:translateY(-50%);
  background:#fff;box-shadow:5px -2px 0 0 #d6e8fc}
+
+/* ══ 186 · 인물 프로필도 오프닝 창 부품으로 통일 ══ */
+.pfdim{padding:18px;background:linear-gradient(180deg,rgba(30,20,58,.26),rgba(63,43,98,.42));
+ -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.pfcard.glasswindow{container-type:inline-size;width:min(340px,calc(100vw - 28px));max-width:340px;
+ padding:5px;overflow:hidden;border:0;border-radius:19px;
+ background:linear-gradient(148deg,rgba(248,237,252,.94),rgba(232,218,247,.91) 48%,rgba(220,229,255,.9));
+ box-shadow:0 0 0 1px rgba(255,255,255,.9),inset 0 1px 0 #fff,
+  inset 0 -4px 7px rgba(132,102,180,.14),0 18px 38px rgba(20,14,44,.4)}
+.pfcard.glasswindow>.etb{height:38px;border-radius:12px 12px 3px 3px}
+.pfcard.glasswindow>.ewindowtitle{top:5px;height:38px;left:42px;font-size:13px;letter-spacing:.08em}
+.pfcard.glasswindow>.etb::before{left:20px;width:12px;height:12px;margin-top:-6px}
+.pfcard.glasswindow>.etb .dots{gap:6px}
+.pfcard.glasswindow>.etb .dots>span{width:20px;height:20px;min-width:20px;min-height:20px}
+
+.pfcard .pftop{position:relative;margin-top:5px;padding:21px 18px 0;border-radius:4px 4px 13px 13px;
+ background:linear-gradient(180deg,rgba(255,255,255,.79),rgba(251,247,255,.6));
+ box-shadow:inset 0 1px 0 #fff,inset 0 0 0 1px rgba(215,200,234,.72)}
+.pfcard .pftop::before,.pfcard .pftop::after{content:"";position:absolute;width:16px;height:16px;opacity:.55}
+.pfcard .pftop::before{left:11px;top:11px;border-left:1px solid #c9b5dd;border-top:1px solid #c9b5dd}
+.pfcard .pftop::after{right:11px;bottom:9px;border-right:1px solid #c9b5dd;border-bottom:1px solid #c9b5dd}
+.pfcard .pfpola{padding:7px 7px 6px;border-radius:13px;background:rgba(255,255,255,.78);
+ box-shadow:0 0 0 1px #d8c7e9,0 0 0 4px rgba(255,255,255,.58),0 7px 16px rgba(119,89,165,.13)}
+.pfcard .pfpola .shot{width:132px;height:132px;border-radius:9px}
+.pfcard .pfpola .tape{height:12px;opacity:.65;filter:saturate(.72)}
+.pfcard .pfnamerow{margin-top:16px;padding:6px 16px;border-radius:999px;
+ background:rgba(255,255,255,.5);box-shadow:inset 0 1px 0 #fff}
+.pfcard .pfnamerow .nm{font-size:15px}
+.pfcard .pfbubble{margin:10px 0 16px}
+.pfcard .pfbubble .b{background:rgba(255,255,255,.73);border-radius:13px;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px #ddceec,0 5px 12px rgba(112,84,158,.09)}
+.pfcard .pfbubble .tail{background:rgba(255,255,255,.78)}
+
+.pfcard .pfbgm{margin-top:12px;border-radius:13px;background:rgba(255,255,255,.67);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px #d5c5e8,0 4px 10px rgba(117,90,161,.09)}
+.pfcard .pfbgm .np{color:#695482;background:linear-gradient(135deg,#d9edff,#ead8fb)}
+.pfcard .pfstats{gap:9px}
+.pfcard .pfstats .s{border:1.5px solid rgba(255,255,255,.9);border-radius:11px;
+ background:linear-gradient(145deg,rgba(255,255,255,.73),rgba(233,225,250,.56));
+ box-shadow:0 0 0 1px rgba(205,187,226,.55),inset 0 1px 0 #fff}
+.pfcard .pfstickers{margin-top:13px;opacity:.8}
+.pfcard .pfclose{margin-top:12px;border-radius:13px;color:#66517d;text-shadow:none;
+ background:linear-gradient(135deg,#d8efff,#ead9fb 52%,#f5d9eb);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px #c6b0dd,0 3px 0 rgba(166,139,199,.26)}
+@media(max-width:500px){.pfcard.glasswindow{width:min(340px,calc(100vw - 20px))}}

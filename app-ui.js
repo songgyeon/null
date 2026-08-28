@@ -275,10 +275,8 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
   return <div className="pfscreen" style={{backgroundImage:`url("${bg}")`}}>
     <div className="pfdim" onClick={e=>{if(e.target===e.currentTarget)setFull(true)}}>
       <Sparkles/>
-      <div className="pfcard">
-        <div className="tb" style={{background:`linear-gradient(90deg, ${rgba(ch.color,.95)}, #ffb0d4)`}}>
-          {char}.hompy<WinDots onClose={onBack}/>
-        </div>
+      <div className="pfcard glasswindow">
+        <WindowChrome title={`${char}.hompy`} onClose={onBack}/>
         <div className="pftop">
           <div className="pfpola">
             <span className="tape t1"/><span className="tape t2"/>
