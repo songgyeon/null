@@ -408,7 +408,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=182";
+const AV="?v=183";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1437,7 +1437,7 @@ const giftSpots=(char,met,now)=>SPOTS.filter(p=>placeOpen(p,met)).map(p=>{
   const canMeet=p.meet==="out" ? outAt(p,now).includes(char)
               : p.pick ? true
               : (p.who||[]).includes(char);
-  const why=!canMeet ? (p.meet==="out"?"지금은 아무도 없어요":"여기엔 안 와요")
+  const why=!canMeet ? (p.meet==="out"?"지금은 자리를 비웠어요":"이 장소에서는 만날 수 없어요")
     : goneToday(p.name,now) ? "오늘은 벌써 다녀왔어요"
     : !wendOnlyOk(p,now)    ? "주말에만"
     : !placeHours(p,now)    ? placeWhen(p,now)

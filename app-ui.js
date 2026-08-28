@@ -429,10 +429,15 @@ const ENR_FIELDS=[
   {k:"dislikes", lab:"HATES",   tail:"를 싫어한다"},
 ];
 /* 등록 화면의 창틀. 다른 창이 이 모양을 흉내 내지 않고 이 부품을 그대로 쓴다. */
-function ProfileFrame({title="NULL.exe",onClose,children,compact=false,frameClass="",bodyClass=""}){
-  return <div className={`ecard profileframe${compact?" compact":""}${frameClass?" "+frameClass:""}`}>
+function WindowChrome({title="NULL.exe",onClose}){
+  return <React.Fragment>
     <div className="etb"><WinDots onClose={onClose}/></div>
     <div className="ewindowtitle">{title}</div>
+  </React.Fragment>;
+}
+function ProfileFrame({title="NULL.exe",onClose,children,compact=false,frameClass="",bodyClass=""}){
+  return <div className={`ecard profileframe glasswindow${compact?" compact":""}${frameClass?" "+frameClass:""}`}>
+    <WindowChrome title={title} onClose={onClose}/>
     <div className={`ebody${bodyClass?" "+bodyClass:""}`}>{children}</div>
   </div>;
 }
@@ -1013,8 +1018,8 @@ function Bag({bag,store,onClose}){
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
   const lent=bag.filter(b=>ITEMS[b.key]&&ITEMS[b.key].lent).length;
-  return <div className="cartscreen"><div className="cartwin">
-    <div className="tb">✿ bag<WinDots onClose={onClose}/></div>
+  return <div className="cartscreen"><div className="cartwin glasswindow">
+    <WindowChrome title="bag" onClose={onClose}/>
     <div className="cbar">
       <span className="bagcount">RECEIVED {bag.length} / {Object.keys(ITEMS).length}</span>
       {lent>0&&<span className="baglent">TO RETURN {lent}</span>}
@@ -1040,10 +1045,10 @@ function Bag({bag,store,onClose}){
           {who&&<span className="bagwho" style={faceBg(who)}><i>♡</i></span>}
         </div>;
       }):<div className="cnone">{bag.length
-        ?<>this drawer : empty ✧{"\n"}try another tab ♡</>
-        :<>bag : 0 items ✧{"\n"}go get one on the map ♡</>}</div>}
+        ?<>이 칸은 비었어요 ✧{"\n"}다른 칸을 열어봐요 ♡</>
+        :<>아직 받은 선물이 없어요 ✧{"\n"}지도를 둘러봐요 ♡</>}</div>}
     </div>
-    <div className="cfoot">FROM THEM ♡</div>
+    <div className="cfoot">둘에게 받은 것들 ♡</div>
   </div></div>;
 }
 
@@ -1096,12 +1101,12 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
   const here=c=>withChar===c;
 
   return <div className="cartscreen">
-    <div className="cartwin">
-    <div className="tb">✿ gift{pick?" / wrap":""}<WinDots onClose={onClose}/></div>
+    <div className="cartwin glasswindow">
+    <WindowChrome title={`gift${pick?" / wrap":""}`} onClose={onClose}/>
 
     {!pick&&<React.Fragment>
       <div className="cbar">
-        <input className="csearch" value={q} placeholder="what r u looking 4 ?"
+        <input className="csearch" value={q} placeholder="어떤 선물을 찾고 있어?"
           onChange={e=>setQ(e.target.value)}/>
         <span className="ccoin">♡ {hearts}</span>
       </div>
@@ -1115,9 +1120,9 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
             <span className="ciname">{g.name}</span>
             <span className="cprice">♡ {g.cost}</span>
           </button>)
-         :<div className="cnone">no result</div>}
+         :<div className="cnone">찾는 선물이 없어요</div>}
       </div>
-      <div className="cfoot">TAP TO WRAP ♡</div>
+      <div className="cfoot">눌러서 포장하기 ♡</div>
     </React.Fragment>}
 
     {pick&&<div className="cwrap">
@@ -1129,14 +1134,14 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
           <div className="cgprice">♡ {pick.cost}</div>
         </div>
       </div>
-      <div className="csect">WHO GETS THIS</div>
+      <div className="csect">누구에게 줄까?</div>
       {/* 한 사람에게 하루에 하나. 눌렀는데 아무 일도 안 일어나는 것보다 왜
           안 되는지 적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
       {!withChar
         ?<div className="cshut">선물은 What? 주인공은 Who? 장소는 Where?<br/>
           만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
-        :(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
+        :(today("jaeeon")||today("minhyun"))&&<div className="cshut">한 사람에게 하루 한 번만 ♡</div>}
       {["jaeeon","minhyun"].map(c=>{
         /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
            지금 자리를 말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
@@ -1153,8 +1158,8 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
             <span className={shut?"csent":"csend"}>
-              {done?"SENT ♡":today(c)?"TOMORROW ♡":(withChar&&!here(c))?"NOT HERE"
-                :(sel?(poor?`NEED ♡${pick.cost-hearts}`:(here(c)?"SEND ♡":"WHERE ♡")):"WRAP ♡")}</span>
+              {done?"보냈어요 ♡":today(c)?"내일 다시 ♡":(withChar&&!here(c))?"지금은 못 줘요"
+                :(sel?(poor?`♡ ${pick.cost-hearts} 더 필요해요`:(here(c)?"선물하기 ♡":"장소 고르기 ♡")):"포장하기 ♡")}</span>
           </button>
           {sel&&!shut&&<div className="chint">{GIFT_HINT[c]}</div>}
         </div>;
@@ -1177,15 +1182,15 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       {/* ⑧ 쪽지는 빈 종이가 아니라 틀이다. 채우는 건 「받고 어떻게 되면
           좋겠는가」 한 자리뿐 — 반응 방향이 정해지면 인물이 안 보이는
           세부를 지어낼 자리가 없어진다. 나머지 글자는 안 지워진다 */}
-      <div className="csect">A NOTE (optional)</div>
+      <div className="csect">쪽지 (선택)</div>
       <div className="cnote">
         <span className="cnt">{GIFT_NOTE_A.trim()}</span>
         <input className="cwish" value={memo} maxLength={GIFT_WISH_MAX}
-          placeholder="ㅁㅁㅁㅁ" aria-label="바라는 것"
+          placeholder="바라는 것" aria-label="바라는 것"
           onChange={e=>setMemo(e.target.value)}/>
         <span className="cnt">{GIFT_NOTE_B}</span>
       </div>
-      <button className="cback" onClick={back}>BACK...</button>
+      <button className="cback" onClick={back}>돌아가기</button>
     </div>}
   </div></div>;
 }
@@ -1217,7 +1222,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
             onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/>}
         <span className="etail">{f.tail}</span>
       </div>)}
-    <button className="ego profiledone" onClick={onClose}>ok ♡</button>
+    <button className="ego profiledone" onClick={()=>{setNv(name);setRenaming(true)}}>이름 변경</button>
   </Dialog>;
 }
 
@@ -1279,9 +1284,9 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   },[menu]);
   const mb=(id,label,onClick)=><span className={"mbtn"+(menu===id?" open":"")}
     onClick={e=>{e.stopPropagation();onClick?onClick():setMenu(menu===id?null:id)}}>{label}</span>;
-  return <div className="screen desk">
+  return <div className="screen desk glasswindow">
     <Sparkles/>
-    <div className="tb"><StarGlyph/>NULL messenger<WinDots/></div>
+    <WindowChrome title="NULL messenger"/>
     <div className="menubar">
       {mb("you","you",()=>{setMenu(null);setDlg("profile")})}
       <span className="ddwrap">
