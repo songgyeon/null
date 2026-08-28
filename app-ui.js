@@ -428,6 +428,15 @@ const ENR_FIELDS=[
   {k:"likes",    lab:"LIKES",   tail:"를 좋아하고"},
   {k:"dislikes", lab:"HATES",   tail:"를 싫어한다"},
 ];
+/* 등록 화면의 창틀. 다른 창이 이 모양을 흉내 내지 않고 이 부품을 그대로 쓴다. */
+function ProfileFrame({title="NULL.exe",onClose,children,compact=false,frameClass="",bodyClass=""}){
+  return <div className={`ecard profileframe${compact?" compact":""}${frameClass?" "+frameClass:""}`}>
+    <div className="etb"><WinDots onClose={onClose}/></div>
+    <div className="ewindowtitle">{title}</div>
+    <div className={`ebody${bodyClass?" "+bodyClass:""}`}>{children}</div>
+  </div>;
+}
+
 function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   const [out,setOut]=useState(false);
   /* 진행 막대를 그림 다섯 장으로 갈아끼우던 때는 첫 요청에 한 칸이 비어
@@ -454,7 +463,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
     +ENR_FIELDS.filter(f=>f.k==="age"||(profile[f.k]||"").trim()).length;
   const leave=()=>{if(out)return;setOut(true);setTimeout(onDone,440)};
   return <div className={"enr cssprofile"+(out?" out":"")}>
-    <div className="ecard">
+    <ProfileFrame title="NULL.exe" onClose={onClose}>
       {/* ── 같은 말을 두 번 하지 않는다 ──
           이 문장은 원래 여기 흐르고 있었다. 지금은 바로 앞 화면(Intro)이
           전체 화면으로 그 말을 하고, 유저는 그걸 읽고 단추를 눌러 여기로
@@ -463,9 +472,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
           자리를 새 문구로 채우지 않는다. 다른 창과 같은 이름을 쓴다. */}
       {/* 제목은 띠 안의 글자가 아니라 띠 위에 얹은 한 줄이다. 띠는 유리라
           안쪽에 빛막이 흐르는데, 글자를 그 안에 두면 막에 먹힌다 */}
-      <div className="etb"><WinDots onClose={onClose}/></div>
-      <div className="ewindowtitle">NULL.exe</div>
-      <div className="ebody">
         <div className="eprofiletitle">✧ NULL PROFILE ✧</div>
         <span className="enamelab">NAME</span>
         {edit
@@ -502,8 +508,7 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
         {/* 별 둘이 짝이다. 왼쪽 큰 별은 단추가 그리고, 오른쪽 작은 별만
             자리를 따로 잡아야 해서 요소로 둔다 */}
         <button className="ego" onClick={leave}>Click!<i className="egostar"/></button>
-      </div>
-    </div>
+    </ProfileFrame>
     {askMode&&<ModeAsk which={askMode}
       onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
   </div>;
@@ -566,11 +571,13 @@ function WhoBlank({onPick}){
 }
 
 /* 레트로 다이얼로그 셸 */
-function Dialog({title,onClose,children,cls,win}){
-  return <div className="dlgov" onClick={onClose}>
-    <div className={"dlg"+(win?" "+win:"")} onClick={e=>e.stopPropagation()}>
-      <div className="tb">{title}<div className="dots" onClick={onClose} style={{cursor:"pointer"}}><span className="d3"><i/></span></div></div>
-      <div className={"dlgbody"+(cls?" "+cls:"")}>{cls==="etc"&&<div className="rain"/>}{children}</div>
+function Dialog({title,onClose,children,cls,win,compact=true,raw=false}){
+  return <div className={"dlgov"+(!compact?" cssprofile":"")} onClick={onClose}>
+    <div className="dialogmount" onClick={e=>e.stopPropagation()}>
+      <ProfileFrame title={title} onClose={onClose} compact={compact} frameClass={win||""}
+        bodyClass={(raw?"":"dlgbody")+(cls?" "+cls:"")}>
+        {cls==="etc"&&<div className="rain"/>}{children}
+      </ProfileFrame>
     </div>
   </div>;
 }
@@ -1193,19 +1200,24 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
   /* 등록 화면과 같은 칸을 같은 순서로 채운다. 거기서 엔터로 넘어가는데
      여기서는 안 넘어가면 그게 더 이상하다 — 항목도 ENR_FIELDS 하나만 본다. */
   const [focus,setFocus]=useState(-1);
-  return <Dialog title="you.txt" onClose={onClose}>
+  return <Dialog title="you.txt" onClose={onClose} compact={false} raw win="profileedit">
+    <div className="eprofiletitle">✧ NULL PROFILE ✧</div>
+    <span className="enamelab">NAME</span>
     {renaming
-      ?<input className="blankin sunken" style={{width:"100%",fontSize:14,padding:"8px"}} value={nv} autoFocus maxLength={12}
-        onChange={e=>setNv(e.target.value)} onBlur={doRename} onKeyDown={e=>e.key==="Enter"&&doRename()}/>
-      :<div style={{fontSize:16,color:"#8a4f74",letterSpacing:".08em"}}>{name}</div>}
+      ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
+        onChange={e=>setNv(e.target.value)} onBlur={doRename} onKeyDown={e=>e.key==="Enter"&&doRename()}/></div>
+      :<div className="ename" onClick={()=>{setNv(name);setRenaming(true)}}>{name}</div>}
     {ENR_FIELDS.map((f,i)=>
-      <div className="dlgline" key={f.k}>
-        <Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
-          open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
-          onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/> {f.tail}</div>)}
-    <div className="dlgbtns">
-      <button className="bevel" onClick={()=>{setNv(name);setRenaming(true)}}>이름 변경</button>
-    </div>
+      <div className={`eline e-${f.k}`} key={f.k}>
+        <span className="lab">{f.lab}</span>
+        {f.k==="age"
+          ?<span className="blank filled" title="세계의 고정값">25</span>
+          :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
+            open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
+            onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/>}
+        <span className="etail">{f.tail}</span>
+      </div>)}
+    <button className="ego profiledone" onClick={onClose}>ok ♡</button>
   </Dialog>;
 }
 
