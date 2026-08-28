@@ -93,7 +93,7 @@ export function askState(place, {scene, met, picked} = {}): AskState {
   const no = !klass && !mv && !!(away || locked || shut || wk || done || empty);
   /* 무엇을 먼저 가야 하는지는 안 적는다. 순서를 알려주면 지도를 도는 게
      심부름이 되고, 「옥상 먼저」 같은 줄이 창마다 붙어 지저분하다 */
-  const done_ = 'DONE 4 TODAY ♡';
+  const done_ = `오늘치 ${jos(place, '은/는')} Complete...`;
   /* 얼굴은 픽셀 글꼴에 글자가 없어서 창이 따로 그린다 — 웹의 .kao와 같은 몫.
      이유와 얼굴은 한 갈래로 고른다. 따로 고르던 때는 갈래가 어긋났다 —
      잠겼고 오늘 다녀온 자리에서 이유는 빈 줄인데 우는 얼굴만 남아서,

@@ -732,7 +732,7 @@ function PhotoWin({shot,onClose,onNext}){
   const fill=(back&&flip?(shot.backFill||[]):(one?[]:(shot.fill||[])))||[];
   return <div className="pvwin" onClick={onClose}>
     <div className="pvframe" onClick={e=>e.stopPropagation()}>
-    <ProfileFrame title="사진 보기" onClose={onClose} frameClass="pvdlg" bodyClass="pvframebody">
+    <ProfileFrame title="photo" onClose={onClose} frameClass="pvdlg" bodyClass="pvframebody">
       <div className={"pvbody"+(flip?" flip":"")}
         onClick={flip?()=>setBack(b=>!b):null}>
         {/* 빈칸은 사진 상자가 아니라 **사진**에 앉아야 한다. 사진은 창 폭을
@@ -756,7 +756,7 @@ function PhotoWin({shot,onClose,onNext}){
           <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 17c0-5 4-8 9-8M11 4l4 5-4 5" stroke="currentColor" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg></button>}
-        <button className="pvclose" onClick={onClose}>닫기 ♡</button>
+        <button className="pvclose" onClick={onClose}>덮기 ♡</button>
       </div>
     </ProfileFrame>
     </div>
@@ -958,14 +958,14 @@ function Timetable({wend,onFillWend,onClose}){
       ...slots.map((s,n)=>({k:s.k,n,now:n===i,past:n<i}))];
   return <Dialog title="null.exe" onClose={onClose} win="ttwin">
         <div className="ttpanel">
-          <div className="tttag">오늘의 시간표 ♡</div>
+          <div className="tttag">TIMETABLE ♡</div>
           {rows.map(r=>r.blank
             ?<div key={r.n} className="ttrow mine">
                <span className="n"><Blank value={r.k} width={54} onSave={v=>onFillWend(key,r.n,v)}/></span>
                <span className="ln"/><span className="mk">{r.k?"♡":""}</span>
              </div>
             :<div key={r.n} className={"ttrow"+(r.now?" now":r.past?" past":" next")}>
-               <span className="n">{r.k==="ON"?"시작":r.k==="OFF"?"끝":r.k}</span><span className="ln"/>
+               <span className="n">{r.k}</span><span className="ln"/>
                <span className="mk">{r.past?"♡":r.now?<><span className="kao">(՞៸៸›⩊‹៸៸՞)</span>🩷</>:""}</span>
              </div>)}
         </div>
@@ -1000,7 +1000,7 @@ function Timetable({wend,onFillWend,onClose}){
              {wk?<>NULL 위한 하루가 되기를! <span className="kao">(ᗒ⩊ᗕ)⸝ި ʕᦏ⌎</span></>:foot}
            </div>; })()}
         <div className="dlgbtns ttbuttons">
-          <button className="ttclose" onClick={onClose}>확인 ♡</button>
+          <button className="ttclose" onClick={onClose}>ok ♡</button>
         </div>
   </Dialog>;
 }
@@ -1123,7 +1123,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
     </React.Fragment>}
 
     {pick&&<div className="cwrap">
-      <button className="cback" onClick={back}>‹ 뒤로</button>
+      <button className="cback" onClick={back}>◁ BACK</button>
       <div className="cgcard">
         <span className="cgthumb"><img src={av(`gicon-${pick.key}.webp`)} alt=""/></span>
         <div>
@@ -1317,26 +1317,26 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       <span className="mbtn ico" title="what they gave u"
         onClick={()=>{setMenu(null);setDlg("bag")}}><img className="navpixel" src={av("ui/icon-bag.png")} alt=""/>bag</span>
       {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
-      <button className="toolkey nowbtn" title="시간표"
-        onClick={()=>setDlg("timetable")}><span>{({OFF:"일과 끝",NULL:"빈 시간"})[nowLabel()]||nowLabel()}</span></button>
+      <button className="toolkey nowbtn" title="timetable"
+        onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>
       <button className={"toolkey peekbtn"+(left>0&&!autoLoading?" cool":"")}
-        title={autoLoading?"살펴보는 중":left>0?"잠시 뒤 다시":"두 사람 엿보기"}
+        title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;
-          if(left>0){onToast("잠시 뒤 · "+mmss(left));return}
+          if(left>0){onToast("too soon · "+mmss(left));return}
           const t=Date.now(); setAutoAt(t); saveAutoAt(t); onAuto(); }}>
         {autoLoading&&<span className="fill" style={{width:"100%"}}/>}
         {/* 달은 「peek」일 때만 뜬다. 360 폭에서 이 줄은 이미 빠듯해서,
             글자가 길어지는 두 상태(남은 시간·흐르는 중)에는 달이 쓰던
             자리를 글자가 쓴다. 안 그러면 단추가 창 밖으로 밀린다 */}
         {!autoLoading&&left<=0&&<MoonIcon/>}
-        <span>{autoLoading?"확인 중":left>0?mmss(left):"엿보기"}</span>
+        <span>{autoLoading?"···":left>0?mmss(left):"peek"}</span>
       </button>
     </div>
     {/* 「time passing...」은 단추에 안 들어간다 — 들어가면 줄이 넘친다.
         전광판이 원래 상태를 흘려보내는 자리라 그 말을 여기서 한다 */}
     <div className="marquee"><span>
       {autoLoading
-        ?<>✧ 시간이 흐르는 중... &nbsp; ♡ &nbsp; 두 사람을 살펴보는 중... <span className="kao">|ૂ•ᴗ•⸝⸝)”♥</span> &nbsp; ✧</>
+        ?<>✧ time passing... &nbsp; ♡ &nbsp; 두 사람을 Peeking... <span className="kao">|ૂ•ᴗ•⸝⸝)”♥</span> &nbsp; ✧</>
         :<>✧ welcome 2 NULL ✧ &nbsp; the blank u fill in &nbsp; ✦ &nbsp;
           {un0>0?`you have (${un0}) new message`:"no new message"} &nbsp; ♡ &nbsp; since 2026 &nbsp; ✧</>}
     </span></div>
@@ -1803,7 +1803,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
       </button>}
     </div>
     {watch?
-      <div className="watchbar"><span className="rec"/>참여할 수 없는 대화예요</div>
+      <div className="watchbar"><span className="rec"/>u can't join this one</div>
       /* 아직 출근하지 않은 사람 — 까닭은 화면 한가운데가 말한다.
          여기는 자리를 그대로 두고 못 쓰게만 한다. 입력창을 빼버리면
          방을 열 때마다 화면이 흔들린다. */

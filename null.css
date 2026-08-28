@@ -4813,6 +4813,17 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .menubar .toolkey .fill{position:absolute;z-index:1;left:0;top:0;bottom:0;width:0;
  background:linear-gradient(90deg,rgba(235,188,222,.42),rgba(191,208,247,.48));transition:width .4s linear;pointer-events:none}
 
+/* LIVE는 버튼이 아니라 관전방의 상태 구분선이다. */
+.rooms .sectwrap{display:flex;align-items:center;gap:6px;margin:7px 8px 2px}
+.rooms .sectwrap::after{content:"";flex:1;height:1px;
+ background:linear-gradient(90deg,rgba(218,154,196,.62),rgba(183,179,231,.36),transparent)}
+.rooms .sectwrap .sect{
+ display:flex;align-items:center;gap:5px;padding:0;border:0;border-radius:0;
+ font-size:8px;line-height:1;letter-spacing:.18em;color:#b96d9c;text-shadow:none;
+ background:none;box-shadow:none}
+.rooms .sectwrap .sect::before{content:"";width:5px;height:5px;flex:none;border-radius:50%;
+ background:#ff789f;box-shadow:0 0 0 2px rgba(255,120,159,.13),0 0 5px rgba(255,120,159,.38)}
+
 /* 시간표의 떠 있는 영어 알약과 하단 알약을 작은 명찰/키로 바꾼다. */
 .tttag{
  top:-11px;padding:4px 12px 5px;border:1px solid rgba(255,255,255,.96);border-radius:5px;
@@ -4864,7 +4875,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* 새 캐시에서도 모든 메신저 표면은 같은 월페이퍼를 본다. */
 .phone>.screen.desk.glasswindow,.phone>.cartscreen,.phone>.screen>.cartscreen,
 .phone>.screen.chatwrap.glasswindow{
- background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=194") !important}
+ background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=195") !important}
 
 @media(max-width:500px){
  .youoverlay>.youprofile{width:min(350px,100%) !important}

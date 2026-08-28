@@ -1266,7 +1266,9 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
               <Text style={rl.bdT}>{un}</Text></View>}
           </TouchableOpacity>;
           return <React.Fragment key={room.id}>
-            {watch&&<Text style={rl.sect}>✧ LIVE</Text>}
+            {watch&&<View style={rl.liveLine}>
+              <View style={rl.liveDot}/><Text style={rl.liveText}>LIVE</Text><View style={rl.liveRule}/>
+            </View>}
             {watch
               ? <HardShadow dx={1} dy={2} radius={8} color="rgba(93,84,144,.2)" style={{marginTop:6}}>
                   {/* 관전방만 무지개 테두리 — 다른 종류의 방이라는 표시.
@@ -1353,6 +1355,10 @@ const rl=StyleSheet.create({
   hnote:{...F,textAlign:'center',marginTop:10,marginBottom:6,fontSize:10,color:P.dim,letterSpacing:1},
   wrap:{flex:1,marginHorizontal:12,backgroundColor:'rgba(255,255,255,.9)',borderWidth:1,borderColor:P.mid},
   sect:{...F,marginTop:12,marginBottom:6,marginLeft:4,fontSize:9.5,letterSpacing:4,color:P.dim},
+  liveLine:{flexDirection:'row',alignItems:'center',gap:6,marginTop:10,marginBottom:2,marginHorizontal:8},
+  liveDot:{width:5,height:5,borderRadius:3,backgroundColor:'#ff789f'},
+  liveText:{...F,fontSize:8,letterSpacing:1.4,color:'#b96d9c'},
+  liveRule:{flex:1,height:1,backgroundColor:'rgba(199,162,211,.42)'},
   card:{flexDirection:'row',alignItems:'center',gap:11,paddingVertical:11,paddingHorizontal:9,borderRadius:7},
   cardW:{backgroundColor:'#eef1fc',borderRadius:8},
   /* 카드 사이. 웹의 .roomcard::after와 같은 자리다 */
@@ -1497,7 +1503,7 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
         {!!failed.detail&&<Text style={ch.retryWhy}>{failed.detail}</Text>}</TouchableOpacity>}
     </ScrollView>
     {watch
-      ? <View style={ch.wBar}><Text style={{fontSize:8}}>🔴</Text><Text style={ch.wT}>참여할 수 없는 대화예요</Text></View>
+      ? <View style={ch.wBar}><Text style={{fontSize:8}}>🔴</Text><Text style={ch.wT}>u can't join this one</Text></View>
       /* 잠긴 방도 입력창 자리는 그대로 둔다 — 빼버리면 방마다 화면 높이가
          달라진다. 까닭은 위 한가운데가 말한다 */
       : <View style={[ch.iBar,{marginBottom:kb}]}>

@@ -777,7 +777,7 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
   eq('막은 반투명이다', /\.pvwin\{[^}]*background:rgba\(74,66,118,\.42\)/.test(pvCss), true);
   /* 창틀은 이 앱의 그 창틀이다 — 사진용 창을 따로 그리지 않는다 */
   eq('앱의 창틀을 쓴다',
-    /<ProfileFrame title="사진 보기" onClose=\{onClose\} frameClass="pvdlg" bodyClass="pvframebody">/.test(web)
+    /<ProfileFrame title="photo" onClose=\{onClose\} frameClass="pvdlg" bodyClass="pvframebody">/.test(web)
     && !/className="dlg pvdlg"/.test(web), true);
   /* 알약은 사진에 붙는다 — 전에는 사진에서 한참 떨어져 아무 관계도 없이 떠 있었다 */
   eq('알약이 창 안에 붙는다', /\.pvfoot\{flex:none;display:flex/.test(pvCss), true);
@@ -3024,7 +3024,7 @@ eq('관찰 버튼은 세 상태가 같은 폭이다',
 /* 「time passing...」은 단추에 안 들어간다 — 넣으면 119px이라 줄이 넘친다.
    전광판이 상태를 흘려보내는 자리라 그 말은 거기서 한다 */
 eq('흐르는 중이라는 말은 전광판이 한다',
-  /\{autoLoading\s*\n?\s*\?<>✧ 시간이 흐르는 중\.\.\./.test(web), true);
+  /\{autoLoading\s*\n?\s*\?<>✧ time passing\.\.\./.test(web), true);
 eq('단추에는 긴 글자가 안 들어간다', /time passing\.\.\.":left>0/.test(web), false);
 
 /* ── 대화 지우기 ──
@@ -4307,7 +4307,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['194', '79311fa764ad']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['195', '86593637f604']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5132,7 +5132,7 @@ eq('못 가는 이유를 셋 다 말한다',
   eq('제목이 웹·앱 같다',
     ['CLASS 중!', '도 같이 GO?', '잠깐 OFF!', ' GO?'].filter(t => !(web.includes(t) && flow.includes(t))), []);
   eq('이유가 웹·앱 같다',
-    ['DONE 4 TODAY ♡', 'Weekend only! ♡', '밖은 Empty...', '현재 위치는'].filter(t =>
+    ['Complete...', 'Weekend only! ♡', '밖은 Empty...', '현재 위치는'].filter(t =>
       !(web.includes(t) && flow.includes(t))), []);
   eq('단추가 웹·앱 같다',
     ['OK!', 'GO!', 'LATER...', '같이 GO!', '살짝 PEEK!'].filter(t =>
