@@ -501,6 +501,9 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
             {[["real","real"],["speed","speed"]].map(([k,t])=>
               <b key={k} className={mode===k?"on":""} onClick={()=>setAskMode(k)}>{t}</b>)}
           </span>
+          <span className="emhint">{mode==="speed"
+            ?<>하루가 4배로 Speed up! <span className="kao">˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙</span></>
+            :<>현실 하루 = NULL 하루! ♡ <span className="kao">٩(❛ัᴗ❛ั ๑)</span></>}</span>
         </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
@@ -1137,10 +1140,11 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       {/* 한 사람에게 하루에 하나. 눌렀는데 아무 일도 안 일어나는 것보다 왜
           안 되는지 적어주는 편이 낫다 — 자리가 닫혔을 때 여는 시각을
           적어주는 것과 같다. 한쪽만 잠긴 날에도 규칙은 알려준다 */}
-      {!withChar
-        ?<div className="cshut">선물은 What? 주인공은 Who? 장소는 Where?<br/>
-          만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
-        :(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
+      {/* 현이 쓴 문장과 카모지는 상태 안내가 아니라 이 화면의 본문이다.
+          만남·전송 여부에 따라 갈아 끼우거나 숨기지 않는다. */}
+      <div className="cshut giftline">선물은 What? 주인공은 Who? 장소는 Where?<br/>
+        만나서 전해봐요! <span className="kao">˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span></div>
+      {(today("jaeeon")||today("minhyun"))&&<div className="cshut">one a day ♡ each</div>}
       {["jaeeon","minhyun"].map(c=>{
         /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
            지금 자리를 말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
@@ -1380,8 +1384,10 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
             <span className="k">NULL</span>
             {/* 칸은 글자 수만큼이고, 안에 든 것은 언제나 □다. 불린 만큼
                 앞에서부터 차오른다 — 채워지는 것은 칸이지 이름이 아니다 */}
-            {letters.map((c,i)=>
-              <span key={i} className={"nmbx"+(i<lit?" on":i===lit?" next":"")}>□</span>)}
+            <span className="namecharge" aria-label={`${lit} / ${letters.length}`}>
+              {Array.from({length:6},(_,i)=><i key={i}
+                className={i<Math.round(lit/Math.max(1,letters.length)*6)?"on":""}/>) }
+            </span>
           </div>
       <span className="nmpct">
         <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 1c.5 3.6 2.9 6 6.5 7-3.6 1-6 3.4-6.5 7-.5-3.6-2.9-6-6.5-7 3.6-1 6-3.4 6.5-7z" fill="#c3b2f0"/></svg>
@@ -1515,7 +1521,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           </div>;
         })()}
       </div>
-      :<div className="gal">{/* .hidden 탭: 잠긴 기록 */}
+      :<div className="gal hiddenGal">{/* .hidden 탭: 잠긴 기록 */}
         <div className="progline">
           <span className="t">ENCRYPTED</span>
           <span className="bar"><i style={{width:(unlocked.length/HIDDEN.length*100)+"%"}}/></span>
@@ -1718,7 +1724,9 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         <button className="backbtn rbtn" onClick={onLeaveScene} title="돌아가기"><BackIcon/></button>
         {/* 선물은 만나서만 준다. 그러니 단추도 만난 자리에 있어야 한다 —
             메뉴바에만 두면 자리에서는 열 수가 없다 */}
-        <button className="giftbtn rbtn" onClick={onCart} title="give something"><GiftIcon.cart size={15}/></button>
+        <button className="giftbtn rbtn" onClick={onCart} title="give something">
+          <img className="ico" src={av("ui/icon-gift.png")} alt=""/>
+        </button>
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send0()}/>
         <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send0}
           style={{background:sendBg(room)}}><SendIcon/></button>

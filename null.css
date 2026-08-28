@@ -4137,7 +4137,9 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 }
 
 /* 캐비넷 원화 바깥의 핑크 발광 테만 잘라낸다. 문과 클릭 위치는 그대로다. */
-.desk .cab .cabframe{clip-path:inset(6px round 10px);filter:saturate(.82)}
+.desk .cab .cabframe{clip-path:inset(10px round 10px);filter:saturate(.82);outline:0 !important;box-shadow:none !important}
+.desk .cabdoor.been img{filter:none !important}
+.desk .cab,.desk .cabin{outline:0 !important;box-shadow:none !important;background:transparent !important}
 
 /* 메뉴의 기프트·백은 제공된 픽셀 원화를 축소해도 번지지 않게 쓴다. */
 .menubar .navpixel{display:block;flex:none;width:18px;height:18px;object-fit:contain;
@@ -4308,3 +4310,81 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .desk .gal>.sect{display:flex;width:max-content;max-width:100%;padding:3px 2px 6px;margin:2px 0 8px;
  border:0;border-bottom:1px solid rgba(174,148,205,.45);border-radius:0;color:#77618f;
  background:transparent;box-shadow:none;text-shadow:none;letter-spacing:.16em}
+
+/* ══ 188 · 채팅방을 오프닝 창 부품에 정확히 맞춘 최종 규칙 ══ */
+.phone>.screen.chatwrap.glasswindow,.phone>.screen.scenewrap.glasswindow{
+ inset:4px !important;width:auto !important;height:auto !important;min-width:0;min-height:0;
+ padding:5px !important;border:0 !important;border-radius:17px !important;overflow:hidden !important;
+ background-color:#eee7f8 !important;box-sizing:border-box !important;
+ box-shadow:0 0 0 1px rgba(255,255,255,.94),0 0 0 2px rgba(155,126,199,.66),
+  inset 0 1px 0 #fff,inset 0 -4px 7px rgba(130,102,176,.14),0 12px 26px rgba(72,51,112,.2) !important}
+.chatwrap.glasswindow>.etb,.scenewrap.glasswindow>.etb{height:38px !important;min-height:38px;border-radius:12px 12px 3px 3px !important}
+.chatwrap.glasswindow>.ewindowtitle,.scenewrap.glasswindow>.ewindowtitle{top:5px !important;height:38px !important;left:42px !important}
+.chatwrap.glasswindow .chatbar{flex:none;margin:5px 0 0 !important;padding:7px 10px !important;
+ border-radius:4px 4px 11px 11px !important;background:linear-gradient(135deg,rgba(255,255,255,.83),rgba(229,222,249,.7)) !important}
+.chatwrap.glasswindow .msgs{flex:1;min-height:0;margin:5px 0 0 !important;padding:13px 11px 10px !important;
+ border:1px solid rgba(255,255,255,.82) !important;border-radius:11px !important;
+ background:rgba(255,253,251,.73) !important;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(198,179,220,.42) !important}
+.scenewrap.glasswindow{background-size:cover !important;background-position:center !important;background-repeat:no-repeat !important}
+.scenewrap.glasswindow::before{content:"" !important;position:absolute;inset:43px 5px 5px !important;height:auto !important;
+ z-index:0;border-radius:4px 4px 11px 11px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(20,13,32,0) 38%,rgba(20,13,32,.62) 100%) !important}
+.scenewrap.glasswindow .scenebody{position:relative;z-index:1;flex:1;min-height:0;margin:5px 0 0 !important;
+ padding:0 14px 10px !important;border:1px solid rgba(255,255,255,.28) !important;border-radius:4px 4px 11px 11px !important;
+ background:transparent !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.18) !important}
+.chatwrap.glasswindow .inputbar,.scenewrap.glasswindow .inputbar{position:relative;z-index:2;flex:none;
+ display:grid !important;grid-template-columns:38px minmax(0,1fr) 42px !important;gap:7px !important;
+ min-height:0 !important;margin:5px 0 0 !important;padding:6px !important;border-radius:11px !important;
+ border:1px solid rgba(255,255,255,.9) !important;background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(224,216,246,.72)) !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(190,168,217,.5) !important}
+.chatwrap.glasswindow .inputbar .sunken,.scenewrap.glasswindow .inputbar .sunken{width:100%;height:38px !important;
+ padding:0 13px !important;border:1px solid rgba(181,157,207,.72) !important;border-radius:10px !important;
+ color:#594a6e;background:rgba(255,255,255,.78) !important;box-shadow:inset 0 2px 5px rgba(112,84,153,.09),0 1px 0 #fff !important}
+.chatwrap.glasswindow .giftbtn,.scenewrap.glasswindow .giftbtn,
+.chatwrap.glasswindow .sendbtn,.scenewrap.glasswindow .sendbtn{width:38px !important;height:38px !important;margin:0 !important;
+ border:1px solid rgba(255,255,255,.94) !important;border-radius:10px !important;
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(177,151,207,.66),0 3px 6px rgba(99,73,140,.13) !important}
+.chatwrap.glasswindow .giftbtn,.scenewrap.glasswindow .giftbtn{display:flex !important;align-items:center;justify-content:center;
+ background:linear-gradient(145deg,#fff,#f0e9fb 58%,#dfecff) !important}
+.chatwrap.glasswindow .giftbtn .ico,.scenewrap.glasswindow .giftbtn .ico{display:block !important;width:23px !important;height:23px !important;
+ object-fit:contain;image-rendering:pixelated}
+.chatwrap.glasswindow .sendbtn,.scenewrap.glasswindow .sendbtn{width:42px !important;
+ background:linear-gradient(135deg,#d9f1ff,#e8dcfa 48%,#f5dbe9) !important}
+.chatwrap.glasswindow .sendbtn::after,.scenewrap.glasswindow .sendbtn::after{background:#705987 !important;width:18px !important;height:18px !important;margin:-9px 0 0 -9px !important}
+.chatwrap.glasswindow .sendbtn:disabled,.scenewrap.glasswindow .sendbtn:disabled{opacity:.38}
+.menubar .navpixel{width:16px !important;height:16px !important}
+@media(max-width:500px){
+ .phone>.screen.chatwrap.glasswindow,.phone>.screen.scenewrap.glasswindow{inset:0 !important;border-radius:0 !important}
+}
+
+/* 기본 메신저: 지정 배경을 가리지 않는다. 본문은 색판이 아니라 얇은 유리 한 장이다. */
+.phone>.screen.desk.glasswindow{inset:4px !important;width:auto !important;height:auto !important;
+ background-color:#fff !important;background-image:url("ui/bg-chat.png?v=188") !important;
+ background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
+.phone>.screen.desk.glasswindow::before{content:"" !important;position:absolute;inset:0;pointer-events:none;
+ background:rgba(239,230,255,.025) !important}
+.phone>.screen.desk.glasswindow .roomswrap{background:linear-gradient(145deg,rgba(230,217,255,.16),rgba(206,221,255,.09)) !important;
+ border-color:rgba(255,255,255,.58) !important;-webkit-backdrop-filter:blur(1.5px) saturate(1.04) !important;
+ backdrop-filter:blur(1.5px) saturate(1.04) !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.72),0 0 0 1px rgba(165,138,203,.18) !important}
+.phone>.screen.desk.glasswindow .rooms,.phone>.screen.desk.glasswindow .gal{background:transparent !important}
+.phone>.screen.desk.glasswindow .roomcard{background:linear-gradient(135deg,rgba(255,255,255,.46),rgba(232,222,250,.24)) !important}
+.desk .hiddenGal{overflow-y:scroll !important;scrollbar-width:thin;scrollbar-color:rgba(159,132,202,.52) transparent;padding-right:10px !important}
+.desk .hiddenGal::-webkit-scrollbar{width:4px !important}
+.desk .hiddenGal::-webkit-scrollbar-track{background:transparent}
+.desk .hiddenGal::-webkit-scrollbar-thumb{border-radius:999px;background:linear-gradient(180deg,rgba(242,186,224,.72),rgba(174,151,222,.74),rgba(167,213,241,.72))}
+.cartwin .cspot.off .cswhy{font-size:0 !important}
+.cartwin .cback{display:block !important;width:max-content !important;min-width:94px;max-width:130px !important;
+ margin:18px auto 0 !important;padding:9px 22px !important;border-radius:10px !important}
+/* NULL 이름 진도: 글자 수 칸을 없애고 하나의 오팔 충전선으로 잇는다. */
+.desk .nmline{align-items:center}
+.desk .namecharge{display:grid;grid-template-columns:repeat(6,8px);gap:4px;align-items:center}
+.desk .namecharge>i{position:relative;display:block;width:8px;height:8px;border-radius:3px;
+ border:1px solid rgba(176,151,207,.5);background:rgba(255,255,255,.34);
+ box-shadow:inset 0 1px 2px rgba(104,78,145,.12),0 1px 0 rgba(255,255,255,.8);transition:.35s ease}
+.desk .namecharge>i.on{border-color:rgba(255,255,255,.96);
+ background:linear-gradient(135deg,#f3b6dc,#d7cdf8 52%,#c7eaff);
+ box-shadow:inset 0 1px 0 #fff,0 0 6px rgba(209,163,231,.7)}
+.desk .namecharge>i.on::after{content:"";position:absolute;inset:2px;background:#fff;
+ clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)}
+@media(max-width:500px){.phone>.screen.desk.glasswindow{inset:0 !important}}
