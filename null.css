@@ -4824,6 +4824,26 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .rooms .sectwrap .sect::before{content:"";width:5px;height:5px;flex:none;border-radius:50%;
  background:#ff789f;box-shadow:0 0 0 2px rgba(255,120,159,.13),0 0 5px rgba(255,120,159,.38)}
 
+/* 사물함 명패의 두 문장은 그대로 두고, 낡은 .dlg 껍데기만 오프닝의
+   ProfileFrame으로 교체한다. 이 알림만의 작은 유리 키라서 다른 선택창의
+   단추 모양까지 따라 바뀌지 않는다. */
+.profileframe.platewin{width:min(292px,calc(100vw - 24px)) !important;max-width:292px !important}
+.profileframe.platewin .ebody{
+ min-height:148px;padding:19px 17px 16px !important;justify-content:center;
+ background:radial-gradient(110% 58% at 50% 0,rgba(255,255,255,.78),transparent 74%),#fcf9fd}
+.profileframe.platewin .platebody{gap:7px}
+.profileframe.platewin .platebuttons{margin-top:8px}
+.profileframe.platewin .plateclose{
+ position:relative;width:94px;height:33px;padding:0;border:1px solid rgba(255,255,255,.96);
+ border-radius:6px;font-family:inherit;font-size:10px;letter-spacing:.08em;color:#5e527b;cursor:pointer;
+ background:linear-gradient(135deg,#fff 0%,#eee7fb 54%,#dcecff 100%);
+ box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(177,151,207,.62),0 2px 0 rgba(137,112,173,.17)}
+.profileframe.platewin .plateclose::before{
+ content:"";position:absolute;left:3px;right:3px;top:2px;height:34%;border-radius:4px 4px 1px 1px;
+ background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,0));pointer-events:none}
+.profileframe.platewin .plateclose:active{
+ transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(93,84,144,.13),0 0 0 1px rgba(177,151,207,.62)}
+
 /* 시간표의 떠 있는 영어 알약과 하단 알약을 작은 명찰/키로 바꾼다. */
 .tttag{
  top:-11px;padding:4px 12px 5px;border:1px solid rgba(255,255,255,.96);border-radius:5px;
@@ -4875,7 +4895,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* 새 캐시에서도 모든 메신저 표면은 같은 월페이퍼를 본다. */
 .phone>.screen.desk.glasswindow,.phone>.cartscreen,.phone>.screen>.cartscreen,
 .phone>.screen.chatwrap.glasswindow{
- background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=195") !important}
+ background-image:url("assets/ui/profile-v2/messenger-wallpaper.webp?v=196") !important}
 
 @media(max-width:500px){
  .youoverlay>.youprofile{width:min(350px,100%) !important}

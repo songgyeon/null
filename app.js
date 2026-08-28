@@ -1933,18 +1933,14 @@ function GameApp(){
       withChar={scene?scene.room:null}
       onSend={giveGift} onSendAt={giveGiftAt} onClose={()=>setCart(false)}/>}
     {/* 사물함 명패. 눌러도 아무 일이 없는 칸이 여덟 중 둘이면 나머지도 안 눌러보게 된다 */}
-    {plate&&<div className="dlgov" onClick={()=>setPlate(null)}>
-      <div className="dlg" onClick={e=>e.stopPropagation()}>
-        <div className="tb">{plate.kind==="start"?"START":"NULL"}<WinDots onClose={()=>setPlate(null)}/></div>
-        <div className="dlgbody">
-          <div className="dlgline" style={{textAlign:"center",padding:"14px 0 12px",fontSize:13,color:"#8a4f74"}}>
-            {plate.say} <span className="kao">{plate.kao}</span></div>
-          <div className="dlgbtns" style={{justifyContent:"center"}}>
-            <button className="bevel pink" onClick={()=>setPlate(null)}>ok ♡</button>
-          </div>
-        </div>
+    {plate&&<Dialog title={plate.kind==="start"?"START":"NULL"}
+      onClose={()=>setPlate(null)} win="platewin" cls="platebody">
+      <div className="dlgline" style={{textAlign:"center",padding:"14px 0 12px",fontSize:13,color:"#8a4f74"}}>
+        {plate.say} <span className="kao">{plate.kao}</span></div>
+      <div className="dlgbtns platebuttons" style={{justifyContent:"center"}}>
+        <button className="plateclose" onClick={()=>setPlate(null)}>ok ♡</button>
       </div>
-    </div>}
+    </Dialog>}
     {/* 나가기도 한 번 묻는다. 하루에 한 번뿐인 자리라 실수로 닫히면 그날이 끝난다 */}
     {leaving&&<div className="dlgov" onClick={()=>answerLeave(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>

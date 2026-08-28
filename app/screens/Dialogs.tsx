@@ -107,9 +107,9 @@ const bv = StyleSheet.create({
    초대 창(App.tsx)이 네모 베벨로 서 있다. 한 앱 안에서 창마다 단추 모양이
    다른 것이 웹과 알약 하나 다른 것보다 눈에 띈다 — 앱의 결을 따른다.
    분홍은 그쪽에서 쓰는 것과 같은 안쪽 색(#ffe3f0)이다. */
-function Btn({label, pink, disabled, onPress, style}:any) {
+function Btn({label, pink, disabled, onPress, style, innerStyle}:any) {
   return <Bevel style={[{flex:1, height:38}, style]} disabled={disabled}
-    inner={pink ? {backgroundColor:'#ffe3f0'} : null} onPress={onPress}>
+    inner={[pink ? {backgroundColor:'#ffe3f0'} : null, innerStyle]} onPress={onPress}>
     <Text style={dl.btnT}>{label}</Text>
   </Bevel>;
 }
@@ -117,17 +117,19 @@ function Btn({label, pink, disabled, onPress, style}:any) {
 /* 창 껍데기 — 웹의 .dlgov + .dlg + .dlgbody 세 겹.
    막은 형제로 깔고 창은 그 위에 얹는다. 창 안을 눌러도 막까지 안 내려간다 —
    형제라서 애초에 타고 내려갈 길이 없다(웹의 stopPropagation 자리다). */
-function Dlg({title, onClose, z=40, children}:any) {
+function Dlg({title, onClose, z=40, children, variant}:any) {
+  const plate = variant === 'plate';
   return <View style={[dl.ov, {zIndex:z}]}>
     <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
-    <View style={dl.wrap}>
-      <View pointerEvents="none" style={dl.shadow}/>
-      <View style={dl.win}>
-        <LinearGradient colors={['#ff8fbe','#ffb0d4']} start={{x:0,y:0}} end={{x:1,y:0}} style={dl.tb}>
+    <View style={[dl.wrap, plate && dl.plateWrap]}>
+      <View pointerEvents="none" style={[dl.shadow, plate && dl.plateShadow]}/>
+      <View style={[dl.win, plate && dl.plateWin]}>
+        <LinearGradient colors={plate ? ['#f6cdea','#dfcaf8','#d9cdf9'] : ['#ff8fbe','#ffb0d4']}
+          start={{x:0,y:0}} end={{x:1,y:0}} style={[dl.tb, plate && dl.plateTb]}>
           <Text style={dl.tbT}>{title}</Text>
           <Dots onClose={onClose}/>
         </LinearGradient>
-        <View style={dl.body}>{children}</View>
+        <View style={[dl.body, plate && dl.plateBody]}>{children}</View>
       </View>
     </View>
   </View>;
@@ -241,12 +243,12 @@ export function WayDialog({room, onRide, onAlone}:{room:string; onRide:()=>void;
    얼굴(kao)이 say와 따로 오는 건 픽셀 글꼴에 그 글자들이 없어서다. */
 export function PlateDialog({kind, say, kao, onClose}:{kind:string; say:string; kao:string; onClose:()=>void}) {
   if (!say) return null;
-  return <Dlg title={kind === 'start' ? 'START' : 'NULL'} onClose={onClose} z={40}>
+  return <Dlg title={kind === 'start' ? 'START' : 'NULL'} onClose={onClose} z={40} variant="plate">
     <View style={dl.lineBoxPlate}>
       <Text style={dl.line}>{say} <Text style={KAO}>{kao}</Text></Text>
     </View>
-    <View style={dl.btns}>
-      <Btn pink label="ok ♡" onPress={onClose}/>
+    <View style={dl.plateBtns}>
+      <Btn label="ok ♡" style={dl.plateBtn} innerStyle={dl.plateBtnIn} onPress={onClose}/>
     </View>
   </Dlg>;
 }
@@ -612,6 +614,14 @@ const dl = StyleSheet.create({
   tbT:{...F, color:'#fff', fontSize:12, letterSpacing:1.2,
     textShadowColor:'rgba(93,84,144,.55)', textShadowOffset:{width:1,height:1}, textShadowRadius:0},
   body:{paddingTop:18, paddingHorizontal:16, paddingBottom:16, gap:8},
+  plateWrap:{maxWidth:292},
+  plateShadow:{left:-1, right:-1, bottom:-4, borderRadius:15,
+    backgroundColor:'rgba(137,112,173,.18)'},
+  plateWin:{padding:4, borderWidth:1, borderColor:'rgba(255,255,255,.9)', borderRadius:15,
+    backgroundColor:'#eadcf5'},
+  plateTb:{paddingHorizontal:11, paddingVertical:9, borderBottomWidth:0, borderRadius:11},
+  plateBody:{minHeight:142, paddingTop:18, paddingHorizontal:17, paddingBottom:15,
+    borderRadius:10, backgroundColor:'#fcf9fd'},
 
   // .dlgline — 인라인으로 덮이는 padding까지 자리별로 그대로 옮긴다
   lineBox:{paddingTop:10, paddingBottom:4},
@@ -638,6 +648,10 @@ const dl = StyleSheet.create({
     textShadowOffset:{width:0,height:1}, textShadowRadius:0},
 
   btns:{flexDirection:'row', gap:7, marginTop:10},
+  plateBtns:{flexDirection:'row', justifyContent:'center', marginTop:10},
+  plateBtn:{flex:0, width:94, height:34, borderRadius:6, borderColor:'#b69fda',
+    backgroundColor:'#eef1fc', overflow:'hidden'},
+  plateBtnIn:{borderRadius:5, backgroundColor:'#f2effb'},
   btnT:{...F, fontSize:12, color:P.ink, letterSpacing:2},
 });
 
