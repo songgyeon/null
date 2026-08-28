@@ -4798,16 +4798,16 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  font-size:17px !important;letter-spacing:.08em !important}
 .youprofile>.profileframe.youframe>.ebody{
  aspect-ratio:auto !important;height:360px !important;min-height:360px !important}
-.youprofile .ename,.youprofile .eline>.blank{
+.youprofile .ename,.youprofile .eline>.blank,.youprofile .eline>.blankin{
  height:30px !important;font-size:13px !important}
 .youprofile .ename{top:30px !important;width:44% !important}
-.youprofile .e-subject>.blank{top:84px !important;width:32% !important}
+.youprofile .e-subject>.blank,.youprofile .e-subject>.blankin{top:84px !important;width:32% !important}
 .youprofile .e-age>.blank{top:138px !important;width:18% !important}
-.youprofile .e-likes>.blank{top:192px !important;width:50% !important}
-.youprofile .e-dislikes>.blank{top:246px !important;width:50% !important}
+.youprofile .e-likes>.blank,.youprofile .e-likes>.blankin{top:192px !important;width:50% !important}
+.youprofile .e-dislikes>.blank,.youprofile .e-dislikes>.blankin{top:246px !important;width:50% !important}
 .youprofile .etail{
  position:absolute !important;z-index:1;display:flex !important;align-items:center;height:30px;margin:0 !important;
- padding:0 4px;font-size:12px;line-height:1;color:#745f8d;white-space:nowrap;background:#fcf9fd}
+ padding:0;font-size:12px;line-height:1;color:#745f8d;white-space:nowrap;background:transparent}
 .youprofile .e-subject .etail{left:44%;top:84px}
 .youprofile .e-age .etail{left:28%;top:138px}
 .youprofile .e-likes .etail{left:65%;top:192px}
@@ -4822,7 +4822,12 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .youprofile .e-dislikes::before{top:265px}
 .youprofile .yourename{
  left:14% !important;top:302px !important;width:72% !important;height:38px !important;
- font-size:12.5px !important;letter-spacing:.04em !important}
+ font-size:12.5px !important;letter-spacing:.04em !important;
+ background:linear-gradient(105deg,#ee8fc7 0%,#be91e0 52%,#74bce8 100%) !important;
+ border:1px solid rgba(255,255,255,.96) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 0 0 2px #f9d9ee,
+  0 0 0 4px #c88ac8,0 4px 10px rgba(113,74,154,.3) !important;
+ text-shadow:0 1px 1px rgba(72,43,105,.72),0 0 4px rgba(255,255,255,.35) !important}
 .youprofile .yourename .kao{font-size:11px;letter-spacing:0;white-space:nowrap}
 .youprofile .yourename,.youprofile .yourename .kao{
  color:#fff !important;-webkit-text-fill-color:#fff !important}

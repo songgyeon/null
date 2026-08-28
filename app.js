@@ -1590,7 +1590,7 @@ function GameApp(){
   /* [대화] 읽음 처리 */
   const readAll=()=>setStore(s=>({...s,unread:{}}));
   /* [당신] 이름 변경 / 새로 시작 */
-  const rename=n=>{if(loadWorld())return;localStorage.setItem("null_name",n);setName(n)};
+  const rename=n=>{localStorage.setItem("null_name",n);setName(n)};
   /* 다시 시작. greetAtRef까지 같이 지운다 — 이건 리액트 ref라 localStorage를
      지워도 안 없어진다. 방금 선톡을 받고 지웠으면 1분 동안 첫 인사가 안 왔다.
      처음 들어온 화면에서 아무도 말을 안 거는 게 제일 나쁜 그림이다. */
@@ -1924,7 +1924,7 @@ function GameApp(){
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        groupOn={groupOn} onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
-       profile={profile} onSaveField={(k,v)=>{if(loadWorld())return;setProfile(p=>({...p,[k]:v}))}} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
+       profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar} onGuess={guessHidden}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}

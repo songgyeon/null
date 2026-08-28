@@ -1193,32 +1193,40 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
    버튼이 안전한 일 옆에 앉아 있었다. 단계 수보다 이웃이 문제였다.
    지금은 etc. 안에 있다. */
 function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
-  const [renaming,setRenaming]=useState(false);
   const [nv,setNv]=useState(name);
-  const doRename=()=>{const t=nv.trim();if(t)onRename(t);setRenaming(false)};
-  /* 등록 화면과 같은 칸을 같은 순서로 채운다. 거기서 엔터로 넘어가는데
-     여기서는 안 넘어가면 그게 더 이상하다 — 항목도 ENR_FIELDS 하나만 본다. */
-  const [focus,setFocus]=useState(-1);
+  const [draft,setDraft]=useState(()=>({
+    subject:profile.subject||"",likes:profile.likes||"",dislikes:profile.dislikes||""
+  }));
+  /* 이 창의 칸은 누르는 순간 span에서 input으로 갈아끼우지 않는다. 모바일에서
+     그 찰나에 등록 화면 좌표로 돌아가 칸이 길어졌고, 값도 blur 때 먼저 저장돼
+     「변신」이 무엇을 하는 버튼인지 사라졌다. 여기서는 전부 임시로 적어 두고
+     버튼 하나가 이름과 세 가지 선호를 함께 적용한다. */
+  const transform=()=>{
+    const t=nv.trim();
+    if(t&&t!==name)onRename(t);
+    ["subject","likes","dislikes"].forEach(k=>{
+      const v=(draft[k]||"").trim();
+      if(v!==(profile[k]||""))onSaveField(k,v);
+    });
+    onClose();
+  };
   /* 등록 화면의 ProfileFrame·ename·eline·blank·ego를 그대로 쓴다.
      이 창만 닮은 칸을 따로 만들면 원본이 바뀔 때 다시 갈라진다. */
   return <div className="dlgov youoverlay" onClick={onClose}>
     <div className="cssprofile youprofile" onClick={e=>e.stopPropagation()}>
     <ProfileFrame title="you.txt" onClose={onClose} frameClass="youframe">
-    {renaming
-      ?<div className="ename"><input className="namein" value={nv} autoFocus maxLength={12}
-        onChange={e=>setNv(e.target.value)} onBlur={doRename} onKeyDown={e=>e.key==="Enter"&&doRename()}/></div>
-      :<div className="ename" onClick={()=>{setNv(name);setRenaming(true)}}>{name}</div>}
-    {ENR_FIELDS.map((f,i)=>
+    <div className="ename"><input className="namein" value={nv} maxLength={12}
+      aria-label="이름" onChange={e=>setNv(e.target.value)}/></div>
+    {ENR_FIELDS.map(f=>
       <div className={`eline e-${f.k}`} key={f.k}>
         {f.k==="age"
           ?<span className="blank filled" title="세계의 고정값">25</span>
-          :<Blank value={profile[f.k]} width={f.w} onSave={v=>onSaveField(f.k,v)} saveEmptyNow
-            open={focus===i} onOpen={o=>setFocus(p=>o?i:(p===i?-1:p))}
-            onNext={()=>setFocus(i+1<ENR_FIELDS.length?i+1:-1)}/>}
+          :<input className="blankin sunken" value={draft[f.k]||""} maxLength={20}
+            aria-label={f.lab} onChange={e=>setDraft(p=>({...p,[f.k]:e.target.value}))}/>}
         <span className="etail">{f.tail}</span>
       </div>)}
-    <button className="ego yourename" onClick={()=>{setNv(name);setRenaming(true)}}>
-      <span>변신! <span className="kao">⸜(｡˃ ᵕ ˂ )⸝♡</span></span><i className="egostar"/>
+    <button className="ego yourename" onClick={transform}>
+      <span>변신! <span className="kao">⸜( ˃ ᵕ ˂ )⸝♡</span></span><i className="egostar"/>
     </button>
     </ProfileFrame>
     </div>
