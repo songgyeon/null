@@ -4376,7 +4376,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', ...CSS_FILES, 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['211', '30d3eca04137']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['212', 'b0b9e077b586']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
