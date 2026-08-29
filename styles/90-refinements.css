@@ -894,3 +894,14 @@
  background-position:center,center !important;
  background-size:cover,cover !important;
  background-repeat:no-repeat,no-repeat !important}
+
+/* 장소 대화는 사진 자체가 screen 배경이라 background-clip으로 자르면 사진 좌표가
+   달라진다. 사진은 그대로 두고, 비어 보이던 바깥 5px 면에만 같은 유리 링을 얹는다. */
+.phone>.screen.scenewrap.glasswindow::after{
+ content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
+ padding:5px;border-radius:17px;
+ background:linear-gradient(146deg,#e8d8f2 0%,#fdf3fb 24%,#ddc9ee 65%,#eedcf6 100%);
+ -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+ -webkit-mask-composite:xor;
+ mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+ mask-composite:exclude}
