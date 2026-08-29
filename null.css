@@ -5010,3 +5010,12 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  background:rgba(252,241,248,.62) !important}
 .phone .cartwin .cto:not(.sel){
  background:rgba(252,241,248,.62) !important}
+
+/* v209 — 바깥 메신저 프레임이 이미 있으므로 본문의 중첩 유리 상자만 걷는다.
+   자리와 스크롤 계산은 유지하기 위해 roomswrap 자체의 크기와 여백은 바꾸지 않는다. */
+.phone>.screen.desk.glasswindow .roomswrap{
+ background:transparent !important;
+ border-color:transparent !important;
+ box-shadow:none !important;
+ -webkit-backdrop-filter:none !important;
+ backdrop-filter:none !important}
