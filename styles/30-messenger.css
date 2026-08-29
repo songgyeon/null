@@ -1,0 +1,672 @@
+/* NULL CSS · rooms, map, cam, hidden, 채팅, 프로필
+   파일 순서는 null.css에서 관리한다. */
+
+/* 방 목록: 크롬 스타 월페이퍼 위 메신저 창 */
+.desk{background:#c3b2f0 url("../bg-desk.webp") center/cover no-repeat}
+/* 탭 — 낝작한 사각형 대신 광택 있는 둥근 탭. 윈도우 밖으로 튀어나오는 느낌 */
+.tabs{flex:none;display:flex;gap:5px;padding:9px 12px 0}
+.tab{position:relative;overflow:hidden;padding:7px 15px 8px;font-size:11px;letter-spacing:.04em;color:#9a8fc8;
+ border:1px solid #cfc6ee;border-bottom:none;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;flex:none;
+ background:linear-gradient(180deg,#faf8ff,#ece7fa)}
+.tab::before{content:"";position:absolute;left:8%;right:8%;top:2px;height:34%;border-radius:8px;
+ background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
+.tab.on{position:relative;top:1px;color:#4a4276;border-color:#b9a7e6;background:#fff;
+ box-shadow:inset 0 2px 0 #c3b2f0}
+/* ── 배경이 비쳐야 배경이다 ──
+   흰 62%에 blur(22px)를 얹으니 bg-desk의 별·하트가 판 밑에서 통째로 지워졌다.
+   화면 가운데 660px가 전부 이 판이라, 배경은 위아래 테두리에만 남았다.
+   흰 막을 절반 이하로 내리고 흐림도 한 자리로 줄인다 — 유리는 남고 그림이 보인다.
+   글자는 카드가 제 배경을 들고 있어서 이 값과 무관하다. */
+.roomswrap{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;margin:0 12px;
+ border:1.5px solid rgba(255,255,255,.85);border-radius:8px;
+ background:rgba(255,255,255,.28);-webkit-backdrop-filter:blur(7px) saturate(1.3);
+ backdrop-filter:blur(7px) saturate(1.3);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 1px rgba(150,135,210,.22);overflow:hidden}
+/* 창 위쪽 무지개 1px — 목록이 좀 더 놓았다 */
+.roomswrap::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;z-index:2;
+ background:linear-gradient(90deg,#c3b2f0,#a8c8ff,#c3b2f0)}
+.rooms{position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:10px}
+/* 섹션 헤더 — 한쪽 끝이 잘린 기울언 띄 (Y2K 카드드 헤더) */
+/* 섹션 라벨 — 레퍼런스의 보라 깃발 바. 오른쪽 끝이 사선으로 잘린다 */
+/* 목록 바닥의 물방울 — 조용히 떠올랐다 사라진다 */
+.bub{position:absolute;bottom:-16px;border-radius:50%;pointer-events:none;z-index:0;
+ background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.95),rgba(255,255,255,.25) 42%,rgba(196,180,240,.28) 70%,rgba(255,255,255,.12));
+ border:1px solid rgba(255,255,255,.75);box-shadow:inset -2px -3px 6px rgba(150,135,210,.18);
+ animation:bubup linear infinite}
+@keyframes bubup{
+  0%{transform:translateY(0) scale(.9);opacity:0}
+  14%{opacity:.85}
+  78%{opacity:.45}
+  100%{transform:translateY(-280px) scale(1.05);opacity:0}}
+.sect{display:inline-flex;align-items:center;gap:6px;padding:4px 12px 5px;border-radius:999px;
+ font-size:9px;letter-spacing:.24em;color:#fff;text-shadow:0 1px 0 rgba(110,120,180,.5);
+ border:1.5px solid #fff;background:linear-gradient(180deg,#cfc0f5,#ae98ea);
+ box-shadow:0 2px 0 rgba(150,135,210,.28)}
+.roomcard{position:relative;display:flex;align-items:center;gap:11px;padding:11px 9px;cursor:pointer;
+ border-bottom:none;border-radius:7px;animation:fadeUp .3s steps(4) both;transition:transform .08s steps(2)}
+/* 카드 사이 구분선 — 점선 대신 하트 점이 떨어진다 */
+.roomcard::after{content:"♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡ · ♡";
+ position:absolute;left:6px;right:6px;bottom:-2px;overflow:hidden;white-space:nowrap;
+ font-size:7px;letter-spacing:.32em;color:#e7dcf5;pointer-events:none}
+.roomcard:last-of-type::after{display:none}
+.roomcard:hover{background:#f8f2ff}
+.roomcard:active{background:#efe6fc;transform:translate(1px,1px)}
+.roomcard.watch{position:relative;overflow:hidden;margin:8px 0 4px;padding:11px 12px;border-radius:16px;border-bottom:0;
+ background:linear-gradient(135deg,#ffd9ec 0%,#e6d2fb 42%,#cfd8fb 100%);
+ border:2px solid #fff;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 2px 0 rgba(150,135,210,.35),0 0 0 1px #dfd2f5}
+.roomcard.watch::before{content:"";position:absolute;left:0;right:0;top:0;height:22%;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.45),transparent)}
+.roomcard.watch:hover{background:linear-gradient(180deg,#fff 0%,#ece4fd 46%,#e2d7f9 100%)}
+.roomcard.watch .rname{color:#4a4276}
+.roomcard.watch .rprev{color:#8d7fc0;letter-spacing:.04em}
+.roomcard.watch .avatar{border:1.5px solid #fff;background:linear-gradient(180deg,#fff,#e7dcfb);
+ box-shadow:0 0 0 1px #d9cdf5,0 2px 0 rgba(150,135,210,.25)}
+/* 라이브 표시 — 카드 오른쪽 위에 작게 깜빡이는 점 */
+.roomcard.watch::after{content:"";display:block;position:absolute;right:11px;top:11px;
+ width:7px;height:7px;border-radius:50%;background:#ff7fae;border:1.5px solid #fff;
+ box-shadow:0 0 6px rgba(255,127,174,.8);animation:recblink 1.4s infinite}
+.roomcard.watch::after{display:none}
+/* 관전방 — 색으로 튀지 않는다. 채도를 빼서 다른 방처럼 보이게만 한다 */
+.roomcard.watch::before{display:none}
+.roomcard.watch:hover{background:linear-gradient(180deg,#ffffff,#f4f6ff)}
+.avatar{position:relative;width:42px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;
+ border:1px solid #8a7fc0;border-radius:50%;
+ box-shadow:inset 0 2px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(93,84,144,.14),1px 2px 0 rgba(93,84,144,.28)}
+/* 사진 아바타는 안쪽 베벨을 빼서 얼굴을 가리지 않게 한다.
+   아이콘 아바타(단톡방·두 사람)는 그대로 입체감을 유지한다. */
+.avatar.face{box-shadow:1px 2px 0 rgba(93,84,144,.28)}
+.mavatar.face{box-shadow:1px 1px 0 rgba(93,84,144,.25)}
+.rinfo{flex:1;min-width:0}
+.rtop{display:flex;align-items:baseline;gap:7px}
+.rname{font-size:13.5px}
+/* ── 프로필이 바뀌면 목록이 알려준다 ──
+   말풍선으로 알리지 않는다 — 그건 그 사람이 나한테 한 말이 아니니까.
+   아바타 테두리가 홀로그램으로 한 바퀴 돈다. 그게 전부다.
+   프로필을 한 번 열어보면 꺼진다. */
+.avatar.nu::after{content:"";position:absolute;inset:-4px;border-radius:50%;pointer-events:none;
+ background:conic-gradient(from 0deg,#ffb0d4,#c3b2f0,#9ae6f0,#ffe9a8,#ffb0d4);
+ -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 2px));
+ mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 2px));
+ animation:nuspin 3.6s linear infinite}
+@keyframes nuspin{to{transform:rotate(360deg)}}
+.rtime{margin-left:auto;font-size:9.5px;color:#b0a6d8;flex:none}
+.rprev{margin-top:5px;font-size:11px;color:#9a8fc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 지문은 누가 한 말이 아니다. 채팅방에서 옅게 그리듯 목록에서도 한 톤 물린다 */
+.rprev.sys{color:#b0a6d8;font-style:normal;letter-spacing:.02em}
+.watch .rprev{color:#8a90b8}
+.watch .rtime{color:#6d74a3}
+.rbadge{position:relative;flex:none;min-width:20px;height:20px;padding:0 6px;font-size:10px;color:#fff;border-radius:10px;
+ display:flex;align-items:center;justify-content:center;border:1px solid #5d5490;
+ background:linear-gradient(180deg,#ffc0dc 0%,#ff7fae 55%,#f2679b 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.9),1px 1px 0 rgba(93,84,144,.3),0 0 8px rgba(255,127,174,.55)}
+/* 배지 위에 올라오는 글로시 하이라이트 */
+.rbadge::before{content:"";position:absolute;left:3px;right:3px;top:2px;height:6px;border-radius:6px;
+ background:rgba(255,255,255,.6)}
+/* 미니홈피 방문자 카운터 — 목록 끝의 빈 자리를 메운다 */
+.hompy{margin:16px 3px 2px;display:flex;align-items:center;gap:6px;padding:9px 10px;
+ font-size:9px;letter-spacing:.18em;color:#c3a6cf;border:1px dashed #e8cfe6;border-radius:9px;
+ background:linear-gradient(180deg,#ffffff,#fdf7ff)}
+.hompy .hv{margin-left:0;padding:3px 8px;font-size:9.5px;letter-spacing:.12em;color:#9a8fc8;
+ background:#fff;border:1px solid #eee0f4;border-radius:10px}
+.hompy .hv b{font-weight:400;color:#6b5fa8}
+.hompy .hv.pk b{color:#e0699a}
+.hompy .sp{margin-left:auto;display:flex;align-items:center;gap:5px;opacity:.9}
+.statusbar{flex:none;display:flex;align-items:center;gap:5px;min-width:0;
+ margin:0 12px;padding:7px 0 calc(7px + env(safe-area-inset-bottom))}
+.statusbar>span{padding:5px 9px;font-size:9px;letter-spacing:.18em;color:#6b5fa8;text-align:left;
+ background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);border-radius:4px;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 1px rgba(150,135,210,.18);
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.statusbar>span:first-child{flex:1;min-width:0}
+.statusbar>span+span{flex:none;letter-spacing:.1em;color:#4a4276}
+/* 갤러리(Cam 탭) */
+.gal{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px}
+.galgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:6px}
+.galgrid img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:5px;border:1px solid #cfc6ee;background:#efeaf9;cursor:pointer;
+ box-shadow:1px 2px 0 rgba(93,84,144,.2)}
+.galgrid img:active{opacity:.82}
+/* .hidden 탭: 잠긴 사진 */
+.tab.hid{color:#8f86c9;letter-spacing:.04em}
+.tab.hid.on{color:#4a4276}
+.hcell{position:relative;aspect-ratio:2/3;border-radius:5px;overflow:hidden;border:1px solid #cfc6ee;background:#efeaf9;cursor:pointer;
+ box-shadow:1px 2px 0 rgba(93,84,144,.2)}
+.hcell img{width:100%;height:100%;object-fit:cover;display:block}
+.hcell.lock img{filter:blur(8px) grayscale(.65) brightness(.7);transform:scale(1.08)}
+.hlock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+ filter:drop-shadow(1px 1px 0 rgba(43,36,78,.6))}
+.hlabel{position:absolute;left:5px;bottom:5px;max-width:calc(100% - 10px);padding:3px 7px 4px;
+ font-size:9px;letter-spacing:.04em;color:#4a4276;white-space:pre;overflow:hidden;text-overflow:ellipsis;
+ background:rgba(255,255,255,.88);border:1px solid #fff;border-radius:4px;
+ box-shadow:inset 0 1px 0 #fff,0 1px 0 rgba(93,84,144,.28)}
+/* 잠긴 것은 글자 수만 알려준다 — 몇 글자짜리 이름인지가 궁금해야 한다 */
+.hlabel.hid{color:#b6a8dd;letter-spacing:.12em;background:rgba(255,255,255,.7)}
+/* ⑥ 누르면 그 □ 자리가 그대로 입력칸이 된다. 칸이 새로 생기거나 창이
+   뜨지 않는다 — 자리를 안 옮겨야 「이 이름을 적는 것」으로 읽힌다 */
+input.hlabel.hin{width:calc(100% - 10px);font-family:inherit;line-height:normal;
+ color:#4a4276;background:rgba(255,255,255,.95);outline:none;caret-color:#ff7fae}
+input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
+.hcell.lock{cursor:text}
+.hnote{margin:14px 4px 8px;text-align:center;font-size:10px;color:#b0a6d8;letter-spacing:.08em;line-height:1.9}
+
+/* ── map 탭 ──
+   장소 사진을 네모 칸에 나열하면 지도보다 잠긴 앨범처럼 보인다.
+   길은 배경 한 장, 장소는 open/lock 투명 PNG, 카드·제목·START는 실제 HTML UI다.
+   좌표는 퍼센트라 창 폭이 달라져도 길 위 제자리를 지킨다. */
+.mapscroll{padding:7px 7px 14px;scrollbar-width:thin;scrollbar-color:#b29be9 transparent}
+/* 학교 안도 마을과 같은 사물함 한 장이다. 길이가 같으니 스크롤도 같이 쓴다 —
+   전에는 열린 문만 오려 띄워서 여기만 스크롤을 막았었다 */
+/* 지도 머리글은 걷었다. 사물함 원화가 제 머리에 이름표와 빈 홈을 달고
+   나와서, 창 위에 같은 것을 하나 더 얹으면 제목도 진도도 두 벌이 됐다 */
+/* 하루에 한 번뿐이라는 건 눌러보고 알면 늦다. 묻는 자리에서 같이 말한다 */
+/* 아직 못 가는 자리. 두 줄로 끊고 글자를 줄인다 — 한 줄로 길게 늘어놓으면
+   창이 옆으로 벌어지고 얼굴이 잘린다 */
+.asklock{display:block;font-size:11.5px;line-height:1.9;color:#a06a90}
+.asklock i{font-style:normal;color:#e66fa4}
+/* 상자를 두르면 창 안에 창이 하나 더 생긴다. 글자색만 달리한다 */
+.askrule{margin:0 14px 11px;text-align:center;font-size:10.5px;line-height:1.5;
+ letter-spacing:.02em;color:#d47aa8}
+/* 시간을 내서 가는 자리는 누구랑 갈지 고른다 */
+.askwho{display:flex;gap:7px;margin:0 12px 10px}
+.whobtn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+ padding:7px 6px;font-size:11px;border-radius:9px}
+.whobtn .cface{width:22px;height:22px;flex:none;border-radius:50%;border:1.5px solid #fff;
+ box-shadow:0 0 0 1px #ddd2f4}
+.whobtn.on{color:#fff;text-shadow:0 1px 0 rgba(170,80,140,.5);border-color:#fff;
+ background:linear-gradient(180deg,#ffc2e2,#f78fc6);box-shadow:0 2px 0 rgba(180,110,160,.3)}
+.dlgbtns .bevel[disabled]{opacity:.45;cursor:default}
+/* ── 교실 문틈 ──
+   수업 중엔 대화가 아니라 구경이다. 교실 배경을 어둡게 깔고 그 애 사진
+   한 장을 폴라로이드처럼 얹는다. 캐비닛 TV처럼 아무 데나 누르면 돌아간다.
+   z는 대화창(40)보다 위, 토스트(45)보다 아래 — 구경 중에도 알림은 보인다 */
+.lookov{position:absolute;inset:0;z-index:42;overflow:hidden;cursor:pointer;
+ background:#1a1424;animation:fade .25s ease}
+.lookov .lookbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+ filter:brightness(.5) saturate(.85)}
+.lookshot{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%) rotate(-2deg);
+ width:66%;max-width:240px;padding:7px 7px 24px;background:#fdf9f2;border-radius:2px;
+ box-shadow:0 8px 22px rgba(10,4,20,.55)}
+.lookshot img{display:block;width:100%;border-radius:1px}
+.lookcap{position:absolute;left:0;right:0;bottom:13%;text-align:center;
+ font-size:11px;letter-spacing:.14em;color:#fff;text-shadow:0 1px 7px rgba(10,4,20,.9)}
+
+/* ── 캐비닛 지도 ──
+   길이던 지도를 사물함으로 바꿨다. 이 앱은 가짜 OS인데 지도만 혼자 야외
+   일러스트였다. 문짝은 구멍보다 조금 커야 경첩이 프레임에 얹혀 문으로 보인다. */
+.cab{position:relative;width:100%;margin:0 auto}
+.cab .cabframe{display:block;width:100%;height:auto}
+/* 원화 머리에 빈 홈이 하나 그려져 있다. 이 게임에서 빈칸은 채우라고 있는
+   것이라 거기에 실제 진행을 넣는다. 좌표는 원화에서 홈 안쪽을 재서 넣었다 */
+.cabbar{position:absolute;z-index:3;left:9.8%;top:7.42%;width:63.4%;height:1.72%;
+ display:flex;align-items:center;border-radius:99px;pointer-events:none}
+.cabbar i{display:block;height:100%;border-radius:99px;
+ background:linear-gradient(90deg,#ff9ec6,#c3b2f0,#9cdff1);
+ box-shadow:0 0 6px rgba(255,158,198,.7)}
+.cabbar b{position:absolute;right:2.4%;font-weight:400;font-size:9px;
+ letter-spacing:.08em;color:#7a6ab4;white-space:nowrap}
+ /* 그림자를 얹지 않는다. 문짝은 원화에서 잘라 제자리에 다시 얹는 것이라
+    이미 제 그림자를 달고 있다 — 하나 더 두르면 칸마다 네모 테두리가 진다 */
+.cabdoor{position:absolute;z-index:2;transform:translate(-50%,-50%);pointer-events:none}
+.cabdoor img{display:block;width:100%;height:auto}
+.cabdoor[role]{pointer-events:auto;cursor:pointer}
+.cabdoor[role]:active{transform:translate(-50%,-50%) scale(.965)}
+.cabdoor[role]:focus-visible{outline:2px solid #fff;outline-offset:-4%;border-radius:10px}
+/* 잠긴 문은 자물쇠 그림이 이미 말해준다. 색까지 죽이면 두 번 말하는 것이다 */
+.cabdoor.lock{filter:saturate(.86)}
+/* 열렸지만 지금은 못 가는 자리 — 문은 멀쩡하고 시간이 아니다 */
+.cabdoor.shut{filter:grayscale(.34)}
+/* 다녀온 자리는 문이 조금 빛난다 */
+.cabdoor.been img{filter:drop-shadow(0 0 9px rgba(255,142,201,.92))}
+.cabdoor.plate{filter:none}
+
+/* 학교 문을 열면 그 문이 열린 사물함으로 바뀐다. 원화가 사물함 한 장으로
+   그려져 있어서 열린 칸만 오려 띄우지 않는다 — 마을과 같은 자리, 같은 크기다.
+   전에는 열린 부분만 오려 한가운데에 띄웠는데, 그러면 사물함 안이 아니라
+   화면 위에 얹힌 판때기로 보였다 */
+.cabin{position:relative;width:100%;cursor:pointer}
+.cabpop{animation:tvpop .3s ease}
+@keyframes tvpop{from{opacity:.4}to{opacity:1}}
+.tvq{position:absolute;z-index:2;border-radius:5px;pointer-events:none}
+.tvq[role]{pointer-events:auto;cursor:pointer}
+.tvq[role]:active{background:rgba(255,142,201,.22)}
+.tvq[role]:focus-visible{outline:2px solid #ff8ec9;outline-offset:2px}
+/* TV 화면은 그림이라 잠금을 얹어서 말해야 한다 */
+.tvq.lock{background:rgba(64,52,112,.52);box-shadow:inset 0 0 0 2px rgba(255,255,255,.28)}
+.tvq.shut{background:rgba(64,52,112,.26)}
+
+@media(prefers-reduced-motion:reduce){.cabpop{animation:none}}
+/* 열린 자리만 손이 닿는다. 아직 못 가는 자리는 눌러도 반응이 없어야
+   눌러본 사람이 「아직 아니구나」를 알게 된다 */
+/* 열려 있지만 지금 갈 시간이 아닌 자리. 잠긴 것과 달라 보여야 한다 —
+   잠긴 건 아직 못 가는 곳이고 이건 나중에 오면 되는 곳이다 */
+
+/* ── 시간표 ── */
+/* 판·알약·굽 전부 앱의 다른 창과 같은 결이다. 그림자는 번지지 않는 굽
+   (.etcwarn이 0 3px 0을 쓴다) — 번지는 그림자를 쓰면 혼자 다른 물건이 된다 */
+.ttwin .dlgbody{padding-bottom:14px}
+.ttpanel{position:relative;margin:14px 12px 0;padding:17px 13px 10px;border-radius:11px;background:#fff;
+ border:1.5px solid #fff;box-shadow:0 0 0 1px #e0d6f6,0 3px 0 #ddd2f5,inset 0 1px 0 #fff}
+.tttag{position:absolute;left:50%;top:-10px;transform:translateX(-50%);white-space:nowrap;overflow:hidden;
+ padding:3px 15px 4px;font-size:8px;letter-spacing:.22em;color:#fff;border-radius:999px;
+ text-shadow:0 1px 0 rgba(110,86,160,.5);border:1.5px solid #fff;
+ background:linear-gradient(100deg,#f3b9d8 0%,#d5b3ef 34%,#b79ceb 62%,#a992e6 100%);
+ box-shadow:0 2px 0 #b9a4e8}
+.tttag::before{content:"";position:absolute;left:7%;right:7%;top:2px;height:40%;border-radius:999px;
+ background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
+.ttrow{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:9px;letter-spacing:.16em}
+.ttrow .n{flex:none;width:54px;text-align:left}
+.ttrow .ln{flex:1;min-width:14px;height:0;border-top:1.5px dashed #c9bdea}
+.ttrow .mk{flex:none;white-space:nowrap;font-size:9px;letter-spacing:0;color:#c3b2f0}
+.ttrow.past .n{color:#a897dd}
+.ttrow.past .ln{height:1.5px;border-top:0;border-radius:2px;background:#cfc4ee}
+.ttrow.now  .n{color:#ff4d9e}
+.ttrow.now  .ln{border-top-color:#ff8fbe}
+.ttrow.now  .mk{color:#ff4d9e}
+.ttrow.next .n{color:#7d6ab8}
+.ttrow.next .ln{border-top-color:#c9bdea}
+/* 주말 칸. 기존 빈칸(.blank)과 이름이 부딪히면 줄 전체가 점선 상자가 된다 */
+.ttrow.mine .n{width:auto;min-width:54px}
+/* ── 등록 화면의 모드 고르기 ──
+   고른 쪽은 Click! 단추와 같은 가족이다(같은 분홍 그라데이션·같은 2px 턱·
+   같은 윗면 광). 안 고른 쪽은 위의 빈칸들과 같은 점선이라, 「아직 안 정한 칸」
+   으로 읽힌다. 처음엔 둘 다 납작한 알약이라 눌리는 것처럼 안 보였다. */
+.emode{display:inline-flex;gap:6px;flex:none}
+.emode b{position:relative;overflow:hidden;font-weight:400;cursor:pointer;
+  padding:4px 13px 5px;font-size:11px;letter-spacing:.16em;text-indent:.16em;
+  border-radius:999px;color:#a897dd;background:#fff;border:1.5px dashed #d9cbf3}
+.emode b.on{color:#6b5fa8;border:1.5px solid #fff;
+  background:linear-gradient(180deg,#fff0f7 0%,#ffd9ec 48%,#ffc2dd 52%,#ffe4f1 100%);
+  box-shadow:inset 0 1px 0 #fff,0 2px 0 #edbcd6}
+.emode b.on::after{content:"";position:absolute;left:8%;right:8%;top:2px;height:38%;
+  border-radius:999px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,0))}
+.emode b:active{transform:translateY(1px)}
+.emode b.on:active{box-shadow:inset 0 2px 4px rgba(190,120,160,.3)}
+/* 설명은 알약 밑으로 내린다. 라벨 밑에 붙으면 어느 알약 얘기인지 안 보인다 —
+   66px(라벨) + 5px(gap) 만큼 들여써서 알약과 왼쪽을 맞춘다 */
+/* 얼굴은 통째로 한 덩어리다. 안 묶으면 「˙˚ଘo(∗ ❛ั ᵕ ❛ั 」에서 끊겨
+   다음 줄에 「)੭່˙」만 남는다 — 얼굴이 아니라 부스러기가 된다 */
+.ttsay{margin-top:11px;text-align:center;font-size:9px;line-height:1.95;color:#6b5fa8}
+.ttsay b{display:block;font-weight:400}
+.ttsay b i{font-style:normal;color:#ff4d9e}
+/* 야자 감독인 주. null.exe의 「!! WARNING !!」과 같은 크기·같은 자리다 */
+.ttsay.warn{margin-top:15px;line-height:2.05}
+.ttsay.warn b{margin-bottom:5px;font-size:12.5px;letter-spacing:.04em;color:#4a4276}
+.ttsay b{color:#5d4fa0}
+
+
+/* ── bag ── */
+/* gift 창과 같은 부품(.cartwin·.cgcard·.cchip)을 쓰고 여기서 다른 것만 더한다 */
+.bagcount{flex:1;padding:9px 13px;font-size:11px;letter-spacing:.04em;color:#6b5fa8;
+ background:#fff;border:1.5px solid #fff;border-radius:999px;box-shadow:0 0 0 1px #e4dbf8}
+.baglent{flex:none;padding:9px 13px;font-size:10.5px;letter-spacing:.04em;color:#c05f8c;
+ background:#fff2f8;border:1.5px solid #fff;border-radius:999px;box-shadow:0 0 0 1px #f4c3d8}
+/* 가방은 물건이 주인공이다. 얼굴을 크게 놓으니 물건은 글자뿐이고 얼굴만
+   네 번 박히는 화면이 됐다. 물건을 앞에 놓고 준 사람은 오른쪽 작은 원으로. */
+.bagpic{width:64px;height:64px;flex:none;align-self:center;object-fit:contain;
+ filter:drop-shadow(0 2px 2px rgba(93,84,144,.28))}
+.bagwho{position:relative;width:38px;height:38px;flex:none;align-self:flex-start;border-radius:50%;
+ border:1.5px solid #fff;background:#ece4fb center/150% no-repeat;
+ box-shadow:0 0 0 1px #ddd2f4,0 2px 0 rgba(150,135,210,.22)}
+/* 하트가 얼굴 위에 얹혀 있었다. 글자 상자는 원 밖으로 밀어놨는데 ♡의 먹이
+   상자 아래쪽에 앉는 글자라, 정작 그림은 원 안으로 들어와 사진과 겹쳤다.
+   line-height를 1로 못박아 상자와 먹을 맞추고, 흰 딱지를 깔아 사진에서 뗀다.
+   카드는 overflow:hidden이라 딱지가 padding(14px) 안에 들어와야 한다 —
+   -6px에 15px 딱지면 카드 끝에서 8px이라 안 잘린다. */
+.bagwho i{position:absolute;right:-6px;top:-6px;display:flex;align-items:center;justify-content:center;
+ width:15px;height:15px;font-style:normal;font-size:10px;line-height:1;color:#ff7fae;
+ background:#fff;border-radius:50%;box-shadow:0 0 0 1px #f4c3d8,0 1px 2px rgba(150,135,210,.3)}
+.baglabel{display:inline-block;margin-top:6px;padding:3px 9px 4px;font-size:9px;letter-spacing:.06em;
+ color:#c05f8c;background:#fff2f8;border:1px solid #f4c3d8;border-radius:999px}
+.bagmeta{margin-top:5px;font-size:10px;letter-spacing:.02em;color:#a99bd0}
+/* 해금 알림 */
+/* 알림 — 사진 위에 띄워서 가리면 겹쳐 보인다. 하단 상태바 자리에 대신 앛는다 */
+.toast{position:absolute;left:0;right:0;top:50%;z-index:45;display:flex;justify-content:center;
+ transform:translateY(-50%);pointer-events:none}
+.toast>span{flex:0 1 auto;max-width:74%;padding:11px 18px;font-size:11px;letter-spacing:.06em;color:#5a4fa0;text-align:center;
+ border:1px solid #a897dd;border-radius:6px;background:#fff;
+ box-shadow:0 3px 8px rgba(93,84,144,.18);animation:fadeUp .25s steps(3) both}
+/* ── 채팅방 ── */
+.chatbar{flex:none;display:flex;align-items:center;gap:9px;padding:8px 11px;background:#ece8fa;border-bottom:1px solid #c5bce8}
+.backbtn{width:30px;height:27px;display:flex;align-items:center;justify-content:center;flex:none;color:#6b5fa8}
+.cname{font-size:13.5px}
+.csub{font-size:9.5px;color:#9a8fc8;margin-top:3px;display:flex;align-items:center;gap:7px}
+/* 남은 날. 숫자로 적으면 읽어야 하는데 칸이면 보면 안다.
+   그리고 채워지는 게 아니라 비어가는 쪽이다 — 이 이야기가 그렇다. */
+.dbar{display:flex;gap:1px;width:132px;height:7px;flex:none;
+ border:1px solid #b9addc;background:#fff;padding:1px;box-sizing:content-box}
+.dbar i{flex:1;background:#8a7fc0}
+.dbar i.gone{background:#f3effc}
+.dbar i.now{background:#ff7fae}
+/* 개발 전용 시간 이동. 배포판에서는 아예 안 그려진다(NULL_DEV) —
+   여기 있는 것만으로 켜지지 않으니 이 규칙은 죽은 채로 실려 있다 */
+.devtime{position:absolute;transform:translate(140px,-4px);display:flex;gap:2px;z-index:5}
+.devtime button{font:9px/1 inherit;padding:1px 3px;border:1px solid #b9addc;
+ background:#fff;color:#6b5fa8;cursor:pointer}
+.msgs{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 12px 10px;display:flex;flex-direction:column;gap:3px;
+ background:#fdfcff;border-top:1px solid #fff;box-shadow:inset 1px 2px 4px rgba(93,84,144,.14)}
+/* 스크롤 끝의 여백을 컨테이너 padding-bottom에 기대지 않는다.
+   일부 모바일 브라우저는 스크롤 영역의 아래쪽 padding을 scrollHeight에 안 넣어서
+   끝까지 내려도 마지막 줄이 잘린다(.hidden 탭 안내문이 반쯤 잘리던 원인).
+   진짜 자식으로 만들어두면 어느 브라우저에서나 끝까지 닿는다. */
+.gal::after,.rooms::after,.msgs::after{content:"";display:block;flex:none;height:20px}
+/* 관전방: 미디어 플레이어 흰 스크린 */
+.watchbg .msgs{background:#fdfffe}
+.divider{align-self:center;margin:12px 0 8px;font-size:9.5px;color:#c39ede;letter-spacing:.1em}
+/* ── 같이 간 자리 ──
+   사진을 깔고 말풍선을 걷는다. 그라데이션은 안 깐다 — 장소 사진들이 아래쪽
+   밝기 17~32라 흰 글씨가 그냥 읽힌다. 그림자는 나중에 밝은 사진이 들어와도
+   안 깨지라고 걸어두는 보험이다. */
+/* position은 여기서 안 적는다. .screen이 이미 position:absolute·inset:4px인데
+   여기서 relative로 덮으면 그 자리를 빠져나와 흐름으로 돌아간다 — 화면이
+   말풍선 높이만큼만 서고 아래가 통째로 빈다. 자리에 들어가면 화면 절반이
+   연보라로 남던 것이 이것이다. ::before의 기준은 absolute도 똑같이 해준다. */
+.scenewrap{display:flex;flex-direction:column;background-size:cover;background-position:center;background-color:#14121c}
+/* 아래 절반에 어둠막. 지금까지는 자리 사진들이 우연히 아래가 어두워서 버텼는데,
+   인물 사진은 그 보장이 없다 — minhyun-window는 아래가 흰 프린트다.
+   말풍선(z 1)보다 뒤에 깔린다 */
+.scenewrap::before{content:"";position:absolute;left:0;right:0;bottom:0;height:58%;z-index:0;pointer-events:none;
+ background:linear-gradient(180deg,rgba(14,11,26,0) 0%,rgba(14,11,26,.34) 38%,rgba(14,11,26,.72) 100%)}
+/* 입력줄도 여기 들어가야 한다. 빼놨더니 어둠막(::before, z-index:0)이
+   입력줄 위에 얹혔다 — 자리에 들어가면 입력창만 까맸다.
+   위치 없는 요소는 z-index:0인 형제보다 아래에 깔린다. */
+.scenewrap .scenebody,.scenewrap .tb,.scenewrap .scenebar{position:relative;z-index:1}
+.scenewrap .scenebody{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;padding:0 16px 12px}
+.scenewrap .scenelines{display:flex;flex-direction:column;gap:9px}
+.scenewrap .sline{max-width:88%}
+.scenewrap .sline.me{align-self:flex-end;text-align:right}
+.scenewrap .sname{font-size:9px;letter-spacing:.14em;color:rgba(255,255,255,.62);margin-bottom:3px;
+ text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.scenewrap .stext{font-size:14px;line-height:1.55;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.scenewrap .stext.dim{color:rgba(255,255,255,.5)}
+.scenewrap .sphoto{display:block;max-width:172px;border-radius:6px;margin-bottom:5px;
+ box-shadow:0 2px 10px rgba(0,0,0,.45)}
+/* 반투명 흰색을 사진 위에 얹으니 사진이 비쳐 회색으로 읽혔다. 그래서 거의
+   흰색으로 올렸더니 이번엔 그 위의 단추와 입력칸이 다 하얘져서 사라졌다 —
+   돌아가기도 보내기도 원래 연보라 바닥에 앉으라고 만든 부품이다.
+   이 줄은 사진의 일부가 아니라 손이 닿는 자리다. 다른 방과 같은 바를 쓴다. */
+.scenewrap .scenebar{box-shadow:inset 0 1px 0 #fff,0 -3px 14px rgba(20,16,40,.5)}
+/* 다른 방에서는 나가기가 위 줄(.chatbar)에 있다. 자리에서는 위가 사진이라
+   입력줄로 내려왔는데, 30×27 모난 상자가 40짜리 둥근 보내기 옆에 앉으니
+   혼자 다른 창에서 굴러온 부품처럼 보였다. 같은 크기 같은 모양으로 */
+/* 크기·모양은 .rbtn이 들고 있다. 여기서 또 적으면 두 군데를 고쳐야 한다 */
+
+/* 괄호 지문 — 말풍선이 아니라 채팅창에 쳐진 한 줄 */
+.narr{align-self:center;max-width:82%;margin:7px 0;padding:0 6px;text-align:center;
+ font-size:10px;line-height:1.75;letter-spacing:.03em;color:#9a8fc8}
+.mrow{display:flex;align-items:flex-end;gap:8px;animation:fadeUp .28s steps(4) both}
+.mrow.me{justify-content:flex-end}
+.mrow .sp{width:26px;flex:none}
+.mavatar{width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;
+ border:1px solid #8a7fc0;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),1px 1px 0 rgba(93,84,144,.25)}
+.mcol{display:flex;flex-direction:column;max-width:76%}
+.mname{font-size:9.5px;margin:6px 0 3px 2px;letter-spacing:.04em;color:#9a8fc8}
+.bubble{padding:8px 11px;font-size:12.5px;line-height:1.65;word-break:break-word;white-space:pre-wrap;border-radius:8px;
+ background:#fff;border:1px solid #8a7fc0;color:#4a4276;box-shadow:2px 2px 0 rgba(138,127,192,.28)}
+.mrow:not(.me) .bubble{border-bottom-left-radius:2px}
+.mrow.me .bubble{border-bottom-right-radius:2px;box-shadow:-2px 2px 0 rgba(255,143,190,.4)}
+/* 사진 말풍선 */
+.bubble.photo{padding:4px;white-space:normal}
+.bubble.photo img{display:block;width:100%;max-width:172px;border-radius:5px;border:1px solid #cfc6ee;
+ background:#efeaf9;cursor:pointer;aspect-ratio:2/3;object-fit:cover}
+.bubble.photo img:active{opacity:.82}
+.bubble.photo .cap{padding:5px 7px 3px;font-size:12.5px;line-height:1.6;color:#4a4276;white-space:pre-wrap}
+/* ── 사진 보기 ──
+   이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
+   사진도 창에 담으면 규칙이 하나로 서고, 창틀이 「이게 무엇인지」도 말해준다.
+   전에는 검은 공백에 사진만 띄웠는데, 이 사진들은 전부 표면 위에 놓인 물건을
+   찍은 것이라 이미 자기 세계를 들고 온다 — 검정은 그 세계를 버리고 두 번째
+   세계를 하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라 가까이 본 게 된다. */
+.pvwin{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+ padding:16px;background:rgba(74,66,118,.42);animation:fade .18s steps(3) both;cursor:pointer}
+.pvwin .dlg.pvdlg{max-width:none;width:100%;cursor:default;
+ display:flex;flex-direction:column;max-height:100%}
+.pvbody{flex:0 1 auto;min-height:0;overflow:auto;padding:11px 11px 0;background:none}
+.pvbody img{display:block;width:100%;border-radius:5px;
+ box-shadow:0 2px 0 rgba(150,135,210,.3),0 0 0 1px rgba(93,84,144,.18)}
+.pvcap{margin-top:9px;padding:8px 10px;border:1px solid #cfc6ee;border-radius:6px;
+ background:rgba(255,253,255,.96);color:#4a4276;text-align:left}
+.pvcap .lt{margin-bottom:4px;font-size:10px;letter-spacing:.14em;color:#8a7fc0}
+.pvcap .ln{font-size:11.5px;line-height:1.65;word-break:keep-all}
+/* 알약은 사진에 붙는다. 창 안이라 떠 있을 자리가 없다 —
+   전에는 사진에서 한참 떨어져 아무 관계도 없이 떠 있었다 */
+/* ── 사진 창 위의 빈칸 ──
+   유저가 채운 글자를 사진 제자리에 얹는다. 상자가 아니라 **그려진 사진**에
+   앉아야 하므로 사진과 똑같은 맞춤 셈을 쓴다 — inset·margin·aspect-ratio가
+   세 줄 다 같아야 퍼센트가 사진 위에 떨어진다 (.dfit과 같은 이유). */
+.pvshot{position:relative}
+.pvfit{position:absolute;inset:0;pointer-events:none}
+/* 일기장·엽서의 빈칸과 같은 연필이다 — 같은 종이에 같은 사람이 쓴 글씨다 */
+.pvfill{position:absolute;display:flex;align-items:center;justify-content:center;
+ padding:0 4px;font-family:inherit;font-size:13px;line-height:1;
+ color:#4f4636;white-space:nowrap;overflow:hidden}
+/* 뒷면이 있는 것은 엽서 하나다. 단추를 달지 않는다 — 엽서를 뒤집는 데
+   단추가 필요한 적은 없었다. 누르면 넘어간다는 것만 커서로 알린다 */
+.pvbody.flip{cursor:pointer}
+.pvbody.flip .pvshot img{transition:opacity .18s}
+.pvbody.flip:active .pvshot img{opacity:.9}
+.pvfoot{flex:none;display:flex;align-items:center;gap:7px;padding:11px}
+.pvfoot .wbtn{max-width:none}
+.pvfoot .wbtn.sh{flex:none;width:42px;padding:11px 0}
+.typing{display:flex;gap:5px;padding:12px 12px}
+.typing i{width:5px;height:5px;border-radius:50%;background:#8a7fc0;animation:blink 1s steps(2) infinite}
+.typing i:nth-child(2){animation-delay:.15s}
+.typing i:nth-child(3){animation-delay:.3s}
+.retry{align-self:flex-start;margin:8px 0 4px 34px;padding:8px 13px;font-family:inherit;font-size:11px;border-radius:0;
+ border:1px solid #d4586b;background:#fff0f3;color:#c23b50;cursor:pointer;
+ box-shadow:inset 1px 1px 0 #fff,2px 2px 0 rgba(212,88,107,.3);animation:fadeUp .3s steps(4)}
+.retry:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 #ffd7de}
+.retry .why{display:block;margin-top:5px;font-size:9.5px;line-height:1.5;color:#a04255;
+ opacity:.85;word-break:break-all;text-align:left;max-width:250px}
+/* 입력바 */
+.inputbar{flex:none;display:flex;align-items:center;gap:8px;padding:9px 10px calc(11px + env(safe-area-inset-bottom));
+ background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
+/* min-width:0이 없으면 input은 제 min-content(기본 size=20자) 아래로 안 줄어든다.
+   폭이 좁은 화면에서 입력칸이 버티는 바람에 보내기 단추가 화면 밖으로 밀렸다 */
+/* 앱에서 여기만 각졌었다. 카드·창·단추가 다 둥근데 입력칸만 border-radius:0이라
+   혼자 딱딱했다. 창들과 같은 9px로 맞춘다 */
+.inputbar input{flex:1;min-width:0;padding:10px 12px;font-size:16px;font-family:inherit;color:#4a4276;outline:none;border-radius:9px}
+.inputbar input::placeholder{color:#b0a6d8}
+/* ── 입력줄의 동그란 단추 셋 ──
+   이 앱에서 제일 예쁜 단추는 창 머리의 ─ ▭ ✕다. 흰 테, 아래쪽 안그림자,
+   왼쪽 위 하이라이트. 그 문법을 그대로 37px로 키운다.
+   전에는 반투명 보랏빛 테에 위쪽만 흰 뚜껑이라 납작했다. */
+.rbtn{position:relative;overflow:hidden;flex:none;width:37px;height:37px;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;
+ border:1.5px solid rgba(255,255,255,.92);
+ box-shadow:inset 0 -3px 5px rgba(93,84,144,.28),0 2px 0 rgba(93,84,144,.28)}
+.rbtn::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+ background:radial-gradient(circle at 33% 26%,rgba(255,255,255,.92),rgba(255,255,255,.3) 40%,rgba(255,255,255,0) 66%)}
+/* 하이라이트가 위에 깔리므로 그림은 z-index로 그 앞에 세운다 */
+.rbtn>svg{position:relative;z-index:1}
+.rbtn:active{transform:translateY(2px);box-shadow:inset 0 3px 6px rgba(93,84,144,.34)}
+.rbtn[disabled]{opacity:.42;cursor:default}
+.rbtn[disabled]:active{transform:none}
+/* 뒤로·선물은 줄과 같은 라벤더. 방 색은 보내기 하나만 쓴다 —
+   셋 다 색이 있으면 어느 게 보내기인지 모른다 */
+.backbtn,.giftbtn{color:#5d5490;background:linear-gradient(180deg,#f6f2ff 0%,#e4dcfa 46%,#c9bdec 100%)}
+.sendbtn{color:#fff;text-shadow:0 1px 0 rgba(93,84,144,.42)}
+.watchbar{flex:none;display:flex;align-items:center;justify-content:center;gap:8px;
+ padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:11px;letter-spacing:.08em;color:#2f9e5a;
+ background:#dcd6f2;border-top:1px solid #8a7fc0;box-shadow:inset 0 1px 0 #fff}
+.rec{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5470;animation:recblink 1.2s infinite}
+/* 아직 출근하지 않은 사람의 방. 까닭은 화면 한가운데(.lockempty)가 말하고,
+   입력창은 자리를 지킨 채 잠긴다 — 빼버리면 방마다 화면 높이가 달라진다 */
+.lockempty{line-height:2.2}
+.inputbar.locked .sunken{background:#e4dff5;border-color:#c5bce8;cursor:not-allowed}
+.inputbar.locked .sendbtn{opacity:.4;filter:grayscale(.5)}
+.empty{margin:auto;text-align:center;color:#b0a6d8;font-size:11.5px;line-height:2;letter-spacing:.04em;padding:0 30px}
+.msgs::-webkit-scrollbar,.rooms::-webkit-scrollbar,.gal::-webkit-scrollbar{width:0}
+/* ── 캐릭터 프로필 — Y2K 미니홈피 카드 ── */
+.avatar.clickable,.mavatar.clickable{cursor:pointer}
+.avatar.clickable:active,.mavatar.clickable:active{transform:translateY(1px)}
+.pfscreen{position:absolute;inset:0;z-index:38;background:#2b244e center/cover no-repeat;
+ animation:fadeUp .22s steps(4) both}
+.pfdim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+ overflow-y:auto;padding:22px;background:rgba(20,14,44,.42)}
+.pfcard{position:relative;width:100%;max-width:320px;overflow:hidden;border-radius:18px;border:2px solid #fff;
+ background:linear-gradient(180deg,#ffffff 0%,#f6f1ff 44%,#efe7fc 100%);
+ box-shadow:0 3px 0 rgba(150,135,210,.4),0 0 0 1px #e4dbf8,0 12px 28px rgba(20,14,44,.4)}
+/* 배경만 크게 — 카드도 어둡기도 없이 사진 그대로 */
+.bgfull{position:absolute;inset:0;z-index:44;background:#2b244e center/cover no-repeat;cursor:pointer;
+ animation:fadeUp .2s steps(3) both}
+.bgclose{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-size:9px;letter-spacing:.2em;
+ color:rgba(255,255,255,.85);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.pftop{display:flex;flex-direction:column;align-items:center;padding:22px 18px 0}
+.pfpola{position:relative;background:#fff;padding:8px 8px 6px;border:1.5px solid #fff;border-radius:10px;
+ box-shadow:0 0 0 1px #e4dbf8,0 3px 0 rgba(150,135,210,.28)}
+.pfpola .tape{position:absolute;width:44px;height:15px;border-radius:3px}
+.pfpola .t1{left:-14px;top:-8px;transform:rotate(-18deg);background:rgba(255,158,198,.75)}
+.pfpola .t2{right:-14px;bottom:14px;transform:rotate(12deg);background:rgba(175,152,234,.75)}
+.pfpola .shot{display:block;width:126px;height:126px;border-radius:7px;background:#efeaf9;background-repeat:no-repeat}
+.pfpola .cap{margin-top:6px;font-size:8.5px;letter-spacing:.1em;color:#b3a6cf;text-align:center}
+.pfnamerow{display:flex;align-items:center;gap:7px;margin-top:14px}
+.pfnamerow .nm{font-size:16px;color:#4a4276;letter-spacing:.06em}
+.pfnamerow .deco{font-size:11px}
+/* 상태메시지 말풍선 */
+.pfbubble{margin-top:12px;display:flex;flex-direction:column;align-items:center}
+.pfbubble .b{max-width:250px;padding:10px 15px;background:#fff;border:1.5px solid #fff;border-radius:14px;
+ box-shadow:0 0 0 1px #e4dbf8,0 2px 0 rgba(150,135,210,.22);
+ font-size:11.5px;line-height:1.7;color:#6b5cae;text-align:center;white-space:pre-wrap}
+.pfbubble .tail{width:9px;height:9px;margin-top:-5px;background:#fff;
+ border-right:1.5px solid #e4dbf8;border-bottom:1.5px solid #e4dbf8;transform:rotate(45deg)}
+/* BGM 바 */
+.pfbgm{position:relative;overflow:hidden;display:flex;align-items:center;gap:9px;margin:18px 18px 0;
+ padding:9px 13px;width:calc(100% - 36px);cursor:pointer;font-family:inherit;border-radius:999px;
+ border:1.5px solid #fff;background:linear-gradient(180deg,#ffffff,#efe8fc);
+ box-shadow:inset 0 1px 0 #fff,0 2px 0 rgba(150,135,210,.24),0 0 0 1px #e4dbf8}
+.pfbgm:active{transform:translateY(1px);background:#ece3ff}
+.pfbgm .play{flex:none;width:21px;height:21px;border-radius:50%;border:1.5px solid #fff;background:#fff;
+ box-shadow:0 0 0 1px #ddd2f4;display:flex;align-items:center;justify-content:center;font-size:9px}
+.pfbgm .lab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;
+ font-family:inherit;font-size:9.5px;letter-spacing:.1em;color:#7a6cae}
+.pfbgm .eq{flex:none;display:flex;align-items:flex-end;gap:2px;height:14px}
+.pfbgm .eq i{width:3px;height:3px;border-radius:1px;background:currentColor}
+.pfbgm.on .eq i{animation:eq .7s steps(3) infinite}
+.pfbgm.on .eq i:nth-child(2){animation-delay:.2s}
+.pfbgm.on .eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{0%,100%{height:3px}50%{height:13px}}
+.pfbgmoff{margin:18px 18px 0;padding:9px 0;width:calc(100% - 36px);text-align:center;
+ background:#f6f3fd;border:1px solid #e0d8f4;border-radius:20px;
+ font-size:9.5px;letter-spacing:.1em;color:#c0b5dd}
+/* TODAY / TALK */
+.pfstats{display:flex;gap:8px;margin:14px 18px 0}
+.pfstats .s{flex:1;padding:9px 0;text-align:center;background:#fff;border:1px solid #ecdff2}
+.pfstats .l{display:block;font-size:8px;letter-spacing:.25em;color:#c3aacd}
+.pfstats .v{display:block;margin-top:4px;font-size:14px}
+.pfstickers{display:flex;justify-content:center;gap:12px;margin-top:16px;font-size:12px}
+.pfclose{position:relative;display:block;width:calc(100% - 36px);margin:14px 18px 18px;padding:11px 0;
+ font-family:inherit;font-size:11px;letter-spacing:.2em;cursor:pointer;border-radius:999px;
+ color:#fff;text-shadow:0 1px 0 rgba(120,100,180,.5);border:1.5px solid #fff;
+ background:linear-gradient(180deg,#cfc0f5,#ae98ea);box-shadow:0 2px 0 rgba(150,135,210,.3)}
+.pfclose:active{transform:translateY(2px);box-shadow:none}
+/* ── 접속 상태 점 ── */
+.pres{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:9px;color:#a79cd0}
+.pres i{width:6px;height:6px;border-radius:50%;flex:none}
+.pres.on i{background:#4fc98a;box-shadow:0 0 0 2px rgba(79,201,138,.22)}
+.pres.away i{background:#f0b34a;box-shadow:0 0 0 2px rgba(240,179,74,.2)}
+.pres.off i{background:#c3bcd8}
+/* ── 🌙 관찰 버튼 ── */
+.menubar .nowbtn{padding:0 8px;font-size:10px;letter-spacing:.01em;margin-left:5px}
+/* 360 폭에서 이 줄은 이미 빠듯하다. 재봤더니 오른쪽에 남는 자리가 66px인데
+   달 달린 peek이 70px였다 — 처음부터 4px씩 넘치고 있었다.
+   여백과 사이를 좁혀 60에 맞추고, min-width로 세 상태(peek·04:59····)가
+   같은 폭을 쓰게 한다. 글자가 바뀔 때마다 줄이 흔들리면 그게 더 눈에 띈다. */
+/* ── 이름 빈칸 — 불릴수록 채워진다. 방문자 카운터 자리를 대신한다 ── */
+/* NULL 줄 — 납작한 이름표 */
+.nmcard{flex:none;position:sticky;bottom:0;z-index:3;overflow:hidden;display:flex;align-items:center;gap:8px;
+ margin:9px 0 0;padding:7px 12px;border-radius:11px;
+ background:linear-gradient(180deg,#ffffff 0%,#f7f3ff 44%,#eee6fc 52%,#f6f1ff 100%);
+ border:1.5px solid #fff;
+ box-shadow:inset 0 1px 0 #fff,0 2px 0 rgba(150,135,210,.22),0 0 0 1px #e4dbf8}
+/* 유리 광택 한 줄 — 위쪽 창들과 같은 재질로 보이게 */
+.nmcard::after{content:"";position:absolute;left:0;right:0;top:0;height:22%;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.5),transparent)}
+.nmline{display:flex;align-items:center;gap:4px}
+.nmline>.k{flex:none;margin-right:3px;font-size:9px;letter-spacing:.26em;color:#8f7ccb}
+/* 칸은 글자 수만큼이고 안에 든 것은 언제나 □다 — 채워지는 것은 칸이지
+   이름이 아니다. 불린 만큼 앞에서부터 켜진다 */
+.nmline>.n{display:none}
+/* 라벨과 아이콘 사이의 빈 구간 — 비워두면 카드가 헐거워 보인다 */
+.nmcard::before{content:"";flex:1;height:1px;margin:0 2px;
+ background:repeating-linear-gradient(90deg,#ddd2f4 0 2px,transparent 2px 6px)}
+.nmline{order:1}
+.nmcard::before{order:2}
+/* ── D-0 · 계속 살아갈지 묻는 창 ── */
+.ddq{position:relative;text-align:center;padding:4px 2px 2px}
+.ddq .k{font-size:8.5px;letter-spacing:.28em;color:#d0b3dd}
+.ddq .q{margin-top:9px;font-size:15px;letter-spacing:.04em;color:#4a4276}
+.ddq .s{margin-top:9px;font-size:9.5px;letter-spacing:.06em;color:#b09ecf;line-height:1.95}
+/* null.exe의 상태 줄. 다른 창과 같은 껍데기(.ddq)를 쓰고 여기만 더한다 —
+   웹소설 상태창 형식이라 항목과 값만 적는다. 「어떻게 채우냐」를 쓸 자리가
+   형식에 없다: 판돈만 알려주고 방법은 못 알려준다.
+   존재값에 칸을 그리면 몇 칸인지가 힌트가 되므로 그것도 「비밀」이다. */
+.ddrows{margin:12px auto 0;max-width:190px;display:flex;flex-direction:column;gap:6px}
+.ddrows .r{display:flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:.06em;color:#8f7ccb}
+.ddrows .r .k2{flex:none;width:42px;text-align:left;letter-spacing:.2em;color:#d0b3dd}
+.ddrows .r .dot{flex:1;height:1px;background:repeating-linear-gradient(90deg,#e0d5f7 0 2px,transparent 2px 5px)}
+.ddrows .r .v{flex:none;color:#6b5fa8;letter-spacing:.1em}
+.ddrows .r .v.hush{color:#c98fb8}
+/* 이모티콘은 픽셀 글꼴에 없는 글자다. 여기만 시스템 글꼴로 두지 않으면 두부가 뜬다 */
+.kao{font-family:"Apple SD Gothic Neo","Malgun Gothic","Segoe UI Symbol",sans-serif;letter-spacing:0}
+.ddyn{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.ddyn button{position:relative;overflow:hidden;display:flex;align-items:center;gap:9px;width:100%;
+ padding:12px 14px;font-family:inherit;font-size:11.5px;letter-spacing:.08em;cursor:pointer;text-align:left;
+ color:#fff;text-shadow:0 1px 0 rgba(170,80,140,.5);border:1.5px solid #fff;border-radius:999px;
+ background:linear-gradient(180deg,#ffc2e2,#f78fc6);box-shadow:0 2px 0 rgba(180,110,160,.3)}
+.ddyn button::after{display:none}
+.ddyn button .g{font-size:13px;line-height:1}
+.ddyn button .tail{margin-left:auto;font-size:9px;letter-spacing:.1em;opacity:.9}
+.ddyn button.no{color:#fff;text-shadow:0 1px 0 rgba(120,100,180,.5);border-color:#fff;
+ background:linear-gradient(180deg,#cfc0f5,#ae98ea);box-shadow:0 2px 0 rgba(150,135,210,.3)}
+.ddyn button:active{transform:translateY(3px);box-shadow:inset 0 2px 4px rgba(176,86,127,.28)}
+.ddyn button.dead{color:#d9cbe4;text-shadow:none;border-color:#eddff2;cursor:default;
+ background:linear-gradient(180deg,#fdfaff,#f7f1fb);box-shadow:none}
+.ddyn button.dead::after{display:none}
+.ddyn button.dead:active{transform:none}
+/* ── 진행도 헤더 ── */
+.progline{display:flex;align-items:center;gap:8px;margin:12px 4px 8px}
+.progline .t{font-size:9.5px;letter-spacing:.3em;color:#b0a6d8;white-space:nowrap}
+.progline .bar{flex:1;height:5px;background:#e6e0f6;border:1px solid #cfc6ee;overflow:hidden}
+.progline .bar i{display:block;height:100%;background:linear-gradient(90deg,#ffb0d4,#c3b2f0)}
+.progline .n{font-size:9.5px;color:#8a7fc0;white-space:nowrap}
+.galcell{position:relative;aspect-ratio:2/3;border-radius:5px;overflow:hidden;border:1px solid #cfc6ee;
+ background:#efeaf9;cursor:pointer;box-shadow:1px 2px 0 rgba(93,84,144,.2)}
+.galcell img{width:100%;height:100%;object-fit:cover;display:block}
+.galcell:active{opacity:.85}
+.galcell.lock{background:#efeaf9;cursor:default}
+.galcell.lock img{filter:blur(9px) grayscale(.8) brightness(1.06);transform:scale(1.1);opacity:.5}
+/* ── Y2K 디테일 ── */
+/* 체크무늬 띠 — 구분선 대신 한 곳에만 쓴다 */
+/* 흐르는 띠 — 한 줄, 느리게. 이게 두 줄이 되는 순간 정신없어진다 */
+/* 흐르는 띄 + 그 아래 체커무늬 한 줄 — Y2K 샵집 띄 */
+.marquee{position:relative;flex:none;overflow:hidden;white-space:nowrap;padding:5px 0;max-width:100%;contain:paint;
+ background:rgba(255,255,255,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+ border-bottom:1px solid rgba(226,219,245,.8)}
+.marquee>span{display:inline-block;padding-left:100%;font-size:9px;letter-spacing:.22em;
+ color:#a898cf;animation:slide 26s linear infinite}
+@keyframes slide{to{transform:translateX(-100%)}}
+/* now playing 뱃지 */
+.pfbgm .np{flex:none;padding:2px 6px;border-radius:999px;font-size:7.5px;letter-spacing:.14em;
+ color:#fff;background:#ff8fbe}
+/* ── 스티커 배치 ──
+   흩뿌리지 않는다. 자리는 셋뿐 — 목록 아래 빈 공간, 메뉴 항목 앞, 탭 옆. */
+.dditem svg{flex:none}
+.sect .deco{margin-left:6px;vertical-align:-3px;opacity:.9}
+
+/* ── 대사 고치기 ──
+   말풍선을 길게 누르거나 우클릭하면 고쳐 쓰는 창이 열린다. 고친 자리에는
+   모서리에 ✎가 붙는다 — 어디를 손봤는지 보이게. 배포 전에 프롬프트를
+   고치려고 모으는 것이라 화면에서는 조용해야 한다: 딱지 하나뿐이다. */
+.bubble.fixed,.stext.fixed{position:relative}
+.bubble.fixed::after,.stext.fixed::after{content:"✎";position:absolute;top:-6px;right:-7px;
+  font-size:10px;line-height:1;color:#c86ea8;background:#fff;border:1px solid #f0cfe4;
+  border-radius:50%;padding:2px 3px;pointer-events:none}
+.stext.fixed::after{background:rgba(255,255,255,.92)}
+.fixwas{font-size:11.5px;line-height:1.6;color:#9a8ab0;background:#f4f0fb;
+  border:1px solid #e3daf5;border-radius:6px;padding:7px 9px;max-height:88px;overflow-y:auto;
+  white-space:pre-wrap;word-break:break-word;text-decoration:line-through;
+  text-decoration-color:#d9b6cd}
+.fixin{font:inherit;font-size:12px;line-height:1.6;padding:8px 9px;min-height:76px;
+  resize:vertical;border-radius:6px;color:#4a3f66}

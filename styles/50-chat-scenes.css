@@ -1,0 +1,713 @@
+/* NULL CSS · 채팅 프레임, 입력줄, 진행도, 키스타임
+   파일 순서는 null.css에서 관리한다. */
+
+/* ══════════════════════════════════════════════════════════════════
+   세계 확정창 — 다시
+
+   앞판이 못생긴 이유: NULL 을 흰 칸에 넣었다. 칸은 「채워라」는 문법인데
+   여기서 NULL 은 채울 것이 아니라 이미 정해진 이름이다 — 칸에 넣으니
+   입력 서식이 됐고, 아래 세 값까지 붙어 표가 됐다.
+
+   그래서 칸을 없앤다. NULL 이 문장의 주인공으로 크게 서고, 묻는 말이
+   그 위아래에 작게 붙는다 — 모드창의 큰 글자(.mdpick)와 같은 문법이다.
+   판에서 진한 것은 YES 하나뿐이라 「YES밖에 없다」가 색으로 성립한다.
+   ══════════════════════════════════════════════════════════════════ */
+.dlg.cwin{width:min(92vw,318px);overflow:visible;padding:5px;border:0;border-radius:16px;
+ background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,
+  #dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%) !important;
+ box-shadow:0 0 0 1px rgba(255,255,255,.85),
+  inset 0 1px 0 rgba(255,255,255,.95),
+  0 14px 36px rgba(120,92,180,.3) !important}
+.cwin .tb{position:relative;height:38px;padding:0 10px 0 15px;
+ display:flex;align-items:center;border-bottom:0 !important;
+ border-radius:11px 11px 3px 3px;font-size:14px;letter-spacing:1px;color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.55);
+ background:
+  radial-gradient(126% 96% at 50% -6%,rgba(255,255,255,.92) 0 30%,rgba(255,255,255,0) 72%),
+  linear-gradient(96deg,#f7b6de 0%,#f3a8e0 20%,#e6aef0 42%,
+   #d3b4f4 62%,#dfb0f2 80%,#cfbcf6 100%) !important;
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.98),
+  inset 0 -2.5px 0 #ac8fe0,
+  0 3px 7px rgba(140,106,190,.18) !important}
+.cwin .tb .dots>span{width:19px;height:19px;border:0;
+ box-shadow:0 0 0 1.4px rgba(255,255,255,.9),
+  inset 0 1px 0 rgba(255,255,255,.9),
+  inset 0 -2px 3px rgba(150,110,180,.28)}
+
+/* 크림 판 — 네 귀에 눈금 */
+.cwin .dlgbody{position:relative;margin-top:4px;padding:26px 22px 20px;gap:0;
+ border-radius:3px 3px 12px 12px;background:#fdfaff !important;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,
+  inset 0 -4px 8px rgba(150,116,196,.09)}
+.cwin .dlgbody::before,.cwin .dlgbody::after{content:"";position:absolute;
+ width:9px;height:9px;pointer-events:none;border-color:#e2d2ee;border-style:solid;border-width:0}
+.cwin .dlgbody::before{left:9px;top:9px;border-left-width:1px;border-top-width:1px}
+.cwin .dlgbody::after{right:9px;bottom:9px;border-right-width:1px;border-bottom-width:1px}
+
+/* 묻는 말 — 작게. 주인공은 가운데 글자다 */
+.cq{text-align:center;font-size:12px;line-height:1.7;letter-spacing:.5px;color:#7c6ca8}
+
+/* ── NULL ── 칸이 아니라 문장의 주인공. 오프닝 로고와 같은 유리 글자 */
+.cslot{display:flex;justify-content:center;margin:9px 0 8px}
+.cbox{position:relative;display:flex;align-items:baseline;justify-content:center;gap:3px;
+ min-width:0;height:auto;padding:0;border:0;border-radius:0;
+ background:none !important;box-shadow:none !important}
+.cbox b{font-family:"Galmuri9","Galmuri11",sans-serif;font-weight:400;
+ font-size:44px;line-height:1;letter-spacing:.24em;text-indent:.24em;
+ color:transparent;-webkit-text-stroke:1.4px #b06f9e;
+ background:linear-gradient(120deg,#fff 0 12%,#ffd0f0 30%,#b9e3ff 50%,#fff 68%,#c3b2f0 92%);
+ background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
+ filter:drop-shadow(2px 2px 0 rgba(176,111,158,.34));
+ animation:shimmer 4.5s linear infinite}
+.cbox .ccar{width:4px;height:30px;border-radius:1px;background:#ff9ec6;
+ animation:blinkc 1s steps(1) infinite}
+
+/* 세 값 — 표가 아니라 한 줄 각주. 현실만 비어 있다 */
+.cfacts{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 13px;margin-top:17px;
+ font-size:9px;letter-spacing:.3px;color:#a897dd}
+.cfacts b{font-weight:400;color:#c9b8e0}
+.cfacts em{font-style:normal;color:#7c6ca8}
+.cfacts .cnull{color:#d9c4e8;letter-spacing:1px}
+
+/* ── YES ── 판에서 유일하게 진한 것 */
+.etcdel.cyes{position:relative;overflow:hidden;display:block;width:60%;margin:20px auto 0;
+ padding:14px 0 15px;font-family:inherit;font-size:16px;letter-spacing:2px;
+ color:#fff;cursor:pointer;border:0;border-radius:999px;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.55);
+ background:linear-gradient(112deg,#fa96cf 0%,#f78ecb 22%,#ee92dc 44%,
+  #c99cf0 68%,#a8aef4 88%,#9cbdea 100%) !important;
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),
+  inset 0 -2px 0 rgba(255,255,255,.6),
+  0 0 0 1.2px #c98fbe,
+  0 0 0 3.5px #fde6f5,
+  0 0 0 4.5px #cf8fc8,
+  0 6px 16px rgba(150,80,175,.34) !important}
+.etcdel.cyes::after{content:"";position:absolute;top:0;bottom:0;width:32%;
+ pointer-events:none;transform:skewX(-18deg);
+ background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.55),rgba(255,255,255,0));
+ animation:cyesshine 2.6s linear infinite}
+@keyframes cyesshine{0%{left:-40%}55%{left:110%}100%{left:110%}}
+.etcdel.cyes:active{transform:translateY(2px);
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),
+  0 0 0 1.2px #c98fbe,0 0 0 3.5px #fde6f5,0 0 0 4.5px #cf8fc8,
+  0 2px 6px rgba(150,80,175,.3) !important}
+
+.cwhint{margin-top:19px;text-align:center;font-size:10px;letter-spacing:.3px;color:#a897dd}
+
+/* 판 위쪽에 그늘 한 겹 — 사진이 판 뒤로 흘러든다 */
+.scenewrap .inputbar,.chatwrap .inputbar{position:relative}
+.scenewrap .inputbar::before,.chatwrap .inputbar::before{content:"";position:absolute;
+ left:0;right:0;bottom:100%;height:26px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(28,16,54,0),rgba(28,16,54,.22))}
+
+/* 입력칸 — 오프닝 이름 칸 값, 알약으로. 오른쪽 안에 작은 별 하나 */
+.inputbar .sunken{position:relative}
+.inputbar input,.inputbar .sunken{height:38px;padding:0 34px 0 15px !important;
+ border:0 !important;border-radius:999px !important;
+ font-size:12.5px;letter-spacing:0;color:#463670;
+ text-shadow:0 1px 0 rgba(255,255,255,.65);
+ background:linear-gradient(180deg,#fff 0%,#fffdff 60%,#fdf6fc 100%) !important;
+ box-shadow:
+  inset 0 1.5px 3px rgba(150,116,190,.14),
+  0 0 0 1px #d6bbe0,
+  0 0 0 3px #fdeef9,
+  0 0 0 3.5px #dcbcdd,
+  0 3px 8px rgba(150,112,196,.12) !important}
+/* 별 — 칸 안 오른쪽. 「여기 쓰는 자리」에 앱의 표시를 하나 남긴다 */
+.inputbar::after{content:"";position:absolute;right:0;pointer-events:none;
+ width:0;height:0}
+
+/* 뒤로 · 선물 — 오프닝 알약을 동그랗게 */
+.backbtn,.giftbtn{position:relative;width:34px;height:34px;flex:none;padding:0;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;
+ color:#463670 !important;
+ border:0 !important;border-radius:999px !important;
+ background:linear-gradient(96deg,#fbc8ee 0%,#e3cdfa 55%,#c9d6f6 100%) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.85),
+  0 0 0 1px #d6bbe0,
+  0 0 0 3px rgba(255,255,255,.6),
+  0 2px 0 #e2cbee !important}
+.backbtn::before,.giftbtn::before{content:"";position:absolute;left:22%;right:22%;top:3px;
+ height:28%;border-radius:999px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0))}
+.backbtn:active,.giftbtn:active{transform:translateY(2px);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 0 1px #d1b2da !important}
+
+/* 전송 — 오프닝 Click 의 두 겹 + 빛줄 하나 */
+.sendbtn{position:relative;width:46px;height:40px;flex:none;padding:0;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;
+ border:0 !important;border-radius:999px !important;
+ color:#fff !important;text-shadow:0 1px 0 rgba(150,64,124,.9);
+ background:linear-gradient(112deg,#fa96cf 0%,#f78ecb 24%,#ee92dc 48%,
+  #c99cf0 74%,#a8aef4 100%) !important;
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.7),
+  inset 0 -2px 0 rgba(255,255,255,.42),
+  0 0 0 1.2px #c98fbe,
+  0 0 0 3.5px #fde6f5,
+  0 3px 9px rgba(150,80,175,.32) !important}
+/* 빛줄은 걷었다 — 오프닝 Click 은 한 번 누르는 단추라 반짝여도 되지만
+   전송은 계속 보는 자리라 움직이면 거슬린다 */
+.sendbtn svg,.sendbtn .ico{position:relative;z-index:1}
+.sendbtn:active{transform:translateY(2px)}
+
+/* 띠가 아니라 판이니 위쪽 그늘은 필요 없다 */
+.scenewrap .inputbar::before,.chatwrap .inputbar::before{display:none}
+/* 판이 떠 있는 만큼 대사·말풍선 자리를 비운다 */
+.scenewrap .scenelines{padding-bottom:76px}
+.chatwrap .msgs{padding-bottom:76px}
+
+/* 판 안이 좁아졌으니 부품을 한 단 작게 — 대신 테는 얇게 두 겹만 */
+.inputbar input,.inputbar .sunken{height:36px;padding:0 15px !important;
+ border-radius:999px !important;
+ box-shadow:
+  inset 0 1.5px 3px rgba(150,116,190,.14),
+  0 0 0 1px #d6bbe0,
+  0 0 0 2.5px #fdeef9 !important}
+.backbtn,.giftbtn{width:32px;height:32px;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.85),
+  0 0 0 1px #d6bbe0,
+  0 2px 0 #e2cbee !important}
+.sendbtn{width:44px;height:38px;
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.7),
+  inset 0 -2px 0 rgba(255,255,255,.42),
+  0 0 0 1.2px #c98fbe,
+  0 0 0 2.5px #fde6f5,
+  0 3px 9px rgba(150,80,175,.32) !important}
+
+/* ── 창틀 ── 흰 입술 · 옅은 라일락 테 · 밖으로 번지는 그늘 */
+.screen.scenewrap,.screen.chatwrap{border-radius:16px;
+ box-shadow:inset 0 0 0 2.5px rgba(255,255,255,.96),
+  inset 0 0 0 4px rgba(226,206,240,.9),
+  inset 0 0 0 6px rgba(255,255,255,.55),
+  0 0 0 1px rgba(199,167,214,.7),
+  0 14px 34px rgba(120,92,180,.3)}
+
+/* ── 제목 띠 ── 위에 부푼 빛, 아래 옅은 입술. 왼쪽에 작은 별 */
+.scenewrap>.tb,.chatwrap>.tb{position:relative;height:38px;padding:0 10px 0 32px;
+ display:flex;align-items:center;border:0 !important;border-radius:13px 13px 4px 4px;
+ font-size:13.5px;letter-spacing:.8px;color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.9),0 2px 4px rgba(120,44,100,.5);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.95),
+  inset 0 -2px 0 rgba(170,132,214,.55) !important}
+/* 위쪽 광택 — 띠를 유리로 만드는 한 겹 */
+.scenewrap>.tb::after,.chatwrap>.tb::after{content:"";position:absolute;
+ left:5px;right:5px;top:2px;height:46%;border-radius:11px 11px 999px 999px;
+ pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.02))}
+/* 별 — 십자 광선. 각지지 않게 그늘을 부드럽게 */
+.scenewrap>.tb::before,.chatwrap>.tb::before{content:"";position:absolute;z-index:2;
+ left:12px;top:50%;width:12px;height:12px;margin-top:-6px;pointer-events:none;
+ filter:drop-shadow(0 1px 2px rgba(150,84,175,.45));
+ background:
+  linear-gradient(90deg,transparent 0,#fff 44%,#fff 56%,transparent 100%) center/100% 14% no-repeat,
+  linear-gradient(180deg,transparent 0,#fff 42%,#fff 58%,transparent 100%) center/14% 124% no-repeat}
+
+/* ── ─ □ ✕ ── 유리 구슬 셋. 글리프는 흰색, 몸은 각각 다른 색 */
+.scenewrap>.tb .dots,.chatwrap>.tb .dots{position:relative;z-index:3;
+ margin-left:auto;display:flex;gap:6px}
+.scenewrap>.tb .dots>span,.chatwrap>.tb .dots>span{position:relative;
+ width:19px;height:19px;border:0 !important;border-radius:50% !important;
+ box-shadow:0 0 0 1.4px rgba(255,255,255,.92),
+  inset 0 1.5px 0 rgba(255,255,255,.9),
+  inset 0 -2.5px 4px rgba(150,110,180,.3) !important}
+.scenewrap>.tb .d1,.chatwrap>.tb .d1{background:linear-gradient(180deg,#f8b8ee,#e58ade) !important}
+.scenewrap>.tb .d2,.chatwrap>.tb .d2{background:linear-gradient(180deg,#d4c6fa,#ae95f2) !important}
+.scenewrap>.tb .d3,.chatwrap>.tb .d3{background:linear-gradient(180deg,#b0d4fa,#78adf0) !important}
+.scenewrap>.tb .dots>span::after,.chatwrap>.tb .dots>span::after{
+ content:"";position:absolute;left:50%;top:50%;pointer-events:none;
+ filter:drop-shadow(0 1px 0 rgba(120,80,150,.4))}
+.scenewrap>.tb .d1::after,.chatwrap>.tb .d1::after{
+ width:9px;height:2px;margin:-1px 0 0 -4.5px;border-radius:1px;background:#fff}
+.scenewrap>.tb .d2::after,.chatwrap>.tb .d2::after{
+ width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:1.5px;
+ box-shadow:inset 0 0 0 2px #fff}
+.scenewrap>.tb .d3::after,.chatwrap>.tb .d3::after{
+ width:10px;height:10px;margin:-5px 0 0 -5px;transform:rotate(45deg);
+ background:
+  linear-gradient(#fff,#fff) center/100% 2px no-repeat,
+  linear-gradient(#fff,#fff) center/2px 100% no-repeat}
+
+/* ── 아래 판 ── 창 안에 뜬 유리 판 */
+.scenewrap .inputbar,.chatwrap .inputbar{border-radius:17px;
+ background:linear-gradient(160deg,rgba(255,253,255,.95),rgba(246,238,252,.93)) !important;
+ box-shadow:inset 0 1.5px 0 #fff,
+  inset 0 0 0 1px rgba(222,204,240,.9),
+  0 0 0 3px rgba(255,255,255,.5),
+  0 7px 20px rgba(12,6,32,.3) !important}
+
+/* ── 입력칸 ── 흰 유리 알약 + 옅은 겹 테 */
+.inputbar input,.inputbar .sunken{height:36px;padding:0 15px !important;
+ border:0 !important;border-radius:999px !important;
+ font-size:12.5px;color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.65);
+ background:linear-gradient(180deg,#fff 0%,#fffdff 60%,#fdf6fc 100%) !important;
+ box-shadow:inset 0 1.5px 3px rgba(150,116,190,.14),
+  0 0 0 1px #dcc6e8,
+  0 0 0 3px #fdeef9 !important}
+.inputbar input::placeholder{color:#c9b2dd}
+
+/* ── 단추 셋 ── 유리 구슬. 아이콘은 요소로, 모서리는 둥글게 */
+.backbtn,.giftbtn,.sendbtn{position:relative;width:34px;height:34px;flex:none;padding:0;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;
+ border:0 !important;border-radius:50% !important;overflow:visible}
+.backbtn,.giftbtn{background:linear-gradient(160deg,#fffdff 0%,#f4eafc 56%,#e6d8f8 100%) !important;
+ box-shadow:inset 0 1.5px 0 #fff,
+  0 0 0 1.2px #dcc6e8,
+  0 0 0 3px rgba(255,255,255,.6),
+  0 2px 6px rgba(140,106,190,.22) !important}
+.sendbtn{width:44px;border-radius:999px !important;
+ background:linear-gradient(112deg,#fa96cf 0%,#f78ecb 26%,#ee92dc 52%,
+  #c99cf0 78%,#a8aef4 100%) !important;
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.72),
+  inset 0 -2px 0 rgba(255,255,255,.4),
+  0 0 0 1.2px #c98fbe,
+  0 0 0 3px #fde6f5,
+  0 3px 9px rgba(150,80,175,.32) !important}
+/* 위쪽 광택 한 점 — 셋 다 구슬로 읽히게 */
+.backbtn::before,.giftbtn::before,.sendbtn::before{content:"";position:absolute;
+ left:22%;right:22%;top:3px;height:28%;border-radius:999px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.82),rgba(255,255,255,0))}
+
+/* 뒤로 — 둥근 꼬리 화살. 각 대신 둥근 끝 */
+.backbtn::after{content:"";position:absolute;left:50%;top:50%;
+ width:14px;height:12px;margin:-6px 0 0 -7px;pointer-events:none;
+ background:
+  linear-gradient(#7a5ea8,#7a5ea8) 4px 50%/10px 2.4px no-repeat;
+ border-radius:2px}
+.backbtn::after{box-shadow:none}
+.backbtn{color:#7a5ea8 !important}
+/* 화살 머리 — 둥근 모서리 두 줄 */
+.backbtn::after{
+ background:
+  linear-gradient(#7a5ea8,#7a5ea8) 4px 50%/10px 2.4px no-repeat,
+  linear-gradient(#7a5ea8,#7a5ea8) 0 3px/7px 2.4px no-repeat,
+  linear-gradient(#7a5ea8,#7a5ea8) 0 6.6px/7px 2.4px no-repeat;
+ transform:none}
+.backbtn::after{clip-path:none}
+
+/* 선물 — 둥근 상자에 리본. 부드러운 그늘 */
+.giftbtn::after{content:"";position:absolute;left:50%;top:50%;
+ width:16px;height:15px;margin:-7.5px 0 0 -8px;pointer-events:none;
+ border-radius:3px;
+ background:
+  linear-gradient(#fff8fc,#fff8fc) 50% 100%/2.6px 66% no-repeat,
+  radial-gradient(circle at 30% 14%,#fff8fc 0 24%,transparent 25%),
+  radial-gradient(circle at 70% 14%,#fff8fc 0 24%,transparent 25%),
+  linear-gradient(160deg,#ffc4e2,#f78ebe);
+ box-shadow:0 0 0 1.2px #c2708f,0 1px 2px rgba(160,90,130,.3)}
+
+/* 전송 — 종이비행기. 둥근 그늘로 부드럽게 */
+.sendbtn::after{content:"";position:absolute;left:50%;top:50%;
+ width:16px;height:14px;margin:-7px 0 0 -8px;pointer-events:none;
+ background:#fff;filter:drop-shadow(0 1px 2px rgba(150,64,124,.4));
+ clip-path:polygon(0 44%,100% 0,58% 100%,44% 68%,26% 88%,26% 58%)}
+
+/* 내가 그린 도형은 지운다 */
+.backbtn::after,
+.sendbtn::after{content:none !important}
+
+/* 구슬 셋 — 띠에 잠긴 색. 글리프만 흰색 */
+.scenewrap>.tb .dots>span,.chatwrap>.tb .dots>span{
+ width:17px;height:17px;
+ background:rgba(255,255,255,.16) !important;
+ box-shadow:inset 0 0 0 1.4px rgba(255,255,255,.5),
+  inset 0 1px 0 rgba(255,255,255,.35) !important}
+.scenewrap>.tb .dots>span::after,.chatwrap>.tb .dots>span::after{
+ filter:none !important}
+
+/* 전송 — 정사각 둥근 모서리 + 하트 */
+.sendbtn{width:38px !important;height:38px !important;border-radius:12px !important}
+.sendbtn::after{content:"" !important;position:absolute;left:50%;top:50%;
+ width:16px;height:15px;margin:-7.5px 0 0 -8px;pointer-events:none;
+ background:#fff;filter:drop-shadow(0 1px 2px rgba(150,64,124,.42));
+ clip-path:polygon(50% 100%,8% 52%,8% 26%,28% 8%,50% 24%,72% 8%,92% 26%,92% 52%)}
+
+/* 뒤로 — 굵은 선 화살. 꼬리와 머리가 한 줄로 이어진다 */
+.backbtn{color:#6b4a92 !important}
+.backbtn::after{width:19px;height:19px;margin:-9.5px 0 0 -9.5px;
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M19 12H6'/><path d='M11 7l-5 5 5 5'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M19 12H6'/><path d='M11 7l-5 5 5 5'/></svg>")}
+
+/* 선물 — 상자 · 리본 한 줄 · 매듭 둘. 뚜껑 선이 있어야 선물이 된다 */
+.giftbtn{color:#b0537f !important}
+.giftbtn::after{width:20px;height:20px;margin:-10px 0 0 -10px;
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3.5' y='9' width='17' height='11.5' rx='1.8'/><path d='M2.5 9h19'/><path d='M12 9v11.5'/><path d='M12 9C10.6 6.6 9.2 3.5 7 3.5S4.4 7 8 9'/><path d='M12 9c1.4-2.4 2.8-5.5 5-5.5S19.6 7 16 9'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3.5' y='9' width='17' height='11.5' rx='1.8'/><path d='M2.5 9h19'/><path d='M12 9v11.5'/><path d='M12 9C10.6 6.6 9.2 3.5 7 3.5S4.4 7 8 9'/><path d='M12 9c1.4-2.4 2.8-5.5 5-5.5S19.6 7 16 9'/></svg>")}
+
+/* 전송 — 꽉 찬 하트. 이 앱에서 보내는 것은 말이고 말 끝에 붙는 건 ♡ 다 */
+.sendbtn{color:#fff !important}
+.sendbtn::after{width:18px;height:18px;margin:-9px 0 0 -9px;
+ filter:drop-shadow(0 1px 2px rgba(150,64,124,.42));
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 21s-8.2-5.1-8.2-11A4.8 4.8 0 0 1 12 7.3 4.8 4.8 0 0 1 20.2 10c0 5.9-8.2 11-8.2 11z' fill='%23000'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 21s-8.2-5.1-8.2-11A4.8 4.8 0 0 1 12 7.3 4.8 4.8 0 0 1 20.2 10c0 5.9-8.2 11-8.2 11z' fill='%23000'/></svg>")}
+
+
+/* ── 제목 띠 ── 분홍→라일락. 글자는 왼쪽, 단추 셋은 오른쪽 */
+.chatwrap>.tb,.scenewrap>.tb{position:relative;flex:none;height:40px;
+ padding:0 9px 0 14px;display:flex;align-items:center;
+ border:0 !important;border-radius:6px;
+ font-size:14px;letter-spacing:.5px;color:#fff;
+ text-shadow:0 1px 2px rgba(160,96,170,.5);
+ background:linear-gradient(96deg,#f9b8dc 0%,#f4aae0 26%,#e2b0ee 56%,
+  #cfbaf4 82%,#c8c2f6 100%) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.7),
+  inset 0 0 0 1px rgba(255,255,255,.5) !important}
+
+/* ── ─ □ ✕ ── 각진 네모 테. 채우지 않고 윤곽만 */
+.chatwrap>.tb .dots>span,.scenewrap>.tb .dots>span{position:relative;
+ width:24px;height:24px;border:0 !important;border-radius:4px !important;
+ background:rgba(255,255,255,.14) !important;
+ box-shadow:inset 0 0 0 1.6px rgba(255,255,255,.85) !important}
+.chatwrap>.tb .d1::after,.scenewrap>.tb .d1::after{
+ width:10px;height:2px;margin:-1px 0 0 -5px;background:#fff;border-radius:1px}
+.chatwrap>.tb .d2::after,.scenewrap>.tb .d2::after{
+ width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:1.5px;
+ box-shadow:inset 0 0 0 2px #fff}
+.chatwrap>.tb .d3::after,.scenewrap>.tb .d3::after{
+ width:12px;height:12px;margin:-6px 0 0 -6px;transform:rotate(45deg);
+ background:linear-gradient(#fff,#fff) center/100% 2px no-repeat,
+  linear-gradient(#fff,#fff) center/2px 100% no-repeat}
+
+/* ── 안쪽 크림 판 ── 프레임과 사이에 여백. 얇은 파스텔 테 한 줄 */
+.chatwrap .msgs,.scenewrap .scenebody{flex:1;min-height:0;margin:0;
+ border-top:0 !important;border-radius:4px;
+ background:#fdf8f4;
+ box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.95),
+  0 0 0 1px rgba(236,206,232,.9) !important}
+
+/* ── 아래 줄 ── 프레임 안. 판을 깔지 않는다 */
+.chatwrap .inputbar,.scenewrap .inputbar{position:relative;flex:none;
+ left:auto;right:auto;bottom:auto;
+ display:flex;align-items:center;gap:7px;
+ padding:0;border-top:0 !important;border-radius:0;
+ background:none !important;box-shadow:none !important}
+
+/* 입력칸 — 알약. 크림 흰색에 얇은 파스텔 테 */
+.inputbar input,.inputbar .sunken{flex:1;min-width:0;height:40px;padding:0 16px !important;
+ border:0 !important;border-radius:999px !important;
+ font-size:13px;color:#8a6fa8;
+ background:#fdf9f6 !important;
+ box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.95),
+  0 0 0 1.3px rgba(236,206,232,.95) !important}
+
+/* 선물 — 둥근 네모. 크림 몸에 분홍 글리프 */
+.backbtn,.giftbtn{position:relative;width:40px;height:40px;flex:none;padding:0;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;
+ color:#f094c4 !important;
+ border:0 !important;border-radius:9px !important;
+ background:#fdf9f6 !important;
+ box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.95),
+  0 0 0 1.3px rgba(236,206,232,.95) !important}
+.backbtn::before{content:none !important}
+
+/* 전송 — 둥근 네모. 분홍 그라데이션에 흰 ↑ */
+.sendbtn{position:relative;width:52px !important;height:40px !important;flex:none;padding:0;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;
+ color:#fff !important;
+ border:0 !important;border-radius:9px !important;
+ background:linear-gradient(150deg,#f9a8d4 0%,#f49ada 34%,#dba8ee 68%,#c4b4f4 100%) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.75),
+  0 0 0 1.3px rgba(226,166,214,.95),
+  0 2px 5px rgba(190,120,180,.24) !important}
+.backbtn:active,.giftbtn:active,.sendbtn:active{transform:translateY(1.5px)}
+.backbtn:disabled,.sendbtn:disabled{opacity:.5}
+
+/* ── 아이콘 ── 선 그림. 프레임이 얇으니 아이콘도 얇게 */
+.backbtn .ico,
+.backbtn svg{display:none !important}
+.backbtn::after{
+ content:"" !important;position:absolute;left:50%;top:50%;pointer-events:none;
+ background:currentColor;clip-path:none !important;filter:none !important;
+ -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+ -webkit-mask-position:center;mask-position:center;
+ -webkit-mask-size:contain;mask-size:contain}
+.backbtn::after{width:20px;height:20px;margin:-10px 0 0 -10px;
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M19 12H6'/><path d='M11 7l-5 5 5 5'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M19 12H6'/><path d='M11 7l-5 5 5 5'/></svg>")}
+.giftbtn::after{width:22px;height:22px;margin:-11px 0 0 -11px;
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='9.5' width='16' height='10.5' rx='1.4'/><path d='M3 9.5h18'/><path d='M12 9.5v10.5'/><path d='M12 9.5C10.8 7.2 9.6 4.2 7.6 4.2 5.8 4.2 5.2 7.6 8.4 9.5'/><path d='M12 9.5c1.2-2.3 2.4-5.3 4.4-5.3 1.8 0 2.4 3.4-.8 5.3'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='9.5' width='16' height='10.5' rx='1.4'/><path d='M3 9.5h18'/><path d='M12 9.5v10.5'/><path d='M12 9.5C10.8 7.2 9.6 4.2 7.6 4.2 5.8 4.2 5.2 7.6 8.4 9.5'/><path d='M12 9.5c1.2-2.3 2.4-5.3 4.4-5.3 1.8 0 2.4 3.4-.8 5.3'/></svg>")}
+/* 전송 — 위 화살표. 레퍼런스의 ↑ 그대로 */
+.sendbtn::after{width:21px;height:21px;margin:-10.5px 0 0 -10.5px;
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5'/><path d='M6 11l6-6 6 6'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5'/><path d='M6 11l6-6 6 6'/></svg>")}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   남은 날 막대 — 디벨롭
+
+   서른 칸을 1px 간격으로 늘어놓으니 바코드로 읽혔다. 며칠 남았는지도
+   칸을 세야 알 수 있었다. 셋을 바꾼다:
+     · 홈을 알약으로 — 창·칸·단추가 다 둥근데 이것만 각졌다
+     · 지난 날은 이어진 한 줄로, 오늘 하루만 밝은 점으로 — 「지금 여기」가
+       한눈에 보인다. 남은 날은 옅게 비워둔다
+     · 끝에 D-N 숫자를 붙인다 — 세지 않아도 되게
+   ══════════════════════════════════════════════════════════════════ */
+.dbar{display:flex;align-items:center;gap:6px;width:auto;height:auto;
+ padding:0;border:0;background:none;box-sizing:border-box}
+/* 지난 날 — 이어진 한 줄로 읽히게 간격을 메운다 */
+/* 오늘 — 밝은 점 하나. 이 막대에서 눈이 갈 곳은 여기다 */
+/* 끝에 붙는 숫자 */
+
+
+/* 안쪽 판·아래 줄이 프레임 안을 남김없이 채운다 */
+.chatwrap .msgs,.scenewrap .scenebody{margin:6px 0 0 !important}
+.chatwrap .inputbar,.scenewrap .inputbar{margin:6px 0 0 !important}
+/* 떠 있는 판 시절 남긴 여백을 걷는다 — 아래가 검게 비던 자리다 */
+.scenewrap .scenelines{padding-bottom:18px !important}
+.chatwrap .msgs{padding-bottom:12px !important}
+
+/* ── 제목 띠 ── 분홍→라일락, 흰 글자 */
+
+/* ── ─ □ ✕ ── 각진 네모 테. 윤곽만 */
+
+/* ── 안쪽 크림 판 ── 프레임과 사이에 여백 */
+.scenewrap .scenelines{padding:0 16px 16px !important}
+
+/* ── 아래 줄 ── 선물 하나 · 입력칸 · 전송 */
+/* 뒤로는 뺀다 — 제목 띠의 ✕ 가 그 일을 한다 */
+
+.inputbar input,.inputbar .sunken{flex:1;min-width:0;height:42px;padding:0 16px !important;
+ border:0 !important;border-radius:999px !important;
+ font-size:13px;color:#8a6fa8;
+ background:#fdf9f6 !important;
+ box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.95),
+  0 0 0 1.3px rgba(236,206,232,.95) !important}
+
+/* 볼록한 단추 — 위는 밝고 아래는 그늘, 누르면 들어간다 */
+.giftbtn{color:#f094c4 !important;
+ background:linear-gradient(180deg,#fffdfb 0%,#fdf4f8 52%,#f6e4ee 100%) !important;
+ box-shadow:inset 0 1.5px 0 #fff,
+  inset 0 -2px 3px rgba(200,150,180,.22),
+  0 0 0 1.3px rgba(236,206,232,.95),
+  0 2.5px 0 #ecd0e2,
+  0 4px 7px rgba(190,140,180,.22) !important}
+.sendbtn{width:56px !important;color:#fff !important;
+ text-shadow:0 1px 1px rgba(170,90,150,.45);
+ background:linear-gradient(180deg,#fdc0e2 0%,#f9a4d8 46%,#e59ae2 76%,#cfa8f0 100%) !important;
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  inset 0 -2px 3px rgba(190,90,150,.24),
+  0 0 0 1.3px rgba(226,166,214,.95),
+  0 2.5px 0 #e08cbe,
+  0 4px 8px rgba(190,120,180,.26) !important}
+.giftbtn:active,.sendbtn:active{transform:translateY(2.5px);
+ box-shadow:inset 0 2px 4px rgba(180,120,160,.3),
+  0 0 0 1.3px rgba(236,206,232,.95) !important}
+
+/* 아이콘 — 선 그림 */
+.giftbtn .ico{display:none !important}
+.giftbtn::after,.sendbtn::after{content:"" !important;position:absolute;left:50%;top:50%;
+ pointer-events:none;background:currentColor;clip-path:none !important;filter:none !important;
+ -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+ -webkit-mask-position:center;mask-position:center;
+ -webkit-mask-size:contain;mask-size:contain}
+.giftbtn::after{width:23px;height:23px;margin:-11.5px 0 0 -11.5px;
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='9.5' width='16' height='10.5' rx='1.4'/><path d='M3 9.5h18'/><path d='M12 9.5v10.5'/><path d='M12 9.5C10.8 7.2 9.6 4.2 7.6 4.2 5.8 4.2 5.2 7.6 8.4 9.5'/><path d='M12 9.5c1.2-2.3 2.4-5.3 4.4-5.3 1.8 0 2.4 3.4-.8 5.3'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='9.5' width='16' height='10.5' rx='1.4'/><path d='M3 9.5h18'/><path d='M12 9.5v10.5'/><path d='M12 9.5C10.8 7.2 9.6 4.2 7.6 4.2 5.8 4.2 5.2 7.6 8.4 9.5'/><path d='M12 9.5c1.2-2.3 2.4-5.3 4.4-5.3 1.8 0 2.4 3.4-.8 5.3'/></svg>")}
+.sendbtn::after{width:22px;height:22px;margin:-11px 0 0 -11px;
+ -webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5'/><path d='M6 11l6-6 6 6'/></svg>");
+ mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5'/><path d='M6 11l6-6 6 6'/></svg>")}
+
+/* ── 자리 화면 아래 줄 ── 선물 아이콘과 전송 색
+   ① 선물 단추 안에 그림이 안 떴다 — 앞서 쓴 규칙이 .giftbtn .ico 를
+      display:none 으로 눌러놓은 것이 뒤에 살아 있었다. 그림을 되살린다.
+   ② 전송이 회색이었다 — 뒤에 쓴 회색 규칙이 분홍을 덮었다. 분홍으로 못박는다. */
+.giftbtn .ico{display:block !important;width:26px !important;height:26px !important;
+ object-fit:contain;image-rendering:pixelated;
+ filter:drop-shadow(0 1px 1px rgba(150,110,180,.28))}
+
+.sendbtn{background:linear-gradient(180deg,#fdc0e2 0%,#f9a4d8 46%,#e59ae2 76%,#cfa8f0 100%) !important;
+ color:#fff !important}
+.sendbtn::after{background:#fff !important}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   채팅 · 자리 창 — 한 번에 (레퍼런스)
+
+   덧칠한 블록 아홉 개가 서로 덮어서 선물 아이콘이 숨고 전송이 회색이 됐다.
+   전부 걷고 여기 한 곳에만 쓴다. 값은 올려주신 레퍼런스 그대로:
+   두툼한 파스텔 베젤 · 분홍 제목 띠 · 각진 네모 테 단추 셋 ·
+   크림 인셋 판 · 둥근 네모 선물 · 알약 입력칸 · 분홍 네모 전송(↑)
+   ══════════════════════════════════════════════════════════════════ */
+.screen.chatwrap,.screen.scenewrap{
+ display:flex;flex-direction:column;padding:0;overflow:hidden;
+ border:8px solid #f4d2ec;border-radius:13px;
+ border-image:linear-gradient(158deg,#fbdcef 0%,#f7d2ec 20%,#ecd2f4 48%,
+  #ddd2f6 74%,#f3daf1 100%) 1;
+ box-shadow:0 0 0 1.5px rgba(233,196,228,.95),0 12px 30px rgba(120,92,180,.3)}
+.screen.chatwrap{background:#fdf8f4}
+.screen.scenewrap{background-size:cover;background-position:center 62%;
+ background-repeat:no-repeat}
+
+/* 제목 띠 */
+.chatwrap>.tb,.scenewrap>.tb{position:relative;flex:none;height:40px;
+ padding:0 8px 0 13px;display:flex;align-items:center;
+ border:0 !important;border-radius:0;
+ font-size:14px;letter-spacing:.5px;color:#fff;
+ text-shadow:0 1px 2px rgba(160,96,170,.5);
+ background:linear-gradient(96deg,#f9b8dc 0%,#f4aae0 26%,#e2b0ee 56%,
+  #cfbaf4 82%,#c8c2f6 100%) !important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.6) !important}
+.chatwrap>.tb::before,.chatwrap>.tb::after,
+.scenewrap>.tb::before,.scenewrap>.tb::after{content:none !important}
+
+/* ─ □ ✕ — 각진 네모 테 */
+.chatwrap>.tb .dots,.scenewrap>.tb .dots{margin-left:auto;display:flex;gap:5px}
+.chatwrap>.tb .dots>span,.scenewrap>.tb .dots>span{position:relative;
+ width:25px;height:25px;border:0 !important;border-radius:5px !important;
+ background:rgba(255,255,255,.12) !important;
+ box-shadow:inset 0 0 0 1.6px rgba(255,255,255,.88) !important}
+.chatwrap>.tb .dots>span>i,.scenewrap>.tb .dots>span>i{display:none}
+.chatwrap>.tb .dots>span::after,.scenewrap>.tb .dots>span::after{
+ content:"";position:absolute;left:50%;top:50%;pointer-events:none}
+.chatwrap>.tb .d1::after,.scenewrap>.tb .d1::after{
+ width:11px;height:2px;margin:-1px 0 0 -5.5px;background:#fff;border-radius:1px}
+.chatwrap>.tb .d2::after,.scenewrap>.tb .d2::after{
+ width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:1.5px;
+ box-shadow:inset 0 0 0 2px #fff}
+.chatwrap>.tb .d3::after,.scenewrap>.tb .d3::after{
+ width:13px;height:13px;margin:-6.5px 0 0 -6.5px;transform:rotate(45deg);
+ background:linear-gradient(#fff,#fff) center/100% 2px no-repeat,
+  linear-gradient(#fff,#fff) center/2px 100% no-repeat}
+
+/* 안쪽 판 */
+.chatwrap .msgs{flex:1;min-height:0;margin:7px 0 0;padding:14px 12px 12px;
+ border-top:0 !important;border-radius:3px;background:#fdf8f4;
+ box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.95),
+  0 0 0 1px rgba(236,206,232,.9)}
+.scenewrap .scenebody{flex:1;min-height:0;margin:0;border-radius:0;
+ background:none;box-shadow:none}
+.scenewrap .scenelines{padding:0 16px 16px}
+
+/* 아래 줄 — 선물 · 입력칸 · 전송 */
+.chatwrap .inputbar,.scenewrap .inputbar{position:relative;flex:none;
+ left:auto;right:auto;bottom:auto;display:flex;align-items:center;gap:7px;
+ margin:7px 0 0;padding:0;border-top:0 !important;border-radius:0;
+ background:none !important;box-shadow:none !important}
+.chatwrap .inputbar::before,.scenewrap .inputbar::before{content:none !important}
+.chatwrap .inputbar .backbtn,.scenewrap .inputbar .backbtn{display:none !important}
+
+.inputbar input,.inputbar .sunken{flex:1;min-width:0;height:42px;padding:0 16px;
+ border:0 !important;border-radius:999px !important;
+ font-size:13px;color:#8a6fa8;background:#fdf9f6 !important;
+ box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.95),
+  0 0 0 1.3px rgba(236,206,232,.95) !important}
+.inputbar input::placeholder{color:#d3b8d8}
+
+.giftbtn,.sendbtn{position:relative;width:44px;height:42px;flex:none;padding:0;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;
+ border:0 !important;border-radius:11px !important}
+.giftbtn{background:linear-gradient(180deg,#fffdfb 0%,#fdf4f8 52%,#f6e4ee 100%) !important;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 -2px 3px rgba(200,150,180,.22),
+  0 0 0 1.3px rgba(236,206,232,.95),0 2.5px 0 #ecd0e2,
+  0 4px 7px rgba(190,140,180,.22) !important}
+.sendbtn{width:56px !important;color:#fff !important;
+ background:linear-gradient(180deg,#fdc0e2 0%,#f9a4d8 46%,#e59ae2 76%,#cfa8f0 100%) !important;
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),inset 0 -2px 3px rgba(190,90,150,.24),
+  0 0 0 1.3px rgba(226,166,214,.95),0 2.5px 0 #e08cbe,
+  0 4px 8px rgba(190,120,180,.26) !important}
+.giftbtn:active,.sendbtn:active{transform:translateY(2.5px)}
+.giftbtn::before,.sendbtn::before{content:none !important}
+
+/* 선물 — 올려주신 픽셀 상자 그림. 전송 — 흰 ↑ */
+.giftbtn .ico{display:block !important;width:26px !important;height:26px !important;
+ object-fit:contain;image-rendering:pixelated}
+.giftbtn svg{display:none !important}
+.giftbtn::after{content:none !important}
+.sendbtn .ico,.sendbtn svg{display:none !important}
+.sendbtn::after{content:"";position:absolute;left:50%;top:50%;
+ width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none;background:#fff;
+ -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5'/><path d='M6 11l6-6 6 6'/></svg>") center/contain no-repeat;
+ mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5'/><path d='M6 11l6-6 6 6'/></svg>") center/contain no-repeat}
+
+/* ── ⑨ 키스타임 ──
+   이 화면이 맡는 것은 상대가 아니라 내 몸이다. 앞판은 한 장을 부드럽게
+   띄웠다 — 사진이 전부 일하고 화면은 확대만 했다. 키스는 매끄럽게 다가오지
+   않는다: 머뭇거리고, 숨이 가빠지고, 어느 순간 숨이 멈추고, 그 다음에 닿는다.
+
+     ① 숨      화면이 아주 조금 늘고 줄며 뛴다. 진폭은 1.6%뿐이다 —
+               더 주면 흔들림이 되고, 이건 흔들림이 아니라 숨이다
+     ② 숨 멈춤  마지막 컷에서 호흡이 완전히 선다. 이 정지가 제일 큰 소리다
+     ③ 초점 풀림 너무 가까우면 눈이 초점을 못 잡는다
+     ④ 어둠     가장자리에서 안으로 번져 들어온다. 경계는 흐릿하다
+
+   글도 단추도 없다. 유저가 고르는 장면이 아니라 유저의 시야라서.
+   접촉은 화면 밖이다 — 다 번진 검은 데서 끝난다. */
+.kiss{position:absolute;inset:0;z-index:58;overflow:hidden;
+ background:#05030f;cursor:pointer;animation:fade .5s ease-out both}
+.kiss.out{animation:kclose var(--out,900ms) ease-in both}
+@keyframes kclose{0%{opacity:1}100%{opacity:0}}
+
+/* ① 숨. 확대(다가감)와 겹치면 서로를 지우므로 층을 나눈다 —
+   이 겉층이 호흡만, 안쪽 .ksf 가 다가감만 담당한다 */
+.kseye{position:absolute;inset:0;animation:ksbreath var(--run,9600ms) linear both}
+@keyframes ksbreath{
+  0%{transform:scale(1)}            /* 평소 호흡 */
+  11%{transform:scale(1.010)}
+  22%{transform:scale(1)}
+  33%{transform:scale(1.011)}       /* 가까워진다 */
+  43%{transform:scale(1.001)}
+  52%{transform:scale(1.014)}
+  59%{transform:scale(1.002)}
+  65%{transform:scale(1.016)}       /* 마지막 들숨 */
+  69%{transform:scale(1.012)}
+  100%{transform:scale(1.012)}}     /* ② 여기서부터 숨이 멈춘다 */
+
+/* 다가감. 다음 컷은 앞 컷이 도달한 배율에서 이어받는다 */
+.ksf{position:absolute;inset:-4%;background:#05030f center 42%/cover no-repeat;
+ transform-origin:52% 46%;opacity:0}
+.ksf1{animation:ksf1 var(--run,9600ms) linear both}
+.ksf2{animation:ksf2 var(--run,9600ms) linear both}
+.ksf3{animation:ksf3 var(--run,9600ms) linear both;transform-origin:50% 52%}
+/* 첫 컷은 길게 둔다. 마주 보고만 있는 이 시간이 뒤의 모든 걸 만든다 */
+@keyframes ksf1{
+  0%{opacity:1;transform:scale(1)}
+  33%{opacity:1}
+  39%{opacity:0}
+  100%{opacity:0;transform:scale(1.05)}}
+@keyframes ksf2{
+  0%{opacity:0;transform:scale(1.02)}
+  33%{opacity:0}
+  39%{opacity:1}
+  57%{opacity:1}
+  63%{opacity:0}
+  100%{opacity:0;transform:scale(1.09)}}
+/* ③ 마지막 컷에서만 초점이 풀린다 */
+@keyframes ksf3{
+  0%{opacity:0;transform:scale(1.04);filter:blur(0px)}
+  57%{opacity:0}
+  63%{opacity:1;filter:blur(0px)}
+  76%{filter:blur(0px)}
+  88%{filter:blur(2px)}
+  100%{opacity:1;transform:scale(1.16);filter:blur(5px)}}
+
+/* ④ 가장자리에서 어둠이 번져 들어온다. 그라데이션 두 겹은 색이 뭉쳐
+   무늬가 됐다 — 번짐은 그림자 하나로 낸다. blur 를 크게 두고 spread 만
+   키우면 경계 없이 안쪽으로 스민다 */
+.ksvig{position:absolute;inset:0;z-index:2;animation:ksvig var(--run,9600ms) ease-in both}
+@keyframes ksvig{
+  0%{box-shadow:inset 0 0 90px 0 rgba(5,3,15,.35)}
+  55%{box-shadow:inset 0 0 130px 14px rgba(5,3,15,.5)}
+  80%{box-shadow:inset 0 0 200px 60px rgba(5,3,15,.75)}
+  100%{box-shadow:inset 0 0 260px 150px rgba(5,3,15,.98)}}
+
+/* 완전한 암전. 다 번진 뒤 한 박자 검다 — 닿은 건 이 검은 데서다 */
+.ksout{position:absolute;inset:0;z-index:4;background:#05030f;opacity:0;
+ animation:ksout var(--run,9600ms) linear both}
+@keyframes ksout{0%,88%{opacity:0}100%{opacity:1}}
+
+/* ── 등록 화면이 안 굴러갔다 ──
+   overflow:hidden 에 세로 가운데 정렬이라, 창이 화면보다 길면 위아래가
+   잘린 채 그대로 멈췄다 — 작은 폰이나 키보드가 올라온 때가 그렇다.
+   넘치면 굴러가게 두고, 넘치지 않을 때만 가운데로 모은다.
+   justify-content:center 는 넘칠 때 위쪽까지 잘라먹으므로 margin:auto 를 쓴다.
+   ※ .cssprofile 규칙이 이 파일에 두 벌 있다. 이 덮어쓰기는 맨 끝이라야 산다 */
+.cssprofile{align-items:flex-start;justify-content:center;
+ overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+ -webkit-overflow-scrolling:touch}
+.profileframe.ecard{margin:auto}
+
+/* 등록 창틀은 ProfileFrame 하나만 쓴다. 일반 창은 본문 높이만 내용에 맞춘다. */
+.dialogmount{width:100%;max-width:400px}
+.profileframe.compact{max-width:320px}
+.profileframe.compact .ebody{aspect-ratio:auto;min-height:132px;padding:18px 16px 16px}
+.profileframe.compact .ebody::before,.profileframe.compact .ebody::after{content:""}

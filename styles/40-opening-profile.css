@@ -1,0 +1,1177 @@
+/* NULL CSS · 오프닝·등록·세계 확정 전용 프레임
+   파일 순서는 null.css에서 관리한다. */
+
+/* ── 세계 확정 화면 ── 등록 카드(.enr/.ecard)와 같은 껍데기를 쓴다.
+   새 스타일을 만들지 않는다 — 이 넷은 글자 간격과 자리뿐이다 */
+/* ── 세계 확정 창 ── 이 창만 어둡다.
+   물음이 NULL을 가운데 두고 갈라지고, 그 칸이 커서까지 깜빡이는 입력칸으로
+   서 있다. 채워야 할 빈칸이 곧 이 게임이라는 말을 화면이 스스로 한다.
+   바탕이 어두우니 분홍 YES가 유일한 빛이 된다.
+   창·커서·단추는 있는 자재다(.dlg / .cur / .etcdel). 여기서 주는 것은
+   어두운 바탕과 그 위에서 읽히도록 바꾼 색뿐이다. */
+.dlg.cwin{background:linear-gradient(180deg,#3d3170,#2b2352);border-color:rgba(255,255,255,.9)}
+.cwin .tb{border-bottom-color:#6a56a8}
+.cq{text-align:center;font-size:14px;line-height:1.6;letter-spacing:.02em;color:#f0eaff}
+/* NULL이 앉은 빈칸. 방금 타이핑된 것처럼 뒤에서 커서가 깜빡인다 */
+.cslot{display:flex;justify-content:center;margin-top:10px}
+.cslot+.cq{margin-top:10px}
+.cbox{display:flex;align-items:center;justify-content:center;gap:5px;
+  min-width:128px;height:44px;padding:0 16px;border-radius:7px;
+  border:2px dashed #ff8fbe;background:rgba(255,255,255,.06);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.cbox b{font-weight:400;font-size:16.5px;letter-spacing:.14em;color:#ff9ec6}
+.cbox .ccar{width:2px;height:20px;background:#ff5fa8;animation:blinkc 1s steps(2) infinite}
+/* 현실 □□ · 이세계 교생 · 대상 — 한 줄로 나란히. 그 대비가 곧 이야기다 */
+.cfacts{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;
+  margin-top:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,.12);
+  font-size:8.5px;letter-spacing:.08em;color:#8f82c8}
+.cfacts b{font-weight:400;letter-spacing:.14em}
+.cfacts em{font-style:normal;color:#e9e0ff}
+.cfacts em.cnull{color:#ff9ec6;letter-spacing:.2em}
+.cyes{align-self:center;margin-top:15px;min-width:118px;padding:13px 26px;
+  justify-content:center;font-size:12.5px;letter-spacing:.18em}
+/* 단추 아래로 내려오면 단추에 붙는 말이 된다 — 「YES밖에 없다」는 농담이 산다.
+   .chint은 다른 화면이 이미 쓴다(왼쪽 여백 64px). 여기 것은 이름을 따로 쓴다 */
+.cwhint{margin-top:10px;text-align:center;font-size:9.5px;letter-spacing:.06em;color:#a394d8}
+/* D-0 결과 카피 — 이름과 얼굴이 한 줄이다. 줄이 좁으면 얼굴만 내려간다 */
+.ddq .q .kao{color:#c86ea8;white-space:nowrap}
+
+/* ── 마지막 빈칸 ── D-0의 「Stay with □□?」. 등록 화면의 빈칸과 같은 칸이다.
+   여기만 글자가 크다(.ddq .q 안에 있어서) */
+.whoblank{min-width:52px;font-size:15px;vertical-align:baseline}
+.whoin{width:88px;font-size:15px;text-align:center;vertical-align:baseline}
+/* 이 세계에 없는 이름이면 칸이 흔들린다. 창을 하나 더 띄우지 않는다 */
+.whoin.bad{color:#ff5fa8;border-color:#ff9ec7;animation:whobad .18s 3}
+@keyframes whobad{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ── 등록 창의 제목줄이 흐른다 ──
+   현실의 나는 □□이고 이 세계에서만 값이 생긴다(교생). 창틀에 앉히느라
+   길어져서 흐르게 둔다 — 메신저 맨 위 띠와 같은 slide다. 점 셋은 오른쪽에
+   그대로 붙어 있어야 하므로 흐르는 쪽에만 flex를 준다. */
+.etbrun{flex:1;min-width:0;overflow:hidden;white-space:nowrap;contain:paint}
+.etbrun>i{display:inline-block;padding-left:100%;font-style:normal;animation:slide 17s linear infinite}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   오프닝 — 그림 창을 버리고 CSS로 짠다
+
+   그림 창에는 슬롯이 배킹돼 있어서 DOM 조각을 그 좌표에 절대배치해야 했다.
+   글이 한 줄 늘거나 화면이 좁아지면 조각이 슬롯을 벗어나고, 좌표를 다시
+   재는 일이 끝나지 않았다. 게다가 그림 크기가 고정이라 작은 창 둘이 큰
+   화면에서 우표처럼 남았다.
+
+   부품 문법은 프로필과 같다: 겹 테 칸, 유리 제목 띠, 크림 판, 십자 광선 별.
+   픽셀 글꼴은 자간·줄높이가 정수여야 격자에 맞는다 — 소수점이면 글자마다
+   반 픽셀씩 밀려 흐리게 뭉갠다.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* CD — CSS로 세 번 그려봤지만 계속 색종이처럼 보였다. 금속 광택은
+   그라데이션으로 흉내 낼 값이 아니라 그림이 낸다 */
+
+/* ── 유리 창틀 ── 큰 창과 작은 창이 같은 몸이고 두께만 다르다 */
+
+/* ── 제목 띠 ── 분홍에서 라일락으로. 바닥에 진한 선 한 줄 */
+/* Error — 라벤더. 시스템이 조용히 알려주는 창 */
+/* System error — 진분홍. 이 창이 이야기를 말하는 창이라 제일 세다 */
+/* 위쪽 광택 한 줄 */
+
+/* 창 단추 — 원판 색이 옅으면 글리프가 묻힌다 */
+
+/* ── 크림 판 ── 네 귀에 눈금. 그냥 종이면 창 안이 헐렁하다 */
+
+/* ── NULL 로고 ── 글자 자체가 유리다. 칸과 같은 배합을 글자에 입힌다 */
+
+/* ── 이름 칸 ── 프로필의 겹 테 칸과 같은 몸 */
+
+/* ── Click ── 칸보다 한 단 두껍고 진하다 */
+
+/* ── 오류창 본문 ── 글은 위, 단추는 오른쪽 아래. 겹치지 않게 자리를 나눈다 */
+
+/* ── 로딩 막대 ── 아무것도 안 끝난다. 이 세계가 아직 안 열렸다 */
+
+/* 안내 한 줄 — 창들 아래가 아니라 화면 맨 아래에 붙는다 */
+
+/* 넓은 화면에서는 가로판 배경으로 바꾼다 — 세로판을 늘리면 가장자리 장식이 잘린다.
+   창은 CSS가 그리니 배경만 갈아끼우면 된다 */
+@media (min-width:700px) and (min-aspect-ratio:1/1){
+  .screen.splash{background-image:url("../ui/bg-desktop.webp?v=158")}
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   real / speed 확정창 — 오프닝·등록과 같은 문법으로
+
+   이 창만 옛 문법(납작한 띠, 실선 테두리, 회색 알약)에 남아 있어서
+   다른 앱에서 온 창처럼 보였다. 같은 부품으로 바꾼다:
+   유리 창틀 · 분홍-라일락 띠에 별 하나 · 흰 판에 네 귀 눈금 ·
+   겹 테 세 겹을 두른 칸 · 유리 알약 단추.
+
+   비율 눈금은 그대로 둔다 — 한 칸 대 네 칸이 이 창의 알맹이다.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 제목 띠 ── 왼쪽에 별 하나, 흰 글자 */
+
+/* 글자는 배경 그림이 아니라 요소라 그대로 쓰되, 띠 왼쪽에 앉힌다 */
+
+/* 별 하나 — clip-path 로 꼭지를 깎아야 별이 된다 */
+
+/* ── 흰 판 ── 네 귀에 눈금 */
+
+/* ── 고른 값 ── 이 창이 확인해야 하는 것 */
+
+/* ── 비율 눈금 ── 칸과 같은 겹 테를 둘러 판 위의 부품이 된다 */
+
+/* ── 단추 둘 ── 유리 알약. back 은 옅고 이걸로는 진하다 */
+
+/* 창은 좁고 글자는 cqw 라 8.7px 까지 줄어 있었다 — 읽으라고 쓴 문장이
+   읽히지 않는다. 폭을 넓히고 글자·간격을 px 로 못박아 세로로 길게 세운다 */
+
+/* 단추가 48px 이라 창 아래를 다 먹었다 — 한 단 낮춘다 */
+
+/* 단추가 여전히 창 폭을 다 먹는다 — 폭을 내용만큼만 잡고 가운데로 모은다 */
+
+/* 두 단추를 붙여놓으니 한 덩어리로 보였다 — 갈라진 선택이니 사이를 벌린다 */
+
+/* real / speed 글자가 작아 확정창의 알맹이로 안 읽혔다 — 한 단 키운다 */
+
+/* ══════════════════════════════════════════════════════════════════
+   등록 — profile-css.html 을 그대로 옮긴다
+
+   앞서 한 번 옮겼다가 실패한 이유: 흐름 배치와 % 폭으로 「같은 뜻」만
+   옮겼더니 비율이 전부 달라졌다. 이 화면은 좌표가 곧 디자인이다 —
+   칸 폭·줄 간격·점선이 붙는 자리가 서로 물려 있어서, 하나를 흐름에
+   맡기면 나머지가 어긋난다.
+
+   그래서 원본 좌표(390×680 판)를 % 로 환산해 그대로 쓰고, 글자 크기는
+   cqw 로 묶어 카드 폭에 따라 같이 자란다. 폰이 좁아도 비율이 안 깨진다.
+   1cqw = 카드 폭 / 100 (원본 400px 기준 4px)
+   ══════════════════════════════════════════════════════════════════ */
+.cssprofile{position:absolute;inset:4px;z-index:55;display:flex;
+ align-items:center;justify-content:center;overflow:hidden;padding:16px;
+ background:#efe6fb url("../ui/bg-mobile.webp") center/cover no-repeat}
+
+/* ── 유리 창틀 ── */
+
+/* ── 제목 띠 ── */
+/* 왼쪽 별 하나 — 셋을 한 상자에 겹쳐 그리니 점 세 개로 뭉갰다.
+   별은 십자 광선으로 그려야 별이 된다 */
+
+/* ── 크림 판 ── 원본 390×680. 네 귀에 눈금 */
+
+/* ── 줄 ── 상자를 없애 아이들이 판 기준으로 앉는다.
+   높이를 0 으로 두면 흐름을 안 차지하면서도 점선용 가상요소는 남는다 */
+
+/* ── 라벨 ── */
+/* MODE 라벨은 판 왼쪽이 아니라 real 칸이 시작하는 선 위에 앉는다 —
+   오른쪽으로 가는 것은 「고르는 일」이고, 라벨은 그 일이 어디서 시작하는지를 댄다 */
+
+/* ── 칸 ── 유리 한 겹, 겹 테 세 겹 */
+/* 못 고치는 칸 — 손가락이 없다 */
+
+/* ── 칸 폭과 자리 ── 원본 좌표를 그대로 환산 */
+
+/* ── 이어지는 점선 ── 칸이 끝난 자리에서 이어져 「여기부터 아직 빈칸」이
+   된다. 못 고치는 칸(AGE·DAYS)은 점이 굵고 뜸하다 — 이어질 것이 없다 */
+/* 점선 끝에 눈금 하나 — 이어질 자리가 있다는 표시 */
+
+/* ── 칸 안 장식 ── 같은 자리에 같은 별을 박으면 「칸 부품」이 되어 다섯 번
+   같은 말을 한다. 별은 크기와 자리를 칸마다 다르게, 달은 못 고치는 칸
+   하나에만, 점 셋은 이어진다는 표시. 어떤 칸은 둘, 어떤 칸은 없다 */
+/* NAME — 큰 별 하나. 이름이 이 판의 첫 칸이라 제일 크게 반짝인다 */
+/* SUBJECT — 작은 별 */
+/* AGE — 초승달. 이 판에서 딱 한 번 쓰는 모양이다 */
+/* LIKES — 별 둘. 크기를 다르게 둬서 같은 별을 두 번 박은 게 아니게 한다 */
+/* HATES — 별이 아니라 점 셋 */
+
+/* ── MODE ── 이 판에서 유일하게 오른쪽에 붙는 줄.
+   채우는 일과 고르는 일이 다르다는 걸 자리가 말한다 */
+/* 칸막이는 없앤다 — 두 쪽 색이 이미 달라서 선이 없어도 갈린다 */
+/* 켠 쪽은 테를 덮지 않고 빛만 더한다 */
+/* 켠 쪽에 작은 별 하나 — 색을 안 바꾸고 「이쪽」만 가리킨다 */
+/* 견본에는 이 줄이 없었다(정적 화면이라 안 그렸다). 실제로는 붙는데
+   top:65%면 MODE 알약 아래끝(65.4%)을 3px 물고 앉는다 — 재봤다.
+   알약이 끝나는 자리 바로 밑으로 내린다 */
+/* 안내가 들어갈 자리라 이 줄만 점선을 안 깐다 */
+
+/* ── 게이지 ── 이 줄만 두께가 다르다. 채움 폭은 CSS 가 정한다 */
+
+/* ── Click ── 칸보다 한 단 두껍다. 양옆에 별 둘 */
+/* 안쪽 유리. 전에 z-index:-1 로 깔아서 제 배경 뒤로 숨었던 자리다 —
+   글자보다 아래, 겉틀보다 위에 오게 0 으로 두고 글자를 띄운다 */
+
+
+/* ── 채우는 칸만 안쪽이 하얗다 ──
+   빈칸이 이 앱의 뜻이라 「내가 채울 자리」는 흰 종이여야 한다.
+   겹 테(분홍 세 겹)는 그대로 두고 몸통만 바꾼다 — 테가 남으니 칸이
+   납작해지지 않고, 못 고치는 칸(AGE 25·DAYS null)은 파스텔로 남아
+   나란히 놓으면 「이건 내가 쓴 게 아니다」가 보인다. */
+/* 흰 몸통 위에서는 흰 장식이 안 보인다 — 분홍으로 바꾼다 */
+
+
+/* ── DAYS LEFT 와 Click 에도 요소를 ──
+   이 둘만 맨몸이라 다른 칸들과 다른 판에서 온 것처럼 보였다.
+   다만 뜻이 다르니 모양도 다르게 준다:
+     · DAYS LEFT → 초승달 반쪽. 못 고치는 칸이라 AGE 와 같은 갈래인데
+       크기를 줄여 「같은 종류, 다른 값」이 된다
+     · Click → 별 둘. 왼쪽은 크고 오른쪽은 작다 */
+/* 점 셋 — DAYS 는 세지 않는다는 말이라 이어짐 표시를 하나 더 얹는다 */
+
+/* Click — 오른쪽에 작은 별 하나 더. 왼쪽 큰 별과 짝이 된다 */
+
+
+/* ── 별을 다시 그린다 ──
+   가로·세로 띠 두 겹으로 별을 냈더니 작은 크기에서 十 자로 뭉개져
+   부스러기처럼 보였다. 별은 끝이 뾰족해야 별이다 — clip-path 로 네 꼭지를
+   깎아낸다. 크기가 작아도 모양이 남는다. */
+
+/* 초승달 — 원에 한쪽을 물려 깎는다. 얇은 테로 그리면 괄호처럼 보였다 */
+
+/* 점 셋 — 너무 작아 먼지처럼 보였다. 한 단 키우고 간격을 벌린다 */
+
+/* Click 의 별 둘 — 큰 별과 작은 별. 겹친 배경 세 겹으로 그리다 T 자가 됐다 */
+
+
+/* 두 쪽 사이에 크림이 비쳐 안 붙어 보였다 — 기본 .emode b 에 여백이 걸려 있었다 */
+
+/* ── 창 윗틀 ──
+   납작한 띠 한 장이라 창이 아니라 색종이처럼 보였다. 세 겹으로 세운다:
+   위쪽에 부푼 빛 · 가운데 유리색 · 아래 진한 입술 한 줄.
+   여기에 아래로 흐르는 그늘을 더하면 띠가 판보다 앞으로 나온다 */
+/* 띠 아래 얇은 흰 선 — 판과 띠 사이를 갈라 띠가 떠 보이게 한다 */
+
+/* null.exe 를 오른쪽으로 더 — 별과 사이를 벌린다 */
+
+
+/* 두 쪽에 각각 1.25px 흰 테두리가 있어서 맞닿은 자리에 2.5px 흰 줄이 생겼다 —
+   테두리를 걷는다. 갈라짐은 색이 이미 말한다 */
+
+
+/* DAYS LEFT 의 null 이 작아 보였다 — 기본 .nullv 의 작은 글자가 남아 있었다.
+   다른 칸과 같은 크기로 못박는다 */
+
+
+/* 켠 쪽에 얹은 작은 별을 걷는다 — real 안 오른쪽에 알약처럼 떠 있었다.
+   어느 쪽이 켜졌는지는 색과 빛으로 이미 갈린다 */
+
+
+/* real 의 위쪽 광택막이 기본 규칙에서 999px 알약이라 그 곡선이 오른쪽
+   모서리처럼 보였다 — 막의 반경을 단추와 같게 맞춘다 */
+
+/* 윗틀이 하얗던 원인 — 위쪽에 얹은 흰 빛막이 띠를 거의 다 덮고 있었다.
+   빛막은 위 30%만 남기고, 분홍-라일락 유리색이 드러나게 한다.
+   판(창 자체)은 흰색 그대로 둔다 */
+/* Click! 이 사라진 이유 — 이 글자는 맨 텍스트 노드라 z-index 를 못 받는데,
+   안쪽 유리막(::before, z-index:0)이 그 위에 깔려 덮었다.
+   막을 걷고 그 색을 단추 몸통에 직접 깔면 글자가 제일 위에 남는다 */
+
+
+/* ══════════════════════════════════════════════════════════════════
+   아래는 올려주신 단독 화면 파일(opening-screen · profile-screen ·
+   mode-dialog)의 CSS 를 그대로 옮긴 것이다. 그 파일들이 기준이라
+   손으로 고치지 않고 통째로 붙인다.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 단독 화면 파일의 데모 껍데기는 안 옮긴다 ──
+   그 파일들은 화면 하나를 폰 모양 상자에 담아 보여주려고 제 나름의
+   *·html,body·.phone·.screen 을 갖고 있다. 그걸 같이 옮겼더니 앱의
+   진짜 껍데기를 덮었다:
+
+   앱의 .phone 은 좁은 화면에서 height:100dvh 로 꽉 차는데, 데모 것은
+   height:min(100dvh,844px) 에 border-radius:18px 다. 뒤에 있으니 이겼고,
+   안드로이드 키보드가 올라와 dvh 가 줄면 껍데기까지 같이 줄어 화면이
+   위로 밀리고 아래가 하얗게 떴다.
+   .screen 도 마찬가지로 inset:4px 를 다시 적어서, 좁은 화면에서
+   inset:0 으로 내리는 미디어쿼리를 뒤에서 되돌리고 있었다.
+
+   화면 규칙만 옮기고 껍데기는 앱 것을 쓴다. */
+@keyframes blinkc{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes twinkle{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.spark{position:absolute;z-index:1;border-radius:50%;pointer-events:none;
+ animation:twinkle 2.6s ease-in-out infinite}
+
+/* BGM: 방울 — 아래에서 올라오며 살짝 흔들림 */
+@keyframes rise{0%{transform:translateY(0);opacity:0}6%{opacity:1}84%{opacity:.95}100%{transform:translateY(-940px);opacity:0}}
+@keyframes sway{0%{margin-left:-15px}100%{margin-left:15px}}
+.bubbles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.bub{position:absolute;bottom:-70px;border-radius:50%;
+ background:radial-gradient(circle at 30% 26%,#fff 0 9%,rgba(255,255,255,.55) 20%,rgba(255,255,255,0) 46%),
+   radial-gradient(circle at 72% 74%,rgba(255,170,215,.7),rgba(160,205,255,.5) 55%,rgba(255,255,255,.05) 78%);
+ border:1.5px solid rgba(255,255,255,.9);box-shadow:0 0 12px rgba(255,255,255,.45),inset 0 0 8px rgba(255,255,255,.5);
+ animation:rise linear infinite,sway ease-in-out infinite alternate}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+
+/* ══════════════════════════════════════════════════════════════════
+   오프닝 — 그림 창을 버리고 CSS로 짠다
+
+   그림 창에는 슬롯이 배킹돼 있어서 DOM 조각을 그 좌표에 절대배치해야 했다.
+   글이 한 줄 늘거나 화면이 좁아지면 조각이 슬롯을 벗어나고, 좌표를 다시
+   재는 일이 끝나지 않았다. 게다가 그림 크기가 고정이라 작은 창 둘이 큰
+   화면에서 우표처럼 남았다.
+
+   부품 문법은 프로필과 같다: 겹 테 칸, 유리 제목 띠, 크림 판, 십자 광선 별.
+   픽셀 글꼴은 자간·줄높이가 정수여야 격자에 맞는다 — 소수점이면 글자마다
+   반 픽셀씩 밀려 흐리게 뭉갠다.
+   ══════════════════════════════════════════════════════════════════ */
+.screen.splash{position:relative;height:100%;overflow:hidden;
+ background:#efe6fb url("../ui/bg-mobile.webp?v=158") center/cover no-repeat}
+.spstack{position:absolute;inset:0;display:block;padding:0;gap:0}
+.spstack>*{margin:0}
+
+/* CD — CSS로 세 번 그려봤지만 계속 색종이처럼 보였다. 금속 광택은
+   그라데이션으로 흉내 낼 값이 아니라 그림이 낸다 */
+.spcd{position:absolute;left:-3%;top:-2%;width:30%;height:auto;aspect-ratio:1/1;
+ visibility:visible;border:0;border-radius:0;box-shadow:none;opacity:.58;
+ background:url("../ui/opal-cd.webp") center/contain no-repeat;
+ filter:saturate(.8) drop-shadow(0 4px 10px rgba(110,80,170,.2));
+ animation:spin 6s linear infinite}
+.spcd::before,.spcd::after{display:none}
+
+/* ── 유리 창틀 ── 큰 창과 작은 창이 같은 몸이고 두께만 다르다 */
+.spcard,.spstack .w1,.spstack .w2 .spwin,.spstack .w3{
+ border:0;overflow:visible;
+ background:
+  radial-gradient(120% 74% at 50% -12%,rgba(255,255,255,.95) 0 32%,rgba(255,255,255,0) 70%),
+  linear-gradient(146deg,#e8d8f2 0%,#fdf3fb 22%,#f6e8fa 42%,
+   #ddc9ee 62%,#eedcf6 82%,#d9c4ec 100%);
+ box-shadow:0 0 0 1px rgba(255,255,255,.7),
+  inset 0 1.5px 0 rgba(255,255,255,.78),
+  inset 0 -3px 6px rgba(150,116,196,.18),
+  0 12px 30px rgba(120,92,180,.3)}
+.spcard{position:absolute;left:6%;top:13%;width:88%;aspect-ratio:auto;
+ padding:3px;border-radius:17px;
+ background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,
+  #dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%)}
+.spstack .w1{position:absolute;left:3.5%;top:47%;width:57%;height:auto;aspect-ratio:auto;
+ padding:2.5px;border-radius:10px;align-self:auto;
+ background:linear-gradient(146deg,#ded4f6 0%,#f6f2fd 24%,#e6dffb 48%,
+  #cfc4f4 70%,#e2daf9 88%,#cdc2f0 100%)}
+.spstack .w2{position:absolute;left:38%;top:65.5%;width:58.5%;align-self:auto}
+.spstack .w2 .spwin{width:100%;padding:2.5px;border-radius:10px;
+ background:linear-gradient(146deg,#f6d4e8 0%,#fdf0f7 24%,#f8dcee 48%,
+  #eeb8d6 70%,#f9dcec 88%,#ecc0dc 100%)}
+.spstack .w3{position:absolute;left:6%;top:81.5%;width:88%;height:auto;aspect-ratio:auto;
+ padding:2.5px;border-radius:10px;align-self:auto;
+ background:linear-gradient(146deg,#d2e4f8 0%,#f2f8fd 24%,#dfeafb 48%,
+  #bed4f0 70%,#dcebfa 88%,#c4d8f2 100%)}
+
+/* ── 제목 띠 ── 분홍에서 라일락으로. 바닥에 진한 선 한 줄 */
+.spcard .sptb,.spstack .w1 .sptb,.spstack .w2 .sptb,.spstack .w3 .sptb{
+ position:relative;left:auto;top:auto;right:auto;inset:auto;margin:0;
+ display:flex;align-items:center;border-bottom:0;
+ letter-spacing:1px;color:#fff;
+ text-shadow:0 1px 0 rgba(150,84,175,.85),0 2px 3px rgba(120,60,150,.5)}
+.spcard .sptb{height:40px;padding:0 10px 0 14px;font-size:15px;
+ border-radius:10px 10px 3px 3px;
+ background:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,
+  #dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%) !important;
+ box-shadow:inset 0 -2px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.9)}
+.spstack .w1 .sptb,.spstack .w2 .sptb{height:28px;padding:0 7px 0 11px;font-size:11px;
+ border-radius:8px 8px 2px 2px}
+/* Error — 라벤더. 시스템이 조용히 알려주는 창 */
+.spstack .w1 .sptb{
+ background:linear-gradient(96deg,#cfc0f8 0%,#c4bcfa 38%,#c8c8fb 70%,#d6cdfa 100%) !important;
+ box-shadow:inset 0 -2px 0 #9a86dc,inset 0 1px 0 rgba(255,255,255,.9);
+ text-shadow:0 1px 0 rgba(110,88,180,.85),0 2px 3px rgba(90,70,150,.45)}
+/* System error — 진분홍. 이 창이 이야기를 말하는 창이라 제일 세다 */
+.spstack .w2 .sptb{
+ background:linear-gradient(96deg,#fca8d6 0%,#fa9ad0 40%,#f79ade 74%,#eda6ea 100%) !important;
+ box-shadow:inset 0 -2px 0 #dd6fa8,inset 0 1px 0 rgba(255,255,255,.85);
+ text-shadow:0 1px 0 rgba(190,80,140,.9),0 2px 3px rgba(160,60,120,.45)}
+.spstack .w3 .sptb{height:28px;padding:0 7px 0 11px;font-size:11px;
+ border-radius:8px 8px 2px 2px;color:#fff;
+ text-shadow:0 1px 0 rgba(90,120,170,.85),0 1px 3px rgba(70,100,150,.45);
+ background:linear-gradient(96deg,#bfe2f6 0%,#c8dcf8 38%,#d6cef8 72%,#e2cdf6 100%) !important;
+ box-shadow:inset 0 -2px 0 #96b8e0,inset 0 1px 0 rgba(255,255,255,.9)}
+/* 위쪽 광택 한 줄 */
+.spcard .sptb::after,.spstack .w1 .sptb::after,
+.spstack .w2 .sptb::after,.spstack .w3 .sptb::after{
+ content:"";position:absolute;left:4px;right:4px;top:2px;height:44%;
+ border-radius:8px 8px 999px 999px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.02))}
+
+/* 창 단추 — 원판 색이 옅으면 글리프가 묻힌다 */
+.spcard .sptb .dots,.spstack .w1 .sptb .dots,
+.spstack .w2 .sptb .dots,.spstack .w3 .sptb .dots{
+ display:flex;position:relative;margin-left:auto;gap:6px}
+.spstack .sptb .dots>span,.spcard .sptb .dots>span{
+ width:20px;height:20px;border-radius:50%;border:0;
+ font:400 10px/1 system-ui,sans-serif;color:#fff;
+ text-shadow:0 1px 0 rgba(130,66,160,.9);
+ box-shadow:0 0 0 1.4px rgba(255,255,255,.9),
+  inset 0 1px 0 rgba(255,255,255,.9),
+  inset 0 -2px 3px rgba(150,110,180,.28)}
+.spstack .sptb .dots .d1,.spcard .sptb .dots .d1{background:linear-gradient(180deg,#f6a8ec,#e07fdd)}
+.spstack .sptb .dots .d2,.spcard .sptb .dots .d2{background:linear-gradient(180deg,#cfc0f8,#a98ff0)}
+.spstack .sptb .dots .d3,.spcard .sptb .dots .d3{background:linear-gradient(180deg,#a8cdf8,#6fa8ee)}
+.spstack .w1 .sptb .dots>span,.spstack .w2 .sptb .dots>span,
+.spstack .w3 .sptb .dots>span{width:15px;height:15px;font-size:8px}
+
+/* ── 크림 판 ── 네 귀에 눈금. 그냥 종이면 창 안이 헐렁하다 */
+.spcard .spbody,.spstack .w1 .spbd,.spstack .w2 .spbd,.spstack .w3 .spbd{
+ position:relative;inset:auto;left:auto;top:auto;margin:3px 0 0;display:block;
+ border-radius:3px 3px 13px 13px;background:#fdfaff !important;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,
+  inset 0 -4px 8px rgba(150,116,196,.09)}
+.spcard .spbody{padding:16px 18px 18px}
+.spcard .spbody::before,.spcard .spbody::after{content:"";position:absolute;width:9px;height:9px;
+ pointer-events:none;border-color:#e2d2ee;border-style:solid;border-width:0}
+.spcard .spbody::before{left:9px;top:9px;border-left-width:1px;border-top-width:1px}
+.spcard .spbody::after{right:9px;bottom:9px;border-right-width:1px;border-bottom-width:1px}
+
+/* ── NULL 로고 ── 글자 자체가 유리다. 칸과 같은 배합을 글자에 입힌다 */
+.spcard .splogo{position:relative;left:auto;top:auto;right:auto;height:auto;margin:0;
+ display:flex;align-items:flex-end;justify-content:center;gap:2px;
+ font-family:"Galmuri9","Galmuri11",sans-serif;
+ font-size:36px;line-height:36px;letter-spacing:.3em;text-indent:.3em;color:transparent;
+ background:linear-gradient(120deg,#fff 0 12%,#ffd0f0 30%,#b9e3ff 50%,#fff 68%,#c3b2f0 92%);
+ background-size:200% 100%;
+ -webkit-background-clip:text;background-clip:text;
+ -webkit-text-stroke:1.2px #b06f9e;
+ filter:drop-shadow(2px 2px 0 rgba(176,111,158,.32));
+ animation:shimmer 4.5s linear infinite}
+.spcard .splogo .cur{width:auto;height:auto;margin:0;background:none;border-radius:0;
+ font-size:inherit;line-height:inherit;-webkit-text-stroke:0;
+ -webkit-text-fill-color:#ff9ec6;color:#ff9ec6;
+ animation:blinkc 1s steps(1) infinite}
+
+/* ── 이름 칸 ── 프로필의 겹 테 칸과 같은 몸 */
+.spcard .spinput{position:relative;left:auto;top:auto;width:100%;height:36px;
+ margin:16px 0 0;padding:0 14px;border:0;border-radius:8px;
+ font-size:12px;letter-spacing:0;color:#463670;text-align:center;
+ text-shadow:0 1px 0 rgba(255,255,255,.65);
+ background:linear-gradient(180deg,#fff 0%,#fffdff 60%,#fdf6fc 100%);
+ box-shadow:
+  inset 0 1.5px 3px rgba(150,116,190,.14),
+  0 0 0 1px #d6bbe0,
+  0 0 0 3px #fdeef9,
+  0 0 0 3.5px #dcbcdd,
+  0 3px 8px rgba(150,112,196,.12)}
+
+/* ── Click ── 칸보다 한 단 두껍고 진하다 */
+.spcard .spgo{position:relative;left:auto;top:auto;width:100%;height:46px;
+ margin:16px 0 0;padding:2px;border:0;border-radius:11px;
+ font-family:inherit;font-size:15px;letter-spacing:1px;
+ color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.7);
+ background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);
+ box-shadow:0 5px 13px rgba(150,112,196,.24)}
+.spcard .spgo::before{display:none}
+.spcard .spgo::after{content:"";position:absolute;left:2px;right:2px;top:2px;bottom:2px;
+ z-index:-1;border-radius:9px;
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -2px 0 rgba(255,255,255,.6),
+  inset 0 12px 12px -10px rgba(255,255,255,.6)}
+.spcard .spgo:active{transform:translateY(2px);box-shadow:0 2px 6px rgba(150,104,200,.28)}
+
+/* ── 오류창 본문 ── 글은 위, 단추는 오른쪽 아래. 겹치지 않게 자리를 나눈다 */
+.spstack .w1 .spbd,.spstack .w2 .spbd{position:relative;padding:13px 14px 40px;
+ font-size:11px;line-height:17px;letter-spacing:0;color:#4f3d76;
+ white-space:normal;word-break:keep-all;text-align:left}
+.spstack .w1 .spbtn,.spstack .w2 .spbtn{position:absolute;left:auto;top:auto;
+ right:12px;bottom:11px;width:auto;height:auto;padding:5px 15px;
+ font-size:11px;letter-spacing:1px;color:#463670;border:0;border-radius:999px;
+ text-shadow:0 1px 0 rgba(255,255,255,.7);
+ background:linear-gradient(96deg,#fbc8ee 0%,#e3cdfa 55%,#c9d6f6 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 0 1px #d6bbe0,0 2px 0 #e2cbee}
+.spstack .w1 .spbtn:active,.spstack .w2 .spbtn:active{transform:translateY(2px);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 0 0 1.5px #d1b2da}
+
+/* ── 로딩 막대 ── 아무것도 안 끝난다. 이 세계가 아직 안 열렸다 */
+.spstack .w3 .spbd{padding:13px 14px;background:#f7fafd !important}
+.spstack .w3 .spbar{position:relative;left:auto;right:auto;top:auto;bottom:auto;
+ display:block;width:100%;height:18px;border-radius:6px;overflow:hidden;
+ background:#eef0f8;border:0;
+ box-shadow:inset 0 1.5px 3px rgba(120,140,190,.24),
+  0 0 0 1px #c2cee2,0 0 0 3px #f2f6fc,0 0 0 3.5px #c4d0e4}
+.spstack .w3 .spbar i{display:block;height:100%;border-radius:6px;
+ background:linear-gradient(96deg,#a8d6f2 0%,#b6cef6 40%,#cbc6f8 74%,#dcc4f4 100%);
+ box-shadow:inset 0 -1.5px 0 rgba(255,255,255,.6)}
+
+/* 안내 한 줄 — 창들 아래가 아니라 화면 맨 아래에 붙는다 */
+.sptap{position:absolute;left:0;right:0;bottom:3.5%;margin:0;text-align:center;
+ font-size:11px;line-height:14px;letter-spacing:1px;color:#6b568f;
+ text-shadow:0 1px 0 rgba(255,255,255,.8)}
+
+
+
+/* 빈칸으로 Click! 했을 때 Error 창이 한 번 흔들린다 */
+/* 흔들림은 걷었다. 단추는 그냥 반짝인다 — 흰 빛 한 줄이 훑고 지나간다 */
+.spcard .spgo{position:relative;overflow:hidden}
+.spcard .spgo::before{content:"";position:absolute;z-index:2;top:-40%;bottom:-40%;width:34%;
+ pointer-events:none;transform:skewX(-18deg);
+ background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75),rgba(255,255,255,0));
+ animation:spglint 2.6s ease-in-out infinite}
+@keyframes spglint{0%{left:-45%}42%{left:118%}100%{left:118%}}
+/* 빛줄이 안 보였다 — 오프닝 블록에 .spcard .spgo::before{display:none} 이
+   있어서, 뒤에 쓴 규칙이 display 를 되돌리지 않으면 그대로 숨는다 */
+.spcard .spgo::before{display:block}
+/* Click! 을 다른 단추들과 같은 몸으로 — 등록 화면 Click 과 같은 값이다.
+   유리 몸통 + 겹 테 세 겹. 빛줄은 그 위에서 훑는다 */
+.spcard .spgo{border:0;border-radius:11px;
+ color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.75);
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #c194ce,
+  0 0 0 4px #fbdcf2,
+  0 0 0 5px #c78fc8,
+  0 4px 10px rgba(150,104,200,.26)}
+.spcard .spgo:active{transform:translateY(2px);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8,
+  0 2px 6px rgba(150,104,200,.24)}
+
+
+
+/* ─ □ ✕ 글리프 — 앱과 같은 값 */
+.dots{display:flex;gap:5px}
+.dots>span{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+ width:19px;height:19px;border-radius:50%;color:currentColor}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   등록 — profile-css.html 을 그대로 옮긴다
+
+   앞서 한 번 옮겼다가 실패한 이유: 흐름 배치와 % 폭으로 「같은 뜻」만
+   옮겼더니 비율이 전부 달라졌다. 이 화면은 좌표가 곧 디자인이다 —
+   칸 폭·줄 간격·점선이 붙는 자리가 서로 물려 있어서, 하나를 흐름에
+   맡기면 나머지가 어긋난다.
+
+   그래서 원본 좌표(390×680 판)를 % 로 환산해 그대로 쓰고, 글자 크기는
+   cqw 로 묶어 카드 폭에 따라 같이 자란다. 폰이 좁아도 비율이 안 깨진다.
+   1cqw = 카드 폭 / 100 (원본 400px 기준 4px)
+   ══════════════════════════════════════════════════════════════════ */
+.cssprofile{position:absolute;inset:4px;z-index:55;display:flex;
+ align-items:center;justify-content:center;overflow:hidden;padding:16px;
+ background:#efe6fb url("../ui/bg-mobile.webp?v=158") center/cover no-repeat}
+
+/* ── 유리 창틀 ── */
+.profileframe.ecard{position:relative;flex:none;width:100%;max-width:400px;
+ overflow:visible;padding:5px;border:0;border-radius:19px;
+ container-type:inline-size;animation:none;
+ background:
+  /* 위쪽이 부푼 빛 — 판이 평면이 아니라 봉긋한 유리로 읽힌다 */
+  radial-gradient(120% 82% at 50% -16%,rgba(255,255,255,.5) 0 30%,rgba(255,255,255,0) 74%),
+  linear-gradient(146deg,#e8d8f2 0%,#fdf3fb 22%,#f6e8fa 42%,
+   #ddc9ee 62%,#eedcf6 82%,#d9c4ec 100%);
+ box-shadow:0 0 0 1px rgba(255,255,255,.7),
+  inset 0 1.5px 0 rgba(255,255,255,.78),
+  inset 0 -3px 6px rgba(150,116,196,.18),
+  0 14px 36px rgba(120,92,180,.3)}
+
+/* ── 제목 띠 ── */
+.glasswindow>.etb{position:relative;left:auto;right:auto;top:auto;
+ height:11cqw;display:flex;align-items:center;justify-content:flex-end;padding:0 2.5cqw;
+ border:0;border-radius:3.25cqw 3.25cqw .75cqw .75cqw;font-size:0;
+ background:linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,
+  #dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%);
+ box-shadow:inset 0 -2px 0 #b9a2ea,inset 0 1px 0 rgba(255,255,255,.9)}
+.glasswindow>.etb::after{content:"";position:absolute;left:.75cqw;right:.75cqw;top:.5cqw;height:52%;
+ border-radius:3cqw 3cqw 999px 999px;pointer-events:none;
+ background:radial-gradient(130% 100% at 50% 0,rgba(255,255,255,.62) 0 34%,rgba(255,255,255,0) 100%)}
+/* 왼쪽 별 하나 — 셋을 한 상자에 겹쳐 그리니 점 세 개로 뭉갰다.
+   별은 십자 광선으로 그려야 별이 된다 */
+.glasswindow>.etb::before{content:"";position:absolute;z-index:6;left:5.2cqw;top:50%;
+ width:3.4cqw;height:3.4cqw;margin-top:-1.7cqw;pointer-events:none;
+ filter:drop-shadow(0 1px 1px rgba(150,96,180,.4));
+ background:
+  linear-gradient(90deg,transparent 0,#fff 44%,#fff 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#fff 42%,#fff 58%,transparent 100%) center/13% 122% no-repeat}
+.glasswindow>.ewindowtitle{position:absolute;z-index:6;left:10.4cqw;top:5px;height:11cqw;
+ display:flex;align-items:center;
+ pointer-events:none;font-size:4cqw;letter-spacing:.25cqw;color:#fff;
+ text-shadow:0 1px 0 rgba(150,84,175,.85),0 2px 3px rgba(120,60,150,.5),
+  1px 0 0 rgba(150,84,175,.5),-1px 0 0 rgba(150,84,175,.5)}
+.glasswindow>.etb .dots{position:relative;z-index:7;display:flex;gap:1.5cqw;
+ width:auto;height:auto;opacity:1}
+.glasswindow>.etb .dots>span{width:5.5cqw;height:5.5cqw;min-width:19px;min-height:19px;
+ border:0;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;
+ box-shadow:0 0 0 1.4px rgba(255,255,255,.9),
+  inset 0 1px 0 rgba(255,255,255,.9),
+  inset 0 -2px 3px rgba(150,110,180,.28)}
+.glasswindow>.etb .dots .d1{background:linear-gradient(180deg,#f6a8ec,#e07fdd)}
+.glasswindow>.etb .dots .d2{background:linear-gradient(180deg,#cfc0f8,#a98ff0)}
+.glasswindow>.etb .dots .d3{background:linear-gradient(180deg,#a8cdf8,#6fa8ee)}
+.glasswindow>.etb .dots>span{color:#fff}
+
+/* ── 크림 판 ── 원본 390×680. 네 귀에 눈금 */
+.profileframe .ebody{position:relative;width:100%;aspect-ratio:390/680;
+ margin-top:.75cqw;padding:0;border-radius:.75cqw .75cqw 3.25cqw 3.25cqw;
+ background:
+  radial-gradient(120% 46% at 50% 0,rgba(255,255,255,.6) 0 34%,rgba(255,255,255,0) 100%),
+  #fcf9fd;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,
+  inset 0 -4px 8px rgba(150,116,196,.09)}
+.profileframe .ebody::before,.profileframe .ebody::after{content:"";position:absolute;
+ width:2.25cqw;height:2.25cqw;pointer-events:none;
+ border-color:#e2d2ee;border-style:solid;border-width:0}
+.profileframe .ebody::before{left:2.25cqw;top:2.25cqw;border-left-width:1px;border-top-width:1px}
+.profileframe .ebody::after{right:2.25cqw;bottom:2.25cqw;border-right-width:1px;border-bottom-width:1px}
+.cssprofile .eprofiletitle,.cssprofile .etail{display:none}
+
+/* ── 줄 ── 상자를 없애 아이들이 판 기준으로 앉는다.
+   높이를 0 으로 두면 흐름을 안 차지하면서도 점선용 가상요소는 남는다 */
+.cssprofile .eline{position:static;display:block;height:0;margin:0;padding:0;
+ border:0;background:none;box-shadow:none;opacity:1;animation:none}
+
+/* ── 라벨 ── */
+.cssprofile .enamelab,.cssprofile .lab{position:absolute;margin:0;min-width:0;
+ left:7.18%;font-size:2.75cqw;line-height:1.28;letter-spacing:.25cqw;
+ color:#57457e;white-space:nowrap}
+.cssprofile .enamelab{top:5.88%}
+.cssprofile .e-subject .lab{top:15.88%}
+.cssprofile .e-age .lab{top:25.88%}
+.cssprofile .e-likes .lab{top:35.88%}
+.cssprofile .e-dislikes .lab{top:45.88%}
+/* MODE 라벨은 판 왼쪽이 아니라 real 칸이 시작하는 선 위에 앉는다 —
+   오른쪽으로 가는 것은 「고르는 일」이고, 라벨은 그 일이 어디서 시작하는지를 댄다 */
+.cssprofile .e-mode .lab{top:56.9%;left:40.51%;right:auto}
+.cssprofile .e-days .lab{top:65.88%}
+
+/* ── 칸 ── 유리 한 겹, 겹 테 세 겹 */
+.cssprofile .ename,.cssprofile .blank,.cssprofile .blankin,
+.cssprofile .nullv{
+ position:absolute;left:6.67%;height:5%;min-width:0;margin:0;
+ display:flex;align-items:center;padding:0 3.33%;border:0;border-radius:2cqw;
+ font-family:inherit;font-size:2.75cqw;letter-spacing:0;color:#463670;
+ text-shadow:0 1px 0 rgba(255,255,255,.65);cursor:text;
+ background:linear-gradient(96deg,#fdc9e8 0%,#fbc8ee 20%,#f5c9f4 38%,#e3cdfa 60%,
+  #cfd2fb 80%,#c4d8f4 100%);
+ /* 겹 테는 그대로, 몸통만 흰색 — 아래에서 채우는 칸만 덮어쓴다 */
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.75),
+  inset 0 -2px 0 #fff1fd,
+  0 0 0 1.5px #d1b2da,
+  0 0 0 4px #fce8f8,
+  0 0 0 5px #d4b0d5,
+  0 3px 8px rgba(150,112,196,.14)}
+.cssprofile .blankin{outline:none}
+.cssprofile .ename .namein{width:100%;height:100%;padding:0;border:0;outline:none;
+ background:transparent;box-shadow:none;color:inherit;font:inherit;letter-spacing:inherit}
+/* 못 고치는 칸 — 손가락이 없다 */
+.cssprofile .e-age .blank,.cssprofile .nullv{cursor:default}
+.cssprofile .nullv{color:#6d5c9c;font-size:2.75cqw;letter-spacing:.2cqw}
+
+/* ── 칸 폭과 자리 ── 원본 좌표를 그대로 환산 */
+.cssprofile .ename{top:9.41%;width:48.72%}
+.cssprofile .e-subject .blank,.cssprofile .e-subject .blankin{top:19.41%;width:38.97%}
+.cssprofile .e-age .blank{top:29.41%;width:22.56%}
+.cssprofile .e-likes .blank,.cssprofile .e-likes .blankin{top:39.41%;width:65.38%}
+.cssprofile .e-dislikes .blank,.cssprofile .e-dislikes .blankin{top:49.41%;width:65.38%}
+.cssprofile .e-days .nullv{top:69.41%;width:32.31%}
+
+/* ── 이어지는 점선 ── 칸이 끝난 자리에서 이어져 「여기부터 아직 빈칸」이
+   된다. 못 고치는 칸(AGE·DAYS)은 점이 굵고 뜸하다 — 이어질 것이 없다 */
+.cssprofile .eline::after,.cssprofile .ename::after{content:"";position:absolute;
+ height:1px;pointer-events:none;z-index:0;
+ background-image:radial-gradient(circle,#c9b2dd 40%,transparent 45%);
+ background-size:5px 1px;background-repeat:repeat-x}
+.cssprofile .ename::after{left:100%;margin-left:9px;width:66%;top:auto;bottom:31%}
+.cssprofile .e-subject::after{left:49.23%;right:7.18%;top:23.97%}
+.cssprofile .e-age::after{left:32.82%;right:7.18%;top:33.97%;
+ background-image:radial-gradient(circle,#ddd0e8 45%,transparent 50%);background-size:9px 1px}
+.cssprofile .e-likes::after{left:75.64%;right:7.18%;top:43.97%}
+.cssprofile .e-dislikes::after{left:75.64%;right:7.18%;top:53.97%}
+.cssprofile .e-mode::after{left:7.18%;right:63.08%;top:63.97%}
+.cssprofile .e-days::after{left:42.56%;right:7.18%;top:73.97%;
+ background-image:radial-gradient(circle,#ddd0e8 45%,transparent 50%);background-size:9px 1px}
+/* 점선 끝에 눈금 하나 — 이어질 자리가 있다는 표시 */
+.cssprofile .e-subject::before,.cssprofile .e-likes::before,
+.cssprofile .e-dislikes::before{content:"";position:absolute;right:7.18%;
+ width:5px;height:5px;border-radius:50%;background:#dcc4ea;pointer-events:none}
+.cssprofile .e-subject::before{top:23.6%}
+.cssprofile .e-likes::before{top:43.6%}
+.cssprofile .e-dislikes::before{top:53.6%}
+
+/* ── 칸 안 장식 ── 같은 자리에 같은 별을 박으면 「칸 부품」이 되어 다섯 번
+   같은 말을 한다. 별은 크기와 자리를 칸마다 다르게, 달은 못 고치는 칸
+   하나에만, 점 셋은 이어진다는 표시. 어떤 칸은 둘, 어떤 칸은 없다 */
+.cssprofile .ename::before,.cssprofile .blank::before,
+.cssprofile .blank::after{content:"";position:absolute;z-index:2;pointer-events:none;
+ filter:drop-shadow(0 1px 0 rgba(190,130,190,.3))}
+/* NAME — 큰 별 하나. 이름이 이 판의 첫 칸이라 제일 크게 반짝인다 */
+.cssprofile .ename::before{right:3.25cqw;top:50%;width:3.25cqw;height:3.25cqw;margin-top:-1.6cqw;
+ background:
+  linear-gradient(90deg,transparent 0,#f6c6e0 44%,#f6c6e0 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#f6c6e0 42%,#f6c6e0 58%,transparent 100%) center/13% 122% no-repeat}
+/* SUBJECT — 작은 별 */
+.cssprofile .e-subject .blank::after{right:3cqw;top:50%;width:2cqw;height:2cqw;margin-top:-1cqw;
+ background:
+  linear-gradient(90deg,transparent 0,#fff 44%,#fff 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#fff 42%,#fff 58%,transparent 100%) center/13% 122% no-repeat}
+/* AGE — 초승달. 이 판에서 딱 한 번 쓰는 모양이다 */
+.cssprofile .e-age .blank::after{right:2.75cqw;top:29%;width:2.5cqw;height:2.5cqw;
+ border-radius:50%;background:transparent;
+ box-shadow:inset -2.4px .6px 0 0 rgba(255,255,255,.95);
+ filter:drop-shadow(0 1px 0 rgba(190,130,190,.28))}
+/* LIKES — 별 둘. 크기를 다르게 둬서 같은 별을 두 번 박은 게 아니게 한다 */
+.cssprofile .e-likes .blank::before{right:8.5cqw;top:36%;width:1.8cqw;height:1.8cqw;
+ background:
+  linear-gradient(90deg,transparent 0,#f6c6e0 44%,#f6c6e0 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#f6c6e0 42%,#f6c6e0 58%,transparent 100%) center/13% 122% no-repeat}
+.cssprofile .e-likes .blank::after{right:3.25cqw;top:50%;width:3.25cqw;height:3.25cqw;margin-top:-1.6cqw;
+ background:
+  linear-gradient(90deg,transparent 0,#fff 44%,#fff 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#fff 42%,#fff 58%,transparent 100%) center/13% 122% no-repeat}
+/* HATES — 별이 아니라 점 셋 */
+.cssprofile .e-dislikes .blank::after{right:3cqw;top:50%;width:3.75cqw;height:2.5px;margin-top:-1.25px;
+ filter:none;
+ background-image:radial-gradient(circle,rgba(255,255,255,.9) 45%,transparent 50%);
+ background-size:1.55cqw 2.5px;background-repeat:repeat-x}
+
+/* ── MODE ── 이 판에서 유일하게 오른쪽에 붙는 줄.
+   채우는 일과 고르는 일이 다르다는 걸 자리가 말한다 */
+.cssprofile .emode{position:absolute;overflow:hidden;right:6.67%;top:60.4%;
+ display:flex;gap:0;padding:0;width:52.82%;height:5%;border-radius:2cqw;
+ box-shadow:0 0 0 1.5px #d1b2da,0 0 0 4px #fce8f8,0 0 0 5px #d4b0d5,
+  0 3px 8px rgba(150,112,196,.14)}
+.cssprofile .emode b{position:relative;flex:1;display:flex;align-items:center;
+ justify-content:center;height:100%;overflow:hidden;
+ font-weight:400;font-size:2.75cqw;letter-spacing:0;cursor:pointer;
+ color:#4b3c73;text-shadow:0 1px 0 rgba(255,255,255,.65)}
+.cssprofile .emode b::after{content:"";position:absolute;left:0;right:0;top:1px;height:42%;
+ pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,0))}
+.cssprofile .emode b{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),
+ inset 0 -1.5px 0 rgba(255,255,255,.65)}
+.cssprofile .emode b:first-child{border-radius:1.75cqw 0 0 1.75cqw;
+ background:linear-gradient(96deg,#fdcce9 0%,#fbc9ef 52%,#eccdf7 100%)}
+.cssprofile .emode b:last-child{border-radius:0 1.75cqw 1.75cqw 0;
+ background:linear-gradient(96deg,#ece0f8 0%,#e6e0f8 54%,#e3e4f4 100%)}
+/* 칸막이는 없앤다 — 두 쪽 색이 이미 달라서 선이 없어도 갈린다 */
+/* 켠 쪽은 테를 덮지 않고 빛만 더한다 */
+.cssprofile .emode b.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.75),
+ inset 0 -1.5px 0 rgba(255,255,255,.8),inset 0 0 8px rgba(255,255,255,.35)}
+/* 켠 쪽에 작은 별 하나 — 색을 안 바꾸고 「이쪽」만 가리킨다 */
+.cssprofile .emode b.on::before{content:"";position:absolute;z-index:3;
+ right:2.25cqw;top:50%;width:2cqw;height:2cqw;margin-top:-1cqw;pointer-events:none;
+ filter:drop-shadow(0 1px 0 rgba(190,130,190,.3));
+ background:
+  linear-gradient(90deg,transparent 0,#fff 44%,#fff 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#fff 42%,#fff 58%,transparent 100%) center/13% 122% no-repeat}
+/* 안내가 들어갈 자리라 이 줄만 점선을 안 깐다 */
+.cssprofile .e-mode::after{display:none}
+
+/* ── 게이지 ── 이 줄만 두께가 다르다. 채움 폭은 CSS 가 정한다 */
+.cssprofile .emsg{position:absolute;left:6.67%;top:75.88%;margin:0;
+ font-size:2.75cqw;line-height:1.28;letter-spacing:.25cqw;color:#4f3d76}
+.cssprofile .emsg.done{color:#4f9e78}
+.cssprofile .ebar{position:absolute;left:6.67%;right:6.67%;top:79.41%;width:auto;height:3.53%;
+ margin:0;padding:0;border:0;border-radius:2cqw;overflow:visible;
+ background:none;background-image:none;aspect-ratio:auto;
+ box-shadow:0 0 0 1.5px #d1b2da,0 0 0 4px #fce8f8,0 0 0 5px #d4b0d5,
+  0 3px 8px rgba(150,112,196,.14)}
+.cssprofile .ebar::before{content:"";position:absolute;inset:0;border-radius:1.75cqw;
+ background:#f3ecf6;box-shadow:inset 0 1.5px 3px rgba(150,116,190,.26)}
+.cssprofile .ebar i{position:relative;z-index:1;display:block;height:100%;width:0;
+ border-radius:1.75cqw;
+ background:linear-gradient(96deg,#f9a8d8 0%,#f79cd4 30%,#e797e0 58%,#c49ced 82%,#b0a8f2 100%);
+ box-shadow:inset 0 -1.5px 0 rgba(255,255,255,.6);transition:width .35s steps(6)}
+.cssprofile .ebar.fill-0 i{width:0}
+.cssprofile .ebar.fill-1 i{width:20%}
+.cssprofile .ebar.fill-2 i{width:40%}
+.cssprofile .ebar.fill-3 i{width:60%}
+.cssprofile .ebar.fill-4 i{width:80%}
+.cssprofile .ebar.fill-5 i{width:100%}
+
+/* ── Click ── 칸보다 한 단 두껍다. 양옆에 별 둘 */
+.cssprofile .ego{position:absolute;left:28.72%;top:87.35%;width:45.13%;height:7.35%;
+ margin:0;padding:.5cqw;border:0;border-radius:2.75cqw;overflow:visible;cursor:pointer;
+ display:flex;align-items:center;justify-content:center;
+ font-family:inherit;font-size:3.75cqw;letter-spacing:.25cqw;
+ color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.7);aspect-ratio:auto;
+ background:linear-gradient(150deg,#e9b4dd 0%,#e0bce6 34%,#cfbdee 66%,#c0c6ee 100%);
+ box-shadow:0 5px 13px rgba(150,112,196,.24)}
+/* 안쪽 유리. 전에 z-index:-1 로 깔아서 제 배경 뒤로 숨었던 자리다 —
+   글자보다 아래, 겉틀보다 위에 오게 0 으로 두고 글자를 띄운다 */
+.cssprofile .ego::before{content:"";position:absolute;z-index:0;
+ left:.5cqw;right:.5cqw;top:.5cqw;bottom:.5cqw;border-radius:2.25cqw;
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -2px 0 rgba(255,255,255,.6),
+  inset 0 12px 12px -10px rgba(255,255,255,.6)}
+.cssprofile .ego::after{content:"";position:absolute;z-index:2;
+ left:14%;top:50%;width:3.25cqw;height:3.25cqw;margin-top:-1.6cqw;pointer-events:none;
+ filter:drop-shadow(0 1px 1px rgba(190,110,180,.35));
+ background:
+  linear-gradient(90deg,transparent 0,#fff 44%,#fff 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#fff 42%,#fff 58%,transparent 100%) center/13% 122% no-repeat}
+.cssprofile .ego:active{transform:translateY(2px);box-shadow:0 2px 6px rgba(150,104,200,.28)}
+
+
+/* ── 채우는 칸만 안쪽이 하얗다 ──
+   빈칸이 이 앱의 뜻이라 「내가 채울 자리」는 흰 종이여야 한다.
+   겹 테(분홍 세 겹)는 그대로 두고 몸통만 바꾼다 — 테가 남으니 칸이
+   납작해지지 않고, 못 고치는 칸(AGE 25·DAYS null)은 파스텔로 남아
+   나란히 놓으면 「이건 내가 쓴 게 아니다」가 보인다. */
+.cssprofile .ename,
+.cssprofile .e-subject .blank,.cssprofile .e-subject .blankin,
+.cssprofile .e-likes .blank,.cssprofile .e-likes .blankin,
+.cssprofile .e-dislikes .blank,.cssprofile .e-dislikes .blankin{
+ background:linear-gradient(180deg,#fff 0%,#fffdff 62%,#fdf7fd 100%);
+ box-shadow:inset 0 1.5px 3px rgba(150,116,190,.15),
+  0 0 0 1.5px #d1b2da,
+  0 0 0 4px #fce8f8,
+  0 0 0 5px #d4b0d5,
+  0 3px 8px rgba(150,112,196,.14)}
+/* 흰 몸통 위에서는 흰 장식이 안 보인다 — 분홍으로 바꾼다 */
+.cssprofile .e-subject .blank::after,
+.cssprofile .e-likes .blank::after{
+ background:
+  linear-gradient(90deg,transparent 0,#f6c6e0 44%,#f6c6e0 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#f6c6e0 42%,#f6c6e0 58%,transparent 100%) center/13% 122% no-repeat}
+.cssprofile .e-dislikes .blank::after{
+ background-image:radial-gradient(circle,#eec4dd 45%,transparent 50%)}
+
+
+/* ── DAYS LEFT 와 Click 에도 요소를 ──
+   이 둘만 맨몸이라 다른 칸들과 다른 판에서 온 것처럼 보였다.
+   다만 뜻이 다르니 모양도 다르게 준다:
+     · DAYS LEFT → 초승달 반쪽. 못 고치는 칸이라 AGE 와 같은 갈래인데
+       크기를 줄여 「같은 종류, 다른 값」이 된다
+     · Click → 별 둘. 왼쪽은 크고 오른쪽은 작다 */
+.cssprofile .e-days .nullv::after{content:"";position:absolute;z-index:2;
+ right:3cqw;top:50%;width:2cqw;height:2cqw;margin-top:-1cqw;pointer-events:none;
+ border-radius:50%;background:transparent;
+ box-shadow:inset -1.9px .5px 0 0 rgba(255,255,255,.95);
+ filter:drop-shadow(0 1px 0 rgba(190,130,190,.24))}
+/* 점 셋 — DAYS 는 세지 않는다는 말이라 이어짐 표시를 하나 더 얹는다 */
+.cssprofile .e-days .nullv::before{content:"";position:absolute;z-index:2;
+ right:6.5cqw;top:50%;width:3cqw;height:2.5px;margin-top:-1.25px;pointer-events:none;
+ background-image:radial-gradient(circle,rgba(255,255,255,.85) 45%,transparent 50%);
+ background-size:1.5cqw 2.5px;background-repeat:repeat-x}
+
+/* Click — 오른쪽에 작은 별 하나 더. 왼쪽 큰 별과 짝이 된다 */
+.cssprofile .ego>*{position:relative;z-index:3}
+.cssprofile .ego{isolation:isolate}
+.cssprofile .ego::after{
+ background:
+  linear-gradient(90deg,transparent 0,#fff 44%,#fff 56%,transparent 100%) center/100% 13% no-repeat,
+  linear-gradient(180deg,transparent 0,#fff 42%,#fff 58%,transparent 100%) center/13% 122% no-repeat,
+  radial-gradient(circle at 88% 32%,#fff 0 9%,transparent 10%) 0 0/100% 100% no-repeat;
+ left:12%;width:5.6cqw;height:3.25cqw;margin-top:-1.6cqw;
+ background-position:left center,left center,right top;
+ background-size:3.25cqw 13%,13% 3.9cqw,100% 100%}
+
+
+/* ── 별을 다시 그린다 ──
+   가로·세로 띠 두 겹으로 별을 냈더니 작은 크기에서 十 자로 뭉개져
+   부스러기처럼 보였다. 별은 끝이 뾰족해야 별이다 — clip-path 로 네 꼭지를
+   깎아낸다. 크기가 작아도 모양이 남는다. */
+.glasswindow>.etb::before,
+.cssprofile .ename::before,
+.cssprofile .e-subject .blank::after,
+.cssprofile .e-likes .blank::before,
+.cssprofile .e-likes .blank::after,
+.cssprofile .emode b.on::before{
+ background:#f6c6e0;
+ clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%)}
+.glasswindow>.etb::before{background:#fff}
+.cssprofile .emode b.on::before{background:#fff}
+
+/* 초승달 — 원에 한쪽을 물려 깎는다. 얇은 테로 그리면 괄호처럼 보였다 */
+.cssprofile .e-age .blank::after,
+.cssprofile .e-days .nullv::after{
+ border-radius:50%;box-shadow:none;
+ background:radial-gradient(circle at 132% 46%,transparent 0 60%,#fff 61%)}
+
+/* 점 셋 — 너무 작아 먼지처럼 보였다. 한 단 키우고 간격을 벌린다 */
+.cssprofile .e-dislikes .blank::after{
+ width:4.6cqw;height:1.5px;margin-top:-.75px;
+ background-image:radial-gradient(circle,#eec4dd 42%,transparent 47%);
+ background-size:1.85cqw 1.5px}
+.cssprofile .e-days .nullv::before{
+ width:3.6cqw;height:1.5px;margin-top:-.75px;
+ background-image:radial-gradient(circle,rgba(255,255,255,.9) 42%,transparent 47%);
+ background-size:1.8cqw 1.5px}
+
+/* Click 의 별 둘 — 큰 별과 작은 별. 겹친 배경 세 겹으로 그리다 T 자가 됐다 */
+.cssprofile .ego::after{
+ left:13%;top:50%;width:3.4cqw;height:3.4cqw;margin-top:-1.7cqw;
+ background:#fff;background-size:auto;background-position:center;
+ clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%)}
+.cssprofile .ego{position:absolute}
+.cssprofile .ego .egostar{position:absolute;z-index:2;right:13%;top:42%;
+ width:1.9cqw;height:1.9cqw;pointer-events:none;background:#fff;
+ clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%);
+ filter:drop-shadow(0 1px 1px rgba(190,110,180,.35))}
+
+
+/* 두 쪽 사이에 크림이 비쳐 안 붙어 보였다 — 기본 .emode b 에 여백이 걸려 있었다 */
+.cssprofile .emode b{margin:0;flex:1 1 50%;min-width:0}
+
+/* ── 창 윗틀 ──
+   납작한 띠 한 장이라 창이 아니라 색종이처럼 보였다. 세 겹으로 세운다:
+   위쪽에 부푼 빛 · 가운데 유리색 · 아래 진한 입술 한 줄.
+   여기에 아래로 흐르는 그늘을 더하면 띠가 판보다 앞으로 나온다 */
+.glasswindow>.etb{
+ background:
+  radial-gradient(126% 96% at 50% -6%,rgba(255,255,255,.58) 0 26%,rgba(255,255,255,0) 74%),
+  linear-gradient(96deg,#f6cdea 0%,#f3c3ee 18%,#e9c6f6 38%,
+   #dfcaf8 56%,#e8c6f7 74%,#d9cdf9 90%,#e6dcfb 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  inset 0 -2.5px 0 #b9a2ea,
+  inset 0 -5px 6px rgba(160,124,208,.14),
+  0 3px 7px rgba(140,106,190,.18)}
+/* 띠 아래 얇은 흰 선 — 판과 띠 사이를 갈라 띠가 떠 보이게 한다 */
+.glasswindow>.etb::before{z-index:7}
+.profileframe .ebody{box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e0d2ea,
+ inset 0 -4px 8px rgba(150,116,196,.09),0 -1px 0 rgba(255,255,255,.9)}
+
+/* null.exe 를 오른쪽으로 더 — 별과 사이를 벌린다 */
+.glasswindow>.ewindowtitle{left:12.6cqw}
+
+
+/* 두 쪽에 각각 1.25px 흰 테두리가 있어서 맞닿은 자리에 2.5px 흰 줄이 생겼다 —
+   테두리를 걷는다. 갈라짐은 색이 이미 말한다 */
+.cssprofile .emode b{border:0;outline:0}
+
+
+/* DAYS LEFT 의 null 이 작아 보였다 — 기본 .nullv 의 작은 글자가 남아 있었다.
+   다른 칸과 같은 크기로 못박는다 */
+.cssprofile .e-days .nullv{font-size:2.9cqw;line-height:1}
+
+
+/* 켠 쪽에 얹은 작은 별을 걷는다 — real 안 오른쪽에 알약처럼 떠 있었다.
+   어느 쪽이 켜졌는지는 색과 빛으로 이미 갈린다 */
+.cssprofile .emode b:first-child{border-radius:1.75cqw 0 0 1.75cqw}
+.cssprofile .emode b:last-child{border-radius:0 1.75cqw 1.75cqw 0}
+
+
+/* real 의 위쪽 광택막이 기본 규칙에서 999px 알약이라 그 곡선이 오른쪽
+   모서리처럼 보였다 — 막의 반경을 단추와 같게 맞춘다 */
+.cssprofile .emode b::after{border-radius:0}
+.cssprofile .emode b:first-child::after{border-radius:1.5cqw 0 0 0}
+.cssprofile .emode b:last-child::after{border-radius:0 1.5cqw 0 0}
+
+/* 윗틀이 하얗던 원인 — 위쪽에 얹은 흰 빛막이 띠를 거의 다 덮고 있었다.
+   빛막은 위 30%만 남기고, 분홍-라일락 유리색이 드러나게 한다.
+   판(창 자체)은 흰색 그대로 둔다 */
+.glasswindow>.etb{
+ background:
+  radial-gradient(120% 62% at 50% -14%,rgba(255,255,255,.72) 0 22%,rgba(255,255,255,0) 62%),
+  linear-gradient(96deg,#f3bce4 0%,#efaee6 18%,#e2b0f0 38%,
+   #d3b6f4 56%,#dcaef0 74%,#c8b8f4 90%,#d6cbf8 100%)}
+/* Click! 이 사라진 이유 — 이 글자는 맨 텍스트 노드라 z-index 를 못 받는데,
+   안쪽 유리막(::before, z-index:0)이 그 위에 깔려 덮었다.
+   막을 걷고 그 색을 단추 몸통에 직접 깔면 글자가 제일 위에 남는다 */
+.cssprofile .ego::before{display:none}
+.cssprofile .ego{
+ color:#463670;text-shadow:0 1px 0 rgba(255,255,255,.75);
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),
+  inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #c194ce,
+  0 0 0 4px #fbdcf2,
+  0 0 0 5px #c78fc8,
+  0 4px 10px rgba(150,104,200,.26)}
+
+
+/* 여기도 데모 껍데기는 안 옮긴다 — body 배경까지 덮고 있었다 */
+@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.dots{position:relative;margin-left:auto;display:flex;gap:5px}
+.dots>span{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+ width:19px;height:19px;border-radius:50%;color:#fff}
+.dots>span>i{position:relative;z-index:1;display:block;background:currentColor;border-radius:1px}
+.dots .d1>i{width:7px;height:2px}
+.dots .d2>i{width:7px;height:7px;background:none;border:1.5px solid currentColor}
+.dots .d3>i{position:relative;width:9px;height:1.8px;transform:rotate(45deg)}
+.dots .d3>i::after{content:"";position:absolute;inset:0;border-radius:1px;
+ background:currentColor;transform:rotate(90deg)}
+
+.dlgov{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+ background:rgba(74,66,118,.4);padding:26px;animation:fade .15s steps(3) both}
+.dlg{width:100%;max-width:290px;overflow:hidden;border-radius:16px;border:2px solid #fff;
+ background:linear-gradient(180deg,#ffffff 0%,#f2ecfe 46%,#eae1fb 100%);
+ box-shadow:0 3px 0 rgba(150,135,210,.35),0 0 0 1px #e4dbf8,0 10px 24px rgba(93,84,144,.28);
+ animation:fadeUp .2s steps(4) both}
+.dlg .tb{letter-spacing:.14em}
+.dlg.etcwin .tb{background:linear-gradient(90deg,#a78fe0,#c9b6f5)}
+.dlgbody{background:none;padding:18px 16px 16px;display:flex;flex-direction:column;gap:8px}
+.dlgline{font-size:12px;line-height:1.9;color:#6b5fa8}
+
+/* ══════════════════════════════════════════════════════════════════
+   real / speed 확정창 — 오프닝·등록과 같은 문법으로
+
+   이 창만 옛 문법(납작한 띠, 실선 테두리, 회색 알약)에 남아 있어서
+   다른 앱에서 온 창처럼 보였다. 같은 부품으로 바꾼다:
+   유리 창틀 · 분홍-라일락 띠에 별 하나 · 흰 판에 네 귀 눈금 ·
+   겹 테 세 겹을 두른 칸 · 유리 알약 단추.
+
+   비율 눈금은 그대로 둔다 — 한 칸 대 네 칸이 이 창의 알맹이다.
+   ══════════════════════════════════════════════════════════════════ */
+.dlg.modedlg{width:min(90vw,320px);overflow:visible;padding:5px;border:0;border-radius:15px;
+ container-type:inline-size;
+ background:linear-gradient(146deg,#eddaf4 0%,#fff7fc 22%,#f4e6fb 44%,
+  #dcc8f0 64%,#f2e2f8 84%,#dcc8ee 100%);
+ box-shadow:0 0 0 1px rgba(255,255,255,.85),
+  inset 0 1px 0 rgba(255,255,255,.95),
+  0 16px 40px rgba(120,92,180,.34)}
+
+/* ── 제목 띠 ── 왼쪽에 별 하나, 흰 글자 */
+.dlg.modedlg>.tb{position:relative;height:11cqw;padding:0 3cqw 0 12.6cqw;
+ display:flex;align-items:center;justify-content:flex-end;
+ border:0;border-radius:3cqw 3cqw .75cqw .75cqw;font-size:0;
+ background:
+  radial-gradient(120% 62% at 50% -14%,rgba(255,255,255,.72) 0 22%,rgba(255,255,255,0) 62%),
+  linear-gradient(96deg,#f3bce4 0%,#efaee6 18%,#e2b0f0 38%,
+   #d3b6f4 56%,#dcaef0 74%,#c8b8f4 90%,#d6cbf8 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.98),
+  inset 0 -2.5px 0 #b9a2ea,
+  inset 0 -5px 6px rgba(160,124,208,.14),
+  0 3px 7px rgba(140,106,190,.18)}
+
+/* 글자는 배경 그림이 아니라 요소라 그대로 쓰되, 띠 왼쪽에 앉힌다 */
+.dlg.modedlg>.tb::before{content:"null.exe";position:absolute;left:12.6cqw;
+ font-size:4cqw;letter-spacing:.25cqw;color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.55),
+  1px 0 0 rgba(150,64,124,.5),-1px 0 0 rgba(150,64,124,.5)}
+
+/* 별 하나 — clip-path 로 꼭지를 깎아야 별이 된다 */
+.dlg.modedlg>.tb::after{content:"";position:absolute;left:5.2cqw;top:50%;
+ width:3.4cqw;height:3.4cqw;margin-top:-1.7cqw;background:#fff;
+ clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%);
+ filter:drop-shadow(0 1px 1px rgba(150,96,180,.4))}
+.dlg.modedlg>.tb .dots{position:relative;z-index:2;margin-left:auto}
+.dlg.modedlg>.tb .dots>span{width:5.5cqw;height:5.5cqw;min-width:19px;min-height:19px}
+
+/* ── 흰 판 ── 네 귀에 눈금 */
+.dlg.modedlg .mdbody{position:relative;margin-top:.75cqw;padding:5cqw 5.5cqw 5cqw;
+ gap:0;border-radius:.75cqw .75cqw 2.5cqw 2.5cqw;background:#fffdfe;
+ box-shadow:inset 0 1.5px 0 #fff,inset 0 0 0 1px #e6d8ee,
+  inset 0 -4px 8px rgba(150,116,196,.07)}
+.dlg.modedlg .mdbody::before,.dlg.modedlg .mdbody::after{content:"";position:absolute;
+ width:2.6cqw;height:2.6cqw;pointer-events:none;border-color:#e8daf2;border-style:solid;border-width:0}
+.dlg.modedlg .mdbody::before{left:2.6cqw;top:2.6cqw;border-left-width:1px;border-top-width:1px}
+.dlg.modedlg .mdbody::after{right:2.6cqw;bottom:2.6cqw;border-right-width:1px;border-bottom-width:1px}
+
+/* ── 고른 값 ── 이 창이 확인해야 하는 것 */
+.dlg.modedlg .mdpick{margin:0 0 2.5cqw;text-align:center;font-size:6.2cqw;line-height:1.1;
+ color:transparent;
+ background:linear-gradient(120deg,#f88fd4 0%,#ee86dd 34%,#c396ee 68%,#a8bef0 100%);
+ -webkit-background-clip:text;background-clip:text;
+ filter:drop-shadow(0 1.5px 0 rgba(255,255,255,.95)) drop-shadow(0 2px 3px rgba(150,104,200,.24))}
+.dlg.modedlg .mdpick b{font-weight:400}
+.dlg.modedlg .mdpick .kao{-webkit-text-fill-color:#e79ad2;font-size:3.4cqw;letter-spacing:0}
+.dlg.modedlg .mdtx{margin:0 0 4cqw;text-align:center;font-size:3.1cqw;line-height:1.75;
+ letter-spacing:.1cqw;color:#6b5a96;word-break:keep-all}
+
+/* ── 비율 눈금 ── 칸과 같은 겹 테를 둘러 판 위의 부품이 된다 */
+.dlg.modedlg .mdratio{display:flex;flex-direction:column;gap:3.4cqw;
+ margin:0 0 4.6cqw;padding:0;border:0;background:none;box-shadow:none}
+.dlg.modedlg .mdrr{display:flex;align-items:center;gap:3cqw;margin:0}
+.dlg.modedlg .mdrr .k{flex:none;font-size:3.1cqw;letter-spacing:.2cqw;color:#4f3d76}
+.dlg.modedlg .mdrr .bx{flex:1;display:flex;gap:1.2cqw;height:5cqw;padding:.9cqw;
+ border:0;border-radius:2cqw;background:#f3ecf6;
+ box-shadow:inset 0 1.5px 3px rgba(150,116,190,.24),
+  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8}
+.dlg.modedlg .mdrr .bx>span{flex:1;border-radius:1.2cqw;background:#e6dcf0;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.dlg.modedlg .mdrr .bx>span.on{
+ background:linear-gradient(96deg,#f88ecb 0%,#e07ed6 52%,#9c94f0 100%);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.4)}
+.dlg.modedlg .mdrr .n{flex:none;min-width:9cqw;text-align:right;
+ font-size:3.1cqw;letter-spacing:0;color:#6b5a96}
+.dlg.modedlg .mdrr .n b{font-weight:400;font-size:4cqw;color:#c2427f}
+
+.dlg.modedlg .mdlock{display:flex;align-items:center;justify-content:center;gap:1.6cqw;
+ margin:0 0 4.6cqw;font-size:2.7cqw;letter-spacing:.06cqw;color:#a897dd}
+
+/* ── 단추 둘 ── 유리 알약. back 은 옅고 이걸로는 진하다 */
+.dlg.modedlg .mdrow{display:flex;gap:3cqw;margin:0}
+.dlg.modedlg .mdrow .wbtn{flex:1;position:relative;overflow:hidden;height:12cqw;padding:0;
+ display:flex;align-items:center;justify-content:center;
+ border:0;border-radius:2.75cqw;cursor:pointer;
+ font-family:inherit;font-size:3.6cqw;letter-spacing:.2cqw;
+ color:#5b4f9c;text-shadow:0 1px 0 rgba(255,255,255,.75);
+ background:linear-gradient(112deg,#f0e8fb 0%,#eae2f9 46%,#e4e0f6 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.9),inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #cdbadd,0 0 0 4px #f7f0fa,0 0 0 5px #cfbcda,
+  0 4px 10px rgba(150,104,200,.2)}
+.dlg.modedlg .mdrow .wbtn::before{content:"";position:absolute;left:3px;right:3px;top:2px;height:40%;
+ border-radius:2.5cqw 2.5cqw 999px 999px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0))}
+.dlg.modedlg .mdrow .wbtn.go{color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.5);
+ background:linear-gradient(112deg,#fdbde6 0%,#fcbfe6 24%,#f8c6ef 46%,
+  #e0cbf8 68%,#ccd0fa 86%,#c4d6f2 100%);
+ box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),inset 0 -2px 0 rgba(255,255,255,.55),
+  0 0 0 1.5px #c194ce,0 0 0 4px #fbdcf2,0 0 0 5px #c78fc8,
+  0 4px 10px rgba(150,104,200,.26)}
+.dlg.modedlg .mdrow .wbtn:active{transform:translateY(2px)}
+
+/* 창은 좁고 글자는 cqw 라 8.7px 까지 줄어 있었다 — 읽으라고 쓴 문장이
+   읽히지 않는다. 폭을 넓히고 글자·간격을 px 로 못박아 세로로 길게 세운다 */
+.dlg.modedlg{width:min(94vw,340px)}
+.dlg.modedlg .mdbody{padding:22px 22px 20px}
+.dlg.modedlg .mdpick{margin-bottom:11px;font-size:26px;line-height:1.15;gap:9px}
+.dlg.modedlg .mdpick .kao{font-size:13px}
+.dlg.modedlg .mdtx{margin-bottom:20px;font-size:12px;line-height:1.9;letter-spacing:.3px}
+.dlg.modedlg .mdratio{gap:15px;margin-bottom:20px}
+.dlg.modedlg .mdrr{gap:12px}
+.dlg.modedlg .mdrr .k{font-size:12px;letter-spacing:1px}
+.dlg.modedlg .mdrr .bx{height:22px;padding:4px;gap:5px;border-radius:8px}
+.dlg.modedlg .mdrr .bx>span{border-radius:5px}
+.dlg.modedlg .mdrr .n{min-width:38px;font-size:12px}
+.dlg.modedlg .mdrr .n b{font-size:16px}
+.dlg.modedlg .mdlock{margin-bottom:20px;font-size:10.5px;gap:6px}
+.dlg.modedlg .mdrow{gap:11px}
+.dlg.modedlg .mdrow .wbtn{height:48px;font-size:14px;letter-spacing:1px;border-radius:12px}
+.dlg.modedlg>.tb{height:42px;padding:0 12px 0 48px;border-radius:11px 11px 3px 3px}
+.dlg.modedlg>.tb::before{left:48px;font-size:15px;letter-spacing:1px}
+.dlg.modedlg>.tb::after{left:20px;width:13px;height:13px;margin-top:-6.5px}
+.dlg.modedlg>.tb .dots>span{width:21px;height:21px}
+
+/* 단추가 48px 이라 창 아래를 다 먹었다 — 한 단 낮춘다 */
+.dlg.modedlg .mdrow .wbtn{height:38px;font-size:12.5px;border-radius:10px}
+
+/* 단추가 여전히 창 폭을 다 먹는다 — 폭을 내용만큼만 잡고 가운데로 모은다 */
+.dlg.modedlg .mdrow{justify-content:center;gap:9px}
+.dlg.modedlg .mdrow .wbtn{flex:0 0 auto;min-width:88px;height:34px;padding:0 18px;
+ font-size:11.5px;letter-spacing:.8px;border-radius:9px}
+
+/* 두 단추를 붙여놓으니 한 덩어리로 보였다 — 갈라진 선택이니 사이를 벌린다 */
+.dlg.modedlg .mdrow{gap:26px}
+
+/* real / speed 글자가 작아 확정창의 알맹이로 안 읽혔다 — 한 단 키운다 */
+.dlg.modedlg .mdpick{font-size:32px}
+.dlg.modedlg .mdpick .kao{font-size:14px}
+
+/* 고르는 알약 — 이 파일에서만 쓰는 견본 조작칸 */
+.pick{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:9px}
+.pick b{padding:8px 18px;font-weight:400;font-size:12px;letter-spacing:1px;color:#5b4f9c;cursor:pointer;
+ border-radius:999px;background:rgba(255,255,255,.92);
+ box-shadow:0 0 0 1px #d6bbe0,0 2px 0 rgba(150,112,196,.24)}
+.pick b.on{color:#fff;text-shadow:0 1px 0 rgba(150,64,124,.9);
+ background:linear-gradient(112deg,#fa96cf,#c99cf0)}
+
+
+/* ── 「NULL 채우러 가기」 ──
+   파스텔 알약에 보라 글자라 교실 사진 위에서 묻혔다. 몸통을 한 단 진하게
+   내리고 글자를 흰색으로, 겹 테를 둘러 두께를 낸다 — 등록 화면 Click 과
+   같은 문법이다. 흰 글자는 파스텔에서 늘 뜨니 진한 자보라 그늘을 두른다 */
+.wbtn.inbtn{flex:none;align-self:center;width:auto;max-width:none;min-width:150px;
+ padding:14px 26px;margin-top:22px;border:0;border-radius:999px;
+ font-size:14px;letter-spacing:1px;color:#fff;
+ text-shadow:0 1px 0 rgba(150,64,124,.95),0 2px 4px rgba(120,44,100,.55),
+  1px 0 0 rgba(150,64,124,.45),-1px 0 0 rgba(150,64,124,.45);
+ background:linear-gradient(112deg,#fa96cf 0%,#f78ecb 22%,#ee92dc 44%,
+  #c99cf0 68%,#a8aef4 88%,#9cbdea 100%) !important;
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),
+  inset 0 -2px 0 rgba(255,255,255,.6),
+  0 0 0 1.2px #c98fbe,
+  0 0 0 3.5px #fde6f5,
+  0 0 0 4.5px #cf8fc8,
+  0 6px 16px rgba(150,80,175,.34);
+ animation:fade .3s steps(3) 1.15s both}
+/* 위쪽 광택 — 몸통을 다 덮으면 색이 죽는다. 40% 까지만 */
+.wbtn.inbtn::before{content:"";position:absolute;left:3px;right:3px;top:2px;height:40%;
+ border-radius:999px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0))}
+.wbtn.inbtn:active{transform:translateY(2px);
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),
+  0 0 0 1.2px #c98fbe,0 0 0 3.5px #fde6f5,0 0 0 4.5px #cf8fc8,
+  0 2px 6px rgba(150,80,175,.3)}

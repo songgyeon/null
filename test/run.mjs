@@ -282,8 +282,22 @@ const PLACE_BY_WEB = p => {
     readFileSync(join(ROOT, 'app-data.js'), 'utf8'));
   return m ? m[0] : null;
 };
+const CSS_FILES = [
+  'styles/00-shell.css',
+  'styles/10-gift.css',
+  'styles/20-story.css',
+  'styles/30-messenger.css',
+  'styles/40-opening-profile.css',
+  'styles/50-chat-scenes.css',
+  'styles/90-refinements.css',
+];
+/* 모듈은 styles/ 아래라 루트 에셋을 ../로 가리킨다. 기존 회귀식은 브라우저가
+   해석한 루트 기준 경로를 검사하므로 읽을 때만 그 한 단계를 정규화한다. */
+const readCss = () => CSS_FILES.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n')
+  .replaceAll('url("../', 'url("').replaceAll("url('../", "url('");
 const APP_FILES = ['index.html', 'null.css', 'app-data.js', 'app-ui.js', 'app.js'];
-const web = APP_FILES.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n');
+const web = [readFileSync(join(ROOT, 'index.html'), 'utf8'), readCss(),
+  ...APP_FILES.slice(2).map(f => readFileSync(join(ROOT, f), 'utf8'))].join('\n');
 const app = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
 const pick = (src, re) => [...src.matchAll(re)].map(m => m[1]);
 
@@ -379,7 +393,7 @@ eq('배경 깔린 화면은 안 못박는다',
 eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   /<div className="spstack"[\s\S]{0,2200}<div className="sptap">\{armed\?"♪ NULL!":"TAP FOR MUSIC ♪"\}<\/div>[\s\S]{0,80}<\/div>\s*<\/div>;/.test(web), true);
 {
-  const css=readFileSync(join(ROOT,'null.css'),'utf8');
+  const css=readCss();
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   /* 오프닝이 그림 창에서 CSS 창으로 갔다. 배경 한 장만 그림으로 남아서
      선택자가 한 줄이 아니라 여러 줄이 됐다 — 배경이 무엇인지만 본다 */
@@ -394,7 +408,7 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
    오프닝·등록 프로필만 새 원화를 쓴다. 나머지 화면은 fd84219의 원래
    메신저 DOM/CSS를 유지한다. 74b195c부터 붙은 ref 합성 UI도 복구 대상이다. */
 {
-  const css=readFileSync(join(ROOT,'null.css'),'utf8');
+  const css=readCss();
   const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
   const appWeb=readFileSync(join(ROOT,'app.js'),'utf8');
   eq('내부 화면에 합성 원화 CSS가 없다',
@@ -440,7 +454,7 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
    끝나지 않았다. 이제 창이 내용만큼 자란다.
    남는 그림은 배경 한 장과 CD뿐이다. CD는 금속 광택이라 그림이 낸다 */
 {
-  const css=readFileSync(join(ROOT,'null.css'),'utf8');
+  const css=readCss();
   eq('오프닝 창을 CSS가 그린다', /boot-main|boot-error|boot-syserr|boot-loading/.test(css), false);
   eq('배경과 CD만 그림으로 남는다',
     /url\("ui\/bg-mobile\.webp/.test(css) && /url\("ui\/opal-cd\.webp"\)/.test(css), true);
@@ -479,13 +493,14 @@ eq('등록 화면이 웹·앱 둘 다 있다',
    지금은 좌표가 곧 디자인이다 — 390×680 판을 %로 환산해 쓰고 글자는
    cqw로 묶어 카드 폭을 따라간다. 그래서 그림 파일이 하나도 안 든다. */
 {
-  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const css = readCss();
   eq('프로필 판을 CSS로 그린다',
     /\.cssprofile\{/.test(css) && /container-type:inline-size/.test(css)
     && /aspect-ratio:390\/680/.test(css), true);
   eq('프로필 칸에 그림을 안 쓴다', (() => {
     const a = css.indexOf('.cssprofile{'), b = css.indexOf('\n/*', css.indexOf('.cssprofile .ego{'));
-    return /url\(/.test(css.slice(a, b > a ? b : a + 22000).replace(/url\("ui\/bg-mobile\.webp"\)/g, ''));
+    return /url\(/.test(css.slice(a, b > a ? b : a + 22000)
+      .replace(/url\("ui\/(?:bg-mobile\.webp(?:\?v=\d+)?|opal-cd\.webp(?:\?v=\d+)?)"\)/g, ''));
   })(), false);
   eq('옛 그림 판이 안 남았다', /refprofile|profile-v2/.test(
     (css + web).replace(/assets\/ui\/profile-v2\/messenger-wallpaper\.webp/g, '')
@@ -507,7 +522,7 @@ eq('이름을 넣으면 배역을 받는 자리로 간다',
 eq('그 자리에서 등록으로 넘어간다',
   [/<Intro onGo=\{\(\)=>setEnrolling\('enroll'\)\}\/>/.test(appSrc),
    /<Intro onGo=\{\(\)=>setEnrolling\("enroll"\)\}\/>/.test(web)], [true, true]);
-const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+const flashCss = readCss();
 /* ── ④ 민현의 옛 일기 — 병원 옥상 ──
    오프닝에서 민현을 만난 판에서만, 「저 알죠」 세 줄이 앉은 뒤 유저가 처음
    무언가를 입력한 그 순간. 앞면이 천천히 뜨고 뒷면으로 천천히 넘어간다. */
@@ -755,7 +770,7 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
      작아지는 순간 칸이 딴 데로 간다. 폰에서 키보드가 올라오면 바로 그 일이
      났다 — 빈칸 줄이 화면 밖으로 잘리고 커서가 엉뚱한 줄 위에 섰다.
      사진과 빈칸 겹이 **같은 계산**으로 서야 한다: inset:0 + margin:auto + 비율. */
-  const fitCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const fitCss = readCss();
   eq('사진과 빈칸 겹이 같은 계산으로 선다', [
     /\.dshot\{position:absolute;inset:0;margin:auto;[^}]*aspect-ratio:1024\/1536/.test(fitCss),
     /\.dfit\{position:absolute;inset:0;margin:auto;[^}]*aspect-ratio:1024\/1536/.test(fitCss),
@@ -783,7 +798,7 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
    것이라 이미 자기 세계를 들고 온다 — 검정은 그 세계를 버리고 두 번째 세계를
    하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라 가까이 본 게 된다. */
 {
-  const pvCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const pvCss = readCss();
   eq('사진 보는 창이 하나다', (web.match(/function PhotoWin\(/g) || []).length, 1);
   /* 부르는 자리가 셋이다 — 사진첩·히든·말풍선(1:1·단톡). 각자 그리면 같은
      사진이 화면마다 다르게 열린다 */
@@ -822,7 +837,7 @@ const flashCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
    그게 이 화면이 하는 일 전부다. */
 eq('배역을 받는 자리가 웹·앱 둘 다 있다',
   [/function Intro\(/.test(web), /function Intro\(/.test(appSrc)], [true, true]);
-const introCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+const introCss = readCss();
 /* 팝업이 아니라 전체 화면이다 — 팝업은 앞의 가짜 오류창과 문법이 겹친다 */
 eq('전체 화면이지 팝업이 아니다',
   [/\.intro\{position:absolute;inset:0;z-index:56;/.test(introCss),
@@ -866,7 +881,7 @@ eq('프로필 수정창이 등록 화면과 같은 항목을 쓴다', (() => {
     && /className="cssprofile youprofile"/.test(s);
 })(), true);
 {
-  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const css = readCss();
   eq('you.txt는 등록 화면 비율을 끊고 짧게 쓴다',
     /\.youprofile>\.profileframe\.youframe>\.ebody\{[^}]*aspect-ratio:auto !important;[^}]*height:360px !important/.test(css), true);
   eq('you.txt의 값과 조사는 작은 글자로 돌아가지 않는다',
@@ -1175,7 +1190,7 @@ eq('점이 꺼진 사람은 안 건다',
    드롭다운(.dd)까지 같이 잘려서 file·chat 메뉴가 안 열렸다 — 열리긴 했는데
    단추 상자 밖으로 못 나와 보이지 않았다 */
 {
-  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const css = readCss();
   eq('감싼 쪽은 안 자른다', /\.ddwrap\{flex:0 1 auto;min-width:0\}/.test(css), true);
   eq('자르는 건 단추다', /\.mbtn\{flex:0 1 auto;min-width:0;overflow:hidden;max-width:100%\}/.test(css), true);
   /* 드롭다운은 단추 밖으로 나와야 한다 */
@@ -1872,7 +1887,7 @@ eq('생성된 파일이라고 적어둔다',
 
   const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
   const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
-  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const css = readCss();
   eq('오프닝이 아직 안 받은 사람만 예약한다',
     /if\(!loadGetcha\(o\.room\)\)getchaRef\.current=o\.room;/.test(app), true);
   /* ── 창은 자리에서 **나올 때** 뜬다 ──
@@ -1963,7 +1978,7 @@ eq('생성된 파일이라고 적어둔다',
 
   const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
   const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
-  const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const css = readCss();
   eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLock\(store,view\)\}/.test(app), true);
   /* 방을 감추지 않는다 — 이 사람이 없는 게 아니라 아직 안 온 것이다.
      까닭은 화면 한가운데가 말한다(빈 방 안내와 같은 자리·같은 보라색) */
@@ -2755,7 +2770,7 @@ for (const [label, src] of [['웹', web], ['앱', appSrc + dlgSrc]]) {
    확인창이 확인해야 하는 건 「무엇을 골랐는가」인데, 전에는 고른 값이 제일
    작고 그걸 설명하는 문장이 제일 컸다. */
 {
-  const mdCss = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const mdCss = readCss();
   eq('고른 값이 제일 크다', (() => {
     /* 같은 선택자를 여러 번 쓰고 뒤엣것이 이긴다 — 마지막 값을 읽는다 */
     const last = k => {
@@ -3315,7 +3330,7 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
      .chint은 선물 화면의 힌트였다(왼쪽 여백 64px). 둘 다 스타일을 통째로
      뒤집어썼다. 그래서 이 창이 지은 이름은 전부 이 구역 안에서만 산다 */
   eq('확정 창이 남의 이름을 안 밟았다', (() => {
-    const css = readFileSync(join(ROOT, 'null.css'), 'utf8');
+    const css = readCss();
     const mark = css.indexOf('/* ── 세계 확정 창 ──');
     return ['cwin','cq','cslot','cbox','ccar','cfacts','cnull','cyes','cwhint']
       .filter(n => [...css.matchAll(new RegExp(`(^|[^-\\w])\\.${n}\\b`, 'g'))]
@@ -4358,10 +4373,10 @@ eq('앱도 같은 열쇠 자리를 본다',
          사람 화면에는 옛 파일이 남는다 — 실제로 그렇게 한 번 놓쳤다.
          순서: index.html ?v= 올리기 → app-data.js AV 같은 번호로 → 해시 */
     const seal = createHash('sha256');
-    for (const f of ['null.css', 'app-data.js', 'app-ui.js', 'app.js'])
+    for (const f of ['null.css', ...CSS_FILES, 'app-data.js', 'app-ui.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['209', 'f1322d3adc97']);
+      [v[0][2], seal.digest('hex').slice(0, 12)], ['210', '56fb2c04cc6a']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -10256,7 +10271,7 @@ eq('시간표 단추는 peek보다 좁다',
     + '\nreturn {userPics,saveDiary,saveFlash,DIARY_IMG,DIARY_BOX,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
   const dlg2 = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
   const appSrc3 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
-  const css2 = readFileSync(join(ROOT, 'null.css'), 'utf8');
+  const css2 = readCss();
 
   /* 이름 글자 수와 무관한 하나의 연속 게이지. □ 문자와 이름은 칸에 안 들어간다. */
   eq('게이지에 이름이나 네모를 넣지 않는다',
