@@ -37,9 +37,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
  box-shadow:inset 0 0 0 3px #c3b2f0,6px 6px 0 rgba(93,84,144,.3),0 30px 60px rgba(93,84,144,.35)}
 /* 프레임을 한 요소의 border/padding으로 반씩 칠하면 두 색의 모서리 곡률이
    서로 달라 보인다. 바깥 오팔과 안쪽 null.exe 라일락을 독립된 동심 링으로
-   그리고, 3px 안으로 들어갈 때 반지름도 11px → 8px로 같이 줄인다. */
+   그리고, .phone의 14px에서 inset만큼 빼 12px → 9px로 같이 줄인다. */
 .phone::before{content:"";position:absolute;inset:2px;z-index:100;pointer-events:none;
- border-radius:11px;padding:3px;
+ border-radius:12px;padding:3px;
  background:conic-gradient(from 205deg,
   rgba(174,226,255,.92),rgba(255,207,238,.9),rgba(225,205,255,.94),
   rgba(255,249,211,.88),rgba(201,255,239,.86),rgba(204,218,255,.92),
@@ -50,7 +50,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
  mask-composite:exclude;
  opacity:.82;filter:drop-shadow(0 0 2px rgba(238,221,255,.7))}
 .phone::after{content:"";position:absolute;inset:5px;z-index:101;pointer-events:none;
- border:3px solid rgba(195,178,240,.94);border-radius:8px;
+ border:3px solid rgba(195,178,240,.94);border-radius:9px;
  box-shadow:inset 0 0 0 1px rgba(255,255,255,.24),0 0 2px rgba(213,179,239,.28)}
 /* 좁은 화면에서는 껍데기가 화면을 통째로 쓴다.
    높이는 100dvh 가 아니라 index.html 이 재서 적어준 --vh 다 — 안드로이드
