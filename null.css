@@ -5049,3 +5049,18 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  box-shadow:none !important;
  -webkit-backdrop-filter:none !important;
  backdrop-filter:none !important}
+
+
+.cssprofile .profileedit .profiledone {
+  background: linear-gradient(
+    96deg,
+    #fdc9e8 0%,
+    #fbc8ee 20%,
+    #f5c9f4 38%,
+    #e3cdfa 60%,
+    #cfd2fb 80%,
+    #c4d8f4 100%
+  ) !important;
+
+  color: #463670 !important;
+}
