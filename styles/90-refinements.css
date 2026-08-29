@@ -896,11 +896,24 @@
  background-repeat:no-repeat,no-repeat !important}
 
 /* 장소 대화는 사진 자체가 screen 배경이라 background-clip으로 자르면 사진 좌표가
-   달라진다. 사진은 그대로 두고, 비어 보이던 바깥 5px 면에만 같은 유리 링을 얹는다. */
+   달라진다. 사진은 그대로 두고, 세 화면의 바깥 5px 면에만 같은 오팔 링을 얹는다.
+   가는 사선 결은 자개층, 드문 두 종류의 점은 유리 안쪽의 진주 알갱이 역할이다. */
+.phone>.screen.desk.glasswindow::after,
+.phone>.screen.chatwrap.glasswindow::after,
 .phone>.screen.scenewrap.glasswindow::after{
  content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
  padding:5px;border-radius:17px;
- background:linear-gradient(146deg,#e8d8f2 0%,#fdf3fb 24%,#ddc9ee 65%,#eedcf6 100%);
+ background:
+  radial-gradient(circle,rgba(255,255,255,.94) 0 .6px,transparent 1.15px) 4px 3px/19px 23px repeat,
+  radial-gradient(circle,rgba(181,222,255,.55) 0 .55px,transparent 1.1px) 13px 8px/29px 31px repeat,
+  repeating-linear-gradient(116deg,rgba(255,255,255,.18) 0 1px,transparent 1px 6px),
+  linear-gradient(104deg,
+   transparent 0 9%,rgba(255,255,255,.68) 15%,transparent 23%,
+   rgba(244,211,255,.32) 43%,transparent 57%,
+   rgba(220,245,255,.58) 76%,transparent 87%),
+  conic-gradient(from 210deg,
+   #dff3ff 0deg,#f6d7ea 58deg,#e4d7fb 120deg,#fff0d1 178deg,
+   #d8f3eb 236deg,#dce5fb 296deg,#f1d5ee 342deg,#dff3ff 360deg);
  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
  -webkit-mask-composite:xor;
  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
