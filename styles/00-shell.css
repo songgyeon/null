@@ -35,14 +35,19 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .phone{position:relative;z-index:1;width:390px;max-width:100vw;height:844px;max-height:min(94vh,844px);overflow:hidden;
  background:#dcd6f2;border:2px solid #8f7ccb;border-radius:14px;
  box-shadow:inset 0 0 0 3px #c3b2f0,6px 6px 0 rgba(93,84,144,.3),0 30px 60px rgba(93,84,144,.35)}
-/* 원래의 반투명 흰 안쪽 프레임 면을 정적인 오팔빛으로 채운다.
+/* 프레임의 바깥 반은 오팔, 화면에 닿는 안쪽 반은 null.exe의 라일락 크롬이다.
+   여섯 픽셀 전부를 밝은 오팔로 두면 화면과 프레임 사이가 흰 틈처럼 강조됐다.
    가운데를 마스킹해 실제 화면 위에는 색이 덮이지 않는다. */
 .phone::after{content:"";position:absolute;inset:2px;z-index:100;pointer-events:none;
- border-radius:11px;padding:6px;
- background:conic-gradient(from 205deg,
-  rgba(174,226,255,.92),rgba(255,207,238,.9),rgba(225,205,255,.94),
-  rgba(255,249,211,.88),rgba(201,255,239,.86),rgba(204,218,255,.92),
-  rgba(255,218,244,.9),rgba(174,226,255,.92));
+ border:3px solid transparent;border-radius:11px;padding:3px;
+ background:
+  linear-gradient(110deg,
+   rgba(243,185,216,.9),rgba(213,179,239,.92) 34%,
+   rgba(183,156,235,.94) 68%,rgba(195,178,240,.94)) padding-box,
+  conic-gradient(from 205deg,
+   rgba(174,226,255,.92),rgba(255,207,238,.9),rgba(225,205,255,.94),
+   rgba(255,249,211,.88),rgba(201,255,239,.86),rgba(204,218,255,.92),
+   rgba(255,218,244,.9),rgba(174,226,255,.92)) border-box;
  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
  -webkit-mask-composite:xor;
  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
