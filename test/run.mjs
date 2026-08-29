@@ -24,7 +24,7 @@ const WEB_DATA_FILES = [
 const WEB_UI_FILES = [
   'scripts/ui/00-profile.js', 'scripts/ui/10-opening.js',
   'scripts/ui/20-story-overlays.js', 'scripts/ui/30-messenger.js',
-  'scripts/ui/40-chat.js',
+  'scripts/ui/40-chat.js', 'scripts/ui/50-game-screen.js',
 ];
 const readWebFiles = files => files.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n');
 const webData = readWebFiles(WEB_DATA_FILES);
@@ -1916,11 +1916,11 @@ eq('생성된 파일이라고 적어둔다',
     /const sceneClosed=sc=>\{[\s\S]{0,260}getchaRef\.current!==sc\.room&&!sc\.firstEncounter/.test(app), true);
   eq('열면서 적어둔다 — 새로고침으로 다시 안 뜬다',
     /getchaRef\.current=null;\s*\n\s*saveGetcha\(sc\.room\); setGetcha\(sc\.room\);/.test(app), true);
-  eq('창이 화면에 붙어 있다', /\{getcha&&<GetCha char=\{getcha\} onClose=/.test(app), true);
+  eq('창이 화면에 붙어 있다', /\{getcha&&<GetCha char=\{getcha\} onClose=/.test(ui), true);
   /* 토스트(45)가 대화창(40) 위에 뜨는 건 그대로 두고, 이 창일 때만 미룬다 */
   eq('창이 떠 있는 동안 알림은 세워둔다',
     /if\(!toast\|\|getcha\)return;/.test(app)
-    && /\{toast&&!getcha&&<div className="toast">/.test(app), true);
+    && /\{toast&&!getcha&&<div className="toast">/.test(ui), true);
   eq('창은 인물 이름을 CHARS에서 읽는다',
     /function GetCha\(\{char,onClose\}\)/.test(ui)
     && /\(CHARS\[char\]\|\|\{\}\)\.name/.test(ui), true);
@@ -1997,7 +1997,7 @@ eq('생성된 파일이라고 적어둔다',
   const app = webApp;
   const ui = webUi;
   const css = readCss();
-  eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLock\(store,view\)\}/.test(app), true);
+  eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLock\(store,view\)\}/.test(ui), true);
   /* 방을 감추지 않는다 — 이 사람이 없는 게 아니라 아직 안 온 것이다.
      까닭은 화면 한가운데가 말한다(빈 방 안내와 같은 자리·같은 보라색) */
   /* 잠금 여부와 까닭이 한 자리에서 나온다 — 둘로 나누면 어긋난다 */
@@ -4380,7 +4380,7 @@ eq('앱도 같은 열쇠 자리를 본다',
      보이고 사람은 안 고쳐졌다고 한다. 모든 파일이 같은 번호여야 한다 */
   {
     const v = [...html.matchAll(/(?:href|src)="(?:null\.css|scripts\/[^"]+\.js|app\.js)\?v=(\d+)"/g)];
-    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, 14);
+    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, 15);
     eq('모든 웹 스크립트가 같은 판이다', new Set(v.map(m => m[1])).size, 1);
     /* 번호가 붙어 있는 것만으로는 모자랐다. 넷을 고쳐놓고 번호를 안 올려서
        올라간 건 새것인데 사람 화면에는 옛것이 그대로 떴다 — 배포는 됐고
@@ -4395,7 +4395,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['218', 'c4ddae1e8225']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['219', '2bb3c260aadc']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4403,10 +4403,10 @@ eq('앱도 같은 열쇠 자리를 본다',
       new RegExp('const AV="\\?v=' + v[0][1] + '";').test(web), true);
   }
   eq('데이터는 바벨을 안 탄다', WEB_DATA_FILES.every(f =>
-    html.includes(`<script src="${f}?v=218"></script>`)), true);
+    html.includes(`<script src="${f}?v=219"></script>`)), true);
   eq('화면과 앱은 바벨을 탄다',
     [...WEB_UI_FILES, 'scripts/game.js', 'app.js'].every(f =>
-      html.includes(`<script type="text/babel" src="${f}?v=218"></script>`)), true);
+      html.includes(`<script type="text/babel" src="${f}?v=219"></script>`)), true);
   /* 지우고 다시 여는 표식은 리액트가 뜨기 전에 읽혀야 한다 */
   eq('비우는 자리가 화면보다 앞이다', html.indexOf('null_wipe') < html.indexOf(WEB_DATA_FILES[0]), true);
 }
