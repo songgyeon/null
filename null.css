@@ -4036,11 +4036,41 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  display:flex;align-items:center;border-radius:13px}
 .cssprofile .profileedit .etail{display:inline;white-space:nowrap;font-size:11px;color:#806b9c}
 .cssprofile .profileedit .e-age .blank{max-width:88px}
-.cssprofile .profileedit .profiledone{position:static;width:100%;height:44px;margin:5px 0 0;
- border-radius:14px;font-size:12px;letter-spacing:.1em;color:#695787;
- background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(228,220,250,.9));
- border:1.5px solid #fff;box-shadow:0 0 0 1px #d9caed,0 3px 0 rgba(178,154,215,.32)}
-.cssprofile .profileedit .profiledone::after{content:none}
+.cssprofile .profileedit .profiledone {
+  position: static;
+  width: 100%;
+  height: 44px;
+  margin: 5px 0 0;
+
+  border-radius: 14px;
+  font-size: 12px;
+  letter-spacing: .1em;
+  color: #463670;
+
+  background: linear-gradient(
+    96deg,
+    #fdc9e8 0%,
+    #fbc8ee 20%,
+    #f5c9f4 38%,
+    #e3cdfa 60%,
+    #cfd2fb 80%,
+    #c4d8f4 100%
+  );
+
+  border: 1.5px solid #fff;
+
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.75),
+    inset 0 -2px 0 #fff1fd,
+    0 0 0 1.5px #d1b2da,
+    0 0 0 4px #fce8f8,
+    0 0 0 5px #d4b0d5,
+    0 3px 8px rgba(150,112,196,.14);
+}
+
+.cssprofile .profileedit .profiledone::after {
+  content: none;
+}
 
 /* gift / bag — 핫핑크와 진보라 알약을 걷고 오팔 유리색으로 통일 */
 .cartwin.glasswindow{background:linear-gradient(145deg,rgba(253,250,255,.78),rgba(232,222,251,.7));
@@ -4075,15 +4105,6 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .screen.desk {
   background:#fff url("ui/bg-chat.png?v=187") center/cover no-repeat !important;
   padding:5px !important;
-
-  border: 4px solid transparent;
-  border-image: linear-gradient(
-    135deg,
-    #f9c2d9,
-    #e4dcf8,
-    #ccdef9,
-    #fbdaea
-  ) 1;
 }
 .screen.desk::before{background:rgba(239,230,255,.08)}
 
