@@ -41,7 +41,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
  #root{align-items:stretch}
  .phone{position:fixed;left:0;top:0;z-index:1;
-  width:100%;height:var(--vh,100dvh);max-width:none;max-height:none;               
+  width:100%;height:var(--vh,100dvh);max-width:none;max-height:none;
   border-radius:0;border:none;box-shadow:none}
 }
 .screen{position:absolute;inset:4px;display:flex;flex-direction:column;overflow:hidden;border-radius:9px;
@@ -5019,26 +5019,3 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  box-shadow:none !important;
  -webkit-backdrop-filter:none !important;
  backdrop-filter:none !important}
-
-
-.dlgov.cssprofile .profileedit .profiledone {
-  background: linear-gradient(
-    96deg,
-    #fdc9e8 0%,
-    #fbc8ee 20%,
-    #f5c9f4 38%,
-    #e3cdfa 60%,
-    #cfd2fb 80%,
-    #c4d8f4 100%
-  ) !important;
-
-  color: #463670 !important;
-
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.75),
-    inset 0 -2px 0 #fff1fd,
-    0 0 0 1.5px #d1b2da,
-    0 0 0 4px #fce8f8,
-    0 0 0 5px #d4b0d5,
-    0 3px 8px rgba(150,112,196,.14) !important;
-}
