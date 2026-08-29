@@ -816,8 +816,13 @@
 .phone>.cartscreen,
 .phone>.screen>.cartscreen{
  background-color:#f8f3fb !important}
+/* 둥근 NULL messenger 띠와 바깥 프레임 사이의 5px 여백에 월페이퍼가 비쳐
+   왼쪽 위가 흰 초승달처럼 벌어졌다. 띠 뒤쪽에 같은 크롬색을 연장해 틈만 메운다. */
 .phone>.screen.desk.glasswindow::before{
- background:rgba(214,194,245,.055) !important}
+ background:
+  linear-gradient(96deg,#f3bce4 0%,#efaee6 18%,#e2b0f0 38%,
+   #d3b6f4 56%,#dcaef0 74%,#c8b8f4 90%,#d6cbf8 100%) top/100% 48px no-repeat,
+  rgba(214,194,245,.055) !important}
 .phone>.screen.desk.glasswindow .menubar{
  background:rgba(227,211,246,.78) !important}
 .phone>.screen.desk.glasswindow .roomswrap{
