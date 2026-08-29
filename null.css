@@ -4952,3 +4952,75 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 }
 .rooms .groupavatar,
 .rooms .watchavatar{opacity:.78}
+
+/* v207 — 메신저가 열린 뒤의 색만 아주 조금 되찾는다.
+   오프닝·등록·확인 화면, 이미지, 아이콘, 크기와 배치는 건드리지 않는다. */
+.phone>.screen.desk.glasswindow,
+.phone>.cartscreen,
+.phone>.screen>.cartscreen{
+ background-color:#f8f3fb !important}
+.phone>.screen.desk.glasswindow::before{
+ background:rgba(211,190,236,.09) !important}
+.phone>.screen.desk.glasswindow .menubar{
+ background:rgba(229,214,243,.82) !important}
+.phone>.screen.desk.glasswindow .roomswrap{
+ background:linear-gradient(145deg,rgba(239,225,247,.34),rgba(215,210,241,.25) 58%,rgba(213,231,243,.25)) !important;
+ border-color:rgba(244,233,248,.84) !important}
+.phone>.screen.desk.glasswindow .roomcard{
+ background:linear-gradient(135deg,rgba(252,243,248,.72),rgba(230,216,241,.48)) !important;
+ border-color:rgba(244,232,247,.88) !important}
+.phone>.screen.desk.glasswindow>.tabs .tab{
+ background:linear-gradient(180deg,rgba(250,243,248,.94),rgba(229,217,241,.84)) !important;
+ border-color:rgba(243,232,247,.96) !important}
+.phone>.screen.desk.glasswindow>.tabs .tab.on{
+ background:linear-gradient(135deg,rgba(247,215,232,.94),rgba(224,213,242,.94) 55%,rgba(210,229,241,.94)) !important;
+ border-color:rgba(239,225,243,.96) !important}
+.phone>.screen.desk.glasswindow .statusbar>span{
+ background:rgba(250,242,247,.76) !important;
+ border-color:rgba(242,230,246,.92) !important}
+.phone>.screen.desk.glasswindow .galgrid img,
+.phone>.screen.desk.glasswindow .hcell{
+ background:rgba(241,230,247,.42) !important;
+ border-color:rgba(246,235,248,.82) !important}
+
+.phone>.screen.chatwrap.glasswindow{
+ background-color:#f3ebf7 !important}
+.phone>.screen.chatwrap.glasswindow .chatbar{
+ background:linear-gradient(110deg,rgba(252,243,248,.82),rgba(232,216,242,.74),rgba(213,231,243,.7)) !important;
+ border-color:rgba(244,232,247,.9) !important}
+.phone>.screen.chatwrap.glasswindow .msgs{
+ background:linear-gradient(150deg,rgba(252,245,249,.78),rgba(235,223,244,.68),rgba(220,235,245,.66)) !important;
+ border-color:rgba(244,233,247,.84) !important}
+.phone>.screen.chatwrap.glasswindow .bubble{
+ background:rgba(255,248,252,.87) !important;
+ border-color:rgba(178,148,195,.66) !important}
+.phone>.screen.chatwrap.glasswindow .mrow.me .bubble{
+ background:linear-gradient(135deg,rgba(250,213,231,.86),rgba(230,215,244,.84),rgba(210,232,245,.86)) !important;
+ border-color:rgba(199,147,192,.62) !important}
+.phone>.screen.chatwrap.glasswindow .inputbar,
+.phone>.screen.scenewrap.glasswindow .inputbar{
+ background:linear-gradient(135deg,#fff7fb 0%,#eaddf5 55%,#dbeaf4 100%) !important;
+ border-color:#f9edf7 !important}
+.phone>.screen.chatwrap.glasswindow .inputbar .sunken,
+.phone>.screen.scenewrap.glasswindow .inputbar .sunken{
+ background:#fff9fc !important;
+ border-color:#bea6cf !important}
+
+.phone>.cartscreen>.cartwin.glasswindow,
+.phone>.screen>.cartscreen>.cartwin.glasswindow{
+ background:linear-gradient(145deg,rgba(251,242,248,.84),rgba(226,211,240,.78)) !important}
+.phone .cartwin input.csearch,
+.phone .cartwin .bagcount,
+.phone .cartwin .cnote{
+ background:rgba(252,243,248,.7) !important;
+ border-color:rgba(244,231,247,.96) !important}
+.phone .cartwin .cchip:not(.on){
+ background:rgba(250,241,247,.72) !important;
+ border-color:rgba(244,231,247,.96) !important}
+.phone .cartwin .citem,
+.phone .cartwin .cgcard{
+ background:linear-gradient(180deg,#fff9fc 0%,#f9f0f8 44%,#eee3f5 52%,#fbf5fb 100%) !important;
+ border-color:rgba(244,231,247,.96) !important}
+.phone .cartwin .cto:not(.sel){
+ background:linear-gradient(180deg,#fff9fc 0%,#f9f0f8 46%,#efe5f6 100%) !important;
+ border-color:rgba(244,231,247,.96) !important}
