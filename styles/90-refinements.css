@@ -255,7 +255,7 @@
 
 /* ══ 188 · 채팅방을 오프닝 창 부품에 정확히 맞춘 최종 규칙 ══ */
 .phone>.screen.chatwrap.glasswindow,.phone>.screen.scenewrap.glasswindow{
- inset:4px !important;width:auto !important;height:auto !important;min-width:0;min-height:0;
+ inset:8px !important;width:auto !important;height:auto !important;min-width:0;min-height:0;
  padding:5px !important;border:0 !important;border-radius:17px !important;overflow:hidden !important;
  background-color:#eee7f8 !important;box-sizing:border-box !important;
  box-shadow:0 0 0 1px rgba(255,255,255,.94),0 0 0 2px rgba(155,126,199,.66),
@@ -302,7 +302,7 @@
 }
 
 /* 기본 메신저: 지정 배경을 가리지 않는다. 본문은 색판이 아니라 얇은 유리 한 장이다. */
-.phone>.screen.desk.glasswindow{inset:4px !important;width:auto !important;height:auto !important;
+.phone>.screen.desk.glasswindow{inset:8px !important;width:auto !important;height:auto !important;
  background-color:transparent !important;background-image:url("../assets/ui/profile-v2/messenger-wallpaper.webp?v=192") !important;
  background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
 .phone>.screen.desk.glasswindow::before{content:"" !important;position:absolute;inset:0;pointer-events:none;
@@ -381,7 +381,8 @@
 /* .glasswindow의 relative가 absolute screen/cartwin을 덮어 메신저 높이를
    내용만큼 줄였다. 화면과 기능창은 다시 phone을 가득 채운다. */
 .phone>.screen.glasswindow{
- position:absolute !important;inset:4px !important;width:auto !important;height:auto !important;
+ position:absolute !important;inset:8px !important;width:auto !important;height:auto !important;
+ border-radius:17px !important;
  min-width:0 !important;min-height:0 !important}
 .phone>.cartscreen>.cartwin.glasswindow,
 .phone>.screen>.cartscreen>.cartwin.glasswindow{
