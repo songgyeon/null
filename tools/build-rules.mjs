@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* app-data.js → app/lib/rules.ts
+/* scripts/data/*.js → app/lib/rules.ts
    웹의 규칙(인물·방·선물·장소·시간표·생활리듬)을 앱이 그대로 쓰게 만든다.
 
    왜 만드나 — 앱은 이 규칙들을 손으로 베껴 들고 있었다. 그래서 웹에 지도가
@@ -7,7 +7,7 @@
    이름을 단 다른 물건이 됐다. 문구집(build-demo.mjs)에서 이미 쓰던 방식이다 —
    손으로 고치는 곳은 하나여야 한다.
 
-   무엇을 하나 — 거의 아무것도 안 한다. app-data.js는 JSX도 DOM도 안 쓰는
+   무엇을 하나 — 거의 아무것도 안 한다. data 파일은 JSX도 DOM도 안 쓰는
    평범한 자바스크립트라 그대로 타입스크립트가 된다. 리액트를 꺼내 쓰는 첫
    줄만 떼고(앱은 훅을 여기서 안 쓴다), 맨 끝에 export를 붙인다.
    딛고 있는 브라우저 것 둘(localStorage·location)은 shim이 만들어 준다.
@@ -19,11 +19,17 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = join(ROOT, 'app-data.js');
+const SOURCES = [
+  'scripts/data/00-runtime.js', 'scripts/data/10-memory.js',
+  'scripts/data/20-content.js', 'scripts/data/30-world.js',
+  'scripts/data/40-places.js', 'scripts/data/50-story-state.js',
+];
 const OUT = join(ROOT, 'app/lib/rules.ts');
 const SKIP = new Set(['API']);   // 앱에는 이미 있다
 
-const src = readFileSync(SRC, 'utf8');
+const stripHeader = text => text.replace(
+  /^\/\* NULL web ·[^\n]*\n\s+index\.html의 선언 순서가 의존 순서다\. 단독 로드하지 않는다\. \*\/\n/, '');
+const src = SOURCES.map(file => stripHeader(readFileSync(join(ROOT, file), 'utf8'))).join('\n');
 
 /* 리액트를 꺼내 쓰는 줄. 앱의 rules는 훅을 안 쓴다 */
 const body = src.replace(/^const \{useState,useEffect,useRef\} = React;\s*$/m,
@@ -53,7 +59,7 @@ for (const m of body.matchAll(/^(?:const|let|function)\s+([A-Za-z_$][\w$]*)([^\n
   for (const n of found) if (!SKIP.has(n) && !names.includes(n)) names.push(n);
 }
 if (names.length < 100) {
-  console.error(`[NULL] 규칙이 ${names.length}개뿐이다 — app-data.js를 제대로 못 읽었다`);
+  console.error(`[NULL] 규칙이 ${names.length}개뿐이다 — scripts/data를 제대로 못 읽었다`);
   process.exit(1);
 }
 
@@ -67,7 +73,7 @@ if (names.length < 100) {
       타입 검사는 통과했다. 진짜로 불러봐야만 나오는 종류다.
    규칙 전체를 함수 안에 넣으면 위의 선언들이 그 안에 살아서 부딪히지 않는다. */
 const head = `/* 이 파일은 손으로 고치지 않는다.
-   app-data.js에서 tools/build-rules.mjs가 만든다 — 규칙을 고칠 곳은 그쪽 하나다.
+   scripts/data에서 tools/build-rules.mjs가 만든다 — 규칙을 고칠 곳은 그쪽 하나다.
    웹과 앱이 같은 글을 읽어야 같은 세계가 된다. 베껴 두면 반드시 갈라진다.
    다시 만들기: node tools/build-rules.mjs */
 // @ts-nocheck

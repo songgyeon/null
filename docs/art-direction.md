@@ -139,15 +139,15 @@ sickly, ashen, colourless lips, heavy dark circles, ill, gothic vampire
 | 프로필 배경 | 5 | 단계별로 바뀐다: `gallery` → `landing` → `lobby` → `drive` → `kitchen` |
 | 보내는 사진 | 22 | 대화 중에 인물이 골라 보낸다. 갤러리 탭에 걸리는 것도 같은 22장이다 |
 | 히든 | 5 | `bag` `room` `playlist` `ticket` `yearbook`. 대화가 쌓이면 열린다 |
-| **안 쓰임** | 6 | `bg` `hall` `library` `museum` `night` `stairs` |
+| fallback | 1 | `bg` — 단계별 배경을 못 불렀을 때 쓰는 안전망 |
 
 민현도 같은 구조다 — 프로필 1, 배경 5(`shop` → `lp` → `bus` → `cat` →
-`sunset`), 보내는 사진 21, 히든 5, 안 쓰이는 것 7(`bg` `elevator` `poster`
-`record` `roof` `street` `tv`).
+`sunset`), 보내는 사진과 히든 사진, fallback `minhyun-bg`가 있다.
 
-안 쓰이는 13장은 코드 어디에서도 참조하지 않는다(README·이 문서 제외).
-`jaeeon-bg`·`minhyun-bg`는 이름이 배경 같지만 쓰는 데가 없다 — 배경은
-위의 단계별 다섯 장이 맡는다. 다시 뽑을 때 이 13장은 빼도 된다.
+사진 목록은 화면 개편 때마다 바뀐다. 특히 `jaeeon-bg`·`minhyun-bg`처럼 파일명이
+문자열 조합으로 만들어지는 fallback은 단순 문자열 검색에서 미사용으로 잘못 잡힌다.
+삭제 여부는 `scripts/data`, `scripts/ui`와 `node test/run.mjs`의 파일 존재 검사를
+함께 보고 정한다.
 
 각 사진이 무엇을 찍은 것인지는 `worker.js`의 `PHOTOS`에 `when`으로 적혀
 있다. 여기 옮겨 적지 않는다 — 두 판으로 두면 갈라진다.

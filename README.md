@@ -18,13 +18,15 @@ node tools/selected-replay.mjs --fake  # 운영 기본 경로(깃발 없음) 재
 
 ```
 worker.js             # Cloudflare Worker — 프롬프트 조립·캐싱·파싱·보안
-index.html            # 웹 — 뼈대만. 아래 넷을 순서대로 싣는다 (React 18, 빌드 없음)
-null.css              #   전부의 생김새
-app-data.js           #   데이터와 규칙 — 인물·방·선물·장소·시간표. JSX가 없어서 바벨을 안 탄다
-app-ui.js             #   화면 조각 — 아이콘·창·방 목록·채팅방
-app.js                #   앱 — 상태를 들고 저장소를 읽고 워커를 부른다
+index.html            # 웹 — 뼈대와 스크립트 로드 순서 (React 18, 빌드 없음)
+null.css              #   CSS manifest. 실제 규칙은 styles/에 cascade 순서대로 있다
+scripts/data/         #   데이터·규칙 6개 — JSX가 없어 바벨을 안 탄다
+scripts/ui/           #   화면 컴포넌트 5개 — 프로필·오프닝·장면·메신저·채팅
+scripts/game.js       #   게임 상태·저장소·워커 요청·화면 orchestration
+app.js                #   QA 진입점과 최종 React 마운트
+scripts/README.md     #   각 파일의 책임과 바꾸면 안 되는 로드 순서
 app/App.tsx           # Android (React Native / Expo)
-app/lib/rules.ts      #   ★ app-data.js에서 만들어진다 — 웹과 앱이 같은 규칙을 읽는다
+app/lib/rules.ts      #   ★ scripts/data에서 만들어진다 — 웹과 앱이 같은 규칙을 읽는다
 app/lib/shim.ts       #   그 규칙이 딛는 바닥(localStorage·location)을 앱에 만들어 준다
 app/lib/flow.ts       #   자리 판단 — 웹 app.js의 사다리를 순수 함수로
 app/screens/          #   캐비닛 지도 · 창들(자리·나가기·귀갓길·명패·단톡·문틈)
@@ -44,7 +46,7 @@ docs/art-direction.md    # 그림 방향 — 왜 서른아홉으로 보였나, �
 docs/art-prompts.md      # 재언 재생성 프롬프트 33장 — BASE + 장별 SCENE
 tools/demo-engine.js     # 매칭 엔진 — 웹·앱 결과물에 그대로 이어 붙는다
 tools/build-demo.mjs     # 문구집 → demo-lines.js + app/lib/demoLines.ts
-tools/build-rules.mjs    # app-data.js → app/lib/rules.ts (규칙은 손으로 안 베낀다)
+tools/build-rules.mjs    # scripts/data → app/lib/rules.ts (규칙은 손으로 안 베낀다)
 tools/eval.mjs           # 품질 자 — 상담사 말투·메아리·같은 말 반복·옛 정사를 센다
 docs/engine-plan.md      # 생성 엔진 — 모델 배치와 그 결정이 코드 어디에 사는지
 test/run.mjs          # 회귀 테스트
@@ -53,7 +55,7 @@ cab-icons/            # 캐비닛 지도 — 프레임·문짝 열림/잠김·�
 null-logo.mp3         # 오프닝 로고곡
 ```
 
-웹은 `index.html`을 웹서버로 열면 돕니다 — 갈라진 네 파일을 가져오느라 `file://`로는
+웹은 `index.html`을 웹서버로 열면 돕니다 — 분리된 스크립트를 가져오느라 `file://`로는
 안 돕니다(`python3 -m http.server`면 충분합니다). 빌드 단계는 없습니다: JSX는
 브라우저에서 Babel standalone이 그 자리에서 컴파일합니다. 앱은 `cd app && npm install && npx expo start`,
 APK는 `npx eas-cli build -p android --profile preview`(Expo 로그인 필요).

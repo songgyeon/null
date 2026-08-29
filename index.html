@@ -61,18 +61,29 @@ try{
   localStorage.setItem("null_rev", window.NULL_STORY_REV);
 }catch(e){}
 </script>
-<!-- 실행 파일에는 같은 판 번호를 붙인다. null.css는 styles/의 모듈을 같은 번호로
-     불러온다. 화면을 고치고도 번호를 올리지 않으면 브라우저가 옛 파일을 쓸 수 있다. -->
-<link rel="stylesheet" href="null.css?v=217">
+<!-- 실행 파일과 CSS manifest는 같은 캐시 번호를 쓴다. -->
+<link rel="stylesheet" href="null.css?v=218">
 </head>
 <body>
 <div id="root"></div>
-<!-- 데이터·규칙. JSX가 없어서 바벨을 안 탄다 -->
-<script src="app-data.js?v=217"></script>
-<!-- 화면 조각 — 아이콘·창·방 목록. JSX라 바벨을 탄다 -->
-<script type="text/babel" src="app-ui.js?v=217"></script>
-<!-- 앱 — 상태를 들고 있는 곳 -->
-<script type="text/babel" src="app.js?v=217"></script>
+<!-- 데이터와 규칙. 번호 순서가 의존 순서다. -->
+<script src="scripts/data/00-runtime.js?v=218"></script>
+<script src="scripts/data/10-memory.js?v=218"></script>
+<script src="scripts/data/20-content.js?v=218"></script>
+<script src="scripts/data/30-world.js?v=218"></script>
+<script src="scripts/data/40-places.js?v=218"></script>
+<script src="scripts/data/50-story-state.js?v=218"></script>
+
+<!-- JSX 화면 컴포넌트. 공용 부품에서 완성 화면 순서로 선언한다. -->
+<script type="text/babel" src="scripts/ui/00-profile.js?v=218"></script>
+<script type="text/babel" src="scripts/ui/10-opening.js?v=218"></script>
+<script type="text/babel" src="scripts/ui/20-story-overlays.js?v=218"></script>
+<script type="text/babel" src="scripts/ui/30-messenger.js?v=218"></script>
+<script type="text/babel" src="scripts/ui/40-chat.js?v=218"></script>
+
+<!-- 상태·요청 orchestration 뒤에 진입점이 앱을 마운트한다. -->
+<script type="text/babel" src="scripts/game.js?v=218"></script>
+<script type="text/babel" src="app.js?v=218"></script>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#b8a5e3"/><text x="50" y="58" text-anchor="middle" font-family="monospace" font-size="26" letter-spacing="4" fill="#fff">NULL</text></svg></template>
 </body>
 </html>

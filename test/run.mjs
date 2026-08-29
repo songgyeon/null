@@ -16,6 +16,24 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+const WEB_DATA_FILES = [
+  'scripts/data/00-runtime.js', 'scripts/data/10-memory.js',
+  'scripts/data/20-content.js', 'scripts/data/30-world.js',
+  'scripts/data/40-places.js', 'scripts/data/50-story-state.js',
+];
+const WEB_UI_FILES = [
+  'scripts/ui/00-profile.js', 'scripts/ui/10-opening.js',
+  'scripts/ui/20-story-overlays.js', 'scripts/ui/30-messenger.js',
+  'scripts/ui/40-chat.js',
+];
+const readWebFiles = files => files.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n');
+const webData = readWebFiles(WEB_DATA_FILES);
+const stripWebModuleHeaders = src => src.replace(
+  /\/\* NULL web ·[^\n]*\n\s+index\.html의 선언 순서가 의존 순서다\. 단독 로드하지 않는다\. \*\/\n/g, '');
+const webDataSource = stripWebModuleHeaders(webData);
+const webUi = readWebFiles(WEB_UI_FILES);
+const webApp = readWebFiles(['scripts/game.js', 'app.js']);
+
 /* 타입스크립트 파서. 글자로 세면 함수 안의 선언을 최상위로 착각하는 검사가
    있어서 진짜 파서가 필요하다. 없으면(앱에서 npm i를 안 했으면) 그 검사만
    건너뛴다 — 이 파일은 의존성 없이 도는 게 규칙이다. */
@@ -273,13 +291,13 @@ section('웹·앱 대조 — 클라이언트 둘이 같은 세계를 봐야 한�
 /* 앱은 이제 한 파일이 아니다 — index.html은 뼈대만 들고 있고 살은 넷으로 갈렸다.
    시험은 「앱 전체에 이 문장이 있나」를 묻지 어느 파일에 있는지는 안 묻는다.
    그래서 여기서 다시 한 덩어리로 붙인다. 파일이 또 갈라져도 여기만 고치면 된다. */
-const SPOTS_WEB = () => [...readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+const SPOTS_WEB = () => [...webData
   .matchAll(/\{name:"([^"]+)",\s*map:"town"(?!, into)/g)].map(m => m[1]);
 /* PLACES 한 칸을 통째로 가져온다. 한 줄만 잘라오면 두 줄로 늘어난 칸에서
    who:가 잘려 나간다 — 도서관·레코드샵이 그랬다 */
 const PLACE_BY_WEB = p => {
   const m = new RegExp(`\\{name:"${p}",[\\s\\S]{0,600}?\\},\\n`).exec(
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8'));
+    webData);
   return m ? m[0] : null;
 };
 const CSS_FILES = [
@@ -295,7 +313,7 @@ const CSS_FILES = [
    해석한 루트 기준 경로를 검사하므로 읽을 때만 그 한 단계를 정규화한다. */
 const readCss = () => CSS_FILES.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n')
   .replaceAll('url("../', 'url("').replaceAll("url('../", "url('");
-const APP_FILES = ['index.html', 'null.css', 'app-data.js', 'app-ui.js', 'app.js'];
+const APP_FILES = ['index.html', 'null.css', ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'];
 const web = [readFileSync(join(ROOT, 'index.html'), 'utf8'), readCss(),
   ...APP_FILES.slice(2).map(f => readFileSync(join(ROOT, f), 'utf8'))].join('\n');
 const app = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
@@ -394,7 +412,7 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
   /<div className="spstack"[\s\S]{0,2200}<div className="sptap">\{armed\?"♪ NULL!":"TAP FOR MUSIC ♪"\}<\/div>[\s\S]{0,80}<\/div>\s*<\/div>;/.test(web), true);
 {
   const css=readCss();
-  const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
+  const ui=webUi;
   /* 오프닝이 그림 창에서 CSS 창으로 갔다. 배경 한 장만 그림으로 남아서
      선택자가 한 줄이 아니라 여러 줄이 됐다 — 배경이 무엇인지만 본다 */
   eq('데스크톱 오프닝은 전체 배경 안 중앙 메신저 틀을 유지한다',
@@ -409,8 +427,8 @@ eq('키보드가 떠도 음악 표식이 위로 안 올라온다',
    메신저 DOM/CSS를 유지한다. 74b195c부터 붙은 ref 합성 UI도 복구 대상이다. */
 {
   const css=readCss();
-  const ui=readFileSync(join(ROOT,'app-ui.js'),'utf8');
-  const appWeb=readFileSync(join(ROOT,'app.js'),'utf8');
+  const ui=webUi;
+  const appWeb=webApp;
   eq('내부 화면에 합성 원화 CSS가 없다',
     /ui\/reference\/(?:cam|hidden|bag-bg|bag-cabinet|gift-wrap)\.png/.test(css),false);
   eq('내부 화면에 Blankware CSS가 없다',/assets\/ui\/null-blankware\//.test(css),false);
@@ -532,7 +550,7 @@ const flashCss = readCss();
       setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
     location: { search: '' } };
   const D = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {saveFlash,loadFlash,FLASH_KEYS,FLASH_BOX,FLASH_MAX,FLASH_ALT,'
     + 'FLASH_FRONT,FLASH_BACK,FLASH_RISE,FLASH_HOLD,FLASH_TURN,loadStory};')(g.localStorage, g.location);
@@ -691,7 +709,7 @@ const flashCss = readCss();
     const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
       setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
     const D = new Function('localStorage', 'location',
-      readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      webData
         .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
       + '\nreturn {kissNext,kissCuts,loadKissSeen,saveKissSeen,KISS_RUN,KISS_OUT};')(ls, { search: '' });
     eq('짝이 맞으면 사진이 나온다',
@@ -991,7 +1009,7 @@ eq('안 푼 덩어리가 있으면 그 방은 잠겨 있다',
   && /if\(replaying\(room\)\)\{ setBusy/.test(web), true);
 /* 모듈 바깥에서 App 안의 것(storeRef 같은)을 참조하면 부를 때마다 터진다.
    그러면 콜백이 죽고 타이핑 표시가 영영 안 꺼진다. 실제로 그렇게 났다. */
-const outside = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('function App()'));
+const outside = web.slice(web.indexOf('/* ── 데모 모드 ──'), web.indexOf('function GameApp()'));
 eq('모듈 바깥에서 App 안의 것을 참조하지 않는다',
   ['storeRef', 'queueRef', 'viewRef', 'setBusy', 'setStore', 'unlockedRef']
     .filter(n => new RegExp('\\b' + n + '\\b').test(outside)), []);
@@ -1380,7 +1398,7 @@ eq('문과 GO!가 같은 함수를 본다',
   const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
     setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
   const G = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {canGoNow,placeHours,PLACE_BY,goneToday};')(ls, { search: '' });
   /* 목요일 낮 두 시 — 편의점은 문이 열려 있지만 둘 다 학교 안이라 아무도 없다 */
@@ -1748,15 +1766,15 @@ eq('생성된 파일이라고 적어둔다',
    전에는 앱이 표를 손으로 베껴 들고 있었다. 그래서 웹에 지도가 생기고 자리가
    생기고 점심이 생기는 동안 앱은 옛 규칙에 머물렀다 — 같은 이름을 단 다른
    물건이 됐고, 앱의 재언은 주말에도 보건실에 앉아 있었다.
-   이제 app-data.js 하나가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를
+   이제 scripts/data가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를
    만든다. 문구집(build-demo.mjs)에서 이미 쓰던 방식이다. */
 {
   const rules = readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8');
-  const data = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  const data = webDataSource;
   eq('규칙 파일은 만들어진 것이라고 적어둔다',
     /손으로 고치지 않는다/.test(rules) && /build-rules\.mjs/.test(rules), true);
   /* 낡으면 조용히 갈라진다 — 생성기를 다시 돌린 결과와 파일이 같아야 한다.
-     app-data.js를 고치고 생성기를 안 돌리면 여기서 걸린다. */
+     scripts/data를 고치고 생성기를 안 돌리면 여기서 걸린다. */
   eq('규칙 파일이 최신이다 (node tools/build-rules.mjs)', (() => {
     const body = data.replace(/^const \{useState,useEffect,useRef\} = React;\s*$/m, '');
     const strip = t => t.replace(/^const \{useState,useEffect,useRef\} = React;\s*$/m, '')
@@ -1822,7 +1840,7 @@ eq('생성된 파일이라고 적어둔다',
     };
     const NAMES = ['presence', 'placeHours', 'whoOut', 'openingFor', 'canGreet', 'jos',
       'groupReady', 'PLACES', 'placeWhen', 'wendOnlyOk'];
-    const webBody = readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    const webBody = webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '');
     /* 규칙은 함수(__build) 안에 산다. 그 함수를 불러 받은 것으로 견준다 */
     /* 자를 자리는 «바꾼 뒤»의 글에서 찾아야 한다 — 원본 자리로 자르면
@@ -1870,7 +1888,7 @@ eq('생성된 파일이라고 적어둔다',
   };
   const g = box();
   const D = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {loadGetcha,saveGetcha};')(g.localStorage, g.location);
   eq('처음에는 아무도 안 받았다',
@@ -1885,8 +1903,8 @@ eq('생성된 파일이라고 적어둔다',
   g.localStorage.setItem('null_getcha', '{{{');
   eq('깨진 값은 「아직 안 받음」이다', D.loadGetcha('minhyun'), false);
 
-  const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
-  const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
+  const app = webApp;
+  const ui = webUi;
   const css = readCss();
   eq('오프닝이 아직 안 받은 사람만 예약한다',
     /if\(!loadGetcha\(o\.room\)\)getchaRef\.current=o\.room;/.test(app), true);
@@ -1926,7 +1944,7 @@ eq('생성된 파일이라고 적어둔다',
   };
   const g = box();
   const D = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {roomLock,atWorkNow,presence,LOCK_LINES,SOON_LINES,WAIT_LINES};')(g.localStorage, g.location);
   const at = (dd, h) => new Date(2026, 0, dd, h, 30);
@@ -1976,8 +1994,8 @@ eq('생성된 파일이라고 적어둔다',
      ['이따 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+', '조금만 기다려 ♡'],
      ['내일 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+', '조금만 기다려 ♡']]);
 
-  const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
-  const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
+  const app = webApp;
+  const ui = webUi;
   const css = readCss();
   eq('방을 열 때 잠금이 같이 간다', /locked=\{roomLock\(store,view\)\}/.test(app), true);
   /* 방을 감추지 않는다 — 이 사람이 없는 게 아니라 아직 안 온 것이다.
@@ -2035,7 +2053,7 @@ eq('생성된 파일이라고 적어둔다',
       return { getItem: k => mem.has(k) ? mem.get(k) : null,
         setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) } };
     const D = new Function('localStorage', 'location',
-      readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      webData
         .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
       + '\nreturn {PLACES};')(box2(), { search: '' });
     const pick = D.PLACES.filter(p => p.pick).map(p => p.name).sort();
@@ -2059,7 +2077,7 @@ eq('생성된 파일이라고 적어둔다',
      찍는 자리가 둘이다: 학교 안 자리에서 마주 앉을 때, 그리고 그 사람이
      학교에서 첫 연락을 걸 때. 웹·앱 양쪽에 다 있어야 한다. */
   const D2 = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {loadStory,markSchoolMet,isSchoolPlace};')(box().localStorage, box().location);
   eq('처음에는 아무도 학교에서 안 만났다',
@@ -2590,7 +2608,7 @@ const CLK = (dev) => new Function('__G',
 /* 규칙이 시계를 둘 두지 않는다 — 하나라도 new Date()로 새면 그것만 진짜
    시각을 보고, 스피드 모드에서 시간표와 잠이 딴말을 한다 */
 {
-  const rules = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  const rules = webData;
   eq('규칙층에 진짜 시계가 안 샌다', /\|\|new Date\(\)/.test(rules), false);
   /* 말풍선에 찍히는 시각도 세계 시계로 번역한다 — 프롬프트는 저녁이라는데
      화면이 오후 2시를 찍으면 화면이 거짓말이다. 저장(ts)은 진짜 epoch 그대로고
@@ -2654,7 +2672,7 @@ const CLK = (dev) => new Function('__G',
   eq('since에도 안 낀다', /since:\s*gameAt\(/.test(everything), false);
   eq('created_at에도 안 낀다', /created_at:\s*gameAt\(/.test(everything), false);
   /* 안 바꿀 것 — 앵커·하루 열쇠·도장·선톡 간격은 번역 없이 그대로다 */
-  const rules = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  const rules = webData;
   eq('앵커는 진짜 첫 ts다', /const firstTsOf=store=>Object\.values\(\(store&&store\.msgs\)\|\|\{\}\)\.flat\(\)/.test(rules)
     && !/firstTsOf=[\s\S]{0,120}gameAt\(/.test(rules), true);
   /* 하루 열쇠는 **세계 달력**을 본다 — 인자가 오면 그건 이미 번역된 세계
@@ -2718,7 +2736,7 @@ eq('배포 기본값은 꺼져 있다',
   /window\.NULL_DEV = false;/.test(readFileSync(join(ROOT, 'index.html'), 'utf8')), true);
 eq('단추도 그 플래그 뒤다',
   /function DevTime\(\{left\}\)\{[\s\S]{0,120}if\(!DEV_TIME\)return null;/
-    .test(readFileSync(join(ROOT, 'app-ui.js'), 'utf8')), true);
+    .test(webUi), true);
 
 /* ── 앱도 같은 세계 시계를 본다 ──
    여기가 이번에 제일 크게 갈려 있던 자리다. 앱은 화면이 든 **최근 1000개**로
@@ -3243,7 +3261,7 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     && /매번 괄호 지문이나 효과음으로 말하지 않는다/.test(wk), true);
   /* 옛 설정 소탕. 시험 파일 자신이 걸리지 않게 낱말을 이어 붙인다 */
   const OLD = '맞' + '담';
-  const files = ['worker.js', 'app-data.js', 'app-ui.js', 'app.js', 'demo-lines.js',
+  const files = ['worker.js', ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js', 'demo-lines.js',
     'README.md', 'docs/dialogue-corpus.md', 'app/lib/rules.ts', 'app/lib/demoLines.ts'];
   eq('맞담은 어디에도 없다',
     files.filter(f => readFileSync(join(ROOT, f), 'utf8').includes(OLD)), []);
@@ -4325,7 +4343,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     console.log('  --   JSX 문법 (파서가 없어 건너뜀 — app에서 npm i 하면 돈다)');
   } else {
     /* 바벨을 타는 파일 둘. 여기서 안 읽히면 브라우저에서도 안 읽히고 화면이 하얗다 */
-    for (const f of ['app-ui.js', 'app.js']) {
+    for (const f of [...WEB_UI_FILES, 'scripts/game.js', 'app.js']) {
       const src = readFileSync(join(ROOT, f), 'utf8');
       eq(`${f}를 찾았다`, src.length > 1000, true);
       let err = '';
@@ -4336,33 +4354,34 @@ eq('앱도 같은 열쇠 자리를 본다',
     /* 데이터 파일은 바벨을 안 탄다. JSX가 한 줄이라도 섞이면 브라우저가
        그 자리에서 문법 오류를 내고 나머지가 통째로 안 실린다 */
     let derr = '';
-    try { parse(readFileSync(join(ROOT, 'app-data.js'), 'utf8'), { sourceType: 'script' }); }
+    try { parse(webData, { sourceType: 'script' }); }
     catch (e) { derr = e.message; }
     eq('app-data.js에는 JSX가 안 섞였다', derr, '');
   }
 }
 
-/* ── 파일이 넷으로 갈렸다 ──
-   한 파일에 3,500줄이 있었다. 빌드 도구를 들이지 않고 나누려면 순서가 전부다 —
+/* ── 웹 스크립트를 책임별로 나눴다 ──
+   빌드 도구를 들이지 않고 나누려면 순서가 전부다 —
    데이터가 먼저, 화면 조각이 다음, 앱이 마지막. 하나라도 어긋나면 화면이 하얗다. */
 {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
   eq('갈라진 파일이 전부 있다', APP_FILES.filter(f => !exists(f)), []);
   /* 뼈대 + 뜨기 전에 끝나야 하는 것 하나(이야기 비우기)까지다. 리액트가
      뜬 뒤에 해도 되는 일이 여기 들어오기 시작하면 다시 3,500줄이 된다 */
-  eq('index.html은 뼈대만 남았다', html.split('\n').length < 90, true);
+  eq('index.html은 뼈대만 남았다', html.split('\n').length < 110, true);
   eq('index.html에 화면이 없다', /React|useState|className/.test(html), false);
-  const order = ['null.css', 'app-data.js', 'app-ui.js', 'app.js'].map(f => html.indexOf(f));
+  const order = ['null.css', WEB_DATA_FILES[0], WEB_UI_FILES[0], 'scripts/game.js', 'app.js']
+    .map(f => html.indexOf(f));
   eq('싣는 차례가 데이터 → 화면 → 앱이다',
     order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), true);
   /* 데이터에는 JSX가 없어서 바벨을 안 태운다 — 태우면 그만큼 늦게 뜬다 */
   /* 판 번호가 없으면 브라우저가 옛 파일을 계속 쓴다. peek 넘치는 걸 고쳐
      올렸는데 CSS에만 번호가 없어서 그대로 넘쳤다 — 화면으로는 배포가 된 것처럼
-     보이고 사람은 안 고쳐졌다고 한다. 넷이 같은 번호여야 한다 */
+     보이고 사람은 안 고쳐졌다고 한다. 모든 파일이 같은 번호여야 한다 */
   {
-    const v = [...html.matchAll(/(null\.css|app-data\.js|app-ui\.js|app\.js)\?v=(\d+)/g)];
-    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, 4);
-    eq('넷이 같은 판이다', new Set(v.map(m => m[2])).size, 1);
+    const v = [...html.matchAll(/(?:href|src)="(?:null\.css|scripts\/[^"]+\.js|app\.js)\?v=(\d+)"/g)];
+    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, 14);
+    eq('모든 웹 스크립트가 같은 판이다', new Set(v.map(m => m[1])).size, 1);
     /* 번호가 붙어 있는 것만으로는 모자랐다. 넷을 고쳐놓고 번호를 안 올려서
        올라간 건 새것인데 사람 화면에는 옛것이 그대로 떴다 — 배포는 됐고
        화면은 안 고쳐졌으니 어디가 잘못됐는지 알 데가 없다.
@@ -4371,24 +4390,25 @@ eq('앱도 같은 열쇠 자리를 본다',
        ※ 이 시험이 깨지면 **번호를 먼저 올리고** 그 다음에 해시를 새로 적는다.
          해시만 새로 맞추면 시험은 다시 통과하는데 배포된 번호가 그대로라
          사람 화면에는 옛 파일이 남는다 — 실제로 그렇게 한 번 놓쳤다.
-         순서: index.html ?v= 올리기 → app-data.js AV 같은 번호로 → 해시 */
+         순서: index.html ?v= 올리기 → data/20-content의 AV 같은 번호로 → 해시 */
     const seal = createHash('sha256');
-    for (const f of ['null.css', ...CSS_FILES, 'app-data.js', 'app-ui.js', 'app.js'])
+    for (const f of ['null.css', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][2], seal.digest('hex').slice(0, 12)], ['217', 'a3b51353d0c5']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['218', 'c4ddae1e8225']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
     eq('그림도 같은 판 번호를 쓴다',
-      new RegExp('const AV="\\?v=' + v[0][2] + '";').test(web), true);
+      new RegExp('const AV="\\?v=' + v[0][1] + '";').test(web), true);
   }
-  eq('데이터는 바벨을 안 탄다', /<script src="app-data\.js/.test(html), true);
+  eq('데이터는 바벨을 안 탄다', WEB_DATA_FILES.every(f =>
+    html.includes(`<script src="${f}?v=218"></script>`)), true);
   eq('화면과 앱은 바벨을 탄다',
-    /<script type="text\/babel" src="app-ui\.js/.test(html)
-    && /<script type="text\/babel" src="app\.js/.test(html), true);
+    [...WEB_UI_FILES, 'scripts/game.js', 'app.js'].every(f =>
+      html.includes(`<script type="text/babel" src="${f}?v=218"></script>`)), true);
   /* 지우고 다시 여는 표식은 리액트가 뜨기 전에 읽혀야 한다 */
-  eq('비우는 자리가 화면보다 앞이다', html.indexOf('null_wipe') < html.indexOf('app-data.js'), true);
+  eq('비우는 자리가 화면보다 앞이다', html.indexOf('null_wipe') < html.indexOf(WEB_DATA_FILES[0]), true);
 }
 
 /* 「같이 가기로 했다」를 메신저 화면 그대로 두면 마주 앉은 걸 그릴 방법이 없다.
@@ -4878,9 +4898,9 @@ eq('기록이 하나도 없으면 관전방을 안 만든다', /if\(!lastAny\)re
    지운 뒤였다. 정적으로 잡는다: app.js가 부르는 setter는 app.js가 스스로
    들고 있거나 전역이어야 한다. */
 eq('app.js가 남의 상태를 부르지 않는다', (() => {
-  const appSrc2 = readFileSync(join(ROOT, 'app.js'), 'utf8');
-  const uiSrc2 = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
-  const dataSrc2 = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+  const appSrc2 = webApp;
+  const uiSrc2 = webUi;
+  const dataSrc2 = webData;
   const mine = new Set(['setTimeout', 'setInterval', 'setItem', 'setHours', 'setDate',
     'setMinutes', 'setSeconds', 'setMonth', 'setFullYear', 'setTime']);
   for (const m of appSrc2.matchAll(/const\s*\[\s*\w+\s*,\s*(\w+)\s*\]\s*=\s*useState/g)) mine.add(m[1]);
@@ -5302,7 +5322,7 @@ eq('못 가는 이유를 셋 다 말한다',
       location: { search: '' } };
   })();
   const S = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {placeHours,placeWhen,PLACE_BY};')(g.localStorage, g.location);
   const at = (dd, h) => new Date(2026, 0, dd, h, 0);
@@ -5349,7 +5369,7 @@ eq('못 가는 이유를 셋 다 말한다',
       setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
       location: { search: '' } };
     return new Function('localStorage', 'location',
-      readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+      webData
         .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
       + '\nreturn {outAt,whoOut,PLACE_BY,unmetOne,loadFirstMet,canGoWith,giftSpots};')(g.localStorage, g.location);
   };
@@ -7542,7 +7562,7 @@ eq('시간표 단추는 peek보다 좁다',
       key:i=>Object.keys(store)[i] };
     globalThis.location = { search:'' };
     globalThis.React = { useState:()=>[], useEffect:()=>{}, useRef:()=>({}) };
-    const D = new Function(readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    const D = new Function(webData
       + ';return {talkedEnoughIn,countUserSaid,SCENE_MIN_TALK,peekScene,ackScene,markScene}')();
 
     /* ── 정확히 두 번째 발화에서 열린다 ──
@@ -7610,7 +7630,7 @@ eq('시간표 단추는 peek보다 좁다',
      저장소 위에서 실제로 돌린다. 새로고침은 **같은 저장소로 다시 켜는 것**
      으로 흉내낸다 — 그게 실제로 일어나는 일이다. */
   {
-    const dataSrc = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+    const dataSrc = webData;
     const CUT = '  const cameBack=cameBackOf(store);';   // 여기부터는 화면 조각(app-ui)을 부른다
     const APP_HEAD = web.includes('function GameApp(){') ? 'function GameApp(){' : 'function App(){';
     eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes(APP_HEAD), true);
@@ -7716,7 +7736,7 @@ eq('시간표 단추는 peek보다 좁다',
         ls: k => { const v = mem.get(k); try { return JSON.parse(v) } catch (e) { return v } },
         dump: () => Object.fromEntries(mem) };
     };
-    const ui = readFileSync(join(ROOT, 'app-ui.js'), 'utf8');
+    const ui = webUi;
     const said = (W, r) => (W.app.store.msgs[r || 'minhyun'] || []).map(m => (m.sys ? '· ' : '') + m.text);
     /* 모델에게 실제로 나간 history 안의 지문 줄 */
     const outSys = W => (W.sent[W.sent.length - 1].history || [])
@@ -8220,7 +8240,7 @@ eq('시간표 단추는 peek보다 좁다',
            계속 바뀌면 어지럽다. 이미 뽑혔으면 다시 안 뽑는 자물쇠가 그걸 지킨다 */
         eq('한 자리에서 얼굴은 한 번만 뽑는다',
           /if\(!sc\|\|sc\.room!==room\|\|sc\.shot\)return;/
-            .test(readFileSync(join(ROOT, 'app.js'), 'utf8')), true);
+            .test(webApp), true);
       }
     }
 
@@ -8834,7 +8854,7 @@ eq('시간표 단추는 peek보다 좁다',
         /if\(!b\|\|typeof b\.id!=='string'\|\|!b\.id\)return false;/.test(appTsx), true);
       /* 해금이 장부 밖에 있으면 막혔다 풀릴 때 .hidden만 영영 안 열린다 */
       eq('해금도 장부 안이다',
-        /if\(\(b\.unlocked\|\|\[\]\)\.length&&A\.applyUnlocked/.test(readFileSync(join(ROOT, 'app-data.js'), 'utf8'))
+        /if\(\(b\.unlocked\|\|\[\]\)\.length&&A\.applyUnlocked/.test(webData)
         && /unlocked:Array\.isArray\(data\?\.unlocked\)\?data\.unlocked:\[\],/.test(appTsx)
         && /applyUnlocked: async\(list:any\)=>/.test(appTsx), true);
       eq('앱이 줄에서 그 항목만 뺀다',
@@ -8855,7 +8875,7 @@ eq('시간표 단추는 peek보다 좁다',
       {
         const Q = new Function(
           'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v},removeItem(k){delete this._v[k]}};'
-          + readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+          + webData
           + '\nreturn {readAutoQueue,pushAutoBatch,runAutoQueue};')();
         const cut = (from, to) => {
           const i = appSrc.indexOf(from);
@@ -9623,7 +9643,7 @@ eq('시간표 단추는 peek보다 좁다',
       key:i=>Object.keys(store)[i] };
     globalThis.location = { search:'' };
     globalThis.React = { useState:()=>[], useEffect:()=>{}, useRef:()=>({}) };
-    const src = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+    const src = webData;
     return new Function(src + ';return {markScene,peekScene,ackScene,SCENE_REASONS,'
       + 'pushAutoEvent,peekAutoEvent,ackAutoEvent,loadEffDone,saveEffDone}')();
   })();
@@ -10040,7 +10060,7 @@ eq('시간표 단추는 peek보다 좁다',
       setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() },
     location: { search: '' } };
   const D = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {saveDiary,loadDiary,DIARY_MAX,DIARY_LINES,DIARY_HEAD,DIARY_TAIL_A,DIARY_TAIL_B,loadStory};')(g.localStorage, g.location);
   const SECRET = '어린애';
@@ -10085,7 +10105,7 @@ eq('시간표 단추는 peek보다 좁다',
   const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
     setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
   const D = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {saveFlash,loadFlash,flashSayLine,flashSaid,markFlashSaid,FLASH_SAY_A,FLASH_SAY_B,FLASH_KEYS};')(ls, { search: '' });
 
@@ -10181,7 +10201,7 @@ eq('시간표 단추는 peek보다 좁다',
   const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
     setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
   const D = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {hidMask,hidGuess,HID_MAX,HIDDEN,HIDDEN_LABEL,giftNote,GIFT_WISH_MAX,GIFT_NOTE_A,GIFT_NOTE_B};')(ls, { search: '' });
   const appSrc2 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
@@ -10266,7 +10286,7 @@ eq('시간표 단추는 peek보다 좁다',
   const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
     setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k), clear: () => mem.clear() };
   const D = new Function('localStorage', 'location',
-    readFileSync(join(ROOT, 'app-data.js'), 'utf8')
+    webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
     + '\nreturn {userPics,saveDiary,saveFlash,DIARY_IMG,DIARY_BOX,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
   const dlg2 = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
@@ -10415,7 +10435,7 @@ eq('시간표 단추는 peek보다 좁다',
       key:i=>Object.keys(store)[i] };
     globalThis.location = { search:'' };
     globalThis.React = { useState:()=>[], useEffect:()=>{}, useRef:()=>({}) };
-    const src = readFileSync(join(ROOT, 'app-data.js'), 'utf8');
+    const src = webData;
     return new Function(src + ';return {originGate,originPhase,setOriginPhase}')();
   })();
   const prof = { subject:'국어', likes:'고양이', dislikes:'비' };
