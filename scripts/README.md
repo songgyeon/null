@@ -14,7 +14,8 @@
 - `ui/20-story-overlays.js` — 사진, 일기, 플래시백, 키스타임
 - `ui/30-messenger.js` — 시간표, 가방, 검색, 선물, 방 목록
 - `ui/40-chat.js` — 남은 날, 개발 시계, 채팅방
-- `game.js` — 게임 상태, 요청, 효과 적용과 화면 orchestration
+- `ui/50-game-screen.js` — 게임 화면과 대화상자 조립
+- `game.js` — 게임 상태, 요청, 효과 적용과 화면 동작
 - `../app.js` — QA 진입점과 최종 React 마운트
 
 기능을 추가할 때는 가장 가까운 책임의 파일에 넣고, 다른 파일의 선언이 필요하면
