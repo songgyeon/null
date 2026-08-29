@@ -4072,9 +4072,18 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 
 /* ══ 184 · 메신저 레퍼런스 정리 ══
    배경·CD·사진은 이미지, 창틀·탭·유리판·카드는 CSS가 맡는다. */
-.screen.desk{
- background:#fff url("ui/bg-chat.png?v=187") center/cover no-repeat !important;
- padding:5px !important;
+.screen.desk {
+  background:#fff url("ui/bg-chat.png?v=187") center/cover no-repeat !important;
+  padding:5px !important;
+
+  border: 4px solid transparent;
+  border-image: linear-gradient(
+    135deg,
+    #f9c2d9,
+    #e4dcf8,
+    #ccdef9,
+    #fbdaea
+  ) 1;
 }
 .screen.desk::before{background:rgba(239,230,255,.08)}
 
