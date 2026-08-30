@@ -112,11 +112,11 @@ function Avatar({room,size=42,onProfile,heat,nu}){
   const hit=onProfile&&room.type==="dm"
     ? {className:"avatar face clickable"+on,onClick:e=>{e.stopPropagation();onProfile(room.id)}}
     : {className:"avatar face"+on};
-  if(room.type==="group"){ // 물방울
-    return <div className="avatar groupavatar" style={{...st,background:"linear-gradient(180deg,#ffffff,#e0ecfa)"}}><BubbleIcon size={size*.6}/></div>;
+  if(room.type==="group"){
+    return <div className="avatar groupavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-group.png?v=228" alt=""/></div>;
   }
-  if(room.type==="watch"){ // 관전방: 달
-    return <div className="avatar watchavatar" style={{...st,color:"#8a7fc0",background:"linear-gradient(180deg,#ffffff,#dde3f4)"}}><MoonIcon size={size*.5}/></div>;
+  if(room.type==="watch"){
+    return <div className="avatar watchavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-watch.png?v=228" alt=""/></div>;
   }
   return <div {...hit} style={{...st,...faceBg(CHARS[room.id])}}/>;
 }
