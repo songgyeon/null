@@ -974,3 +974,31 @@
   height:25px;
   margin:auto;
 }
+
+
+/* v250 — 특수방 기기 아이콘은 방 목록에서만 단독으로 쓴다. */
+.rooms .groupavatar,
+.rooms .roomcard.watch .watchavatar{
+  overflow:visible;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+  opacity:1;
+}
+.rooms .specialroomicon,
+.rooms .groupavatar .specialroomicon{
+  display:block;
+  width:34px;
+  height:34px;
+  max-width:none;
+  margin:auto;
+  object-fit:contain;
+}
+/* 채팅방 헤더에는 단톡방·관전방 아이콘을 두지 않는다. */
+.chatwrap .groupavatar,
+.chatwrap .watchavatar{
+  display:none;
+}
