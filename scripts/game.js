@@ -906,15 +906,16 @@ function GameApp(){
       return }
     const who=whoAt(p,picked);
     if(!who){ setToast(`${place} — 지금은 아무도 없어요`); return }
-    /* 학교가 끝났다고 사람이 사라지는 것은 아니다. 아직 만나지 않은 민현을
-       편의점에서 실제로 마주치면 이 자리가 첫 만남이다. 메신저가 먼저 관계를
-       만들지 않는다 — 장소의 첫 마디를 읽고 헤어진 뒤에 방이 열린다. */
-    const firstEncounter=who==="minhyun"&&place==="편의점"&&!loadGetcha(who);
+    /* 학교가 끝났다고 사람이 사라지는 것은 아니다. 편의점에서 아직 만나지
+       않은 사람을 실제로 마주치면 누구든 이 자리가 첫 만남이다. 예전에는
+       민현만 이 갈래를 타서 재언이 처음 본 유저를 아는 척했다. 메신저가 먼저
+       관계를 만들지 않는다 — 장소의 첫 마디를 읽고 헤어진 뒤에 방이 열린다. */
+    const firstEncounter=place==="편의점"&&!loadGetcha(who);
     const firstLines=firstEncounter?demoProactive(who,place,name):null;
     /* 「같이 갈 사람은 Who?」로 고른 자리는 같이 간 것이다. 기록에도 그렇게 남긴다 —
        「레코드샵에 갔다」만 있으면 이력만 읽는 다음 턴이 혼자 간 것으로 읽는다 */
     const since=Date.now(), id="ask|"+who+"|"+place+"|"+since;
-    localBatch(id,who,{
+    const enterPlace=()=>localBatch(id,who,{
       sys:[{id:id+"#0",room:who,
         text:picked?`${jos(CHARS[who].name,"과/와")} ${place}에 갔다`:`${place}에 갔다`}],
       /* 하던 자리가 있으면 먼저 정리한다 — 덮어쓰면 두고 온 것이 증발한다 */
@@ -925,6 +926,15 @@ function GameApp(){
         {op:"view",room:who}],
       after_request:firstEncounter?{lines:firstLines}
         :{extra:{place,...(picked?{came:"asked"}:{})}}});
+    /* 재언의 정해진 첫 마디는 유저의 옛 일기 뒤에 온다. 방에서 처음 만날
+       때와 같은 순서다. 일기를 덮으면 위 장부를 그때 실행해 편의점 장면과
+       첫 만남 대사를 연다. 이미 쓴 일기라면 바로 들어간다. */
+    if(firstEncounter&&who==="jaeeon"&&!loadDiary()){
+      diaryAfterRef.current=enterPlace;
+      setDiary(true);
+      return;
+    }
+    enterPlace();
   };
 
   /* 백엔드가 알려준 해금 목록을 반영하고, 새로 열린 게 있으면 알린다 */
@@ -1677,13 +1687,23 @@ function GameApp(){
      openRoom을 안 거치므로 그 장면을 덮지도 않는다 — 목록에서 방으로 들어올
      때 처음 뜬다. 채운 값은 브라우저 안에만 산다. */
   const [diary,setDiary]=useState(false);
+  const diaryAfterRef=useRef(null);
   const openRoom=id=>{setView(id);setStore(s=>({...s,unread:{...s.unread,[id]:0}}));
     if(id==="health")return seedWatch();
     if(roomLock(storeRef.current,id))return;
-    if(id==="jaeeon"&&!loadDiary())return setDiary(true);
+    if(id==="jaeeon"&&!loadDiary()){
+      diaryAfterRef.current=null;
+      return setDiary(true);
+    }
     greet(id,700)};
-  /* 덮으면 그때 선톡이 걸린다 */
-  const diaryDone=()=>{setDiary(false);greet("jaeeon",700)};
+  /* 방에서 연 일기는 선톡으로, 편의점에서 연 일기는 첫 만남 장면으로 잇는다. */
+  const diaryDone=()=>{
+    setDiary(false);
+    const after=diaryAfterRef.current;
+    diaryAfterRef.current=null;
+    if(after)return after();
+    greet("jaeeon",700);
+  };
   /* ── 민현의 옛 일기 — 병원 옥상 ──
      오프닝에서 민현을 만난 판에서만, 「저 알죠」 세 줄이 다 앉은 뒤 유저가
      처음 무언가를 입력한 그 순간에 한 번. 유저의 말은 그대로 올라가고,

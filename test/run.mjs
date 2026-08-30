@@ -599,10 +599,13 @@ const flashCss = readCss();
   /* 다시 부를 때 또 잡히면 영영 안 나간다 */
   eq('되보낼 때는 안 잡는다', /const send=\(room,text,resumed\)=>\{/.test(web), true);
 
-  /* 재언을 먼저 만난 뒤 편의점에서 민현을 만나도 그 장소가 민현의 첫 만남이다.
-     일반 place 요청을 보내기 전에 문구집의 편의점 세 줄을 고정으로 앉힌다. */
-  eq('편의점에서 안 만난 민현을 실제 첫 만남으로 잡는다',
-    /const firstEncounter=who==="minhyun"&&place==="편의점"&&!loadGetcha\(who\);/.test(web), true);
+  /* 먼저 만난 사람이 누구든 편의점에서 다른 사람을 처음 만나면 그 장소가
+     실제 첫 만남이다. 일반 place 요청보다 문구집의 고정 첫 마디가 먼저다. */
+  eq('편의점에서 안 만난 사람을 실제 첫 만남으로 잡는다',
+    /const firstEncounter=place==="편의점"&&!loadGetcha\(who\);/.test(web), true);
+  eq('재언의 편의점 첫 만남은 유저의 일기 뒤에 열린다',
+    /if\(firstEncounter&&who==="jaeeon"&&!loadDiary\(\)\)\{\s*diaryAfterRef\.current=enterPlace;\s*setDiary\(true\);/.test(web)
+    && /const after=diaryAfterRef\.current;\s*diaryAfterRef\.current=null;\s*if\(after\)return after\(\);/.test(web), true);
   eq('첫 만남 scene이 새로고침 뒤에도 남는다',
     /\.\.\.\(firstEncounter\?\{firstEncounter:true\}:\{\}\)/.test(web), true);
   eq('편의점 첫 만남은 모델 대신 장소 각본을 쓴다',
@@ -2106,9 +2109,9 @@ eq('생성된 파일이라고 적어둔다',
   /* 재언 방은 옛 일기가 먼저다 — 선톡을 먼저 걸면 말이 도착한 방 위에 종이가
      덮여서, 첫 마디를 못 읽은 채로 일기를 읽게 된다 */
   eq('재언 방은 일기가 선톡보다 앞이다',
-    /if\(id==="jaeeon"&&!loadDiary\(\)\)return setDiary\(true\);\s*\n\s*greet\(id,700\)/.test(app), true);
-  eq('덮으면 그때 선톡이 걸린다',
-    /const diaryDone=\(\)=>\{setDiary\(false\);greet\("jaeeon",700\)\}/.test(app), true);
+    /if\(id==="jaeeon"&&!loadDiary\(\)\)\{\s*diaryAfterRef\.current=null;\s*return setDiary\(true\);\s*\}\s*greet\(id,700\)/.test(app), true);
+  eq('덮으면 예약된 장면이나 선톡이 그때 이어진다',
+    /const diaryDone=\(\)=>\{[\s\S]{0,220}if\(after\)return after\(\);\s*greet\("jaeeon",700\);/.test(app), true);
   /* 선톡은 두 길로 나간다 — 방을 열 때, 그리고 목록의 추첨. 방 여는 쪽만
      막으면 추첨이 먼저 걸려서 그의 첫 마디를 읽은 뒤에 일기가 뜬다. */
   eq('추첨도 재언의 첫 마디를 붙잡는다',
@@ -4395,7 +4398,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['223', '306fe532c081']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['224', '18b722e31e09']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4403,10 +4406,10 @@ eq('앱도 같은 열쇠 자리를 본다',
       new RegExp('const AV="\\?v=' + v[0][1] + '";').test(web), true);
   }
   eq('데이터는 바벨을 안 탄다', WEB_DATA_FILES.every(f =>
-    html.includes(`<script src="${f}?v=223"></script>`)), true);
+    html.includes(`<script src="${f}?v=224"></script>`)), true);
   eq('화면과 앱은 바벨을 탄다',
     [...WEB_UI_FILES, 'scripts/game.js', 'app.js'].every(f =>
-      html.includes(`<script type="text/babel" src="${f}?v=223"></script>`)), true);
+      html.includes(`<script type="text/babel" src="${f}?v=224"></script>`)), true);
   /* 지우고 다시 여는 표식은 리액트가 뜨기 전에 읽혀야 한다 */
   eq('비우는 자리가 화면보다 앞이다', html.indexOf('null_wipe') < html.indexOf(WEB_DATA_FILES[0]), true);
 }
@@ -9414,16 +9417,16 @@ eq('시간표 단추는 peek보다 좁다',
     const mine = sect.split('\n').filter(l => l.startsWith('　민현'));
     return mine.length === 4 && mine.every(l => l.includes('또 볼 줄은 몰랐는데. 저 알죠?'));
   })(), true);
-  /* 재언도 용건부터 만드는 건 같다. 다만 학교 밖 자리(도서관·빨래방)에서는
+  /* 재언도 용건부터 만드는 건 같다. 다만 학교 밖 자리(편의점·도서관·빨래방)에서는
      아직 새로 온 선생님인 줄 모르므로 「새로 오셨죠」로 열지 않는다 —
      그 말은 이미 인사를 나눈 사이여야 나온다. 보건실만 학교 안이다. */
   eq('재언은 용건부터 만든다', (() => {
     const mine = sect.split('\n').filter(l => l.startsWith('　재언'));
     return [mine.length, mine.filter(l => /새로 오/.test(l)).length];
-  })(), [3, 1]);
+  })(), [4, 1]);
   eq('학교 밖에서는 아는 척하지 않는다', (() => {
     const out = sect.split('\n').filter(l => l.startsWith('　재언') && !/편하게 앉으세요/.test(l));
-    return out.length === 2 && out.every(l => !/새로 오/.test(l));
+    return out.length === 3 && out.every(l => !/새로 오/.test(l));
   })(), true);
 
   /* 실제로 뽑아 본다 — 표와 문구가 이어져 있어도 고르는 쪽이 못 찾으면 소용없다 */
@@ -9436,6 +9439,9 @@ eq('시간표 단추는 peek보다 좁다',
     const got = E.demoProactive(['보건실', '도서관', '빨래방'].includes(p) ? 'jaeeon' : 'minhyun', p, '리리');
     eq(`${p}에서 첫 마디가 나온다`, got.length >= 2, true);
   }
+  eq('재언의 편의점 첫 만남은 초면의 두 줄이다',
+    E.demoProactive('jaeeon', '편의점', '리리').map(m => m.text || m),
+    ['먼저 꺼내실래요?', '저는 천천히 골라도 괜찮아서요.']);
   /* 자리 이름으로 뽑는데 다른 선톡이 딸려 나오면 안 된다 —
      고르는 쪽이 indexOf라 낱말이 겹치면 엉뚱한 것이 나온다 */
   eq('평소 선톡이 자리 이름에 안 걸린다', (() => {
