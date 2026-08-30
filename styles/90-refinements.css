@@ -901,24 +901,20 @@
 .phone>.screen.desk.glasswindow,
 .phone>.screen.chatwrap.glasswindow,
 .phone>.screen.scenewrap.glasswindow{
- border-radius:21px !important}
+ border-radius:17px !important;
+ box-shadow:
+  0 0 0 1px rgba(255,255,255,.94),
+  inset 0 1px 0 rgba(255,255,255,.92),
+  inset 0 -2px 4px rgba(166,137,205,.12),
+  0 12px 28px rgba(87,66,132,.2) !important}
 .phone>.screen.desk.glasswindow::after,
 .phone>.screen.chatwrap.glasswindow::after,
 .phone>.screen.scenewrap.glasswindow::after{
  content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
- padding:5px;border-radius:inherit;box-sizing:border-box;
- background:
-  radial-gradient(circle,rgba(255,255,255,.94) 0 .6px,transparent 1.15px) 4px 3px/19px 23px repeat,
-  radial-gradient(circle,rgba(181,222,255,.55) 0 .55px,transparent 1.1px) 13px 8px/29px 31px repeat,
-  repeating-linear-gradient(116deg,rgba(255,255,255,.18) 0 1px,transparent 1px 6px),
-  linear-gradient(104deg,
-   transparent 0 9%,rgba(255,255,255,.68) 15%,transparent 23%,
-   rgba(244,211,255,.32) 43%,transparent 57%,
-   rgba(220,245,255,.58) 76%,transparent 87%),
-  conic-gradient(from 210deg,
-   #dff3ff 0deg,#f6d7ea 58deg,#e4d7fb 120deg,#fff0d1 178deg,
-   #d8f3eb 236deg,#dce5fb 296deg,#f1d5ee 342deg,#dff3ff 360deg);
- -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
- -webkit-mask-composite:xor;
- mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
- mask-composite:exclude}
+ box-sizing:border-box;border:5px solid rgba(235,216,247,.94);
+ border-radius:inherit;
+ box-shadow:
+  inset 1px 1px 0 rgba(255,255,255,.96),
+  inset -1px -1px 0 rgba(182,205,241,.68),
+  1px 0 0 rgba(248,205,232,.72),
+  -1px 0 0 rgba(209,228,250,.72)}
