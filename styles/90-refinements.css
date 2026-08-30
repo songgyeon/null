@@ -955,3 +955,13 @@
  -webkit-mask-composite:xor;
  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
  mask-composite:exclude}
+
+
+/* v246 — 완성된 기기 PNG가 유리알을 덮지 않게 내부 그림만 한 단계 줄인다. */
+.rooms .specialroomicon,
+.rooms .groupavatar .specialroomicon,
+.chatwrap .specialroomicon,
+.chatwrap .groupavatar .specialroomicon{
+  width:34px;
+  height:34px;
+}
