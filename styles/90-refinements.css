@@ -925,6 +925,11 @@
 .phone>.screen.scenewrap.glasswindow>.etb{
  border-radius:5px 5px 3px 3px !important;overflow:hidden}
 
+/* 메뉴 하단의 1.5px 연보라선을 오팔 링 안쪽 경계까지 한 바퀴 잇는다.
+   outline은 박스 크기와 월페이퍼 좌표, 클릭 영역을 바꾸지 않는다. */
+.phone>.screen.desk.glasswindow{
+ outline:1.5px solid #c5bce8 !important;outline-offset:-6.5px}
+
 .phone>.screen.desk.glasswindow::after,
 .phone>.screen.chatwrap.glasswindow::after,
 .phone>.screen.scenewrap.glasswindow::after{
