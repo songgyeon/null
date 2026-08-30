@@ -965,3 +965,12 @@
   width:34px;
   height:34px;
 }
+
+
+/* v249 — 채팅 헤더의 31px 유리알에는 별도의 작은 아이콘 크기를 쓴다. */
+.chatwrap .specialroomicon,
+.chatwrap .groupavatar .specialroomicon{
+  width:25px;
+  height:25px;
+  margin:auto;
+}
