@@ -40,14 +40,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .phone::before{content:"";position:absolute;inset:2px;z-index:100;pointer-events:none;
  border-radius:12px;padding:2px;
  background:conic-gradient(from 205deg,
-  rgba(174,226,255,.92),rgba(255,207,238,.9),rgba(225,205,255,.94),
-  rgba(255,249,211,.88),rgba(201,255,239,.86),rgba(204,218,255,.92),
-  rgba(255,218,244,.9),rgba(174,226,255,.92));
+  rgba(126,196,244,.98),rgba(242,149,211,.97),rgba(183,151,239,.98),
+  rgba(246,220,146,.95),rgba(132,226,198,.93),rgba(146,174,241,.98),
+  rgba(238,165,219,.97),rgba(126,196,244,.98));
  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
  -webkit-mask-composite:xor;
  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
  mask-composite:exclude;
- opacity:.82;filter:drop-shadow(0 0 2px rgba(238,221,255,.7))}
+ opacity:.98;filter:drop-shadow(0 0 2px rgba(171,188,244,.82))}
 /* 좁은 화면에서는 껍데기가 화면을 통째로 쓴다.
    높이는 100dvh 가 아니라 index.html 이 재서 적어준 --vh 다 — 안드로이드
    키보드가 올라오면 dvh 는 안 따라오거나 늦게 따라와서, 껍데기가 옛 높이로
