@@ -564,9 +564,11 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* ── 접속 상태 점 ── */
 .pres{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:9px;color:#a79cd0}
 .pres i{width:6px;height:6px;border-radius:50%;flex:none}
-.pres.on i{background:#4fc98a;box-shadow:0 0 0 2px rgba(79,201,138,.22)}
-.pres.away i{background:#f0b34a;box-shadow:0 0 0 2px rgba(240,179,74,.2)}
-.pres.off i{background:#c3bcd8}
+.pres.on i,.pres.away i{
+ background:#b9aedb;
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.72),0 0 0 2px rgba(193,181,224,.2),0 0 4px rgba(181,167,217,.3)
+}
+.pres.off i{background:#d3cde3}
 /* ── 🌙 관찰 버튼 ── */
 .menubar .nowbtn{padding:0 8px;font-size:10px;letter-spacing:.01em;margin-left:5px}
 /* 360 폭에서 이 줄은 이미 빠듯하다. 재봤더니 오른쪽에 남는 자리가 66px인데

@@ -106,17 +106,21 @@ const sendBg=room=>{
 };
 const faceBg=ch=>({backgroundImage:`url("${ch.img+AV_V}")`,backgroundSize:ch.zoom||"150%",backgroundPosition:ch.pos,backgroundColor:ch.pale});
 function Avatar({room,size=42,onProfile,heat,nu}){
-  const st={width:size,height:size,...(heat!=null?heatRing(CHARS[room.id],heat):null)};
+  /* 얼굴 링은 인물 구분만 남기고 원색 청록·주황을 쓰지 않는다.
+     배경과 아이콘이 자개 톤인데 여기만 선명하면 예전 UI 조각처럼 튄다. */
+  const ringCh=room.id==="jaeeon"?{dk:"#9fcdd2"}
+    :room.id==="minhyun"?{dk:"#e5b5b5"}:CHARS[room.id];
+  const st={width:size,height:size,...(heat!=null?heatRing(ringCh,heat):null)};
   const on=nu?" nu":"";   // 프로필이 바뀌었는데 아직 안 봤다
   // 1:1 방의 얼굴만 눌러서 프로필로 들어간다. 단톡/관전방은 대상이 없다.
   const hit=onProfile&&room.type==="dm"
     ? {className:"avatar face clickable"+on,onClick:e=>{e.stopPropagation();onProfile(room.id)}}
     : {className:"avatar face"+on};
   if(room.type==="group"){
-    return <div className="avatar groupavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-group.png?v=232" alt=""/></div>;
+    return <div className="avatar groupavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-group.png?v=233" alt=""/></div>;
   }
   if(room.type==="watch"){
-    return <div className="avatar watchavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-watch.png?v=232" alt=""/></div>;
+    return <div className="avatar watchavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-watch.png?v=233" alt=""/></div>;
   }
   return <div {...hit} style={{...st,...faceBg(CHARS[room.id])}}/>;
 }
