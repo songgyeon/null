@@ -911,10 +911,11 @@
 .phone>.screen.chatwrap.glasswindow::after,
 .phone>.screen.scenewrap.glasswindow::after{
  content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
- box-sizing:border-box;border:5px solid rgba(235,216,247,.94);
- border-radius:inherit;
+ box-sizing:border-box;border:1px solid rgba(148,122,195,.72);
+ border-radius:inherit;background:transparent;
  box-shadow:
-  inset 1px 1px 0 rgba(255,255,255,.96),
-  inset -1px -1px 0 rgba(182,205,241,.68),
-  1px 0 0 rgba(248,205,232,.72),
-  -1px 0 0 rgba(209,228,250,.72)}
+  inset 0 0 0 1px rgba(255,255,255,.96),
+  inset 0 0 0 3px rgba(230,211,246,.92),
+  inset 3px 0 0 rgba(248,202,231,.7),
+  inset -3px 0 0 rgba(194,222,248,.72),
+  inset 0 0 0 4px rgba(255,255,255,.76)}
