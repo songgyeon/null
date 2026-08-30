@@ -118,7 +118,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* 한 줄에 일곱 개가 앉는다. 폭이 390이라 여유가 없어서, 예전엔 맨 끝 peek이
    창 테두리에 잘렸다. 여백을 좁히고 줄이 절대 넘치지 않게 고정한다. */
 .menubar{flex:none;display:flex;align-items:center;gap:2px;padding:6px 5px;font-size:11px;color:#6b5fa8;
- background:linear-gradient(180deg,#f6f2ff,#e9e1fb);border-bottom:1.5px solid #c5bce8;position:relative;z-index:20;
+ background:linear-gradient(180deg,#f6f2ff,#e9e1fb);border-bottom:2px solid #c5bce8;position:relative;z-index:20;
  max-width:100%;flex-wrap:nowrap}
 /* 메뉴 항목 — 레퍼런스의 home/platforms/metrics 처럼 광택 알약 */
 .mbtn{position:relative;padding:5px 6px 6px;cursor:pointer;white-space:nowrap;
