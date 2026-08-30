@@ -923,14 +923,13 @@
 .phone>.screen.desk.glasswindow>.etb,
 .phone>.screen.chatwrap.glasswindow>.etb,
 .phone>.screen.scenewrap.glasswindow>.etb{
- border-radius:5px 5px 3px 3px !important;overflow:hidden;
- box-shadow:inset 0 0 0 1.5px #c5bce8,inset 0 -2px 0 #b9a2ea,
-  inset 0 1px 0 rgba(255,255,255,.9) !important}
+ border-radius:5px 5px 3px 3px !important;overflow:hidden}
 
-/* 메뉴 하단의 1.5px 연보라선을 오팔 링 안쪽 경계까지 한 바퀴 잇는다.
-   outline은 박스 크기와 월페이퍼 좌표, 클릭 영역을 바꾸지 않는다. */
-.phone>.screen.desk.glasswindow{
- outline:1.5px solid #c5bce8 !important;outline-offset:-6.5px}
+/* 메뉴 하단의 1.5px 연보라선이 왼쪽에서 끊기지 않고 제목창 위까지 돈다.
+   장식 가상요소라 박스 크기와 월페이퍼 좌표, 클릭 영역은 그대로다. */
+.phone>.screen.desk.glasswindow::before{
+ inset:5px !important;z-index:4;border:1.5px solid #c5bce8;
+ border-radius:5px;box-sizing:border-box;background:transparent !important}
 
 .phone>.screen.desk.glasswindow::after,
 .phone>.screen.chatwrap.glasswindow::after,
