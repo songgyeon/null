@@ -929,11 +929,21 @@
 .phone>.screen.scenewrap.glasswindow>.etb{
  border-radius:5px 5px 3px 3px !important;overflow:hidden}
 
-/* 메뉴 하단의 2px 연보라선이 왼쪽에서 끊기지 않고 제목창 위까지 돈다.
-   장식 가상요소라 박스 크기와 월페이퍼 좌표, 클릭 영역은 그대로다. */
+/* 메뉴 하단선에서 이어지는 2px 안쪽 테두리. 단색 선 대신 짧은 오팔빛이
+   돌아가고, 7px 곡률로 제목창 위부터 하단까지 부드럽게 감싼다. */
 .phone>.screen.desk.glasswindow::before{
- inset:5px !important;z-index:21;border:2px solid #c5bce8;
- border-radius:5px;box-sizing:border-box;background:transparent !important}
+ inset:5px !important;z-index:21;border:0;padding:2px;
+ border-radius:7px;box-sizing:border-box;
+ background:linear-gradient(108deg,
+  #c5bce8 0%,#fff 10%,#a9dcf7 20%,#edb9df 35%,#fff1bd 49%,
+  #c8b5f2 64%,#fff 79%,#acdff5 90%,#c5bce8 100%) !important;
+ filter:drop-shadow(0 0 1px rgba(255,255,255,.9));
+ -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+ -webkit-mask-composite:xor;
+ mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+ mask-composite:exclude}
+.phone>.screen.desk.glasswindow>.etb{
+ border-radius:7px 7px 3px 3px !important}
 
 .phone>.screen.desk.glasswindow::after,
 .phone>.screen.chatwrap.glasswindow::after,
