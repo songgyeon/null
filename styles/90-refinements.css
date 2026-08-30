@@ -918,6 +918,13 @@
 .phone>.screen.chatwrap.glasswindow,
 .phone>.screen.scenewrap.glasswindow{
  border-radius:10px !important}
+/* 5px 오팔 링 안쪽 제목줄은 남은 5px 곡률만 쓴다.
+   큰 공용 곡률이 링 밑면을 흰 쐐기로 드러내지 않게 하이라이트도 함께 자른다. */
+.phone>.screen.desk.glasswindow>.etb,
+.phone>.screen.chatwrap.glasswindow>.etb,
+.phone>.screen.scenewrap.glasswindow>.etb{
+ border-radius:5px 5px 3px 3px !important;overflow:hidden}
+
 .phone>.screen.desk.glasswindow::after,
 .phone>.screen.chatwrap.glasswindow::after,
 .phone>.screen.scenewrap.glasswindow::after{
