@@ -1,8 +1,8 @@
 /* NULL CSS manifest · cascade 순서를 바꾸지 말 것 */
-@import url("./styles/00-shell.css?v=239");
-@import url("./styles/10-gift.css?v=239");
-@import url("./styles/20-story.css?v=239");
-@import url("./styles/30-messenger.css?v=239");
-@import url("./styles/40-opening-profile.css?v=239");
-@import url("./styles/50-chat-scenes.css?v=239");
-@import url("./styles/90-refinements.css?v=239");
+@import url("./styles/00-shell.css?v=240");
+@import url("./styles/10-gift.css?v=240");
+@import url("./styles/20-story.css?v=240");
+@import url("./styles/30-messenger.css?v=240");
+@import url("./styles/40-opening-profile.css?v=240");
+@import url("./styles/50-chat-scenes.css?v=240");
+@import url("./styles/90-refinements.css?v=240");
