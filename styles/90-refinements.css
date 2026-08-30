@@ -965,3 +965,16 @@
   width:34px;
   height:34px;
 }
+
+
+/* v247 — 채팅 상단 경계가 이름·말풍선 묶음 중간에서 멈추지 않게 한다. */
+.chatwrap .msgs{
+  scroll-snap-type:y proximity;
+  scroll-padding-top:10px;
+}
+.chatwrap .msgs>.mrow,
+.chatwrap .msgs>.divider,
+.chatwrap .msgs>.narr{
+  scroll-snap-align:start;
+  scroll-margin-top:10px;
+}
