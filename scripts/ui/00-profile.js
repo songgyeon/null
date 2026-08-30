@@ -113,10 +113,10 @@ function Avatar({room,size=42,onProfile,heat,nu}){
     ? {className:"avatar face clickable"+on,onClick:e=>{e.stopPropagation();onProfile(room.id)}}
     : {className:"avatar face"+on};
   if(room.type==="group"){
-    return <div className="avatar groupavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-group.png?v=228" alt=""/></div>;
+    return <div className="avatar groupavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-group.png?v=231" alt=""/></div>;
   }
   if(room.type==="watch"){
-    return <div className="avatar watchavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-watch.png?v=228" alt=""/></div>;
+    return <div className="avatar watchavatar" style={st}><img className="specialroomicon" src="assets/ui/messenger/room-watch.png?v=231" alt=""/></div>;
   }
   return <div {...hit} style={{...st,...faceBg(CHARS[room.id])}}/>;
 }

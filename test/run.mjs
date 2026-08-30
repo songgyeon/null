@@ -4398,7 +4398,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of ['null.css', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['230', 'e3e2ce0fe376']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['231', 'a0f60bd6d857']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4406,10 +4406,10 @@ eq('앱도 같은 열쇠 자리를 본다',
       new RegExp('const AV="\\?v=' + v[0][1] + '";').test(web), true);
   }
   eq('데이터는 바벨을 안 탄다', WEB_DATA_FILES.every(f =>
-    html.includes(`<script src="${f}?v=230"></script>`)), true);
+    html.includes(`<script src="${f}?v=231"></script>`)), true);
   eq('화면과 앱은 바벨을 탄다',
     [...WEB_UI_FILES, 'scripts/game.js', 'app.js'].every(f =>
-      html.includes(`<script type="text/babel" src="${f}?v=230"></script>`)), true);
+      html.includes(`<script type="text/babel" src="${f}?v=231"></script>`)), true);
   /* 지우고 다시 여는 표식은 리액트가 뜨기 전에 읽혀야 한다 */
   eq('비우는 자리가 화면보다 앞이다', html.indexOf('null_wipe') < html.indexOf(WEB_DATA_FILES[0]), true);
 }
