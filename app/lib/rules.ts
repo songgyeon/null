@@ -1,5 +1,5 @@
 /* 이 파일은 손으로 고치지 않는다.
-   app-data.js에서 tools/build-rules.mjs가 만든다 — 규칙을 고칠 곳은 그쪽 하나다.
+   scripts/data에서 tools/build-rules.mjs가 만든다 — 규칙을 고칠 곳은 그쪽 하나다.
    웹과 앱이 같은 글을 읽어야 같은 세계가 된다. 베껴 두면 반드시 갈라진다.
    다시 만들기: node tools/build-rules.mjs */
 // @ts-nocheck
@@ -210,6 +210,7 @@ const sys1Due=store=>{
    첫 항목이 같은 값을 들고 있다 — 그 창은 오프닝이 닫힐 때 처음 뜨므로
    맨 앞이 오프닝 방이다. 없으면 null이고, 없는 것은 모르는 것이지
    틀린 것이 아니다 — 부르는 쪽이 「모르면 지금까지대로」로 받는다. */
+
 /* ── 유저의 옛 일기 ──
    재언 방에 처음 들어가는 순간, 선톡 앞에 한 번. 20년 전 공부방 아이가
    쓴 것이고, 유저는 그걸 읽고 마지막 한 칸을 채운다.
@@ -404,6 +405,7 @@ const countCalls=(store,name)=>{
   return n;
 };
 const filledLetters=(calls,name)=>Math.min((name||"").length,Math.floor(calls/CALL_PER_LETTER));
+
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
   {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},
@@ -417,7 +419,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=204";
+const AV="?v=241";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -593,6 +595,7 @@ const saveStore=s=>{try{localStorage.setItem("null_store_v1",JSON.stringify(s));
 const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"))||{}}catch(e){return{}}};
 
 /* 시간 포맷 */
+
 /* ── 데모 모드 ──
    키가 없거나 API가 죽어도 빈 화면을 보여주지 않는다. 각본이라도 움직이는 편이 낫다.
    ?demo=1 로 켜지면 계속 데모다. 그게 아니면 실패한 턴만 각본으로 메우고
@@ -642,7 +645,6 @@ const demoAsk=payload=>{
    "회색 머그컵 선물이에요"가 아무 데도 안 걸려서 못 알아들었다는 답이 나갔다.
    열쇠를 그대로 넘겨 표에서 바로 찾는다. */
 const demoGiftKey=payload=>(payload.gift&&payload.gift.key)||null;
-
 
 /* ── 화면은 세계의 시각을 말한다 ──
    저장된 ts는 현실 epoch지만, 그리는 순간 gameAt으로 번역한다. 프롬프트와
@@ -907,6 +909,7 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    없다. 그래서 괄호 지문으로 때우다가 「이건 그냥 텍스트니까요」까지 갔다.
    자리에 가면 그 자리를 깔고 말풍선을 걷는다 — 화면이 「지금 여기 같이 있다」를
    대신 말해준다. 사진은 아래쪽이 다 어두워서 흰 글씨가 그냥 읽힌다. */
+
 /* ── 지도 ──
    전에는 인물이 가자고 할 때만 자리가 열렸다. 그래서 「귀양 가는 기분」이라는
    말이 나왔다 — 가는 곳을 늘 저쪽이 정하니까. 지도는 반대다. 유저가 자리를
@@ -1504,6 +1507,7 @@ const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):l
    모델에게 시켜서 알아서 모으게 하는 길도 있는데 안 골랐다. ① 그 말이
    인물에게도 보이므로 인물이 거기 답한다. ② 알아채는 게 확률이라 놓치는
    날이 있다. 놓친 것은 없는 것이고, 그러면 모으는 뜻이 없다. */
+
 const EDIT_MAX=500;
 const loadEdits=()=>{try{return JSON.parse(localStorage.getItem("null_edits"))||[]}catch(e){return[]}};
 const saveEdits=a=>{try{localStorage.setItem("null_edits",JSON.stringify(a.slice(-EDIT_MAX)))}catch(e){}};
@@ -1921,6 +1925,7 @@ function seenPhotos(msgs){
   loadShots().forEach(k=>set.add(String(k).replace(/\.webp$/,"")));
   return set;
 }
+
 
 
 return {
