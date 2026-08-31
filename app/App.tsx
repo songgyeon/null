@@ -23,7 +23,7 @@ import Cabinet from './screens/Cabinet';
 import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
-   app-data.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
+   scripts/data/*.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
    전에는 이 표들을 앱이 손으로 베껴 들고 있었다. 그래서 웹에 지도가 생기고
    자리가 생기고 점심이 생기는 동안 앱은 옛 규칙에 머물렀다 — 같은 이름을 단
    다른 물건이 됐다. 베낀 것을 지우고 같은 글을 읽게 한다. */
@@ -2378,7 +2378,7 @@ function Root() {
   };
 
   /* 줄에 넣는다. 앞엣것을 안 덮는다 — 선물을 연달아 둘 주면 둘 다 남는다.
-     웹 app-data.js의 pushAutoEvent와 같은 의미다. */
+     웹 규칙 파일의 pushAutoEvent와 같은 의미다. */
   const evKey=(ev:any)=>[ev.kind,ev.to||'',ev.name||''].join('|');
   const loadEvQ=async()=>{
     try{ const a=JSON.parse((await getMeta('null_auto_q'))||'[]'); return Array.isArray(a)?a:[] }catch{ return [] }

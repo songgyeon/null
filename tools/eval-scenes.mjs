@@ -121,10 +121,15 @@ export function scoreRouting(items) {
 }
 
 /* ── ③ 시계 자 (D3) ──
-   화면·내보내기 함수를 app-data.js에서 그대로 잘라 실행한다 — 여기 복제해
+   화면·내보내기 함수를 규칙 파일에서 그대로 잘라 실행한다 — 여기 복제해
    두면 두 시계가 갈린다. run.mjs의 F 검증과 같은 방식이다. */
 export function clockFns() {
-  const web = readFileSync(join(ROOT, "app-data.js"), "utf8");
+  /* 규칙 파일 목록은 여기 적지 않는다 — 적으면 갈라진다. index.html의
+     싣는 차례가 곧 의존 차례이므로 거기서 그대로 읽어 잇는다. */
+  const html = readFileSync(join(ROOT, "index.html"), "utf8");
+  const files = [...html.matchAll(/src="(scripts\/data\/[^"?]+)/g)].map(m => m[1]);
+  if (!files.length) throw new Error("index.html에서 규칙 파일을 못 찾았다");
+  const web = files.map(f => readFileSync(join(ROOT, f), "utf8")).join("\n");
   return new Function(
     'const localStorage={_v:{},getItem(k){return this._v[k]||null},setItem(k,v){this._v[k]=v}};'
     + web.slice(web.indexOf("const ENROLL_DAYS"), web.indexOf("/* ── 이름이 불린 횟수 ──"))

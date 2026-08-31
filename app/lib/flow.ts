@@ -11,8 +11,8 @@
    맞춰 두는 것은 잠깐 맞을 뿐이다. 앱에서는 재는 자를 하나만 둔다 —
    창(screens/Dialogs.tsx)은 결과를 그림으로 옮기기만 한다.
 
-   값·시각·조건은 전부 rules.ts에서 온다(웹의 app-data.js와 같은 글이다).
-   여기서 새로 세우는 숫자는 둘뿐인데, 둘 다 app-data.js가 아니라 app.js에
+   값·시각·조건은 전부 rules.ts에서 온다(웹의 scripts/data/*.js와 같은 글이다).
+   여기서 새로 세우는 숫자는 둘뿐인데, 둘 다 규칙 파일이 아니라 scripts/game.js에
    박혀 있어서 규칙 파일에 없는 것들이다 — 각각 아래에 이유를 적었다.
 
    msgs의 모양은 { [room]: {sender, text?, sys?, ts}[] }다. 앱의 Msg는 시각을
@@ -181,7 +181,7 @@ export function openingNow() {
   return {place: o.place, room: o.room, note: o.note, ...(o.bg ? {bg: o.bg} : {})};
 }
 
-/* 선톡 간격. app-data.js가 아니라 app.js에 박혀 있던 숫자라 규칙 파일에 없다 —
+/* 선톡 간격. 규칙 파일이 아니라 scripts/game.js에 박혀 있던 숫자라 규칙 파일에 없다 —
    시간표가 정하는 것이 아니라 「얼마나 조용했으면 말을 거나」라서 자리·시각을
    재는 표에 낄 자리가 없었다. 하루 상한이나 제비뽑기는 안 둔다. 올 때마다
    같은 말이 오는 게 문제였지 오는 것 자체가 문제가 아니었다. */

@@ -1,5 +1,5 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
-/* 규칙은 웹과 같은 파일에서 온다(app-data.js → rules.ts). 여기서 시각·요일·
+/* 규칙은 웹과 같은 파일에서 온다(scripts/data/*.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
 import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner, loadStory, originPhase, setWorldAt, daysSince } from './rules';
 import { loadGifts, loadDisclosed } from './profiles';

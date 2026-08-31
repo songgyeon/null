@@ -55,7 +55,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    여기서는 읽어서 들고만 있는다(같은 판정을 두 벌 두지 않는다).
 
    날짜가 없는 줄(`[오전 11:21]`)은 버그가 아니다. fmtDivider가 **오늘이면
-   날짜를 뺀다**(app-data.js:357). 내보낸 날이 그 날짜다. */
+   날짜를 뺀다**(scripts/data/30-world.js의 fmtDivider). 내보낸 날이 그 날짜다. */
 const HEAD = /^────\s*(.+?)\s*────$/;
 const ROW = /^\[([^\]]+)\]\s*(.*)$/;
 const TS = /^(?:(\d+)월\s*(\d+)일\s*)?(오전|오후)\s*(\d+):(\d+)$/;
