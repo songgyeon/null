@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>NULL Gift Slot</title>
+  <style>
+    @font-face{
+      font-family:"Galmuri11";
+      src:url("assets/Galmuri11-v3-subset.ttf") format("truetype");
+      font-display:swap;
+    }
+
+    :root{
+      color-scheme:light;
+      --ink:#665483;
+      --muted:#9b86b3;
+      --pink:#ed75b4;
+      --violet:#8d78d6;
+      --cyan:#5ebedc;
+      --machine-width:min(100%,520px);
+      --lever-drag:0px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{width:100%;min-height:100%;margin:0}
+    body{
+      min-height:100svh;
+      display:grid;
+      place-items:center;
+      overflow-x:hidden;
+      padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right))
+        max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+      color:var(--ink);
+      font-family:"Galmuri11","Malgun Gothic",sans-serif;
+      background:#fff;
+    }
+
+    button,input{font:inherit}
+    button{color:inherit}
+
+    .gift-machine{
+      position:relative;
+      width:var(--machine-width);
+      max-width:520px;
+      aspect-ratio:1030/1527;
+      overflow:hidden;
+      isolation:isolate;
+      user-select:none;
+      -webkit-user-select:none;
+      container-type:inline-size;
+    }
+
+    .machine-shell{
+      position:absolute;
+      z-index:4;
+      inset:0;
+      display:block;
+      width:100%;
+      height:100%;
+      pointer-events:none;
+    }
+
+    .machine-base{
+      position:absolute;
+      z-index:0;
+      inset:0;
+      display:block;
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      pointer-events:none;
+    }
+
+    .reel-bed{
+      position:absolute;
+      z-index:1;
+      left:10.65%;
+      top:32.7%;
+      width:77.5%;
+      height:35.3%;
+      overflow:hidden;
+      border-radius:4.2cqw;
+      background:
+        linear-gradient(90deg,rgba(101,79,153,.17),rgba(255,255,255,.5) 7%,rgba(255,252,255,.9) 20% 80%,rgba(255,255,255,.48) 93%,rgba(101,79,153,.15)),
+        rgba(244,236,250,.7);
+      box-shadow:
+        inset 0 2.6cqw 2.7cqw rgba(82,63,126,.16),
+        inset 0 -2.6cqw 2.7cqw rgba(82,63,126,.15);
+      pointer-events:none;
+    }
+
+    .reel-bed::before{
+      content:"";
+      position:absolute;
+      inset:33.333% 0;
+      border-top:1px solid rgba(122,97,169,.24);
+      border-bottom:1px solid rgba(122,97,169,.24);
+      background:rgba(255,255,255,.38);
+      box-shadow:inset 0 1px rgba(255,255,255,.72),inset 0 -1px rgba(255,255,255,.62);
+    }
+
+    .reel-bed::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(105deg,rgba(255,255,255,.36) 0 5%,transparent 18% 83%,rgba(194,211,236,.11) 96%);
+      pointer-events:none;
+    }
+
+    .machine-brand{
+      position:absolute;
+      z-index:5;
+      left:34.2%;
+      top:3.15%;
+      width:31.6%;
+      height:6.15%;
+      display:grid;
+      place-items:center;
+      color:#7f6bb0;
+      font-size:clamp(8px,2.12cqw,12px);
+      letter-spacing:.1em;
+      text-indent:.1em;
+      text-shadow:0 1px 0 #fff,1px 1px 0 rgba(122,93,169,.2);
+    }
+
+    .machine-copy{
+      position:absolute;
+      z-index:5;
+      left:12.621%;
+      top:12.705%;
+      width:73.883%;
+      height:7.99%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:0 1.2cqw;
+      text-align:center;
+      white-space:nowrap;
+      text-shadow:0 1px 0 #fff;
+    }
+
+    .machine-copy strong{
+      color:#64528b;
+      font-size:clamp(9px,2.55cqw,14px);
+      font-weight:400;
+      letter-spacing:-.01em;
+    }
+
+    .machine-copy span{
+      margin-top:1cqw;
+      color:#b16e9b;
+      font-size:clamp(7px,1.8cqw,10px);
+    }
+
+    .axis-labels{
+      position:absolute;
+      z-index:5;
+      left:28.544%;
+      top:23.51%;
+      width:41.748%;
+      height:4.06%;
+      display:grid;
+      grid-template-columns:134fr 142fr 134fr;
+      column-gap:2.326%;
+      align-items:center;
+    }
+
+    .axis-label{
+      min-width:0;
+      overflow:hidden;
+      text-align:center;
+      font-size:clamp(8px,2.05cqw,11px);
+      letter-spacing:.055em;
+      text-indent:.055em;
+      text-shadow:0 1px 0 #fff;
+    }
+
+    .axis-label:nth-child(1){color:#bd649e}
+    .axis-label:nth-child(2){color:#7861af}
+    .axis-label:nth-child(3){color:#438da9}
+
+    .swipe-copy{
+      position:absolute;
+      z-index:5;
+      left:18%;
+      top:28%;
+      width:64%;
+      height:2.2%;
+      display:grid;
+      place-items:center;
+      color:#9c86b3;
+      font-size:clamp(7px,1.62cqw,9px);
+      line-height:1;
+      letter-spacing:.14em;
+      text-align:center;
+      text-indent:.14em;
+      text-shadow:0 1px 0 #fff;
+      pointer-events:none;
+    }
+
+    .swipe-copy b{color:#b86d9b;font-weight:400;letter-spacing:0}
+
+    .reels-layer{
+      position:absolute;
+      z-index:2;
+      inset:0;
+      pointer-events:none;
+    }
+
+    .reel-window{
+      --accent:237,117,180;
+      position:absolute;
+      top:34.25%;
+      width:20.874%;
+      height:31.565%;
+      overflow:hidden;
+      border:0;
+      border-radius:2.25cqw;
+      outline:none;
+      cursor:ns-resize;
+      touch-action:pan-x pinch-zoom;
+      pointer-events:auto;
+      -webkit-tap-highlight-color:transparent;
+      background:transparent;
+    }
+
+    .reel-window[data-kind="item"]{left:13.592%;--accent:237,117,180}
+    .reel-window[data-kind="person"]{left:38.544%;--accent:142,120,214}
+    .reel-window[data-kind="place"]{left:63.495%;--accent:94,190,220}
+
+    .selection-band{
+      position:absolute;
+      z-index:6;
+      left:10.8%;
+      top:44.75%;
+      width:77.1%;
+      height:10.55%;
+      border:clamp(1px,.4cqw,2px) solid rgba(239,112,183,.78);
+      border-radius:3.4cqw;
+      pointer-events:none;
+      background:rgba(255,255,255,.06);
+      box-shadow:inset 0 1px rgba(255,255,255,.95),0 0 1.25cqw rgba(235,123,187,.16);
+    }
+
+    .selection-band::before,.selection-band::after{
+      content:"";
+      position:absolute;
+      top:50%;
+      width:0;
+      height:0;
+      transform:translateY(-50%);
+      border-top:1.05cqw solid transparent;
+      border-bottom:1.05cqw solid transparent;
+      filter:drop-shadow(0 1px 0 rgba(255,255,255,.9));
+    }
+
+    .selection-band::before{left:-1.25cqw;border-right:1.25cqw solid rgba(239,112,183,.84)}
+    .selection-band::after{right:-1.25cqw;border-left:1.25cqw solid rgba(239,112,183,.84)}
+
+    .reel-window:focus-visible{
+      outline:1px dashed rgba(var(--accent),.86);
+      outline-offset:-.8cqw;
+    }
+
+    .reel-track{
+      position:absolute;
+      z-index:2;
+      top:0;
+      left:0;
+      width:100%;
+      will-change:transform;
+    }
+
+    .reel-track.is-animating{transition:transform .32s cubic-bezier(.2,.72,.18,1)}
+    .reel-track.is-returning{transition:transform .2s ease-out}
+    .reel-track.is-spinning{transition:none}
+    .reel-track.is-spinning .reel-card{opacity:.62;transform:scale(.8);filter:saturate(.78) brightness(1.03)}
+    .reel-track.is-spinning .reel-name{opacity:0}
+
+    .reel-card{
+      position:relative;
+      width:100%;
+      height:var(--row-height,60px);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:0;
+      padding:.1cqw .2cqw 2.45cqw;
+      text-align:center;
+      opacity:0;
+      transform:scale(.64);
+      transition:opacity .18s ease,transform .24s ease,filter .18s ease;
+    }
+
+    .reel-card[data-distance="0"]{z-index:2;opacity:1;transform:scale(1)}
+    .reel-card[data-distance="-1"],.reel-card[data-distance="1"]{
+      z-index:1;
+      opacity:.44;
+      transform:scale(.76);
+      filter:saturate(.78) brightness(1.04);
+    }
+
+    .reel-art{
+      display:block;
+      flex:0 0 auto;
+      width:clamp(45px,14.25cqw,74px);
+      height:clamp(45px,14.25cqw,74px);
+      object-fit:contain;
+      pointer-events:none;
+      -webkit-user-drag:none;
+      filter:drop-shadow(0 .45cqw .42cqw rgba(82,63,126,.2));
+      transform:translateY(-.9cqw);
+    }
+
+    .portrait-crop{
+      flex:0 0 auto;
+      width:clamp(40px,12.2cqw,63px);
+      height:clamp(40px,12.2cqw,63px);
+      overflow:hidden;
+      -webkit-mask-image:radial-gradient(ellipse 48% 48% at 50% 48%,#000 78%,rgba(0,0,0,.88) 87%,transparent 100%);
+      mask-image:radial-gradient(ellipse 48% 48% at 50% 48%,#000 78%,rgba(0,0,0,.88) 87%,transparent 100%);
+      filter:brightness(1.08) saturate(.88) drop-shadow(0 .45cqw .45cqw rgba(77,58,117,.18));
+      transform:translateY(-.35cqw);
+      pointer-events:none;
+    }
+
+    .portrait-crop img{
+      display:block;
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      object-position:center 22%;
+      transform:scale(1.38);
+      transform-origin:50% 35%;
+      pointer-events:none;
+      -webkit-user-drag:none;
+    }
+
+    .place-crop{
+      flex:0 0 auto;
+      width:clamp(48px,15cqw,78px);
+      height:clamp(44px,13.8cqw,72px);
+      display:grid;
+      place-items:center;
+      pointer-events:none;
+      filter:drop-shadow(0 .4cqw .35cqw rgba(82,63,126,.16));
+      transform:translateY(-.9cqw);
+    }
+
+    .place-crop img{
+      display:block;
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      pointer-events:none;
+      -webkit-user-drag:none;
+    }
+
+    .reel-name{
+      position:absolute;
+      left:3%;
+      right:3%;
+      bottom:1.05cqw;
+      display:block;
+      overflow:hidden;
+      color:#5e4b7e;
+      font-size:clamp(8px,1.78cqw,10px);
+      line-height:1.12;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      text-shadow:0 1px 0 #fff,0 0 4px rgba(255,255,255,.92);
+    }
+
+    .reel-detail{
+      display:none;
+      max-width:94%;
+      overflow:hidden;
+      color:#ad6b99;
+      font-size:clamp(7px,1.25cqw,8px);
+      line-height:1;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .reel-card:not([data-distance="0"]) .reel-name,.reel-card:not([data-distance="0"]) .reel-detail{display:none}
+
+    .reel-window[data-kind="person"] .reel-card[data-distance="1"]{opacity:.1;filter:saturate(.55) brightness(1.08)}
+    .reel-window[data-kind="person"] .reel-name{bottom:.3cqw}
+    .reel-window[data-kind="person"] .reel-track.is-spinning .reel-card{opacity:.62}
+
+    .lever-underlay{
+      position:absolute;
+      z-index:2;
+      left:91.62%;
+      top:44.6%;
+      width:2.5%;
+      height:25.1%;
+      overflow:hidden;
+      border-radius:999px;
+      pointer-events:none;
+    }
+
+    .lever-rod-motion{
+      position:absolute;
+      inset:0;
+      transform:translateY(var(--lever-drag));
+      transition:transform .24s cubic-bezier(.2,.72,.18,1);
+    }
+
+    .lever-rod{
+      position:absolute;
+      left:50%;
+      top:0;
+      width:32%;
+      height:54%;
+      transform:translateX(-50%);
+      border-radius:999px;
+      background:linear-gradient(90deg,#806cab 0,#eee8fa 31%,#c3c7e9 61%,#765f9f 100%);
+      box-shadow:inset 1px 0 rgba(255,255,255,.85),inset -1px 0 rgba(78,57,118,.18);
+    }
+
+    .lever-hit{
+      position:absolute;
+      z-index:8;
+      left:calc(92.573% - 22px);
+      top:41.585%;
+      width:44px;
+      height:33.464%;
+      border:0;
+      padding:0;
+      outline:none;
+      cursor:grab;
+      touch-action:none;
+      background:transparent;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    .lever-hit:active{cursor:grabbing}
+    .lever-hit:disabled{cursor:wait}
+
+    .lever-motion{
+      position:absolute;
+      inset:0;
+      transform:translateY(var(--lever-drag));
+      transition:transform .24s cubic-bezier(.2,.72,.18,1);
+      pointer-events:none;
+    }
+
+    .lever-hit.is-dragging .lever-motion{transition:none}
+
+    .gift-machine.is-lever-dragging .lever-rod-motion{transition:none}
+
+    .lever-orb{
+      position:absolute;
+      left:50%;
+      top:0;
+      width:clamp(27px,7cqw,38px);
+      height:clamp(27px,7cqw,38px);
+      transform:translateX(-50%);
+      border:1px solid rgba(255,255,255,.98);
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 29% 21%,#fff 0 7%,transparent 8%),
+        radial-gradient(circle at 36% 30%,#fff4fd 0 13%,#e5d1ef 41%,#b9c8eb 69%,#816db2 100%);
+      box-shadow:0 0 0 .28cqw rgba(139,109,190,.36),inset -.62cqw -.68cqw .82cqw rgba(82,61,130,.24),0 .62cqw .72cqw rgba(72,52,111,.22);
+    }
+
+    .lever-hit:focus-visible::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      border:2px solid #e877b5;
+      border-radius:999px;
+    }
+
+    .wrap-button{
+      position:absolute;
+      z-index:7;
+      left:25.728%;
+      top:calc(72.299% - max(0px,(44px - 11.55cqw)/2));
+      width:46.117%;
+      height:max(44px,11.55cqw);
+      display:grid;
+      place-items:center;
+      border:0;
+      padding:0;
+      cursor:pointer;
+      background:transparent;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    .wrap-face{
+      width:100%;
+      height:11.55cqw;
+      display:grid;
+      place-items:center;
+      border:0;
+      color:#655087;
+      font-size:clamp(10px,2.35cqw,14px);
+      letter-spacing:.13em;
+      text-indent:.13em;
+      text-shadow:0 1px 0 #fff;
+      background:transparent;
+      transition:transform .12s ease,color .12s ease;
+      pointer-events:none;
+    }
+
+    .wrap-button:hover .wrap-face{color:#a8578a}
+    .wrap-button:active .wrap-face{transform:translateY(2px)}
+    .wrap-button:focus-visible{outline:2px solid #e877b5;outline-offset:-7px;border-radius:999px}
+    .wrap-button:disabled{cursor:wait}
+    .wrap-button:disabled .wrap-face{opacity:.7}
+
+    .result-tray{
+      position:absolute;
+      z-index:2;
+      left:26.02%;
+      top:84.68%;
+      width:46.4%;
+      height:5.11%;
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+      padding:.45cqw 1.4cqw;
+      color:#8a75a9;
+      text-align:center;
+      background:linear-gradient(180deg,rgba(207,207,242,.32),rgba(247,238,252,.72) 48%,rgba(186,181,230,.26));
+      box-shadow:inset 0 1.2cqw 1.8cqw rgba(77,61,126,.17),inset 0 -1cqw 1.4cqw rgba(86,67,132,.13);
+    }
+
+    .wrapped-gift{
+      display:grid;
+      place-items:center;
+      animation:gift-drop .38s cubic-bezier(.18,.78,.2,1) both;
+    }
+
+    @keyframes gift-drop{from{opacity:0;transform:translateY(-6cqw) scale(.85)}to{opacity:1;transform:none}}
+
+    .wrapped-gift img{width:clamp(27px,6cqw,33px);height:clamp(27px,6cqw,33px);object-fit:contain;filter:drop-shadow(0 .3cqw .34cqw rgba(89,66,134,.18))}
+
+    .gift-dialog{
+      width:min(88vw,390px);
+      max-height:min(82dvh,540px);
+      overflow:auto;
+      overscroll-behavior:contain;
+      border:0;
+      border-radius:12px 12px 4px 4px;
+      padding:0;
+      color:#675388;
+      background:transparent;
+    }
+
+    .gift-dialog::backdrop{background:rgba(74,54,110,.28)}
+
+    .gift-note{
+      position:relative;
+      padding:46px 22px 22px;
+      border:1px solid rgba(154,124,189,.62);
+      border-radius:12px 12px 4px 4px;
+      text-align:center;
+      background:linear-gradient(180deg,#fff,#fffafd);
+      box-shadow:0 0 0 3px rgba(255,238,248,.92),0 0 0 4px rgba(154,124,189,.44),0 18px 34px rgba(68,47,106,.25);
+    }
+
+    .gift-note::before{
+      content:"gift_note.txt";
+      position:absolute;
+      left:-1px;
+      right:-1px;
+      top:-1px;
+      height:32px;
+      display:flex;
+      align-items:center;
+      padding-left:13px;
+      border-radius:11px 11px 0 0;
+      color:#fff;
+      font-size:10px;
+      letter-spacing:.08em;
+      text-shadow:0 1px 0 rgba(117,78,142,.55);
+      background:linear-gradient(90deg,#ed96c7,#d5a8e3 52%,#a7c8e9);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.82),inset 0 -1px 0 rgba(126,95,177,.36);
+    }
+
+    .wish-line{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:7px;color:#69548c;font-size:13px;line-height:1.9;word-break:keep-all}
+    .wish-input{
+      width:min(42vw,145px);
+      height:40px;
+      border:1px solid rgba(185,151,204,.72);
+      border-radius:7px;
+      padding:0 7px;
+      outline:none;
+      color:#755576;
+      font-size:15px;
+      text-align:center;
+      background:rgba(255,255,255,.9);
+      box-shadow:inset 0 2px 5px rgba(105,75,140,.1),0 1px 0 #fff;
+      caret-color:#e765aa;
+    }
+    .wish-input:focus{border-color:#e866aa;box-shadow:0 0 0 2px rgba(232,102,170,.16),inset 0 2px 5px rgba(105,75,140,.1)}
+    .wish-kaomoji{display:block;margin-top:8px;color:#a477a5;font-size:12px}
+    .dialog-actions{display:flex;justify-content:center;gap:10px;margin-top:20px}
+    .dialog-actions button{min-height:44px;border:1px solid #baa1cf;border-radius:6px;padding:9px 13px;cursor:pointer;color:#655385;font-size:10px;letter-spacing:.04em;background:linear-gradient(180deg,#fff,#eee6f5);box-shadow:inset 0 1px 0 #fff,0 2px 0 rgba(123,94,157,.18)}
+    .dialog-actions .send{border-color:#bc82b2;color:#fff;text-shadow:0 1px 0 rgba(121,66,116,.58);background:linear-gradient(110deg,#eb8dc2,#d09bd8 55%,#9cc5e5)}
+    .dialog-actions button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(103,72,139,.18)}
+    .dialog-actions button:focus-visible{outline:2px solid #e768ae;outline-offset:2px}
+
+    .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+    @media (max-width:340px){
+      .machine-copy strong{font-size:8px}
+      .machine-copy span{font-size:7px}
+      .axis-label{font-size:7px;letter-spacing:.02em;text-indent:.02em}
+      .reel-name{font-size:8px}
+    }
+
+    @media (orientation:landscape) and (max-height:600px){
+      :root{--machine-width:min(100%,calc(67.45svh - 12px),520px)}
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+    }
+  </style>
+</head>
+<body>
+  <main class="gift-machine" id="giftMachine" aria-label="NULL 선물 슬롯머신">
+    <img class="machine-base" src="assets/gift-machine-frame.png" alt="" aria-hidden="true">
+    <div class="reel-bed" aria-hidden="true"></div>
+
+    <div class="lever-underlay" aria-hidden="true">
+      <span class="lever-rod-motion"><span class="lever-rod"></span></span>
+    </div>
+
+    <svg class="machine-shell" viewBox="0 0 1030 1527" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <mask id="machineCutouts" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1030" height="1527">
+          <rect width="1030" height="1527" fill="#fff"/>
+          <rect x="140" y="523" width="215" height="482" rx="18" fill="#000"/>
+          <rect x="397" y="523" width="215" height="482" rx="18" fill="#000"/>
+          <rect x="654" y="523" width="215" height="482" rx="18" fill="#000"/>
+          <rect x="947" y="698" width="12" height="374" rx="6" fill="#000"/>
+          <rect x="268" y="1293" width="478" height="78" rx="4" fill="#000"/>
+        </mask>
+      </defs>
+      <image href="assets/gift-machine-frame.png" width="1030" height="1527" mask="url(#machineCutouts)"/>
+    </svg>
+
+    <div class="machine-brand" aria-hidden="true">NULL GIFT MACHINE</div>
+
+    <header class="machine-copy">
+      <strong>선물은 What? 주인공은 Who? 장소는 Where?</strong>
+      <span>만나서 전해봐요! ˚₊·ଘ(っ≧∀≦)っ˚₊·♡</span>
+    </header>
+
+    <div class="axis-labels">
+      <span class="axis-label" id="whatLabel">WHAT?</span>
+      <span class="axis-label" id="whoLabel">WHO?</span>
+      <span class="axis-label" id="whereLabel">WHERE?</span>
+    </div>
+
+    <span class="swipe-copy">SWIPE 2 PICK <b>(˶ᵔ ᵕ ᵔ˶)</b></span>
+
+    <div class="selection-band" aria-hidden="true"></div>
+
+    <section class="reels-layer" id="reels" aria-label="선물 조합 선택"></section>
+
+    <button class="lever-hit" id="lever" type="button" aria-label="레버를 당기거나 눌러 선물 포장하기">
+      <span class="lever-motion" aria-hidden="true">
+        <span class="lever-orb"></span>
+      </span>
+    </button>
+
+    <button class="wrap-button" id="wrapButton" type="button"><span class="wrap-face">TAP TO WRAP</span></button>
+
+    <section class="result-tray" id="resultTray" aria-label="포장 결과"></section>
+
+    <p class="sr-only" id="selectionStatus" aria-live="polite"></p>
+  </main>
+
+  <dialog class="gift-dialog" id="giftDialog" aria-labelledby="giftNoteTitle">
+    <form class="gift-note" id="giftForm" method="dialog">
+      <h2 class="sr-only" id="giftNoteTitle">선물 쪽지</h2>
+      <label class="wish-line" for="wishInput">
+        <span>이걸 받고</span>
+        <input class="wish-input" id="wishInput" maxlength="24" autocomplete="off" aria-label="선물을 받고 바라는 것">
+        <span>면 좋겠어!</span>
+      </label>
+      <span class="wish-kaomoji">(*ˊᵕˋ*)੭ ੈ 💝</span>
+      <div class="dialog-actions">
+        <button id="pickAgain" type="button">PICK AGAIN</button>
+        <button class="send" id="sendGift" type="submit" value="send">SEND ♡</button>
+      </div>
+    </form>
+  </dialog>
+
+  <p class="sr-only" id="actionStatus" aria-live="polite"></p>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const REEL_COPIES = 11;
+      const REEL_CENTER_COPY = Math.floor(REEL_COPIES / 2);
+
+      const reelDefinitions = [
+        {
+          kind: "item",
+          label: "WHAT?",
+          labelId: "whatLabel",
+          initial: 7,
+          values: [
+            {name:"회색 머그컵",detail:"♡ 2",img:"assets/gicon-mug.webp"},
+            {name:"사진집",detail:"♡ 5",img:"assets/gicon-photobook.webp"},
+            {name:"남색 비니",detail:"♡ 3",img:"assets/gicon-beanie.webp"},
+            {name:"유선 이어폰",detail:"♡ 4",img:"assets/gicon-earphone.webp"},
+            {name:"핫팩",detail:"♡ 1",img:"assets/gicon-hotpack.webp"},
+            {name:"접이식 우산",detail:"♡ 3",img:"assets/gicon-umbrella.webp"},
+            {name:"손수건",detail:"♡ 2",img:"assets/gicon-hanky.webp"},
+            {name:"필름 카메라",detail:"♡ 6",img:"assets/gicon-camera.webp"},
+            {name:"목도리",detail:"♡ 4",img:"assets/gicon-scarf.webp"},
+            {name:"장갑",detail:"♡ 3",img:"assets/gicon-gloves.webp"},
+            {name:"파란 반다나",detail:"♡ 2",img:"assets/gicon-bandana.webp"},
+            {name:"목캔디",detail:"♡ 1",img:"assets/gicon-candy.webp"},
+            {name:"컵라면",detail:"♡ 1",img:"assets/gicon-ramen.webp"},
+            {name:"드립백 커피",detail:"♡ 2",img:"assets/gicon-coffee.webp"},
+            {name:"편지지",detail:"♡ 2",img:"assets/gicon-letter.webp"},
+            {name:"믹스 CD",detail:"♡ 3",img:"assets/gicon-mixcd.webp"}
+          ]
+        },
+        {
+          kind: "person",
+          label: "WHO?",
+          labelId: "whoLabel",
+          initial: 1,
+          values: [
+            {name:"이재언",detail:"보건교사 · 29",img:"assets/jaeeon-profile.webp"},
+            {name:"이민현",detail:"3학년 · 20",img:"assets/minhyun-profile.webp"}
+          ]
+        },
+        {
+          kind: "place",
+          label: "WHERE?",
+          labelId: "whereLabel",
+          initial: 6,
+          values: [
+            {name:"교실",detail:"SCHOOL",img:"assets/location-class.webp"},
+            {name:"보건실",detail:"NURSE",img:"assets/location-nurse.webp"},
+            {name:"옥상",detail:"ROOFTOP",img:"assets/location-rooftop.webp"},
+            {name:"편의점",detail:"STORE",img:"assets/location-conv.webp"},
+            {name:"도서관",detail:"LIBRARY",img:"assets/location-library.webp"},
+            {name:"레코드샵",detail:"RECORD",img:"assets/location-record.webp"},
+            {name:"코인세탁소",detail:"LAUNDRY",img:"assets/location-laundry.webp"},
+            {name:"집",detail:"HOME",img:"assets/location-home.webp"},
+            {name:"체육관",detail:"GYM",img:"assets/location-gym.webp"}
+          ]
+        }
+      ];
+
+      const machineElement = document.getElementById("giftMachine");
+      const reelsElement = document.getElementById("reels");
+      const selectionStatus = document.getElementById("selectionStatus");
+      const actionStatus = document.getElementById("actionStatus");
+      const lever = document.getElementById("lever");
+      const leverMotion = lever.querySelector(".lever-motion");
+      const wrapButton = document.getElementById("wrapButton");
+      const resultTray = document.getElementById("resultTray");
+      const giftDialog = document.getElementById("giftDialog");
+      const giftForm = document.getElementById("giftForm");
+      const wishInput = document.getElementById("wishInput");
+      const pickAgain = document.getElementById("pickAgain");
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+      const machine = {
+        phase: "idle",
+        draft: null,
+        invoker: wrapButton,
+        pendingWrap: null
+      };
+
+      const reelStates = reelDefinitions.map(createReel);
+
+      function modulo(value, length) {
+        return ((value % length) + length) % length;
+      }
+
+      function centerVirtualIndex(state) {
+        return REEL_CENTER_COPY * state.definition.values.length + state.index;
+      }
+
+      function createReel(definition) {
+        const windowElement = document.createElement("div");
+        const track = document.createElement("div");
+        const length = definition.values.length;
+        const state = {
+          definition,
+          windowElement,
+          track,
+          index: definition.initial,
+          virtualIndex: REEL_CENTER_COPY * length + definition.initial,
+          rowHeight: 0,
+          dragY: 0,
+          animating: false,
+          layoutPending: false,
+          pointer: null,
+          wheelSum: 0,
+          wheelBurstActive: false,
+          wheelTimer: 0
+        };
+
+        windowElement.className = "reel-window";
+        windowElement.dataset.kind = definition.kind;
+        windowElement.tabIndex = 0;
+        windowElement.setAttribute("role", "spinbutton");
+        windowElement.setAttribute("aria-labelledby", definition.labelId);
+        windowElement.setAttribute("aria-orientation", "vertical");
+        windowElement.setAttribute("aria-valuemin", "1");
+        windowElement.setAttribute("aria-valuemax", String(length));
+        windowElement.setAttribute("aria-keyshortcuts", "ArrowUp ArrowDown ArrowLeft ArrowRight Home End");
+
+        track.className = "reel-track";
+        for (let copy = 0; copy < REEL_COPIES; copy += 1) {
+          definition.values.forEach((value) => {
+            track.append(createCard(definition.kind, value));
+          });
+        }
+        windowElement.append(track);
+        reelsElement.append(windowElement);
+        refreshA11y(state);
+        markVisibleCards(state);
+        bindReelEvents(state);
+        return state;
+      }
+
+      function createCard(kind, value) {
+        const card = document.createElement("div");
+        const image = document.createElement("img");
+        const name = document.createElement("span");
+        const detail = document.createElement("span");
+
+        card.className = "reel-card";
+        card.setAttribute("aria-hidden", "true");
+        image.src = value.img;
+        image.alt = "";
+        image.draggable = false;
+        name.className = "reel-name";
+        name.textContent = value.name;
+        detail.className = "reel-detail";
+        detail.textContent = value.detail;
+
+        if (kind === "person") {
+          const crop = document.createElement("span");
+          crop.className = "portrait-crop";
+          crop.append(image);
+          card.append(crop, name, detail);
+        } else if (kind === "place") {
+          const crop = document.createElement("span");
+          crop.className = "place-crop";
+          crop.append(image);
+          card.append(crop, name, detail);
+        } else {
+          image.className = "reel-art";
+          card.append(image, name, detail);
+        }
+        return card;
+      }
+
+      function refreshA11y(state) {
+        const value = state.definition.values[state.index];
+        state.windowElement.setAttribute("aria-valuenow", String(state.index + 1));
+        state.windowElement.setAttribute("aria-valuetext", `${value.name}, ${value.detail}`);
+      }
+
+      function updateLayout(state) {
+        if (state.animating) {
+          state.layoutPending = true;
+          return;
+        }
+        const height = state.windowElement.clientHeight;
+        if (!height) return;
+        state.rowHeight = height / 3;
+        state.windowElement.style.setProperty("--row-height", `${state.rowHeight}px`);
+        setTrackPosition(state, false);
+      }
+
+      function trackOffset(state) {
+        return state.windowElement.clientHeight / 2 - state.rowHeight / 2 - state.virtualIndex * state.rowHeight + state.dragY;
+      }
+
+      function setTrackPosition(state, animate) {
+        state.track.classList.toggle("is-animating", Boolean(animate));
+        state.track.style.transform = `translate3d(0,${trackOffset(state)}px,0)`;
+      }
+
+      function markVisibleCards(state) {
+        [...state.track.children].forEach((card, index) => {
+          const distance = index - state.virtualIndex;
+          if (distance >= -1 && distance <= 1) card.dataset.distance = String(distance);
+          else card.removeAttribute("data-distance");
+        });
+      }
+
+      function normalizeVirtualIndex(state) {
+        state.virtualIndex = centerVirtualIndex(state);
+        state.track.classList.remove("is-animating", "is-returning", "is-spinning");
+        markVisibleCards(state);
+        setTrackPosition(state, false);
+      }
+
+      function canAdjust(state) {
+        return machine.phase === "idle" && !machine.pendingWrap && !state.animating && !state.pointer;
+      }
+
+      function reelsBusy() {
+        return reelStates.some((state) => state.animating || state.pointer);
+      }
+
+      function moveReel(state, direction) {
+        if (!canAdjust(state) || !direction) return false;
+        state.animating = true;
+        state.track.classList.remove("is-returning");
+        state.track.classList.add("is-animating");
+        state.track.getBoundingClientRect();
+        state.virtualIndex += direction;
+        state.index = modulo(state.index + direction, state.definition.values.length);
+        state.dragY = 0;
+        markVisibleCards(state);
+        refreshA11y(state);
+        setTrackPosition(state, true);
+
+        waitForTransition(state.track, reducedMotion.matches ? 30 : 430).then(() => {
+          normalizeVirtualIndex(state);
+          state.animating = false;
+          if (state.layoutPending) {
+            state.layoutPending = false;
+            updateLayout(state);
+          }
+          announceSelection(state);
+          flushPendingWrap();
+        });
+        return true;
+      }
+
+      function jumpReel(state, index) {
+        if (!canAdjust(state) || state.index === index) return false;
+        state.index = index;
+        state.virtualIndex = centerVirtualIndex(state);
+        state.dragY = 0;
+        markVisibleCards(state);
+        refreshA11y(state);
+        setTrackPosition(state, false);
+        announceSelection(state);
+        return true;
+      }
+
+      function announceSelection(state) {
+        const value = state.definition.values[state.index];
+        selectionStatus.textContent = `${state.definition.label} ${value.name} 선택`;
+      }
+
+      function bindReelEvents(state) {
+        const element = state.windowElement;
+
+        element.addEventListener("pointerdown", (event) => {
+          if (!canAdjust(state) || (event.pointerType === "mouse" && event.button !== 0)) return;
+          state.pointer = {
+            id: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            lastX: event.clientX,
+            lastY: event.clientY
+          };
+          try { element.setPointerCapture(event.pointerId); } catch (_) {}
+        });
+
+        element.addEventListener("pointermove", (event) => {
+          const pointer = state.pointer;
+          if (!pointer || pointer.id !== event.pointerId || state.animating) return;
+          pointer.lastX = event.clientX;
+          pointer.lastY = event.clientY;
+          const dx = event.clientX - pointer.startX;
+          const dy = event.clientY - pointer.startY;
+          if (Math.abs(dy) > 4 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+            state.dragY = Math.max(-state.rowHeight * .9, Math.min(state.rowHeight * .9, dy));
+            setTrackPosition(state, false);
+            event.preventDefault();
+          }
+        });
+
+        element.addEventListener("pointerup", (event) => finishReelPointer(state, event, false));
+        element.addEventListener("pointercancel", (event) => finishReelPointer(state, event, true));
+        element.addEventListener("lostpointercapture", (event) => {
+          if (state.pointer && state.pointer.id === event.pointerId) finishReelPointer(state, event, true);
+        });
+
+        element.addEventListener("wheel", (event) => {
+          if (event.ctrlKey || !event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+          if (state.wheelBurstActive) {
+            event.preventDefault();
+            window.clearTimeout(state.wheelTimer);
+            state.wheelTimer = window.setTimeout(() => {
+              state.wheelBurstActive = false;
+              state.wheelSum = 0;
+            }, 160);
+            return;
+          }
+          if (!canAdjust(state)) return;
+          event.preventDefault();
+          const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1;
+          state.wheelSum += event.deltaY * multiplier;
+          window.clearTimeout(state.wheelTimer);
+          state.wheelTimer = window.setTimeout(() => { state.wheelSum = 0; }, 150);
+          if (Math.abs(state.wheelSum) >= 28) {
+            const accepted = moveReel(state, state.wheelSum > 0 ? 1 : -1);
+            state.wheelSum = 0;
+            if (accepted) {
+              state.wheelBurstActive = true;
+              window.clearTimeout(state.wheelTimer);
+              state.wheelTimer = window.setTimeout(() => { state.wheelBurstActive = false; }, 160);
+            }
+          }
+        }, {passive:false});
+
+        element.addEventListener("keydown", (event) => {
+          let accepted = false;
+          const handled = ["ArrowDown","ArrowRight","ArrowUp","ArrowLeft","Home","End"].includes(event.key);
+          if (event.key === "ArrowDown" || event.key === "ArrowRight") accepted = moveReel(state, 1);
+          else if (event.key === "ArrowUp" || event.key === "ArrowLeft") accepted = moveReel(state, -1);
+          else if (event.key === "Home") accepted = jumpReel(state, 0);
+          else if (event.key === "End") accepted = jumpReel(state, state.definition.values.length - 1);
+          if (handled) event.preventDefault();
+        });
+      }
+
+      function finishReelPointer(state, event, cancelled) {
+        const pointer = state.pointer;
+        if (!pointer || pointer.id !== event.pointerId) return;
+        const endX = cancelled ? pointer.lastX : event.clientX;
+        const endY = cancelled ? pointer.lastY : event.clientY;
+        const dx = endX - pointer.startX;
+        const dy = endY - pointer.startY;
+        const distance = Math.hypot(dx, dy);
+        state.pointer = null;
+        try { state.windowElement.releasePointerCapture(event.pointerId); } catch (_) {}
+
+        if (!cancelled && Math.abs(dy) >= 22 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+          if (!moveReel(state, dy < 0 ? 1 : -1)) flushPendingWrap();
+          return;
+        }
+
+        if (!cancelled && distance < 9) {
+          const rect = state.windowElement.getBoundingClientRect();
+          const localY = event.clientY - rect.top;
+          if (localY < rect.height / 3) {
+            if (!moveReel(state, -1)) flushPendingWrap();
+            return;
+          }
+          if (localY > rect.height * 2 / 3) {
+            if (!moveReel(state, 1)) flushPendingWrap();
+            return;
+          }
+        }
+
+        state.dragY = 0;
+        state.track.classList.add("is-returning");
+        setTrackPosition(state, false);
+        window.setTimeout(() => {
+          state.track.classList.remove("is-returning");
+          flushPendingWrap();
+        }, reducedMotion.matches ? 20 : 240);
+      }
+
+      function waitForTransition(element, fallbackMs) {
+        return new Promise((resolve) => {
+          let finished = false;
+          const finish = () => {
+            if (finished) return;
+            finished = true;
+            element.removeEventListener("transitionend", onEnd);
+            element.removeEventListener("transitioncancel", onCancel);
+            window.clearTimeout(timer);
+            resolve();
+          };
+          const onEnd = (event) => {
+            if (event.target === element && event.propertyName === "transform") finish();
+          };
+          const onCancel = (event) => {
+            if (event.target === element && event.propertyName === "transform") finish();
+          };
+          const timer = window.setTimeout(finish, fallbackMs);
+          element.addEventListener("transitionend", onEnd);
+          element.addEventListener("transitioncancel", onCancel);
+        });
+      }
+
+      function wait(ms) {
+        return new Promise((resolve) => window.setTimeout(resolve, ms));
+      }
+
+      function animateTrack(state, targetVirtualIndex, duration) {
+        const startVirtualIndex = state.virtualIndex;
+        const startY = trackOffset(state);
+        state.virtualIndex = targetVirtualIndex;
+        const endY = trackOffset(state);
+        state.virtualIndex = startVirtualIndex;
+
+        return new Promise((resolve) => {
+          let startedAt = null;
+          const frame = (timestamp) => {
+            if (startedAt === null) startedAt = timestamp;
+            const progress = Math.min(1, (timestamp - startedAt) / duration);
+            const eased = 1 - Math.pow(1 - progress, 4);
+            const y = startY + (endY - startY) * eased;
+            state.track.style.transform = `translate3d(0,${y}px,0)`;
+
+            if (progress < 1) window.requestAnimationFrame(frame);
+            else {
+              state.virtualIndex = targetVirtualIndex;
+              resolve();
+            }
+          };
+          window.requestAnimationFrame(frame);
+        });
+      }
+
+      async function spinReel(state, turns, duration) {
+        state.animating = true;
+        state.dragY = 0;
+        state.track.classList.remove("is-animating", "is-returning");
+        state.track.classList.add("is-spinning");
+        const targetVirtualIndex = state.virtualIndex + state.definition.values.length * turns;
+
+        await animateTrack(state, targetVirtualIndex, duration);
+
+        state.track.classList.remove("is-spinning");
+        state.virtualIndex = centerVirtualIndex(state);
+        markVisibleCards(state);
+        setTrackPosition(state, false);
+        state.animating = false;
+        if (state.layoutPending) {
+          state.layoutPending = false;
+          updateLayout(state);
+        }
+        refreshA11y(state);
+        const value = state.definition.values[state.index];
+        selectionStatus.textContent = `${state.definition.label} ${value.name} 정지`;
+      }
+
+      async function spinAllReels() {
+        reelStates.forEach(updateLayout);
+        machineElement.classList.add("is-spinning");
+        selectionStatus.textContent = "WHAT · WHO · WHERE 릴 회전 중";
+        const plans = reducedMotion.matches
+          ? [[1, 520], [2, 650], [1, 780]]
+          : [[2, 1050], [4, 1270], [3, 1490]];
+
+        try {
+          await Promise.all(reelStates.map((state, index) => {
+            const [turns, duration] = plans[index];
+            return spinReel(state, turns, duration);
+          }));
+        } finally {
+          machineElement.classList.remove("is-spinning");
+        }
+      }
+
+      function currentSelection() {
+        return Object.fromEntries(reelStates.map((state) => [state.definition.kind, state.definition.values[state.index]]));
+      }
+
+      let leverPointer = null;
+      let suppressLeverClick = false;
+      let leverSuppressTimer = 0;
+
+      function leverTravel() {
+        return lever.clientHeight * .734;
+      }
+
+      function setLeverPosition(pixels) {
+        machineElement.style.setProperty("--lever-drag", `${Math.max(0, Math.min(leverTravel(), pixels))}px`);
+      }
+
+      lever.addEventListener("pointerdown", (event) => {
+        if (!event.isPrimary || leverPointer || machine.phase !== "idle" || reelsBusy() || (event.pointerType === "mouse" && event.button !== 0)) return;
+        leverPointer = {id:event.pointerId,startY:event.clientY,lastY:event.clientY,moved:0};
+        lever.classList.add("is-dragging");
+        machineElement.classList.add("is-lever-dragging");
+        try { lever.setPointerCapture(event.pointerId); } catch (_) {}
+        event.preventDefault();
+      });
+
+      lever.addEventListener("pointermove", (event) => {
+        if (!leverPointer || leverPointer.id !== event.pointerId) return;
+        leverPointer.lastY = event.clientY;
+        leverPointer.moved = Math.max(leverPointer.moved, Math.abs(event.clientY - leverPointer.startY));
+        setLeverPosition(event.clientY - leverPointer.startY);
+        event.preventDefault();
+      });
+
+      lever.addEventListener("pointerup", (event) => finishLeverPointer(event, false));
+      lever.addEventListener("pointercancel", (event) => finishLeverPointer(event, true));
+      lever.addEventListener("lostpointercapture", (event) => {
+        if (leverPointer && leverPointer.id === event.pointerId) finishLeverPointer(event, true);
+      });
+
+      function finishLeverPointer(event, cancelled) {
+        if (!leverPointer || leverPointer.id !== event.pointerId) return;
+        const pointer = leverPointer;
+        const endY = cancelled ? pointer.lastY : event.clientY;
+        const distance = Math.max(0, endY - pointer.startY);
+        leverPointer = null;
+        lever.classList.remove("is-dragging");
+        machineElement.classList.remove("is-lever-dragging");
+        try { lever.releasePointerCapture(event.pointerId); } catch (_) {}
+        window.clearTimeout(leverSuppressTimer);
+        suppressLeverClick = !cancelled && pointer.moved > 8;
+        if (suppressLeverClick) {
+          leverSuppressTimer = window.setTimeout(() => { suppressLeverClick = false; }, 500);
+        }
+        if (!cancelled && distance >= leverTravel() * .55) {
+          if (!startWrap(lever, distance)) setLeverPosition(0);
+        } else setLeverPosition(0);
+      }
+
+      lever.addEventListener("click", (event) => {
+        if (suppressLeverClick && event.detail !== 0) {
+          suppressLeverClick = false;
+          window.clearTimeout(leverSuppressTimer);
+          event.preventDefault();
+          return;
+        }
+        suppressLeverClick = false;
+        window.clearTimeout(leverSuppressTimer);
+        startWrap(lever, 0);
+      });
+
+      wrapButton.addEventListener("click", () => startWrap(wrapButton, 0));
+
+      function startWrap(invoker, currentLeverPosition) {
+        if (machine.phase !== "idle") {
+          setLeverPosition(0);
+          return false;
+        }
+        if (machine.pendingWrap) {
+          setLeverPosition(0);
+          return true;
+        }
+        if (reelsBusy()) {
+          machine.pendingWrap = {invoker,currentLeverPosition:0};
+          setLeverPosition(0);
+          lever.disabled = true;
+          wrapButton.disabled = true;
+          return true;
+        }
+        void runWrap(invoker, currentLeverPosition).catch((error) => {
+          actionStatus.textContent = "선물 포장에 실패했어";
+          console.error(error);
+        });
+        return true;
+      }
+
+      function flushPendingWrap() {
+        if (!machine.pendingWrap || machine.phase !== "idle" || reelsBusy()) return;
+        const pending = machine.pendingWrap;
+        machine.pendingWrap = null;
+        void runWrap(pending.invoker, pending.currentLeverPosition).catch((error) => {
+          actionStatus.textContent = "선물 포장에 실패했어";
+          console.error(error);
+        });
+      }
+
+      async function runWrap(invoker, currentLeverPosition) {
+        machine.phase = "wrapping";
+        machine.draft = currentSelection();
+        machine.invoker = invoker;
+        machineElement.setAttribute("aria-busy", "true");
+        lever.disabled = true;
+        wrapButton.disabled = true;
+        reelStates.forEach((state) => state.windowElement.setAttribute("aria-disabled", "true"));
+
+        try {
+          const travel = leverTravel();
+          if (currentLeverPosition < travel * .95) {
+            setLeverPosition(travel);
+            await waitForTransition(leverMotion, reducedMotion.matches ? 25 : 340);
+          }
+
+          const reelSpin = spinAllReels();
+          setLeverPosition(0);
+          await Promise.all([
+            reelSpin,
+            waitForTransition(leverMotion, reducedMotion.matches ? 25 : 340)
+          ]);
+          await wait(reducedMotion.matches ? 100 : 220);
+          openGiftDialog();
+        } catch (error) {
+          resetAfterWrap();
+          throw error;
+        }
+      }
+
+      function openGiftDialog() {
+        wishInput.value = "";
+        machine.phase = "dialog";
+        if (typeof giftDialog.showModal === "function") giftDialog.showModal();
+        else giftDialog.setAttribute("open", "");
+        window.requestAnimationFrame(() => wishInput.focus({preventScroll:true}));
+      }
+
+      giftForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        renderWrappedGift(machine.draft, wishInput.value.trim());
+        closeGiftDialog("send");
+      });
+
+      pickAgain.addEventListener("click", () => closeGiftDialog("again"));
+      giftDialog.addEventListener("close", resetAfterWrap);
+      giftDialog.addEventListener("click", (event) => {
+        if (event.target !== giftDialog) return;
+        const rect = giftForm.getBoundingClientRect();
+        const outside = event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+        if (outside) closeGiftDialog("backdrop");
+      });
+
+      function closeGiftDialog(reason) {
+        if (giftDialog.open && typeof giftDialog.close === "function") giftDialog.close(reason);
+        else {
+          giftDialog.removeAttribute("open");
+          resetAfterWrap();
+        }
+      }
+
+      function resetAfterWrap() {
+        machine.phase = "idle";
+        machine.pendingWrap = null;
+        machineElement.removeAttribute("aria-busy");
+        lever.disabled = false;
+        wrapButton.disabled = false;
+        reelStates.forEach((state) => state.windowElement.removeAttribute("aria-disabled"));
+        const invoker = machine.invoker;
+        machine.draft = null;
+        if (invoker && document.contains(invoker)) invoker.focus({preventScroll:true});
+      }
+
+      function renderWrappedGift(selection, wish) {
+        const wrapper = document.createElement("div");
+        const image = document.createElement("img");
+        wrapper.className = "wrapped-gift";
+        wrapper.setAttribute("aria-hidden", "true");
+        image.src = selection.item.img;
+        image.alt = "";
+        wrapper.append(image);
+        resultTray.replaceChildren(wrapper);
+        const announcement = wish
+          ? `${selection.person.name}에게 ${selection.place.name}에서 전할 ${selection.item.name} 포장 완료, 바라는 것 ${wish}`
+          : `${selection.person.name}에게 ${selection.place.name}에서 전할 ${selection.item.name} 포장 완료`;
+        actionStatus.textContent = announcement;
+      }
+
+      function layoutAllReels() {
+        reelStates.forEach(updateLayout);
+      }
+
+      const resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(layoutAllReels) : null;
+      if (resizeObserver) resizeObserver.observe(machineElement);
+      window.addEventListener("resize", layoutAllReels, {passive:true});
+      window.requestAnimationFrame(layoutAllReels);
+    })();
+  </script>
+</body>
+</html>
