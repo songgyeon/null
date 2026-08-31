@@ -1055,3 +1055,7 @@
 /* v257 — 채팅 본문은 모나12. 사진 말풍선의 딸린 글도 같은 본문이다. */
 .chatwrap .bubble,
 .chatwrap .bubble.photo .cap{font-family:"Mona12","Galmuri11",monospace}
+
+/* v258 — 창 이름은 물마루. NULL messenger·NULL.exe·재언.hompy가 다
+   같은 .ewindowtitle 한 자리라 창틀 글씨가 한 결로 간다. */
+.glasswindow>.ewindowtitle{font-family:"Mulmaru","Galmuri11",sans-serif}
