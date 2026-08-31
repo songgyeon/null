@@ -1,8 +1,20 @@
 /* NULL CSS · 화면 바탕, 창틀, 메뉴, 공용 다이얼로그
-   파일 순서는 null.css에서 관리한다. */
+   파일 순서는 index.html에서 관리한다. */
 
 /* ── Y2K 파스텔 OS 팔레트 ──
    잉크 #4a4276 · 보더 #5d5490/#8a7fc0/#b0a6d8 · 크롬 #dcd6f2 · 핑크 #ff9ec6 · 라벤더 #c3b2f0 */
+/* ── 글꼴 ──
+   Galmuri는 CDN에서 오고, 아래 둘은 저장소가 직접 들고 있다.
+   swap이라 글꼴이 늦게 와도 글자는 먼저 뜬다 — 안 그러면 메뉴가 잠깐 빈다.
+   모나12는 한글 39,803자를 다 들고 있어서 woff2로 눌러도 1.2MB다.
+   대신 채팅 어느 글자에서도 다른 글꼴로 새지 않는다. */
+@font-face{font-family:"Departure Mono";
+ src:url("../assets/fonts/DepartureMono-Regular.woff") format("woff");
+ font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Mona12";
+ src:url("../assets/fonts/Mona12.woff2") format("woff2");
+ font-weight:400;font-style:normal;font-display:swap}
+
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 /* 바탕은 body에만 깐다. 전에는 html·body에 같이 깔아놓고 바로 다음 줄에서
