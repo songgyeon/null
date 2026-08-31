@@ -294,8 +294,15 @@ const PROBE = { ...BASE,
 
 /* ══════════ 6. 설정 표류 — 하네스가 실사용과 같은 창을 본다 ══════════ */
 {
-  const app = readFileSync(join(ROOT, "app.js"), "utf8");
-  const n = re => Number((app.match(re) || [])[1]);
+  /* 상수는 orchestration이 들고 있다. app.js는 마운트만 하는 진입점이라
+     거기서 찾으면 늘 못 찾고, 못 찾은 값은 조용히 null이 되어 통과한다 —
+     그래서 찾았는지를 먼저 묻는다. */
+  const app = readFileSync(join(ROOT, "scripts/game.js"), "utf8");
+  const n = re => {
+    const m = app.match(re);
+    if (!m) throw new Error("설정을 못 찾았다 — " + re);
+    return Number(m[1]);
+  };
   eq("재생의 원문 창이 클라이언트와 같다", RP.HISTORY_CHARS, n(/const HISTORY_CHARS=(\d+);/));
   eq("요약 문턱도 같다", [RP.SUM_AT, RP.TAIL_KEEP],
     [n(/const SUM_AT=(\d+), TAIL_KEEP=\d+;/), n(/const SUM_AT=\d+, TAIL_KEEP=(\d+);/)]);

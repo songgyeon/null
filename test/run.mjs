@@ -313,9 +313,9 @@ const CSS_FILES = [
    해석한 루트 기준 경로를 검사하므로 읽을 때만 그 한 단계를 정규화한다. */
 const readCss = () => CSS_FILES.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n')
   .replaceAll('url("../', 'url("').replaceAll("url('../", "url('");
-const APP_FILES = ['index.html', 'null.css', ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'];
+const APP_FILES = ['index.html', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'];
 const web = [readFileSync(join(ROOT, 'index.html'), 'utf8'), readCss(),
-  ...APP_FILES.slice(2).map(f => readFileSync(join(ROOT, f), 'utf8'))].join('\n');
+  ...APP_FILES.slice(1 + CSS_FILES.length).map(f => readFileSync(join(ROOT, f), 'utf8'))].join('\n');
 const app = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
 const pick = (src, re) => [...src.matchAll(re)].map(m => m[1]);
 
@@ -2347,7 +2347,7 @@ eq('첫날 읽는 법을 슬롯에 적어둔다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
   return /「오늘 처음 만났다」고 적혀 있으면 그 앞에 쌓인 것이 하나도 없다는 뜻이다/.test(wk);
 })(), true);
-/* 열쇠는 규칙 파일이 들고 있다 — 웹은 app-data.js, 앱은 rules.ts. 둘은 같은
+/* 열쇠는 규칙 파일이 들고 있다 — 웹은 scripts/data/*.js, 앱은 rules.ts. 둘은 같은
    글에서 만들어지므로 열쇠가 어긋날 수가 없다. 화면(App.tsx)이 저장소에
    직접 쓰던 자리가 하나 있었는데, 그건 규칙 파일이 읽는 사본을 안 건드려서
    같은 판 안에서는 안 보였다 — 걷어내고 saveMet/saveRefused로 모았다. */
@@ -4359,7 +4359,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     let derr = '';
     try { parse(webData, { sourceType: 'script' }); }
     catch (e) { derr = e.message; }
-    eq('app-data.js에는 JSX가 안 섞였다', derr, '');
+    eq('규칙 파일에는 JSX가 안 섞였다', derr, '');
   }
 }
 
@@ -4369,11 +4369,16 @@ eq('앱도 같은 열쇠 자리를 본다',
 {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
   eq('갈라진 파일이 전부 있다', APP_FILES.filter(f => !exists(f)), []);
+  /* 판 번호는 여기서 한 번만 읽는다. 시험마다 숫자를 박아두면 번호를 올릴
+     때마다 상관없는 시험이 함께 깨지고, 그걸 손으로 맞추다 진짜 깨진 것을
+     지나친다 — 못박는 자리는 아래 「판 번호가 지금 내용의 것이다」 하나다. */
+  const VER = (html.match(/href="styles\/00-shell\.css\?v=(\d+)"/) || [])[1];
+  eq('스타일에서 판 번호를 읽었다', !!VER, true);
   /* 뼈대 + 뜨기 전에 끝나야 하는 것 하나(이야기 비우기)까지다. 리액트가
      뜬 뒤에 해도 되는 일이 여기 들어오기 시작하면 다시 3,500줄이 된다 */
   eq('index.html은 뼈대만 남았다', html.split('\n').length < 110, true);
   eq('index.html에 화면이 없다', /React|useState|className/.test(html), false);
-  const order = ['null.css', WEB_DATA_FILES[0], WEB_UI_FILES[0], 'scripts/game.js', 'app.js']
+  const order = [CSS_FILES[0], WEB_DATA_FILES[0], WEB_UI_FILES[0], 'scripts/game.js', 'app.js']
     .map(f => html.indexOf(f));
   eq('싣는 차례가 데이터 → 화면 → 앱이다',
     order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), true);
@@ -4382,8 +4387,8 @@ eq('앱도 같은 열쇠 자리를 본다',
      올렸는데 CSS에만 번호가 없어서 그대로 넘쳤다 — 화면으로는 배포가 된 것처럼
      보이고 사람은 안 고쳐졌다고 한다. 모든 파일이 같은 번호여야 한다 */
   {
-    const v = [...html.matchAll(/(?:href|src)="(?:null\.css|scripts\/[^"]+\.js|app\.js)\?v=(\d+)"/g)];
-    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, 15);
+    const v = [...html.matchAll(/(?:href|src)="(?:styles\/[^"]+\.css|scripts\/[^"]+\.js|app\.js)\?v=(\d+)"/g)];
+    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, CSS_FILES.length + WEB_DATA_FILES.length + WEB_UI_FILES.length + 2);
     eq('모든 웹 스크립트가 같은 판이다', new Set(v.map(m => m[1])).size, 1);
     /* 번호가 붙어 있는 것만으로는 모자랐다. 넷을 고쳐놓고 번호를 안 올려서
        올라간 건 새것인데 사람 화면에는 옛것이 그대로 떴다 — 배포는 됐고
@@ -4394,11 +4399,13 @@ eq('앱도 같은 열쇠 자리를 본다',
          해시만 새로 맞추면 시험은 다시 통과하는데 배포된 번호가 그대로라
          사람 화면에는 옛 파일이 남는다 — 실제로 그렇게 한 번 놓쳤다.
          순서: index.html ?v= 올리기 → data/20-content의 AV 같은 번호로 → 해시 */
+    /* CSS도 index.html이 직접 부른다. 예전엔 null.css가 @import로 감싸서
+       번호가 두 층이었고, 안쪽을 안 올려 옛 CSS가 그대로 남은 적이 있다. */
     const seal = createHash('sha256');
-    for (const f of ['null.css', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
+    for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['252', 'd4bf8e1bcc35']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['253', 'f24c41fdf711']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4406,10 +4413,16 @@ eq('앱도 같은 열쇠 자리를 본다',
       new RegExp('const AV="\\?v=' + v[0][1] + '";').test(web), true);
   }
   eq('데이터는 바벨을 안 탄다', WEB_DATA_FILES.every(f =>
-    html.includes(`<script src="${f}?v=252"></script>`)), true);
+    html.includes(`<script src="${f}?v=${VER}"></script>`)), true);
   eq('화면과 앱은 바벨을 탄다',
     [...WEB_UI_FILES, 'scripts/game.js', 'app.js'].every(f =>
-      html.includes(`<script type="text/babel" src="${f}?v=252"></script>`)), true);
+      html.includes(`<script type="text/babel" src="${f}?v=${VER}"></script>`)), true);
+  /* 스타일도 index.html이 직접 부른다 — 목록과 차례가 여기와 같아야 한다 */
+  eq('스타일 일곱을 순서대로 직접 부른다',
+    CSS_FILES.map(f => html.indexOf(`<link rel="stylesheet" href="${f}?v=${VER}">`)),
+    CSS_FILES.map(f => html.indexOf(`<link rel="stylesheet" href="${f}?v=${VER}">`))
+      .map((x, i, all) => x > 0 && (i === 0 || x > all[i - 1]) ? x : -1));
+  eq('CSS를 @import로 감싸지 않는다', /@import/.test(readCss()), false);
   /* 지우고 다시 여는 표식은 리액트가 뜨기 전에 읽혀야 한다 */
   eq('비우는 자리가 화면보다 앞이다', html.indexOf('null_wipe') < html.indexOf(WEB_DATA_FILES[0]), true);
 }
@@ -4908,7 +4921,7 @@ eq('app.js가 남의 상태를 부르지 않는다', (() => {
     'setMinutes', 'setSeconds', 'setMonth', 'setFullYear', 'setTime']);
   for (const m of appSrc2.matchAll(/const\s*\[\s*\w+\s*,\s*(\w+)\s*\]\s*=\s*useState/g)) mine.add(m[1]);
   for (const m of appSrc2.matchAll(/(?:const|let|function)\s+(\w+)/g)) mine.add(m[1]);
-  /* 전역 — app-data와 app-ui의 최상위 선언 */
+  /* 전역 — scripts/data와 scripts/ui의 최상위 선언 */
   for (const m of dataSrc2.matchAll(/^(?:const|let|function)\s+(\w+)/gm)) mine.add(m[1]);
   for (const m of uiSrc2.matchAll(/^(?:const|function)\s+(\w+)/gm)) mine.add(m[1]);
   return [...new Set([...appSrc2.matchAll(/\b(set[A-Z]\w*)\s*\(/g)].map(m => m[1]))]
@@ -5157,7 +5170,7 @@ eq('가방에 알약이 안 붙는다',
    들렀다 바로 나오는 것만으로 여덟 개가 다 모이면 지도가 심부름이 된다 */
 /* 두 마디 조건은 그대로다. 다만 **부르기 전에** 재서 보낸다 —
    응답 뒤에 재면 「받아요」는 화면에 뜨고 가방은 비는 일이 생긴다. */
-/* 셈은 app-data.js 하나다 — 웹과 앱이 같은 원본을 쓴다. 손으로 복제하면
+/* 셈은 scripts/data/ 하나다 — 웹과 앱이 같은 원본을 쓴다. 손으로 복제하면
    숫자든 셈이든 갈린다. 그리고 **방금 친 말을 포함해서** 센다. */
 eq('말을 하고 나와야 받은 게 있다',
   /const SCENE_MIN_TALK=2;/.test(web)
@@ -7678,7 +7691,7 @@ eq('시간표 단추는 peek보다 좁다',
       let now = T0, seq = 0;
       const timers = [];
       const setT = (fn, ms) => { timers.push({ at: now + (ms || 0), n: seq++, fn }); return seq };
-      /* app.js·app-data.js가 보는 Date를 통째로 갈아끼운다 */
+      /* 웹 코드가 보는 Date를 통째로 갈아끼운다 */
       class FakeDate extends Date {
         constructor(...a) { if (!a.length) super(now); else super(...a) }
         static now() { return now }

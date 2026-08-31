@@ -9,7 +9,7 @@ AI 캐릭터 관계 시뮬레이터. 유저는 한 달 뒤 떠나는 교생이�
 기획 · 서사 · 캐릭터 설계 · 개발 단독 수행 — 문리현
 
 ```
-node test/run.mjs                   # 2289개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
+node test/run.mjs                   # 2292개 회귀 테스트. 의존성·네트워크·API 키 없이 돈다
 node test/engine-pipeline.test.mjs  # 생성 경로 회귀 418개 (G 네 갈래 + G2 모델 스윕 + G3 sonnet5-pair-haiku + G4 single5 + G5 golden-v1 + §13 계약 복구 + §14 기본 배선) — 역시 키 없이 돈다
 node tools/eval.mjs                 # 대사 품질 자 — 내보낸 기록에서 명백한 것을 센다
 node tools/replay.mjs --fake        # 네 갈래 replay 하네스 자체 점검 (실제 재생은 ANTHROPIC_API_KEY로)
@@ -19,9 +19,9 @@ node tools/selected-replay.mjs --fake  # 운영 기본 경로(깃발 없음) 재
 ```
 worker.js             # Cloudflare Worker — 프롬프트 조립·캐싱·파싱·보안
 index.html            # 웹 — 뼈대와 스크립트 로드 순서 (React 18, 빌드 없음)
-null.css              #   CSS manifest. 실제 규칙은 styles/에 cascade 순서대로 있다
+styles/               #   스타일 7장 — index.html이 cascade 순서대로 직접 부른다
 scripts/data/         #   데이터·규칙 6개 — JSX가 없어 바벨을 안 탄다
-scripts/ui/           #   화면 컴포넌트 5개 — 프로필·오프닝·장면·메신저·채팅
+scripts/ui/           #   화면 컴포넌트 6개 — 프로필·오프닝·장면·메신저·채팅
 scripts/game.js       #   게임 상태·저장소·워커 요청·화면 orchestration
 app.js                #   QA 진입점과 최종 React 마운트
 scripts/README.md     #   각 파일의 책임과 바꾸면 안 되는 로드 순서
