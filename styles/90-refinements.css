@@ -1030,3 +1030,28 @@
 }
 .rooms .specialroomicon,
 .rooms .groupavatar .specialroomicon{width:45px;height:45px;margin:auto}
+
+/* v257 — 메뉴 항목 여섯을 한 줄에 맞춘다.
+   재던 값: you·etc.는 block(top 8), file·chat은 inline(top 8.5),
+   gift·bag은 flex(top 7.5)로 셋이 제각각이었다. file·chat이 어긋난 까닭은
+   그 둘만 드롭다운을 안은 .ddwrap 안에 들어 있어서 메뉴바의 flex 항목이
+   아니었기 때문이다 — 그래서 inline으로 남아 글자 기준선만큼 내려앉았다.
+   싸개까지 flex로 바꿔 여섯이 같은 자리에 선다.
+   글꼴은 Departure Mono, 글자는 대문자로 — JSX의 소문자는 그대로 둔다. */
+.menubar .ddwrap{display:flex;align-items:center}
+.menubar .mbtn{
+  display:flex !important;
+  align-items:center;
+  justify-content:center;
+  font-family:"Departure Mono","Galmuri11",monospace;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+/* display를 맞춰도 0.5px이 남았다 — gift·bag만 아래 여백이 1px 얇아
+   키가 24px이고 나머지는 25px이었다. 메뉴바가 가운데 정렬이라 키가
+   다르면 자리도 다르다. 여섯의 아래 여백을 같게 맞춘다. */
+.menubar .mbtn.ico{padding:5px 4px 6px}
+
+/* v257 — 채팅 본문은 모나12. 사진 말풍선의 딸린 글도 같은 본문이다. */
+.chatwrap .bubble,
+.chatwrap .bubble.photo .cap{font-family:"Mona12","Galmuri11",monospace}
