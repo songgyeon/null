@@ -115,7 +115,7 @@ export async function saveDisclosed(d: Record<string,string[]>) {
 // index.html의 PROFILES와 같아야 한다. 어긋나면 웹과 앱이 다른 문구를 쓴다.
 // 재언은 밝은 데서 어두운 데로 — 미술관, 계단참, 복도, 밤 차 안, 그리고 부엌.
 // 마지막 부엌에 씻어서 엎어놓은 그릇이 두 개다.
-// 민현은 안에서 밖으로 — 레코드샵, 버스, 골목, 그리고 옥상.
+// 강현은 안에서 밖으로 — 레코드샵, 버스, 골목, 그리고 옥상.
 // 마지막 120은 .hidden의 일기가 열리는 지점과 같다.
 export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   jaeeon: {
@@ -152,7 +152,7 @@ export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
    - 안 했으면 아직 떠나 있는 것이다 → GONE
    - 했으면 다시 온 것이다 → BACK
 
-   유저 발화만 센다. 민현이 선톡만 보내고 유저가 답을 안 한 건 다시 온 게
+   유저 발화만 센다. 강현이 선톡만 보내고 유저가 답을 안 한 건 다시 온 게
    아니다. 새로 저장할 상태가 없다 — 이미 갖고 있는 타임스탬프로 판정되고,
    말을 거는 순간 저절로 넘어간다.
    index.html의 STATUS_GONE·STATUS_BACK과 같아야 한다. */

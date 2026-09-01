@@ -103,7 +103,7 @@ function Diary({onDone}){
   </div>;
 }
 
-/* ── 민현의 옛 일기 — 병원 옥상 ──
+/* ── 강현의 옛 일기 — 병원 옥상 ──
    유저가 처음 무언가를 입력한 그 순간. 말풍선으로 오지 않는다 — 말풍선은
    「상대가 보낸 사진」이고, 이건 유저의 기억이 올라오는 것이다. 화면이
    통째로 그 엽서가 된다.
@@ -221,7 +221,7 @@ function LogPanel({store,counts,unlocked,album}){
   const first=Object.values(store.msgs||{}).flat().reduce((a,m)=>!a||m.ts<a?m.ts:a,0);
   const rows=[
     ["w/ 재언", (counts.jaeeon||0)],
-    ["w/ 민현", (counts.minhyun||0)],
+    ["w/ 강현", (counts.minhyun||0)],
     ["group", (counts.group||0)],
     ["pics", album.size+" / "+allPhotos],
     [".hidden", unlocked.length+" / "+HIDDEN.length],

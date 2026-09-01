@@ -68,7 +68,7 @@ const lastUserOf = body => {
   return (m && m.content) || "(각본 진입 턴)";
 };
 const contextLine = body => {
-  const r = { jaeeon: "이재언 1:1", minhyun: "이민현 1:1", group: "단톡", health: "관전(두 사람)" }[body.room] || body.room;
+  const r = { jaeeon: "이재언 1:1", minhyun: "이강현 1:1", group: "단톡", health: "관전(두 사람)" }[body.room] || body.room;
   return `${r}${body.now ? ` · ${body.now}` : ""}${body.day ? ` · ${body.day}` : ""} · ${body.days ?? 0}일째`;
 };
 const linesOf = msgs => (msgs || []).map(m =>

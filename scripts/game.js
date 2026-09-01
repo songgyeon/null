@@ -303,10 +303,10 @@ function GameApp(){
     return true;
   };
   /* 가방은 키만 보내고 있었다. 그런데 가방은 준 사람(from)도 들고 있다 —
-     그걸 버리니 워커에서 방향이 없어졌고, 민현이 제가 준 젤리를 두고
+     그걸 버리니 워커에서 방향이 없어졌고, 강현이 제가 준 젤리를 두고
      "사람 아까 핫팩 주더니 이제 젤리까지"라고 했다. 준 사람을 같이 보낸다. */
   /* 가방은 자리에 있을 때만 보내고 있었다. 그래서 체육관에서 손목 보호대를
-     받고 나오면, 그 다음 채팅에서 민현은 자기가 준 것을 몰랐다 — 준 사실은
+     받고 나오면, 그 다음 채팅에서 강현은 자기가 준 것을 몰랐다 — 준 사실은
      그 자리에서 끝나는 일이 아니라 계속 남는 일이다. 늘 보낸다.
      워커가 from으로 걸러서 제 것만 읽으므로 방마다 나눠 담을 것은 없다. */
   const bagOut=()=>bagRef.current.map(b=>({k:b.key,from:b.from||""}));
@@ -774,7 +774,7 @@ function GameApp(){
   const [look,setLook]=useState(null);
   /* 장바구니는 자리 안에서도 열려야 한다. 선물은 만나서만 주니까 */
   const [cart,setCart]=useState(false);
-  /* 단톡방은 민현이 판다. 그전까지는 없는 방이다 */
+  /* 단톡방은 강현이 판다. 그전까지는 없는 방이다 */
   const [groupOn,setGroupOn]=useState(loadGroupOn);
   const [groupNew,setGroupNew]=useState(false);
   const leaveScene=()=>{ const sc=sceneRef.current; if(sc)setLeaving(sc) };
@@ -908,7 +908,7 @@ function GameApp(){
     if(!who){ setToast(`${place} — 지금은 아무도 없어요`); return }
     /* 학교가 끝났다고 사람이 사라지는 것은 아니다. 편의점에서 아직 만나지
        않은 사람을 실제로 마주치면 누구든 이 자리가 첫 만남이다. 예전에는
-       민현만 이 갈래를 타서 재언이 처음 본 유저를 아는 척했다. 메신저가 먼저
+       강현만 이 갈래를 타서 재언이 처음 본 유저를 아는 척했다. 메신저가 먼저
        관계를 만들지 않는다 — 장소의 첫 마디를 읽고 헤어진 뒤에 방이 열린다. */
     const firstEncounter=place==="편의점"&&!loadGetcha(who);
     const firstLines=firstEncounter?demoProactive(who,place,name):null;
@@ -1107,7 +1107,7 @@ function GameApp(){
     if(payload.mode==="chat"){
       payload.story=loadStory();
       if(CHARS[bucket])payload.origin_phase=originPhase(bucket);
-      /* ④ 유저가 엽서 뒷면에 채운 셋. 민현 방에서만 실린다 — 재언은 그 종이를
+      /* ④ 유저가 엽서 뒷면에 채운 셋. 강현 방에서만 실린다 — 재언은 그 종이를
          본 적이 없다. 워커에서는 **가변부에만** 들어간다(고정부에 넣으면
          캐시가 통째로 깨진다). 재언 일기(③)와 달리 이건 나가는 유일한 빈칸이고,
          그게 문서가 못박은 「서버 전달 경계」다. */
@@ -1230,7 +1230,7 @@ function GameApp(){
     if(replaying(room)){ setBusy(b=>({...b,[room]:true})); return }
     const prevList=storeRef.current.msgs[room]||[];
     /* ── 옥상이 올라오는 순간 ──
-       민현 방이고, 오프닝에서 만난 게 민현이고, 아직 안 채웠고, 그가 이미
+       강현 방이고, 오프닝에서 만난 게 강현이고, 아직 안 채웠고, 그가 이미
        말을 걸어둔 뒤다(「저 알죠」 세 줄이 앉은 다음). 그 순간에 한 번.
 
        유저가 친 말은 **삼키지 않는다.** 여기서 붙잡아 뒀다가 엽서를 덮은
@@ -1365,7 +1365,7 @@ function GameApp(){
      오갔는지는 프롬프트에서 못박아 막는다. */
 
   /* 유저가 아무것도 안 눌러도 생기는 사건 둘.
-     ① 재언에게 사진이 다섯 장 넘게 오면 — 민현이는 그 사진을 못 본다.
+     ① 재언에게 사진이 다섯 장 넘게 오면 — 강현이는 그 사진을 못 본다.
         찍는 것만 봤다. 그래서 묻는 쪽이 된다.
      ② 떠날 날이 7·3·1일 남는 날 — 둘 다 알지만 이름을 먼저 안 붙인다.
      찍어만 두고 만들지는 않는다. 한 시간 뒤 아래 효과가 가져간다. */
@@ -1384,7 +1384,7 @@ function GameApp(){
     if(DDAY_MARKS.includes(d))mark("dday:"+d,{kind:"dday",name:String(d)});
   },[name,view,store.msgs]);
 
-  /* 민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
+  /* 강현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
      그가 방을 파고 유저를 부른다. 왜 불렀는지는 말해주지 않는다. */
   useEffect(()=>{
     if(!name||groupOn||!groupReady(store.msgs))return;
@@ -1474,7 +1474,7 @@ function GameApp(){
       try{
         const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
           /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로
-             떨어져 관전이 민현 1:1 방으로 처리된다 */
+             떨어져 관전이 강현 1:1 방으로 처리된다 */
           body:JSON.stringify({mode:"auto",room:"health",user_name:name,counts:roomCounts(),
             /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
                같은 얘기를 두 번 싣는다 */
@@ -1520,7 +1520,7 @@ function GameApp(){
        없다 — 부르지도 않는다. 눌렀는데 아무 일이 없으면 고장으로 보이니 한 줄 띄운다 */
     if(!bothAwake()){
       /* 조건은 bothAwake — 한 명만 자도 막힌다. 그런데 말은 「둘 다 자요」였다.
-         새벽 두 시엔 재언만 자고 민현은 세 시까지 깨 있는데, 목록에 「안 자는
+         새벽 두 시엔 재언만 자고 강현은 세 시까지 깨 있는데, 목록에 「안 자는
          중」이라고 떠 있는 사람을 두고 둘 다 잔다고 하면 그 점이 거짓말이 된다.
          누가 자는지 그대로 말한다. */
       const zz=["jaeeon","minhyun"].filter(id=>asleep(id));
@@ -1557,7 +1557,7 @@ function GameApp(){
       const ms=storeRef.current.msgs[r.id]||[];if(!ms.length)return;
       lines.push("──── "+r.name+" ────");
       ms.forEach(m=>{
-        /* 지문에는 말한 사람이 없다. 「이민현이 이어폰을 받았다」는 아무도
+        /* 지문에는 말한 사람이 없다. 「이강현이 이어폰을 받았다」는 아무도
            한 말이 아닌데, 내보낸 파일에서는 유저 이름이 붙어서 유저가 자기
            얘기를 삼인칭으로 한 것처럼 찍혔다. 화면에서는 지문으로 뜨는데
            파일에서만 말이 됐다 — 화면과 파일이 다른 이야기를 하면 안 된다. */
@@ -1630,7 +1630,7 @@ function GameApp(){
     if(gapMin>=0&&gapMin<180)return;
     /* ── 첫 연락은 딱 한 번 ──
        빈 방의 첫인사는 각본이고(모델을 안 부른다) 정해진 세 줄이다.
-       민현은 「선생님. / 저 알죠? / 선생님이 저 책임진다면서요.」로 연다.
+       강현은 「선생님. / 저 알죠? / 선생님이 저 책임진다면서요.」로 연다.
        방을 700밀리초 안에 두 번 열면 두 번 나갔다 — 아직 저장되기 전이라
        두 번째가 봐도 방이 비어 있다. 보내기 전에 표를 찍는다. */
     if(gapMin<0&&!markOnce("first:"+id))return;
@@ -1704,8 +1704,8 @@ function GameApp(){
     if(after)return after();
     greet("jaeeon",700);
   };
-  /* ── 민현의 옛 일기 — 병원 옥상 ──
-     오프닝에서 민현을 만난 판에서만, 「저 알죠」 세 줄이 다 앉은 뒤 유저가
+  /* ── 강현의 옛 일기 — 병원 옥상 ──
+     오프닝에서 강현을 만난 판에서만, 「저 알죠」 세 줄이 다 앉은 뒤 유저가
      처음 무언가를 입력한 그 순간에 한 번. 유저의 말은 그대로 올라가고,
      엽서가 그 위로 뜬다 — 삼키면 유저가 방금 친 말이 어디로 갔는지 모른다.
      엽서를 덮은 뒤에 그 말이 나간다. */
@@ -1822,7 +1822,7 @@ function GameApp(){
      시작한 시각이 어디인지를 정하고, 거기 있는 사람을 만난다.
      다른 한 사람은 평소대로 첫인사를 보낸다 — 아래 선톡 고리가 알아서 한다.
      새벽에 시작하면 재언은 여섯 시까지 조용하다(canGreet). 그래서 새벽에
-     켠 사람은 민현하고만 하루를 연다.
+     켠 사람은 강현하고만 하루를 연다.
 
      한 번만 돈다. 표식을 남기는 게 아니라 「아무 방에도 한 마디도 없다」를
      조건으로 쓴다 — 리스타트하면 저절로 다시 열린다. */
@@ -1869,7 +1869,7 @@ function GameApp(){
        바뀌면 정리와 함께 예약까지 취소돼서, 자리로 넘어가는 순간 죽는다.
        새벽이면 재언은 안 온다 — 여섯 시에 온다(canGreet). */
     /* ── 안 만난 사람은 학교에 있을 때만 온다 ──
-       전에는 여기서 무조건 걸었다. 첫 자리에서 민현을 만났는데 삼 초 뒤에
+       전에는 여기서 무조건 걸었다. 첫 자리에서 강현을 만났는데 삼 초 뒤에
        재언이 먼저 말을 걸었다 — 만난 적도 없는 사람한테서, 번호가 어디서
        났는지 설명 없이. 그 사람은 학교에서 만나야 하므로 출근해서 퇴근
        전까지(야자 포함)가 아니면 안 건다. 그 시간이 오면 아래 선톡 추첨이
@@ -1886,7 +1886,7 @@ function GameApp(){
     if(!name||view!=="list"||enrolling)return;
     if(Date.now()-greetAtRef.current<60000)return;   // 목록을 들락거려도 연달아 오지 않게
     /* 자는 쪽은 후보에서 먼저 뺀다. 뽑고 나서 막으면 그 판은 아무도 안 건다 —
-       새벽에는 제일 오래 조용한 쪽이 늘 재언이라, 민현이 영영 안 걸린다 */
+       새벽에는 제일 오래 조용한 쪽이 늘 재언이라, 강현이 영영 안 걸린다 */
     const cand=["jaeeon","minhyun"]
       .filter(id=>canGreet(id)&&!roomLock(storeRef.current,id)).map(id=>{
       const l=storeRef.current.msgs[id]||[];

@@ -1,6 +1,6 @@
 {
   "label": "S2-minhyun",
-  "blurb": "이민현 1:1 — 새 판에서 열 턴. 첫 선톡은 코드 고정 각본 세 줄이고 #0의 답은 문구집의 정식 답(「네? 무슨 책임이요」) — firstMeetAsked 재료가 서는 턴이다. staged라면 opening 둘과 #8(stage_enter)에 Sonnet이 선다. anchor×중요 장면 겹침은 이 대본이 아니라 A층 packet 14가 밟는다.",
+  "blurb": "이강현 1:1 — 새 판에서 열 턴. 첫 선톡은 코드 고정 각본 세 줄이고 #0의 답은 문구집의 정식 답(「네? 무슨 책임이요」) — firstMeetAsked 재료가 서는 턴이다. staged라면 opening 둘과 #8(stage_enter)에 Sonnet이 선다. anchor×중요 장면 겹침은 이 대본이 아니라 A층 packet 14가 밟는다.",
   "user_name": "연",
   "seed": {
     "msgs": {
@@ -34,7 +34,7 @@
     },
     {
       "room": "minhyun",
-      "text": "아, 병원 옥상에서 봤던 학생이구나. 민현이 맞지?",
+      "text": "아, 병원 옥상에서 봤던 학생이구나. 강현이 맞지?",
       "ts": 1755770700000,
       "days": 0,
       "now": "저녁",

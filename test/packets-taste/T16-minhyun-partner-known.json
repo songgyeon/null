@@ -1,6 +1,6 @@
 {
   "label": "T16-minhyun-partner-known",
-  "blurb": "이민현 1:1 — 상대 선택 이후, 선택받지 않은 민현이 처음 알게 되는 자리. 정해진 partner를 부정하거나 유저에게 다시 선택을 요구하지 않는지.",
+  "blurb": "이강현 1:1 — 상대 선택 이후, 선택받지 않은 강현이 처음 알게 되는 자리. 정해진 partner를 부정하거나 유저에게 다시 선택을 요구하지 않는지.",
   "meta": {
     "prev": {
       "responses": 44,
@@ -23,7 +23,7 @@
       {
         "role": "user",
         "sender": "user",
-        "content": "민현아. 할 말이 있어."
+        "content": "강현아. 할 말이 있어."
       },
       {
         "role": "assistant",

@@ -5,7 +5,7 @@ function GameScreen({game}){
   return <div className="phone">
     {diary&&<Diary onDone={diaryDone}/>}
     {flash&&<Flash onDone={()=>{const f=flash;setFlash(null);
-      /* 엽서를 끝까지 채웠다 = 민현이 그날 얘기를 **한** 것이다.
+      /* 엽서를 끝까지 채웠다 = 강현이 그날 얘기를 **한** 것이다.
          explained는 「말했다」이지 「유저가 받아들였다」가 아니다 —
          recognized까지 여기서 찍지 않는다. 그건 대화가 정한다.
          덮기를 못 누르고 나가면 여기 안 온다: 상태가 그대로라 pending 경로다. */
@@ -189,11 +189,11 @@ function GameScreen({game}){
         <div className="k">［ 새 방 ］♡</div>
         <div className="ddrows">
           <div className="r"><span className="k2">이 름</span><span className="dot"/><span className="v">단톡방</span></div>
-          <div className="r"><span className="k2">초 대</span><span className="dot"/><span className="v">이민현</span></div>
+          <div className="r"><span className="k2">초 대</span><span className="dot"/><span className="v">이강현</span></div>
           <div className="r"><span className="k2">이 유</span><span className="dot"/><span className="v hush">비밀</span></div>
         </div>
         <div className="s" style={{marginTop:14}}>
-          이민현이 방을 만들고 당신을 넣었어요<br/>
+          이강현이 방을 만들고 당신을 넣었어요<br/>
           <span className="kao">( ˶˘ ᵕ ˘˶ )</span> ♡
         </div>
         <div className="dlgbtns" style={{justifyContent:"center"}}>
@@ -246,7 +246,7 @@ function GameScreen({game}){
     </Dialog>}
     {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>
       <div className="ddq">
-        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이민현이 NULL 기다리고 있어!"}
+        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이강현이 NULL 기다리고 있어!"}
           {' '}<span className="kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</span></div>
         <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
       </div>

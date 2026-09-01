@@ -12,7 +12,7 @@ const SRC = 'docs/dialogue-corpus.md';
 const md = readFileSync(SRC, 'utf8').split(/\r?\n/);
 
 /* 여러 줄이 이어져 한 장면이 되는 절. 나머지 절은 한 줄이 곧 한 후보다 —
-   단톡방에서 재언 줄과 민현 줄을 따로 뽑으면 주고받는 게 사라진다. */
+   단톡방에서 재언 줄과 강현 줄을 따로 뽑으면 주고받는 게 사라진다. */
 const isScript = s => /단체방|관전방|장기 대화|선톡 후/.test(s);
 /* 「첫 자리」도 선톡 통에 담는다 — 캐릭터가 먼저 거는 말이라는 점이 같고,
    고르는 쪽(demoProactive)이 그 통을 본다. 이름에 「선톡」을 안 붙인 건
@@ -57,9 +57,9 @@ for (const raw of md) {
     continue;
   }
   /* 기본 폴백은 "**재언 · 뜻을 잘 모르겠을 때**" 꼴로 적혀 있다 */
-  if ((m = line.match(/^\*\*(재언|민현|단체방|관전방)\s*·\s*(.+?)\*\*\s*$/))) {
+  if ((m = line.match(/^\*\*(재언|강현|단체방|관전방)\s*·\s*(.+?)\*\*\s*$/))) {
     flush();
-    cur = { fallbackOf: { '재언':'jaeeon', '민현':'minhyun', '단체방':'group', '관전방':'watch' }[m[1]],
+    cur = { fallbackOf: { '재언':'jaeeon', '강현':'minhyun', '단체방':'group', '관전방':'watch' }[m[1]],
             situation: m[2].trim(), sec };
     mode = 'cand';
     continue;
@@ -85,9 +85,9 @@ for (const raw of md) {
     if (mode === 'script') cur.script = [];
     continue;
   }
-  if ((m = line.match(/^[\s　]*(재언|민현|사용자)\s*—\s*(.+)$/))) {
+  if ((m = line.match(/^[\s　]*(재언|강현|사용자)\s*—\s*(.+)$/))) {
     if (!cur) continue;
-    const who = { '재언':'jaeeon', '민현':'minhyun', '사용자':'user' }[m[1]];
+    const who = { '재언':'jaeeon', '강현':'minhyun', '사용자':'user' }[m[1]];
     const parts = breath(m[2].trim());
     if (mode === 'script') cur.script.push({ sender: who, text: parts });
     else { (cur[who] ||= []).push(parts); }
@@ -138,7 +138,7 @@ for (const l of readFileSync(SRC, 'utf8').split(/\r?\n/)) {
   const h = l.match(/^##\s+(.*)$/);
   if (h) { wantSec = h[1]; continue; }
   if (/미사용/.test(wantSec)) continue;
-  if (/^[\s　]*(재언|민현)\s*—/.test(l)) want++;
+  if (/^[\s　]*(재언|강현)\s*—/.test(l)) want++;
 }
 console.log(want === got ? `줄 수 맞음 ${got}` : `!! 흘린 줄이 있다 — 원본 ${want} / 옮긴 것 ${got}`);
 
@@ -146,8 +146,8 @@ const n = o => JSON.stringify(o).length;
 console.log('의도', out.intents.length, '· 후속', out.follow.length, '· 위험', out.danger.length,
   '· 단톡', out.group.length, '· 관전', out.watch.length, '· 다턴', out.multi.length,
   '· 반복', out.repeat.length);
-console.log('선톡  재언', out.proactive.jaeeon.length, '· 민현', out.proactive.minhyun.length);
-console.log('폴백  재언', out.fallback.jaeeon.length, '· 민현', out.fallback.minhyun.length,
+console.log('선톡  재언', out.proactive.jaeeon.length, '· 강현', out.proactive.minhyun.length);
+console.log('폴백  재언', out.fallback.jaeeon.length, '· 강현', out.fallback.minhyun.length,
   '· 단톡', out.fallback.group.length, '· 관전', out.fallback.watch.length);
 const total = out.intents.reduce((a,e)=>a+(e.jaeeon?.length||0)+(e.minhyun?.length||0),0);
 console.log('1:1 답변', total, '줄 ·', (n(out)/1024).toFixed(0)+'KB');

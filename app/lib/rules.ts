@@ -68,7 +68,7 @@ const CHARS = {
       "jaeeon-laundry-seat.webp","jaeeon-laundry-mid.webp","jaeeon-laundry-near.webp",
       "jaeeon-home-mid.webp","jaeeon-home-near.webp",
       "jaeeon-night.webp","jaeeon-book.webp"]},
-  minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
+  minhyun:{name:"이강현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
       "minhyun-laundry-mid.webp","minhyun-laundry-near.webp",
       "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp",
@@ -88,7 +88,7 @@ const ENROLL_DAYS = 30;
 
    ── 말풍선은 시간에 손대지 않는다 ──
    한때 쌓인 대화를 날로 셌다(네 마디 = 하루). 그러면 인물이 두 줄로 답하느냐
-   세 줄로 답하느냐가 달력을 민다. 실제로 그렇게 됐다 — 민현이 수다스러운 판에서
+   세 줄로 답하느냐가 달력을 민다. 실제로 그렇게 됐다 — 강현이 수다스러운 판에서
    재언 방의 D-일차가 같이 탔고, 첫날 아침 8시 47분에 이미 37일째였다.
    나눠지는 수를 바꿔봐야 「한 마디에 몇 시간」이라는 모양은 그대로다.
    그래서 구조를 뗀다. **시각·D-일차·요일·시간표·도장·재회·해금의 day 조건이
@@ -248,8 +248,8 @@ const saveDiary=v=>{try{
   return t;
 }catch(e){return""}};
 
-/* ── 민현의 옛 일기 — 병원 옥상 ──
-   오프닝에서 민현을 만난 판에서, 「저 알죠」 세 줄이 다 앉은 뒤 유저가 처음
+/* ── 강현의 옛 일기 — 병원 옥상 ──
+   오프닝에서 강현을 만난 판에서, 「저 알죠」 세 줄이 다 앉은 뒤 유저가 처음
    무언가를 입력한 그 순간. 엽서 앞면(그날의 옥상)이 천천히 뜨고, 그다음
    뒷면으로 천천히 넘어간다. 뒷면이 일기고 빈칸이 셋이다.
 
@@ -409,7 +409,7 @@ const filledLetters=(calls,name)=>Math.min((name||"").length,Math.floor(calls/CA
 
 const ROOMS = [
   {id:"jaeeon", name:"이재언", color:"#7FD8D8", type:"dm",    sub:"보건교사",   empty:"보건교사, 29세"},
-  {id:"minhyun",name:"이민현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},
+  {id:"minhyun",name:"이강현", color:"#FF9E80", type:"dm",    sub:"3학년",      empty:"고등학생, 20세"},
   {id:"group",  name:"단톡방", color:"#B8A5E3", type:"group", sub:"group chat", empty:"loading..."},
   {id:"health", name:"두 사람", color:"#9aa3d8", type:"watch", sub:"LIVE cam",  empty:"access denied"},
 ];
@@ -420,7 +420,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=262";
+const AV="?v=263";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -441,19 +441,19 @@ const HIDDEN=[
      늦게 나와야 하는 것은 맞지만, 늦는 것과 몰리는 것은 다르다.
      마지막 칸은 26일 그대로다. 떠나기 나흘 전에 마지막 장이 열린다. */
   {key:"jaeeon-bag",             file:"jaeeon-bag.webp",             label:"재언의 가방", room:"jaeeon", at:12, day:0},
-  {key:"minhyun-bag",            file:"minhyun-bag.webp",            label:"민현의 가방", room:"minhyun", at:12, day:0},
+  {key:"minhyun-bag",            file:"minhyun-bag.webp",            label:"강현의 가방", room:"minhyun", at:12, day:0},
   {key:"jaeeon-room",            file:"jaeeon-room.webp",            label:"재언의 방", room:"jaeeon", at:26, day:3},
-  {key:"minhyun-room",           file:"minhyun-room.webp",           label:"민현의 방", room:"minhyun", at:26, day:3},
+  {key:"minhyun-room",           file:"minhyun-room.webp",           label:"강현의 방", room:"minhyun", at:26, day:3},
   {key:"jaeeon-playlist",        file:"jaeeon-playlist.webp",        label:"재언의 플레이리스트", room:"jaeeon", at:44, day:6},
-  {key:"minhyun-playlist",       file:"minhyun-playlist.webp",       label:"민현의 플레이리스트", room:"minhyun", at:44, day:6},
+  {key:"minhyun-playlist",       file:"minhyun-playlist.webp",       label:"강현의 플레이리스트", room:"minhyun", at:44, day:6},
   {key:"jaeeon-ticket",          file:"jaeeon-ticket.webp",          label:"재언의 티켓", room:"jaeeon", at:64, day:9},
-  {key:"minhyun-ticket",         file:"minhyun-ticket.webp",         label:"민현의 티켓", room:"minhyun", at:64, day:9},
+  {key:"minhyun-ticket",         file:"minhyun-ticket.webp",         label:"강현의 티켓", room:"minhyun", at:64, day:9},
   {key:"jaeeon-yearbook",        file:"jaeeon-yearbook.webp",        label:"재언의 졸업사진", room:"jaeeon", at:90, day:13},
-  {key:"minhyun-yearbook",       file:"minhyun-yearbook.webp",       label:"민현의 졸업사진", room:"minhyun", at:90, day:13},
+  {key:"minhyun-yearbook",       file:"minhyun-yearbook.webp",       label:"강현의 졸업사진", room:"minhyun", at:90, day:13},
   {key:"hidden-jaeeon-diary-200x-03-07", file:"hidden-jaeeon-diary-200x-03-07.webp", label:"재언의 일기 · 3월 7일", room:"jaeeon", at:100, day:17},
-  {key:"hidden-minhyun-counseling-record-1-a4", file:"hidden-minhyun-counseling-record-1-a4.webp", label:"민현 상담 기록 · 1", room:"minhyun", at:100, day:17},
+  {key:"hidden-minhyun-counseling-record-1-a4", file:"hidden-minhyun-counseling-record-1-a4.webp", label:"강현 상담 기록 · 1", room:"minhyun", at:100, day:17},
   {key:"hidden-jaeeon-diary-200x-04-12", file:"hidden-jaeeon-diary-200x-04-12.webp", label:"재언의 일기 · 4월 12일", room:"jaeeon", at:106, day:20},
-  {key:"hidden-minhyun-counseling-record-2-a4", file:"hidden-minhyun-counseling-record-2-a4.webp", label:"민현 상담 기록 · 2", room:"minhyun", at:106, day:20},
+  {key:"hidden-minhyun-counseling-record-2-a4", file:"hidden-minhyun-counseling-record-2-a4.webp", label:"강현 상담 기록 · 2", room:"minhyun", at:106, day:20},
   {key:"hidden-jaeeon-diary-201x-07-11", file:"hidden-jaeeon-diary-201x-07-11.webp", label:"재언의 일기 · 7월 11일", room:"jaeeon", at:112, day:23},
   {key:"hidden-minhyun-sns-1", file:"hidden-minhyun-sns-1.webp", label:"@mhy.wav · 1", room:"minhyun", at:112, day:23},
   {key:"hidden-jaeeon-diary-202x-start", file:"hidden-jaeeon-diary-202x-start.webp", label:"재언의 일기 · 202X년", room:"jaeeon", at:116, day:26},
@@ -697,8 +697,8 @@ const seasonWord=()=>"겨울";
    그리고 이 앱은 유저가 없어도 세계가 돌아간다고 말하는 앱인데, 켜자마자
    둘이 인사하면 돌아가고 있던 게 아니라 기다리고 있던 게 된다.
 
-   전에는 재언만 여섯 시로 못박은 상수를 따로 두고 민현은 시각을 안 봤다.
-   그런데 민현에게도 꺼진 시간(3~8시)이 생겼다 — 점은 「꺼짐」인데 그 사람
+   전에는 재언만 여섯 시로 못박은 상수를 따로 두고 강현은 시각을 안 봤다.
+   그런데 강현에게도 꺼진 시간(3~8시)이 생겼다 — 점은 「꺼짐」인데 그 사람
    말풍선이 오면 처음 고치려던 그림 그대로다. 시계를 둘 두지 않는다.
    목록의 점을 정하는 presence가 선톡도 정한다 — off면 안 건다.
    재언은 여섯 시에 깨니(1~6시 off) 예전과 같은 시각에 인사가 온다.
@@ -806,7 +806,7 @@ const openingFor=now=>{
 
    시간표(daySlots)는 처음부터 그렇게 세고 있었는데 생활 리듬(presence)만
    평일 저녁을 통째로 「야자」라고 불렀다. 시계가 둘이면 AT_WORK가 그
-   거짓말을 그대로 받는다 — 야자도 없는 수요일 저녁에 민현이 아직 학교에
+   거짓말을 그대로 받는다 — 야자도 없는 수요일 저녁에 강현이 아직 학교에
    있는 것이 되어, 안 만난 쪽 방이 열리고 선톡이 나갔다. 한 군데서 센다.
 
    presence 바로 위에 둔다 — 시험이 presence를 떼어 돌릴 때 이 셋이 같이
@@ -822,7 +822,7 @@ const PERIODS=[[520,570,1],[580,630,2],[640,690,3],[700,750,4],
 
 /* ── 접속 상태 ──
    시간대만 보고 정한다. 서버를 부르지 않으므로 비용이 없다.
-   재언은 근무 시간에 보건실에 있고, 민현은 학교에 매여 있다.
+   재언은 근무 시간에 보건실에 있고, 강현은 학교에 매여 있다.
    이 값은 이제 워커에도 실린다(states) — 목록에는 「수업 중」이 떠 있는데
    본인은 한가한 사람처럼 즉답하던 것이 여기서 고쳐진다. 화면과 프롬프트가
    같은 함수를 봐야 둘이 딴말을 안 한다.
@@ -840,7 +840,7 @@ function presence(id, now){
     /* 네 시 반에 일어난다. 선톡(canGreet)이 이 창의 끝을 그대로 본다 —
        점은 「자는 중」인데 그 사람이 인사를 보내면 그게 처음 고치려던 그림이다.
        여섯 시였다. 그때는 세 시부터 여섯 시까지 둘 다 자는 세 시간이 있었고,
-       그 시간에는 유저가 말 걸 사람이 아무도 없었다. 민현이 자러 가는 시각과
+       그 시간에는 유저가 말 걸 사람이 아무도 없었다. 강현이 자러 가는 시각과
        맞물려 놓으면 한쪽이 자는 동안 다른 쪽이 깨 있다 — 이 세계에는 아무도
        없는 시간이 없어진다. 출근은 여덟 시라 세 시간 반은 집에 깨어 있다. */
     if(mm>=60&&mm<270) return off("자는 중");
@@ -922,7 +922,7 @@ const saveAutoDay=v=>{try{localStorage.setItem("null_auto_day",v)}catch(e){}};
    학교 밖으로, 그 다음 사는 데로 — 발이 닿은 만큼만 넓어진다.
 
    who는 여기서 만날 수 있는 사람. 둘이면 고르게 한다.
-   own은 그 자리가 원래 누구 자리인가. 재언은 보건실에 있는 게 일이고 민현은
+   own은 그 자리가 원래 누구 자리인가. 재언은 보건실에 있는 게 일이고 강현은
    교실에 앉아 있다 — 「불러냈다」가 아니라 찾아가는 것이다. own이 없는 자리만
    따로 만나는 자리다.
    item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
@@ -1043,7 +1043,7 @@ const ITEM_CATS=["전체","간식","소품","기록"];
    요즘 고등학교 기준이다. 50분 수업에 10분 쉬는 시간, 4교시 끝나고 점심.
    야자는 2017년쯤 강제가 없어져서 지금은 희망자만 남는 자율학습이다. 그래서
    매일 붙지 않는다 — 유저가 감독으로 남는 날(격주 목요일)에만 붙는다.
-   민현이 그날 남는 것도 강제가 아니라서 성격이 된다. 갈 데가 없는 애다. */
+   강현이 그날 남는 것도 강제가 아니라서 성격이 된다. 갈 데가 없는 애다. */
 /* 마지막 칸이 NULL인 이유.
    학교가 하루를 채워준다 — 출근·수업·점심·퇴근·저녁까지는 시간표가 이 사람이
    어디서 뭘 하는지 정해준다. 그게 끝나면 정해주는 것이 없다. 교생의 하루는
@@ -1107,7 +1107,7 @@ const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};
    받고, 그러고 나서 고맙다고. 한 번이면 그 사람이고 두 번이면 틀이다.
    모델을 고칠 일이 아니라 간격을 둘 일이었다.
    막는 것은 「한 사람이 하루에 두 번 받는 것」이지 「하루에 두 명에게 주는 것」이
-   아니다 — 재언에게 주고 민현에게 주는 건 같은 반응이 두 번 도는 게 아니다.
+   아니다 — 재언에게 주고 강현에게 주는 건 같은 반응이 두 번 도는 게 아니다.
    하루의 경계는 여기서도 새벽 다섯 시다. 새벽에 준 건 어제 준 것이다 —
    저 이어폰과 사진집이 같은 날로 묶여야 이 규칙에 걸린다. */
 const loadGiftDay=()=>{try{return JSON.parse(localStorage.getItem("null_giftday"))||{}}catch(e){return{}}};
@@ -1144,7 +1144,7 @@ const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}c
 const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a));return true}catch(e){return false}};
 /* 자리가 열렸나. 다녀온 자리 목록만 본다 — 대화 수도 날짜도 안 본다.
    이미 다녀온 데는 조건을 안 본다. 캐릭터가 먼저 같이 가자고 하는 자리(초대)는
-   지도의 순서를 건너뛴다 — 옥상에 가기 전에 민현이 편의점으로 불러낼 수 있다.
+   지도의 순서를 건너뛴다 — 옥상에 가기 전에 강현이 편의점으로 불러낼 수 있다.
    그렇게 다녀오면 met에는 편의점이 있는데 need(옥상)는 비어 있어서, 갔다 온
    자리가 「아직은 못 가요」로 영원히 잠겨 있었다. 다녀온 곳이 안 열린 곳일 수는 없다. */
 const placeOpen=(p,been)=>been.includes(p.name)||(p.need||[]).every(n=>been.includes(n));
@@ -1155,7 +1155,7 @@ const placeOpen=(p,been)=>been.includes(p.name)||(p.need||[]).every(n=>been.incl
    있는데 그 사람 집에 갈 수 있으면 그게 제일 이상하다. */
 const placeHours=(p,now)=>{
   const d=now||nowClock(), wend=d.getDay()===0||d.getDay()===6;
-  /* 주말엔 학교가 없다. 재언은 출근을 안 하고 민현은 야자가 없다 —
+  /* 주말엔 학교가 없다. 재언은 출근을 안 하고 강현은 야자가 없다 —
      교실·보건실·옥상이 통째로 닫힌다(wend:false). 그래서 주말은 학교 밖에서
      일부러 만나야만 하는 날이 된다. 집은 낮에도 사람이 있다(wend:[11,2]).
      wend가 없는 데는 평일과 같다 — 도서관·레코드샵·편의점·빨래방. */
@@ -1164,7 +1164,7 @@ const placeHours=(p,now)=>{
   /* ── 학교는 사람이 있을 때만 학교다 ──
      hours는 고정된 숫자 두 개라 요일을 모른다. 교실·옥상의 22시는 야자가
      끝나는 시각에 맞춘 것이었는데, 야자는 격주 목요일에만 붙는다 — 야자도
-     없는 수요일 저녁에 민현은 이미 집에 갔는데 교실 문은 열려 있었다.
+     없는 수요일 저녁에 강현은 이미 집에 갔는데 교실 문은 열려 있었다.
      체육관의 18시도 같은 종류의 숫자다.
 
      시각표를 요일마다 새로 적지 않는다. 그러면 시계가 또 둘이 된다.
@@ -1253,7 +1253,7 @@ const KISS_RISE=6300, KISS_HOLD=KISS_RUN-KISS_RISE;
    낮/저녁이 갈리는 건 교실뿐이다. desk는 짝이 찍어준 것(수업 중이라 제 손이
    묶여 있다)이고 nap은 자기가 찍은 것(빈 교실이라 찍을 수 있다)이다. */
 const SCENE_SHOT={
-  /* 교실은 민현 자리다 — PLACES의 who가 민현뿐이라 재언은 여기 오지 않는다 */
+  /* 교실은 강현 자리다 — PLACES의 who가 강현뿐이라 재언은 여기 오지 않는다 */
   "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]}},
   "보건실":   {jaeeon:["jaeeon-work","jaeeon-chart","jaeeon-nurse-mid","jaeeon-nurse-near"],
                minhyun:["minhyun-candy"]},
@@ -1271,7 +1271,7 @@ const SCENE_SHOT={
   "빨래방":   {minhyun:["minhyun-laundry","minhyun-laundry-mid","minhyun-laundry-near"],
                jaeeon:["jaeeon-laundry-seat"]},
   "체육관":   {minhyun:["minhyun-gym"]},
-  /* 재언 집이지만 민현도 산다. 재언은 부엌에 서 있고, 민현은 막 일어난
+  /* 재언 집이지만 강현도 산다. 재언은 부엌에 서 있고, 강현은 막 일어난
      참이거나 엘리베이터에서 올라오는 길이다 */
   "집":       {jaeeon:["jaeeon-cook","jaeeon-night","jaeeon-home-mid","jaeeon-home-near"],
                minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near"]},
@@ -1284,7 +1284,7 @@ const SCENE_SHOT={
 };
 /* ── 귀갓길 ── 지도에 없다. 골라서 가는 데가 아니라 자리가 끝나고 붙는 데다.
    유저 집은 정거장이 아니라 데려다주는 일이 끝나는 곳이라서 아이콘이 없다.
-   재언은 태워다 주고(조수석에서 본 대시보드), 민현은 같이 버스를 탄다(빈 자리).
+   재언은 태워다 주고(조수석에서 본 대시보드), 강현은 같이 버스를 탄다(빈 자리).
    건넬 물건은 없다 — 데려다주는 것이 이미 그거다. */
 const WAY="귀갓길";
 const WAY_BG={jaeeon:"jaeeon-drive.webp", minhyun:"minhyun-bus.webp"};
@@ -1387,7 +1387,7 @@ const WAIT_LINES=["내일 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+","조금만 기
 /* 오늘 안에 아직 학교에 있을 때가 남았나. 출근 전(「이따」)과 퇴근 뒤
    (「내일」)를 가른다 — 새벽 세 시에 「내일 만나요」는 틀린 말이다.
    시각 상수를 새로 두지 않고 같은 presence를 오늘 끝까지 훑는다. 두 사람의
-   창이 다르고(재언은 퇴근까지, 민현은 야자까지) 야자는 주마다 붙었다
+   창이 다르고(재언은 퇴근까지, 강현은 야자까지) 야자는 주마다 붙었다
    떨어지므로, 표를 따로 만들면 그게 또 갈린다. */
 const worksLaterToday=(id,now)=>{
   const d=now||worldNow();
@@ -1424,10 +1424,10 @@ const canGoWith=(id,met,now)=>PLACES.filter(p=>!p.into
   &&placeOpen(p,met||[])&&placeHours(p,now)&&wendOnlyOk(p,now)&&!goneToday(p.name,now)
   &&(p.meet!=="out"||outAt(p,now).includes(id))).map(p=>p.name);
 /* ── 단톡방은 나중에 생긴다 ──
-   민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
+   강현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
    유저는 초대를 받는다 — 왜 초대됐는지는 모른 채로. 그게 이 앱의 모양이다.
 
-   알게 되는 근거는 새로 만들지 않는다. 이미 민현에게 보내고 있는 신호가
+   알게 되는 근거는 새로 만들지 않는다. 이미 강현에게 보내고 있는 신호가
    그거다 — 재언 방에 오늘 대화가 몇 번 있었고 마지막이 몇 분 전인가.
    「요즘 삼촌 폰 오래 붙잡고 있길래」가 그 신호를 보고 나온 말이다.
    여기서는 그 신호가 양쪽에 충분히 쌓였는지만 센다.
@@ -1518,7 +1518,7 @@ const loadRefused=()=>{try{return JSON.parse(localStorage.getItem("null_refused"
 const saveRefused=a=>{try{localStorage.setItem("null_refused",JSON.stringify(a));return true}catch(e){return false}};
 /* 눌러서 만드는 사건(선물·해금·약속) 말고, 그냥 쌓여서 되는 사건이 둘 있다.
    한 번씩만 찍는다 — 같은 일이 매일 나오면 그건 사건이 아니라 배경이다. */
-const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 민현이 눈치챈다
+const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 강현이 눈치챈다
 const DDAY_MARKS=[7,3,1];    // 남은 날이 이 값이 되는 날
 /* ── 이미 새긴 사건 ──
    워커가 준 Effect.id를 적어둔다. 같은 응답을 두 번 처리해도(재시도·늦게
@@ -1613,7 +1613,7 @@ const batchItemId=(id,i)=>id+"#"+i;
    유저에게는 물어본 적이 없는 게 된다.
 
    값 하나로 두면 두 방에서 초대가 겹칠 때 나중 것이 아직 답 안 한 앞의
-   것을 덮는다. 재언의 편의점을 물어보기 전에 민현의 옥상이 오면 편의점은
+   것을 덮는다. 재언의 편의점을 물어보기 전에 강현의 옥상이 오면 편의점은
    묻지도 못하고 사라진다. 줄로 세운다 — 앞엣것에 답해야 다음이 열린다. */
 const loadInvites=()=>{try{
   const v=JSON.parse(localStorage.getItem("null_invite"));
@@ -1660,11 +1660,11 @@ const SCENE_REASONS = ["memory_reveal","null_identity","confession","irreversibl
    매 요청에 실어 보낸다. 바뀌는 길은 하나다 — 워커가 검증된 응답 뒤에 낸
    story_transition Effect를 장부가 적용하는 것. 클라이언트가 제 손으로
    explained/acknowledged를 찍는 자리는 없다.
-     firstContact  unseen → pending → explained → recognized  민현의 병원 옥상
+     firstContact  unseen → pending → explained → recognized  강현의 병원 옥상
      jaeeonMemory  hidden → opened → acknowledged 재언의 20년 기억
      partnerKnown  {jaeeon,minhyun}               상대가 정해진 걸 아는가
 
-   explained는 민현이 **말한** 자리고 recognized는 유저가 **받아들인** 자리다.
+   explained는 강현이 **말한** 자리고 recognized는 유저가 **받아들인** 자리다.
    둘을 한 칸으로 뭉치면 말한 순간 아는 사이가 되어, 유저가 계속 「누구세요」를
    쳐도 워커에 실리는 사실은 「이미 설명했다」 하나뿐이었다. */
 const STORY_FC=["unseen","pending","explained","recognized"];

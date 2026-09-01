@@ -62,7 +62,7 @@ const TS = /^(?:(\d+)월\s*(\d+)일\s*)?(오전|오후)\s*(\d+):(\d+)$/;
 
 /* 방 이름과 코드의 열쇠를 맞춘다. 「고친 말」 절은 방이 아니다 —
    내보내기가 대화 앞에 끼워 넣는 별도 절이라 방으로 세면 안 된다. */
-const ROOM_KEY = { '이재언': 'jaeeon', '이민현': 'minhyun', '단톡방': 'group', '두 사람': 'health' };
+const ROOM_KEY = { '이재언': 'jaeeon', '이강현': 'minhyun', '단톡방': 'group', '두 사람': 'health' };
 
 function readLog(path) {
   const rows = [];
@@ -117,7 +117,7 @@ function readLog(path) {
 
 /* 누가 인물이고 누가 유저인가. 이름은 기록마다 다르므로 인물 쪽을 못박고
    나머지를 유저로 본다 — 유저 이름은 사람마다 다르지만 인물은 둘뿐이다. */
-const CHARS = ['이재언', '이민현'];
+const CHARS = ['이재언', '이강현'];
 const isChar = w => CHARS.includes(w);
 
 /* ── 사건 ──
@@ -125,11 +125,11 @@ const isChar = w => CHARS.includes(w);
    「이재언**에게** 받았다」(인물→유저)를 먼저 걸러야 「이재언**이** 받았다」
    (유저→인물)와 안 섞인다. 둘을 뒤집으면 선물 사건 수가 통째로 틀린다. */
 const EVENTS = [
-  ['item_from_char', /^(이재언|이민현)에게\s+(.+?)(?:을|를)?\s*받았다/, m => ({ who: m[1], item: m[2] })],
-  ['gift_to_char',   /^(이재언|이민현)(?:이|가)\s+(.+?)(?:을|를)?\s*받았다/, m => ({ who: m[1], item: m[2] })],
+  ['item_from_char', /^(이재언|이강현)에게\s+(.+?)(?:을|를)?\s*받았다/, m => ({ who: m[1], item: m[2] })],
+  ['gift_to_char',   /^(이재언|이강현)(?:이|가)\s+(.+?)(?:을|를)?\s*받았다/, m => ({ who: m[1], item: m[2] })],
   ['place_in',       /^(?:.*?\s)?(\S+?)에\s+(?:갔다|들렀다|도착했다)/,      m => ({ place: m[1] })],
   ['place_out',      /^(\S+?)에서\s+나왔다/,                                 m => ({ place: m[1] })],
-  ['promise',        /^(이재언|이민현)(?:와|과)\s+(\S+?)에\s+가기로\s+했다/,  m => ({ who: m[1], place: m[2] })],
+  ['promise',        /^(이재언|이강현)(?:와|과)\s+(\S+?)에\s+가기로\s+했다/,  m => ({ who: m[1], place: m[2] })],
   ['ride',           /차를\s+타고/,                                          () => ({}) ],
 ];
 
@@ -383,7 +383,7 @@ function normalLines() {
   return out;
 }
 
-const CORPUS_LINE = /^　(재언|민현|둘|해설)\s*—\s*(.+?)\\?$/;
+const CORPUS_LINE = /^　(재언|강현|둘|해설)\s*—\s*(.+?)\\?$/;
 function corpusFalsePositives() {
   const p = join(ROOT, 'docs/dialogue-corpus.md');
   if (!existsSync(p)) return null;

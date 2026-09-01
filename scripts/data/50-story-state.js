@@ -9,7 +9,7 @@ const loadRefused=()=>{try{return JSON.parse(localStorage.getItem("null_refused"
 const saveRefused=a=>{try{localStorage.setItem("null_refused",JSON.stringify(a));return true}catch(e){return false}};
 /* 눌러서 만드는 사건(선물·해금·약속) 말고, 그냥 쌓여서 되는 사건이 둘 있다.
    한 번씩만 찍는다 — 같은 일이 매일 나오면 그건 사건이 아니라 배경이다. */
-const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 민현이 눈치챈다
+const PHOTO_EVENT_AT=5;      // 재언에게 사진을 이만큼 받으면 강현이 눈치챈다
 const DDAY_MARKS=[7,3,1];    // 남은 날이 이 값이 되는 날
 /* ── 이미 새긴 사건 ──
    워커가 준 Effect.id를 적어둔다. 같은 응답을 두 번 처리해도(재시도·늦게
@@ -104,7 +104,7 @@ const batchItemId=(id,i)=>id+"#"+i;
    유저에게는 물어본 적이 없는 게 된다.
 
    값 하나로 두면 두 방에서 초대가 겹칠 때 나중 것이 아직 답 안 한 앞의
-   것을 덮는다. 재언의 편의점을 물어보기 전에 민현의 옥상이 오면 편의점은
+   것을 덮는다. 재언의 편의점을 물어보기 전에 강현의 옥상이 오면 편의점은
    묻지도 못하고 사라진다. 줄로 세운다 — 앞엣것에 답해야 다음이 열린다. */
 const loadInvites=()=>{try{
   const v=JSON.parse(localStorage.getItem("null_invite"));
@@ -151,11 +151,11 @@ const SCENE_REASONS = ["memory_reveal","null_identity","confession","irreversibl
    매 요청에 실어 보낸다. 바뀌는 길은 하나다 — 워커가 검증된 응답 뒤에 낸
    story_transition Effect를 장부가 적용하는 것. 클라이언트가 제 손으로
    explained/acknowledged를 찍는 자리는 없다.
-     firstContact  unseen → pending → explained → recognized  민현의 병원 옥상
+     firstContact  unseen → pending → explained → recognized  강현의 병원 옥상
      jaeeonMemory  hidden → opened → acknowledged 재언의 20년 기억
      partnerKnown  {jaeeon,minhyun}               상대가 정해진 걸 아는가
 
-   explained는 민현이 **말한** 자리고 recognized는 유저가 **받아들인** 자리다.
+   explained는 강현이 **말한** 자리고 recognized는 유저가 **받아들인** 자리다.
    둘을 한 칸으로 뭉치면 말한 순간 아는 사이가 되어, 유저가 계속 「누구세요」를
    쳐도 워커에 실리는 사실은 「이미 설명했다」 하나뿐이었다. */
 const STORY_FC=["unseen","pending","explained","recognized"];

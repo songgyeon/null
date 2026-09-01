@@ -248,7 +248,7 @@ function Confirm({name,onYes,onBack}){
    얼굴을 고르는 게 아니라 이름을 쓴다 — 이 제품은 처음부터 끝까지 빈칸을
    채우는 이야기다. 이 세계에 있는 두 사람만 들어가고, 그 밖의 글자는 다
    에러다. 성은 붙여도 되고 안 붙여도 된다 — 유저가 부르던 대로 쓰면 된다. */
-const WHO_NAMES={ "이재언":"jaeeon", "재언":"jaeeon", "이민현":"minhyun", "민현":"minhyun" };
+const WHO_NAMES={ "이재언":"jaeeon", "재언":"jaeeon", "이강현":"minhyun", "강현":"minhyun" };
 function WhoBlank({onPick}){
   const [on,setOn]=useState(false);
   const [v,setV]=useState("");

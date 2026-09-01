@@ -61,7 +61,7 @@ const CHARS = {
       "jaeeon-laundry-seat.webp","jaeeon-laundry-mid.webp","jaeeon-laundry-near.webp",
       "jaeeon-home-mid.webp","jaeeon-home-near.webp",
       "jaeeon-night.webp","jaeeon-book.webp"]},
-  minhyun:{name:"이민현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
+  minhyun:{name:"이강현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
       "minhyun-laundry-mid.webp","minhyun-laundry-near.webp",
       "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp",
@@ -81,7 +81,7 @@ const ENROLL_DAYS = 30;
 
    ── 말풍선은 시간에 손대지 않는다 ──
    한때 쌓인 대화를 날로 셌다(네 마디 = 하루). 그러면 인물이 두 줄로 답하느냐
-   세 줄로 답하느냐가 달력을 민다. 실제로 그렇게 됐다 — 민현이 수다스러운 판에서
+   세 줄로 답하느냐가 달력을 민다. 실제로 그렇게 됐다 — 강현이 수다스러운 판에서
    재언 방의 D-일차가 같이 탔고, 첫날 아침 8시 47분에 이미 37일째였다.
    나눠지는 수를 바꿔봐야 「한 마디에 몇 시간」이라는 모양은 그대로다.
    그래서 구조를 뗀다. **시각·D-일차·요일·시간표·도장·재회·해금의 day 조건이
