@@ -4405,7 +4405,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['258', '33cbea7c33f4']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['259', 'cbbd4d4d1bc7']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5207,12 +5207,14 @@ eq('쪽지가 흰 종이다',
   && !/A NOTE \(선택\)/.test(web), true);
 /* 남은 날이 30을 넘을 수는 없다. 첫 대화 시각이 물건보다 늦게 잡히면 D-31이 나왔다 */
 eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
-eq('bag 창이 gift 옆에 있다', web.indexOf('ui/null-bag-icon.svg') > web.indexOf('ui/null-gift-icon.svg'), true);
-eq('상단 gift와 bag은 제공된 SVG를 이름대로 쓴다',
-  exists('ui/null-gift-icon.svg') && exists('ui/null-bag-icon.svg')
-  && /ui\/null-gift-icon\.svg/.test(web) && /ui\/null-bag-icon\.svg/.test(web), true);
-eq('채팅과 장소의 선물 버튼도 같은 SVG를 쓴다',
-  (web.match(/ui\/null-gift-icon\.svg/g)||[]).length, 3);
+eq('bag 창이 gift 옆에 있다', web.indexOf('ui/null-bag-icon.png') > web.indexOf('ui/null-gift-icon.png'), true);
+/* 그림 파일은 SVG였다가 PNG가 됐다. 묻는 것은 형식이 아니라 「준 그림을
+   이름대로 쓰는가」이므로 이름만 따라간다 */
+eq('상단 gift와 bag은 제공된 그림을 이름대로 쓴다',
+  exists('ui/null-gift-icon.png') && exists('ui/null-bag-icon.png')
+  && /ui\/null-gift-icon\.png/.test(web) && /ui\/null-bag-icon\.png/.test(web), true);
+eq('채팅과 장소의 선물 버튼도 같은 그림을 쓴다',
+  (web.match(/ui\/null-gift-icon\.png/g)||[]).length, 3);
 eq('인물 프로필 X는 배경 사진을 펼친다',
   /WindowChrome title=\{`\$\{char\}\.hompy`\} onClose=\{\(\)=>setFull\(true\)\}/.test(web), true);
 eq('프로필 배경의 tap to close는 메신저로 돌아간다',

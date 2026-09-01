@@ -127,7 +127,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         {/* 선물은 만나서만 준다. 그러니 단추도 만난 자리에 있어야 한다 —
             메뉴바에만 두면 자리에서는 열 수가 없다 */}
         <button className="giftbtn rbtn" onClick={onCart} title="give something">
-          <img className="ico" src={av("ui/null-gift-icon.svg")} alt=""/>
+          <img className="ico" src={av("ui/null-gift-icon.png")} alt=""/>
         </button>
         <input className="sunken" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send0()}/>
         <button className="sendbtn rbtn" disabled={!v.trim()||busy} onClick={send0}
@@ -215,7 +215,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
          방을 열 때마다 화면이 흔들린다. */
       :<div className={"inputbar"+(locked?" locked":"")}>
         <button className="giftbtn rbtn" disabled={!!locked} onClick={onCart} title="give something">
-          <img className="ico" src={av("ui/null-gift-icon.svg")} alt=""/>
+          <img className="ico" src={av("ui/null-gift-icon.png")} alt=""/>
         </button>
         <input className="sunken" value={locked?"":v} disabled={!!locked}
           onChange={e=>setV(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
