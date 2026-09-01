@@ -684,11 +684,30 @@ const flashCss = readCss();
     /* 서른 날짜리 판에서 열여드레를 채워야 열리면 대부분 한 번도 못 본다 */
     eq('마지막 칸이 아니라 그 앞이다',
       [ENG.STAGES[top].at, ENG.STAGES[top].day], [40, 10]);
-    /* ② 말 — 고백 장면이 아니면 안 열린다. 다른 중요 장면도 아니다 */
+    /* ② 말 — 고백이나 키스 장면이어야 한다. 다른 중요 장면으로는 안 열린다 */
     eq('고백이 아니면 안 열린다',
       [{ tier: 'critical', reason: 'memory_reveal' }, { tier: 'critical', reason: 'null_identity' },
        { tier: 'normal', reason: '' }, { tier: 'normal', reason: 'confession' }, null]
         .map(r => K(r, base)), [null, null, null, null, null]);
+    /* 키스를 청한 자리도 문이다 — 고백만 문이면 「키스해도 돼요?」가 죽는다 */
+    eq('키스를 청해도 열린다',
+      K({ tier: 'critical', reason: 'kiss' }, base), { char: 'jaeeon', place: '보건실' });
+    /* ── 말에서 장면까지 실제로 이어지는가 ──
+       정규식만 재면 배선이 끊겨도 통과한다. sceneTier를 거쳐 재본다. */
+    {
+      const T = ENG.sceneTier;
+      const run = (lastUser, lastChar = '', place = '보건실') =>
+        K(T('', { ...base, place, mode: 'chat', lastUser, lastChar, story: {} }), { ...base, place });
+      eq('유저가 청하면 장면까지 간다', run('키스해도 돼요?'), { char: 'jaeeon', place: '보건실' });
+      eq('인물이 청하고 유저가 승낙해도 간다',
+        run('네', '그럼 지금 키스해도 돼요?'), { char: 'jaeeon', place: '보건실' });
+      /* 거절은 안 연다 — 승낙 갈래가 「네」만 보고 열리면 안 된다 */
+      eq('거절하면 안 열린다', run('아니요', '그럼 지금 키스해도 돼요?'), null);
+      /* 물음이 키스가 아니면 「네」는 그냥 「네」다 */
+      eq('아무 데서나 네 한 마디로는 안 열린다', run('네', '밥은 먹었어요?'), null);
+      /* 자리 문은 그대로다 — 문자로 청하면 안 열린다 */
+      eq('문자로 청하면 안 열린다', run('키스해도 돼요?', '', ''), null);
+    }
     /* ③ 자리 — 문자로 오는 얼굴은 POV가 아니라 「상대가 보낸 셀카」다 */
     eq('마주 앉아 있지 않으면 안 열린다',
       [K(ok, { ...base, place: '' }), K(ok, { ...base, place: null }), K(ok, { ...base, place: '  ' })],
@@ -4429,7 +4448,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['267', '4026ccb7652d']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['268', '7dc1cceb62a7']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -9809,7 +9828,8 @@ eq('시간표 단추는 peek보다 좁다',
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
   const { approveReason, detectScene, sceneTier, storyFacts, materializeEffects,
           makeStoryState, factsForSpeaker, makeTurnContext, mintEffectId, makeEffect,
-          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE } = ENG;
+          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, CONFESS_SAY, NULL_PROBE,
+          KISS_SAY, KISS_ASK_BY_CHAR, YES_SAY } = ENG;
 
   /* ── 감지 정밀도 — 오탐이 미탐보다 비싸다 (B단계의 교훈 그대로) ── */
   eq('기억 캐묻기 — 잡아야 할 것', [
@@ -9848,6 +9868,35 @@ eq('시간표 단추는 peek보다 좁다',
     '좋아요', '이거 좋아요', '선생님 뭐 좋아하세요', '저 시 좋아하는 것 같아요',
     '사귀는 사람 있어요?', '저 사진집 좋아해요', '강아지 좋아해요',
   ].filter(t => CONFESS_SAY.test(t)), []);
+  /* ── 키스는 청하는 말로도 열린다 ──
+     앞판은 「좋아해요」류만 문으로 뒀다. 그래서 「키스해도 돼요?」라고 친
+     사람은 아무 일도 안 일어나는 걸 봤다. 높임 「요」는 있으나 없으나 같다. */
+  eq('키스 — 유저가 청하는 말', [
+    '키스할래요?', '키스할래', '키스하고 싶어요', '키스하고 싶어',
+    '키스해도 돼요?', '키스해도 돼', '키스해요', '키스해',
+    '키스해주세요', '키스해줘요', '키스해줘', '키스하자',
+    '우리 키스해요', '지금 키스해도 될까요?',
+  ].filter(t => !KISS_SAY.test(t)), []);
+  /* 키스를 입에 올린다고 청한 것은 아니다 */
+  eq('키스 — 말만 꺼낸 것은 아니다', [
+    '키스는 아직이요', '키스 얘기 그만', '키스한 적 있어요?',
+    '키스가 뭐예요', '키스신 좋았어요',
+  ].filter(t => KISS_SAY.test(t)), []);
+  /* ── 인물이 먼저 청하고 유저가 승낙하는 길 ──
+     제일 자연스러운 길인데 앞판에는 아예 없었다. 유저가 친 말만 봤기 때문에
+     「그럼 지금 키스해도 돼요?」에 「네」라고 답해도 아무 일도 안 났다. */
+  eq('키스 — 인물이 청하는 말', [
+    '그럼 지금 키스해도 돼요?', '키스할래요?', '키스해 줄래요?',
+    '지금 키스해도 괜찮아요?', '키스하고 싶은데요.',
+  ].filter(t => !KISS_ASK_BY_CHAR.test(t)), []);
+  eq('키스 — 승낙으로 읽는 말', [
+    '네', '넹', '응', '어', '그래', '좋아요', '좋아', '해요', '돼요',
+    '괜찮아요', 'ㅇㅇ', '네네', '응응', '오케이', '네!', '응 ㅋㅋ',
+  ].filter(t => !YES_SAY.test(t)), []);
+  eq('키스 — 승낙이 아닌 말', [
+    '아니요', '싫어요', '글쎄요', '네? 뭐라고요',
+    '좋아요 근데 여기선 말고', '나중에요',
+  ].filter(t => YES_SAY.test(t)), []);
   eq('고백 — 사랑해도 사람을 향할 때다', [
     '사랑해요', '사랑해', '정말 사랑해', '선생님을 사랑해요', '너를 사랑해',
   ].filter(t => !CONFESS_SAY.test(t)), []);
@@ -9982,7 +10031,9 @@ eq('시간표 단추는 peek보다 좁다',
     sceneTier('partner_known', CTX({ lastUser: '공부방 기억나요?' })).reason, 'memory_reveal');
   eq('D-0·WHO는 감지 목록에 없다', (() => {
     const t = wk.slice(wk.indexOf('function detectScene('), wk.indexOf('function sceneTier('));
-    return t.includes('"memory_reveal"') && t.includes('["confession", "null_identity"]')
+    /* 감지가 보는 것은 **말에서 오는 것**뿐이다 — 기억·키스·고백·정체.
+       예약 사유(D-0·WHO)는 화면 단추에서 오는 것이라 여기 들어오면 안 된다. */
+    return t.includes('"memory_reveal"') && t.includes('["kiss", "confession", "null_identity"]')
       && !/dday_choice|partner_confirm|partner_known/.test(t);
   })(), true);
 

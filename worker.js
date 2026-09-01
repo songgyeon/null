@@ -4892,6 +4892,7 @@ const CRITICAL_REASONS = {
   memory_reveal: "핵심 기억이 처음 공개된다",
   null_identity: "NULL이라는 사실이 직접 작동한다",
   confession: "고백을 받아들이거나 거절한다",
+  kiss: "키스를 청하거나 승낙한다",
   irreversible: "관계가 되돌릴 수 없게 바뀐다",
   partner_confirm: "상대가 정해진다",
   dday_choice: "남을지 떠날지를 고른다",
@@ -4970,6 +4971,21 @@ const CONFESS_SAY = new RegExp(
   + `(?:진짜\\s*|정말\\s*|너무\\s*|많이\\s*)?(?:${CONFESS_LIKE}|좋아요)`
   + `|^\\s*(?:진짜|정말|너무|많이|나|저|전|난)?\\s*(?:${CONFESS_LIKE})`
   + `\\s*(?:진짜로?|정말로?|너무|많이|엄청)?\\s*[.!?~…ㅠㅜㅋ\\s]*$`);
+/* ── 키스를 청하는 말 ──
+   고백과 다른 갈래다. 고백은 마음을 말하는 것이고 이건 지금 하자는 것이다.
+   「좋아해요」만 문으로 두면 「키스해도 돼요?」라고 친 사람은 아무 일도
+   안 일어나는 걸 본다. 둘 다 키스타임을 연다.
+   높임 「요」는 있으나 없으나 같은 말이라 갈래마다 같이 받는다. */
+const KISS_SAY = /키스\s*(?:할래|하고\s*싶|해도\s*(?:돼|되|될까)|해\s*줄래|해\s*주(?:세요|실래)|해\s*줘|하자|해요|해$|해[.!?~…ㅠㅜㅋㅎ\s])/;
+/* ── 인물이 먼저 청하고 유저가 승낙하는 길 ──
+   제일 자연스러운 길인데 앞판에는 아예 없었다. 유저가 친 말만 봤기 때문에
+   「그럼 지금 키스해도 돼요?」에 「네」라고 답해도 아무 일도 안 났다.
+   직전 인물 발화를 같이 보는 방식은 null_identity가 이미 쓰는 것과 같다.
+   ※ YES_SAY는 **직전 물음이 키스일 때만** 본다. 홀로 쓰면 「네」 한 마디가
+      아무 데서나 중요 장면이 된다. */
+const KISS_ASK_BY_CHAR = /키스\s*(?:해도\s*(?:돼|되|될까)|할래|해\s*줄래|해도\s*괜찮|하고\s*싶|해요\?|할까)/;
+const YES_SAY = /^\s*(?:네+|넹|녜|응+|어+|그래|그럼요?|좋아요?|좋아여|해요|해|하자|돼요?|괜찮아요?|물론|오케이|ㅇㅋ|ㅇㅇ)\s*(?:요)?[.!?~…ㅠㅜㅋㅎ\s]*$/;
+
 /* 재언의 답이 기억을 실제로 건드렸는가 — 승인된 장면이라도 답이 기억을
    한 마디도 안 건드리면 상태를 전진시키지 않는다. 장면은 다시 올 수 있지만
    전진은 되돌릴 수 없다. */
@@ -5048,6 +5064,14 @@ function approveReason(r, ctx) {
       /* 고백 대상(이 방의 사람) · 관계 단계(처음은 아니다) · 실제 유저 발화 */
       return (ctx.room === "jaeeon" || ctx.room === "minhyun")
         && Number(ctx.stageIdx) >= 1 && CONFESS_SAY.test(said);
+    case "kiss":
+      /* 유저가 청했거나, 인물이 청한 것에 유저가 승낙했거나. 마주 앉아 있는
+         자리에서만이다 — 문자로 오는 얼굴은 POV가 아니라 「보낸 셀카」다.
+         승낙 갈래는 직전 인물 발화가 실제로 키스를 청한 말일 때만 본다. */
+      return (ctx.room === "jaeeon" || ctx.room === "minhyun")
+        && !!String(ctx.place || "").trim()
+        && (KISS_SAY.test(said)
+            || (KISS_ASK_BY_CHAR.test(String(ctx.lastChar || "")) && YES_SAY.test(said)));
     default:
       /* irreversible·conflict_result — 아직 코드가 확인할 상태 근거가 없다.
          근거 없이 올리지 않는다. 근거가 생기면 그때 조건을 단다. */
@@ -5068,7 +5092,7 @@ function detectScene(ctx) {
   if (ctx.room === "jaeeon" && ((ctx.story || {}).jaeeonMemory !== "acknowledged")
       && MEMORY_PROBE.test(String(ctx.lastUser || ""))) return "memory_reveal";
   /* 고백·정체는 조건 자체가 실제 발화를 요구한다 — 상태만으로는 못 오른다 */
-  for (const r of ["confession", "null_identity"])
+  for (const r of ["kiss", "confession", "null_identity"])
     if (approveReason(r, ctx)) return r;
   return "";
 }
@@ -5096,7 +5120,8 @@ function detectScene(ctx) {
 const KISS_STAGE = STAGES.length - 2;
 
 function kissMoment(routed, ctx) {
-  if (!routed || routed.tier !== "critical" || routed.reason !== "confession") return null;
+  if (!routed || routed.tier !== "critical"
+      || (routed.reason !== "confession" && routed.reason !== "kiss")) return null;
   const c = ctx || {};
   if (Number(c.stageIdx) < KISS_STAGE) return null;           // ① 관계 단계
   const place = String(c.place || "").trim();
@@ -7259,6 +7284,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,
          CONFESS_SAY, NULL_PROBE, MEMORY_TOUCH,
+         KISS_SAY, KISS_ASK_BY_CHAR, YES_SAY,
          JAEEON_MEMORY_KEYS, lastUserUtterance, lastCharUtterance, unquoteUser, QUOTED,
          sceneHead, criticPacket, finalizerPacket, readProblems,
          CANON_CRITIC, CHAR_CRITIC, FINALIZER_RULES,
