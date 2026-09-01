@@ -1300,10 +1300,17 @@ function GameApp(){
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
      그 줄은 유저의 말이 아니라 일어난 일이므로 sys로 표시해 지문처럼 그린다.
      history에도 이 줄이 그대로 들어가서 모델이 "무엇을 받았는지" 알게 된다. */
+  /* ── 한 물건은 한 사람에게만 ──
+     같은 걸 둘 다에게 주면 주는 일이 고르는 일이 아니게 된다. 무엇을 줬는지가
+     누구를 골랐는지가 되어야 한다. 창에서 이미 막지만 주는 길이 둘이라
+     여기서도 막는다 — 한쪽만 잠그는 자물쇠는 자물쇠가 아니다. */
+  const giftTaken=(char,key)=>Object.entries(giftsRef.current||{})
+    .some(([c,a])=>c!==char&&(a||[]).includes(key));
   const giveGift=(char,gift,memo)=>{
     if(!char||!gift)return;
     const have=giftsRef.current[char]||[];
     if(have.includes(gift.key))return;              // 같은 걸 두 번 주지 않는다
+    if(giftTaken(char,gift.key)){ setToast("one gift ♡ one person"); return }
     /* 한 사람에게 하루에 하나. 창에서 이미 막고 있지만 여기서도 막는다 —
        주는 길이 둘이면 한쪽만 잠그는 자물쇠는 자물쇠가 아니다 */
     /* 물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말했다.
@@ -1330,6 +1337,7 @@ function GameApp(){
   const giveGiftAt=(char,gift,memo,place)=>{
     const p=PLACE_BY[place]; if(!char||!gift||!p)return;
     if((giftsRef.current[char]||[]).includes(gift.key))return;
+    if(giftTaken(char,gift.key)){ setToast("one gift ♡ one person"); return }
     if(giftedToday(char)||goneToday(place))return;
     const note=(memo||"").trim().slice(0,60);
     const since=Date.now(), id="giftat|"+char+"|"+gift.key+"|"+place+"|"+dayKey();

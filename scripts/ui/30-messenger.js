@@ -155,6 +155,12 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
     &&(!key||(g.name+" "+g.tags).toLowerCase().includes(key)));
   const back=()=>{setPick(null);setTo(null);setMemo("")};
   const given=c=>(gifts[c]||[]).includes(pick&&pick.key);
+  /* ── 한 물건은 한 사람에게만 ──
+     같은 걸 둘 다에게 주면 주는 일이 고르는 일이 아니게 된다. 무엇을 줬는지가
+     누구를 골랐는지가 되어야 한다 — 일기가 나중에 그걸 되묻는다.
+     「그 사람에게 준 이유는 정말 그것뿐이었을까?」 */
+  const takenBy=k=>["jaeeon","minhyun"].find(c=>(gifts[c]||[]).includes(k));
+  const taken=c=>{const o=takenBy(pick&&pick.key);return !!o&&o!==c};
   const poor=pick&&hearts<pick.cost;
   const today=c=>giftedToday(c);   // 이 사람 오늘 몫은 이미 나갔다
   /* 물건은 손에서 손으로 간다. 문자로는 못 준다 —
@@ -175,8 +181,12 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
         <button key={c} className={"cchip"+(cat===c?" on":"")} onClick={()=>setCat(c)}>{CAT_EN[c]||c}</button>)}</div>
       <div className="cgrid">
         {hits.length?hits.map(g=>
-          <button key={g.key} className="citem" onClick={()=>setPick(g)}>
-            {g.badge&&<span className={"cbadge"+(g.badge==="HOT"?" mint":"")}>{g.badge}</span>}
+          <button key={g.key} className={"citem"+(takenBy(g.key)?" gone":"")}
+            onClick={()=>setPick(g)}>
+            {/* 이미 나간 것은 목록에서 표가 난다. 포장까지 하고 나서 알면 늦다 */}
+            {takenBy(g.key)
+              ?<span className="cbadge sent">SENT</span>
+              :g.badge&&<span className={"cbadge"+(g.badge==="HOT"?" mint":"")}>{g.badge}</span>}
             <span className="cthumb"><img src={av(`gicon-${g.key}.webp`)} alt=""/></span>
             <span className="ciname">{g.name}</span>
             <span className="cprice">♡ {g.cost}</span>
@@ -207,10 +217,16 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
       {(today("jaeeon")||today("minhyun"))&&<div className="cshut cday">
         <span>one a day ♡</span><span>each</span>
       </div>}
+      {/* 이미 한 사람이 가진 물건이면 왜 딴 사람이 잠겼는지 적어준다 —
+          눌렀는데 아무 일도 안 일어나는 것보다 낫다 */}
+      {takenBy(pick.key)&&<div className="cshut cday">
+        <span>one gift ♡</span><span>one person</span>
+      </div>}
       {["jaeeon","minhyun"].map(c=>{
         /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면
            지금 자리를 말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
-        const done=given(c), shut=done||today(c)||(!!withChar&&!here(c)), sel=to===c;
+        const done=given(c), gone=taken(c);
+        const shut=done||gone||today(c)||(!!withChar&&!here(c)), sel=to===c;
         return <div key={c}>
           <button className={"cto"+(sel?" sel":"")} disabled={shut}
             onClick={()=>{ if(shut)return;
@@ -223,7 +239,7 @@ function Cart({gifts,hearts,withChar,met,onSend,onSendAt,onClose}){
             <span className="cface" style={faceBg(CHARS[c])}/>
             <span className="ctoname">{CHARS[c].name}</span>
             <span className={shut?"csent":"csend"}>
-              {done?"SENT ♡":today(c)?"TOMORROW ♡":(withChar&&!here(c))?"NOT HERE"
+              {done?"SENT ♡":gone?"TAKEN":today(c)?"TOMORROW ♡":(withChar&&!here(c))?"NOT HERE"
                 :(sel?(poor?`NEED ♡${pick.cost-hearts}`:(here(c)?"SEND ♡":"WHERE ♡")):"WRAP ♡")}</span>
           </button>
         </div>;

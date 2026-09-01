@@ -1080,3 +1080,10 @@
    Departure Mono를 걸면 안 되는 까닭 — 그 글꼴엔 한글이 없어서 peek만
    바뀌고 「저녁·일요일·4교시」는 옛 글꼴로 남아 두 알약이 서로 달라진다. */
 .menubar .toolkey{font-family:"Mulmaru","Galmuri11",sans-serif}
+
+/* ── 이미 한 사람에게 나간 선물 ──
+   한 물건은 한 사람에게만 간다. 목록에서 미리 보여야 포장하고 나서 알지 않는다.
+   지우지 않고 눌러볼 수는 있게 둔다 — 누구에게 줬는지는 안에서 알려준다. */
+.cgrid .citem.gone{opacity:.5}
+.cgrid .citem.gone .cthumb{filter:grayscale(1)}
+.cbadge.sent{background:#d8d2e6;color:#6b5fa8;border-color:#bcb3d4}

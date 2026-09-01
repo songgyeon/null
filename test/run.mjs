@@ -1397,7 +1397,7 @@ eq('만나고 있으면 바로 준다',
 /* 이미 어느 자리에 있으면 그 사람에게만 준다. 딴 사람을 고르면 지금 자리를
    말없이 버리고 옮겨가는 그림이 된다 — 인사도 없이 */
 eq('자리에 있으면 딴 사람은 못 고른다',
-  /shut=done\|\|today\(c\)\|\|\(!!withChar&&!here\(c\)\)/.test(web)
+  /shut=done\|\|gone\|\|today\(c\)\|\|\(!!withChar&&!here\(c\)\)/.test(web)
   && /\(withChar&&!here\(c\)\)\?"NOT HERE"/.test(web), true);
 eq('아니면 어디서 줄지 고른다',
   /sel\?\(poor\?`NEED ♡\$\{pick\.cost-hearts\}`:\(here\(c\)\?"SEND ♡":"WHERE ♡"\)\):"WRAP ♡"/.test(web), true);
@@ -1711,7 +1711,7 @@ eq('선물 몫도 새벽 다섯 시에 넘어간다', /giftedToday=\(char,now\)=
 eq('보내는 쪽에서도 막는다',
   /if\(giftedToday\(char\)\)\{ setToast\(`\$\{CHARS\[char\]\.name\} — one a day ♡`\); return \}/.test(web)
   && /\{op:"stampGift",char\}/.test(web), true);
-eq('창에서도 막는다', /shut=done\|\|today\(c\)/.test(web), true);
+eq('창에서도 막는다', /shut=done\|\|gone\|\|today\(c\)/.test(web), true);
 /* 눌렀는데 아무 일도 안 일어나는 것보다 왜 안 되는지 적어주는 편이 낫다.
    한쪽만 잠긴 날에도 규칙은 알려준다 */
 eq('임의 one a day 문구를 포장 화면에 덧붙이지 않는다',
@@ -1719,7 +1719,23 @@ eq('임의 one a day 문구를 포장 화면에 덧붙이지 않는다',
 /* 이미 준 물건과 오늘 몫이 나간 것은 다른 이유다. 같은 회색 단추를 쓰되
    글자는 달라야 한다 — 「SENT」는 이 물건 얘기고 「TOMORROW」는 오늘 얘기다 */
 eq('이미 준 것과 오늘 몫은 다른 말이다',
-  /\{done\?"SENT ♡":today\(c\)\?"TOMORROW ♡"/.test(web), true);
+  /\{done\?"SENT ♡":gone\?"TAKEN":today\(c\)\?"TOMORROW ♡"/.test(web), true);
+/* ── 한 물건은 한 사람에게만 ──
+   같은 걸 둘 다에게 주면 주는 일이 고르는 일이 아니게 된다. 무엇을 줬는지가
+   누구를 골랐는지가 되어야 한다. 창과 보내는 쪽 **둘 다** 잠근다 —
+   주는 길이 둘이라 한쪽만 잠그면 자물쇠가 아니다. */
+eq('한 물건은 한 사람에게만 간다', [
+  /const takenBy=k=>\["jaeeon","minhyun"\]\.find\(c=>\(gifts\[c\]\|\|\[\]\)\.includes\(k\)\)/.test(web),
+  /const taken=c=>\{const o=takenBy\(pick&&pick\.key\);return !!o&&o!==c\}/.test(web),
+  /const giftTaken=\(char,key\)=>Object\.entries\(giftsRef\.current\|\|\{\}\)/.test(web),
+  (web.match(/if\(giftTaken\(char,gift\.key\)\)\{ setToast\("one gift ♡ one person"\); return \}/g) || []).length,
+], [true, true, true, 2]);
+/* 목록에서도 표가 나야 한다 — 포장까지 하고 나서 알면 늦다 */
+eq('이미 나간 선물은 목록에서 보인다',
+  /takenBy\(g\.key\)\s*\n?\s*\?<span className="cbadge sent">SENT<\/span>/.test(web), true);
+/* 왜 딴 사람이 잠겼는지 적어준다 — 눌렀는데 아무 일도 안 일어나면 고장이다 */
+eq('한 사람만 받는다고 화면에 적는다',
+  /<span>one gift ♡<\/span><span>one person<\/span>/.test(web), true);
 
 /* 사진이 매 턴 나가면 사진첩이 아니라 슬라이드쇼다 */
 demo.demoReset();
@@ -4448,7 +4464,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['268', '7dc1cceb62a7']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['269', '640bf3c5e5c4']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
