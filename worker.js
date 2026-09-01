@@ -1878,6 +1878,14 @@ const PHOTOS = {
     char: "jaeeon",
     when: "레코드샵 안쪽 자리. 벽이 온통 판이다. 노래/음악 얘기가 나왔을 때.",
   },
+  "jaeeon-night": {
+    char: "jaeeon",
+    when: "밤 집 창가. 도시 불빛이 뒤에 있다. 늦게까지 안 자고 있느냐는 물음에.",
+  },
+  "jaeeon-book": {
+    char: "jaeeon",
+    when: "도서관 서가 사이. 손이 비어 있다. 책을 고르는 중이라는 뜻이다.",
+  },
   "jaeeon-work": {
     char: "jaeeon",
     when: "보건실에서 일하는 중일 때. 퇴근/근무/바쁘냐는 물음에. 가운을 걸치고 서류를 든 참이다.",

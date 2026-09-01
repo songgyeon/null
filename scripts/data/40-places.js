@@ -349,7 +349,7 @@ const SCENE_SHOT={
   "옥상":     {jaeeon:["jaeeon-rooftop"],
                minhyun:["minhyun-vending","minhyun-rooftop-mid","minhyun-rooftop-near"]},
   "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-fridge","minhyun-ramen"]},
-  "도서관":   {jaeeon:["jaeeon-shelf"], minhyun:["minhyun-shelf"]},
+  "도서관":   {jaeeon:["jaeeon-shelf","jaeeon-book"], minhyun:["minhyun-shelf"]},
   "레코드샵": {jaeeon:["jaeeon-record"], minhyun:["minhyun-crate","minhyun-record","minhyun-mirror"]},
   /* 밤에 처음 켜면 여기서 재언을 만난다. 사진도 밤 코인세탁소다 —
      건조기 앞에 앉아 수건을 개고 있고 창밖에 비가 온다 */
@@ -362,7 +362,7 @@ const SCENE_SHOT={
   "체육관":   {minhyun:["minhyun-gym"]},
   /* 재언 집이지만 민현도 산다. 재언은 부엌에 서 있고, 민현은 막 일어난
      참이거나 엘리베이터에서 올라오는 길이다 */
-  "집":       {jaeeon:["jaeeon-cook","jaeeon-home-mid","jaeeon-home-near"],
+  "집":       {jaeeon:["jaeeon-cook","jaeeon-night","jaeeon-home-mid","jaeeon-home-near"],
                minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
      빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
