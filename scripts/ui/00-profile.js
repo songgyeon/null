@@ -282,7 +282,7 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
     <div className="pfdim" onClick={e=>{if(e.target===e.currentTarget)setFull(true)}}>
       <Sparkles/>
       <div className="pfcard glasswindow">
-        <WindowChrome title={`${char}.hompy`} onClose={()=>setFull(true)}/>
+        <WindowChrome title={`${ch.rom||char}.hompy`} onClose={()=>setFull(true)}/>
         <div className="pftop">
           <div className="pfpola">
             <span className="tape t1"/><span className="tape t2"/>

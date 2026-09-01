@@ -4405,7 +4405,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['263', '74de809b839a']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['264', '4caa43da1dbd']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5215,8 +5215,10 @@ eq('상단 gift와 bag은 제공된 그림을 이름대로 쓴다',
   && /ui\/null-gift-icon\.png/.test(web) && /ui\/null-bag-icon\.png/.test(web), true);
 eq('채팅과 장소의 선물 버튼도 같은 그림을 쓴다',
   (web.match(/ui\/null-gift-icon\.png/g)||[]).length, 3);
+/* 묻는 것은 X를 누르면 배경이 펼쳐지는가다. 창 이름의 철자는 곁가지라
+   느슨하게 둔다 — 열쇠가 아니라 로마자 이름을 쓰게 바뀐 적이 있다 */
 eq('인물 프로필 X는 배경 사진을 펼친다',
-  /WindowChrome title=\{`\$\{char\}\.hompy`\} onClose=\{\(\)=>setFull\(true\)\}/.test(web), true);
+  /WindowChrome title=\{`\$\{[^`]*\}\.hompy`\} onClose=\{\(\)=>setFull\(true\)\}/.test(web), true);
 eq('프로필 배경의 tap to close는 메신저로 돌아간다',
   /className="bgfull"[^>]*onClick=\{onBack\}/.test(web), true);
 

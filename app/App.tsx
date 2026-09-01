@@ -938,7 +938,7 @@ function Profile({char,onBack,refresh,dLeft,back,days}:{char:string;onBack:()=>v
         <HardShadow dx={5} dy={5} radius={10} color="rgba(20,14,44,.45)" style={{width:'100%'}}>
           <View style={pf.card}>
             <TB colors={[ch.color,'#ffb0d4']}>
-              <Text style={tbT}>{char}.hompy</Text><Dots onClose={onBack}/>
+              <Text style={tbT}>{(ch as any).rom||char}.hompy</Text><Dots onClose={onBack}/>
             </TB>
             {/* 폴라로이드 프사 + 마스킹테이프 */}
             <View style={pf.top}>
