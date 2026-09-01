@@ -5,7 +5,7 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers,
+         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers, hardFilter,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
@@ -706,6 +706,26 @@ const flashCss = readCss();
       [(wkSrc.match(/kissMoment\(routed,/g) || []).length,   // 정의 1 + 부르는 데 1
        (wkSrc.match(/\.\.\.\(kissNow \? \{ kiss: kissNow \} : \{\}\)/g) || []).length], [2, 2]);
   }
+  /* ── 세 컷이 실제로 세 장인가 ──
+     화면은 멀리→가까이→눈 감음 세 컷을 그리는데, KISS_CUTS가 빈 표라
+     같은 장을 세 번 돌려주고 있었다. 그래서 다가가는 게 아니라 한 장이
+     확대되는 걸로 보였다. mid·near·kiss가 바로 그 세 단계다. */
+  {
+    const cuts = web.match(/const KISS_CUTS=\{[^]*?\};/);
+    eq('키스 컷 표가 비어 있지 않다', !!cuts && /-mid"/.test(cuts[0]), true);
+    const pairs = [...(cuts ? cuts[0] : '').matchAll(/"([\w-]+-kiss)":\s*\[([^\]]+)\]/g)];
+    eq('여섯 짝이 다 있다', pairs.length, 6);
+    /* 세 장이 서로 달라야 세 컷이다 — 같으면 표만 채우고 그림은 안 온 것이다 */
+    eq('짝마다 서로 다른 세 장이다',
+      pairs.filter(m => new Set(m[2].match(/"([^"]+)"/g)).size !== 3).map(m => m[1]), []);
+    /* 끝은 그 짝의 kiss여야 한다 — 눈 감은 컷으로 닫힌다 */
+    eq('마지막 컷은 그 짝의 눈 감은 장이다',
+      pairs.filter(m => !m[2].trim().endsWith(`"${m[1]}"]`.slice(0, -1))).map(m => m[1]), []);
+    /* 표에 적은 파일이 실제로 있어야 한다 */
+    eq('컷 표의 사진이 전부 저장소에 있다',
+      pairs.flatMap(m => (m[2].match(/"([^"]+)"/g) || []).map(q => q.slice(1, -1)))
+        .filter(k => !exists(k + '.webp')), []);
+  }
   /* 한 짝에 한 번. 두 번째로 뜨면 연출이 아니라 답장이 된다 */
   {
     const mem = new Map();
@@ -715,9 +735,13 @@ const flashCss = readCss();
       webData
         .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
       + '\nreturn {kissNext,kissCuts,loadKissSeen,saveKissSeen,KISS_RUN,KISS_OUT};')(ls, { search: '' });
-    eq('짝이 맞으면 사진이 나온다',
+    /* 세 컷은 멀리(mid) → 가까이(near) → 눈 감음(kiss)이다. 표가 비어 있던
+       동안은 같은 장이 세 번 나와서, 다가가는 게 아니라 한 장이 확대되는
+       걸로 보였다. 사진은 처음부터 세 장 다 있었다 — 표만 안 채웠다. */
+    eq('짝이 맞으면 세 컷이 나온다',
       D.kissNext({ char: 'jaeeon', place: '보건실' }),
-      { shot: 'jaeeon-nurse-kiss', shots: ['jaeeon-nurse-kiss', 'jaeeon-nurse-kiss', 'jaeeon-nurse-kiss'],
+      { shot: 'jaeeon-nurse-kiss',
+        shots: ['jaeeon-nurse-mid', 'jaeeon-nurse-near', 'jaeeon-nurse-kiss'],
         char: 'jaeeon', place: '보건실' });
     /* 세 컷이 늘 셋이다 — -2·-3 이 아직 없는 짝은 앞 컷을 이어 쓴다.
        화면이 세 층을 그리므로 여기서 모자라면 층이 빈 채로 뜬다 */
@@ -4405,7 +4429,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['266', 'cb553d527575']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['267', '4026ccb7652d']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4828,7 +4852,18 @@ eq('워커가 때를 받으면 일어서라고 말한다',
   /* 줄을 가르기 전에 걸러야 한 말풍선에 섞여 온 것도 통째로 잡힌다 */
   eq('말버릇 필터보다 앞에 있다',
     /trimTics\(sanitizePhotos\(unlabel\(splitLines\(dropMeta\(parsed\.messages\)\)/.test(workerSrc), true);
-  eq('버릴 때 로그를 남긴다', /dropped\("사고 유출"/.test(workerSrc), true);
+  /* 로그로 남기는 것과 **이유를 들고 나가는 것**은 다른 일이다. 전에는
+     남기기만 해서, 다 버려져 빈 답이 되면 화면에 「EMPTY」 한 단어만 떴다.
+     이유가 재시도 프롬프트에도 안 실려서 두 번째도 같은 데서 죽었다. */
+  eq('버릴 때 로그를 남긴다', /toss\("사고 유출"/.test(workerSrc), true);
+  eq('통째로 비면 이유를 들고 나간다',
+    hardFilter({ messages: dropMeta([{ sender: 'jaeeon', text: '어떻게 답할지 정리하면, 기억을 부정하지 않으면서 피해야 함.' }]) },
+      ['jaeeon'], {}), ['EMPTY(사고 유출)']);
+  /* 한 줄이라도 남으면 버린 것은 곁가지다 — 이유를 달고 나갈 일이 없다 */
+  eq('남은 줄이 있으면 이유를 안 단다',
+    hardFilter({ messages: dropMeta([{ sender: 'jaeeon', text: '창밖을 본다.' },
+                                      { sender: 'jaeeon', text: '오래된 얘기예요.' }]) },
+      ['jaeeon'], {}), []);
 
   /* ── 없는 말 하나 ──
      「약 갖다올게요」, 「약 갖다 왔어요」가 나왔다. 「갖다주다」는 맞지만
@@ -4869,7 +4904,7 @@ eq('워커가 때를 받으면 일어서라고 말한다',
     ['minhyun', '됐다 그럼.'],
     ['jaeeon', '라면은 집에서 끓여요.'],
   ].filter(([w, t]) => !keepAs(w, t)), []);
-  eq('지문을 버릴 때도 로그를 남긴다', /dropped\("지문"/.test(workerSrc), true);
+  eq('지문을 버릴 때도 로그를 남긴다', /toss\("지문"/.test(workerSrc), true);
 
   /* ── 성을 뗀 이름 ──
      표가 풀네임만 들고 있어서 한 판이 통째로 샜다. 모델은 「이강현은」이
@@ -4905,7 +4940,7 @@ eq('워커가 때를 받으면 일어서라고 말한다',
     ['jaeeon',  '알겠다.'],
     ['minhyun', '그거 좋다.'],
   ].filter(([w, t]) => !keepAs(w, t)), []);
-  eq('이름 없는 지문도 로그를 남긴다', /dropped\("이름 없는 지문"/.test(workerSrc), true);
+  eq('이름 없는 지문도 로그를 남긴다', /toss\("이름 없는 지문"/.test(workerSrc), true);
 }
 
 /* ── 아무 일도 없었으면 비운 자리도 없다 ──
@@ -9800,6 +9835,18 @@ eq('시간표 단추는 peek보다 좁다',
     /* 적대 검증이 재현한 오탐들 — 무제약 사랑해·3인칭 진술 */
     '떡볶이 사랑해요', '민초 사랑해', '우리 엄마 사랑해', '부모님을 사랑해야지',
     '가사에 사랑해가 나와요', '학생들이 선생님을 좋아해요',
+  ].filter(t => CONFESS_SAY.test(t)), []);
+  /* ── 좁아서 키스타임이 한 번도 안 열렸다 ──
+     이 여덟은 실제로 못 잡던 것들이다. 「저 선생님 좋아해요」가 제일 아프다 —
+     제일 자연스러운 고백인데 주어 뒤에 곧바로 호칭이 오는 자리가 없었다. */
+  eq('고백 — 좁아서 놓치던 것', [
+    '저 선생님 좋아해요', '재언씨 좋아해요', '강현아 좋아해', '좋아해요 진짜로',
+    '좋아하는 것 같아요', '나 너 좋아하는 것 같아', '저랑 사귀어요', '사귀어 줄래요',
+  ].filter(t => !CONFESS_SAY.test(t)), []);
+  /* 넓히면서 같이 새면 안 되는 것들 — 「좋아요」는 부른 뒤에만 고백이다 */
+  eq('고백 — 넓혀도 새면 안 되는 것', [
+    '좋아요', '이거 좋아요', '선생님 뭐 좋아하세요', '저 시 좋아하는 것 같아요',
+    '사귀는 사람 있어요?', '저 사진집 좋아해요', '강아지 좋아해요',
   ].filter(t => CONFESS_SAY.test(t)), []);
   eq('고백 — 사랑해도 사람을 향할 때다', [
     '사랑해요', '사랑해', '정말 사랑해', '선생님을 사랑해요', '너를 사랑해',

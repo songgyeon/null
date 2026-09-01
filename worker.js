@@ -4182,16 +4182,34 @@ function dropped(why, text, n) {
   devLog(`[NULL] 버린 줄 ▶ ${why} ▶ ${String(text).slice(0, n)}`);
 }
 
+/* ── 왜 비었는지를 남긴다 ──
+   여기서 다 버려지면 후보의 말풍선이 0개가 되고, hardFilter가 그것을
+   EMPTY 한 단어로 부른다. 그런데 버린 이유는 다섯 갈래다. 어느 갈래였는지가
+   아무 데도 안 남아서 — 화면에도, 로그에도, **재시도 프롬프트에도** —
+   모델은 뭘 고쳐야 하는지 모르는 채 다시 굴렸고, 두 번째도 같은 이유로
+   비어서 턴이 죽었다. 실제로 화면에 「(A:EMPTY)」만 뜨고 끝났다.
+
+   바닥(다 지우면 안 지운다)을 다는 것은 틀린 처방이다 — 그러면 모델이
+   무엇을 말할지 정리한 글이 그대로 말풍선이 되어 나간다. 버리는 것은 맞고,
+   **왜 버렸는지를 들고 나가는 것**이 맞다. 마지막 이유를 lastMetaWhy에
+   남겨 hardFilter가 EMPTY 옆에 붙인다. */
+let lastMetaWhy = "";
+const metaWhy = () => lastMetaWhy;
 function dropMeta(list) {
   const out = [];
+  const why = [];
+  const toss = (tag, m, n) => { dropped(tag, m && m.text, n); if (why.indexOf(tag) < 0) why.push(tag); };
   for (const m of list || []) {
-    if (isMeta(m && m.text)) { dropped("사고 유출", m && m.text, 120); continue; }
-    if (isLeak(m && m.text)) { dropped("안이 비친 줄", m && m.text, 120); continue; }
-    if (isSelfNarration(m && m.text, m && m.sender)) { dropped("지문", m && m.text, 120); continue; }
-    if (isStageLine(m && m.text)) { dropped("이름 없는 지문", m && m.text, 120); continue; }
-    if (isSelfName(m && m.text, m && m.sender)) { dropped("제 이름을 호칭 자리에", m && m.text, 40); continue; }
+    if (isMeta(m && m.text)) { toss("사고 유출", m, 120); continue; }
+    if (isLeak(m && m.text)) { toss("안이 비친 줄", m, 120); continue; }
+    if (isSelfNarration(m && m.text, m && m.sender)) { toss("지문", m, 120); continue; }
+    if (isStageLine(m && m.text)) { toss("이름 없는 지문", m, 120); continue; }
+    if (isSelfName(m && m.text, m && m.sender)) { toss("제 이름을 호칭 자리에", m, 40); continue; }
     out.push(m);
   }
+  /* 남은 줄이 있으면 버린 것은 곁가지다 — 이유를 들고 나갈 일이 없다.
+     통째로 비었을 때만 그 이유가 이 턴이 죽은 이유가 된다. */
+  lastMetaWhy = (!out.length && why.length) ? why.join("·") : "";
   return out;
 }
 
@@ -4380,7 +4398,8 @@ const DENY_UNDO = /(?:안 받았|받은 적 없|못 받았)[^.!?]{0,6}(?:게 아
 function hardFilter(cand, allowed, ctx) {
   const c = cand || {};
   const kept = c.messages || [];
-  if (!kept.length) return ["EMPTY"];
+  /* 왜 비었는지까지 들고 나간다 — 「EMPTY」만으로는 재시도가 눈을 감고 굴린다 */
+  if (!kept.length) { const w = metaWhy(); return [w ? `EMPTY(${w})` : "EMPTY"]; }
   const codes = [];
   const ok = Array.isArray(allowed) && allowed.length ? allowed : [];
   const push = k => { if (codes.indexOf(k) < 0) codes.push(k); };
@@ -4927,8 +4946,30 @@ const FIRSTMEET_TAKE = /그랬(구나|군요|나\s*봐|나\s*보네|어요)|그�
 const FIRSTMEET_DENY = /그런\s*적\s*(은\s*)?없|아닌\s*것\s*같|잘못\s*(아신|보신|알)|사람\s*잘못|누구(세요|시|신데)|모르겠(는데|어|네|어요)/;
 /* 고백. 「저 떡볶이 좋아해요」 「민초 사랑해」가 걸리면 안 된다 — 좋아해와
    사랑해는 사람을 향해 문장을 열거나, 문장이 그 말 하나일 때만이다.
-   「학생들이 선생님을 좋아해요」 같은 3인칭 진술도 고백이 아니다. */
-const CONFESS_SAY = /(^|\s)사귀(자|어\s*줄|어\s*줘|고\s*싶)|고백(할|하고|인데|이에요|할래)|^\s*(저는\s*|나는\s*|난\s*|전\s*)?(너|널|당신|선생님|쌤)(이|가|을|를)?\s*(좋(아해|아한다|아요)|사랑해)|^\s*(진짜\s*|정말\s*)?(좋아해요?|사랑해요?)[.!?~…\s]*$/;
+   「학생들이 선생님을 좋아해요」 같은 3인칭 진술도 고백이 아니다.
+
+   ── 좁아서 한 번도 안 열리던 문이었다 ──
+   키스타임은 이 검사를 통과해야만 열리는데, 앞판은 「저 선생님 좋아해요」를
+   못 잡았다. 주어 뒤에 곧바로 호칭이 오는 자리를 안 뒀기 때문이다. 제일
+   자연스러운 고백이 그 모양이라, 사실상 안 열리는 기능이었다.
+   같이 새던 것들: 이름으로 부른 것(「재언씨 좋아해요」), 꼬리말이 붙은 것
+   (「좋아해요 진짜로」 — 끝을 $로 못박아 한 글자만 붙어도 죽었다),
+   에두른 것(「좋아하는 것 같아요」), 「사귀어요」.
+
+   조각 넷으로 나눠 둔다. 「좋아요」는 **부른 뒤에만** 고백이다 — 홀로 쓰면
+   「이거 어때요?」의 답이라 마지막 갈래에는 안 넣는다.
+   「좋아해요」를 「좋아해」보다 앞에 둬야 한다. 짧은 쪽이 먼저 물면 「요」가
+   남아서 꼬리말 검사에 걸린다. */
+const CONFESS_TARGET = "(?:이?재언|이?강현)(?:씨|님|아|야|이)?|너|널|당신|선생님|쌤";
+const CONFESS_SUBJ   = "(?:저는|저|나는|나|난|전|제가|내가)";
+const CONFESS_LIKE   = "좋아(?:해요|해|한다|합니다|하는\\s*(?:것|거)\\s*같(?:아요|아|은데)?|하나\\s*봐요?)|사랑(?:해요|해|합니다)";
+const CONFESS_SAY = new RegExp(
+    "(^|\\s)사귀(자|어\\s*줄|어\\s*줘|어요|어\\s*주|고\\s*싶|실래|을래|ㄹ래)"
+  + "|고백(할|하고|인데|이에요|할래|합니다)"
+  + `|^\\s*(?:${CONFESS_SUBJ}\\s+)?(?:${CONFESS_TARGET})(?:이|가|을|를)?\\s*`
+  + `(?:진짜\\s*|정말\\s*|너무\\s*|많이\\s*)?(?:${CONFESS_LIKE}|좋아요)`
+  + `|^\\s*(?:진짜|정말|너무|많이|나|저|전|난)?\\s*(?:${CONFESS_LIKE})`
+  + `\\s*(?:진짜로?|정말로?|너무|많이|엄청)?\\s*[.!?~…ㅠㅜㅋ\\s]*$`);
 /* 재언의 답이 기억을 실제로 건드렸는가 — 승인된 장면이라도 답이 기억을
    한 마디도 안 건드리면 상태를 전진시키지 않는다. 장면은 다시 올 수 있지만
    전진은 되돌릴 수 없다. */

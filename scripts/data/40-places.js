@@ -318,7 +318,14 @@ const kissNext=k=>{
    표에 적힌 것은 짝마다 한 장뿐이라, -2·-3이 아직 없는 짝은 같은 장을 그대로
    이어 쓴다. 컷이 안 갈릴 뿐 다가감·초점·어둠은 그대로 간다. 그림이 들어오는
    날 이 표만 채우면 화면은 안 고쳐도 된다. */
-const KISS_CUTS={};
+const KISS_CUTS={
+  "jaeeon-nurse-kiss":    ["jaeeon-nurse-mid",   "jaeeon-nurse-near",   "jaeeon-nurse-kiss"],
+  "jaeeon-laundry-kiss":  ["jaeeon-laundry-mid", "jaeeon-laundry-near", "jaeeon-laundry-kiss"],
+  "jaeeon-home-kiss":     ["jaeeon-home-mid",    "jaeeon-home-near",    "jaeeon-home-kiss"],
+  "minhyun-laundry-kiss": ["minhyun-laundry-mid","minhyun-laundry-near","minhyun-laundry-kiss"],
+  "minhyun-home-kiss":    ["minhyun-home-mid",   "minhyun-home-near",   "minhyun-home-kiss"],
+  "minhyun-rooftop-kiss": ["minhyun-rooftop-mid","minhyun-rooftop-near","minhyun-rooftop-kiss"],
+};
 const kissCuts=shot=>{
   const a=KISS_CUTS[shot]||[shot];
   return [a[0]||shot, a[1]||a[0]||shot, a[2]||a[1]||a[0]||shot];
