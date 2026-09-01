@@ -1046,6 +1046,20 @@
   font-family:"Departure Mono","Galmuri11",monospace;
   text-transform:uppercase;
   letter-spacing:.04em;
+  /* 대문자 Departure Mono가 소문자 Galmuri보다 넓어 390px에서 줄이 꽉 찼다.
+     .mbtn은 overflow:hidden이라 자리가 모자라면 글자가 조용히 잘린다 —
+     360px에서 여섯 개가 전부 깎였다. 글자를 한 눈금 내리고 좌우 여백을
+     2px씩 줄여 자리를 만든다. 재보니 9.5px만으로는 360에서 다섯이 여전히
+     잘렸고, 여백까지 줄여야 여섯이 다 살았다.
+     Departure Mono는 Regular 하나뿐이라 700은 브라우저가 흉내 낸 굵기다. */
+  font-size:9.5px;
+  font-weight:700;
+  padding-left:4px;
+  padding-right:4px;
+  /* 글자를 줄이니 키가 또 갈렸다 — gift·bag은 안에 14px 아이콘이 있어
+     25px인데 글자만 있는 넷은 24px이 됐다. 줄 높이를 아이콘에 맞춰
+     못박아 여섯이 같은 키로 선다. */
+  line-height:14px;
 }
 /* display를 맞춰도 0.5px이 남았다 — gift·bag만 아래 여백이 1px 얇아
    키가 24px이고 나머지는 25px이었다. 메뉴바가 가운데 정렬이라 키가
