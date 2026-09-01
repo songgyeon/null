@@ -1073,3 +1073,10 @@
 /* v258 — 창 이름은 물마루. NULL messenger·NULL.exe·재언.hompy가 다
    같은 .ewindowtitle 한 자리라 창틀 글씨가 한 결로 간다. */
 .glasswindow>.ewindowtitle{font-family:"Mulmaru","Galmuri11",sans-serif}
+
+/* v260 — 메뉴바의 두 알약(시간표·peek)도 창틀 글꼴로.
+   이 둘은 내용이 아니라 창틀에 앉은 단추다. 바로 위 창 이름이 물마루이므로
+   창틀은 물마루로 묶이고 내용(채팅 본문)은 모나12로 갈린다.
+   Departure Mono를 걸면 안 되는 까닭 — 그 글꼴엔 한글이 없어서 peek만
+   바뀌고 「저녁·일요일·4교시」는 옛 글꼴로 남아 두 알약이 서로 달라진다. */
+.menubar .toolkey{font-family:"Mulmaru","Galmuri11",sans-serif}
