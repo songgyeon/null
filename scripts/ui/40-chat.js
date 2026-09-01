@@ -90,7 +90,10 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
   /* 들어간 순간엔 빈 방이다. 그 사람이 입을 열면 그 사람이 화면이 된다 —
      몇 턴 세지 않고 첫 답을 기준으로 한다. 세면 임의고 첫마디면 이유가 있다. */
   /* 귀갓길은 지도 자리가 아니라 PLACE_BG에 없다. 그럴 땐 자리가 자기 배경을 들고 온다 */
-  const bg=scene&&(scene.shot||scene.bg||PLACE_BG[scene.place]);
+  /* av()로 판 번호를 붙인다. 여기만 안 붙이고 있었다 — 파일 이름은 그대로인데
+     안에 든 그림만 바꾼 판이 나가면, 브라우저가 옛 그림을 영영 들고 있었다.
+     자리 사진은 세이브에 이름만 남으니 번호는 그릴 때 붙이는 게 맞다. */
+  const bg=scene&&av(scene.shot||scene.bg||PLACE_BG[scene.place]);
   if(scene){
     /* 이 자리에 온 뒤에 오간 말만 보여준다.
        방의 마지막 여섯 줄을 그냥 깔았더니, 아까 문자로 주고받던 말이 교실

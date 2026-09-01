@@ -1430,10 +1430,12 @@ function ChatRoom({room,msgs,typing,failed,onBack,onSend,onRetry,onProfile,scene
      문자로 받는 건 이상하니까 배경이 그 일을 대신한다.
      머리글의 X는 접기다(자리는 살아 있다). 나가기는 아래 뒤로가기가 맡는다 —
      하루에 한 번뿐인 자리라 실수로 닫히면 그날이 끝난다. */
+  /* AV_V로 판 번호를 붙인다 — 파일 이름은 그대로인데 안에 든 그림만 바뀌는
+     판이 있어서, 안 붙이면 옛 그림을 영영 들고 있는다. 웹과 같은 이유다. */
   const bg=scene?(scene.shot||scene.bg||PLACE_BG[scene.place]):null;
 
   return <View style={{flex:1,backgroundColor:'#fdfcff'}}>
-    {bg&&<Image source={{uri:IMG+bg}} style={StyleSheet.absoluteFill as any} resizeMode="cover"/>}
+    {bg&&<Image source={{uri:IMG+bg+AV_V}} style={StyleSheet.absoluteFill as any} resizeMode="cover"/>}
     {bg&&<View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(26,20,36,.42)'}]} pointerEvents="none"/>}
     <TB colors={watch?['#aab3d6','#c9c0ee']:[room.color,P.lav]}>
       <Text style={tbT}>{scene?scene.place:room.name}{watch?'.cam':'.chat'}</Text>
