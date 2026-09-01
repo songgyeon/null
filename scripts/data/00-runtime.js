@@ -53,7 +53,9 @@ const AV_V = "?v=170";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
-  jaeeon:{name:"이재언",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"100%",pos:"50% 40%",
+  /* rom — 창 이름에 쓰는 로마자. 열쇠(jaeeon·minhyun)는 저장된 게임이
+     붙들고 있어서 못 바꾸므로, 사람에게 보이는 철자는 따로 둔다. */
+  jaeeon:{name:"이재언",rom:"jaeeon",color:"#7FD8D8",dk:"#2fa8a0",pale:"#cef0ee",img:"jaeeon-profile.webp",zoom:"100%",pos:"50% 40%",
     gallery:["jaeeon-work.webp","jaeeon-chart.webp","jaeeon-cook.webp","jaeeon-rooftop.webp","jaeeon-shelf.webp","jaeeon-laundry.webp","jaeeon-driveseat.webp","jaeeon-conv.webp","jaeeon-record.webp",
       /* 자리마다 거리가 있다 — 중거리(mid)와 클로즈업(near). 눈 감은 최근접은
          여기 없다: 그건 KISS_SHOT이고 관계 단계가 열어준다 */
@@ -61,7 +63,7 @@ const CHARS = {
       "jaeeon-laundry-seat.webp","jaeeon-laundry-mid.webp","jaeeon-laundry-near.webp",
       "jaeeon-home-mid.webp","jaeeon-home-near.webp",
       "jaeeon-night.webp","jaeeon-book.webp"]},
-  minhyun:{name:"이강현",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
+  minhyun:{name:"이강현",rom:"kanghyun",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
       "minhyun-laundry-mid.webp","minhyun-laundry-near.webp",
       "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp",
