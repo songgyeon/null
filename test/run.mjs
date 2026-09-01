@@ -4405,13 +4405,22 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['265', 'b98723169524']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['266', 'cb553d527575']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
     eq('그림도 같은 판 번호를 쓴다',
       new RegExp('const AV="\\?v=' + v[0][1] + '";').test(web), true);
   }
+  /* 자리 배경은 파일 이름이 그대로인 채 안에 든 그림만 바뀐다(사진 다시 뽑기).
+     판 번호를 안 붙이면 브라우저가 옛 그림을 영영 들고 있어서, 새 사진을
+     내보내도 화면은 안 바뀐다 — 실제로 그 일이 났다. 웹·앱 둘 다 검사한다. */
+  eq('자리 배경도 판 번호를 달고 나간다', [
+    /const bg=scene&&av\(scene\.shot\|\|scene\.bg\|\|PLACE_BG\[scene\.place\]\)/
+      .test(readFileSync(join(ROOT, 'scripts/ui/40-chat.js'), 'utf8')),
+    /source=\{\{uri:IMG\+bg\+AV_V\}\}/
+      .test(readFileSync(join(ROOT, 'app/App.tsx'), 'utf8')),
+  ], [true, true]);
   eq('데이터는 바벨을 안 탄다', WEB_DATA_FILES.every(f =>
     html.includes(`<script src="${f}?v=${VER}"></script>`)), true);
   eq('화면과 앱은 바벨을 탄다',
@@ -4435,7 +4444,7 @@ eq('배경 파일이 전부 저장소에 있다',
   (web.match(/"(place-[\w-]+\.webp)"/g) || []).map(s => s.slice(1, -1))
     .filter(f => !exists(f)), []);
 eq('자리에 가면 말풍선을 걷는다',
-  /const bg=scene&&\(scene\.shot\|\|scene\.bg\|\|PLACE_BG\[scene\.place\]\)/.test(web)
+  /const bg=scene&&av\(scene\.shot\|\|scene\.bg\|\|PLACE_BG\[scene\.place\]\)/.test(web)
   && /className=\{`screen scenewrap glasswindow\$\{shotFocus\}`\}/.test(web), true);
 eq('모든 인물 장소사진은 머리 위를 보존한다',
   /const shotFocus=scene\.shot\?" scene-person-shot":""/.test(web)
@@ -4444,7 +4453,7 @@ eq('모든 인물 장소사진은 머리 위를 보존한다',
 eq('배경이 없어도 자리는 열린다', /if\(scene\)\{/.test(web), true);
 /* 훅이 자리 분기보다 아래 있으면 자리에 들어가고 나올 때 훅 개수가 달라져 리액트가 터진다 */
 eq('스크롤 훅이 자리 분기보다 위에 있다',
-  web.indexOf('el.scrollTop=el.scrollHeight') < web.indexOf('const bg=scene&&(scene.shot'), true);
+  web.indexOf('el.scrollTop=el.scrollHeight') < web.indexOf('const bg=scene&&av(scene.shot'), true);
 /* 장소 사진만 쓸 때는 아래가 우연히 어두워서 그림자만으로 버텼다. 이제 인물
    사진이 깔리는데 그건 보장이 없다 — minhyun-window는 아래가 흰 프린트다 */
 eq('아래쪽에 어둠막을 깐다',
