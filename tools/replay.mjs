@@ -647,7 +647,7 @@ async function main() {
           + `${st.invalidWhy ? ` (${st.invalidWhy})` : ""} — #${st.stoppedAt}에서 중단`);
     }
     blindItems.push({ item: `B-${label}`,
-      context: `${{ jaeeon: "이재언", minhyun: "이민현", group: "단톡" }[ses.turns[0].room] || ""} — ${ses.turns.length}턴 연속 세션`,
+      context: `${{ jaeeon: "이재언", minhyun: "이강현", group: "단톡" }[ses.turns[0].room] || ""} — ${ses.turns.length}턴 연속 세션`,
       byPath });
   }
 
@@ -838,7 +838,7 @@ function writeS5Outputs(outDir, { rows, sumRows, blindItems, FAKE }) {
 }
 
 function contextOf(body) {
-  const r = { jaeeon: "이재언 1:1", minhyun: "이민현 1:1", group: "단톡", health: "관전" }[body.room] || body.room;
+  const r = { jaeeon: "이재언 1:1", minhyun: "이강현 1:1", group: "단톡", health: "관전" }[body.room] || body.room;
   const last = [...(body.history || [])].reverse().find(m => m.role === "user");
   return `${r}${body.now ? ` · ${body.now}` : ""} — 유저: 「${(last && last.content || "").slice(0, 60)}」`;
 }

@@ -97,7 +97,7 @@
  },
  {
   "label": "S2-minhyun-desire",
-  "blurb": "이민현 · 돌봄·욕망·질투. 익숙 단계 · firstContact=explained · partner 미선택.",
+  "blurb": "이강현 · 돌봄·욕망·질투. 익숙 단계 · firstContact=explained · partner 미선택.",
   "user_name": "연",
   "days": 15,
   "partner": null,
@@ -250,7 +250,7 @@
     "now": "저녁",
     "day": "금요일",
     "days": 12,
-    "text": "민현이도 간다고 했어요. 선생님도 오실 거죠?"
+    "text": "강현이도 간다고 했어요. 선생님도 오실 거죠?"
    },
    {
     "room": "minhyun",
@@ -310,7 +310,7 @@
     "now": "낮",
     "day": "토요일",
     "days": 13,
-    "text": "민현이가 쓰던 비니 봤어요?"
+    "text": "강현이가 쓰던 비니 봤어요?"
    }
   ]
  }

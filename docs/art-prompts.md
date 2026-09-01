@@ -335,9 +335,9 @@ blank. Slight print grain and a faint paper sheen. Square 1:1.
 
 | 자리 | 사람 | 지금 |
 |---|---|---|
-| 편의점 | 재언 | 없음 (민현만 `conv`·`ramen`) |
-| 도서관 | 민현 | 없음 (재언만 `shelf`) |
-| 레코드샵 | 재언 | 없음 (민현만 `mirror`) |
+| 편의점 | 재언 | 없음 (강현만 `conv`·`ramen`) |
+| 도서관 | 강현 | 없음 (재언만 `shelf`) |
+| 레코드샵 | 재언 | 없음 (강현만 `mirror`) |
 
 ### `jaeeon-conv` — 편의점 · 재언
 
@@ -360,9 +360,9 @@ used LPs, flipping through the sleeves with one hand. Warm dim shop
 light, crowded shelves behind. Absorbed, unhurried. Square 1:1.
 ```
 
-### `minhyun-library` — 도서관 · 민현
+### `minhyun-library` — 도서관 · 강현
 
-**민현이라 BASE가 다르다.** 아래를 대신 쓴다 — 지금 민현 그림이 기준이고
+**강현이라 BASE가 다르다.** 아래를 대신 쓴다 — 지금 강현 그림이 기준이고
 이 한 장만 거기에 맞추면 된다.
 
 ```
@@ -385,11 +385,11 @@ seats. Square 1:1.
 
 빈 방은 아니지만 갈 때마다 같은 그림이 나온다. 급하지는 않다.
 
-옥상·재언(`rooftop`) · 옥상·민현(`vending`) · 도서관·재언(`shelf`) ·
-레코드샵·민현(`mirror`) · 빨래방·재언(`laundry`) · 빨래방·민현(`laundry`) ·
-체육관·민현(`gym`) · 귀갓길·재언(`driveseat`).
+옥상·재언(`rooftop`) · 옥상·강현(`vending`) · 도서관·재언(`shelf`) ·
+레코드샵·강현(`mirror`) · 빨래방·재언(`laundry`) · 빨래방·강현(`laundry`) ·
+체육관·강현(`gym`) · 귀갓길·재언(`driveseat`).
 
-보건실은 재언이 6장, 집은 4장, 교실은 민현이 3장이라 여기는 넉넉하다.
+보건실은 재언이 6장, 집은 4장, 교실은 강현이 3장이라 여기는 넉넉하다.
 
 ## 다 뽑고 나서
 

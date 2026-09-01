@@ -1,6 +1,6 @@
 {
  "label": "C05-partner-known",
- "blurb": "상대 선택을 민현이 처음 앎 — 선택을 부정하거나 다시 고르라 하지 않는지.",
+ "blurb": "상대 선택을 강현이 처음 앎 — 선택을 부정하거나 다시 고르라 하지 않는지.",
  "kind": "critical",
  "body": {
   "mode": "chat",
@@ -10,7 +10,7 @@
    {
     "role": "user",
     "sender": "user",
-    "content": "민현아 잠깐 얘기 좀 하자."
+    "content": "강현아 잠깐 얘기 좀 하자."
    },
    {
     "role": "assistant",

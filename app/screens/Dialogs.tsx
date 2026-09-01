@@ -254,7 +254,7 @@ export function PlateDialog({kind, say, kao, onClose}:{kind:string; say:string; 
 }
 
 /* ══ 5. 새 방 ══
-   단톡방은 민현이 판다. 유저는 초대를 받은 쪽이라 무슨 방인지 모른 채로
+   단톡방은 강현이 판다. 유저는 초대를 받은 쪽이라 무슨 방인지 모른 채로
    들어간다 — 그래서 「이 유」 칸이 비밀이다. 웹소설 상태창 형식이라
    항목과 값만 적고, 왜 만들었는지를 쓸 자리가 형식에 없다. */
 export function GroupNewDialog({onClose}:{onClose:()=>void}) {
@@ -262,7 +262,7 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
     <View style={dq.box}>
       <Text style={dq.k}>［ 새 방 ］♡</Text>
       <View style={dq.rows}>
-        {([['이 름','단톡방',false],['초 대','이민현',false],['이 유','비밀',true]] as [string,string,boolean][])
+        {([['이 름','단톡방',false],['초 대','이강현',false],['이 유','비밀',true]] as [string,string,boolean][])
           .map(([k,v,hush])=>
             <View key={k} style={dq.r}>
               <Text style={dq.k2}>{k}</Text>
@@ -271,7 +271,7 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
             </View>)}
       </View>
       <Text style={dq.s}>
-        이민현이 방을 만들고 당신을 넣었어요{'\n'}
+        이강현이 방을 만들고 당신을 넣었어요{'\n'}
         <Text style={KAO}>( ˶˘ ᵕ ˘˶ )</Text> ♡
       </Text>
       {/* 이 창의 ok는 다른 창보다 좁다(웹의 .wbtn max-width:112px).

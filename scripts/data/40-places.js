@@ -11,7 +11,7 @@
    학교 밖으로, 그 다음 사는 데로 — 발이 닿은 만큼만 넓어진다.
 
    who는 여기서 만날 수 있는 사람. 둘이면 고르게 한다.
-   own은 그 자리가 원래 누구 자리인가. 재언은 보건실에 있는 게 일이고 민현은
+   own은 그 자리가 원래 누구 자리인가. 재언은 보건실에 있는 게 일이고 강현은
    교실에 앉아 있다 — 「불러냈다」가 아니라 찾아가는 것이다. own이 없는 자리만
    따로 만나는 자리다.
    item은 그 자리에서 받는 것. ITEMS의 키이고 worker.js의 PLACE_ITEMS와 같아야 한다.
@@ -132,7 +132,7 @@ const ITEM_CATS=["전체","간식","소품","기록"];
    요즘 고등학교 기준이다. 50분 수업에 10분 쉬는 시간, 4교시 끝나고 점심.
    야자는 2017년쯤 강제가 없어져서 지금은 희망자만 남는 자율학습이다. 그래서
    매일 붙지 않는다 — 유저가 감독으로 남는 날(격주 목요일)에만 붙는다.
-   민현이 그날 남는 것도 강제가 아니라서 성격이 된다. 갈 데가 없는 애다. */
+   강현이 그날 남는 것도 강제가 아니라서 성격이 된다. 갈 데가 없는 애다. */
 /* 마지막 칸이 NULL인 이유.
    학교가 하루를 채워준다 — 출근·수업·점심·퇴근·저녁까지는 시간표가 이 사람이
    어디서 뭘 하는지 정해준다. 그게 끝나면 정해주는 것이 없다. 교생의 하루는
@@ -196,7 +196,7 @@ const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};
    받고, 그러고 나서 고맙다고. 한 번이면 그 사람이고 두 번이면 틀이다.
    모델을 고칠 일이 아니라 간격을 둘 일이었다.
    막는 것은 「한 사람이 하루에 두 번 받는 것」이지 「하루에 두 명에게 주는 것」이
-   아니다 — 재언에게 주고 민현에게 주는 건 같은 반응이 두 번 도는 게 아니다.
+   아니다 — 재언에게 주고 강현에게 주는 건 같은 반응이 두 번 도는 게 아니다.
    하루의 경계는 여기서도 새벽 다섯 시다. 새벽에 준 건 어제 준 것이다 —
    저 이어폰과 사진집이 같은 날로 묶여야 이 규칙에 걸린다. */
 const loadGiftDay=()=>{try{return JSON.parse(localStorage.getItem("null_giftday"))||{}}catch(e){return{}}};
@@ -233,7 +233,7 @@ const loadBag=()=>{try{return JSON.parse(localStorage.getItem("null_bag"))||[]}c
 const saveBag=a=>{try{localStorage.setItem("null_bag",JSON.stringify(a));return true}catch(e){return false}};
 /* 자리가 열렸나. 다녀온 자리 목록만 본다 — 대화 수도 날짜도 안 본다.
    이미 다녀온 데는 조건을 안 본다. 캐릭터가 먼저 같이 가자고 하는 자리(초대)는
-   지도의 순서를 건너뛴다 — 옥상에 가기 전에 민현이 편의점으로 불러낼 수 있다.
+   지도의 순서를 건너뛴다 — 옥상에 가기 전에 강현이 편의점으로 불러낼 수 있다.
    그렇게 다녀오면 met에는 편의점이 있는데 need(옥상)는 비어 있어서, 갔다 온
    자리가 「아직은 못 가요」로 영원히 잠겨 있었다. 다녀온 곳이 안 열린 곳일 수는 없다. */
 const placeOpen=(p,been)=>been.includes(p.name)||(p.need||[]).every(n=>been.includes(n));
@@ -244,7 +244,7 @@ const placeOpen=(p,been)=>been.includes(p.name)||(p.need||[]).every(n=>been.incl
    있는데 그 사람 집에 갈 수 있으면 그게 제일 이상하다. */
 const placeHours=(p,now)=>{
   const d=now||nowClock(), wend=d.getDay()===0||d.getDay()===6;
-  /* 주말엔 학교가 없다. 재언은 출근을 안 하고 민현은 야자가 없다 —
+  /* 주말엔 학교가 없다. 재언은 출근을 안 하고 강현은 야자가 없다 —
      교실·보건실·옥상이 통째로 닫힌다(wend:false). 그래서 주말은 학교 밖에서
      일부러 만나야만 하는 날이 된다. 집은 낮에도 사람이 있다(wend:[11,2]).
      wend가 없는 데는 평일과 같다 — 도서관·레코드샵·편의점·빨래방. */
@@ -253,7 +253,7 @@ const placeHours=(p,now)=>{
   /* ── 학교는 사람이 있을 때만 학교다 ──
      hours는 고정된 숫자 두 개라 요일을 모른다. 교실·옥상의 22시는 야자가
      끝나는 시각에 맞춘 것이었는데, 야자는 격주 목요일에만 붙는다 — 야자도
-     없는 수요일 저녁에 민현은 이미 집에 갔는데 교실 문은 열려 있었다.
+     없는 수요일 저녁에 강현은 이미 집에 갔는데 교실 문은 열려 있었다.
      체육관의 18시도 같은 종류의 숫자다.
 
      시각표를 요일마다 새로 적지 않는다. 그러면 시계가 또 둘이 된다.
@@ -342,7 +342,7 @@ const KISS_RISE=6300, KISS_HOLD=KISS_RUN-KISS_RISE;
    낮/저녁이 갈리는 건 교실뿐이다. desk는 짝이 찍어준 것(수업 중이라 제 손이
    묶여 있다)이고 nap은 자기가 찍은 것(빈 교실이라 찍을 수 있다)이다. */
 const SCENE_SHOT={
-  /* 교실은 민현 자리다 — PLACES의 who가 민현뿐이라 재언은 여기 오지 않는다 */
+  /* 교실은 강현 자리다 — PLACES의 who가 강현뿐이라 재언은 여기 오지 않는다 */
   "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]}},
   "보건실":   {jaeeon:["jaeeon-work","jaeeon-chart","jaeeon-nurse-mid","jaeeon-nurse-near"],
                minhyun:["minhyun-candy"]},
@@ -360,7 +360,7 @@ const SCENE_SHOT={
   "빨래방":   {minhyun:["minhyun-laundry","minhyun-laundry-mid","minhyun-laundry-near"],
                jaeeon:["jaeeon-laundry-seat"]},
   "체육관":   {minhyun:["minhyun-gym"]},
-  /* 재언 집이지만 민현도 산다. 재언은 부엌에 서 있고, 민현은 막 일어난
+  /* 재언 집이지만 강현도 산다. 재언은 부엌에 서 있고, 강현은 막 일어난
      참이거나 엘리베이터에서 올라오는 길이다 */
   "집":       {jaeeon:["jaeeon-cook","jaeeon-night","jaeeon-home-mid","jaeeon-home-near"],
                minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near"]},
@@ -373,7 +373,7 @@ const SCENE_SHOT={
 };
 /* ── 귀갓길 ── 지도에 없다. 골라서 가는 데가 아니라 자리가 끝나고 붙는 데다.
    유저 집은 정거장이 아니라 데려다주는 일이 끝나는 곳이라서 아이콘이 없다.
-   재언은 태워다 주고(조수석에서 본 대시보드), 민현은 같이 버스를 탄다(빈 자리).
+   재언은 태워다 주고(조수석에서 본 대시보드), 강현은 같이 버스를 탄다(빈 자리).
    건넬 물건은 없다 — 데려다주는 것이 이미 그거다. */
 const WAY="귀갓길";
 const WAY_BG={jaeeon:"jaeeon-drive.webp", minhyun:"minhyun-bus.webp"};
@@ -476,7 +476,7 @@ const WAIT_LINES=["내일 만나요 ᜊ(੭ ˊ ᵕˋ)੭ : ﾟ.+","조금만 기
 /* 오늘 안에 아직 학교에 있을 때가 남았나. 출근 전(「이따」)과 퇴근 뒤
    (「내일」)를 가른다 — 새벽 세 시에 「내일 만나요」는 틀린 말이다.
    시각 상수를 새로 두지 않고 같은 presence를 오늘 끝까지 훑는다. 두 사람의
-   창이 다르고(재언은 퇴근까지, 민현은 야자까지) 야자는 주마다 붙었다
+   창이 다르고(재언은 퇴근까지, 강현은 야자까지) 야자는 주마다 붙었다
    떨어지므로, 표를 따로 만들면 그게 또 갈린다. */
 const worksLaterToday=(id,now)=>{
   const d=now||worldNow();
@@ -513,10 +513,10 @@ const canGoWith=(id,met,now)=>PLACES.filter(p=>!p.into
   &&placeOpen(p,met||[])&&placeHours(p,now)&&wendOnlyOk(p,now)&&!goneToday(p.name,now)
   &&(p.meet!=="out"||outAt(p,now).includes(id))).map(p=>p.name);
 /* ── 단톡방은 나중에 생긴다 ──
-   민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
+   강현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 된 순간 그가 판다.
    유저는 초대를 받는다 — 왜 초대됐는지는 모른 채로. 그게 이 앱의 모양이다.
 
-   알게 되는 근거는 새로 만들지 않는다. 이미 민현에게 보내고 있는 신호가
+   알게 되는 근거는 새로 만들지 않는다. 이미 강현에게 보내고 있는 신호가
    그거다 — 재언 방에 오늘 대화가 몇 번 있었고 마지막이 몇 분 전인가.
    「요즘 삼촌 폰 오래 붙잡고 있길래」가 그 신호를 보고 나온 말이다.
    여기서는 그 신호가 양쪽에 충분히 쌓였는지만 센다.

@@ -181,7 +181,7 @@ const PROFILES={
     {status:"아직 남았어요.", bg:"jaeeon-drive.webp", track:"jaeeon-3"},
     {status:"남은 동안은 여기 있어요.", bg:"jaeeon-kitchen.webp", track:"jaeeon-4"},
   ]},
-  /* 민현 — 안에서 밖으로. 레코드샵에서 시작해 버스, 골목을 지나 옥상에서 끝난다.
+  /* 강현 — 안에서 밖으로. 레코드샵에서 시작해 버스, 골목을 지나 옥상에서 끝난다.
      같은 비 오는 밤인데 재언은 운전석에 앉아 있고 이 애는 버스에 서 있다. */
   minhyun:{fallback:"minhyun-sunset.webp",stages:[
     {status:"수업 중. 아마도.", bg:"minhyun-shop.webp", track:"minhyun-1"},

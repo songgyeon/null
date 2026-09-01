@@ -134,9 +134,9 @@ async function main() {
   /* C03·C04는 기존 T14·T15 fixture를 **그대로** 쓴다 — 계약이 그렇다 */
   for (const [f, label, blurb] of [
     ["T14-health-mug-discovery.json", "C03-mug-discovery",
-     "관전 — 머그컵 발견. 민현은 컵을 직접 짚고, 재언은 사실을 부정하지 않는다."],
+     "관전 — 머그컵 발견. 강현은 컵을 직접 짚고, 재언은 사실을 부정하지 않는다."],
     ["T15-health-beanie-discovery.json", "C04-beanie-discovery",
-     "관전 — 비니 발견. 재언은 돌려 묻고, 민현은 선물 사실을 부정하지 않는다."]]) {
+     "관전 — 비니 발견. 재언은 돌려 묻고, 강현은 선물 사실을 부정하지 않는다."]]) {
     const p = load("test/packets-taste", f);
     singles.push({ label, blurb, kind: "critical", body: p.body });
   }

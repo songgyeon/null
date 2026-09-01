@@ -1045,7 +1045,7 @@ const PROBE = { ...BASE,
     { role: "user", content: "뭐 해" }] };
   await run(S5ONE, MB, [JSON.stringify({ messages: [{ text: "숙제요" }] })]);
   const sysM = sysOf(writerReq());
-  eq("민현 방에는 정사 절이 안 붙는다 — known_by 투영",
+  eq("강현 방에는 정사 절이 안 붙는다 — known_by 투영",
     [sysM.includes("[이번 장면의 행동 원칙]"), sysM.includes("[정사 — 공부방]")], [true, false]);
   await run(S5ONE, gBody, [JSON.stringify({ messages: [{ sender: "jaeeon", text: "비었다." }] })]);
   eq("단톡에도 정사 절이 안 붙는다", sysOf(writerReq()).includes("[정사 — 공부방]"), false);
@@ -1116,22 +1116,22 @@ const PROBE = { ...BASE,
   const writerSys = flatSys(sent[0]);
   eq("golden Writer에 행동 원칙이 붙는다", writerSys.includes("[행동 원칙]"), true);
   eq("golden Writer에 이재언 규칙이 붙는다(jaeeon 방)", writerSys.includes("[이재언]"), true);
-  eq("golden Writer에 민현 규칙은 안 붙는다(jaeeon 방)", writerSys.includes("[이민현]"), false);
+  eq("golden Writer에 강현 규칙은 안 붙는다(jaeeon 방)", writerSys.includes("[이강현]"), false);
   eq("golden Writer에 단톡·관전 규칙은 안 붙는다(jaeeon 방)", writerSys.includes("[단톡·관전]"), false);
   eq("golden Writer에 정사 — 공부방이 붙는다(chat+jaeeon)", writerSys.includes("[정사 — 공부방]"), true);
 
   const gv1Min = await run({ ...HY, CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" },
     { ...BASE, room: "minhyun" });
   const writerSysMin = flatSys(sent[0]);
-  eq("golden minhyun 방에 이민현 규칙이 붙는다", writerSysMin.includes("[이민현]"), true);
+  eq("golden minhyun 방에 이강현 규칙이 붙는다", writerSysMin.includes("[이강현]"), true);
   eq("golden minhyun 방에 이재언 규칙은 안 붙는다", writerSysMin.includes("[이재언]"), false);
   eq("golden minhyun 방에 정사 — 공부방은 안 붙는다", writerSysMin.includes("[정사 — 공부방]"), false);
 
   const gv1Grp = await run({ ...HY, CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" },
     { ...BASE, mode: "auto", room: "group" });
   const writerSysGrp = flatSys(sent[0]);
-  eq("golden group에 이재언+이민현+단톡·관전이 모두 붙는다",
-    [writerSysGrp.includes("[이재언]"), writerSysGrp.includes("[이민현]"),
+  eq("golden group에 이재언+이강현+단톡·관전이 모두 붙는다",
+    [writerSysGrp.includes("[이재언]"), writerSysGrp.includes("[이강현]"),
      writerSysGrp.includes("[단톡·관전]")], [true, true, true]);
   eq("golden group에 정사 — 공부방은 안 붙는다(auto 모드)", writerSysGrp.includes("[정사 — 공부방]"), false);
 }
@@ -1272,7 +1272,7 @@ const PROBE = { ...BASE,
      obsReq.includes("[지금 장면]"), obsReq.includes("처음 눈에")],
     [false, true, true, true]);
   eq("T14 — 소유자 호출에 출처·관측자 대사·무지 조건이 있다",
-    [ownReq.includes("회색 머그컵을 줬다"), ownReq.includes("[이민현] 그 회색 머그컵 어디서 났어요?"),
+    [ownReq.includes("회색 머그컵을 줬다"), ownReq.includes("[이강현] 그 회색 머그컵 어디서 났어요?"),
      ownReq.includes("어디서 났는지"), ownReq.includes("모른다")],
     [true, true, true, true]);
   eq("T14 — 발화 순서가 관측자→소유자다",
@@ -1286,7 +1286,7 @@ const PROBE = { ...BASE,
     const lastText = Array.isArray(last.content)
       ? last.content.map(b => b.text || "").join("\n") : String(last.content);
     return [last.role, prev.role,
-      String(Array.isArray(prev.content) ? prev.content.map(b => b.text || "").join("\n") : prev.content).includes("[이민현]"),
+      String(Array.isArray(prev.content) ? prev.content.map(b => b.text || "").join("\n") : prev.content).includes("[이강현]"),
       lastText.includes("[지금 장면]")];
   })(), ["user", "assistant", true, true]);
   eq("T14 — requiredSpeakers·관측 기록이 계약대로다",
@@ -1308,10 +1308,10 @@ const PROBE = { ...BASE,
   eq("T15 — 화자 순차 두 호출 + 소유자 정사 검사다", stagesOf(r), ["writer", "writer", "canon"]);
   const obsReq = flatMsgs(sent[0]), ownReq = flatMsgs(sent[1]);
   eq("T15 — 이번엔 재언이 관측자다",
-    [obsReq.includes("남색 비니를 줬다"), obsReq.includes("이민현에게 남색 비니가 있다"),
+    [obsReq.includes("남색 비니를 줬다"), obsReq.includes("이강현에게 남색 비니가 있다"),
      ownReq.includes("남색 비니를 줬다")],
     [false, true, true]);
-  eq("T15 — 발화 순서가 재언→민현이다",
+  eq("T15 — 발화 순서가 재언→강현이다",
     r.data.messages.map(m => m.sender), ["jaeeon", "minhyun", "minhyun"]);
 }
 
@@ -1754,7 +1754,7 @@ const PROBE = { ...BASE,
   eq("화자 줄은 둘뿐이다", Object.keys(ENG.SELECTED_VOICE).sort(), ["jaeeon", "minhyun"]);
   eq("한 화자 호출에는 그 사람 줄만 간다", (() => {
     const t = ENG.selectedRules(null, "minhyun");
-    return [t.includes("이민현은 직접적"), t.includes("이재언")];
+    return [t.includes("이강현은 직접적"), t.includes("이재언")];
   })(), [true, false]);
 }
 
@@ -1892,7 +1892,7 @@ const PROBE = { ...BASE,
 }
 
 /* ── 14.8 화자 순차 호출은 고정부 지시를 이번 턴에만 취소한다 ──
-   관전 고정부에 「두 사람의 대화 4~8발화 · 첫 발화는 이민현」이 박혀 있다.
+   관전 고정부에 「두 사람의 대화 4~8발화 · 첫 발화는 이강현」이 박혀 있다.
    그 위에 「한 명만」을 얹는 구조라 실 API가 매번 두 사람 대화를 통째로
    써서 SENDER로 전부 탈락, 502가 났다. 명시적으로 취소해야 한다. */
 {
@@ -1903,10 +1903,10 @@ const PROBE = { ...BASE,
     [obsReq.includes("**이번 턴만은 위 [대화 생성 지시]가 적용되지 않는다.**"),
      ownReq.includes("**이번 턴만은 위 [대화 생성 지시]가 적용되지 않는다.**")], [true, true]);
   eq("4~8발화와 첫 발화 규칙을 콕 집어 끈다",
-    obsReq.includes("4~8발화도, 「첫 발화는 이민현」도 이번 턴에는 무효다"), true);
+    obsReq.includes("4~8발화도, 「첫 발화는 이강현」도 이번 턴에는 무효다"), true);
   eq("상대 대사를 쓰지 말라고 못박는다", [
     obsReq.includes("이재언의 말은 한 줄도 쓰지 않는다"),
-    ownReq.includes("이민현의 말은 한 줄도 쓰지 않는다"),
+    ownReq.includes("이강현의 말은 한 줄도 쓰지 않는다"),
   ], [true, true]);
   eq("화자 지시가 규칙 장보다 뒤다", (() => {
     const i = obsReq.indexOf("[이 턴에 지켜야 할 것]");
@@ -1914,8 +1914,8 @@ const PROBE = { ...BASE,
     return i >= 0 && j > i;
   })(), true);
   eq("상대의 목소리 줄이 안 실린다", [
-    obsReq.includes("이민현은 직접적이다") && !obsReq.includes("이재언은 짧고 간접적이다"),
-    ownReq.includes("이재언은 짧고 간접적이다") && !ownReq.includes("이민현은 직접적이다"),
+    obsReq.includes("이강현은 직접적이다") && !obsReq.includes("이재언은 짧고 간접적이다"),
+    ownReq.includes("이재언은 짧고 간접적이다") && !ownReq.includes("이강현은 직접적이다"),
   ], [true, true]);
   eq("규칙 장이 두 번 실리지 않는다",
     (obsReq.match(/\[이 턴에 지켜야 할 것\]/g) || []).length, 1);

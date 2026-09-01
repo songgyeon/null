@@ -303,7 +303,7 @@ export async function genAuto(userName: string, event?: any, reqId?: string) {
   return callApi({
     mode: 'auto',
     /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로 떨어져
-       관전이 민현 1:1 방으로 처리된다 */
+       관전이 강현 1:1 방으로 처리된다 */
     room: 'health',
     user_name: userName,
     history: buildHistory(healthMsgs),

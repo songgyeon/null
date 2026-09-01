@@ -275,7 +275,7 @@ console.log("── 옛 배선은 살아 있다 ──");
 
 console.log("── 첫 만남: 말한 것과 통한 것 ──");
 {
-  /* N07은 이미 firstContact:"explained"다 — 민현이 병원 옥상을 말한 뒤다.
+  /* N07은 이미 firstContact:"explained"다 — 강현이 병원 옥상을 말한 뒤다.
      여기서 움직이는 것은 유저 쪽이고, 이번 턴 유저 발화만 본다. */
   const say = text => {
     const b = JSON.parse(JSON.stringify(N07));
@@ -421,9 +421,9 @@ console.log("── 아직 학교에서 만나기 전 ──");
       .every(f => f.source === "state" && !/않는다\.|말라|하지 마/.test(f.value)), true);
 }
 
-console.log("── 민현 행동축 ──");
+console.log("── 강현 행동축 ──");
 {
-  const AXIS = "민현의 장난은 관심을 확인하려는 시도다";
+  const AXIS = "강현의 장난은 관심을 확인하려는 시도다";
   const sysOf = async body => {
     let sys = "";
     const realFetch = globalThis.fetch;
@@ -442,12 +442,12 @@ console.log("── 민현 행동축 ──");
     } finally { globalThis.fetch = realFetch; }
     return sys;
   };
-  eq("민현 1:1에 행동축이 실린다", (await sysOf(N07)).includes(AXIS), true);
+  eq("강현 1:1에 행동축이 실린다", (await sysOf(N07)).includes(AXIS), true);
   eq("재언 1:1에는 안 실린다 — 1:1은 그 화자 것만", (await sysOf(N01)).includes(AXIS), false);
   eq("단톡에는 실린다", (await sysOf(N11)).includes(AXIS), true);
   const src = readFileSync(join(ROOT, "worker.js"), "utf8");
   eq("세 문장이 그대로 있다", src.includes(
-    "민현의 장난은 관심을 확인하려는 시도다. 유저가 당황하거나 불쾌해하면 맞받아치거나 평가하지 않고 장난을 거두고 짧게 인정하거나 사실을 설명하며 물러선다. 관계 초기에는 친분·약속·반복된 일상·상대 성격을 이미 아는 것처럼 말하지 않는다."), true);
+    "강현의 장난은 관심을 확인하려는 시도다. 유저가 당황하거나 불쾌해하면 맞받아치거나 평가하지 않고 장난을 거두고 짧게 인정하거나 사실을 설명하며 물러선다. 관계 초기에는 친분·약속·반복된 일상·상대 성격을 이미 아는 것처럼 말하지 않는다."), true);
 }
 
 console.log("── 프롬프트에 더한 두 덩어리 ──");
@@ -494,7 +494,7 @@ console.log("── A. 수리 ──");
     [one("“걔”요?", "걔 누구예요"), one("「그런가」라뇨", "그런가 왜요"),
      one('"수영장"이요?', "비리로 수영장을요")],
     ["걔요?", "그런가라뇨", "수영장이요?"]);
-  /* 되받아 되묻기는 민현 전용 문법이라 보존해야 한다 — 따옴표가 유일한 표적이다 */
+  /* 되받아 되묻기는 강현 전용 문법이라 보존해야 한다 — 따옴표가 유일한 표적이다 */
   eq("맨몸 되받기는 살린다", one("걔가 뭐예요", "걔 누구예요"), "걔가 뭐예요");
   eq("유저가 안 한 말의 인용은 안 벗긴다",
     one("「퍼펙트 데이즈」 봤어요", "오늘 뭐 했어요"), "「퍼펙트 데이즈」 봤어요");

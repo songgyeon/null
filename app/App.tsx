@@ -910,7 +910,7 @@ const ct=StyleSheet.create({
   backT:{...F,fontSize:11,letterSpacing:3,color:P.ink},
 });
 
-// ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 민현=락페) ═══
+// ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 강현=락페) ═══
 function Profile({char,onBack,refresh,dLeft,back,days}:{char:string;onBack:()=>void;refresh?:number;dLeft?:number;back?:boolean;days?:number}) {
   const [stage,setStage]=useState<any>(null);
   const [count,setCount]=useState(0);
@@ -1094,7 +1094,7 @@ function Marquee({text,bare}:{text:string;bare?:boolean}) {
 function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,met,groupOn,onGoPlace,onPlate,onGuess}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
-  /* 단톡방은 민현이 나중에 판다 — 그전까지는 없는 방이다 */
+  /* 단톡방은 강현이 나중에 판다 — 그전까지는 없는 방이다 */
   const rooms=roomsOn(groupOn);
   const t0=new Date(); t0.setHours(0,0,0,0);
   const todayN=allMsgs.filter((m:any)=>(m.created_at||0)>=t0.getTime()).length;
@@ -1558,7 +1558,7 @@ function StatsPanel({msgs,counts,unlocked,album}:any) {
   const first=Object.values(msgs).flat().reduce((a:number,m:any)=>!a||m.created_at<a?m.created_at:a,0) as number;
   const rows:[string,string][]=[
     ['w/ 재언', String(counts.jaeeon||0)],
-    ['w/ 민현', String(counts.minhyun||0)],
+    ['w/ 강현', String(counts.minhyun||0)],
     ['group',   String(counts.group||0)],
     ['pics',    album.size+' / '+allPhotos],
     ['.hidden', (unlocked||[]).length+' / '+HIDDEN.length],
@@ -1673,7 +1673,7 @@ function Root() {
   const [bag,setBag]=useState<any[]>([]);          // 자리에서 받은 것
   const bagRef=useRef<any[]>([]); bagRef.current=bag;
   const [met,setMet]=useState<string[]>([]);       // 다녀온 자리 — 지도가 열리는 근거
-  const [groupOn,setGroupOn]=useState(false);      // 단톡방은 민현이 나중에 판다
+  const [groupOn,setGroupOn]=useState(false);      // 단톡방은 강현이 나중에 판다
   const [groupNew,setGroupNew]=useState(false);
   const [getcha,setGetcha]=useState<string|null>(null);   // 메신저를 얻은 사람
   /* 유저의 옛 일기 — 재언 방에 처음 들어가는 순간, 첫 마디 앞에 한 번.
@@ -1817,7 +1817,7 @@ function Root() {
          자리 쪽 상태가 아직 안 앉아서 두 방이 다 비어 보이고, 자리에서 만난
          사람이 뽑혀 조용히 삼켜진다. */
       /* ── 안 만난 사람은 학교에 있을 때만 온다 ──
-         전에는 무조건 걸었다. 첫 자리에서 민현을 만났는데 삼 초 뒤에 재언이
+         전에는 무조건 걸었다. 첫 자리에서 강현을 만났는데 삼 초 뒤에 재언이
          먼저 말을 걸었다 — 만난 적도 없는 사람한테서. 그 사람은 학교에서
          만나야 하므로 출근해서 퇴근 전까지(야자 포함)가 아니면 안 건다. */
       const other=o.room==='jaeeon'?'minhyun':'jaeeon';
@@ -1826,7 +1826,7 @@ function Root() {
     })();
   },[ready,name,enrolling,msgs]);
 
-  /* 민현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
+  /* 강현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
      그가 방을 파고 유저를 부른다. 왜 불렀는지는 말해주지 않는다. */
   useEffect(()=>{
     if(!ready||!name||groupOn) return;
@@ -2320,7 +2320,7 @@ function Root() {
        쿨타임을 깎기 전에 본다 — 누르지도 못한 관전에 시계가 돌면 안 된다 */
     if(!bothAwake()){
       /* 조건은 bothAwake — 한 명만 자도 막힌다. 그런데 말은 「둘 다 자요」였다.
-         새벽 두 시엔 재언만 자고 민현은 세 시까지 깨 있는데, 목록에 「안 자는
+         새벽 두 시엔 재언만 자고 강현은 세 시까지 깨 있는데, 목록에 「안 자는
          중」이라고 떠 있는 사람을 두고 둘 다 잔다고 하면 그 점이 거짓말이 된다. */
       const zz=(['jaeeon','minhyun'] as const).filter(id=>asleep(id));
       setToast(zz.length>1?'지금은 둘 다 자요 ♡'
@@ -2403,7 +2403,7 @@ function Root() {
     await setMeta('null_auto_q', JSON.stringify(n));
   };
   /* 유저가 아무것도 안 눌러도 생기는 사건 둘.
-     ① 재언에게 사진이 다섯 장 넘게 오면 — 민현이는 그 사진을 못 본다.
+     ① 재언에게 사진이 다섯 장 넘게 오면 — 강현이는 그 사진을 못 본다.
         찍는 것만 봤다. 그래서 묻는 쪽이 된다.
      ② 떠날 날이 7·3·1일 남는 날 — 둘 다 알지만 이름을 먼저 안 붙인다.
      찍어만 두고 만들지는 않는다. 한 시간 뒤 아래 효과가 가져간다. */
@@ -2584,7 +2584,7 @@ function Root() {
     const gapMin=list.length?Math.round((Date.now()-list[list.length-1].created_at)/60000):-1;
     if(gapMin>=0&&gapMin<180)return;
     /* ── 첫 연락은 딱 한 번 ──
-       빈 방의 첫인사는 각본이고 정해진 세 줄이다. 민현은 「선생님. / 저 알죠? /
+       빈 방의 첫인사는 각본이고 정해진 세 줄이다. 강현은 「선생님. / 저 알죠? /
        선생님이 저 책임진다면서요.」로 연다. 방을 빨리 두 번 열면 두 번 나갔다 —
        아직 저장되기 전이라 두 번째가 봐도 방이 비어 있다. 기다리기 전에 찍는다. */
     if(gapMin<0&&!markOnce('first:'+id))return;
