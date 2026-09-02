@@ -103,6 +103,52 @@ function Diary({onDone}){
   </div>;
 }
 
+/* ── ⑩ 지금의 일기 ──
+   옛 일기(Diary)와 같은 부품을 쓴다 — 사진 한 장, .dfit 겹, 그 안에 앉는 칸.
+   다른 것은 칸이 하나가 아니라 여럿이고, 그중 둘은 코드가 채운다는 것뿐이다.
+   재질이 같으니 이름도 같은 것을 쓴다(.dpage·.dshot·.dfit·.dblank).
+
+   실제로 준 선물이 앉는 칸은 입력이 아니라 글자다. 유저가 못 고친다 —
+   그건 지어내는 것이 아니라 이미 한 일이다.
+
+   ⚠️ 채운 값은 여기 브라우저 안에만 산다. 어떤 요청에도 안 실린다. */
+function MyDiary({entry,gifts,onDone,onClose}){
+  const auto=myDiaryAuto(entry,gifts);
+  const [v,setV]=useState(auto);
+  const [out,setOut]=useState(false);
+  const keys=Object.keys(entry.blanks);
+  /* 자동으로 찬 칸은 안 묻는다 — 유저가 채울 칸만 다 차면 덮을 수 있다 */
+  const mine=keys.filter(k=>!auto[k]);
+  const full=mine.every(k=>((v[k]||"").trim()));
+  const done=()=>{if(out||!full)return;setOut(true);saveMyDiary(entry.at,v);setTimeout(onDone,420)};
+  /* 사진을 못 읽는 사람에게는 적힌 글을 그대로 읽어준다 */
+  const alt=myDiaryParts(entry.text).map(p=>p.blank?"□":p.text).join("");
+  const st=b=>({left:b.left+"%",top:b.top+"%",width:b.w+"%",height:b.h+"%"});
+  return <div className={"diary"+(out?" out":"")}>
+    <div className="dpage">
+      <img className="dshot" src={av(entry.img)} alt={alt}/>
+      <div className="dfit">
+        {keys.map((k,i)=>auto[k]
+          /* 이미 적힌 글자. 물건 이름이 길면 칸에 맞춰 줄어든다 */
+          ? <span key={k} className="dblank dfixed" style={st(entry.box[k])}>{auto[k]}</span>
+          : <input key={k} className="dblank" value={v[k]||""}
+              autoFocus={k===mine[0]} maxLength={entry.blanks[k]}
+              aria-label={`빈칸 ${i+1}`} style={st(entry.box[k])}
+              onChange={e=>setV(o=>({...o,[k]:e.target.value}))}
+              onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();
+                const n=mine[mine.indexOf(k)+1];
+                const el=n&&e.target.closest(".dfit").querySelector(`[aria-label="빈칸 ${keys.indexOf(n)+1}"]`);
+                if(el)el.focus(); else done()}}}/>)}
+      </div>
+    </div>
+    <div className="drow">
+      {/* 안 쓰고 닫을 수 있다. 선택이라는 말이 화면에도 있어야 선택이다 */}
+      <button className="wbtn dbtn2" onClick={onClose}>나중에</button>
+      <button className="wbtn go dbtn2" disabled={!full} onClick={done}>덮기 ♡</button>
+    </div>
+  </div>;
+}
+
 /* ── 강현의 옛 일기 — 병원 옥상 ──
    유저가 처음 무언가를 입력한 그 순간. 말풍선으로 오지 않는다 — 말풍선은
    「상대가 보낸 사진」이고, 이건 유저의 기억이 올라오는 것이다. 화면이

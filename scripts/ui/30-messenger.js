@@ -317,7 +317,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess}){
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
@@ -383,6 +383,11 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       <span className="ddwrap">
         {mb("edit","file")}
         {menu==="edit"&&<div className="dd">
+          {/* ⑩ 지금의 일기. 눈금을 지나 열린 장이 있을 때만 선다 —
+              늘 서 있으면 「오늘도 안 썼네」가 되고 그러면 일과다.
+              알약(숫자)은 안 붙인다. 지우려고 여는 창이 되면 안 쓴다 */}
+          {myDiaryOpen&&<div className="dditem" onClick={()=>{setMenu(null);onMyDiary()}}>
+            <Sticker.heart size={12} color="#ffb0d4"/> write my diary</div>}
           <div className="dditem" onClick={()=>{setMenu(null);onExport()}}><Sticker.floppy size={15}/> save all (.txt)</div>
           <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}><Sticker.heart size={12} color="#c3b2f0"/> my stats</div>
         </div>}

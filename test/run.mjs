@@ -4464,7 +4464,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['269', '640bf3c5e5c4']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['270', '4f669004f1f9']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -10227,6 +10227,66 @@ eq('시간표 단추는 peek보다 좁다',
   /* 프롬프트로도 안 간다 — 워커가 그 이름을 아예 모른다 */
   eq('워커는 그 값을 모른다',
     /null_diary|loadDiary|DIARY_TAIL/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
+
+  /* ── ⑩ 지금의 일기 ──
+     다섯 장이 D-day 눈금에 하나씩 열린다. 옛 일기와 **같은 계약**이다 —
+     채운 값은 기기 밖으로 안 나간다. 두 사람이 모르는 것이 이 게임의 뼈다. */
+  {
+    const M = new Function('localStorage', 'location',
+      webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+      + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,saveMyDiary,loadMyDiary,loadStory};')
+      (g.localStorage, g.location);
+    /* 글에 박힌 칸과 표(길이·자리)가 셋 다 같은 이름이어야 한다.
+       한 군데서만 세면 사진 위 엉뚱한 자리에 커서가 선다 */
+    eq('글·길이·자리가 같은 이름을 쓴다', M.MY_DIARY.filter(e => {
+      const used = M.myDiaryParts(e.text).filter(p => p.blank).map(p => p.blank);
+      const len = Object.keys(e.blanks), box = Object.keys(e.box || {});
+      return used.length !== len.length || used.length !== box.length
+        || used.some(k => !len.includes(k) || !box.includes(k));
+    }).map(e => e.at), []);
+    /* 네모는 사진 안에 있어야 한다 — 밖으로 나가면 커서가 종이 밖에 선다 */
+    eq('칸이 사진 밖으로 안 나간다', M.MY_DIARY.flatMap(e =>
+      Object.entries(e.box).filter(([, b]) =>
+        b.left < 0 || b.top < 0 || b.left + b.w > 100 || b.top + b.h > 100)
+        .map(([k]) => `${e.at}.${k}`)), []);
+    eq('사진 다섯 장이 저장소에 있다',
+      M.MY_DIARY.map(e => e.img).filter(f => !exists(f)), []);
+    /* 눈금 다섯. 뒤로 갈수록 짧아지고 마지막은 두 칸이다 */
+    eq('눈금과 칸 수', [M.MY_DIARY.map(e => e.at),
+      M.MY_DIARY.map(e => Object.keys(e.blanks).length)],
+      [[25, 20, 14, 7, 0], [5, 4, 6, 6, 2]]);
+    /* ── 밀린 숙제로 안 보이게 ── 여러 장이 밀려 있어도 하나만 준다 */
+    eq('눈금을 지나야 열린다', [M.myDiaryOpen(30), M.myDiaryOpen(26)], [null, null]);
+    eq('한 번에 한 장만 준다', [M.myDiaryOpen(25).at, M.myDiaryOpen(6).at], [25, 7]);
+    /* 쓴 장은 다시 안 열린다 */
+    M.saveMyDiary(25, { talk: '시', feel: '이상', told: '말', think: '애', tmr: '올까' });
+    eq('쓴 장은 다시 안 열린다', M.myDiaryOpen(25), null);
+    /* 한 칸이라도 비면 저장하지 않는다 — 반쯤 쓴 일기는 나중에 뭔지 모른다 */
+    eq('한 칸이라도 비면 저장 안 한다',
+      M.saveMyDiary(20, { know: '누구', feel: '', between: 'ㄱ', like: 'ㄴ' }), null);
+    /* 선물 칸은 코드가 안다 — 실제로 준 것이고, 안 줬으면 그냥 빈칸이다 */
+    const e14 = M.MY_DIARY.find(e => e.at === 14);
+    eq('준 선물이 칸에 앉는다',
+      M.myDiaryAuto(e14, { minhyun: ['mug'], jaeeon: ['photobook'] }),
+      { giftK: '회색 머그컵', giftJ: '사진집' });
+    eq('안 준 사람 칸은 비운다', M.myDiaryAuto(e14, { minhyun: ['mug'] }), { giftK: '회색 머그컵' });
+
+    /* ── 기기 밖으로 안 나간다 (옛 일기와 같은 계약) ── */
+    const S2 = '보고싶다';
+    M.saveMyDiary(0, { last: S2, who: '빈칸' });
+    eq('이야기 상태에 안 섞인다', JSON.stringify(M.loadStory()).includes(S2), false);
+    eq('어떤 payload 줄에도 안 실린다',
+      [...web.matchAll(/payload\.[A-Za-z_]+ *= *([^;\n]+)/g)].map(m => m[1])
+        .filter(v => /MY_DIARY|myDiary|null_mydiary/.test(v)), []);
+    eq('워커는 지금의 일기를 모른다',
+      /null_mydiary|myDiary|MY_DIARY/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
+    /* 스스로 안 뜬다 — 유저가 메뉴에서 열 때만이다. 매일 물으면 일과가 된다 */
+    eq('스스로 끼어들지 않는다',
+      /myDiaryOpen=\{myDiaryOpen\(dLeft\)\} onMyDiary=\{\(\)=>setMyDiary\(myDiaryOpen\(dLeft\)\)\}/.test(web)
+      && !/setMyDiary\(myDiaryOpen\([^)]*\)\)/.test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+    /* 안 쓰고 닫을 수 있어야 선택이다 */
+    eq('나중에로 닫을 수 있다', /<button className="wbtn dbtn2" onClick=\{onClose\}>나중에<\/button>/.test(web), true);
+  }
   /* 확정 문안 — 글자 그대로다. 한 글자라도 바뀌면 20년 전 그 아이의 글이 아니다 */
   eq('일기 문안이 글자 그대로다',
     [D.DIARY_HEAD, ...D.DIARY_LINES, D.DIARY_TAIL_A + 'ㅁ' + D.DIARY_TAIL_B],

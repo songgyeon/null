@@ -1719,6 +1719,11 @@ function GameApp(){
      엽서를 덮은 뒤에 그 말이 나간다. */
   const [flash,setFlash]=useState(null);   // null | {room,text}
   const [kiss,setKiss]=useState(null);     // null | 사진 key (⑨)
+  /* ⑩ 지금의 일기 — null | MY_DIARY의 한 장.
+     스스로 안 뜬다. file 메뉴에서 유저가 열 때만 선다 — 매일 물으면 일과가
+     되고 일과가 되면 안 쓴다. 쓴 값은 여기 브라우저 밖으로 안 나간다. */
+  const [myDiary,setMyDiary]=useState(null);
+  const myDiaryDone=()=>setMyDiary(null);
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
@@ -1908,5 +1913,5 @@ function GameApp(){
     return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
-  return <GameScreen game={{answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}}/>;
+  return <GameScreen game={{answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}}/>;
 }
