@@ -1300,10 +1300,17 @@ function GameApp(){
      사진은 채팅창에 띄우지 않는다 — 줄글 한 줄만 남기고 반응은 인물이 알아서 한다.
      그 줄은 유저의 말이 아니라 일어난 일이므로 sys로 표시해 지문처럼 그린다.
      history에도 이 줄이 그대로 들어가서 모델이 "무엇을 받았는지" 알게 된다. */
+  /* ── 한 물건은 한 사람에게만 ──
+     같은 걸 둘 다에게 주면 주는 일이 고르는 일이 아니게 된다. 무엇을 줬는지가
+     누구를 골랐는지가 되어야 한다. 창에서 이미 막지만 주는 길이 둘이라
+     여기서도 막는다 — 한쪽만 잠그는 자물쇠는 자물쇠가 아니다. */
+  const giftTaken=(char,key)=>Object.entries(giftsRef.current||{})
+    .some(([c,a])=>c!==char&&(a||[]).includes(key));
   const giveGift=(char,gift,memo)=>{
     if(!char||!gift)return;
     const have=giftsRef.current[char]||[];
     if(have.includes(gift.key))return;              // 같은 걸 두 번 주지 않는다
+    if(giftTaken(char,gift.key)){ setToast("one gift ♡ one person"); return }
     /* 한 사람에게 하루에 하나. 창에서 이미 막고 있지만 여기서도 막는다 —
        주는 길이 둘이면 한쪽만 잠그는 자물쇠는 자물쇠가 아니다 */
     /* 물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말했다.
@@ -1330,6 +1337,7 @@ function GameApp(){
   const giveGiftAt=(char,gift,memo,place)=>{
     const p=PLACE_BY[place]; if(!char||!gift||!p)return;
     if((giftsRef.current[char]||[]).includes(gift.key))return;
+    if(giftTaken(char,gift.key)){ setToast("one gift ♡ one person"); return }
     if(giftedToday(char)||goneToday(place))return;
     const note=(memo||"").trim().slice(0,60);
     const since=Date.now(), id="giftat|"+char+"|"+gift.key+"|"+place+"|"+dayKey();
@@ -1711,6 +1719,11 @@ function GameApp(){
      엽서를 덮은 뒤에 그 말이 나간다. */
   const [flash,setFlash]=useState(null);   // null | {room,text}
   const [kiss,setKiss]=useState(null);     // null | 사진 key (⑨)
+  /* ⑩ 지금의 일기 — null | MY_DIARY의 한 장.
+     스스로 안 뜬다. file 메뉴에서 유저가 열 때만 선다 — 매일 물으면 일과가
+     되고 일과가 되면 안 쓴다. 쓴 값은 여기 브라우저 밖으로 안 나간다. */
+  const [myDiary,setMyDiary]=useState(null);
+  const myDiaryDone=()=>setMyDiary(null);
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
@@ -1900,5 +1913,5 @@ function GameApp(){
     return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
-  return <GameScreen game={{answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}}/>;
+  return <GameScreen game={{answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}}/>;
 }

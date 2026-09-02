@@ -299,6 +299,118 @@ const saveFlash=o=>{try{
   return out;
 }catch(e){return null}};
 
+/* ── ⑩ 지금의 일기 ──
+   옛 일기(diary-jaeeon.webp)는 20년 전 **물건**이라 사진 위에 빈칸이 앉는다.
+   이건 유저가 지금 쓰는 것이라 사진이 없다 — 흐르는 글 안에 칸이 박힌다.
+   같은 빈칸이어도 재질이 다르다.
+
+   ── 선택이다 ──
+   매일 쓰면 일과가 되고, 일과가 되면 안 쓴다. 그래서 날마다 안 묻는다.
+   떠날 날 눈금 다섯에 한 장씩만 열리고, 안 써도 아무것도 안 막힌다.
+   다섯 장은 순서가 아니라 거리다 — 뒤로 갈수록 문장이 짧아지고 마지막
+   장은 두 칸뿐이다.
+
+   ⚠️ 채운 값은 **어떤 요청에도 안 실린다.** 옛 일기·엽서와 같은 자리다 —
+   프롬프트에도, story에도, 페이로드에도 안 간다. 시험이 실제 요청 본문을
+   뒤져서 이 값이 안 새는지 잰다. 두 사람이 모르는 것이 이 게임의 뼈다. */
+/* ── 사진 한 장에 한 장 ──
+   옛 일기와 같은 규격이다(1024×1536, 2:3). 글은 사진에 이미 적혀 있고
+   네모도 사진에 그려져 있다 — 화면은 그 네모 안에 커서를 세울 뿐이다.
+   아래 text는 그 사진에 적힌 정사 원문이다. 사진을 못 읽는 사람에게
+   읽어주는 글(alt)이자, 어느 칸이 무슨 뜻인지 코드가 아는 자리다.
+   box는 사진에 그려진 네모를 **실제로 재서** 넣는다(1024×1536 기준).
+   눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다 — 옛 일기에서 그랬다.
+   재는 방법: 선을 쫓지 않고 **둘러싸인 밝은 칸**을 찾는다(바깥 종이를 칠해
+   없앤 뒤 남는 덩어리). 선이 흐린 장에서도 다섯 장 전부 정확히 나왔다.
+
+   blanks의 숫자는 그 네모에 실제로 들어가는 글자 수다. 옛 일기가 폭 25.98%에
+   여덟 자였으므로 한 자에 3.25% — 그 자로 네모 폭을 나눴다. 넉넉히 잡으면
+   글자가 그려진 네모 밖으로 삐져나온다. */
+const MY_DIARY=[
+  {at:25, img:"mydiary-1.webp", text:
+    "오늘 이 선생님과 {talk} 얘기를 나눴다. 이 선생님은 가끔 나를 오래 안 것처럼 "+
+    "쳐다본다. 그게 꼭 {feel}다. 강현이한테는 {told} 했는데 강현이는 내가 "+
+    "{think}고 생각하는 거 같다. 내일은 {tmr}까? 잘 모르겠다. 나는 여전히 빈칸이다.",
+   blanks:{talk:6,feel:7,told:7,think:6,tmr:7},
+   box:{talk:{left:46.58,top:22.66,w:19.14,h:3.84},feel:{left:49.51,top:35.29,w:22.36,h:3.65},
+        told:{left:40.33,top:44.40,w:21.88,h:3.78},think:{left:42.09,top:50.20,w:18.46,h:3.45},
+        tmr:{left:30.86,top:58.72,w:23.73,h:3.71}}},
+  {at:20, img:"mydiary-2.webp", text:
+    "어쩌면 이 선생님은 나를 {know}도 모른다. 그게 나에게는 {feel}다. "+
+    "강현이와 이 선생님 사이에서 나는 {between}다. 오늘은 강현이가 {like}처럼 "+
+    "느껴졌다. 앞으로 어떻게 해야 할까. 아직은 더 채워야겠다.",
+   blanks:{know:8,feel:11,between:13,like:15},
+   box:{know:{left:53.22,top:20.57,w:25.00,h:4.95},feel:{left:41.31,top:29.82,w:34.38,h:4.49},
+        between:{left:27.34,top:46.09,w:43.26,h:4.82},like:{left:19.92,top:62.63,w:47.85,h:4.88}}},
+  /* 두 칸은 코드가 안다 — 실제로 준 물건이다. 유저가 쓰는 것은 물건이 아니라
+     **이유**다. 일기가 거울이 되는 자리라 여기만 자동이 섞인다.
+     안 준 사람 칸은 그냥 빈칸으로 둔다 — 없는 선물을 지어내지 않는다. */
+  {at:14, img:"mydiary-3.webp", text:
+    "내가 채운 빈칸들이 나에게 돌아오고 있다. 내가 강현이에게 {giftK}를 준 이유는 "+
+    "정말 {whyK}뿐이었을까? 이 선생님에게 {giftJ}를 줬던 건 {whyJ}만은 아니었던 "+
+    "것 같다. 나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
+   blanks:{giftK:5,whyK:14,giftJ:5,whyJ:19,want:9,even:13},
+   auto:{giftK:"minhyun",giftJ:"jaeeon"},
+   box:{giftK:{left:45.51,top:28.84,w:16.11,h:3.78},whyK:{left:28.61,top:35.68,w:45.12,h:4.82},
+        giftJ:{left:41.99,top:46.29,w:16.70,h:3.84},whyJ:{left:19.92,top:52.67,w:60.35,h:5.34},
+        want:{left:44.82,top:66.41,w:28.12,h:4.30},even:{left:27.83,top:73.96,w:41.31,h:5.08}}},
+  {at:7, img:"mydiary-4.webp", text:
+    "이제는 내가 누구인지 {decide}해야 할 때가 온 거 같다. 두 사람을 언제까지고 "+
+    "{keep} 할 수는 없다. 강현이도, 이 선생님도 전부 나에게는 {both}다. "+
+    "지금의 나에게는 내 {mine}보다 두 사람의 {theirs} 더 {more}다.",
+   blanks:{decide:5,keep:11,both:10,mine:6,theirs:4,more:8},
+   box:{decide:{left:51.95,top:23.11,w:14.84,h:4.04},keep:{left:50.78,top:36.46,w:34.96,h:4.10},
+        both:{left:21.00,top:54.95,w:31.64,h:3.91},mine:{left:49.90,top:63.80,w:19.04,h:3.78},
+        theirs:{left:35.35,top:69.99,w:14.36,h:3.91},more:{left:57.23,top:70.18,w:25.20,h:3.91}}},
+  /* 마지막은 두 칸이다. 여기까지 온 사람에게 더 물을 것이 없다 */
+  {at:0, img:"mydiary-5.webp", text:"{last}. 나는 정말 {who}일까?",
+   blanks:{last:7,who:7},
+   box:{last:{left:25.78,top:39.45,w:21.58,h:4.10},who:{left:44.53,top:49.15,w:23.73,h:3.97}}},
+];
+/* 글에서 칸을 뽑아 조각으로 가른다. 화면도 시험도 이 하나를 쓴다 —
+   글과 칸 차례를 두 군데서 세면 언젠가 어긋난다. */
+const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
+  .filter(x=>x!=="").map(x=>/^\{[a-zA-Z]+\}$/.test(x)
+    ? {blank:x.slice(1,-1)} : {text:x});
+/* 자동으로 채워지는 칸의 값 — 그 사람에게 실제로 준 것 중 마지막 하나.
+   안 줬으면 빈 문자열이고, 그러면 그냥 유저가 쓰는 칸이 된다. */
+const myDiaryAuto=(entry,gifts)=>{
+  const out={};
+  for(const [k,who] of Object.entries((entry||{}).auto||{})){
+    const a=((gifts||{})[who])||[];
+    const name=a.length?GIFT_NAME[a[a.length-1]]:"";
+    if(name)out[k]=name;
+  }
+  return out;
+};
+const loadMyDiary=()=>{try{
+  const v=JSON.parse(localStorage.getItem("null_mydiary"));
+  return v&&typeof v==="object"&&!Array.isArray(v)?v:{};
+}catch(e){return{}}};
+/* 한 장을 통째로 저장한다. 한 칸이라도 비면 저장하지 않는다 —
+   반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다. */
+const saveMyDiary=(at,vals)=>{try{
+  const e=MY_DIARY.find(x=>x.at===at); if(!e)return null;
+  const out={};
+  for(const k of Object.keys(e.blanks)){
+    const t=((vals||{})[k]||"").toString().trim().slice(0,e.blanks[k]);
+    if(!t)return null;
+    out[k]=t;
+  }
+  const all={...loadMyDiary(),[at]:out};
+  localStorage.setItem("null_mydiary",JSON.stringify(all));
+  return loadMyDiary()[at]||null;
+}catch(e){return null}};
+/* 지금 열려 있는 장. 눈금을 지났고 아직 안 쓴 것 중 **가장 늦은** 것 하나다.
+   여러 장이 한꺼번에 밀려 있어도 하나만 준다 — 밀린 숙제로 보이면 안 쓴다. */
+const myDiaryOpen=left=>{
+  const d=Number(left);
+  if(!Number.isFinite(d))return null;
+  const done=loadMyDiary();
+  const open=MY_DIARY.filter(e=>d<=e.at&&!done[e.at]);
+  return open.length?open[open.length-1]:null;
+};
+
 /* ── {이름} pics ──
    cam 탭은 원래 「받은 사진」이었다. 여기 서는 둘은 받은 게 아니라 유저가
    쓴 것이다 — 유저의 옛 일기 마지막 칸, 병원 옥상 엽서의 세 칸.
@@ -311,6 +423,15 @@ const userPics=name=>{
   const d=loadDiary();
   if(d)out.push({src:DIARY_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
     fill:[{...DIARY_BOX,text:d}]});
+  /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동으로 찬 칸도 같이
+     얹는다: 화면에서 본 그대로여야 한다 */
+  const md=loadMyDiary(), gf=loadGifts();
+  for(const e of MY_DIARY){
+    const w=md[e.at]; if(!w)continue;
+    const auto=myDiaryAuto(e,gf);
+    out.push({src:e.img,label:`D-${e.at}`,
+      fill:Object.keys(e.blanks).map(k=>({...e.box[k],text:auto[k]||w[k]||""}))});
+  }
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
     /* 채운 칸은 뒷면에 있다 — 앞면은 옥상 사진 한 장이다 */
@@ -422,7 +543,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=268";
+const AV="?v=270";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1990,6 +2111,12 @@ return {
   FLASH_TURN,
   loadFlash,
   saveFlash,
+  MY_DIARY,
+  myDiaryParts,
+  myDiaryAuto,
+  loadMyDiary,
+  saveMyDiary,
+  myDiaryOpen,
   userPics,
   FLASH_SAY_A,
   FLASH_SAY_B,
@@ -2297,6 +2424,12 @@ export const {
   FLASH_TURN,
   loadFlash,
   saveFlash,
+  MY_DIARY,
+  myDiaryParts,
+  myDiaryAuto,
+  loadMyDiary,
+  saveMyDiary,
+  myDiaryOpen,
   userPics,
   FLASH_SAY_A,
   FLASH_SAY_B,

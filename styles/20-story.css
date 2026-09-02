@@ -251,3 +251,14 @@
  border:1.5px solid #fff;box-shadow:inset 0 1px 0 #fff,0 3px 0 #edbcd6}
 .enr .ego:active{transform:translateY(2px);box-shadow:inset 0 2px 4px rgba(190,120,160,.3)}
 @keyframes enrRow{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+/* ── ⑩ 지금의 일기 ──
+   옛 일기와 같은 부품 위에 선다(.diary·.dpage·.dshot·.dfit·.dblank).
+   다른 것은 둘뿐이다 — 칸이 여럿이고, 그중 몇은 이미 적혀 있다.
+   단추가 둘이라 한 줄로 세운다. 「나중에」가 있어야 선택이 선택이다. */
+.dfixed{display:flex;align-items:center;justify-content:center;
+ pointer-events:none;overflow:hidden;white-space:nowrap;
+ font-size:clamp(9px,2.6vw,13px)}
+.drow{display:flex;gap:10px;justify-content:center}
+.wbtn.dbtn2{flex:none;width:auto;max-width:none;min-width:96px;
+ padding:11px 18px;font-size:11px;letter-spacing:.12em}
+.wbtn.dbtn2[disabled]{opacity:.45;cursor:default}
