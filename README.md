@@ -604,7 +604,7 @@ java.lang.NoClassDefFoundError: expo/modules/kotlin/types/AnyTypeCache
 node test/run.mjs
 ```
 
-의존성·네트워크·API 키 없이 돕니다. 모델을 부르지 않고 검증 가능한 것만 다룹니다. (2,335개)
+의존성·네트워크·API 키 없이 돕니다. 모델을 부르지 않고 검증 가능한 것만 다룹니다. (2,367개)
 
 | 묶음 | 내용 |
 |---|---|
