@@ -2,7 +2,12 @@
    index.html의 선언 순서가 의존 순서다. 단독 로드하지 않는다. */
 /* 모든 일기는 빈 종이 위에 실제 DOM 글자로 그린다. 작성·CAM 재열람이
    같은 렌더러를 써야 폰트와 줄바꿈이 달라지지 않는다. */
-function DiaryField({name,value,max,fixed,autoFocus,onChange,onEnter,label}){
+function DiaryField({name,value,max,fixed,plain,autoFocus,onChange,onEnter,label}){
+  /* CAM에서 다시 볼 때는 칸이 아니다 — 이미 다 쓴 종이다. 테두리도 바탕도
+     없이 본문과 같은 글씨로 흐른다. 칸으로 두면 폭이 고정이라 긴 값이
+     잘리고(「오빠를 좋아하」+ 칸 밖 「니까」), 다 쓴 일기에 빈칸이 남아 있는
+     그림이 된다. 쓰는 동안에만 칸이 보인다. */
+  if(plain)return <span className="dblank dplain">{value||""}</span>;
   const cls="dblank blank"+(fixed?" filled dfixed":"");
   const chars=Math.max(Number(max)||0,Array.from(String(value||"")).length);
   const shown=Math.min(12,Math.max(4,chars||4));
@@ -22,7 +27,7 @@ function DiaryInk({kind,entry,values={},auto={},readOnly=false,onChange,onEnter}
     <div className="dhead">{DIARY_HEAD}</div>
     <div className="dlines">{DIARY_LINES.map((line,i)=><p key={i}>{line}</p>)}</div>
     <p className="dtail">{DIARY_TAIL_A}<DiaryField name="why" value={values.why}
-      max={DIARY_MAX} fixed={readOnly} autoFocus={!readOnly}
+      max={DIARY_MAX} fixed={readOnly} plain={readOnly} autoFocus={!readOnly}
       label="옛 일기의 마지막 빈칸"
       onChange={v=>onChange&&onChange("why",v)} onEnter={e=>onEnter&&onEnter("why",e)}/>{DIARY_TAIL_B}</p>
   </div>;
@@ -34,6 +39,7 @@ function DiaryInk({kind,entry,values={},auto={},readOnly=false,onChange,onEnter}
         value={!readOnly&&myDiarySystemOwned(entry,part.blank)
           ?auto[part.blank]||"":values[part.blank]||""} max={entry.blanks[part.blank]}
         fixed={readOnly||myDiarySystemOwned(entry,part.blank)}
+        plain={readOnly}
         autoFocus={!readOnly&&part.blank===mine[0]}
         label={`빈칸 ${keys.indexOf(part.blank)+1}`}
         onChange={v=>onChange&&onChange(part.blank,v)}
@@ -222,10 +228,17 @@ function EndingCinema({route,onDone}){
   </div>;
 }
 
-/* 혼자 0.8초 → 희미한 윤곽 0.2초 → 형태 0.3초 → 함께 2초 → 암전 0.5초.
+/* 혼자 1.6초 → 희미한 윤곽 0.9초 → 형태 1.2초 → 함께 3.4초 → 암전 1초.
    화면 안에는 문구·창틀·픽셀 장식을 얹지 않는다. 세 사진은 같은 좌표에
-   겹쳐야 좌석이 움직이지 않고 사람만 나타난다. */
-const ENDING_TIMING=[800,200,300,2000,500];
+   겹쳐야 좌석이 움직이지 않고 사람만 나타난다.
+
+   ── 왜 늦췄나 ──
+   처음엔 0.8·0.2·0.3·2·0.5였다. 옆자리가 채워지는 것을 보라고 만든 장면인데
+   나타나기도 전에 다음 컷이었다 — 특히 윤곽 0.2초는 눈이 따라가지 못했다.
+   이 화면에는 누를 것이 없으므로 서두를 이유도 없다. 겹치는 시간(CSS의
+   transition)도 같이 늘려야 한다 — 시간만 늘리고 전환이 빠르면 나타나는
+   것이 아니라 갈아끼우는 것이 된다. */
+const ENDING_TIMING=[1600,900,1200,3400,1000];
 function EndingShot({route,onDone}){
   const assets=ENDING_ASSETS[route]||ENDING_ASSETS.jaeeon;
   const [stage,setStage]=useState(0);
