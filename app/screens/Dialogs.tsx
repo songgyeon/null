@@ -20,14 +20,35 @@
    z는 웹과 같은 값이다: 대화창 40, 문틈 42(토스트 45보다는 아래 —
    구경 중에도 알림은 보여야 한다). */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, Pressable, TextInput, StyleSheet, Platform, Animated, useWindowDimensions } from 'react-native';
+import {
+  View, Text, Image, Pressable, TextInput, StyleSheet, Platform, Animated,
+  KeyboardAvoidingView, ScrollView, useWindowDimensions,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CHARS, AV_V, jos, DIARY_PAPER_IMG, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX, myDiaryParts } from '../lib/rules';
+import {
+  CHARS, AV_V, jos,
+  DIARY_PAPER_IMG, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX,
+  MY_DIARY_IMG, myDiaryParts, myDiarySystemOwned, myDiaryAuto, NULL_FORTUNE_KEYWORDS,
+} from '../lib/rules';
 import { IMG } from '../lib/api';
 /* 값이 아니라 모양만 가져온다 — 판정은 저쪽 파일의 일이다.
    askState는 {away,locked,shut,wk,done,empty,need,mv,klass,no,why,
    title,canPick,who}를 준다. */
 import type { AskState } from '../lib/flow';
+
+/* 일기 종이는 앱 번들 안에 둔다. 이전에는 GitHub Pages 주소를 읽어서 첫 장면과
+   사진첩이 네트워크 상태에 따라 빈 종이가 됐다. 파일명만 규칙의 canonical
+   상수에서 받고, 실제 픽셀은 require로 Metro bundle에 묶는다. */
+const DIARY_CHILD_SOURCE = require('../assets/diary-paper-child.webp');
+const DIARY_CURRENT_SOURCE = require('../assets/diary-paper-now.webp');
+export function diaryPaperSource(src:any) {
+  const name = typeof src === 'string'
+    ? String(src).split(/[?#]/, 1)[0].split('/').pop()
+    : '';
+  if (name === DIARY_PAPER_IMG) return DIARY_CHILD_SOURCE;
+  if (name === MY_DIARY_IMG) return DIARY_CURRENT_SOURCE;
+  return typeof src === 'string' ? {uri:src} : src;
+}
 
 /* App.tsx의 P·F·TB·Dots·Bevel·Face와 같은 것들이다. App.tsx는 default export
    하나뿐이라 가져올 길이 없어서 여기 다시 세운다 — 색과 치수를 바꾸려면
@@ -77,7 +98,8 @@ function Dots({onClose}:{onClose?:()=>void}) {
         <Text style={{...F, fontSize:7, lineHeight:9, color:ink}}>{glyph}</Text>
       </View>;
       return (i===2 && onClose)
-        ? <Pressable key={i} onPress={onClose} hitSlop={{top:14,bottom:14,left:14,right:14}}>{dot}</Pressable>
+        ? <Pressable key={i} onPress={onClose} hitSlop={{top:14,bottom:14,left:14,right:14}}
+            accessibilityRole="button" accessibilityLabel="닫기">{dot}</Pressable>
         : <View key={i}>{dot}</View>;
     })}
   </View>;
@@ -86,6 +108,7 @@ function Dots({onClose}:{onClose?:()=>void}) {
 // 베벨 버튼: 위/왼쪽 밝음 + 아래/오른쪽 음영, 누르면 반전 + 1px 밀림
 function Bevel({onPress, disabled, style, inner, children}:any) {
   return <Pressable onPress={onPress} disabled={disabled} hitSlop={{top:8,bottom:8,left:8,right:8}}
+    accessibilityRole="button"
     style={[bv.outer, disabled && {opacity:.45}, style]}>
     {({pressed}:any)=><>
       <View pointerEvents="none" style={bv.shadow}/>
@@ -117,11 +140,12 @@ function Btn({label, pink, disabled, onPress, style, innerStyle}:any) {
 /* 창 껍데기 — 웹의 .dlgov + .dlg + .dlgbody 세 겹.
    막은 형제로 깔고 창은 그 위에 얹는다. 창 안을 눌러도 막까지 안 내려간다 —
    형제라서 애초에 타고 내려갈 길이 없다(웹의 stopPropagation 자리다). */
-function Dlg({title, onClose, z=40, children, variant}:any) {
+function Dlg({title, onClose, z=40, children, variant, overlayStyle, wrapStyle, bodyStyle}:any) {
   const plate = variant === 'plate';
-  return <View style={[dl.ov, {zIndex:z}]}>
+  return <View style={[dl.ov, {zIndex:z}, overlayStyle]} accessibilityViewIsModal
+    onAccessibilityEscape={onClose}>
     <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
-    <View style={[dl.wrap, plate && dl.plateWrap]}>
+    <View style={[dl.wrap, plate && dl.plateWrap, wrapStyle]}>
       <View pointerEvents="none" style={[dl.shadow, plate && dl.plateShadow]}/>
       <View style={[dl.win, plate && dl.plateWin]}>
         <LinearGradient colors={plate ? ['#f6cdea','#dfcaf8','#d9cdf9'] : ['#ff8fbe','#ffb0d4']}
@@ -129,7 +153,7 @@ function Dlg({title, onClose, z=40, children, variant}:any) {
           <Text style={dl.tbT}>{title}</Text>
           <Dots onClose={onClose}/>
         </LinearGradient>
-        <View style={[dl.body, plate && dl.plateBody]}>{children}</View>
+        <View style={[dl.body, plate && dl.plateBody, bodyStyle]}>{children}</View>
       </View>
     </View>
   </View>;
@@ -298,38 +322,61 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
    것이지만, 그 이유를 정하는 건 이 판을 사는 사람이다.
 
    ⚠️ 채운 값은 이 기기 안에만 산다. 어떤 요청에도 안 실린다. */
+const diaryPaperWidth = (width:number, height:number) => Math.min(330,
+  Math.max(180, width - 32), Math.max(180, (height - 94) * 2 / 3));
+
 export function DiaryPage({onDone}:{onDone:(v:string)=>void}) {
+  const {width, height} = useWindowDimensions();
   const [v, setV] = useState('');
   const t = v.trim();
-  return <View style={[dl.ov, dy.ov, {zIndex:58}]}>
-    <View style={dy.page}>
-      <Image source={{uri:IMG+DIARY_PAPER_IMG}} style={dy.shot} resizeMode="contain"
-        accessible={false}/>
-      {/* 종이만 사진이다. 글월과 칸은 웹과 같이 실제 텍스트/입력으로 흐른다. */}
-      <View style={dy.ink} accessibilityRole="summary">
-        <Text style={dy.head}>{DIARY_HEAD}</Text>
-        <View>{DIARY_LINES.map((line,i)=><Text key={i} style={dy.line}>{line}</Text>)}</View>
-        <View style={dy.tail}>
-          <Text style={dy.tailT}>{DIARY_TAIL_A}</Text>
-          <TextInput style={dy.blank} value={v} onChangeText={setV} autoFocus
-            maxLength={DIARY_MAX} accessibilityLabel="옛 일기의 마지막 빈칸"
-            onSubmitEditing={()=>{ if(t) onDone(t) }} returnKeyType="done"/>
-          <Text style={dy.tailT}>{DIARY_TAIL_B}</Text>
+  const paperW = diaryPaperWidth(width, height);
+  const scale = paperW / 330;
+  const oldType = {fontSize:20 * scale, lineHeight:30 * scale,
+    letterSpacing:1.8 * scale};
+  return <View style={[dy.overlay, {zIndex:58}]} accessibilityViewIsModal>
+    <KeyboardAvoidingView style={dy.avoid}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView style={dy.scroll} contentContainerStyle={dy.scrollIn}
+        keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={[dy.page, {width:paperW, height:paperW * 1.5}]}>
+          <Image source={diaryPaperSource(DIARY_PAPER_IMG)} style={dy.shot} resizeMode="cover"
+            accessible={false}/>
+          {/* 종이만 사진이다. 글월과 칸은 웹과 같이 실제 텍스트/입력으로 흐른다. */}
+          <View style={dy.ink} accessibilityRole="summary">
+            <Text style={[dy.head, oldType, {letterSpacing:3.2 * scale,
+              marginBottom:18 * scale}]}>{DIARY_HEAD}</Text>
+            <View>{DIARY_LINES.map((line,i)=><Text key={i}
+              style={[dy.line, oldType, {marginBottom:8 * scale}]}>{line}</Text>)}</View>
+            <View style={dy.tail}>
+              <Text style={[dy.tailT, oldType, {lineHeight:32 * scale}]}>{DIARY_TAIL_A}</Text>
+              <TextInput style={[dy.blank, {width:104 * scale, height:35 * scale,
+                marginHorizontal:6 * scale, paddingHorizontal:7 * scale,
+                fontSize:18 * scale, lineHeight:29 * scale,
+                letterSpacing:.8 * scale}]} value={v} onChangeText={setV} autoFocus
+                maxLength={DIARY_MAX} accessibilityLabel="옛 일기의 마지막 빈칸"
+                onSubmitEditing={()=>{ if(t) onDone(t) }} returnKeyType="done"
+                selectionColor="#ff5fa8"/>
+              <Text style={[dy.tailT, oldType, {lineHeight:32 * scale}]}>{DIARY_TAIL_B}</Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </View>
-    {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
-    <Bevel style={[dy.btn, !t && dy.btnOff]} disabled={!t}
-      inner={{backgroundColor:'#e7e4fb'}} onPress={()=>{ if(t) onDone(t) }}>
-      <Text style={dy.btnT}>덮기 ♡</Text></Bevel>
+        {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
+        <Bevel style={[dy.btn, !t && dy.btnOff]} disabled={!t}
+          inner={{backgroundColor:'#e7e4fb'}} onPress={()=>{ if(t) onDone(t) }}>
+          <Text style={dy.btnT}>덮기 ♡</Text></Bevel>
+      </ScrollView>
+    </KeyboardAvoidingView>
   </View>;
 }
 const dy = StyleSheet.create({
-  ov:{backgroundColor:'rgba(20,13,36,.86)', paddingHorizontal:16, paddingVertical:20, gap:14},
+  overlay:{...StyleSheet.absoluteFillObject, backgroundColor:'rgba(20,13,36,.86)'},
+  avoid:{flex:1},
+  scroll:{flex:1},
+  scrollIn:{flexGrow:1, alignItems:'center', justifyContent:'center',
+    paddingHorizontal:16, paddingVertical:20, gap:14},
   /* 줄과 종이결은 사진, 글월은 만세체다. */
-  page:{position:'relative', width:'100%', maxWidth:330, aspectRatio:1024/1536,
-    borderRadius:3, overflow:'hidden'},
-  shot:{width:'100%', height:'100%'},
+  page:{position:'relative', borderRadius:3, overflow:'hidden'},
+  shot:{...StyleSheet.absoluteFillObject, width:'100%', height:'100%'},
   ink:{position:'absolute', left:'14%', right:'13%', top:'17.5%', bottom:'8%'},
   head:{fontFamily:'ManSeh', fontSize:20, lineHeight:29, letterSpacing:3.2,
     color:'rgba(53,43,36,.87)', marginBottom:18},
@@ -347,6 +394,252 @@ const dy = StyleSheet.create({
     borderColor:'#b69fda', backgroundColor:'#d8eaff'},
   btnOff:{opacity:.45},
   btnT:{...F, fontSize:10, letterSpacing:.8, color:'#5e527b'},
+});
+
+export type MyDiaryEntry = {
+  at:number;
+  text:string;
+  blanks:Record<string,number>;
+  auto?:Record<string,string>;
+};
+export type MyDiaryValues = Record<string,string>;
+
+/* ══ 지금의 일기 ══
+   입력값은 이 컴포넌트의 state와 onDone 안에서만 흐른다. 저장은 부르는 쪽이
+   rules.ts의 saveMyDiary를 딱 한 번 호출한다. D-14의 선물 칸은 실제 선물이
+   없어도 시스템 소유다 — 빈 점선 칸으로 남되 유저가 대신 지어 쓰지 못한다. */
+export function MyDiaryPage({entry, gifts, saving=false, onDone, onClose}:{
+  entry:MyDiaryEntry|null;
+  gifts:Record<string,string[]>;
+  saving?:boolean;
+  onDone:(values:MyDiaryValues)=>boolean|void|Promise<boolean|void>;
+  onClose:()=>void;
+}) {
+  const {width, height} = useWindowDimensions();
+  const at = entry && entry.at;
+  const auto = entry ? myDiaryAuto(entry, gifts || {}) : {};
+  const [values, setValues] = useState<MyDiaryValues>(()=>({...auto}));
+  const refs = useRef<Record<string,any>>({});
+  const submitted = useRef(false);
+
+  useEffect(()=>{
+    submitted.current = false;
+    setValues(entry ? {...myDiaryAuto(entry, gifts || {})} : {});
+  }, [at, gifts]);
+
+  if (!entry) return null;
+  const keys = Object.keys(entry.blanks || {});
+  const system = new Set(keys.filter(k=>myDiarySystemOwned(entry, k)));
+  const mine = keys.filter(k=>!system.has(k));
+  const valueOf = (k:string) => system.has(k) ? (auto[k] || '') : (values[k] || '');
+  /* 선물 칸은 값이 없어도 이미 시스템이 답한 칸이다. 유저가 채울 mine만
+     다 쓰면 덮을 수 있고, 빈 system 값도 그대로 그날의 snapshot에 남긴다. */
+  const full = mine.every(k=>String(valueOf(k)).trim());
+  const paperW = diaryPaperWidth(width, height);
+  const scale = paperW / 330;
+  const last = entry.at === 0;
+  const fontSize = Math.max(last ? 13 : 10.5, (last ? 19 : 15) * scale);
+  const lineHeight = Math.max(last ? 31 : 20, (last ? 46 : 29) * scale);
+  const type = {fontSize, lineHeight, letterSpacing:1.35 * scale};
+  const finish = async() => {
+    if (submitted.current || !full) return;
+    const clean:MyDiaryValues = {};
+    for (const k of keys) clean[k] = system.has(k)
+      ? String(auto[k] || '')
+      : String(values[k] || '').trim().slice(0, entry.blanks[k]);
+    if (mine.some(k=>!clean[k])) return;
+    submitted.current = true;
+    try {
+      const ok = await onDone(clean);
+      if (ok === false) submitted.current = false;
+    } catch { submitted.current = false; }
+  };
+  const field = (k:string) => {
+    const fixed = system.has(k);
+    const value = valueOf(k);
+    const chars = Math.max(entry.blanks[k] || 0, Array.from(value).length);
+    const fieldW = Math.min(136 * scale, Math.max(44, (Math.min(12, Math.max(5, chars)) * .68 * fontSize) + 18 * scale));
+    const fieldBox = {width:fieldW, height:fontSize * 1.82,
+      marginHorizontal:fontSize * .28, marginVertical:fontSize * .08};
+    const fieldType = {fontSize:fontSize * .92, lineHeight:fontSize * 1.55};
+    if (fixed) return <View key={k} style={[myd.blank, myd.fixed, fieldBox]}
+      accessible accessibilityLabel={value ? `자동으로 채워진 빈칸 ${value}` : '받은 선물이 없는 자동 빈칸'}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.62}
+        style={[myd.fixedT, fieldType]}>{value}</Text>
+    </View>;
+    const next = mine[mine.indexOf(k) + 1];
+    return <TextInput key={k} ref={(node:any)=>{refs.current[k]=node}}
+      style={[myd.blank, fieldBox, fieldType]} value={value}
+      editable={!saving}
+      onChangeText={v=>setValues(old=>({...old,[k]:v}))}
+      maxLength={entry.blanks[k]} autoFocus={k === mine[0]}
+      accessibilityLabel={`빈칸 ${keys.indexOf(k) + 1}`}
+      returnKeyType={next ? 'next' : 'done'} blurOnSubmit={!next}
+      onSubmitEditing={()=>{ if (next) refs.current[next]?.focus(); else finish(); }}
+      selectionColor="#ff5fa8"/>;
+  };
+
+  return <View style={[dy.overlay, {zIndex:58}]} accessibilityViewIsModal
+    onAccessibilityEscape={()=>{ if (!saving) onClose(); }}>
+    <KeyboardAvoidingView style={dy.avoid}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView style={dy.scroll} contentContainerStyle={dy.scrollIn}
+        keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={[dy.page, {width:paperW, height:paperW * 1.5}]}>
+          <Image source={diaryPaperSource(MY_DIARY_IMG)} style={dy.shot} resizeMode="cover"
+            accessible={false}/>
+          <View style={[myd.ink, last && myd.last]} accessibilityRole="summary">
+            <View style={myd.flow}>
+              {myDiaryParts(entry.text).map((part:any,i:number)=>part.blank
+                ? field(part.blank)
+                : (String(part.text).match(/\S+\s*/g) || []).map((word:string,j:number)=><Text
+                    key={`${i}-${j}`} style={[myd.copy, type]}>{word}</Text>))}
+            </View>
+          </View>
+        </View>
+        <View style={myd.actions}>
+          <Bevel style={[myd.btn, saving && dy.btnOff]} disabled={saving}
+            inner={{backgroundColor:'#f2effb'}} onPress={onClose}>
+            <Text style={dy.btnT}>나중에</Text></Bevel>
+          <Bevel style={[myd.btn, (!full || saving) && dy.btnOff]} disabled={!full || saving}
+            inner={{backgroundColor:'#e7e4fb'}} onPress={finish}>
+            <Text style={dy.btnT}>{saving ? '저장 중...' : '덮기 ♡'}</Text></Bevel>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </View>;
+}
+const myd = StyleSheet.create({
+  ink:{position:'absolute', left:'15%', right:'7%', top:'14%', bottom:'8%', overflow:'hidden'},
+  last:{top:'35%'},
+  flow:{flexDirection:'row', flexWrap:'wrap', alignItems:'center', alignContent:'flex-start'},
+  copy:{fontFamily:'GyuriDiary', color:'rgba(53,43,36,.87)'},
+  blank:{fontFamily:'GyuriDiary', paddingHorizontal:5, paddingVertical:0,
+    textAlign:'center', color:'rgba(73,52,47,.9)', backgroundColor:'rgba(255,247,252,.72)',
+    borderWidth:1, borderStyle:'dashed', borderColor:'#d8a4c3', borderRadius:2},
+  fixed:{alignItems:'center', justifyContent:'center', borderStyle:'solid',
+    backgroundColor:'rgba(255,247,252,.8)'},
+  fixedT:{fontFamily:'GyuriDiary', lineHeight:20, color:'rgba(73,52,47,.9)', textAlign:'center'},
+  actions:{flexDirection:'row', alignItems:'center', justifyContent:'center', gap:9},
+  btn:{width:104, height:36, borderRadius:6, borderColor:'#b69fda', backgroundColor:'#d8eaff'},
+});
+
+export type FortuneRecord = {
+  day:string;
+  who:string;
+  place:string;
+  find:string;
+  keywordId:string;
+  revealed:boolean;
+  seen:boolean;
+};
+function FortuneSlot({kind, value, wide, filled, compact}:{
+  kind:string; value:string; wide?:boolean; filled:boolean; compact:boolean;
+}) {
+  return <View style={[ft.slot, wide && ft.slotWide, compact && ft.slotCompact,
+      wide && compact && ft.slotWideCompact, filled && ft.slotFilled]}
+    accessible accessibilityLabel={filled ? value : `${kind} 빈칸`}>
+    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.76}
+      style={[ft.slotT, compact && ft.slotTCompact]}>{filled ? value : ''}</Text>
+  </View>;
+}
+
+/* ══ 오늘의 운세 ══
+   그날의 record를 보여주는 일만 맡는다. ensure/seen/reveal 저장은 App의 화면
+   orchestration이 rules.ts helper로 수행한다. 빈칸과 조사는 같은 묶음으로
+   감싸 작은 화면에서도 「이재언 / 과」처럼 떨어지지 않게 한다. */
+export function FortuneDialog({fortune, onFill, onClose}:{
+  fortune:FortuneRecord|null;
+  onFill:()=>void;
+  onClose:()=>void;
+}) {
+  const {width, height} = useWindowDimensions();
+  if (!fortune) return null;
+  const filled = !!fortune.revealed;
+  const compact = width <= 340;
+  const keyword = (NULL_FORTUNE_KEYWORDS.find((x:any)=>x.id === fortune.keywordId) || {}).label || '';
+  return <Dlg title="null.exe" onClose={onClose} z={41}
+    overlayStyle={ft.overlay} wrapStyle={ft.wrap} bodyStyle={ft.body}>
+    <ScrollView style={[ft.scroll, {maxHeight:Math.max(160, height - 62)}]}
+      contentContainerStyle={[ft.content, compact && ft.contentCompact]}
+      showsVerticalScrollIndicator={false}>
+      <Text style={[ft.title, compact && ft.titleCompact]}>✧ NULL 위한 오늘의 운세 ✧</Text>
+      <Text style={ft.sub}>행운은 쟁취하는 거야!{' '}
+        <Text style={[ft.subKao, KAO]}>(ノ^∇^)ノ.｡･:*:･🍀</Text>
+      </Text>
+      <View style={ft.copy} accessibilityLiveRegion="polite">
+        <View style={[ft.row, compact && ft.rowCompact]}>
+          <Text style={[ft.copyT, compact && ft.copyTCompact]}>오늘은</Text>
+          <View style={ft.pair}>
+            <FortuneSlot kind="인물" value={fortune.who} filled={filled} compact={compact}/>
+            <Text style={[ft.copyT, compact && ft.copyTCompact]}>과</Text>
+          </View>
+          <View style={ft.pair}>
+            <FortuneSlot kind="장소" value={fortune.place} wide filled={filled} compact={compact}/>
+            <Text style={[ft.copyT, compact && ft.copyTCompact]}>에 가면</Text>
+          </View>
+        </View>
+        <View style={[ft.row, compact && ft.rowCompact]}>
+          <Text style={[ft.copyT, compact && ft.copyTCompact]}>뜻밖의</Text>
+          <View style={[ft.pair, ft.findPair]}>
+            <FortuneSlot kind="발견" value={fortune.find} wide filled={filled} compact={compact}/>
+            <View style={ft.findTail}>
+              <Text style={[ft.copyT, compact && ft.copyTCompact]}>을 찾을 수 있어요</Text>
+              <Text style={[ft.kao, KAO, compact && ft.kaoCompact]}>♡(｡•̀ᴗ-)✧</Text>
+            </View>
+          </View>
+        </View>
+        <View style={[ft.row, ft.keyword, compact && ft.rowCompact]}>
+          <Text style={[ft.copyT, compact && ft.copyTCompact]}>행운의 키워드 :</Text>
+          <FortuneSlot kind="키워드" value={keyword} wide filled={filled} compact={compact}/>
+        </View>
+      </View>
+      <Bevel style={[ft.fill, compact && ft.fillCompact]} disabled={filled}
+        inner={{backgroundColor:'#fff7fb'}} onPress={onFill}>
+        <Text style={[ft.fillT, compact && ft.fillTCompact]}>[ FILL THE BLANK! ]</Text>
+      </Bevel>
+    </ScrollView>
+  </Dlg>;
+}
+const ft = StyleSheet.create({
+  overlay:{padding:12},
+  wrap:{maxWidth:320},
+  body:{paddingTop:0, paddingHorizontal:0, paddingBottom:0, gap:0,
+    backgroundColor:'rgba(253,249,255,.97)'},
+  scroll:{width:'100%'},
+  content:{alignItems:'center', paddingTop:28, paddingHorizontal:16, paddingBottom:24},
+  contentCompact:{paddingTop:24, paddingHorizontal:12, paddingBottom:20},
+  title:{...F, fontSize:18, lineHeight:25, letterSpacing:.55, color:'#51476f', textAlign:'center',
+    textShadowColor:'#fff', textShadowOffset:{width:0,height:1}, textShadowRadius:0},
+  titleCompact:{fontSize:16, lineHeight:23},
+  sub:{...F, marginTop:9, fontSize:8.5, lineHeight:14, letterSpacing:.3,
+    color:'#b4a5c8', textAlign:'center'},
+  subKao:{fontSize:9, color:'#9a8aad'},
+  copy:{width:'100%', alignItems:'center', gap:11, marginTop:36, marginBottom:30},
+  row:{width:'100%', flexDirection:'row', flexWrap:'wrap', alignItems:'center',
+    justifyContent:'center', gap:7},
+  rowCompact:{gap:5},
+  pair:{flexDirection:'row', alignItems:'center', gap:5},
+  findPair:{flexWrap:'wrap', justifyContent:'center', maxWidth:'100%'},
+  findTail:{flexDirection:'row', alignItems:'center', gap:5},
+  copyT:{...F, fontSize:13, lineHeight:23, letterSpacing:.3, color:'#675a7b'},
+  copyTCompact:{fontSize:12, lineHeight:21},
+  kao:{fontSize:13, lineHeight:23, color:'#806c91'},
+  kaoCompact:{fontSize:12, lineHeight:21},
+  keyword:{marginTop:11},
+  slot:{width:72, height:31, paddingHorizontal:7, paddingVertical:2,
+    alignItems:'center', justifyContent:'center', borderWidth:1.5, borderStyle:'dashed',
+    borderColor:'#dbb9d2', borderRadius:5, backgroundColor:'rgba(255,255,255,.7)'},
+  slotWide:{width:84},
+  slotCompact:{width:68, height:29},
+  slotWideCompact:{width:79},
+  slotFilled:{borderStyle:'solid', borderColor:'#efbfd9', backgroundColor:'#fff7fb'},
+  slotT:{...F, fontSize:12, lineHeight:15, letterSpacing:.2, color:'#6f586d', textAlign:'center'},
+  slotTCompact:{fontSize:11, lineHeight:14},
+  fill:{width:210, height:49, borderRadius:24.5, borderColor:'#b69fda', backgroundColor:'#e9e3f7'},
+  fillCompact:{width:198, height:46, borderRadius:23},
+  fillT:{...F, fontSize:14, letterSpacing:1, color:'#5e527b'},
+  fillTCompact:{fontSize:13},
 });
 
 /* ══ 모드 팝업 ══ 웹의 ModeAsk와 같은 글월·같은 자리.
@@ -529,7 +822,7 @@ export function PhotoWin({shot, onClose}:
         <View style={pv.body}>
           <Pressable disabled={!flip} onPress={()=>setBack(b=>!b)}>
             <View>
-              <Image source={{uri}} resizeMode="contain"
+              <Image source={diary ? diaryPaperSource(diary.src) : {uri}} resizeMode="contain"
                 onLoad={(e:any)=>{ const s = e && e.nativeEvent && e.nativeEvent.source;
                   if (s && s.width && s.height) setRatio(s.width/s.height) }}
                 style={[pv.img, {aspectRatio:ratio}]}/>

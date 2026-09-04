@@ -18,14 +18,57 @@ let installed = false;
 
 /* 저장이 밀리면 순서가 뒤집힐 수 있다 — 같은 열쇠의 마지막 값이 이겨야 한다.
    열쇠마다 줄을 세운다. */
-const queue = new Map<string, Promise<void>>();
+const queue = new Map<string, Promise<boolean>>();
 function persist(k: string, v: string | null) {
-  const prev = queue.get(k) || Promise.resolve();
+  const prev = queue.get(k) || Promise.resolve(true);
+  /* 앞 저장이 실패해도 다음 값은 시도한다. 실패를 삼켜 줄을 끊지 않되,
+     이 값이 실제 SQLite까지 갔는지는 기다리는 화면에 boolean으로 돌려준다. */
   const next = prev
-    .then(() => (v === null ? delMeta(k) : setMeta(k, v)))
-    .catch(() => {})
-    .then(() => { if (queue.get(k) === next) queue.delete(k); });
+    .catch(() => false)
+    .then(async() => {
+      try {
+        if (v === null) await delMeta(k); else await setMeta(k, v);
+        return true;
+      } catch { return false; }
+    })
+    .finally(() => { if (queue.get(k) === next) queue.delete(k); });
   queue.set(k, next);
+  return next;
+}
+
+/* localStorage 모양은 동기라 save helper가 먼저 메모리를 고친다. 기록 화면처럼
+   저장 성공 뒤에 닫혀야 하는 곳은 이 열쇠의 비동기 꼬리까지 기다린다. 기다리는
+   동안 같은 열쇠에 새 값이 붙으면 그 꼬리도 이어서 확인한다. */
+export async function flushShimKey(key: string): Promise<boolean> {
+  const k = String(key);
+  while (true) {
+    const pending = queue.get(k);
+    if (!pending) return true;
+    if (!await pending) return false;
+    if (!queue.has(k)) return true;
+  }
+}
+
+/* restart는 SQLite를 비우기 전에 모든 열쇠의 꼬리를 기다린다. 한 열쇠만
+   기다리면 다른 save helper의 늦은 INSERT가 wipe 뒤에 도착해 옛 판을
+   되살릴 수 있다. 기다리는 동안 새 꼬리가 붙을 수도 있어 빌 때까지 돈다. */
+export async function flushShim(): Promise<boolean> {
+  let ok = true;
+  while (queue.size) {
+    const pending = [...queue.values()];
+    const result = await Promise.all(pending.map(p => p.catch(() => false)));
+    if (result.some(v => !v)) ok = false;
+  }
+  return ok;
+}
+
+/* 화면을 닫기 전에 영속 저장을 확인하는 값은 실패하면 메모리도 이전 값으로
+   돌려야 한다. localStorage 모양의 setItem을 다시 부르면 복구 쓰기를 기다릴
+   방법이 없으므로, 같은 열쇠 줄에 직접 세우고 결과까지 돌려준다. */
+export async function restoreShimKey(key: string, value: string | null): Promise<boolean> {
+  const k = String(key);
+  if (value === null) mem.delete(k); else mem.set(k, value);
+  return await persist(k, value);
 }
 
 export function installShim() {

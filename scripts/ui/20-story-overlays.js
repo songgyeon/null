@@ -32,12 +32,14 @@ function DiaryInk({kind,entry,values={},auto={},readOnly=false,onChange,onEnter}
       onChange={v=>onChange&&onChange("why",v)} onEnter={e=>onEnter&&onEnter("why",e)}/>{DIARY_TAIL_B}</p>
   </div>;
   if(!entry)return null;
-  const keys=Object.keys(entry.blanks), mine=keys.filter(k=>!auto[k]);
+  const keys=Object.keys(entry.blanks), mine=keys.filter(k=>!myDiarySystemOwned(entry,k));
   return <div className={`dink dcurrent dcurrent-${entry.at}`} role="document">
     {myDiaryParts(entry.text).map((part,i)=>part.blank
       ?<DiaryField key={part.blank} name={part.blank}
-        value={auto[part.blank]||values[part.blank]||""} max={entry.blanks[part.blank]}
-        fixed={readOnly||!!auto[part.blank]} autoFocus={!readOnly&&part.blank===mine[0]}
+        value={!readOnly&&myDiarySystemOwned(entry,part.blank)
+          ?auto[part.blank]||"":values[part.blank]||""} max={entry.blanks[part.blank]}
+        fixed={readOnly||myDiarySystemOwned(entry,part.blank)}
+        autoFocus={!readOnly&&part.blank===mine[0]}
         label={`빈칸 ${keys.indexOf(part.blank)+1}`}
         onChange={v=>onChange&&onChange(part.blank,v)}
         onEnter={e=>onEnter&&onEnter(part.blank,e)}/>
@@ -154,10 +156,15 @@ function MyDiary({entry,gifts,onDone,onClose}){
   const [v,setV]=useState(auto);
   const [out,setOut]=useState(false);
   const keys=Object.keys(entry.blanks);
-  /* 자동으로 찬 칸은 안 묻는다 — 유저가 채울 칸만 다 차면 덮을 수 있다 */
-  const mine=keys.filter(k=>!auto[k]);
+  /* 자동 칸은 값이 비어도 안 묻는다 — 소유권은 auto 표가 정한다.
+     유저가 채울 칸만 다 차면 덮을 수 있다. */
+  const mine=keys.filter(k=>!myDiarySystemOwned(entry,k));
   const full=mine.every(k=>((v[k]||"").trim()));
-  const done=()=>{if(out||!full)return;setOut(true);saveMyDiary(entry.at,v);setTimeout(onDone,420)};
+  /* 선물 Effect가 일기 열린 동안 끝날 수 있다. 화면은 props의 최신 auto를
+     보여주므로 저장도 눌렀을 때의 auto를 덮어써야 보인 장과 snapshot이 같다. */
+  const done=()=>{if(out||!full)return;
+    const saved=saveMyDiary(entry.at,{...v,...auto});if(!saved)return;
+    setOut(true);setTimeout(onDone,420)};
   const advance=(k,e)=>{
     const n=mine[mine.indexOf(k)+1];
     const el=n&&e.target.closest(".dfit").querySelector(`[data-diary-key="${n}"]`);

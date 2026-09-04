@@ -397,14 +397,20 @@ const MY_DIARY=[
 const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
   .filter(x=>x!=="").map(x=>/^\{[a-zA-Z]+\}$/.test(x)
     ? {blank:x.slice(1,-1)} : {text:x});
+/* 자동 칸의 소유권은 값이 아니라 MY_DIARY의 auto 표가 정한다.
+   선물을 안 줘 값이 비어 있어도 이 칸은 시스템 기록이다 — 유저 입력칸으로
+   바뀌면 주지 않은 선물을 지어내야만 일기를 덮을 수 있다. */
+const myDiarySystemOwned=(entry,key)=>Object.prototype.hasOwnProperty.call(
+  ((entry||{}).auto)||{},key);
 /* 자동으로 채워지는 칸의 값 — 그 사람에게 실제로 준 것 중 마지막 하나.
-   안 줬으면 빈 문자열이고, 그러면 그냥 유저가 쓰는 칸이 된다. */
+   안 줬으면 빈 문자열인 **시스템 칸**으로 남는다. 소유권은 위 함수가 맡고,
+   값의 truthy/falsy로 입력 가능 여부를 정하지 않는다. */
 const myDiaryAuto=(entry,gifts)=>{
   const out={};
   for(const [k,who] of Object.entries((entry||{}).auto||{})){
     const a=((gifts||{})[who])||[];
     const name=a.length?GIFT_NAME[a[a.length-1]]:"";
-    if(name)out[k]=name;
+    out[k]=name||"";
   }
   return out;
 };
@@ -412,13 +418,20 @@ const loadMyDiary=()=>{try{
   const v=JSON.parse(localStorage.getItem("null_mydiary"));
   return v&&typeof v==="object"&&!Array.isArray(v)?v:{};
 }catch(e){return{}}};
-/* 한 장을 통째로 저장한다. 한 칸이라도 비면 저장하지 않는다 —
-   반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다. */
+/* 한 장을 통째로 저장한다. 유저 칸이 하나라도 비면 저장하지 않는다 —
+   반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다.
+
+   자동 칸은 작성 순간의 실제 선물명을 **그대로 snapshot**한다. 선물명은 유저
+   입력 한도와 무관하므로 자르지 않고, 미증정이면 빈 문자열도 정상 기록이다.
+   기존 저장본도 같은 평평한 모양이라 그대로 읽힌다. 이미 잘려 저장된 옛 값은
+   추측으로 고치지 않는다 — 현재 선물로 덮어쓰는 것보다 보존하는 편이 안전하다. */
 const saveMyDiary=(at,vals)=>{try{
   const e=MY_DIARY.find(x=>x.at===at); if(!e)return null;
   const out={};
   for(const k of Object.keys(e.blanks)){
-    const t=((vals||{})[k]||"").toString().trim().slice(0,e.blanks[k]);
+    const raw=((vals||{})[k]||"").toString().trim();
+    if(myDiarySystemOwned(e,k)){out[k]=raw;continue}
+    const t=raw.slice(0,e.blanks[k]);
     if(!t)return null;
     out[k]=t;
   }
@@ -448,19 +461,18 @@ const userPics=(name,giftsOverride)=>{
   const d=loadDiary();
   if(d)out.push({src:DIARY_PAPER_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
     diary:{kind:"child",src:DIARY_PAPER_IMG,values:{why:d}}});
-  /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동으로 찬 칸도 같이
-     얹는다: 화면에서 본 그대로여야 한다 */
-  /* 웹은 저장소가 곧 현재값이다. Expo는 DB state를 따로 들고 있으므로 같은
-     세션에 막 준 선물까지 사진첩에 반영하도록 선택 인자를 받을 수 있다. */
+  /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동 칸까지 작성 순간에
+     저장한 snapshot을 그대로 읽는다. 사진첩을 여는 시점의 선물 목록으로 다시
+     계산하면 새 선물을 준 뒤 과거 일기의 물건이 바뀐다. */
+  /* giftsOverride 인자는 옛 호출부 호환을 위해 받되, 저장된 일기의 값에는 쓰지
+     않는다. 웹·Expo 어느 쪽도 재열람이 기록을 고치면 안 된다. */
   const md=loadMyDiary();
-  const gf=giftsOverride&&typeof giftsOverride==="object"&&!Array.isArray(giftsOverride)
-    ?giftsOverride:loadGifts();
   for(const e of MY_DIARY){
     const w=md[e.at]; if(!w)continue;
-    const auto=myDiaryAuto(e,gf);
     out.push({src:MY_DIARY_IMG,label:`D-${e.at}`,
       diary:{kind:"current",src:MY_DIARY_IMG,entry:e,
-        values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,auto[k]||w[k]||""]))}});
+        values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,
+          Object.prototype.hasOwnProperty.call(w,k)?String(w[k]??""):""]))}});
   }
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
@@ -569,7 +581,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=271";
+const AV="?v=274";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1682,6 +1694,11 @@ const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):l
    하나만 보낼 수 있다. 나머지 운세와 덱은 전부 localStorage에서 끝난다. */
 const FORTUNE_STORAGE_KEY="null_fortune_v1";
 const FORTUNE_STATE_VERSION=1;
+/* current는 덱에서 마지막으로 새로 뽑은 장을 계속 가리킨다. 그래야 used의
+   마지막 값·긴장 간격 장부가 기존 v1과 같은 뜻을 유지한다. 현지 날짜가 잠깐
+   앞으로 갔다 돌아온 때를 위해 그 밖의 최근 날짜만 31개 둔다 — current까지
+   합치면 한 달짜리 NULL보다 긴 32일이고, 저장값은 몇 KB 안에서 멈춘다. */
+const FORTUNE_HISTORY_MAX=31;
 
 /* id는 워커가 허용 목록으로 확인하는 안정된 계약이고 label은 화면용이다.
    intensity:tension은 연속해서 나오지 않도록 덱에서 따로 간격을 둔다. */
@@ -1875,6 +1892,13 @@ const fortuneSequenceGap=(ids,startGap)=>{
 const fortuneDeckStateOk=s=>{
   if(!s||s.v!==FORTUNE_STATE_VERSION||!fortuneRecordOk(s.current))return false;
   if(!Array.isArray(s.deck)||!Array.isArray(s.used))return false;
+  /* history가 없으면 이 기능 전의 v1 저장값이다. 빈 과거로 받아 다음 저장 때
+     자연스럽게 새 모양이 된다. 필드가 있는데 모양이 틀린 것은 깨진 값이다. */
+  const history=s.history===undefined?[]:s.history;
+  if(!Array.isArray(history)||history.length>FORTUNE_HISTORY_MAX
+    ||history.some(r=>!fortuneRecordOk(r)))return false;
+  const days=[s.current.day,...history.map(r=>r.day)];
+  if(new Set(days).size!==days.length)return false;
   const all=[...s.deck,...s.used];
   if(all.length!==NULL_FORTUNE_KEYWORDS.length||new Set(all).size!==all.length)return false;
   if(all.some(id=>!FORTUNE_KEYWORD_BY_ID[id]))return false;
@@ -1893,15 +1917,35 @@ const saveFortuneState=s=>{try{
   localStorage.setItem(FORTUNE_STORAGE_KEY,JSON.stringify(s));return true;
 }catch(e){return false}};
 const pickFortune=(list,random)=>list[Math.floor(fortuneRandom(random)*list.length)];
+const fortuneHistoryOf=s=>Array.isArray(s&&s.history)?s.history:[];
+const fortuneRecordForDay=(s,day)=>{
+  if(!s||!day)return null;
+  if(s.current&&s.current.day===day)return s.current;
+  return fortuneHistoryOf(s).find(r=>r.day===day)||null;
+};
+const replaceFortuneRecord=(s,record)=>{
+  if(!s||!record)return false;
+  if(s.current.day===record.day){s.current=record;return true}
+  const i=fortuneHistoryOf(s).findIndex(r=>r.day===record.day);
+  if(i<0)return false;
+  s.history=s.history.slice();s.history[i]=record;return true;
+};
 
 /* 반환값은 UI가 바로 쓰는 오늘 record뿐이다. 덱/used는 저장 wrapper 안에 숨긴다. */
 const ensureFortuneForToday=(now,random)=>{
   const day=fortuneDayKey(now);
   let old=loadFortuneState();
-  if(old&&old.current.day===day)return old.current;
+  /* 이미 만든 현지 날짜면 current가 아니어도 그대로 돌려준다. current를 과거
+     날짜로 바꾸면 used의 마지막 값과 달라지므로, 덱 장부는 건드리지 않는다. */
+  const remembered=fortuneRecordForDay(old,day);
+  if(remembered)return remembered;
 
   let deck=old?old.deck.slice():[];
   let used=old?old.used.slice():[];
+  const history=old
+    ?[old.current,...fortuneHistoryOf(old).filter(r=>r.day!==old.current.day)]
+      .slice(0,FORTUNE_HISTORY_MAX)
+    :[];
   const previousId=old&&old.lastKeywordId;
   const previousGap=old?old.sinceTension:6;
   let cycleStartGap=old?old.cycleStartGap:previousGap;
@@ -1932,33 +1976,44 @@ const ensureFortuneForToday=(now,random)=>{
     revealed:false,
     seen:false,
   };
-  saveFortuneState({v:FORTUNE_STATE_VERSION,deck,used,cycleStartGap,sinceTension,lastKeywordId:keywordId,current});
+  saveFortuneState({v:FORTUNE_STATE_VERSION,deck,used,cycleStartGap,sinceTension,lastKeywordId:keywordId,current,history});
   return current;
 };
 const fortuneNeedsAutoOpen=(record,now)=>!!record&&record.day===fortuneDayKey(now)&&record.seen!==true;
 const markFortuneSeen=(record,now)=>{
-  const current=ensureFortuneForToday(now);
+  const day=fortuneDayKey(now),current=ensureFortuneForToday(now);
   const s=loadFortuneState();
-  if(!s||s.current.day!==current.day)return current;
+  if(!s)return current;
   /* stale UI record로 오늘 것을 덮지 않는다. record는 호출 의도를 확인하는 데만 쓴다. */
-  if(record&&record.day!==current.day)return current;
-  s.current={...s.current,seen:true};
+  if(record&&record.day!==day)return current;
+  const saved=fortuneRecordForDay(s,day);
+  if(!saved)return current;
+  const next={...saved,seen:true};
+  if(!replaceFortuneRecord(s,next))return current;
   saveFortuneState(s);
-  return s.current;
+  return next;
 };
-const revealFortuneForToday=(now)=>{
-  const current=ensureFortuneForToday(now);
+/* 둘째 인자는 지금 **화면에 보이는 장**이다. 23:59에 연 창을 00:01에
+   채웠다고 보이지 않는 새 날짜를 공개하면 안 된다. record가 없을 때만 기존
+   호출 호환대로 현재 로컬 날짜의 장을 잡는다. */
+const revealFortuneForToday=(now,record)=>{
+  const current=fortuneRecordOk(record)?record:ensureFortuneForToday(now);
+  const day=current.day;
   const s=loadFortuneState();
-  if(!s||s.current.day!==current.day)return current;
-  s.current={...s.current,revealed:true};
+  if(!s)return current;
+  const saved=fortuneRecordForDay(s,day);
+  if(!saved)return current;
+  const next={...saved,revealed:true};
+  if(!replaceFortuneRecord(s,next))return current;
   saveFortuneState(s);
-  return s.current;
+  return next;
 };
 /* 요청 조립부가 읽는 유일한 출구. 오늘 공개한 allowlisted id가 아니면 null이다. */
 const currentFortuneKeywordId=(now)=>{
   const s=loadFortuneState(),day=fortuneDayKey(now);
-  return s&&s.current.day===day&&s.current.revealed===true
-    &&FORTUNE_KEYWORD_BY_ID[s.current.keywordId]?s.current.keywordId:null;
+  const record=fortuneRecordForDay(s,day);
+  return record&&record.revealed===true&&FORTUNE_KEYWORD_BY_ID[record.keywordId]
+    ?record.keywordId:null;
 };
 
 const EDIT_MAX=500;
@@ -2447,6 +2502,7 @@ return {
   MY_DIARY_IMG,
   MY_DIARY,
   myDiaryParts,
+  myDiarySystemOwned,
   myDiaryAuto,
   loadMyDiary,
   saveMyDiary,
@@ -2628,6 +2684,7 @@ return {
   saveScene,
   FORTUNE_STORAGE_KEY,
   FORTUNE_STATE_VERSION,
+  FORTUNE_HISTORY_MAX,
   NULL_FORTUNE_KEYWORDS,
   FORTUNE_KEYWORD_BY_ID,
   NULL_FORTUNE_WHO,
@@ -2644,6 +2701,9 @@ return {
   loadFortuneState,
   saveFortuneState,
   pickFortune,
+  fortuneHistoryOf,
+  fortuneRecordForDay,
+  replaceFortuneRecord,
   ensureFortuneForToday,
   fortuneNeedsAutoOpen,
   markFortuneSeen,
@@ -2796,6 +2856,7 @@ export const {
   MY_DIARY_IMG,
   MY_DIARY,
   myDiaryParts,
+  myDiarySystemOwned,
   myDiaryAuto,
   loadMyDiary,
   saveMyDiary,
@@ -2977,6 +3038,7 @@ export const {
   saveScene,
   FORTUNE_STORAGE_KEY,
   FORTUNE_STATE_VERSION,
+  FORTUNE_HISTORY_MAX,
   NULL_FORTUNE_KEYWORDS,
   FORTUNE_KEYWORD_BY_ID,
   NULL_FORTUNE_WHO,
@@ -2993,6 +3055,9 @@ export const {
   loadFortuneState,
   saveFortuneState,
   pickFortune,
+  fortuneHistoryOf,
+  fortuneRecordForDay,
+  replaceFortuneRecord,
   ensureFortuneForToday,
   fortuneNeedsAutoOpen,
   markFortuneSeen,

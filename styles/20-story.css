@@ -87,7 +87,11 @@
 .diary{position:absolute;inset:0;z-index:58;display:grid;
  grid-template-rows:minmax(0,1fr) auto;justify-items:center;align-items:center;
  gap:14px;padding:20px 16px;
+ overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;
+ scroll-padding-block:16px calc(54px + env(safe-area-inset-bottom));
+ -webkit-overflow-scrolling:touch;scrollbar-width:none;
  background:rgba(20,13,36,.86);animation:fade .3s steps(3) both}
+.diary::-webkit-scrollbar{display:none;width:0;height:0}
 .diary.out{animation:dclose .42s steps(5) both}
 @keyframes dclose{0%{opacity:1}100%{opacity:0;transform:translateY(10px)}}
 /* 사진은 서랍에서 꺼낸 것처럼 천천히 앉는다 */
@@ -325,3 +329,11 @@
 .wbtn.dbtn2{flex:none;width:auto;max-width:none;min-width:96px;
  padding:11px 18px;font-size:11px;letter-spacing:.12em}
 .wbtn.dbtn2[disabled]{opacity:.45;cursor:default}
+/* 키보드가 visualViewport를 줄인 짧은 화면에서는 종이를 남은 높이에 억지로
+   찌그러뜨리지 않는다. 폭으로 2:3 종이를 만들고, .diary 하나가 종이와 단추를
+   함께 세로 스크롤한다 — 그래야 마지막 입력칸도 실제 터치로 닿는다. */
+@media(max-height:560px){
+ .diary{grid-template-rows:auto auto;align-content:start;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+ .diary .dpage{height:auto;aspect-ratio:2/3}
+}

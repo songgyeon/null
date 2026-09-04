@@ -132,14 +132,20 @@ const MY_DIARY=[
 const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
   .filter(x=>x!=="").map(x=>/^\{[a-zA-Z]+\}$/.test(x)
     ? {blank:x.slice(1,-1)} : {text:x});
+/* 자동 칸의 소유권은 값이 아니라 MY_DIARY의 auto 표가 정한다.
+   선물을 안 줘 값이 비어 있어도 이 칸은 시스템 기록이다 — 유저 입력칸으로
+   바뀌면 주지 않은 선물을 지어내야만 일기를 덮을 수 있다. */
+const myDiarySystemOwned=(entry,key)=>Object.prototype.hasOwnProperty.call(
+  ((entry||{}).auto)||{},key);
 /* 자동으로 채워지는 칸의 값 — 그 사람에게 실제로 준 것 중 마지막 하나.
-   안 줬으면 빈 문자열이고, 그러면 그냥 유저가 쓰는 칸이 된다. */
+   안 줬으면 빈 문자열인 **시스템 칸**으로 남는다. 소유권은 위 함수가 맡고,
+   값의 truthy/falsy로 입력 가능 여부를 정하지 않는다. */
 const myDiaryAuto=(entry,gifts)=>{
   const out={};
   for(const [k,who] of Object.entries((entry||{}).auto||{})){
     const a=((gifts||{})[who])||[];
     const name=a.length?GIFT_NAME[a[a.length-1]]:"";
-    if(name)out[k]=name;
+    out[k]=name||"";
   }
   return out;
 };
@@ -147,13 +153,20 @@ const loadMyDiary=()=>{try{
   const v=JSON.parse(localStorage.getItem("null_mydiary"));
   return v&&typeof v==="object"&&!Array.isArray(v)?v:{};
 }catch(e){return{}}};
-/* 한 장을 통째로 저장한다. 한 칸이라도 비면 저장하지 않는다 —
-   반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다. */
+/* 한 장을 통째로 저장한다. 유저 칸이 하나라도 비면 저장하지 않는다 —
+   반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다.
+
+   자동 칸은 작성 순간의 실제 선물명을 **그대로 snapshot**한다. 선물명은 유저
+   입력 한도와 무관하므로 자르지 않고, 미증정이면 빈 문자열도 정상 기록이다.
+   기존 저장본도 같은 평평한 모양이라 그대로 읽힌다. 이미 잘려 저장된 옛 값은
+   추측으로 고치지 않는다 — 현재 선물로 덮어쓰는 것보다 보존하는 편이 안전하다. */
 const saveMyDiary=(at,vals)=>{try{
   const e=MY_DIARY.find(x=>x.at===at); if(!e)return null;
   const out={};
   for(const k of Object.keys(e.blanks)){
-    const t=((vals||{})[k]||"").toString().trim().slice(0,e.blanks[k]);
+    const raw=((vals||{})[k]||"").toString().trim();
+    if(myDiarySystemOwned(e,k)){out[k]=raw;continue}
+    const t=raw.slice(0,e.blanks[k]);
     if(!t)return null;
     out[k]=t;
   }
@@ -183,19 +196,18 @@ const userPics=(name,giftsOverride)=>{
   const d=loadDiary();
   if(d)out.push({src:DIARY_PAPER_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
     diary:{kind:"child",src:DIARY_PAPER_IMG,values:{why:d}}});
-  /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동으로 찬 칸도 같이
-     얹는다: 화면에서 본 그대로여야 한다 */
-  /* 웹은 저장소가 곧 현재값이다. Expo는 DB state를 따로 들고 있으므로 같은
-     세션에 막 준 선물까지 사진첩에 반영하도록 선택 인자를 받을 수 있다. */
+  /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동 칸까지 작성 순간에
+     저장한 snapshot을 그대로 읽는다. 사진첩을 여는 시점의 선물 목록으로 다시
+     계산하면 새 선물을 준 뒤 과거 일기의 물건이 바뀐다. */
+  /* giftsOverride 인자는 옛 호출부 호환을 위해 받되, 저장된 일기의 값에는 쓰지
+     않는다. 웹·Expo 어느 쪽도 재열람이 기록을 고치면 안 된다. */
   const md=loadMyDiary();
-  const gf=giftsOverride&&typeof giftsOverride==="object"&&!Array.isArray(giftsOverride)
-    ?giftsOverride:loadGifts();
   for(const e of MY_DIARY){
     const w=md[e.at]; if(!w)continue;
-    const auto=myDiaryAuto(e,gf);
     out.push({src:MY_DIARY_IMG,label:`D-${e.at}`,
       diary:{kind:"current",src:MY_DIARY_IMG,entry:e,
-        values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,auto[k]||w[k]||""]))}});
+        values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,
+          Object.prototype.hasOwnProperty.call(w,k)?String(w[k]??""):""]))}});
   }
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",

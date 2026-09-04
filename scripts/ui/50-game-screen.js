@@ -2,6 +2,10 @@
    상태와 동작은 scripts/game.js가 소유하고, 이 파일은 화면 조립만 맡는다. */
 function GameScreen({game}){
   const {accessRev,answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,store,sys1,toast,unlocked,view,way,whoAsk}=game;
+  /* RoomList 안의 하루 창보다 위에서 그려지는 화면들. 운세는 이 뒤에서 seen을
+     먼저 찍지 않고, 지금 화면을 닫은 뒤 실제로 보일 때까지 기다린다. */
+  const dailyOverlayBusy=!!(diary||myDiary||flash||kiss||enrolling||invite||cart||plate
+    ||leaving||way||ask||look||prof||groupNew||getcha||sys1||(askDday&&!ddayHide)||whoAsk);
   return <div className="phone">
     {diary&&<Diary onDone={diaryDone}/>}
     {/* ⑩ 유저가 열어야 뜬다. 스스로 끼어들지 않는다 — 그게 선택이라는 뜻이다 */}
@@ -27,6 +31,7 @@ function GameScreen({game}){
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar} onGuess={guessHidden}
        myDiaryOpen={myDiaryOpen(dLeft)} onMyDiary={()=>setMyDiary(myDiaryOpen(dLeft))}
        active={!enrolling&&!!loadWorld()&&(loadGetcha("jaeeon")||loadGetcha("minhyun"))}
+       overlayBusy={dailyOverlayBusy}
        accessRev={accessRev}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}

@@ -410,7 +410,7 @@ section('오늘의 NULL 운세 — 하루 한 장, 공개 뒤 ID 하나만 나�
       removeItem(k) { mem.delete(k) }, clear() { mem.clear() },
     };
     const api = new Function('localStorage', fortuneSrc + `\nreturn {
-      FORTUNE_STORAGE_KEY,NULL_FORTUNE_KEYWORDS,fortuneDayKey,buildFortuneDeck,
+      FORTUNE_STORAGE_KEY,FORTUNE_HISTORY_MAX,NULL_FORTUNE_KEYWORDS,fortuneDayKey,buildFortuneDeck,
       ensureFortuneForToday,fortuneNeedsAutoOpen,markFortuneSeen,
       revealFortuneForToday,currentFortuneKeywordId,loadFortuneState
     };`)(localStorage);
@@ -443,10 +443,10 @@ section('오늘의 NULL 운세 — 하루 한 장, 공개 뒤 ID 하나만 나�
   const jan6 = new Date(2026, 0, 6, 12);
   const first = F.ensureFortuneForToday(jan6, rngOf(7));
   const same = F.ensureFortuneForToday(jan6, () => 0.99);
-  eq('같은 날 다시 열어도 같은 운세다', same, first);
   const deterministicA = fortuneBox().ensureFortuneForToday(jan6, rngOf(73));
   const deterministicB = fortuneBox().ensureFortuneForToday(jan6, rngOf(73));
-  eq('같은 씨앗의 새 저장소는 같은 첫 운세를 만든다', deterministicA, deterministicB);
+  eq('같은 날은 같은 운세고 같은 씨앗의 새 저장소도 같은 첫 운세를 만든다',
+    [same, deterministicA, deterministicB], [first, deterministicA, deterministicA]);
   eq('처음에는 안 보였고 자동 창은 한 번 필요하다',
     [first.revealed, first.seen, F.currentFortuneKeywordId(jan6), F.fortuneNeedsAutoOpen(first, jan6)],
     [false, false, null, true]);
@@ -460,6 +460,79 @@ section('오늘의 NULL 운세 — 하루 한 장, 공개 뒤 ID 하나만 나�
     [true, revealed.keywordId, revealed.keywordId]);
   eq('다음 로컬 날짜에는 어제 공개 ID가 나가지 않는다',
     F.currentFortuneKeywordId(new Date(2026, 0, 7, 0, 1)), null);
+
+  /* 기기 시각·시간대가 앞으로 갔다가 돌아와도 이미 본 날짜는 새 덱을 먹지
+     않는다. current는 마지막 신규 추첨을 지켜 덱 장부의 기존 뜻을 보존하고,
+     화면이 읽는 날짜 record만 history에서 찾아온다. */
+  const rollback = fortuneBox(), rollbackRandom = rngOf(91);
+  const rollbackDay1 = new Date(2026, 2, 4, 12);
+  const rollbackDay2 = new Date(2026, 2, 5, 12);
+  const pastDrawn = rollback.ensureFortuneForToday(rollbackDay1, rollbackRandom);
+  const pastSeenBefore = rollback.markFortuneSeen(pastDrawn, rollbackDay1);
+  const pastFirst = rollback.revealFortuneForToday(rollbackDay1, pastSeenBefore);
+  const forwardFirst = rollback.ensureFortuneForToday(rollbackDay2, rollbackRandom);
+  const beforeRollbackState = JSON.parse(rollback.raw(rollback.FORTUNE_STORAGE_KEY));
+  const pastAgain = rollback.ensureFortuneForToday(rollbackDay1, rollbackRandom);
+  const afterRollbackState = JSON.parse(rollback.raw(rollback.FORTUNE_STORAGE_KEY));
+  const pastSeen = rollback.markFortuneSeen(pastAgain, rollbackDay1);
+  const pastRevealed = rollback.revealFortuneForToday(rollbackDay1);
+
+  const v1 = fortuneBox();
+  const v1First = v1.ensureFortuneForToday(rollbackDay1, rngOf(92));
+  const v1State = JSON.parse(v1.raw(v1.FORTUNE_STORAGE_KEY));
+  delete v1State.history;
+  v1.put(v1.FORTUNE_STORAGE_KEY, JSON.stringify(v1State));
+  const v1Loaded = v1.loadFortuneState()?.current;
+  const v1Same = v1.ensureFortuneForToday(rollbackDay1);
+  v1.ensureFortuneForToday(rollbackDay2, rngOf(93));
+  const v1History = JSON.parse(v1.raw(v1.FORTUNE_STORAGE_KEY)).history;
+
+  const capped = fortuneBox(), cappedRandom = rngOf(94), cappedRecords = [];
+  for(let i=0;i<45;i++)
+    cappedRecords.push(capped.ensureFortuneForToday(new Date(2030,0,1+i,12),cappedRandom));
+  const cappedState = JSON.parse(capped.raw(capped.FORTUNE_STORAGE_KEY));
+  const usedBeforeRemembered = cappedState.used.length;
+  const rememberedAgain = capped.ensureFortuneForToday(new Date(2030,0,44,12),cappedRandom);
+  eq('날짜 롤백은 record·FILL·seen·덱을 복원하고 기존 v1과 31일 cap을 지킨다', {
+    pastAgain,
+    lastGenerated:afterRollbackState.current,
+    ledger:[afterRollbackState.used.length,afterRollbackState.deck.length],
+    past:[pastSeen.seen,pastRevealed.revealed,
+      rollback.ensureFortuneForToday(rollbackDay1),
+      rollback.currentFortuneKeywordId(rollbackDay1),
+      JSON.parse(rollback.raw(rollback.FORTUNE_STORAGE_KEY)).current.day],
+    v1:[v1Loaded,v1Same,v1History],
+    cap:[capped.FORTUNE_HISTORY_MAX,cappedState.history.length,
+      new Set(cappedState.history.map(r=>r.day)).size,rememberedAgain,
+      JSON.parse(capped.raw(capped.FORTUNE_STORAGE_KEY)).used.length],
+  }, {
+    pastAgain:pastFirst,
+    lastGenerated:forwardFirst,
+    ledger:[beforeRollbackState.used.length,beforeRollbackState.deck.length],
+    past:[true,true,pastRevealed,pastFirst.keywordId,'2026-03-05'],
+    v1:[v1First,v1First,[v1First]],
+    cap:[31,31,31,cappedRecords[43],usedBeforeRemembered],
+  });
+
+  /* 열린 장과 클릭 시각의 날짜가 달라도 FILL은 화면에 보이는 장의 것이다. */
+  const midnight = fortuneBox();
+  const late = new Date(2026, 0, 6, 23, 59, 59);
+  const afterMidnight = new Date(2026, 0, 7, 0, 0, 1);
+  const shownLate = midnight.markFortuneSeen(
+    midnight.ensureFortuneForToday(late, rngOf(95)), late);
+  const filledLate = midnight.revealFortuneForToday(afterMidnight, shownLate);
+  const nextMorning = midnight.ensureFortuneForToday(afterMidnight, rngOf(96));
+  eq('자정을 넘겨 FILL해도 화면에 보인 어제 장만 공개한다', {
+    filled:[filledLate.day,filledLate.keywordId,filledLate.seen,filledLate.revealed],
+    oldId:midnight.currentFortuneKeywordId(late),
+    today:[nextMorning.day,nextMorning.seen,nextMorning.revealed,
+      midnight.fortuneNeedsAutoOpen(nextMorning,afterMidnight),
+      midnight.currentFortuneKeywordId(afterMidnight)],
+  }, {
+    filled:[shownLate.day,shownLate.keywordId,true,true],
+    oldId:shownLate.keywordId,
+    today:['2026-01-07',false,false,true,null],
+  });
 
   eq('키워드는 정확히 백 개고 id·글자가 모두 유일하다',
     [F.NULL_FORTUNE_KEYWORDS.length,
@@ -539,6 +612,8 @@ section('오늘의 NULL 운세 — 하루 한 장, 공개 뒤 ID 하나만 나�
     s => { s.v = 999 },
     s => { s.current.revealed = 'true' },
     s => { s.sinceTension = 99 },
+    s => { s.history = 'not-an-array' },
+    s => { s.history = Array(32).fill(s.current) },
   ].map((damage, i) => {
     const box = fortuneBox();
     box.ensureFortuneForToday(jan6, rngOf(50 + i));
@@ -546,8 +621,8 @@ section('오늘의 NULL 운세 — 하루 한 장, 공개 뒤 ID 하나만 나�
     damage(state); box.put(box.FORTUNE_STORAGE_KEY, JSON.stringify(state));
     return box.loadFortuneState() === null;
   });
-  eq('중복 덱·옛 버전·잘못된 공개값·긴장 장부도 깨진 저장값으로 거절한다',
-    damagedStateRejected, [true, true, true, true]);
+  eq('중복 덱·옛 버전·잘못된 공개값·긴장 장부·과대 history도 깨진 저장값으로 거절한다',
+    damagedStateRejected, [true, true, true, true, true, true]);
   const noDisk = fortuneBox({}, { throwSet: true });
   let quotaThrew = false, ephemeral = null;
   try { ephemeral = noDisk.ensureFortuneForToday(jan6, rngOf(5)) } catch { quotaThrew = true }
@@ -679,6 +754,111 @@ section('오늘의 NULL 운세 — 하루 한 장, 공개 뒤 ID 하나만 나�
   eq('워커 summarize 프롬프트에는 id도 label도 운세 규칙도 없다',
     ['spicy_flavor', '매운맛', '오늘의 비밀 결']
       .filter(x => JSON.stringify(summaryOutbound || {}).includes(x)), []);
+
+  /* 작은 폰에서 조사나 카모지만 다음 줄에 떨어지면 빈칸 문장이 기계적으로
+     보인다. 빈칸+조사와 문장 끝+하트 카모지를 각각 한 의미 단위로 묶는다. */
+  const fortuneUi = readFileSync(join(ROOT, 'scripts/ui/30-messenger.js'), 'utf8');
+  const fortuneCss = readFileSync(join(ROOT, 'styles/30-messenger.css'), 'utf8');
+  eq('웹 운세는 빈칸·조사와 하트 카모지를 붙여서 감싼다', {
+    units: (fortuneUi.match(/className="fortune-unit"/g) || []).length,
+    ending: /className="fortune-ending"[\s\S]{0,300}fortune-kao">♡\(｡•̀ᴗ-\)✧<\/span>/.test(fortuneUi),
+    nowrap: /\.fortune-unit,\.fortune-ending\{display:inline-flex;flex:none;align-items:center;white-space:nowrap\}/.test(fortuneCss),
+    spacing: /\.fortune-unit\{gap:4px\}/.test(fortuneCss)
+      && /\.fortune-ending\{gap:\.35em\}/.test(fortuneCss),
+    midnight: fortuneUi.includes('const armMidnight=()=>{')
+      && fortuneUi.includes('new Date(now.getFullYear(),now.getMonth(),now.getDate()+1)')
+      && fortuneUi.includes('runDaily();\n    armMidnight();')
+      && fortuneUi.includes('clearTimeout(midnightTimer);'),
+  }, {units:2, ending:true, nowrap:true, spacing:true, midnight:true});
+  const fortuneScreen = readFileSync(join(ROOT, 'scripts/ui/50-game-screen.js'), 'utf8');
+  const dailyCheck = fortuneUi.slice(fortuneUi.indexOf('const checkDaily=()=>{'),
+    fortuneUi.indexOf('checkDailyRef.current=checkDaily;'));
+  const shownMark = fortuneUi.slice(fortuneUi.indexOf('const markShownFortune=()=>{'),
+    fortuneUi.indexOf('markShownFortuneRef.current=markShownFortune;'));
+  const closeFortuneDecl = fortuneUi.slice(fortuneUi.indexOf('const closeFortune=()=>{'),
+    fortuneUi.indexOf('const fillFortune='));
+  const compileDaily = (decl,name,env) => new Function(...Object.keys(env),
+    `${decl}\nreturn ${name};`)(...Object.values(env));
+  /* 소스에 연결된 함수 자체를 stub state로 실행한다. 23:59 render → 자정 effect,
+     hidden 복귀, 옛 장 close → 새 장 순서를 정규식만으로는 증명할 수 없다. */
+  const dailyBoundary = (()=>{
+    const F=fortuneBox(),nativeDate=Date;
+    const late=new nativeDate(2026,0,6,23,59,59),next=new nativeDate(2026,0,7,0,0,1);
+    let wall=late.getTime(),shown=null,dlg=null,after=false,tableN=0,ensureN=0,markN=0;
+    class WallDate extends nativeDate{
+      constructor(...args){super(...(args.length?args:[wall]))}
+      static now(){return wall}
+    }
+    const document={hidden:false};
+    const dlgRef={current:null},zoomRef={current:null},overlayBusyRef={current:false};
+    const dailyPendingRef={current:false},fortuneOpenedAtRef={current:null};
+    const fortuneRef={current:null};
+    const setFortune=v=>{shown=typeof v==='function'?v(shown):v;fortuneRef.current=shown};
+    const setDlg=v=>{dlg=typeof v==='function'?v(dlg):v;dlgRef.current=dlg};
+    const setTimetableAfterFortune=v=>{after=typeof v==='function'?v(after):v};
+    const ensureFortuneForToday=now=>{ensureN++;return F.ensureFortuneForToday(now,()=>.42)};
+    const markFortuneSeen=(record,now)=>{markN++;return F.markFortuneSeen(record,now)};
+    const common={document,Date:WallDate,dlgRef,zoomRef,overlayBusyRef,dailyPendingRef,
+      fortuneOpenedAtRef,fortuneRef,setFortune,setDlg,setTimetableAfterFortune,
+      ensureFortuneForToday,fortuneNeedsAutoOpen:F.fortuneNeedsAutoOpen,
+      markFortuneSeen,loadDaySeen:()=> 'school-day',dayKey:()=> 'school-day',
+      openDailyTimetable:()=>{tableN++},active:true};
+    const check=compileDaily(dailyCheck,'checkDaily',common);
+    const mark=compileDaily(shownMark,'markShownFortune',common);
+    const gate=kind=>{
+      document.hidden=kind==='hidden';
+      dlgRef.current=kind==='dlg'?'profile':null;
+      zoomRef.current=kind==='zoom'?{src:'x'}:null;
+      overlayBusyRef.current=kind==='overlay';
+      dailyPendingRef.current=false;
+      const before=ensureN; check();
+      const out=[ensureN-before,dailyPendingRef.current];
+      document.hidden=false;dlgRef.current=null;zoomRef.current=null;overlayBusyRef.current=false;
+      return out;
+    };
+    const gates=['hidden','dlg','zoom','overlay'].map(gate);
+    dailyPendingRef.current=false;check();
+    const opened=[shown.day,shown.seen,dlg,F.fortuneDayKey(fortuneOpenedAtRef.current)];
+    wall=next.getTime();document.hidden=true;mark();
+    const hiddenMark=[markN,shown.seen];
+    document.hidden=false;mark();
+    const oldSeen=[shown.day,shown.seen,markN];
+    const beforeMidnightCheck=ensureN;check();
+    const held=[ensureN-beforeMidnightCheck,shown.day,dlg,dailyPendingRef.current];
+    const close=compileDaily(closeFortuneDecl,'closeFortune',{dailyPendingRef,fortune:shown,
+      fortuneDayKey:F.fortuneDayKey,Date:WallDate,setDlg,timetableAfterFortune:after,
+      setTimetableAfterFortune,openDailyTimetable:()=>{tableN++}});
+    close();
+    const closed=[dlg,tableN,dailyPendingRef.current];
+    check();mark();
+    return {gates,opened,hiddenMark,oldSeen,held,closed,
+      today:[shown.day,shown.seen,dlg,markN,after]};
+  })();
+  eq('웹 하루 창은 다른 막을 밀지 않고 실제 운세 렌더 뒤 seen을 남긴다', {
+    gateBeforeDraw: dailyCheck.indexOf('if(document.hidden||dlgRef.current||zoomRef.current||overlayBusyRef.current)') >= 0
+      && dailyCheck.indexOf('if(document.hidden||dlgRef.current||zoomRef.current||overlayBusyRef.current)')
+        < dailyCheck.indexOf('ensureFortuneForToday(now)'),
+    noEarlySeen: !dailyCheck.includes('markFortuneSeen'),
+    pendingRetry: fortuneUi.includes('if(!active||dlg||zoom||overlayBusy||!dailyPendingRef.current)return;')
+      && fortuneUi.includes('checkDailyRef.current&&checkDailyRef.current();'),
+    openedDaySeen: (fortuneUi.match(/fortuneOpenedAtRef\.current=now;/g)||[]).length===2
+      && /markFortuneSeen\(shown,openedAt\)/.test(fortuneUi)
+      && !/markFortuneSeen\(shown,new Date\(\)\)/.test(fortuneUi),
+    seenAfterRender: /useEffect\(\(\)=>\{\s*if\(markShownFortuneRef\.current\)markShownFortuneRef\.current\(\);\s*\},\[dlg,fortune,zoom,overlayBusy\]\)/.test(fortuneUi),
+    visibleResume: /const onVisible=\(\)=>\{if\(!document\.hidden\)\{[\s\S]{0,220}markShownFortuneRef\.current\(\);[\s\S]{0,80}runDaily\(\)/.test(fortuneUi),
+    staleAfterClose: /if\(dailyPendingRef\.current\|\|\(fortune&&fortune\.day!==fortuneDayKey\(new Date\(\)\)\)\)\{[\s\S]{0,120}setDlg\(null\)/.test(fortuneUi),
+    parentOverlay: fortuneScreen.includes('const dailyOverlayBusy=!!(diary||myDiary||flash||kiss||enrolling')
+      && fortuneScreen.includes('overlayBusy={dailyOverlayBusy}'),
+    dailyBoundary,
+  }, {gateBeforeDraw:true, noEarlySeen:true, pendingRetry:true, openedDaySeen:true,
+    seenAfterRender:true, visibleResume:true, staleAfterClose:true, parentOverlay:true,
+    dailyBoundary:{
+      gates:[[0,true],[0,true],[0,true],[0,true]],
+      opened:['2026-01-06',false,'fortune','2026-01-06'],
+      hiddenMark:[0,false],oldSeen:['2026-01-06',true,1],
+      held:[0,'2026-01-06','fortune',true],closed:[null,0,true],
+      today:['2026-01-07',true,'fortune',2,false],
+    }});
 }
 
 /* 이름 칸이 키보드 밑에 깔리면 뭘 치는지 안 보인다. 오프닝은 카드를 위로 올리고
@@ -1141,6 +1321,14 @@ const flashCss = readCss();
   eq('사진 칸과 단추 칸이 갈려 있다',
     [/\.diary\{[^}]*grid-template-rows:minmax\(0,1fr\) auto/.test(fitCss),
      /\.flash\{[^}]*grid-template-rows:minmax\(0,1fr\) auto/.test(fitCss)], [true, true]);
+  const myDiaryUi=web.slice(web.indexOf('function MyDiary('),web.indexOf('function Flash('));
+  eq('웹 일기는 짧은 키보드 화면에서 종이와 단추를 한 scroll owner로 움직인다', [
+    /\.diary\{[^}]*overflow-x:hidden;overflow-y:auto[^}]*touch-action:pan-y/.test(fitCss),
+    /\.diary\{[^}]*scroll-padding-block:16px calc\(54px \+ env\(safe-area-inset-bottom\)\)/.test(fitCss),
+    /@media\(max-height:560px\)\{\s*\.diary\{[^}]*grid-template-rows:auto auto;align-content:start;[^}]*\}\s*\.diary \.dpage\{height:auto;aspect-ratio:2\/3\}/.test(fitCss),
+    !/\.(?:dpage|dfit|dink|drow)\{[^}]*overflow-y:(?:auto|scroll)/.test(fitCss),
+    /return <div className=\{"diary"[\s\S]*<div className="dpage">[\s\S]*<div className="drow">/.test(myDiaryUi),
+  ], [true, true, true, true, true]);
 
   /* 옥상은 셋이 다 있다 — 중거리·클로즈업·최근접 */
   eq('옥상에 거리 셋이 다 있다',
@@ -3426,7 +3614,7 @@ eq('목록을 떠나면 선톡 예약이 취소된다',
   && /return\(\)=>\{live=false;clearTimeout\(t\)\};/.test(appSrc), true);
 eq('예약이 터져도 깃발이 내려가 있으면 안 건다',
   /if\(live\)greet\(cand\.id,0\)/.test(web)
-  && /if\(live\) greet\(cand\.id,0\)/.test(appSrc), true);
+  && /if\(live\) greet\(cand\.id,0,epoch\)/.test(appSrc), true);
 
 /* ── vibe ──
    유저 발화가 하나뿐이면 물음표 하나로 비율이 1.0이 돼서 "캐묻는 중"이
@@ -4676,7 +4864,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['271', '0e1e6741b1f0']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['274', 'a3917cf1f1e6']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5977,7 +6165,7 @@ eq('그날 시간표는 한 번만 기록하고 운세 뒤에 이어서 연다',
   /const newTimetable=loadDaySeen\(\)!==dayKey\(\);/.test(web)
   && /const openDailyTimetable=\(\)=>\{[\s\S]{0,100}if\(loadDaySeen\(\)!==k\)\{\s*saveDaySeen\(k\);/.test(web)
   && /setTimetableAfterFortune\(newTimetable\);/.test(web)
-  && /if\(dlgRef\.current==="fortune"\)setTimetableAfterFortune\(true\);\s*else openDailyTimetable\(\);/.test(web), true);
+  && /if\(timetableAfterFortune\)\{setTimetableAfterFortune\(false\);openDailyTimetable\(\);\}/.test(web), true);
 /* 시간표는 「수업」 한 덩이로 두고 교시는 단추에서만 센다 */
 eq('시간표 칸에는 교시를 안 쓴다',
   /\{k:"수업",at:520\},\{k:"점심",at:750\},\{k:"수업",at:810\}/.test(web)
@@ -9228,7 +9416,7 @@ eq('시간표 단추는 peek보다 좁다',
       eq('앱이 공용 엔진과 멱등 열쇠를 쓴다',
         [/runAutoQueue\(list,autoAdapters\(\)\)/.test(appTsx), /hasMsgTrack\('health', m\.id\)/.test(appTsx)], [true, true]);
       eq('앱이 부팅에서 남은 장부를 잇는다',
-        /if\(ready\) resumePendingAuto\(\)/.test(appTsx)
+        /if\(!ready\)return;[\s\S]{0,250}withTransition\(async\(\)=>\{[\s\S]{0,120}await resumePendingAuto\(\)/.test(appTsx)
         && /getMeta\('null_auto_batch'\)/.test(appTsx), true);
       eq('규칙층이 엔진을 나른다', (() => {
         const rules = readFileSync(join(ROOT, 'app/lib/rules.ts'), 'utf8');
@@ -10540,7 +10728,7 @@ eq('시간표 단추는 peek보다 좁다',
   {
     const M = new Function('localStorage', 'location',
       webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-      + '\nreturn {DIARY_PAPER_IMG,MY_DIARY_IMG,MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,saveMyDiary,loadMyDiary,loadStory};')
+      + '\nreturn {DIARY_PAPER_IMG,MY_DIARY_IMG,MY_DIARY,myDiaryParts,myDiarySystemOwned,myDiaryAuto,myDiaryOpen,saveMyDiary,loadMyDiary,userPics,loadStory};')
       (g.localStorage, g.location);
     const diaryContract = [
       [25,
@@ -10591,6 +10779,15 @@ eq('시간표 단추는 peek보다 좁다',
       [/myDiaryParts\(entry\.text\)\.map/.test(ink), /<DiaryField/.test(ink),
        /const cls="dblank blank"/.test(ink), /entry\.box|style=\{\{left:/.test(ink)],
       [true, true, true, false]);
+    eq('자동 선물칸은 값이 없어도 시스템 소유라 입력칸으로 바뀌지 않는다',
+      [/mine=keys\.filter\(k=>!myDiarySystemOwned\(entry,k\)\)/.test(ink),
+       /fixed=\{readOnly\|\|myDiarySystemOwned\(entry,part\.blank\)\}/.test(ink),
+       (web.match(/mine=keys\.filter\(k=>!myDiarySystemOwned\(entry,k\)\)/g)||[]).length],
+      [true, true, 2]);
+    eq('최신 자동칸을 snapshot하고 저장 실패면 일기를 닫지 않는다', {
+      snapshot: /saveMyDiary\(entry\.at,\{\.\.\.v,\.\.\.auto\}\)/.test(web),
+      saveGuard: /const saved=saveMyDiary\([^;]+;if\(!saved\)return;\s*setOut\(true\)/.test(web),
+    }, {snapshot:true, saveGuard:true});
     const css = readCss();
     eq('어릴 때는 만세체, 지금은 규리체를 쓴다',
       [/@font-face\{font-family:"ManSeh Diary";[^}]*app\/assets\/fonts\/ManSeh\.ttf[^}]*format\("truetype"\)/.test(css),
@@ -10627,7 +10824,37 @@ eq('시간표 단추는 peek보다 좁다',
     eq('준 선물이 칸에 앉는다',
       M.myDiaryAuto(e14, { minhyun: ['mug'], jaeeon: ['photobook'] }),
       { giftK: '회색 머그컵', giftJ: '사진집' });
-    eq('안 준 사람 칸은 비운다', M.myDiaryAuto(e14, { minhyun: ['mug'] }), { giftK: '회색 머그컵' });
+    eq('안 준 사람 칸도 시스템 소유인 채 비운다',
+      [M.myDiaryAuto(e14, { minhyun: ['mug'] }),
+       ['giftK','giftJ','whyK'].map(k => M.myDiarySystemOwned(e14, k))],
+      [{ giftK: '회색 머그컵', giftJ: '' }, [true, true, false]]);
+    const noGift = M.myDiaryAuto(e14, { minhyun: ['mug'] });
+    eq('미증정 자동칸은 비어 있어도 저장을 막지 않는다',
+      M.saveMyDiary(14, {...noGift, whyK:'그냥', whyJ:'그냥은 아니', want:'말하', even:'상처'}),
+      {giftK:'회색 머그컵',whyK:'그냥',giftJ:'',whyJ:'그냥은 아니',want:'말하',even:'상처'});
+    eq('그래도 유저 소유 칸이 비면 저장하지 않는다',
+      M.saveMyDiary(14, {...noGift, whyK:'', whyJ:'그냥은 아니', want:'말하', even:'상처'}), null);
+    /* 자동 선물명은 입력칸의 다섯 자 제한과 무관하다. 작성 뒤 현재 선물이
+       달라져도 과거 일기는 작성 순간 snapshot을 그대로 보여야 한다. */
+    const atWrite = M.myDiaryAuto(e14, { minhyun:['mug'], jaeeon:['camera'] });
+    const snapshot = M.saveMyDiary(14,
+      {...atWrite, whyK:'그냥', whyJ:'그냥은 아니', want:'말하', even:'상처'});
+    eq('작성 순간의 실제 선물명은 다섯 자로 자르지 않고 저장한다',
+      [snapshot.giftK, snapshot.giftJ], ['회색 머그컵', '필름 카메라']);
+    const later = M.userPics('윤하',
+      {minhyun:['mug','earphone'],jaeeon:['camera','coffee']})
+      .find(x => x.label === 'D-14').diary.values;
+    eq('이후 선물을 줘도 저장된 D-14 선물 snapshot은 바뀌지 않는다',
+      [later.giftK, later.giftJ], ['회색 머그컵', '필름 카메라']);
+    /* 예전 저장본에는 version 표식이 없다. 현재 선물로 재계산하지 않고 당시
+       저장된 값을 그대로 보존하는 것이 추측 없는 호환이다. */
+    mem.set('null_mydiary', JSON.stringify({14:{giftK:'회색 머그',whyK:'옛 이유',
+      giftJ:'사진집',whyJ:'옛 마음',want:'말하',even:'상처'}}));
+    const legacy = M.userPics('윤하',
+      {minhyun:['mug','earphone'],jaeeon:['photobook','coffee']})
+      .find(x => x.label === 'D-14').diary.values;
+    eq('기존 저장본도 현재 선물로 덮지 않고 안전하게 그대로 읽는다',
+      [legacy.giftK,legacy.giftJ,legacy.whyK], ['회색 머그','사진집','옛 이유']);
 
     /* ── 기기 밖으로 안 나간다 (옛 일기와 같은 계약) ── */
     const S2 = '보고싶다';
@@ -10891,7 +11118,8 @@ eq('시간표 단추는 peek보다 좁다',
   eq('cam 탭이 유저 몫을 따로 세운다',
     /const mine=userPics\(name\);/.test(web) && /\{name\|\|"당신"\} · \{mine\.length\} pics/.test(web), true);
   eq('앱도 같은 구역을 세운다',
-    /const mine=userPics\(name,gifts\); if\(!mine\.length\)return null;/.test(appSrc3)
+    /const minePics=userPics\(name,gifts\);/.test(appSrc3)
+    && /const mine=minePics; if\(!mine\.length\)return null;/.test(appSrc3)
     && /\{name\|\|'당신'\} · \{mine\.length\} pics/.test(appSrc3), true);
 
   /* 엽서는 눌러서 뒤집는다 — 뒤집는 단추를 따로 달지 않는다 */
@@ -11117,6 +11345,202 @@ eq('시간표 단추는 peek보다 좁다',
 
 eq('웹 아바타 링이 돈다', /\.avatar\.nu::after/.test(web) && /@keyframes nuspin/.test(web), true);
 eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
+
+// ─────────────────────────────────────────────
+section('Expo 운세·현재 일기 — helper에서 실제 화면까지 이어진다');
+// ─────────────────────────────────────────────
+{
+  /* Expo 화면이 빠졌는데 공유 rules 단위 검사만 통과했던 적이 있다. 아래는 helper의
+     존재가 아니라 App의 진입·상태 전환과 Dialog의 실제 단추까지 한 줄로 잇는다. */
+  const between = (src, from, to) => {
+    const a = src.indexOf(from);
+    const b = a < 0 ? -1 : src.indexOf(to, a + from.length);
+    return a >= 0 && b > a ? src.slice(a, b) : '';
+  };
+  const ordered = (src, parts) => {
+    let at = -1;
+    return parts.every(part => ((at = src.indexOf(part, at + 1)) >= 0));
+  };
+  const imports = (src, path) =>
+    (src.match(new RegExp(`import\\s*\\{[^}]+\\}\\s*from\\s*'${path}';`, 's')) || [''])[0];
+  const hasAll = (src, names) => names.every(name => new RegExp(`\\b${name}\\b`).test(src));
+
+  const appRules = imports(appSrc, '\\.\\/lib\\/rules');
+  const appShim = imports(appSrc, '\\.\\/lib\\/shim');
+  const appDialogs = imports(appSrc, '\\.\\/screens\\/Dialogs');
+  const dialogRules = imports(dlgSrc, '\\.\\.\\/lib\\/rules');
+  const shimSrc = readFileSync(join(ROOT, 'app/lib/shim.ts'), 'utf8');
+  const roomList = between(appSrc, 'function RoomList(', 'const rl=StyleSheet.create');
+  const fortuneAuto = between(appSrc, '/* 현실 달력 날짜마다', 'const reload=useCallback');
+  const fortuneManual = between(appSrc, 'const openFortune=()=>{', 'const doReset = async()=>{');
+  const fortuneDialog = between(dlgSrc, 'export function FortuneDialog(', 'const ft = StyleSheet.create');
+  const firstOpening = between(appSrc, '/* ── 첫 자리 ──', '/* 강현이 「삼촌도 유저를 알고');
+  const groupNotice = between(appSrc, '/* 강현이 「삼촌도 유저를 알고', '/* 안드로이드 물리 뒤로');
+  const answerInvite = between(appSrc, 'const answerInvite = async', '/* 줄에 넣는다.');
+  const bootResume = between(appSrc, '/* 끊긴 관전 장부를 잇는다', '/* ── 첫 자리 ──');
+  const expireScene = between(appSrc, 'const expireScene=useCallback', '/* 끊긴 관전 장부를 잇는다');
+  const handleSend = between(appSrc, 'const handleSend = async', '/* 선물 보내기.');
+  const giveGift = between(appSrc, 'const giveGift = async', '/* 실측.');
+  const runTurn = between(appSrc, 'const runTurn = async', '/* 재시도는 같은 논리 요청이다');
+  const backgroundAuto = between(appSrc, 'const autoBusy=useRef(false);', '/* 당신.txt:');
+  const goPlace = between(appSrc, 'const goPlace=async', 'const answerAsk=async');
+  const keyboardHook = between(appSrc, 'function useKeyboardHeight()', '// ═══ 채팅방');
+  const cartScreen = between(appSrc, 'function CartScreen(', 'const ct=StyleSheet.create');
+
+  eq('Expo 운세는 import·자동 seen·수동 재열기·FILL까지 실제로 연결된다', {
+    imports: hasAll(appRules, ['ensureFortuneForToday', 'fortuneNeedsAutoOpen',
+      'markFortuneSeen', 'revealFortuneForToday'])
+      && hasAll(appDialogs, ['FortuneDialog']),
+    autoOpen: fortuneAuto.includes("view.type!=='list'")
+      && fortuneAuto.includes('popup||diary||myDiary||fortuneOpenRef.current')
+      && ordered(fortuneAuto, ['const today=ensureFortuneForToday(now);',
+        'if(fortuneNeedsAutoOpen(today,now)){',
+        'setFortune(markFortuneSeen(today,now));', 'showFortune();']),
+    manualReopen: roomList.includes('onPress={onFortune}')
+      && appSrc.includes('onFortune={openFortune}')
+      && ordered(fortuneManual, ['const today=ensureFortuneForToday(now);',
+        'setFortune(markFortuneSeen(today,now));', 'showFortune();']),
+    fill: fortuneManual.includes('const fillFortune=()=>setFortune(revealFortuneForToday(new Date(),fortune));')
+      && appSrc.includes('onFill={fillFortune} onClose={hideFortune}')
+      && fortuneDialog.includes('disabled={filled}')
+      && fortuneDialog.includes('onPress={onFill}')
+      && fortuneDialog.includes('[ FILL THE BLANK! ]'),
+    serialized: fortuneAuto.includes('transitionBusyRef.current')
+      && fortuneAuto.includes('!bootAutoResumeDone')
+      && fortuneAuto.includes('sceneExpired(expiringScene,msgsForFlow())')
+      && fortuneAuto.includes("!['jaeeon','minhyun','group','health'].some")
+      && fortuneAuto.includes('!groupOn&&groupReady(msgsForFlow())')
+      && bootResume.includes('withTransition(async()=>{')
+      && ordered(expireScene, ['if(!sceneExpired(sc,msgsForFlow())) return;',
+        'await withTransition(async()=>{', 'closeScene();', 'await sysLine(', 'await runTurn('])
+      && expireScene.includes('if(!sc||typing||fortuneOpenRef.current) return;')
+      && expireScene.includes('fortuneOpenRef.current||!sceneExpired(current,msgsForFlow())')
+      && appSrc.includes('[ready,name,enrolling,view.type,scene,typing,msgs,accessRev,fortuneRev,fortuneOpen]')
+      && ordered(firstOpening, ['openedRef.current=true;', 'void withTransition(async()=>{',
+        'await sysLine(o.room,o.note);', "setView({type:'chat',id:o.room});"])
+      && groupNotice.includes('fortuneOpenRef.current||transitionBusyRef.current')
+      && [answerInvite, backgroundAuto, goPlace, handleSend, giveGift, runTurn]
+        .every(src=>src.includes('withTransition(async()=>{'))
+      && fortuneManual.includes('if(transitionBusyRef.current)')
+      && backgroundAuto.includes('!bootAutoResumeDone')
+      && backgroundAuto.includes('fortuneOpenRef.current||transitionBusyRef.current')
+      && ordered(backgroundAuto, ['autoBusy.current=true;', '(async()=>{',
+        'if(fortuneOpenRef.current||transitionBusyRef.current)return;',
+        'await withTransition(async()=>{']),
+    largeTextMenu: roomList.includes('fontScale>=1.15')
+      && roomList.includes('splitMenu&&rl.menuLine')
+      && /menu:\{[^}]*flexWrap:'wrap'/.test(appSrc),
+    largeTextTabs: roomList.includes('const wrapTabs=tightMenu&&fontScale>=1.2;')
+      && roomList.includes('wrapTabs&&rl.tabsWrap')
+      && /tabsWrap:\{flexWrap:'wrap'/.test(appSrc)
+      && /tabWrap:\{flexBasis:'48%',flexGrow:1/.test(appSrc),
+    childOverlayGate: roomList.includes('onBlockingChange?.(!!zoom||!!guess)')
+      && fortuneAuto.includes('roomListBlockingRef.current||kbRoot>0')
+      && appSrc.includes('onBlockingChange={onRoomListBlockingChange}')
+      && fortuneManual.includes('Keyboard.dismiss();'),
+    nonOverlappingHits: appSrc.includes('hitSlop={hitSlop||{top:8,bottom:8,left:8,right:8}}')
+      && roomList.includes('left:tightMenu?2:6,right:tightMenu?2:6')
+      && (roomList.match(/hitSlop=\{\{top:(?:8|10),bottom:(?:8|10),left:2,right:2\}\}/g)||[]).length===3,
+    keyboardResize: keyboardHook.includes('full=useRef({width:win.width,height:win.height})')
+      && keyboardHook.includes('if(kbdRef.current.h===0)full.current={width:win.width,height:win.height};')
+      && keyboardHook.includes('const sameWidth=Math.abs(win.width-full.current.width)<=1;'),
+    imeInsets: roomList.includes("paddingBottom:keyboardHeight")
+      && cartScreen.includes("paddingBottom:keyboardHeight")
+      && appSrc.includes('keyboardHeight={kbRoot} onSend={giveGift}')
+      && appSrc.includes('onBlockingChange={onRoomListBlockingChange} keyboardHeight={kbRoot}'),
+  }, {imports:true, autoOpen:true, manualReopen:true, fill:true,
+    serialized:true, largeTextMenu:true, largeTextTabs:true, childOverlayGate:true,
+    nonOverlappingHits:true, keyboardResize:true, imeInsets:true});
+
+  const diaryDialog = between(dlgSrc, 'export function MyDiaryPage(', 'const myd = StyleSheet.create');
+  const diaryDone = between(appSrc, 'const myDiaryDone=', '/* ── 자리에 가고');
+  const fileMenu = between(appSrc, "{popup==='file'&&<>", "{popup==='chat'&&<>");
+  eq('Expo 현재 일기는 D-day 입구·쓰기·나중에·저장을 실제로 연결한다', {
+    imports: hasAll(appRules, ['myDiaryOpen', 'saveMyDiary'])
+      && hasAll(appDialogs, ['MyDiaryPage'])
+      && hasAll(dialogRules, ['MY_DIARY_IMG', 'myDiaryParts', 'myDiarySystemOwned', 'myDiaryAuto']),
+    thresholdEntry: fileMenu.includes('!!myDiaryOpen(dLeft)')
+      && ordered(fileMenu, ['const entry=myDiaryOpen(dLeft);',
+        'if(entry){ myDiarySavingRef.current=false;', 'setMyDiary(entry); }']),
+    open: appSrc.includes('const [myDiary,setMyDiary]=useState<any|null>(null);')
+      && appSrc.includes('<MyDiaryPage entry={myDiary} gifts={gifts}')
+      && appSrc.includes('saving={myDiarySaving}')
+      && appSrc.includes('onDone={myDiaryDone} onClose={closeMyDiary}'),
+    write: diaryDialog.includes('onChangeText={v=>setValues(old=>({...old,[k]:v}))}')
+      && diaryDialog.includes('onSubmitEditing={()=>{ if (next) refs.current[next]?.focus(); else finish(); }}'),
+    skip: ordered(diaryDialog, ['disabled={saving}', 'onPress={onClose}', '>나중에</Text>'])
+      && !diaryDialog.includes('saveMyDiary('),
+    save: (appSrc.match(/saveMyDiary\(/g) || []).length === 1
+      && hasAll(appShim, ['flushShimKey', 'restoreShimKey'])
+      && shimSrc.includes('export async function flushShimKey(key: string): Promise<boolean>')
+      && shimSrc.includes('export async function restoreShimKey(key: string, value: string | null): Promise<boolean>')
+      && shimSrc.includes('const queue = new Map<string, Promise<boolean>>();')
+      && ordered(diaryDone, ['if(!myDiary||myDiarySavingRef.current)return false;',
+        'const targetAt=myDiary.at;', "getItem('null_mydiary')",
+        'const saved=saveMyDiary(targetAt,values);', 'if(!saved)return false;',
+        "if(!await flushShimKey('null_mydiary')){",
+        "await restoreShimKey('null_mydiary',before);", 'if(myDiaryRef.current?.at!==targetAt)return false;',
+        'setMyDiary(null);', 'return true;', 'myDiarySavingRef.current=false;'])
+      && appSrc.includes('if(myDiary){ closeMyDiary(); return true; }')
+      && diaryDialog.includes('const ok = await onDone(clean);')
+      && diaryDialog.includes('if (ok === false) submitted.current = false;')
+      && diaryDialog.includes('editable={!saving}'),
+  }, {imports:true, thresholdEntry:true, open:true, write:true, skip:true, save:true});
+
+  /* D-14의 auto key는 선물을 안 줘 값이 빈 문자열이어도 사용자 입력칸이 아니다.
+     저장 가능 여부와 snapshot도 사용자 소유 mine만 검사해야 한다. */
+  eq('Expo D-14 자동칸은 빈 값이어도 시스템 소유로 잠긴다', {
+    ownership: diaryDialog.includes('const system = new Set(keys.filter(k=>myDiarySystemOwned(entry, k)));')
+      && diaryDialog.includes('const mine = keys.filter(k=>!system.has(k));'),
+    displayOnly: ordered(diaryDialog, ['const fixed = system.has(k);',
+      'if (fixed) return <View', 'return <TextInput'])
+      && diaryDialog.includes("system.has(k) ? (auto[k] || '') : (values[k] || '')"),
+    blankAllowed: diaryDialog.includes('const full = mine.every(k=>String(valueOf(k)).trim());')
+      && diaryDialog.includes("? String(auto[k] || '')")
+      && diaryDialog.includes('if (mine.some(k=>!clean[k])) return;'),
+  }, {ownership:true, displayOnly:true, blankAllowed:true});
+
+  const applyEffect = between(appSrc, 'const applyOneEffect=async', 'const applyEffects=async');
+  const bootHydrate = between(appSrc, 'useEffect(()=>{(async()=>{', '/* 토스트 자동 사라짐 */');
+  const resetFlow = between(appSrc, 'const doReset = async()=>{', '/* 방별 누적 수와 받은 사진');
+  const greetFlow = between(appSrc, 'const greet=async', '/* 선톡은 방을 열어야 오는 게 아니다.');
+  const seedWatch = between(appSrc, 'const seedWatch=async', '/* 잠긴 방은 열어도');
+  const accessClock = between(appSrc, '/* 앱을 실제로 연 순간만 하루를 센다.', '/* 현실 달력 날짜마다');
+  const eventEffect = between(appSrc, 'const evBusy=useRef(false);', 'const autoBusy=useRef(false);');
+  eq('Expo restart·초대 큐·내 일기 사진첩은 재실행 경계를 지킨다', {
+    camEmpty: roomList.includes('const minePics=userPics(name,gifts);')
+      && roomList.includes('{!album.size&&!minePics.length&&<View'),
+    inviteRules: hasAll(appRules, ['headInvite', 'pushInvite', 'shiftInvite'])
+      && ordered(applyEffect, ["getItem('null_invite')", 'pushInvite({place:e.place,char:e.char})',
+        "await flushShimKey('null_invite')", 'setInvite(headInvite()); ok=true;', 'done.push(e.id);'])
+      && bootHydrate.includes('setInvite(headInvite());')
+      && ordered(answerInvite, ['await withTransition(async()=>{',
+        "getItem('null_invite')", 'shiftInvite()', "flushShimKey('null_invite')", 'setInvite(headInvite());']),
+    resetGuard: resetFlow.includes('transitionBusyRef.current||autoBusy.current')
+      && resetFlow.includes('autoGateBusyRef.current>0||greetBusyRef.current>0')
+      && resetFlow.includes('myDiarySavingRef.current||evBusy.current')
+      && resetFlow.includes('Object.values(summingRef.current).some(Boolean)'),
+    resetOrder: ordered(resetFlow, ['sessionEpochRef.current+=1;', 'await flushShim();',
+        'await wipeStory(); resetShim();', 'openedRef.current=false;', "setName('');",
+        'setInvite(null);', 'setScene(null);', 'setBag([]);', 'setMet([]);',
+        'setGroupOn(false);', 'setDiary(false);', 'setFortune(null);', "setView({type:'list'});"])
+      && !appSrc.includes('resetTransition'),
+    flushAll: hasAll(appShim, ['flushShim'])
+      && shimSrc.includes('export async function flushShim(): Promise<boolean>')
+      && shimSrc.includes('while (queue.size)')
+      && shimSrc.includes('const pending = [...queue.values()];'),
+    delayedWork: greetFlow.includes('epoch=sessionEpochRef.current')
+      && greetFlow.includes('if(epoch!==sessionEpochRef.current')
+      && firstOpening.includes('greet(other,0,epoch)')
+      && roomList.length>0
+      && seedWatch.includes('const epoch=sessionEpochRef.current;')
+      && seedWatch.includes('if(epoch!==sessionEpochRef.current)return;'),
+    effectGates: accessClock.includes('if(transitionBusyRef.current)return;')
+      && eventEffect.includes('evBusy.current||transitionBusyRef.current')
+      && eventEffect.includes('anchor,transitionBusy]'),
+  }, {camEmpty:true, inviteRules:true, resetGuard:true, resetOrder:true,
+    flushAll:true, delayedWork:true, effectGates:true});
+}
 
 // ─────────────────────────────────────────────
 /* README가 "90개 회귀 테스트"라고 적어둔 채 159개가 더 늘어 있었다. 읽는 사람은

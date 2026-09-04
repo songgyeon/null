@@ -15,12 +15,13 @@ function Fortune({fortune,onFill,onClose}){
     <div className="fortune-sub">행운은 쟁취하는 거야! <span className="kao">(ノ^∇^)ノ.｡･:*:･🍀</span></div>
     <div className="fortune-copy" aria-live="polite">
       <div className="fortune-row">
-        <span>오늘은</span>{slot("인물",fortune.who)}<span className="fortune-particle">과</span>
-        {slot("장소",fortune.place,true,1)}<span className="fortune-particle">에 가면</span>
+        <span>오늘은</span>
+        <span className="fortune-unit">{slot("인물",fortune.who)}<span className="fortune-particle">과</span></span>
+        <span className="fortune-unit">{slot("장소",fortune.place,true,1)}<span className="fortune-particle">에 가면</span></span>
       </div>
       <div className="fortune-row">
-        <span>뜻밖의</span>{slot("발견",fortune.find,true,2)}<span className="fortune-particle">을 찾을 수 있어요</span>
-        <span className="fortune-kao">♡(｡•̀ᴗ-)✧</span>
+        <span>뜻밖의</span>{slot("발견",fortune.find,true,2)}
+        <span className="fortune-ending"><span className="fortune-particle">을 찾을 수 있어요</span><span className="fortune-kao">♡(｡•̀ᴗ-)✧</span></span>
       </div>
       <div className="fortune-keyword">
         <span>행운의 키워드 :</span>{slot("키워드",keyword,true,3)}
@@ -348,12 +349,20 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary,active,accessRev}){
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary,active,overlayBusy,accessRev}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const dlgRef=useRef(dlg); dlgRef.current=dlg;
+  const [zoom,setZoom]=useState(null);
+  const zoomRef=useRef(zoom); zoomRef.current=zoom;
+  const overlayBusyRef=useRef(overlayBusy); overlayBusyRef.current=overlayBusy;
+  const dailyPendingRef=useRef(false);
+  const checkDailyRef=useRef(null);
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
   const [fortune,setFortune]=useState(null);
+  const fortuneRef=useRef(fortune); fortuneRef.current=fortune;
+  const fortuneOpenedAtRef=useRef(null);
+  const markShownFortuneRef=useRef(null);
   const [timetableAfterFortune,setTimetableAfterFortune]=useState(false);
   /* 시간표. 그날 처음 열면 한 번 뜨고, 그 뒤로는 버튼으로 다시 본다.
      야자 감독인 주에는 에너지바가 가방에 들어온다 — 그 주에 한 번만. */
@@ -369,47 +378,103 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     }
     setDlg("timetable");
   };
+  /* 하루 창은 지금 열린 창을 밀어내지 않는다. 여기서 seen을 찍지 않는 것이
+     중요하다 — 실제 Fortune 렌더 뒤 effect가 그 도장을 맡는다. 막혀 있으면
+     저장소의 unseen/daySeen 자체를 pending으로 남기고, 막이 걷힐 때 다시 본다. */
+  const checkDaily=()=>{
+    if(!active)return false;
+    if(document.hidden||dlgRef.current||zoomRef.current||overlayBusyRef.current){
+      dailyPendingRef.current=true;
+      return false;
+    }
+    dailyPendingRef.current=false;
+    const now=new Date();
+    const newTimetable=loadDaySeen()!==dayKey();
+    const today=ensureFortuneForToday(now);
+    setFortune(today);
+    if(fortuneNeedsAutoOpen(today,now)){
+      fortuneOpenedAtRef.current=now;
+      setTimetableAfterFortune(newTimetable);
+      setDlg("fortune");
+      return true;
+    }
+    if(newTimetable){setTimetableAfterFortune(false);openDailyTimetable();return true}
+    return false;
+  };
+  checkDailyRef.current=checkDaily;
+  /* 열린 시각을 들고 seen을 찍는다. 23:59:59에 그린 뒤 effect가 00:00:00에
+     돌아도, 실제로 화면에 오른 것은 어제 장이지 보이지 않는 오늘 장이 아니다. */
+  const markShownFortune=()=>{
+    const shown=fortuneRef.current,openedAt=fortuneOpenedAtRef.current;
+    if(document.hidden||dlgRef.current!=="fortune"||!shown||!openedAt
+      ||zoomRef.current||overlayBusyRef.current)return false;
+    if(!fortuneNeedsAutoOpen(shown,openedAt))return false;
+    const seen=markFortuneSeen(shown,openedAt);
+    if(!seen||seen.day!==shown.day||!seen.seen)return false;
+    setFortune(seen);
+    return true;
+  };
+  markShownFortuneRef.current=markShownFortune;
   useEffect(()=>{
     if(!active)return;
-    const checkDaily=()=>{
-      const newTimetable=loadDaySeen()!==dayKey();
-      const today=ensureFortuneForToday();
-      setFortune(today);
-      if(fortuneNeedsAutoOpen(today)){
-        setFortune(markFortuneSeen(today));
-        setTimetableAfterFortune(newTimetable);
-        setDlg("fortune");
-      }else if(newTimetable){
-        /* foreground event에서 운세 쪽 listener가 먼저 돌았어도, 부모의 접속
-           stamp 뒤 재검사에서 시간표를 잃지 않는다. 운세를 닫은 다음 잇는다. */
-        if(dlgRef.current==="fortune")setTimetableAfterFortune(true);
-        else openDailyTimetable();
-      }
-    };
     /* 부모의 foreground 접속 stamp와 같은 이벤트를 받는다. 한 task 뒤에 읽어야
        listener 등록 순서와 무관하게 새 dayKey가 먼저 저장된다. */
     let visibleTimer=0;
+    let midnightTimer=0;
+    const runDaily=()=>checkDailyRef.current&&checkDailyRef.current();
     const onVisible=()=>{if(!document.hidden){
-      clearTimeout(visibleTimer); visibleTimer=setTimeout(checkDaily,0);
+      clearTimeout(visibleTimer); visibleTimer=setTimeout(()=>{
+        if(markShownFortuneRef.current)markShownFortuneRef.current();
+        runDaily();
+      },0);
     }};
-    checkDaily();
+    const armMidnight=()=>{
+      clearTimeout(midnightTimer);
+      const now=new Date();
+      const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+      midnightTimer=setTimeout(()=>{runDaily();armMidnight()},
+        Math.max(1000,next.getTime()-Date.now()+120));
+    };
+    runDaily();
+    armMidnight();
     window.addEventListener("pageshow",onVisible);
     document.addEventListener("visibilitychange",onVisible);
     return()=>{
       clearTimeout(visibleTimer);
+      clearTimeout(midnightTimer);
       window.removeEventListener("pageshow",onVisible);
       document.removeEventListener("visibilitychange",onVisible);
     };
   },[active,accessRev]);
+  /* 자정·foreground 검사가 창 뒤에서 기다렸다면, 마지막 막이 사라진 렌더에서
+     딱 한 번 다시 검사한다. dlg와 zoom은 RoomList 안, overlayBusy는 그 위다. */
+  useEffect(()=>{
+    if(!active||dlg||zoom||overlayBusy||!dailyPendingRef.current)return;
+    checkDailyRef.current&&checkDailyRef.current();
+  },[active,dlg,zoom,overlayBusy]);
+  /* seen은 자동 검사 시점이 아니라 Fortune이 실제 트리에 오른 뒤에만 남긴다.
+     23:59의 장을 보고 있는 동안 날짜가 바뀌어도 그 장에는 손대지 않는다. */
+  useEffect(()=>{
+    if(markShownFortuneRef.current)markShownFortuneRef.current();
+  },[dlg,fortune,zoom,overlayBusy]);
   const openFortune=()=>{
     setMenu(null); setTimetableAfterFortune(false);
-    setFortune(ensureFortuneForToday()); setDlg("fortune");
+    const now=new Date();
+    fortuneOpenedAtRef.current=now;
+    setFortune(ensureFortuneForToday(now)); setDlg("fortune");
   };
   const closeFortune=()=>{
+    /* 열린 장보다 달력이 앞서갔으면 옛 장을 먼저 온전히 닫고, pending 재검사가
+       새 장을 연다. 시간표가 대기 중이어도 새 날짜 운세보다 먼저 덮지 않는다. */
+    if(dailyPendingRef.current||(fortune&&fortune.day!==fortuneDayKey(new Date()))){
+      dailyPendingRef.current=true;
+      setDlg(null);
+      return;
+    }
     if(timetableAfterFortune){setTimetableAfterFortune(false);openDailyTimetable();}
     else setDlg(null);
   };
-  const fillFortune=()=>setFortune(revealFortuneForToday());
+  const fillFortune=()=>setFortune(revealFortuneForToday(new Date(),fortune));
   const fillWend=(k,n,v)=>setWend(w=>{
     const next={...w,[k]:[...(w[k]||[])]}; next[k][n]=v; saveWend(next); return next;
   });
@@ -430,7 +495,6 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   const namePct=Math.min(100,calls/Math.max(1,letters.length*CALL_PER_LETTER)*100);
   const dayN=daysSince(store);
   const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
-  const [zoom,setZoom]=useState(null);
   /* 지금 커서가 서 있는 잠긴 칸(⑥). 한 번에 하나만 선다 — 열여덟 칸에
      커서가 다 서 있으면 채워야 할 자리가 아니라 서식이 된다 */
   const [guess,setGuess]=useState(null);

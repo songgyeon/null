@@ -255,7 +255,10 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  font-size:13px;line-height:1.8;letter-spacing:.025em}
 .fortune-row,.fortune-keyword{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px}
 .fortune-keyword{margin-top:11px}
-.fortune-particle{margin-left:1px;white-space:nowrap}
+.fortune-unit,.fortune-ending{display:inline-flex;flex:none;align-items:center;white-space:nowrap}
+.fortune-unit{gap:4px}
+.fortune-ending{gap:.35em}
+.fortune-particle{white-space:nowrap}
 .fortune-kao{white-space:nowrap;font-family:"Apple SD Gothic Neo","Malgun Gothic","Segoe UI Symbol",sans-serif;
  letter-spacing:0;color:#806c91}
 .fortune-slot.blank{display:inline-flex;flex:none;align-items:center;justify-content:center;width:72px;height:31px;

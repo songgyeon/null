@@ -10,6 +10,11 @@
    하나만 보낼 수 있다. 나머지 운세와 덱은 전부 localStorage에서 끝난다. */
 const FORTUNE_STORAGE_KEY="null_fortune_v1";
 const FORTUNE_STATE_VERSION=1;
+/* current는 덱에서 마지막으로 새로 뽑은 장을 계속 가리킨다. 그래야 used의
+   마지막 값·긴장 간격 장부가 기존 v1과 같은 뜻을 유지한다. 현지 날짜가 잠깐
+   앞으로 갔다 돌아온 때를 위해 그 밖의 최근 날짜만 31개 둔다 — current까지
+   합치면 한 달짜리 NULL보다 긴 32일이고, 저장값은 몇 KB 안에서 멈춘다. */
+const FORTUNE_HISTORY_MAX=31;
 
 /* id는 워커가 허용 목록으로 확인하는 안정된 계약이고 label은 화면용이다.
    intensity:tension은 연속해서 나오지 않도록 덱에서 따로 간격을 둔다. */
@@ -203,6 +208,13 @@ const fortuneSequenceGap=(ids,startGap)=>{
 const fortuneDeckStateOk=s=>{
   if(!s||s.v!==FORTUNE_STATE_VERSION||!fortuneRecordOk(s.current))return false;
   if(!Array.isArray(s.deck)||!Array.isArray(s.used))return false;
+  /* history가 없으면 이 기능 전의 v1 저장값이다. 빈 과거로 받아 다음 저장 때
+     자연스럽게 새 모양이 된다. 필드가 있는데 모양이 틀린 것은 깨진 값이다. */
+  const history=s.history===undefined?[]:s.history;
+  if(!Array.isArray(history)||history.length>FORTUNE_HISTORY_MAX
+    ||history.some(r=>!fortuneRecordOk(r)))return false;
+  const days=[s.current.day,...history.map(r=>r.day)];
+  if(new Set(days).size!==days.length)return false;
   const all=[...s.deck,...s.used];
   if(all.length!==NULL_FORTUNE_KEYWORDS.length||new Set(all).size!==all.length)return false;
   if(all.some(id=>!FORTUNE_KEYWORD_BY_ID[id]))return false;
@@ -221,15 +233,35 @@ const saveFortuneState=s=>{try{
   localStorage.setItem(FORTUNE_STORAGE_KEY,JSON.stringify(s));return true;
 }catch(e){return false}};
 const pickFortune=(list,random)=>list[Math.floor(fortuneRandom(random)*list.length)];
+const fortuneHistoryOf=s=>Array.isArray(s&&s.history)?s.history:[];
+const fortuneRecordForDay=(s,day)=>{
+  if(!s||!day)return null;
+  if(s.current&&s.current.day===day)return s.current;
+  return fortuneHistoryOf(s).find(r=>r.day===day)||null;
+};
+const replaceFortuneRecord=(s,record)=>{
+  if(!s||!record)return false;
+  if(s.current.day===record.day){s.current=record;return true}
+  const i=fortuneHistoryOf(s).findIndex(r=>r.day===record.day);
+  if(i<0)return false;
+  s.history=s.history.slice();s.history[i]=record;return true;
+};
 
 /* 반환값은 UI가 바로 쓰는 오늘 record뿐이다. 덱/used는 저장 wrapper 안에 숨긴다. */
 const ensureFortuneForToday=(now,random)=>{
   const day=fortuneDayKey(now);
   let old=loadFortuneState();
-  if(old&&old.current.day===day)return old.current;
+  /* 이미 만든 현지 날짜면 current가 아니어도 그대로 돌려준다. current를 과거
+     날짜로 바꾸면 used의 마지막 값과 달라지므로, 덱 장부는 건드리지 않는다. */
+  const remembered=fortuneRecordForDay(old,day);
+  if(remembered)return remembered;
 
   let deck=old?old.deck.slice():[];
   let used=old?old.used.slice():[];
+  const history=old
+    ?[old.current,...fortuneHistoryOf(old).filter(r=>r.day!==old.current.day)]
+      .slice(0,FORTUNE_HISTORY_MAX)
+    :[];
   const previousId=old&&old.lastKeywordId;
   const previousGap=old?old.sinceTension:6;
   let cycleStartGap=old?old.cycleStartGap:previousGap;
@@ -260,31 +292,42 @@ const ensureFortuneForToday=(now,random)=>{
     revealed:false,
     seen:false,
   };
-  saveFortuneState({v:FORTUNE_STATE_VERSION,deck,used,cycleStartGap,sinceTension,lastKeywordId:keywordId,current});
+  saveFortuneState({v:FORTUNE_STATE_VERSION,deck,used,cycleStartGap,sinceTension,lastKeywordId:keywordId,current,history});
   return current;
 };
 const fortuneNeedsAutoOpen=(record,now)=>!!record&&record.day===fortuneDayKey(now)&&record.seen!==true;
 const markFortuneSeen=(record,now)=>{
-  const current=ensureFortuneForToday(now);
+  const day=fortuneDayKey(now),current=ensureFortuneForToday(now);
   const s=loadFortuneState();
-  if(!s||s.current.day!==current.day)return current;
+  if(!s)return current;
   /* stale UI record로 오늘 것을 덮지 않는다. record는 호출 의도를 확인하는 데만 쓴다. */
-  if(record&&record.day!==current.day)return current;
-  s.current={...s.current,seen:true};
+  if(record&&record.day!==day)return current;
+  const saved=fortuneRecordForDay(s,day);
+  if(!saved)return current;
+  const next={...saved,seen:true};
+  if(!replaceFortuneRecord(s,next))return current;
   saveFortuneState(s);
-  return s.current;
+  return next;
 };
-const revealFortuneForToday=(now)=>{
-  const current=ensureFortuneForToday(now);
+/* 둘째 인자는 지금 **화면에 보이는 장**이다. 23:59에 연 창을 00:01에
+   채웠다고 보이지 않는 새 날짜를 공개하면 안 된다. record가 없을 때만 기존
+   호출 호환대로 현재 로컬 날짜의 장을 잡는다. */
+const revealFortuneForToday=(now,record)=>{
+  const current=fortuneRecordOk(record)?record:ensureFortuneForToday(now);
+  const day=current.day;
   const s=loadFortuneState();
-  if(!s||s.current.day!==current.day)return current;
-  s.current={...s.current,revealed:true};
+  if(!s)return current;
+  const saved=fortuneRecordForDay(s,day);
+  if(!saved)return current;
+  const next={...saved,revealed:true};
+  if(!replaceFortuneRecord(s,next))return current;
   saveFortuneState(s);
-  return s.current;
+  return next;
 };
 /* 요청 조립부가 읽는 유일한 출구. 오늘 공개한 allowlisted id가 아니면 null이다. */
 const currentFortuneKeywordId=(now)=>{
   const s=loadFortuneState(),day=fortuneDayKey(now);
-  return s&&s.current.day===day&&s.current.revealed===true
-    &&FORTUNE_KEYWORD_BY_ID[s.current.keywordId]?s.current.keywordId:null;
+  const record=fortuneRecordForDay(s,day);
+  return record&&record.revealed===true&&FORTUNE_KEYWORD_BY_ID[record.keywordId]
+    ?record.keywordId:null;
 };
