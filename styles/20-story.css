@@ -95,10 +95,14 @@
  border-radius:3px;box-shadow:0 16px 34px rgba(10,6,24,.6)}
 .dfit{position:absolute;inset:0;margin:0;width:100%;height:100%;pointer-events:none}
 .dfit>*{pointer-events:auto}
-.dink{position:absolute;inset:0;overflow:hidden;color:rgba(53,43,36,.87);
+.dink{position:absolute;inset:0;overflow:hidden;color:rgba(31,23,17,.98);
  word-break:keep-all;overflow-wrap:break-word;text-align:left}
-.dchild{padding:17.5% 13% 8% 14%;font-family:"ManSeh Diary",sans-serif;
- font-size:19px;font-size:clamp(10px,6cqw,21px);line-height:1.48;letter-spacing:.11em}
+/* 종이는 비스듬히 찍힌 사진이라 위와 오른쪽이 실제보다 좁다. 17.5% 13%에서는
+   날짜 「200X.XX.XX」가 위쪽 그늘에 걸려 반만 보였고 첫 줄 「…간다고」의 끝
+   글자가 오른쪽 가장자리에서 잘렸다. 여백만 늘리면 줄이 밀려 마지막 줄이
+   종이 밖으로 나가므로, 글씨도 한 단계 줄여 같은 줄바꿈을 유지한다. */
+.dchild{padding:25% 17% 8% 14%;font-family:"ManSeh Diary",sans-serif;
+ font-size:19px;font-size:clamp(9px,5.4cqw,19px);line-height:1.48;letter-spacing:.11em}
 .dchild .dhead{margin-bottom:1em;letter-spacing:.2em}
 .dchild .dlines p{margin:0 0 .42em}
 .dchild .dtail{margin:.72em 0 0}
@@ -114,8 +118,15 @@
  border:1px dashed #d8a4c3;border-radius:0;background:rgba(255,247,252,.72);
  box-shadow:inset 0 0 0 1px rgba(255,255,255,.42);outline:none;
  font:inherit;font-size:.88em;line-height:1.6;text-align:center;letter-spacing:.03em;
- color:rgba(73,52,47,.9);-webkit-text-fill-color:rgba(73,52,47,.9);
+ color:rgba(44,30,25,.98);-webkit-text-fill-color:rgba(44,30,25,.98);
  caret-color:#ff5fa8;white-space:nowrap;overflow:hidden;text-overflow:clip}
+/* CAM 재열람의 칸 — 칸이 아니다. 종이에 이어 쓴 글씨라 폭도 테두리도 없고
+   길면 다음 줄로 넘어간다. 눌러도 아무 일 없어야 사진처럼 읽힌다. */
+.dblank.dplain{display:inline;width:auto;max-width:none;min-width:0;height:auto;
+ margin:0;padding:0;border:0;background:none;box-shadow:none;
+ font:inherit;font-size:inherit;line-height:inherit;letter-spacing:inherit;
+ text-align:left;color:inherit;-webkit-text-fill-color:currentColor;
+ white-space:normal;overflow:visible;pointer-events:none}
 .dblank.blank:focus{border-color:#ff78ad;background:rgba(255,240,248,.86);
  box-shadow:0 0 0 2px rgba(255,120,173,.13),inset 0 0 0 1px rgba(255,255,255,.56)}
 .dblank.blank.filled{border-style:solid}
@@ -317,8 +328,10 @@
 .endingnext{text-align:right;margin-top:4px;font-size:8px;letter-spacing:.16em;
  color:rgba(255,255,255,.62);animation:endingblink 1.1s steps(2) infinite}
 @keyframes endingblink{50%{opacity:.28}}
+/* 겹치는 시간은 머무는 시간(ENDING_TIMING)과 짝이다. 전환이 빠르면 사람이
+   나타나는 것이 아니라 사진이 갈아끼워지는 것으로 보인다. */
 .endingframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
- opacity:0;transition:opacity .2s linear}
+ opacity:0;transition:opacity .6s linear}
 .endingshot .endingalone{opacity:1}
 .endingshot.stage1 .endingalone,.endingshot.stage2 .endingalone,
 .endingshot.stage3 .endingalone,.endingshot.stage4 .endingalone{opacity:0}
@@ -327,13 +340,20 @@
 .endingshot.stage3 .endingfaint,.endingshot.stage4 .endingfaint{opacity:0}
 .endingshot.stage2 .endingpresent,.endingshot.stage3 .endingpresent,
 .endingshot.stage4 .endingpresent{opacity:1}
-.endingshot.stage2 .endingpresent{transition-duration:.3s}
-.endingblack{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .5s linear}
+.endingshot.stage2 .endingpresent{transition-duration:.9s}
+.endingblack{position:absolute;inset:0;background:#000;opacity:0;transition:opacity 1s linear}
 .endingshot.stage4 .endingblack{opacity:1}
 .endingcompletewin .dlgbody{padding:0}
-.endingcomplete{padding:20px 18px 16px}
-.endingcomplete .endingthanks{margin-top:18px;font-size:12px}
-.endingcomplete .endingtrue{margin-top:10px;font-size:12px}
+/* 마지막 창이다. 앞의 창들처럼 빽빽하면 「한 줄 더 뜬 대화상자」로 읽힌다 —
+   위아래로 숨을 줘야 끝난 자리로 보인다.
+   ⚠️ 클래스를 둘 다 적는다(.ddq.endingcomplete). 이 창의 껍데기 규칙(.ddq)은
+   30-messenger.css에 있고 그 파일이 이 파일보다 뒤에 실린다 — 클래스 하나로
+   쓰면 특이도가 같아서 나중 파일이 이기고, padding은 4px 2px 2px로 남는다. */
+.ddq.endingcomplete{padding:32px 20px 38px}
+.ddq.endingcomplete .ddrows{margin-top:20px;gap:9px}
+.ddq.endingcomplete .endingthanks{margin-top:28px;font-size:12px}
+.ddq.endingcomplete .endingtrue{margin:18px 0 6px;font-size:13px;line-height:1.6}
+.ddq.endingcomplete .dlgbtns{margin-top:26px}
 
 @media(max-height:620px){
  .endingtalk{padding:46px max(22px,env(safe-area-inset-right))
