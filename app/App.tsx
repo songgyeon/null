@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, MyDiaryPage, DiaryInk, PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    scripts/data/*.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -36,7 +36,7 @@ import {
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
   talkedEnoughIn, applyStoryTransition, markPartnerKnown, markSchoolMet, isSchoolPlace, atWorkNow,
-  loadDiary, saveDiary,
+  loadDiary, saveDiary, myDiaryOpen,
   openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, setWorldAt, leaveTsOf, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
@@ -67,7 +67,7 @@ const F = { fontFamily:'Galmuri11' } as const; // 픽셀 폰트 — 모든 Text�
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
 type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun';at:number;day:number;note?:string};
-type GalleryZoom={uri:string;label?:string;note?:string};
+type GalleryZoom={uri:string;label?:string;note?:string;back?:string;fill?:any[];backFill?:any[];diary?:any};
 
 /* ── 데모 모드 ──
    대사와 매칭은 lib/demoLines.ts에 있다. 그 파일은 docs/dialogue-corpus.md에서
@@ -1091,7 +1091,7 @@ function Marquee({text,bare}:{text:string;bare?:boolean}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,met,groupOn,onGoPlace,onPlate,onGuess}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,gifts,met,groupOn,onGoPlace,onPlate,onGuess}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   /* 단톡방은 강현이 나중에 판다 — 그전까지는 없는 방이다 */
@@ -1165,15 +1165,18 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             })}
             {/* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
                 자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */}
-            {(()=>{ const mine=userPics(name); if(!mine.length)return null;
+            {(()=>{ const mine=userPics(name,gifts); if(!mine.length)return null;
               return <React.Fragment key="__me">
                 <Text style={[rl.sect,{color:'#8f7ccb'}]}>✧ {name||'당신'} · {mine.length} pics</Text>
                 <View style={rl.galgrid}>
-                  {mine.map((m:any)=><TouchableOpacity key={m.src} style={rl.galcell}
+                  {mine.map((m:any)=><TouchableOpacity key={m.src+':'+m.label} style={rl.galcell}
                     onPress={()=>setZoom({uri:IMG+m.src, label:m.label,
                       ...(m.back?{back:IMG+m.back}:{}), ...(m.fill?{fill:m.fill}:{}),
-                      ...(m.backFill?{backFill:m.backFill}:{})})}>
+                      ...(m.backFill?{backFill:m.backFill}:{}), ...(m.diary?{diary:m.diary}:{})})}>
                     <Image source={{uri:IMG+m.src}} style={rl.galimg} resizeMode="cover"/>
+                    {m.diary&&<View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                      <DiaryInk kind={m.diary.kind} entry={m.diary.entry} values={m.diary.values} readOnly compact/>
+                    </View>}
                   </TouchableOpacity>)}
                 </View>
               </React.Fragment>; })()}
@@ -1605,7 +1608,11 @@ function Root() {
   /* 키보드가 뜨면 하단 내비게이션 여백은 의미가 없어진다. 접어두지 않으면
      입력바를 올릴 때 그만큼 모자라거나 두 번 밀린다. */
   const padBottom=kbRoot>0?0:insets.bottom;
-  const [fontsOk]=useFonts({ Galmuri11: require('./assets/fonts/Galmuri11.ttf') });
+  const [fontsOk]=useFonts({
+    Galmuri11: require('./assets/fonts/Galmuri11.ttf'),
+    ManSehDiary: require('./assets/fonts/ManSeh.ttf'),
+    GyuriDiary: require('./assets/fonts/GyuriDiary.ttf'),
+  });
   const [ready,setReady]=useState(false);
   const [name,setName]=useState<string|null>(null);
   const [msgs,setMsgs]=useState<Record<string,Msg[]>>({});
@@ -1681,6 +1688,8 @@ function Root() {
   /* 유저의 옛 일기 — 재언 방에 처음 들어가는 순간, 첫 마디 앞에 한 번.
      채운 값은 이 기기 안에만 산다(웹의 null_diary와 같은 열쇠). */
   const [diary,setDiary]=useState(false);
+  /* 지금의 일기는 메뉴에서 유저가 열 때만 뜬다. 자동 팝업은 선택을 일과로 만든다. */
+  const [myDiary,setMyDiary]=useState<any>(null);
   const [ask,setAsk]=useState<string|null>(null);  // 지도에서 고른 자리
   const [askWho,setAskWho]=useState<string|null>(null);
   const [leaving,setLeaving]=useState<any>(null);  // 나가기 확인
@@ -1705,8 +1714,12 @@ function Root() {
   /* 실습 남은 날·지난 날·재회. 셋 다 웹과 같은 세계 시계 하나에서 나온다 —
      여기서 따로 세면 웹과 앱의 D-N이 갈린다. 그 사고가 실제로 있었다. */
   const clockStore={msgs:{anchor:anchor?[{ts:anchor,sender:'user'}]:[]}} as any;
+  /* 켜 둔 채 날짜 경계를 지나도 D-1 장이 생기도록 부모 시계를 갱신한다. */
+  const [,setDayTick]=useState(0);
+  useEffect(()=>{const t=setInterval(()=>setDayTick(n=>n+1),60000);return()=>clearInterval(t)},[]);
   const dLeft=anchor?daysLeft(clockStore):ENROLL_DAYS;
   const dayN=anchor?daysSince(clockStore):0;
+  const dueDiary=dLeft>0?myDiaryOpen(dLeft):null;
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
      그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다.
      떠나는 날의 현실 시각은 leaveTsOf가 모드에 맞게 환산해 준다. */
@@ -2536,7 +2549,7 @@ function Root() {
     /* 손으로 「새로 시작」한 것도 판 갈이와 같은 helper를 쓴다 — 접속
        설정까지 날리면 새로 시작할 때마다 열쇠를 다시 넣어야 한다 */
     await wipeStory(); resetShim(); greetAtRef.current=0; summingRef.current={};
-    setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
+    setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({}); setMyDiary(null);
     /* 세계 시계도 처음으로 돌린다 — 앵커를 안 지우면 새 판이 옛 판의
        D-일차를 그대로 물려받는다. 모드도 저장소가 비었으니 기본값으로. */
     setAnchor(0); setWorldAt(0); setMode(loadMode());
@@ -2778,7 +2791,7 @@ function Root() {
       onGuess={guessHidden}
       seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
-      onCart={()=>setView({type:'cart'})} demo={demo} name={name}
+      onCart={()=>setView({type:'cart'})} demo={demo} name={name} gifts={gifts}
       hearts={heartsOf(counts,gifts)}
       met={met} groupOn={groupOn} onGoPlace={(pl:string)=>{ expireScene(); setAskWho(null); setAsk(pl); }}
       onPlate={setPlate}/>;
@@ -2829,6 +2842,7 @@ function Root() {
     {groupNew&&<GroupNewDialog onClose={()=>setGroupNew(false)}/>}
     {!!getcha&&<GetChaDialog name={(CHARS[getcha]||{}).name||'□□□'} onClose={()=>setGetcha(null)}/>}
     {diary&&<DiaryPage onDone={diaryDone}/>}
+    {myDiary&&<MyDiaryPage entry={myDiary} gifts={gifts} onDone={()=>setMyDiary(null)} onClose={()=>setMyDiary(null)}/>}
     {look&&<LookOverlay shot={look.shot} onClose={()=>setLook(null)}/>}
     {/* ⑨ 답이 다 뜬 뒤에 화면이 통째로 그 얼굴이 된다 */}
     {!!kiss&&<KissTime shot={kiss} rise={KISS_RISE} hold={KISS_HOLD} out={KISS_OUT}
@@ -2859,6 +2873,7 @@ function Root() {
                   onPress={()=>setPopup('reset')}><Text style={mo.btnT}>restart</Text></Bevel>
               </View>}
               {popup==='file'&&<>
+                {dueDiary&&<MenuRow label="♡  write my diary" onPress={()=>{setPopup(null);setMyDiary(dueDiary)}}/>}
                 <MenuRow label="💾  save all (.txt)" onPress={()=>{setPopup(null);exportTxt()}}/>
                 <MenuRow label="♡  my stats" onPress={()=>setPopup('stats')}/>
               </>}

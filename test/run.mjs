@@ -846,7 +846,7 @@ const flashCss = readCss();
   ], [true, true, true]);
   /* 빈칸이 그 겹 안에 들어 있어야 퍼센트가 사진 기준이 된다 */
   eq('빈칸이 그 겹 안에 있다', [
-    /<div className="dfit">\s*\n\s*<input className="dblank"/.test(web),
+    /<div className="dfit dinkfit">\s*\n\s*<DiaryInk kind="child"/.test(web),
     /<div className="dfit">\s*\n\s*\{FLASH_BOX\.map/.test(web),
   ], [true, true]);
   /* 종이와 단추를 auto 행으로 가르고 넘치면 이 오버레이만 스크롤한다. */
@@ -2194,7 +2194,8 @@ eq('생성된 파일이라고 적어둔다',
       < app2.indexOf("if(id==='jaeeon'&&!loadDiary()) return setDiary(true);"), true);
   /* 두 화면의 글월은 규칙 파일 하나에서 온다 — 베껴 적으면 어긋난다 */
   eq('앱은 문안을 규칙 파일에서 가져온다',
-    /DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX \} from '\.\.\/lib\/rules'/.test(dlg)
+    /DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX,/.test(dlg)
+    && /from '\.\.\/lib\/rules'/.test(dlg)
     && !/공부방|사탕/.test(dlg), true);
 }
 
@@ -2460,9 +2461,10 @@ eq('D-0은 두 사람을 바로 고른다',
 eq('옛 STAY·LEAVE·연장 UI는 없다',
   /nameFull\?answerDday\(true\)|stay w them|\+30d/.test(web), false);
 eq('마지막 일기는 D-1이다',
-  /\{at:1, img:"mydiary-5\.webp"/.test(web) && !/\{at:0, img:"mydiary-5\.webp"/.test(web), true);
-eq('영화관 다시보기는 등록 팝업을 반복하지 않는다',
-  /if\(ending\.completed&&ending\.replaying\)\s*return moveEnding\(ending,"daily",\{replaying:false\}\)/.test(web), true);
+  /\{at:1, text:"\{last\}\. 나는 정말 \{who\}일까\?"/.test(web)
+    && !/\{at:0, text:"\{last\}/.test(web), true);
+eq('영화관 다시보기 버튼이 없다',
+  /영화관 다시보기/.test(web), false);
 eq('완료 팝업은 ok로만 닫는다', (() => {
   const box=web.slice(web.indexOf('function EndingComplete'),web.indexOf('function Flash',web.indexOf('function EndingComplete')));
   return box.includes('<Dialog title="null.exe" win="endingcompletewin">')&&!box.includes('onClose={onDone}');
@@ -3512,8 +3514,12 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     /const doRename=\(t:string\)=>\{if\(loadWorld\(\)\)return;/.test(appSrc)
     && /if\(loadWorld\(\)&&k!=='age'\)return;/.test(appSrc), true);
   eq('앱도 YES 연타는 한 번이다', /if\(pressed\)return; setPressed\(true\); onYes\(\)/.test(appSrc), true);
-  eq('관계 선택 뒤 영화관과 일상으로 이어진다',
-    ['waiting','dialogue','shot','complete','daily'].filter(p=>!web.includes(`"${p}"`)), []);
+  eq('관계 선택 뒤 한 줄 대사·완성 PNG·일상으로 이어진다', [
+    ['waiting','dialogue','shot','complete','daily'].filter(p=>!web.includes(`"${p}"`)),
+    /const ENDING_DIALOGUE=\{\s*jaeeon:\["기다렸어요\."\],\s*minhyun:\["기다렸어요\."\],\s*\}/.test(web),
+    /present:"ending-jaeeon-present\.png"/.test(web),
+    /present:"ending-minhyun-present\.png"/.test(web),
+  ], [[],true,true,true]);
   eq('관계 선택 뒤 +30일 저장을 만들지 않는다',
     /localStorage\.setItem\("null_extend"/.test(web), false);
 }
@@ -4480,7 +4486,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['283', '160427f43874']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['284', '099974a2b7c3']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -10376,21 +10382,21 @@ eq('시간표 단추는 peek보다 좁다',
       webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
       + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,saveMyDiary,loadMyDiary,loadStory};')
       (g.localStorage, g.location);
-    /* 글에 박힌 칸과 표(길이·자리)가 셋 다 같은 이름이어야 한다.
-       한 군데서만 세면 사진 위 엉뚱한 자리에 커서가 선다 */
-    eq('글·길이·자리가 같은 이름을 쓴다', M.MY_DIARY.filter(e => {
+    /* 글에 박힌 칸과 길이표가 같은 이름이어야 한다. 좌표표는 없다 —
+       본문과 입력칸이 같은 DOM 흐름에서 함께 줄바꿈한다. */
+    eq('글과 길이표가 같은 이름을 쓴다', M.MY_DIARY.filter(e => {
       const used = M.myDiaryParts(e.text).filter(p => p.blank).map(p => p.blank);
-      const len = Object.keys(e.blanks), box = Object.keys(e.box || {});
-      return used.length !== len.length || used.length !== box.length
-        || used.some(k => !len.includes(k) || !box.includes(k));
+      const len = Object.keys(e.blanks);
+      return used.length !== len.length || used.some(k => !len.includes(k));
     }).map(e => e.at), []);
     /* 네모는 사진 안에 있어야 한다 — 밖으로 나가면 커서가 종이 밖에 선다 */
-    eq('칸이 사진 밖으로 안 나간다', M.MY_DIARY.flatMap(e =>
-      Object.entries(e.box).filter(([, b]) =>
-        b.left < 0 || b.top < 0 || b.left + b.w > 100 || b.top + b.h > 100)
-        .map(([k]) => `${e.at}.${k}`)), []);
-    eq('사진 다섯 장이 저장소에 있다',
-      M.MY_DIARY.map(e => e.img).filter(f => !exists(f)), []);
+    eq('다섯 장 모두 폰트 DOM 일기다',
+      /function DiaryInk/.test(web)
+      && /font-family:"Gyuri Diary"/.test(readCss())
+      && !M.MY_DIARY.some(e => e.img || e.box), true);
+    eq('빈 종이와 일기 폰트가 저장소에 있다',
+      ['diary-paper-child.webp', 'diary-paper-now.webp',
+       'assets/fonts/GyuriDiary.woff', 'app/assets/fonts/ManSeh.ttf'].filter(f => !exists(f)), []);
     /* 눈금 다섯. 뒤로 갈수록 짧아지고 마지막은 두 칸이다 */
     eq('눈금과 칸 수', [M.MY_DIARY.map(e => e.at),
       M.MY_DIARY.map(e => Object.keys(e.blanks).length)],
@@ -10422,7 +10428,8 @@ eq('시간표 단추는 peek보다 좁다',
       /null_mydiary|myDiary|MY_DIARY/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
     /* 스스로 안 뜬다 — 유저가 메뉴에서 열 때만이다. 매일 물으면 일과가 된다 */
     eq('스스로 끼어들지 않는다',
-      /myDiaryOpen=\{myDiaryOpen\(dLeft\)\} onMyDiary=\{\(\)=>setMyDiary\(myDiaryOpen\(dLeft\)\)\}/.test(web)
+      /const dueDiary=!ended&&dLeft>0\?myDiaryOpen\(dLeft\):null/.test(web)
+      && /onMyDiary=\{setMyDiary\}/.test(web)
       && !/setMyDiary\(myDiaryOpen\([^)]*\)\)/.test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
     /* 안 쓰고 닫을 수 있어야 선택이다 */
     eq('나중에로 닫을 수 있다', /<button className="wbtn dbtn2" onClick=\{onClose\}>나중에<\/button>/.test(web), true);
@@ -10634,7 +10641,7 @@ eq('시간표 단추는 peek보다 좁다',
   const D = new Function('localStorage', 'location',
     webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {userPics,saveDiary,saveFlash,DIARY_IMG,DIARY_BOX,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
+    + '\nreturn {userPics,saveDiary,saveFlash,DIARY_PAPER_IMG,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
   const dlg2 = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
   const appSrc3 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
   const css2 = readCss();
@@ -10649,8 +10656,8 @@ eq('시간표 단추는 peek보다 좁다',
   /* {이름} pics — 채운 것만 선다 */
   eq('아무것도 안 채웠으면 없다', D.userPics().length, 0);
   D.saveDiary('어린애');
-  eq('일기를 채우면 유저 이름으로 한 장', D.userPics('리리').map(x => [x.src, x.label, (x.fill || []).map(f => f.text)]),
-    [[D.DIARY_IMG, '리리의 옛 일기', ['어린애']]]);
+  eq('일기를 채우면 유저 이름으로 한 장', D.userPics('리리').map(x => [x.src, x.label, x.diary && x.diary.values.why]),
+    [[D.DIARY_PAPER_IMG, '리리의 옛 일기', '어린애']]);
   D.saveFlash({ face: '이상한', said: '진짜요', wish: '또 보고' });
   const mine = D.userPics();
   eq('엽서까지 채우면 두 장', mine.length, 2);
@@ -10663,15 +10670,15 @@ eq('시간표 단추는 peek보다 좁다',
   eq('보여줘도 서버로는 안 간다',
     /userPics|null_flash|null_diary/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), false);
   eq('cam 탭이 유저 몫을 따로 세운다',
-    /const mine=userPics\(name\);/.test(web) && /\{name\|\|"당신"\} · \{mine\.length\} pics/.test(web), true);
+    /const mine=userPics\(name,gifts\);/.test(web) && /\{name\|\|"당신"\} · \{mine\.length\} pics/.test(web), true);
   eq('앱도 같은 구역을 세운다',
-    /const mine=userPics\(name\); if\(!mine\.length\)return null;/.test(appSrc3)
+    /const mine=userPics\(name,gifts\); if\(!mine\.length\)return null;/.test(appSrc3)
     && /\{name\|\|'당신'\} · \{mine\.length\} pics/.test(appSrc3), true);
 
   /* 엽서는 눌러서 뒤집는다 — 뒤집는 단추를 따로 달지 않는다 */
   eq('누르면 넘어간다',
     /onClick=\{flip\?\(\)=>setBack\(b=>!b\):null\}/.test(web)
-    && /const now=back&&flip\?flip:src;/.test(web), true);
+    && /const now=.*\(back&&flip\?flip:src\);/.test(web), true);
   eq('뒷면 단추가 없다', /뒤집기|FLIP|flip ♡/.test(web), false);
   eq('딴 사진을 열면 다시 앞면부터', /useEffect\(\(\)=>\{setBack\(false\)\},\[key\]\);/.test(web), true);
   eq('앱도 눌러서 뒤집는다',
@@ -10679,7 +10686,7 @@ eq('시간표 단추는 peek보다 좁다',
     && /useEffect\(\(\)=>\{ setBack\(false\) \}, \[keyOf\]\);/.test(dlg2), true);
   /* 빈칸은 사진 상자가 아니라 사진에 앉는다 — 설명 칸까지 감싸면 그만큼 밀린다 */
   eq('빈칸이 사진에 앉는다',
-    /<div className="pvshot">/.test(web)
+    /<div className=\{"pvshot"\+/.test(web)
     && /\.pvshot\{position:relative\}/.test(css2)
     && /\.pvfit\{position:absolute;inset:0;pointer-events:none\}/.test(css2), true);
 

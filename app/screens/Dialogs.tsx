@@ -22,7 +22,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Image, Pressable, TextInput, StyleSheet, Platform, Animated, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CHARS, AV_V, jos, DIARY_IMG, DIARY_BOX, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX } from '../lib/rules';
+import {
+  CHARS, AV_V, jos,
+  DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX,
+  myDiaryParts, myDiarySystemOwned, myDiaryAuto,
+  myDiaryUserKeys, saveMyDiary,
+} from '../lib/rules';
 import { IMG } from '../lib/api';
 /* 값이 아니라 모양만 가져온다 — 판정은 저쪽 파일의 일이다.
    askState는 {away,locked,shut,wk,done,empty,need,mv,klass,no,why,
@@ -38,6 +43,12 @@ const P = {
   lav:'#c3b2f0', shade:'#cdc3ec',
 };
 const F = { fontFamily:'Galmuri11' } as const;
+const CHILD_DIARY_FONT = { fontFamily:'ManSehDiary' } as const;
+const CURRENT_DIARY_FONT = { fontFamily:'GyuriDiary' } as const;
+const DIARY_PAPER = {
+  child: require('../assets/diary-paper-child.webp'),
+  current: require('../assets/diary-paper-now.webp'),
+};
 
 /* 이모티콘은 픽셀 글꼴에 없는 글자다. null.css가 .kao만 시스템 글꼴로
    빼둔 것과 같은 이유 — Galmuri11로 그리면 얼굴 자리에 두부가 뜬다.
@@ -288,53 +299,99 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
    이 창만 본문이 어둡다. 앱이 전부 파스텔이라 파스텔 알림으로 띄우면
    「저장됐습니다」와 같은 무게가 된다. 뒤에는 방금 그 자리가 그대로 있다.
    웹 app-ui.js의 GetCha와 같은 창이다 — 문구도 모양도 같아야 한다. */
-/* ══ 유저의 옛 일기 ══ 웹의 Diary와 같은 종이·같은 글월.
-   재언 방에 처음 들어가는 순간, 그의 첫 마디 앞에 한 번.
+type DiaryKind='child'|'current';
+type DiaryEntry={at:number;text:string;blanks:Record<string,number>;auto?:Record<string,string>};
 
-   이 앱의 다른 창은 전부 가짜 OS다. 여기만 종이다 — 20년 전 것이고 화면에서
-   나온 물건이 아니라 서랍에서 나온 물건이라서. 창틀도 메뉴바도 없다.
-
-   마지막 한 칸은 유저가 채운다. 재언이 왜 돌아오겠다고 했는지는 재언이 쓴
-   것이지만, 그 이유를 정하는 건 이 판을 사는 사람이다.
-
-   ⚠️ 채운 값은 이 기기 안에만 산다. 어떤 요청에도 안 실린다. */
-export function DiaryPage({onDone}:{onDone:(v:string)=>void}) {
-  const [v, setV] = useState('');
-  const t = v.trim();
-  /* 사진을 못 읽는 사람에게는 적힌 글을 그대로 읽어준다 */
-  const alt = [DIARY_HEAD, ...DIARY_LINES, DIARY_TAIL_A + '□' + DIARY_TAIL_B].join(' ');
-  return <View style={[dl.ov, dy.ov, {zIndex:58}]}>
-    <View style={dy.page}>
-      <Image source={{uri:IMG+DIARY_IMG}} style={dy.shot} resizeMode="contain"
-        accessible accessibilityLabel={alt}/>
-      {/* ── 지워진 칸 ──
-          사진에서 검게 지워진 그 자리에 그대로 앉는다. 종이 색으로 덮어 새로
-          그리지 않는다 — 덮으면 조명도 결도 안 맞아서 붙인 티가 난다.
-          검은 칸을 그대로 두고 그 위에 글자가 들어찬다. */}
-      <TextInput style={[dy.blank, {left:`${DIARY_BOX.left}%`, top:`${DIARY_BOX.top}%`,
-        width:`${DIARY_BOX.w}%`, height:`${DIARY_BOX.h}%`}]}
-        value={v} onChangeText={setV} autoFocus maxLength={DIARY_MAX}
-        onSubmitEditing={()=>{ if(t) onDone(t) }} returnKeyType="done"/>
-    </View>
-    {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
-    <Bevel style={[dy.btn, !t && dy.btnOff]} disabled={!t}
-      inner={{backgroundColor:'#e7e4fb'}} onPress={()=>{ if(t) onDone(t) }}>
-      <Text style={dy.btnT}>덮기 ♡</Text></Bevel>
-  </View>;
+function DiaryField({name,value,max,fixed,autoFocus,onChange,onEnter,inputRefs,compact=false,child=false}:any){
+  const chars=Math.max(4,Math.min(12,Number(max)||4));
+  const width=compact?Math.min(52,12+chars*3.4):Math.min(128,18+chars*9);
+  const box=[dy.field,{width,height:compact?12:29},compact&&dy.fieldCompact];
+  if(fixed)return <View style={box}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.52}
+    style={[child?dy.childFieldText:dy.fieldText,compact&&dy.fieldTextCompact]}>{value||''}</Text></View>;
+  return <TextInput ref={el=>{if(inputRefs)inputRefs.current[name]=el}}
+    style={[...box,child?dy.childFieldInput:dy.fieldInput]}
+    value={value||''} onChangeText={onChange} autoFocus={autoFocus} maxLength={max} multiline={false}
+    returnKeyType="next" blurOnSubmit={false} onSubmitEditing={()=>onEnter&&onEnter(name)}/>;
 }
-const dy = StyleSheet.create({
-  ov:{backgroundColor:'rgba(20,13,36,.86)', paddingHorizontal:16, paddingVertical:20, gap:14},
-  /* 사진 그대로. 줄공책을 그리지 않는다 — 물건은 흉내내면 물건이 아니게 된다 */
-  page:{position:'relative', width:'100%', maxWidth:330, aspectRatio:1024/1536,
-    borderRadius:3, overflow:'hidden'},
-  shot:{width:'100%', height:'100%'},
-  blank:{...F, position:'absolute', margin:0, paddingHorizontal:4, paddingVertical:0,
-    fontSize:13, lineHeight:15, textAlign:'center', color:'#fdf3e2',
-    backgroundColor:'transparent', borderWidth:0},
-  btn:{alignSelf:'center', minWidth:88, height:32, paddingHorizontal:15, borderRadius:6,
-    borderColor:'#b69fda', backgroundColor:'#d8eaff'},
-  btnOff:{opacity:.45},
-  btnT:{...F, fontSize:10, letterSpacing:.8, color:'#5e527b'},
+
+function DiaryWords({text,compact=false}:any){return <>{(String(text||'').match(/\S+\s*/g)||[])
+  .map((word:string,i:number)=><Text key={i} style={[dy.currentText,compact&&dy.currentTextCompact]}>{word}</Text>)}</>}
+
+/* 작성 화면과 CAM 재열람이 이 네이티브 글자 렌더러 하나를 쓴다. */
+export function DiaryInk({kind,entry,values={},auto={},readOnly=false,onChange,onEnter,inputRefs,compact=false}:any){
+  if(kind==='child')return <View style={[dy.ink,dy.childInk]}>
+    <Text style={[dy.childText,dy.childHead,compact&&dy.childTextCompact]}>{DIARY_HEAD}</Text>
+    {DIARY_LINES.map((line:string,i:number)=><Text key={i}
+      style={[dy.childText,dy.childLine,compact&&dy.childTextCompact]}>{line}</Text>)}
+    <View style={dy.tailRow}><Text style={[dy.childText,compact&&dy.childTextCompact]}>{DIARY_TAIL_A}</Text>
+      <DiaryField name="why" value={values.why} max={DIARY_MAX} fixed={readOnly} autoFocus={!readOnly}
+        onChange={(v:string)=>onChange&&onChange('why',v)} onEnter={onEnter} inputRefs={inputRefs}
+        compact={compact} child/>
+      <Text style={[dy.childText,compact&&dy.childTextCompact]}>{DIARY_TAIL_B}</Text></View>
+  </View>;
+  if(!entry)return null;
+  const mine=Object.keys(entry.blanks).filter(k=>!myDiarySystemOwned(entry,k));
+  return <View style={[dy.ink,dy.currentInk,entry.at===1&&dy.currentInkLast]}><View style={dy.currentFlow}>
+    {myDiaryParts(entry.text).map((part:any,i:number)=>part.blank
+      ?<DiaryField key={part.blank} name={part.blank}
+        value={!readOnly&&myDiarySystemOwned(entry,part.blank)?auto[part.blank]||'':values[part.blank]||''}
+        max={entry.blanks[part.blank]} fixed={readOnly||myDiarySystemOwned(entry,part.blank)}
+        autoFocus={!readOnly&&part.blank===mine[0]} onChange={(v:string)=>onChange&&onChange(part.blank,v)}
+        onEnter={onEnter} inputRefs={inputRefs} compact={compact}/>
+      :<DiaryWords key={i} text={part.text} compact={compact}/>)}</View></View>;
+}
+
+function DiarySheet({kind,entry,values,auto,readOnly,onChange,onEnter,inputRefs}:any){return <View style={dy.page}>
+  <Image source={DIARY_PAPER[kind]} style={dy.shot} resizeMode="contain"/>
+  <DiaryInk kind={kind} entry={entry} values={values} auto={auto} readOnly={readOnly}
+    onChange={onChange} onEnter={onEnter} inputRefs={inputRefs}/></View>}
+
+export function DiaryPage({onDone}:{onDone:(v:string)=>void}){
+  const [v,setV]=useState(''); const t=v.trim();
+  return <View style={[dl.ov,dy.ov,{zIndex:58}]}><DiarySheet kind="child" values={{why:v}}
+    onChange={(_:string,value:string)=>setV(value)} onEnter={()=>{if(t)onDone(t)}}/>
+    <Bevel style={[dy.btn,!t&&dy.btnOff]} disabled={!t} inner={{backgroundColor:'#e7e4fb'}}
+      onPress={()=>{if(t)onDone(t)}}><Text style={dy.btnT}>덮기 ♡</Text></Bevel></View>;
+}
+
+export function MyDiaryPage({entry,gifts,onDone,onClose}:{entry:DiaryEntry;gifts:Record<string,string[]>;onDone:()=>void;onClose:()=>void}){
+  const auto=myDiaryAuto(entry,gifts); const [values,setValues]=useState<Record<string,string>>(auto);
+  const refs=useRef<Record<string,TextInput|null>>({}); const mine=myDiaryUserKeys(entry);
+  const full=mine.every((k:string)=>String(values[k]||'').trim());
+  const done=()=>{if(full&&saveMyDiary(entry.at,{...values,...auto}))onDone()};
+  const advance=(key:string)=>{const next=mine[mine.indexOf(key)+1];if(next)refs.current[next]?.focus();else done()};
+  return <View style={[dl.ov,dy.ov,{zIndex:58}]}><DiarySheet kind="current" entry={entry} values={values} auto={auto}
+    inputRefs={refs} onChange={(key:string,value:string)=>setValues(old=>({...old,[key]:value}))} onEnter={advance}/>
+    <View style={dy.actions}><Bevel style={dy.btn} inner={{backgroundColor:'#e7e4fb'}} onPress={onClose}>
+      <Text style={dy.btnT}>나중에</Text></Bevel><Bevel style={[dy.btn,!full&&dy.btnOff]} disabled={!full}
+      inner={{backgroundColor:'#e7e4fb'}} onPress={done}><Text style={dy.btnT}>덮기 ♡</Text></Bevel></View></View>;
+}
+
+const dy=StyleSheet.create({
+  ov:{backgroundColor:'rgba(20,13,36,.86)',paddingHorizontal:16,paddingVertical:20,gap:14},
+  page:{position:'relative',width:'100%',maxWidth:330,aspectRatio:1024/1536,borderRadius:3,overflow:'hidden'},
+  shot:{width:'100%',height:'100%'}, ink:{position:'absolute',left:0,right:0,top:0,bottom:0,overflow:'hidden'},
+  childInk:{left:'14%',right:'13%',top:'17.5%',bottom:'8%'},
+  childText:{...CHILD_DIARY_FONT,fontSize:18,lineHeight:27,letterSpacing:1.1,color:'rgba(53,43,36,.87)'},
+  childTextCompact:{fontSize:6,lineHeight:8,letterSpacing:.25}, childHead:{marginBottom:13,letterSpacing:2},
+  childLine:{marginBottom:8},tailRow:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',marginTop:7},
+  currentInk:{left:'15%',right:'7%',top:'14%',bottom:'8%'},currentInkLast:{top:'35%'},
+  currentFlow:{flexDirection:'row',flexWrap:'wrap',alignItems:'center'},
+  currentText:{...CURRENT_DIARY_FONT,fontSize:15,lineHeight:29,letterSpacing:.7,color:'rgba(53,43,36,.87)'},
+  currentTextCompact:{fontSize:5,lineHeight:9,letterSpacing:.18},
+  field:{borderWidth:1,borderColor:'rgba(217,139,173,.72)',borderStyle:'dashed',borderRadius:0,marginHorizontal:3,
+    marginVertical:1,backgroundColor:'rgba(255,248,250,.72)',alignItems:'center',justifyContent:'center',overflow:'hidden'},
+  fieldCompact:{marginHorizontal:1,marginVertical:0,borderWidth:.5},
+  fieldText:{...CURRENT_DIARY_FONT,width:'100%',fontSize:13,lineHeight:20,textAlign:'center',color:'rgba(73,52,47,.9)',includeFontPadding:false},
+  childFieldText:{...CHILD_DIARY_FONT,width:'100%',fontSize:14,lineHeight:20,textAlign:'center',color:'rgba(73,52,47,.9)',includeFontPadding:false},
+  fieldTextCompact:{fontSize:4.5,lineHeight:7},
+  fieldInput:{...CURRENT_DIARY_FONT,paddingHorizontal:4,paddingVertical:0,fontSize:13,lineHeight:20,textAlign:'center',
+    textAlignVertical:'center',color:'rgba(73,52,47,.9)',includeFontPadding:false},
+  childFieldInput:{...CHILD_DIARY_FONT,paddingHorizontal:4,paddingVertical:0,fontSize:14,lineHeight:20,textAlign:'center',
+    textAlignVertical:'center',color:'rgba(73,52,47,.9)',includeFontPadding:false},
+  actions:{flexDirection:'row',gap:10,alignItems:'center',justifyContent:'center'},
+  btn:{alignSelf:'center',minWidth:88,height:32,paddingHorizontal:15,borderRadius:6,borderColor:'#b69fda',backgroundColor:'#d8eaff'},
+  btnOff:{opacity:.45},btnT:{...F,fontSize:10,letterSpacing:.8,color:'#5e527b'},
 });
 
 /* ══ 모드 팝업 ══ 웹의 ModeAsk와 같은 글월·같은 자리.
@@ -462,7 +519,8 @@ const gc = StyleSheet.create({
 type PvFill = {left:number; top:number; w:number; h:number; text:string};
 export function PhotoWin({shot, onClose}:
   {shot:string|{uri:string; label?:string; note?:string;
-                back?:string; fill?:PvFill[]; backFill?:PvFill[]}|null; onClose:()=>void}) {
+                back?:string; fill?:PvFill[]; backFill?:PvFill[];
+                diary?:{kind:DiaryKind;entry?:DiaryEntry;values:Record<string,string>}}|null; onClose:()=>void}) {
   /* 사진마다 비율이 다르다(1024×1536도 있고 1122×1402도 있다). 웹은 height:auto로
      원본 비율이 저절로 나오는데 RN은 미리 알려줘야 해서, 흔한 쪽으로 그려두고
      사진이 도착하면 실제 값으로 고친다. 안 그러면 얼굴이 늘어난다. */
@@ -474,6 +532,7 @@ export function PhotoWin({shot, onClose}:
   useEffect(()=>{ setBack(false) }, [keyOf]);   // 딴 사진을 열면 다시 앞면부터
   if (!shot) return null;
   const one   = typeof shot === 'string';
+  if(!one&&shot.diary)return <DiaryRecord diary={shot.diary} onClose={onClose}/>;
   const label = one ? '' : (shot.label || '');
   const note  = one ? '' : (shot.note || '');
   /* 뒷면이 있는 것은 엽서 하나다. 누르면 넘어간다 — 뒤집는 단추를 따로
@@ -519,6 +578,15 @@ export function PhotoWin({shot, onClose}:
         </View>
       </View>
     </View>
+  </View>;
+}
+
+function DiaryRecord({diary,onClose}:{diary:{kind:DiaryKind;entry?:DiaryEntry;values:Record<string,string>};onClose:()=>void}){
+  return <View style={[dl.ov,dy.ov,{zIndex:58}]}>
+    <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
+    <DiarySheet kind={diary.kind} entry={diary.entry} values={diary.values} readOnly/>
+    <Bevel style={dy.btn} inner={{backgroundColor:'#e7e4fb'}} onPress={onClose}>
+      <Text style={dy.btnT}>덮기 ♡</Text></Bevel>
   </View>;
 }
 const pv = StyleSheet.create({

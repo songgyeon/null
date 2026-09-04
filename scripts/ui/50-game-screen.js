@@ -53,8 +53,8 @@ function GameScreen({game}){
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar} onGuess={guessHidden}
-       ending={ending} ended={ended} replay={replayCinema}
-       myDiaryOpen={myDiaryOpen(dLeft)} onMyDiary={()=>setMyDiary(myDiaryOpen(dLeft))}
+       ending={ending} ended={ended}
+       onMyDiary={setMyDiary}
        active={!enrolling&&!!loadWorld()&&(loadGetcha("jaeeon")||loadGetcha("minhyun"))}
        overlayBusy={dailyOverlayBusy} onOverlayBusy={setRoomOverlayBusy}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}

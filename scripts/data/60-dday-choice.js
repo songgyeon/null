@@ -15,29 +15,21 @@ const ENDING_ASSETS={
     dialogue:"ending-jaeeon-dialogue.webp",
     alone:"ending-jaeeon-alone.webp",
     faint:"ending-jaeeon-faint.webp",
-    present:"ending-jaeeon-present.webp",
+    present:"ending-jaeeon-present.png",
   },
   minhyun:{
     dialogue:"ending-minhyun-dialogue.webp",
     alone:"ending-minhyun-alone.webp",
     faint:"ending-minhyun-faint.webp",
-    present:"ending-minhyun-present.webp",
+    present:"ending-minhyun-present.png",
   },
 };
 
-/* 첫 줄은 두 루트 모두 정본이다. 마지막은 고백의 마침표가 아니라
-   옆자리를 내어주는 말로 끝난다. 마지막 줄 뒤에는 선택지 없이 컷으로 간다. */
+/* 두 루트 모두 사용자가 확정한 이 한 줄만 말한다.
+   다음 입력에는 선택지나 추가 대사 없이 곧바로 엔딩샷으로 간다. */
 const ENDING_DIALOGUE={
-  jaeeon:[
-    "기다렸어요.",
-    "처음 여기서 만났을 때는, 서로 아무것도 몰랐죠.",
-    "오늘은 옆자리를 비워뒀어요. 이리 와요.",
-  ],
-  minhyun:[
-    "기다렸어요.",
-    "처음 여기서 봤을 때보다 오래 걸렸네요.",
-    "그래도 옆자리는 안 줬어요. 앉아요.",
-  ],
+  jaeeon:["기다렸어요."],
+  minhyun:["기다렸어요."],
 };
 
 const endingDayKey=now=>{

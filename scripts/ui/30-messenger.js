@@ -378,7 +378,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary,active,overlayBusy,onOverlayBusy,ending,ended,replay}){
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,onMyDiary,active,overlayBusy,onOverlayBusy,ending,ended}){
   const [menu,setMenu]=useState(null);     // 'edit'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const dlgRef=useRef(dlg); dlgRef.current=dlg;
@@ -509,6 +509,9 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 앱도 같은 식으로 센다.
      세는 것은 세계 시계 하나다(daysLeft → worldDays). */
   const dLeft=daysLeft(store);
+  /* RoomList가 갱신하는 최신 D-day로 계산한다. 부모가 처음 넘긴 값에 고정되면
+     D-2에서 화면을 켜 둔 채 D-1이 되었을 때 일기 메뉴가 사라진다. */
+  const dueDiary=!ended&&dLeft>0?myDiaryOpen(dLeft):null;
   /* 빈칸 — 이름이 불린 만큼만 채운다. 칸에 글자를 넣지는 않는다:
      채워지는 것은 칸이지 이름이 아니다 */
   const calls=countCalls(store,name);
@@ -549,7 +552,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           {/* ⑩ 지금의 일기. 눈금을 지나 열린 장이 있을 때만 선다 —
               늘 서 있으면 「오늘도 안 썼네」가 되고 그러면 일과다.
               알약(숫자)은 안 붙인다. 지우려고 여는 창이 되면 안 쓴다 */}
-          {myDiaryOpen&&<div className="dditem" onClick={()=>{setMenu(null);onMyDiary()}}>
+          {dueDiary&&<div className="dditem" onClick={()=>{setMenu(null);onMyDiary(dueDiary)}}>
             <Sticker.heart size={12} color="#ffb0d4"/> write my diary</div>}
           <div className="dditem" onClick={()=>{setMenu(null);onExport()}}><Sticker.floppy size={15}/> save all (.txt)</div>
           <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}><Sticker.heart size={12} color="#c3b2f0"/> my stats</div>
@@ -756,11 +759,21 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           }).filter(Boolean);
           /* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
              자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */
-          const mine=userPics(name);
+          const mine=userPics(name,gifts);
           if(mine.length)secs.push(<React.Fragment key="__me">
             <div className="sect">✧ {name||"당신"} · {mine.length} pics</div>
             <div className="galgrid">
-              {mine.map(m=><img key={m.src} src={m.src} alt="" loading="lazy" onClick={()=>setZoom(m)}/>)}
+              {mine.map((m,i)=>m.diary
+                ?<button key={m.label||i} className="diarythumb" onClick={()=>setZoom(m)}
+                    aria-label={(m.label||"일기")+" 열기"}>
+                  <img src={av(m.diary.src)} alt="" loading="lazy"/>
+                  <span className="dthumbfit">
+                    <DiaryInk kind={m.diary.kind} entry={m.diary.entry}
+                      values={m.diary.values} readOnly/>
+                  </span>
+                  <span className="dthumblabel">{m.label}</span>
+                </button>
+                :<img key={m.src} src={m.src} alt="" loading="lazy" onClick={()=>setZoom(m)}/>)}
             </div>
           </React.Fragment>);
           return secs.length?secs:<div className="empty" style={{marginTop:60}}>
@@ -831,14 +844,9 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       {/* 되돌릴 수 없다는 말보다 숫자가 손을 멈춘다. 지우는 건 기록만이 아니라
           시계와 해금까지다 — 그걸 글로 쓰지 말고 지금 상태로 보여준다. */}
       {ended
-        ?<React.Fragment>
-          <div className="etcrow" style={{marginTop:18}}>
-            <button className="etcdel" aria-label="↻ continue" onClick={()=>setDlg(null)}><span className="rr">↻</span>continue</button>
-          </div>
-          <div className="etcrow" style={{marginTop:8}}>
-            <button className="wbtn" onClick={()=>{setDlg(null);replay&&replay()}}>영화관 다시보기 ♡</button>
-          </div>
-        </React.Fragment>
+        ?<div className="etcrow" style={{marginTop:18}}>
+          <button className="etcdel" aria-label="↻ continue" onClick={()=>setDlg(null)}><span className="rr">↻</span>continue</button>
+        </div>
         :!confirming
         ?<div className="etcrow" style={{marginTop:18}}>
           <button className="etcdel" onClick={()=>setConfirming(true)}><span className="rr">↺</span>restart</button>

@@ -1,5 +1,47 @@
 /* NULL web UI · photos, diaries, flashback, kiss, log
    index.html의 선언 순서가 의존 순서다. 단독 로드하지 않는다. */
+/* 모든 일기는 빈 종이 위에 실제 DOM 글자로 그린다. 작성·CAM 재열람이
+   같은 렌더러를 써야 폰트와 줄바꿈이 달라지지 않는다. */
+function DiaryField({name,value,max,fixed,autoFocus,onChange,onEnter,label}){
+  const cls="dblank blank"+(fixed?" filled dfixed":"");
+  const chars=Math.max(Number(max)||0,Array.from(String(value||"")).length);
+  const shown=Math.min(12,Math.max(4,chars||4));
+  const scale=chars>12?Math.max(.58,12/chars):1;
+  const style={"--blank-chars":shown,"--blank-font":`${(.88*scale).toFixed(3)}em`};
+  if(fixed)return <span className={cls} style={style}>{value||""}</span>;
+  return <input className={cls} value={value||""} autoFocus={autoFocus}
+    maxLength={max} aria-label={label} data-diary-key={name} style={style}
+    onChange={e=>onChange&&onChange(e.target.value)}
+    onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent?.isComposing&&e.keyCode!==229){
+      e.preventDefault();onEnter&&onEnter(e)
+    }}}/>;
+}
+
+function DiaryInk({kind,entry,values={},auto={},readOnly=false,onChange,onEnter}){
+  if(kind==="child")return <div className="dink dchild" role="document">
+    <div className="dhead">{DIARY_HEAD}</div>
+    <div className="dlines">{DIARY_LINES.map((line,i)=><p key={i}>{line}</p>)}</div>
+    <p className="dtail">{DIARY_TAIL_A}<DiaryField name="why" value={values.why}
+      max={DIARY_MAX} fixed={readOnly} autoFocus={!readOnly}
+      label="옛 일기의 마지막 빈칸"
+      onChange={v=>onChange&&onChange("why",v)} onEnter={e=>onEnter&&onEnter("why",e)}/>{DIARY_TAIL_B}</p>
+  </div>;
+  if(!entry)return null;
+  const keys=Object.keys(entry.blanks),mine=keys.filter(k=>!myDiarySystemOwned(entry,k));
+  return <div className={`dink dcurrent dcurrent-${entry.at}`} role="document">
+    {myDiaryParts(entry.text).map((part,i)=>part.blank
+      ?<DiaryField key={part.blank} name={part.blank}
+        value={!readOnly&&myDiarySystemOwned(entry,part.blank)
+          ?auto[part.blank]||"":values[part.blank]||""} max={entry.blanks[part.blank]}
+        fixed={readOnly||myDiarySystemOwned(entry,part.blank)}
+        autoFocus={!readOnly&&part.blank===mine[0]}
+        label={`빈칸 ${keys.indexOf(part.blank)+1}`}
+        onChange={v=>onChange&&onChange(part.blank,v)}
+        onEnter={e=>onEnter&&onEnter(part.blank,e)}/>
+      :<React.Fragment key={i}>{part.text}</React.Fragment>)}
+  </div>;
+}
+
 /* ── 사진 보기 ──
    이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
    사진도 창에 담으면 규칙이 하나로 서고, 창틀이 「이게 무엇인지」도 말해준다.
@@ -22,15 +64,16 @@ function PhotoWin({shot,onClose,onNext}){
   useEffect(()=>{setBack(false)},[key]);   // 딴 사진을 열면 다시 앞면부터
   if(!shot)return null;
   const one=typeof shot==="string";
-  if(!one&&shot.kind==="diary")return <DiaryRecord shot={shot} onClose={onClose}/>;
+  if(!one&&shot.diary)return <DiaryRecord shot={shot} onClose={onClose}/>;
   const src=one?shot:shot.src;
   const label=one?"":shot.label;
   const note=one?"":shot.note;
   /* 뒷면이 있는 것은 엽서 하나다. 누르면 넘어간다 — 뒤집는 단추를 따로
      달지 않는다. 엽서를 뒤집는 데 단추가 필요한 적은 없었다 */
   const flip=one?null:shot.back;
-  const now=back&&flip?flip:src;
-  const fill=(back&&flip?(shot.backFill||[]):(one?[]:(shot.fill||[])))||[];
+  const diary=one?null:shot.diary;
+  const now=diary?diary.src:(back&&flip?flip:src);
+  const fill=diary?[]:(back&&flip?(shot.backFill||[]):(one?[]:(shot.fill||[])))||[];
   return <div className="pvwin" onClick={onClose}>
     <div className="pvframe" onClick={e=>e.stopPropagation()}>
     <ProfileFrame title="photo" onClose={onClose} frameClass="pvdlg" bodyClass="pvframebody">
@@ -40,9 +83,11 @@ function PhotoWin({shot,onClose,onNext}){
             꽉 채우고 높이는 비율대로 따라오므로 사진 상자가 곧 사진이다 —
             여기서 감싸면 퍼센트가 그대로 사진 위에 떨어진다. 설명 칸까지
             같이 감싸면 그만큼 아래로 밀린다 */}
-        <div className="pvshot">
-          <img src={now} alt={label||""}/>
-          {!!fill.length&&<div className="pvfit">
+        <div className={"pvshot"+(diary?" diaryshot":"")}>
+          <img src={diary?av(now):now} alt={diary?"":label||""}/>
+          {diary?<div className="pvfit dpvfit">
+            <DiaryInk kind={diary.kind} entry={diary.entry} values={diary.values} readOnly/>
+          </div>:!!fill.length&&<div className="pvfit">
             {fill.map((f,i)=><span key={i} className="pvfill" style={{left:f.left+"%",top:f.top+"%",
               width:f.w+"%",height:f.h+"%"}}>{f.text}</span>)}
           </div>}
@@ -68,14 +113,12 @@ function PhotoWin({shot,onClose,onNext}){
    generic photo 창 안에 다시 넣으면 2:3 종이가 작아지고 위아래 빈 UI가 붙어
    같은 일기가 전혀 다른 물건처럼 보인다. */
 function DiaryRecord({shot,onClose}){
-  const fill=(shot&&shot.fill)||[];
+  const diary=shot&&shot.diary;
   return <div className="diary diaryrecord" onClick={onClose}>
     <div className="dpage" onClick={e=>e.stopPropagation()}>
-      <img className="dshot" src={av(shot.src)} alt={shot.label||"일기"}/>
-      <div className="dfit">
-        {fill.map((f,i)=><span key={i} className={"dblank "+(f.auto?"dfixed":"dsaved")} style={{
-          left:f.left+"%",top:f.top+"%",width:f.w+"%",height:f.h+"%"
-        }}>{f.text}</span>)}
+      <img className="dshot" src={av(diary.src)} alt=""/>
+      <div className="dfit dinkfit">
+        <DiaryInk kind={diary.kind} entry={diary.entry} values={diary.values} readOnly/>
       </div>
     </div>
     <button className="wbtn go dbtn" onClick={onClose}>덮기 ♡</button>
@@ -99,22 +142,12 @@ function Diary({onDone}){
   const t=v.trim();
   /* 닫히는 동안 한 번 더 눌려서 두 번 저장되는 일이 없게 */
   const done=()=>{if(out||!t)return;setOut(true);saveDiary(t);setTimeout(onDone,420)};
-  /* 사진을 못 읽는 사람에게는 적힌 글을 그대로 읽어준다 */
-  const alt=[DIARY_HEAD,...DIARY_LINES,DIARY_TAIL_A+"□"+DIARY_TAIL_B].join(" ");
   return <div className={"diary"+(out?" out":"")}>
     <div className="dpage">
-      <img className="dshot" src={av(DIARY_IMG)} alt={alt}/>
-      {/* ── 빈칸은 상자가 아니라 **사진**에 앉는다 ──
-          자리를 상자 기준 퍼센트로 잡으면, 화면이 낮아져 사진이 상자 안에서
-          작아지는 순간 칸이 딴 데로 간다. 폰에서 키보드가 올라오면 바로 그
-          일이 났다. 이 겹(fit)이 object-fit:contain과 같은 자리·같은 크기로
-          서고, 빈칸은 그 안에서만 퍼센트를 센다. */}
-      <div className="dfit">
-        <input className="dblank" value={v} autoFocus maxLength={DIARY_MAX}
-          style={{left:DIARY_BOX.left+"%",top:DIARY_BOX.top+"%",
-                  width:DIARY_BOX.w+"%",height:DIARY_BOX.h+"%"}}
-          onChange={e=>setV(e.target.value)}
-          onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();done()}}}/>
+      <img className="dshot" src={av(DIARY_PAPER_IMG)} alt=""/>
+      <div className="dfit dinkfit">
+        <DiaryInk kind="child" values={{why:v}}
+          onChange={(k,value)=>setV(value)} onEnter={done}/>
       </div>
     </div>
     {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
@@ -138,28 +171,22 @@ function MyDiary({entry,gifts,onDone,onClose}){
   const keys=Object.keys(entry.blanks);
   /* 자동 칸은 실제 값의 truthy가 아니라 장의 선언으로 가른다. 선물을 안 줘
      빈 값이어도 gift 칸은 유저가 지어내는 입력칸으로 바뀌지 않는다. */
-  const fixed=new Set(myDiaryAutoKeys(entry));
-  const mine=myDiaryUserKeys(entry);
+  const mine=keys.filter(k=>!myDiarySystemOwned(entry,k));
   const full=mine.every(k=>((v[k]||"").trim()));
-  const done=()=>{if(out||!full)return;setOut(true);saveMyDiary(entry.at,v);setTimeout(onDone,420)};
-  /* 사진을 못 읽는 사람에게는 적힌 글을 그대로 읽어준다 */
-  const alt=myDiaryParts(entry.text).map(p=>p.blank?"□":p.text).join("");
-  const st=b=>({left:b.left+"%",top:b.top+"%",width:b.w+"%",height:b.h+"%"});
+  const done=()=>{if(out||!full)return;
+    const saved=saveMyDiary(entry.at,{...v,...auto});if(!saved)return;
+    setOut(true);setTimeout(onDone,420)};
+  const advance=(k,e)=>{
+    const n=mine[mine.indexOf(k)+1];
+    const el=n&&e.target.closest(".dfit").querySelector(`[data-diary-key="${n}"]`);
+    if(el)el.focus();else done();
+  };
   return <div className={"diary"+(out?" out":"")}>
     <div className="dpage">
-      <img className="dshot" src={av(entry.img)} alt={alt}/>
-      <div className="dfit">
-        {keys.map((k,i)=>fixed.has(k)
-          /* 이미 적힌 글자. 물건 이름이 길면 칸에 맞춰 줄어든다 */
-          ? <span key={k} className="dblank dfixed" style={st(entry.box[k])}>{auto[k]||""}</span>
-          : <input key={k} className="dblank" value={v[k]||""}
-              autoFocus={k===mine[0]} maxLength={entry.blanks[k]}
-              aria-label={`빈칸 ${i+1}`} style={st(entry.box[k])}
-              onChange={e=>setV(o=>({...o,[k]:e.target.value}))}
-              onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing&&e.keyCode!==229){e.preventDefault();
-                const n=mine[mine.indexOf(k)+1];
-                const el=n&&e.target.closest(".dfit").querySelector(`[aria-label="빈칸 ${keys.indexOf(n)+1}"]`);
-                if(el)el.focus(); else done()}}}/>)}
+      <img className="dshot" src={av(MY_DIARY_IMG)} alt=""/>
+      <div className="dfit dinkfit">
+        <DiaryInk kind="current" entry={entry} values={v} auto={auto}
+          onChange={(k,value)=>setV(o=>({...o,[k]:value}))} onEnter={advance}/>
       </div>
     </div>
     <div className="drow">

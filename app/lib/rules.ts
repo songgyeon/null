@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=283";
+const AV_V = "?v=284";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -214,7 +214,7 @@ const sys1Due=store=>{
    맨 앞이 오프닝 방이다. 없으면 null이고, 없는 것은 모르는 것이지
    틀린 것이 아니다 — 부르는 쪽이 「모르면 지금까지대로」로 받는다. */
 
-/* ── 유저의 옛 일기 ──
+/* ── 재언의 옛 일기 ──
    재언 방에 처음 들어가는 순간, 선톡 앞에 한 번. 20년 전 공부방 아이가
    쓴 것이고, 유저는 그걸 읽고 마지막 한 칸을 채운다.
 
@@ -225,11 +225,9 @@ const sys1Due=store=>{
 
    「엄마가 사탕을 줬다」에서 멈춘다. 누구에게 줬는지는 비운다 —
    사탕 삼각형은 어떤 화면도 발설하지 않는다. */
-/* 화면에 그리는 것은 **사진**이다. 줄공책을 CSS로 흉내내던 때가 있었는데,
-   이건 20년 전 물건이고 물건은 흉내내면 물건이 아니게 된다.
-   아래 글은 그 사진에 적힌 정사 원문이다 — 사진을 못 읽는 사람에게 읽어주는
-   글(alt)이자, 이 빈칸이 어떤 문장인지 코드가 아는 자리다. */
-const DIARY_IMG="diary-jaeeon.webp";
+/* 종이의 결·빛·모서리만 사진이다. 본문과 빈칸은 실제 DOM 글자로 그려
+   작성할 때와 CAM에서 다시 볼 때 같은 폰트·같은 줄바꿈을 유지한다. */
+const DIARY_PAPER_IMG="diary-paper-child.webp";
 const DIARY_HEAD="200X.XX.XX";
 const DIARY_LINES=[
   "엄마가 이제 이사를 간다고 공부방을 안 한다고 했다.",
@@ -240,9 +238,6 @@ const DIARY_LINES=[
 const DIARY_TAIL_A="왜냐하면 나는 ";
 const DIARY_TAIL_B="니까.";
 const DIARY_MAX=8;
-/* 빈칸이 사진 위 어디에 앉는지. 사진에 그려진 네모를 실제로 재서 넣은
-   값이다(1024×1536 기준). 눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다. */
-const DIARY_BOX={left:51.56,top:77.41,w:25.98,h:4.62};
 const loadDiary=()=>{try{return localStorage.getItem("null_diary")||""}catch(e){return""}};
 const saveDiary=v=>{try{
   const t=(v||"").toString().trim().slice(0,DIARY_MAX);
@@ -313,65 +308,45 @@ const saveFlash=o=>{try{
    ⚠️ 채운 값은 **어떤 요청에도 안 실린다.** 옛 일기·엽서와 같은 자리다 —
    프롬프트에도, story에도, 페이로드에도 안 간다. 시험이 실제 요청 본문을
    뒤져서 이 값이 안 새는지 잰다. 두 사람이 모르는 것이 이 게임의 뼈다. */
-/* ── 사진 한 장에 한 장 ──
-   옛 일기와 같은 규격이다(1024×1536, 2:3). 글은 사진에 이미 적혀 있고
-   네모도 사진에 그려져 있다 — 화면은 그 네모 안에 커서를 세울 뿐이다.
-   아래 text는 그 사진에 적힌 정사 원문이다. 사진을 못 읽는 사람에게
-   읽어주는 글(alt)이자, 어느 칸이 무슨 뜻인지 코드가 아는 자리다.
-   box는 사진에 그려진 네모를 **실제로 재서** 넣는다(1024×1536 기준).
-   눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다 — 옛 일기에서 그랬다.
-   재는 방법: 선을 쫓지 않고 **둘러싸인 밝은 칸**을 찾는다(바깥 종이를 칠해
-   없앤 뒤 남는 덩어리). 선이 흐린 장에서도 다섯 장 전부 정확히 나왔다.
-
-   blanks의 숫자는 그 네모에 실제로 들어가는 글자 수다. 옛 일기가 폭 25.98%에
-   여덟 자였으므로 한 자에 3.25% — 그 자로 네모 폭을 나눴다. 넉넉히 잡으면
-   글자가 그려진 네모 밖으로 삐져나온다. */
+/* 다섯 장은 같은 빈 바인더 종이를 쓴다(1024×1536, 2:3).
+   blanks의 숫자는 저장할 수 있는 글자 수 계약이다. 화면 좌표가 아니다. */
+const MY_DIARY_IMG="diary-paper-now.webp";
 const MY_DIARY=[
-  {at:25, img:"mydiary-1.webp", text:
+  {at:25, text:
     "오늘 이 선생님과 {talk} 얘기를 나눴다. 이 선생님은 가끔 나를 오래 안 것처럼 "+
     "쳐다본다. 그게 꼭 {feel}다. 강현이한테는 {told} 했는데 강현이는 내가 "+
     "{think}고 생각하는 거 같다. 내일은 {tmr}까? 잘 모르겠다. 나는 여전히 빈칸이다.",
-   blanks:{talk:6,feel:7,told:7,think:6,tmr:7},
-   box:{talk:{left:46.58,top:22.66,w:19.14,h:3.84},feel:{left:49.51,top:35.29,w:22.36,h:3.65},
-        told:{left:40.33,top:44.40,w:21.88,h:3.78},think:{left:42.09,top:50.20,w:18.46,h:3.45},
-        tmr:{left:30.86,top:58.72,w:23.73,h:3.71}}},
-  {at:20, img:"mydiary-2.webp", text:
+   blanks:{talk:6,feel:7,told:7,think:6,tmr:7}},
+  {at:20, text:
     "어쩌면 이 선생님은 나를 {know}도 모른다. 그게 나에게는 {feel}다. "+
     "강현이와 이 선생님 사이에서 나는 {between}다. 오늘은 강현이가 {like}처럼 "+
     "느껴졌다. 앞으로 어떻게 해야 할까. 아직은 더 채워야겠다.",
-   blanks:{know:8,feel:11,between:13,like:15},
-   box:{know:{left:53.22,top:20.57,w:25.00,h:4.95},feel:{left:41.31,top:29.82,w:34.38,h:4.49},
-        between:{left:27.34,top:46.09,w:43.26,h:4.82},like:{left:19.92,top:62.63,w:47.85,h:4.88}}},
+   blanks:{know:8,feel:11,between:13,like:15}},
   /* 두 칸은 코드가 안다 — 실제로 준 물건이다. 유저가 쓰는 것은 물건이 아니라
      **이유**다. 일기가 거울이 되는 자리라 여기만 자동이 섞인다.
      안 준 사람 칸은 그냥 빈칸으로 둔다 — 없는 선물을 지어내지 않는다. */
-  {at:14, img:"mydiary-3.webp", text:
+  {at:14, text:
     "내가 채운 빈칸들이 나에게 돌아오고 있다. 내가 강현이에게 {giftK}를 준 이유는 "+
     "정말 {whyK}뿐이었을까? 이 선생님에게 {giftJ}를 줬던 건 {whyJ}만은 아니었던 "+
     "것 같다. 나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
    blanks:{giftK:5,whyK:14,giftJ:5,whyJ:19,want:9,even:13},
-   auto:{giftK:"minhyun",giftJ:"jaeeon"},
-   box:{giftK:{left:45.51,top:28.84,w:16.11,h:3.78},whyK:{left:28.61,top:35.68,w:45.12,h:4.82},
-        giftJ:{left:41.99,top:46.29,w:16.70,h:3.84},whyJ:{left:19.92,top:52.67,w:60.35,h:5.34},
-        want:{left:44.82,top:66.41,w:28.12,h:4.30},even:{left:27.83,top:73.96,w:41.31,h:5.08}}},
-  {at:7, img:"mydiary-4.webp", text:
+   auto:{giftK:"minhyun",giftJ:"jaeeon"}},
+  {at:7, text:
     "이제는 내가 누구인지 {decide}해야 할 때가 온 거 같다. 두 사람을 언제까지고 "+
     "{keep} 할 수는 없다. 강현이도, 이 선생님도 전부 나에게는 {both}다. "+
     "지금의 나에게는 내 {mine}보다 두 사람의 {theirs} 더 {more}다.",
-   blanks:{decide:5,keep:11,both:10,mine:6,theirs:4,more:8},
-   box:{decide:{left:51.95,top:23.11,w:14.84,h:4.04},keep:{left:50.78,top:36.46,w:34.96,h:4.10},
-        both:{left:21.00,top:54.95,w:31.64,h:3.91},mine:{left:49.90,top:63.80,w:19.04,h:3.78},
-        theirs:{left:35.35,top:69.99,w:14.36,h:3.91},more:{left:57.23,top:70.18,w:25.20,h:3.91}}},
+   blanks:{decide:5,keep:11,both:10,mine:6,theirs:4,more:8}},
   /* 마지막은 두 칸이다. 여기까지 온 사람에게 더 물을 것이 없다 */
-  {at:1, img:"mydiary-5.webp", text:"{last}. 나는 정말 {who}일까?",
-   blanks:{last:7,who:7},
-   box:{last:{left:25.78,top:39.45,w:21.58,h:4.10},who:{left:44.53,top:49.15,w:23.73,h:3.97}}},
+  {at:1, text:"{last}. 나는 정말 {who}일까?",blanks:{last:7,who:7}},
 ];
 /* 글에서 칸을 뽑아 조각으로 가른다. 화면도 시험도 이 하나를 쓴다 —
    글과 칸 차례를 두 군데서 세면 언젠가 어긋난다. */
 const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
   .filter(x=>x!=="").map(x=>/^\{[a-zA-Z]+\}$/.test(x)
     ? {blank:x.slice(1,-1)} : {text:x});
+/* 자동 칸의 소유권은 값이 아니라 장의 auto 선언이 정한다. */
+const myDiarySystemOwned=(entry,key)=>Object.prototype.hasOwnProperty.call(
+  ((entry||{}).auto)||{},key);
 /* 자동으로 채워지는 칸의 값 — 그 사람에게 실제로 준 것 중 마지막 하나.
    안 줬으면 빈 문자열인 시스템 고정 칸으로 남는다. */
 const myDiaryAuto=(entry,gifts)=>{
@@ -390,15 +365,21 @@ const myDiaryUserKeys=entry=>{
   const auto=new Set(myDiaryAutoKeys(entry));
   return Object.keys((entry||{}).blanks||{}).filter(k=>!auto.has(k));
 };
+const MY_DIARY_SCHEMA_KEY="null_mydiary_schema";
+const MY_DIARY_SCHEMA="font-d1-v1";
+const MY_DIARY_LEGACY_KEY="null_mydiary_legacy_d0";
 const loadMyDiary=()=>{try{
   const v=JSON.parse(localStorage.getItem("null_mydiary"));
   if(!v||typeof v!=="object"||Array.isArray(v))return{};
-  /* 마지막 장은 처음에 D-0이었다. 새 정본의 D-1로 옮기되 이미 쓴 두 칸은
-     그대로 든다. 새 키가 함께 있는 비정상 중복 저장은 어느 쪽도 버리지 않는다. */
-  if(Object.prototype.hasOwnProperty.call(v,"0")
-    && !Object.prototype.hasOwnProperty.call(v,"1")){
-    const next={...v,1:v[0]}; delete next[0];
-    try{localStorage.setItem("null_mydiary",JSON.stringify(next))}catch(e){}
+  /* 사진판 v283이 D-0 값을 D-1 완료로 잘못 옮겨 새 D-1을 숨겼다.
+     기존 값은 별도 보관하고 현재 D-1은 다시 쓸 수 있게 연다. */
+  if(localStorage.getItem(MY_DIARY_SCHEMA_KEY)!==MY_DIARY_SCHEMA){
+    const legacy=Object.prototype.hasOwnProperty.call(v,"0")?v[0]:v[1];
+    if(legacy&&!localStorage.getItem(MY_DIARY_LEGACY_KEY))
+      localStorage.setItem(MY_DIARY_LEGACY_KEY,JSON.stringify(legacy));
+    const next={...v};delete next[0];delete next[1];
+    localStorage.setItem("null_mydiary",JSON.stringify(next));
+    localStorage.setItem(MY_DIARY_SCHEMA_KEY,MY_DIARY_SCHEMA);
     return next;
   }
   return v;
@@ -421,6 +402,7 @@ const saveMyDiary=(at,vals)=>{try{
   }
   const all={...loadMyDiary(),[at]:out};
   localStorage.setItem("null_mydiary",JSON.stringify(all));
+  localStorage.setItem(MY_DIARY_SCHEMA_KEY,MY_DIARY_SCHEMA);
   return loadMyDiary()[at]||null;
 }catch(e){return null}};
 /* 지금 열려 있는 장. 눈금을 지났고 아직 안 쓴 것 중 **가장 늦은** 것 하나다.
@@ -440,21 +422,20 @@ const myDiaryOpen=left=>{
 
    빈칸 값은 여전히 기기 밖으로 안 나간다. 여기서 하는 일은 이미 저장돼
    있는 값을 사진 위 제자리에 얹어 보여주는 것뿐이다. */
-const userPics=name=>{
+const userPics=(name,giftsOverride)=>{
   const out=[];
   const d=loadDiary();
-  if(d)out.push({src:DIARY_IMG,kind:"diary",label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
-    fill:[{...DIARY_BOX,text:d}]});
+  if(d)out.push({src:DIARY_PAPER_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
+    diary:{kind:"child",src:DIARY_PAPER_IMG,values:{why:d}}});
   /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동으로 찬 칸도 같이
      얹는다: 화면에서 본 그대로여야 한다 */
-  const md=loadMyDiary(), gf=loadGifts();
+  const md=loadMyDiary();
   for(const e of MY_DIARY){
     const w=md[e.at]; if(!w)continue;
-    const auto=myDiaryAuto(e,gf);
-    out.push({src:e.img,kind:"diary",label:`D-${e.at}`,
-      /* 저장 당시의 값이 정본이다. 빈 자동 칸도 이후 선물로 소급해 채우지 않는다. */
-      fill:Object.keys(e.blanks).map(k=>({...e.box[k],auto:Object.prototype.hasOwnProperty.call(e.auto||{},k),text:
-        Object.prototype.hasOwnProperty.call(w,k)?w[k]:(auto[k]||"")}))});
+    out.push({src:MY_DIARY_IMG,label:`D-${e.at}`,
+      diary:{kind:"current",src:MY_DIARY_IMG,entry:e,
+        values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,
+          Object.prototype.hasOwnProperty.call(w,k)?String(w[k]??""):""]))}});
   }
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
@@ -567,7 +548,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=283";
+const AV="?v=284";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -2115,13 +2096,12 @@ return {
   loadExtend,
   SYS1_AFTER,
   sys1Due,
-  DIARY_IMG,
+  DIARY_PAPER_IMG,
   DIARY_HEAD,
   DIARY_LINES,
   DIARY_TAIL_A,
   DIARY_TAIL_B,
   DIARY_MAX,
-  DIARY_BOX,
   loadDiary,
   saveDiary,
   FLASH_FRONT,
@@ -2135,11 +2115,16 @@ return {
   FLASH_TURN,
   loadFlash,
   saveFlash,
+  MY_DIARY_IMG,
   MY_DIARY,
   myDiaryParts,
+  myDiarySystemOwned,
   myDiaryAuto,
   myDiaryAutoKeys,
   myDiaryUserKeys,
+  MY_DIARY_SCHEMA_KEY,
+  MY_DIARY_SCHEMA,
+  MY_DIARY_LEGACY_KEY,
   loadMyDiary,
   saveMyDiary,
   myDiaryOpen,
@@ -2430,13 +2415,12 @@ export const {
   loadExtend,
   SYS1_AFTER,
   sys1Due,
-  DIARY_IMG,
+  DIARY_PAPER_IMG,
   DIARY_HEAD,
   DIARY_LINES,
   DIARY_TAIL_A,
   DIARY_TAIL_B,
   DIARY_MAX,
-  DIARY_BOX,
   loadDiary,
   saveDiary,
   FLASH_FRONT,
@@ -2450,11 +2434,16 @@ export const {
   FLASH_TURN,
   loadFlash,
   saveFlash,
+  MY_DIARY_IMG,
   MY_DIARY,
   myDiaryParts,
+  myDiarySystemOwned,
   myDiaryAuto,
   myDiaryAutoKeys,
   myDiaryUserKeys,
+  MY_DIARY_SCHEMA_KEY,
+  MY_DIARY_SCHEMA,
+  MY_DIARY_LEGACY_KEY,
   loadMyDiary,
   saveMyDiary,
   myDiaryOpen,
