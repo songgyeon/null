@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, Image, Modal,
   ImageBackground, Animated, Easing, StyleSheet, Dimensions, StatusBar,
-  Platform, Share, BackHandler, Keyboard, AppState, useWindowDimensions, ImageStyle,
+  Platform, Share, BackHandler, Keyboard, useWindowDimensions, ImageStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
@@ -18,11 +18,9 @@ import { currentStage, PROFILES, TRACKS, TRACK_INFO, MAIN_TRACK,
 import { useAudioPlayer } from 'expo-audio';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { hydrateShim, resetShim, flushShim, flushShimKey, restoreShimKey } from './lib/shim';
+import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog,
-  DiaryPage, MyDiaryPage, DiaryPreviewInk, FortuneDialog, diaryPaperSource,
-  PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    scripts/data/*.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -38,18 +36,14 @@ import {
   giftedToday, stampGift, loadGroupOn, saveGroupOn, groupReady, roomsOn,
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
   talkedEnoughIn, applyStoryTransition, markPartnerKnown, markSchoolMet, isSchoolPlace, atWorkNow,
-  loadDiary, saveDiary, saveMyDiary, myDiaryOpen,
-  openingFor, canGreet, asleep, allAsleep, bothAwake, setWorldAt, leaveTsOf,
-  startAccessClock, touchAccessClock,
-  stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  loadDiary, saveDiary,
+  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, setWorldAt, leaveTsOf, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
   readAutoQueue, pushAutoBatch, runAutoQueue,
   roomLock, loadGetcha, saveGetcha,
-  headInvite, pushInvite, shiftInvite,
   HID_MAX, hidMask, hidGuess, GIFT_WISH_MAX, GIFT_NOTE_A, GIFT_NOTE_B, giftNote, userPics,
   kissNext, saveKissSeen, KISS_RISE, KISS_HOLD, KISS_OUT,
-  ensureFortuneForToday, fortuneNeedsAutoOpen, markFortuneSeen, revealFortuneForToday,
 } from './lib/rules';
 
 /* 갤러리는 규칙 파일의 CHARS에서 뽑는다 — 앨범이 웹과 어긋나지 않게 */
@@ -73,8 +67,7 @@ const F = { fontFamily:'Galmuri11' } as const; // 픽셀 폰트 — 모든 Text�
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
 type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun';at:number;day:number;note?:string};
-type GalleryZoom={uri:string;label?:string;note?:string;back?:string;
-  fill?:any[];backFill?:any[];diary?:any};
+type GalleryZoom={uri:string;label?:string;note?:string};
 
 /* ── 데모 모드 ──
    대사와 매칭은 lib/demoLines.ts에 있다. 그 파일은 docs/dialogue-corpus.md에서
@@ -220,9 +213,8 @@ function HardShadow({children,dx=2,dy=2,color='rgba(138,127,192,.28)',radius=8,s
 }
 
 // 베벨 버튼: 위/왼쪽 밝음 + 아래/오른쪽 음영, 누르면 반전 + 1px 밀림
-function Bevel({onPress,disabled,style,inner,children,hitSlop}:any) {
-  return <Pressable onPress={onPress} disabled={disabled}
-    hitSlop={hitSlop||{top:8,bottom:8,left:8,right:8}}
+function Bevel({onPress,disabled,style,inner,children}:any) {
+  return <Pressable onPress={onPress} disabled={disabled} hitSlop={{top:8,bottom:8,left:8,right:8}}
     style={[bv.outer,disabled&&{opacity:.45},style]}>
     {({pressed})=><>
       <View pointerEvents="none" style={bv.shadow}/>
@@ -285,18 +277,22 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
 /* 같은 말을 두 번 하지 않는다 — 바로 앞 화면(Intro)이 전체 화면으로 그 말을
    하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 웹의 .etb와 같은 자리다. */
 function EnrTitle(){ return <Text style={en.tbT}>NULL.exe</Text>; }
-function Enroll({name,profile,onSaveField,onRename,onDone}:{
+function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   name:string; profile:Record<string,string>;
   onSaveField:(k:string,v:string)=>void; onRename:(n:string)=>void; onDone:()=>void;
+  mode:string; onMode:(m:string)=>void;
 }) {
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
   const [edit,setEdit]=useState(false);
+  /* 모드는 물어보고 바꾼다. 지금 켜진 걸 눌러도 창은 뜬다 —
+     무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
+  const [askMode,setAskMode]=useState('');
   const [nv,setNv]=useState(name||'');
   useEffect(()=>setNv(name||''),[name,edit]);
   const saveName=()=>{setEdit(false);const t=nv.trim();if(t&&t!==name)onRename(t)};
-  // 빈칸 넷 + DAYS LEFT 한 줄
-  const rows = useRef(Array.from({length:ENR_FIELDS.length+1},()=>new Animated.Value(0))).current;
+  // 빈칸 넷 + MODE 한 줄 + DAYS LEFT 한 줄
+  const rows = useRef(Array.from({length:ENR_FIELDS.length+2},()=>new Animated.Value(0))).current;
   const fade = useRef(new Animated.Value(0)).current;
   const kb   = useKeyboardHeight();
   useEffect(()=>{
@@ -336,8 +332,20 @@ function Enroll({name,profile,onSaveField,onRename,onDone}:{
                  onEndEditing={e=>onSaveField(f.k,e.nativeEvent.text.trim())}/>}
             <Text style={en.rowT}>{f.tail}</Text>
           </Animated.View>)}
-        {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
+        {/* ── 이 판을 어떻게 살 것인가 ── 웹의 .emode와 같은 자리·같은 글월.
+            중간에 바꾸면 D-N이 튀므로 판마다 한 번이다. */}
         <Animated.View style={[en.row,anim(rows[4])]}>
+          <Text style={en.rowL}>MODE</Text>
+          <View style={en.mode}>
+            {['real','speed'].map(k=>
+              <TouchableOpacity key={k} activeOpacity={.8} onPress={()=>setAskMode(k)}
+                style={[en.modeB,mode===k&&en.modeBOn]}>
+                <Text style={[en.modeT,mode===k&&en.modeTOn]}>{k}</Text>
+              </TouchableOpacity>)}
+          </View>
+        </Animated.View>
+        {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
+        <Animated.View style={[en.row,anim(rows[5])]}>
           <Text style={en.rowL}>DAYS LEFT</Text><Text style={en.nullv}>null</Text>
         </Animated.View>
         <View style={en.bar}><View style={[en.fill,{width:pct(filled/ENR_FIELDS.length*100)}]}/></View>
@@ -348,6 +356,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone}:{
           <Text style={en.goT}>Click!</Text></TouchableOpacity>
       </View>
     </View>
+    {!!askMode&&<ModeDialog which={askMode}
+      onYes={()=>{onMode(askMode);setAskMode('')}} onNo={()=>setAskMode('')}/>}
   </Animated.View>;
 }
 /* ── 세계 확정 ── 웹의 Confirm과 같은 그림, 즉 「[NULL] 상태」 창의 동생이다.
@@ -739,7 +749,7 @@ const sp=StyleSheet.create({
 
 // ═══ 장바구니 — 검색 → 아이템 → 받는 사람 + 쪽지 ═══
 // 웹(index.html)의 Cart와 같은 흐름. 아이콘만 SVG가 아니라 이모지다.
-function CartScreen({gifts,hearts,onSend,onBack,keyboardHeight=0}:any) {
+function CartScreen({gifts,hearts,onSend,onBack}:any) {
   const [q,setQ]=useState('');
   const [cat,setCat]=useState('전체');
   const [pick,setPick]=useState<any>(null);
@@ -753,9 +763,7 @@ function CartScreen({gifts,hearts,onSend,onBack,keyboardHeight=0}:any) {
   const back=()=>{ if(pick){setPick(null);setTo(null);setMemo('')} else onBack(); };
   const poor=pick&&hearts<pick.cost;
 
-  /* edge-to-edge Android에서는 IME가 창 위에 얹힌다. 아래 쪽지 칸도 채팅
-     입력바처럼 실제 가림 높이만큼 화면 안으로 들어와야 끝까지 스크롤된다. */
-  return <View style={{flex:1,backgroundColor:'#fdf6fb',paddingBottom:keyboardHeight}}>
+  return <View style={{flex:1,backgroundColor:'#fdf6fb'}}>
     <TB colors={[P.pink,P.lav]}>
       <Text style={tbT}>✿ gift{pick?' / wrap':''}</Text><Dots onClose={onBack}/></TB>
 
@@ -1083,7 +1091,7 @@ function Marquee({text,bare}:{text:string;bare?:boolean}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,onFortune,demo,hearts,name,gifts,met,groupOn,onGoPlace,onPlate,onGuess,onBlockingChange,keyboardHeight=0}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,met,groupOn,onGoPlace,onPlate,onGuess}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   /* 단톡방은 강현이 나중에 판다 — 그전까지는 없는 방이다 */
@@ -1091,69 +1099,42 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
   const t0=new Date(); t0.setHours(0,0,0,0);
   const todayN=allMsgs.filter((m:any)=>(m.created_at||0)>=t0.getTime()).length;
   const totalN=allMsgs.length;
-  const minePics=userPics(name,gifts);
   const [tab,setTab]=useState<'rooms'|'map'|'cam'|'hidden'>('rooms');
   const [zoom,setZoom]=useState<GalleryZoom|null>(null);
   /* ⑥ 지금 커서가 서 있는 잠긴 칸. 한 번에 하나만 선다 */
   const [guess,setGuess]=useState<string|null>(null);
   const [typed,setTyped]=useState('');
   useEffect(()=>{setGuess(null);setTyped('')},[tab]);   // 탭을 옮기면 커서도 접는다
-  /* 이 둘은 목록 안에만 사는 상태라 Root의 운세 effect가 직접 볼 수 없다.
-     값은 여기에 둔 채, 지금 다른 화면을 덮고 있는지만 위로 알린다. */
-  useEffect(()=>{onBlockingChange?.(!!zoom||!!guess)},[zoom,guess,onBlockingChange]);
-  useEffect(()=>()=>onBlockingChange?.(false),[onBlockingChange]);
   const [now,setNow]=useState(Date.now());
-  const {width:viewportWidth,fontScale}=useWindowDimensions();
-  /* 운세 도구까지 일곱 항목이다. 기본 간격은 약 420px를 쓰므로 430 이하는
-     작은 간격으로 접어 320·360·390·412px Android에서 가로로 밀리지 않게 한다. */
-  const tightMenu=viewportWidth<=430;
-  /* Android 큰 글자에서도 일곱 항목을 한 줄에 우겨 잘라내지 않는다. 평소에는
-     원래 한 줄, 좁은 화면+큰 글자일 때만 링크와 도구를 두 줄로 나눈다. */
-  const splitMenu=tightMenu&&fontScale>=1.15;
-  /* 탭은 운세 메뉴와 별개다. 큰 글자에서 네 칸을 1행에 밀어 넣으면 마지막
-     .hidden이 화면 밖으로 나가므로 두 칸씩 놓아 글자 크기를 보존한다. */
-  const wrapTabs=tightMenu&&fontScale>=1.2;
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[]);
   const left=Math.max(0,(autoAt||0)+AUTO_COOL-now);
   const un0=Object.values(unread||{}).reduce((a:any,b:any)=>a+(b||0),0) as number;
   return <ImageBackground source={{uri:IMG+'bg-wallpaper.webp'}} style={{flex:1}} resizeMode="cover">
-    <View style={{flex:1,backgroundColor:'rgba(255,255,255,.35)',paddingBottom:keyboardHeight}}>
+    <View style={{flex:1,backgroundColor:'rgba(255,255,255,.35)'}}>
       <Sparkles/>
       <TB colors={[P.pink,P.lav]}><Text style={tbT}>✦ NULL messenger</Text><Dots/></TB>
-      <View style={[rl.menu,tightMenu&&rl.menuTight,splitMenu&&rl.menuSplit]}>
-        <View style={[rl.menuLinks,tightMenu&&rl.menuLinksTight,splitMenu&&rl.menuLine]}>
-          {['you','file','chat','etc.'].map(m=>
-            <TouchableOpacity key={m} onPress={()=>onMenu(m)}
-              hitSlop={{top:10,bottom:10,left:tightMenu?2:6,right:tightMenu?2:6}}
-              style={{paddingVertical:6,paddingHorizontal:tightMenu?2:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
-        </View>
-        <View style={[rl.menuTools,splitMenu&&rl.menuLine]}>
+      <View style={rl.menu}>
+        {['you','file','chat','etc.'].map(m=>
+          <TouchableOpacity key={m} onPress={()=>onMenu(m)} hitSlop={{top:10,bottom:10,left:6,right:6}}
+            style={{paddingVertical:6,paddingHorizontal:4}}><Text style={rl.mi}>{m}</Text></TouchableOpacity>)}
         {/* 🎁 선물은 메뉴 항목이다 — 버튼은 peek 하나뿐이어야 그게 특별한
             동작으로 보인다. 메뉴바는 조용해야 한다. */}
-        <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:2,right:2}}
-          style={{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:tightMenu?4:6}}>
+        <TouchableOpacity onPress={onCart} hitSlop={{top:10,bottom:10,left:6,right:6}}
+          style={{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4,paddingVertical:6,paddingHorizontal:6}}>
           <Text style={{fontSize:12}}>🎁</Text><Text style={rl.mi}>gift</Text></TouchableOpacity>
-        {/* 실제 달력 날짜의 오늘 운세. 닫은 뒤에도 이 작은 도구로 같은 장을 다시 연다. */}
-        <Bevel hitSlop={{top:8,bottom:8,left:2,right:2}}
-          style={{minWidth:tightMenu?52:60,height:30,marginLeft:tightMenu?0:4}}
-          inner={{flexDirection:'row',gap:3,paddingHorizontal:tightMenu?5:7}} onPress={onFortune}>
-          <Text style={{fontSize:11}}>🍀</Text><Text style={rl.fortune}>운세</Text></Bevel>
-        <Bevel hitSlop={{top:8,bottom:8,left:2,right:2}}
-          style={{minWidth:tightMenu?66:86,height:30,marginLeft:tightMenu?0:6}}
-          inner={{flexDirection:'row',gap:5,paddingHorizontal:tightMenu?5:8}}
+        <Bevel style={{minWidth:86,height:30,marginLeft:6}} inner={{flexDirection:'row',gap:5,paddingHorizontal:8}}
           onPress={()=>{ if(autoLoading)return;
             if(left>0){onToast('too soon · '+mmss(left));return}
             onAuto(); }}>
           <Image source={MOON_PNG} style={{width:13,height:13,tintColor:left>0?'#b0a6d8':'#6b5fa8'}}/>
           <Text style={rl.peek}>{autoLoading?'...':left>0?mmss(left):'peek'}</Text></Bevel>
-        </View>
       </View>
       <Marquee text={`✧ welcome 2 NULL ✧    the blank u fill in    ✦    ${un0>0?`you have (${un0}) new message`:'no new message'}    ♡    since 2026    `}/>
-      <View style={[rl.tabs,wrapTabs&&rl.tabsWrap]}>
-        <TouchableOpacity style={[tab==='rooms'?rl.tabOn:rl.tab,wrapTabs&&rl.tabWrap]} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms ({roomsOn(groupOn).length})</Text></TouchableOpacity>
-        <TouchableOpacity style={[tab==='map'?rl.tabOn:rl.tab,wrapTabs&&rl.tabWrap]} onPress={()=>setTab('map')}><Text style={tab==='map'?rl.tabOnT:rl.tabT}>map</Text></TouchableOpacity>
-        <TouchableOpacity style={[tab==='cam'?rl.tabOn:rl.tab,wrapTabs&&rl.tabWrap]} onPress={()=>setTab('cam')}><Text style={tab==='cam'?rl.tabOnT:rl.tabT}>cam</Text></TouchableOpacity>
-        <TouchableOpacity style={[tab==='hidden'?rl.tabOn:rl.tab,wrapTabs&&rl.tabWrap]} onPress={()=>setTab('hidden')}><Text style={[tab==='hidden'?rl.tabOnT:rl.tabT,tab!=='hidden'&&{color:'#8f86c9'}]}>.hidden</Text></TouchableOpacity>
+      <View style={rl.tabs}>
+        <TouchableOpacity style={tab==='rooms'?rl.tabOn:rl.tab} onPress={()=>setTab('rooms')}><Text style={tab==='rooms'?rl.tabOnT:rl.tabT}>rooms ({roomsOn(groupOn).length})</Text></TouchableOpacity>
+        <TouchableOpacity style={tab==='map'?rl.tabOn:rl.tab} onPress={()=>setTab('map')}><Text style={tab==='map'?rl.tabOnT:rl.tabT}>map</Text></TouchableOpacity>
+        <TouchableOpacity style={tab==='cam'?rl.tabOn:rl.tab} onPress={()=>setTab('cam')}><Text style={tab==='cam'?rl.tabOnT:rl.tabT}>cam</Text></TouchableOpacity>
+        <TouchableOpacity style={tab==='hidden'?rl.tabOn:rl.tab} onPress={()=>setTab('hidden')}><Text style={[tab==='hidden'?rl.tabOnT:rl.tabT,tab!=='hidden'&&{color:'#8f86c9'}]}>.hidden</Text></TouchableOpacity>
       </View>
       {/* padding을 ScrollView 자체 style에 주면 스크롤 프레임이 패딩되어 내용 끝이
           잘린다(.hidden 안내문이 끝까지 내려도 반쯤 잘리던 원인). 여백은 반드시
@@ -1184,26 +1165,19 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             })}
             {/* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
                 자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */}
-            {(()=>{ const mine=minePics; if(!mine.length)return null;
+            {(()=>{ const mine=userPics(name); if(!mine.length)return null;
               return <React.Fragment key="__me">
                 <Text style={[rl.sect,{color:'#8f7ccb'}]}>✧ {name||'당신'} · {mine.length} pics</Text>
                 <View style={rl.galgrid}>
-                  {mine.map((m:any)=><TouchableOpacity key={`${m.label}:${m.src}`} style={rl.galcell}
-                    accessibilityRole="button" accessibilityLabel={`${m.label} 펼쳐 보기`}
+                  {mine.map((m:any)=><TouchableOpacity key={m.src} style={rl.galcell}
                     onPress={()=>setZoom({uri:IMG+m.src, label:m.label,
                       ...(m.back?{back:IMG+m.back}:{}), ...(m.fill?{fill:m.fill}:{}),
-                      ...(m.backFill?{backFill:m.backFill}:{}),
-                      ...(m.diary?{diary:{...m.diary}}:{})})}>
-                    <Image source={m.diary?diaryPaperSource(m.src):{uri:IMG+m.src}}
-                      style={rl.galimg} resizeMode="cover"/>
-                    {!!m.diary && <DiaryPreviewInk diary={m.diary} compact/>}
-                    {!!m.diary && <View pointerEvents="none" style={rl.diaryThumbLabel}>
-                      <Text style={rl.diaryThumbLabelT}>{m.label}</Text>
-                    </View>}
+                      ...(m.backFill?{backFill:m.backFill}:{})})}>
+                    <Image source={{uri:IMG+m.src}} style={rl.galimg} resizeMode="cover"/>
                   </TouchableOpacity>)}
                 </View>
               </React.Fragment>; })()}
-            {!album.size&&!minePics.length&&<View style={{paddingVertical:70,alignItems:'center'}}>
+            {!album.size&&<View style={{paddingVertical:70,alignItems:'center'}}>
               <Text style={{...F,fontSize:13,color:'#ff8fbe',marginBottom:8}}>✧ ✦ ✧</Text>
               <Text style={ch.empty}>nothing here yet{'\n'}whatever they send lands here</Text>
             </View>}
@@ -1346,7 +1320,6 @@ const rl=StyleSheet.create({
   hompySp:{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:5,opacity:.9},
   hompyIco:{...F,fontSize:11},
   peek:{...F,fontSize:10,color:P.ink,letterSpacing:.5},
-  fortune:{...F,fontSize:9.5,color:'#66547d',letterSpacing:.2},
   pres:{flexDirection:'row',alignItems:'center',gap:4},
   presDot:{width:6,height:6,borderRadius:3},
   presT:{...F,fontSize:8.5,color:'#a79cd0'},
@@ -1358,27 +1331,15 @@ const rl=StyleSheet.create({
   progBar:{flex:1,height:5,backgroundColor:'#e6e0f6',borderWidth:1,borderColor:'#cfc6ee'},
   progFill:{height:'100%',backgroundColor:'#c3b2f0'},
   progN:{...F,fontSize:8.5,color:'#8a7fc0'},
-  menu:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',gap:12,paddingHorizontal:11,paddingVertical:3,backgroundColor:'rgba(240,236,252,.78)',borderBottomWidth:1,borderBottomColor:'#c5bce8'},
-  menuTight:{gap:4,paddingHorizontal:6},
-  menuSplit:{rowGap:0},
-  menuLinks:{flexDirection:'row',alignItems:'center',gap:12},
-  menuLinksTight:{gap:4},
-  menuTools:{marginLeft:'auto',flexDirection:'row',alignItems:'center',gap:4},
-  menuLine:{width:'100%',justifyContent:'space-around',marginLeft:0},
+  menu:{flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:11,paddingVertical:3,backgroundColor:'rgba(240,236,252,.78)',borderBottomWidth:1,borderBottomColor:'#c5bce8'},
   mi:{...F,fontSize:11,color:'#6b5fa8'},
   tabs:{flexDirection:'row',gap:4,paddingHorizontal:12,paddingTop:9},
-  tabsWrap:{flexWrap:'wrap'},
-  tabWrap:{flexBasis:'48%',flexGrow:1,alignItems:'center',paddingHorizontal:8},
   tabOn:{paddingHorizontal:13,paddingVertical:6,backgroundColor:'#fff',borderWidth:1,borderColor:P.mid,borderBottomWidth:0,borderTopLeftRadius:7,borderTopRightRadius:7},
   tab:{paddingHorizontal:13,paddingVertical:6,backgroundColor:'rgba(226,220,246,.85)',borderWidth:1,borderColor:P.mid,borderBottomWidth:0,borderTopLeftRadius:7,borderTopRightRadius:7},
   tabOnT:{...F,fontSize:11,color:P.ink}, tabT:{...F,fontSize:11,color:P.mid},
   galgrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',marginBottom:6},
   galcell:{width:'48.6%',aspectRatio:2/3,marginBottom:8,borderRadius:5,borderWidth:1,borderColor:'#cfc6ee',overflow:'hidden',backgroundColor:'#efeaf9'},
   galimg:{width:'100%',height:'100%'},
-  diaryThumbLabel:{position:'absolute',right:5,bottom:5,paddingVertical:2,paddingHorizontal:5,
-    borderRadius:9,backgroundColor:'rgba(255,248,253,.88)',borderWidth:1,
-    borderColor:'rgba(170,139,190,.3)'},
-  diaryThumbLabelT:{...F,fontSize:7,letterSpacing:.5,color:'#67577b'},
   lb:{flex:1,backgroundColor:'rgba(43,36,78,.85)',justifyContent:'center',alignItems:'center',padding:22},
   lbCard:{width:'100%',height:'90%',justifyContent:'center',alignItems:'center'},
   lbImg:{width:'100%',flex:1},
@@ -1428,22 +1389,11 @@ const rl=StyleSheet.create({
 function useKeyboardHeight() {
   const [kbd,setKbd]=useState({h:0,top:0});
   const win=useWindowDimensions();
-  const full=useRef({width:win.width,height:win.height});
-  const kbdRef=useRef(kbd); kbdRef.current=kbd;
+  const full=useRef(win.height);
   /* 키보드가 닫혀 있을 때의 창 높이를 기준으로 잡아둔다.
      창을 줄이는 모드(adjustResize)에서는 이미 그만큼 밀려 있으므로
-     키보드가 가린 만큼에서 줄어든 몫을 빼야 두 번 밀리지 않는다.
-     폭이 바뀐 것은 IME resize가 아니라 회전/창 resize이므로 즉시 새 기준을
-     세운다. 높이만 바뀐 창은 keyboardDidShow보다 늦게 확정해 둘을 구별한다. */
-  if (kbd.h===0 && Math.abs(win.width-full.current.width)>1)
-    full.current={width:win.width,height:win.height};
-  useEffect(()=>{
-    if(kbd.h!==0)return;
-    const t=setTimeout(()=>{
-      if(kbdRef.current.h===0)full.current={width:win.width,height:win.height};
-    },350);
-    return()=>clearTimeout(t);
-  },[kbd.h,win.width,win.height]);
+     키보드가 가린 만큼에서 줄어든 몫을 빼야 두 번 밀리지 않는다. */
+  if (kbd.h === 0 && win.height > full.current) full.current = win.height;
   useEffect(()=>{
     const ios=Platform.OS==='ios';
     const show=Keyboard.addListener(ios?'keyboardWillShow':'keyboardDidShow',
@@ -1459,10 +1409,7 @@ function useKeyboardHeight() {
   const scrH = Dimensions.get('screen').height;
   const byTop = kbd.top > 0 ? Math.max(0, scrH - kbd.top) : 0;
   const covered = kbd.h === 0 ? 0 : Math.max(kbd.h, byTop);
-  /* 키보드가 열린 채 폭이 바뀌면 옛 방향의 높이를 빼지 않는다. 새 방향에서
-     한 번 더 올리는 편이 입력창을 화면 밖 IME 아래에 두는 것보다 안전하다. */
-  const sameWidth=Math.abs(win.width-full.current.width)<=1;
-  const shrank = sameWidth ? Math.max(0, full.current.height - win.height) : 0;
+  const shrank = Math.max(0, full.current - win.height);
   return covered === 0 ? 0 : Math.max(0, covered - shrank);
 }
 
@@ -1655,22 +1602,10 @@ export default function App() {
 function Root() {
   const insets=useSafeAreaInsets();
   const kbRoot=useKeyboardHeight();
-  /* 사진 확대·.hidden 이름 입력은 RoomList 안에 남긴다. 운세 effect가 양보할
-     수 있도록 덮개가 열렸다는 한 비트만 Root로 끌어올린다. */
-  const [roomListBlocking,setRoomListBlocking]=useState(false);
-  const roomListBlockingRef=useRef(false);
-  const onRoomListBlockingChange=useCallback((blocked:boolean)=>{
-    roomListBlockingRef.current=blocked;
-    setRoomListBlocking(blocked);
-  },[]);
   /* 키보드가 뜨면 하단 내비게이션 여백은 의미가 없어진다. 접어두지 않으면
      입력바를 올릴 때 그만큼 모자라거나 두 번 밀린다. */
   const padBottom=kbRoot>0?0:insets.bottom;
-  const [fontsOk]=useFonts({
-    Galmuri11: require('./assets/fonts/Galmuri11.ttf'),
-    ManSeh: require('./assets/fonts/ManSeh.ttf'),
-    GyuriDiary: require('./assets/fonts/GyuriDiary.ttf'),
-  });
+  const [fontsOk]=useFonts({ Galmuri11: require('./assets/fonts/Galmuri11.ttf') });
   const [ready,setReady]=useState(false);
   const [name,setName]=useState<string|null>(null);
   const [msgs,setMsgs]=useState<Record<string,Msg[]>>({});
@@ -1706,11 +1641,9 @@ function Root() {
   /* intro는 배역을 받는 자리다 — 이름을 친 직후 한 번. 다시 열면 안 뜬다
      (등록만 하고 닫은 사람은 이미 봤다). 세계는 여전히 YES에서 생긴다. */
   const [enrolling,setEnrolling]=useState<false|'intro'|'enroll'|'confirm'>(false);
+  /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 — 웹과 같은 열쇠다 */
+  const [mode,setMode]=useState<string>(loadMode);
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
-  /* restart 이전에 예약됐던 선톡은 저장소를 비운 뒤 도착해선 안 된다.
-     세션 번호를 넘겨, 기다리거나 서버를 다녀온 옛 작업이 새 판을 못 건드리게 한다. */
-  const sessionEpochRef=useRef(0);
-  const greetBusyRef=useRef(0);
   const [invite,setInvite]=useState<any>(null);   // 같이 가자는 제안
   /* ── 자리 ──
      지도에서 자리를 고르고 사람을 부르면 그 자리에 마주 앉는다. 화면이
@@ -1748,50 +1681,6 @@ function Root() {
   /* 유저의 옛 일기 — 재언 방에 처음 들어가는 순간, 첫 마디 앞에 한 번.
      채운 값은 이 기기 안에만 산다(웹의 null_diary와 같은 열쇠). */
   const [diary,setDiary]=useState(false);
-  /* 지금의 일기 역시 생성 rules의 localStorage shim에만 산다. 화면은 열린 한 장만
-     쥐고, 저장과 사진첩 복원은 웹과 같은 saveMyDiary/userPics를 쓴다. */
-  const [myDiary,setMyDiary]=useState<any|null>(null);
-  const myDiaryRef=useRef<any|null>(null); myDiaryRef.current=myDiary;
-  const [myDiarySaving,setMyDiarySaving]=useState(false);
-  const myDiarySavingRef=useRef(false);
-  const closeMyDiary=()=>{
-    if(myDiarySavingRef.current)return;
-    setMyDiary(null);
-  };
-  /* 운세의 덱·공개 여부도 같은 shim에만 남는다. React state는 지금 보이는 장의
-     사본일 뿐이고, 요청으로 나가는 것은 api.ts가 검증한 keyword id 하나뿐이다. */
-  const [fortune,setFortune]=useState<any|null>(null);
-  const [fortuneOpen,setFortuneOpen]=useState(false);
-  const fortuneOpenRef=useRef(false);
-  const showFortune=()=>{fortuneOpenRef.current=true;setFortuneOpen(true)};
-  const hideFortune=()=>{fortuneOpenRef.current=false;setFortuneOpen(false)};
-  const [fortuneRev,setFortuneRev]=useState(0);
-  /* 부팅 때 남은 원자 장부를 먼저 끝낸 뒤에만 오늘 운세와 첫 장면을 연다.
-     복원된 초대/키스타임 위에 운세가 겹치거나, 그 반대가 되는 것을 막는다. */
-  const [bootAutoResumeDone,setBootAutoResumeDone]=useState(false);
-  /* 목록에서 다른 장면으로 넘어가는 짧은 비동기 틈. ask를 닫고 goPlace가
-     채팅 화면을 열기 전, 또는 최초 자리를 쓰는 동안 운세가 끼어들지 않게 한다. */
-  const [transitionBusy,setTransitionBusyState]=useState(false);
-  const transitionBusyRef=useRef(false);
-  const transitionDepthRef=useRef(0);
-  const beginTransition=()=>{
-    transitionDepthRef.current+=1;
-    if(transitionDepthRef.current===1){
-      transitionBusyRef.current=true;
-      setTransitionBusyState(true);
-    }
-  };
-  const endTransition=()=>{
-    transitionDepthRef.current=Math.max(0,transitionDepthRef.current-1);
-    if(transitionDepthRef.current===0){
-      transitionBusyRef.current=false;
-      setTransitionBusyState(false);
-    }
-  };
-  const withTransition=async(work:()=>Promise<any>)=>{
-    beginTransition();
-    try{return await work()}finally{endTransition()}
-  };
   const [ask,setAsk]=useState<string|null>(null);  // 지도에서 고른 자리
   const [askWho,setAskWho]=useState<string|null>(null);
   const [leaving,setLeaving]=useState<any>(null);  // 나가기 확인
@@ -1799,13 +1688,11 @@ function Root() {
   const [plate,setPlate]=useState<any>(null);      // 사물함 명패
   const [look,setLook]=useState<any>(null);        // 교실 문틈
   const viewRef=useRef(view); viewRef.current=view;
-  /* ── 옛 판 변환용 출발 자리 ──
+  /* ── 세계 시계의 출발 자리 ──
      msgs는 방마다 **최근 1000개**만 들고 있다. 그걸로 첫 시각을 뽑으면
      대화가 천 개를 넘는 순간 앵커가 앞으로 밀려서 D-일차가 도로 늘어난다.
      그래서 DB의 첫 행에서 한 번 읽어 저장해두고(anchor), 그것만 본다. */
   const [anchor,setAnchor]=useState(0);
-  /* 접속 일차가 foreground에서 바뀌면 D-day와 단계 계산을 다시 그린다. */
-  const [accessRev,setAccessRev]=useState(0);
   /* 첫 판은 저장소가 비어 있어서 위 load가 0을 가져온다. 첫 말풍선이 찍히면
      그때 세운다 — 그 시점엔 대화가 1000개 아래라 화면이 든 것이 곧 전부다. */
   useEffect(()=>{
@@ -1815,68 +1702,18 @@ function Root() {
     if(t)setAnchor(t);
   },[anchor,msgs]);
   setWorldAt(anchor);
-  /* 실습 남은 날·지난 날·재회. 셋 다 웹과 같은 접속 일차를 본다. */
+  /* 실습 남은 날·지난 날·재회. 셋 다 웹과 같은 세계 시계 하나에서 나온다 —
+     여기서 따로 세면 웹과 앱의 D-N이 갈린다. 그 사고가 실제로 있었다. */
   const clockStore={msgs:{anchor:anchor?[{ts:anchor,sender:'user'}]:[]}} as any;
-  const dLeft=loadWorld()?daysLeft(clockStore):ENROLL_DAYS;
-  const dayN=loadWorld()?daysSince(clockStore):0;
+  const dLeft=anchor?daysLeft(clockStore):ENROLL_DAYS;
+  const dayN=anchor?daysSince(clockStore):0;
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
      그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다.
-     떠나는 날의 현실 시각은 D-0 접속 milestone이다. */
-  const leaveAt=leaveTsOf(clockStore);
-  const cameBack=!!anchor&&!!leaveAt
-    && Object.values(msgs).flat().some((m:any)=>m.sender==='user'
-      && m.created_at>=leaveAt);
-
-  /* 앱을 실제로 연 순간만 하루를 센다. hydrate가 끝난 첫 화면과, 백그라운드에서
-     다시 active가 된 순간을 확인한다. 같은 05시 기준일·시계 역행은 멱등이고,
-     며칠을 비웠어도 touchAccessClock이 한 칸만 더한다. */
-  useEffect(()=>{
-    if(!ready||!name||enrolling||!loadWorld())return;
-    const touch=()=>{
-      if(transitionBusyRef.current)return;
-      const after=touchAccessClock(clockStore);
-      if(!after)return;
-      /* 같은 접속 일차여도 foreground 복귀면 현실 시각/presence를 새로 그린다. */
-      setAccessRev(v=>v+1);
-    };
-    touch();
-    const sub=AppState.addEventListener('change',state=>{if(state==='active')touch()});
-    return()=>sub.remove();
-  },[ready,name,enrolling,anchor,transitionBusy]);
-
-  /* 현실 달력 날짜마다 첫 목록 화면에서 한 번만 연다. 접속 D-day(05시 경계)와
-     섞지 않고 rules의 fortuneDayKey가 기기의 현지 자정을 직접 센다. 팝업이나
-     일기를 읽는 중에는 seen을 먼저 찍지 않고, 그 화면을 닫은 다음 실제로 연다. */
-  useEffect(()=>{
-    if(!ready||!bootAutoResumeDone||!name||enrolling||!loadWorld()||view.type!=='list'
-      ||transitionBusyRef.current||popup||diary||myDiary||fortuneOpenRef.current
-      ||roomListBlockingRef.current||kbRoot>0
-      ||invite||ask||leaving||way||plate
-      ||groupNew||getcha||look||kiss)return;
-    /* 접어둔 자리가 지금 만료돼 끝나는 같은 commit에서는 그 정리를 먼저 한다.
-       closeScene이 여는 Get cha와 운세가 한 화면에 겹치지 않게 한다. */
-    const expiringScene=sceneRef.current;
-    if(expiringScene&&!typing&&sceneExpired(expiringScene,msgsForFlow()))return;
-    /* YES 직후에는 같은 effect 묶음에서 최초 자리도 열린다. 빈 목록 위에 운세를
-       먼저 띄우면 그 뒤에서 첫 장면이 소비되므로, 첫 말이 앉을 때까지 기다린다.
-       단톡 해금도 아직 state로 그려지기 전의 조건을 직접 보고 먼저 양보한다. */
-    if(!['jaeeon','minhyun','group','health'].some(r=>((msgs as any)[r]||[]).length)
-      ||(!groupOn&&groupReady(msgsForFlow())))return;
-    const now=new Date();
-    const today=ensureFortuneForToday(now);
-    setFortune(today);
-    if(fortuneNeedsAutoOpen(today,now)){
-      setFortune(markFortuneSeen(today,now));
-      showFortune();
-    }
-    /* 앱을 계속 켜둔 채 자정을 지나도 다음 목록 화면에서 새 장이 열린다.
-       현지 Date 생성자로 다음 자정을 잡아 DST가 있는 기기에서도 24h 고정값을 안 쓴다. */
-    const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
-    const timer=setTimeout(()=>setFortuneRev(v=>v+1),Math.max(1000,next.getTime()-Date.now()+120));
-    return()=>clearTimeout(timer);
-  },[ready,bootAutoResumeDone,name,enrolling,view.type,transitionBusy,popup,diary,myDiary,fortuneOpen,invite,ask,
-    leaving,way,plate,groupOn,groupNew,getcha,look,kiss,scene,typing,msgs,accessRev,fortuneRev,
-    roomListBlocking,kbRoot]);
+     떠나는 날의 현실 시각은 leaveTsOf가 모드에 맞게 환산해 준다. */
+  const cameBack=anchor
+    ? Object.values(msgs).flat().some((m:any)=>m.sender==='user'
+        && m.created_at>=leaveTsOf(clockStore))
+    : false;
 
   const reload=useCallback(async(room?:string)=>{
     const rooms = room?[room]:['jaeeon','minhyun','group','health'];
@@ -1898,11 +1735,13 @@ function Root() {
     await hydrateShim();
     /* 규칙이 들고 있는 것들을 화면 쪽으로 한 번 옮겨 온다. 저장은 계속
        규칙 파일이 하고(웹과 같은 열쇠), 화면은 그 사본을 그린다. */
-    setInvite(headInvite());
     setScene(loadScene()); setBag(loadBag()); setMet(loadMet()); setGroupOn(loadGroupOn());
-    /* 옛 판 변환용 앵커. 최근 1000개가 아니라 DB의 첫 행에서 읽는다. */
-    const first=await firstTsFromDB();
-    setAnchor(first);
+    /* 모드도 여기서 가져온다. useState(loadMode)는 shim이 채워지기 **전에**
+       한 번 돌아서 늘 real로 굳었다 — 스피드 판으로 저장해두고 앱을 껐다
+       켜면 리얼 판이 됐다는 뜻이다. 값이 들어온 뒤에 다시 읽는다. */
+    setMode(loadMode());
+    /* 세계 시계의 앵커. 최근 1000개가 아니라 DB의 첫 행에서 읽는다 */
+    setAnchor(await firstTsFromDB());
     const n=await getMeta('user_name');
     const p=await getMeta('null_profile');
     if(p){try{setProfile(JSON.parse(p))}catch{}}
@@ -1912,17 +1751,7 @@ function Root() {
     setSeenStage(await loadSeenStage());
     const a=await getMeta('null_auto_at');
     if(a) setAutoAt(Number(a)||0);
-    if(n){
-      setName(n);
-      if(!loadWorld()) setEnrolling('enroll');
-      else {
-        /* hydrate가 끝난 뒤에만 옛 null_mode를 읽어 최초 변환한다. 변환한
-           당일은 +1하지 않고 현재 경과 일차만 보존한다. */
-        touchAccessClock({msgs:{anchor:first?[{ts:first,sender:'user'}]:[]}} as any);
-        setAccessRev(v=>v+1);
-      }
-      await reload();
-    } else setName('');
+    if(n){ setName(n); if(!loadWorld()) setEnrolling('enroll'); await reload(); } else setName('');
     setReady(true);
   })()},[]);
 
@@ -1938,32 +1767,18 @@ function Root() {
      말풍선이 오면 그게 처음 고치려던 그림이다. */
   const expireScene=useCallback(async()=>{
     const sc=sceneRef.current;
-    if(!sc||typing||fortuneOpenRef.current) return;
+    if(!sc||typing) return;
     if(!sceneExpired(sc,msgsForFlow())) return;
-    await withTransition(async()=>{
-      const current=sceneRef.current;
-      if(!current||typing||fortuneOpenRef.current||!sceneExpired(current,msgsForFlow()))return;
-      closeScene();
-      await sysLine(current.room, current.place===WAY?'집에 도착했다':`${current.place}에서 나왔다`);
-      const pr=presence(current.room);
-      if(pr&&pr.s==='off') return;
-      await runTurn(current.room, current.place);
-    });
-  },[msgs,typing,fortuneOpen]);
-  useEffect(()=>{ if(ready&&name&&!enrolling) expireScene(); },
-    [ready,name,enrolling,view.type,scene,typing,msgs,accessRev,fortuneRev,fortuneOpen]);
+    closeScene();
+    await sysLine(sc.room, sc.place===WAY?'집에 도착했다':`${sc.place}에서 나왔다`);
+    const pr=presence(sc.room);
+    if(pr&&pr.s==='off') return;
+    await runTurn(sc.room, sc.place);
+  },[msgs,typing]);
+  useEffect(()=>{ if(ready&&name&&!enrolling) expireScene(); },[ready,name,enrolling,view.type]);
   /* 끊긴 관전 장부를 잇는다 — 반쯤 적힌 관전 응답은 저장된 장부로만
      마저 적는다. API를 다시 부르지 않는다. */
-  useEffect(()=>{
-    if(!ready)return;
-    let live=true;
-    setBootAutoResumeDone(false);
-    void withTransition(async()=>{
-      await resumePendingAuto();
-      if(live)setBootAutoResumeDone(true);
-    }).catch(()=>{ if(live)setBootAutoResumeDone(true); });
-    return()=>{live=false};
-  },[ready]);
+  useEffect(()=>{ if(ready) resumePendingAuto(); },[ready]);
 
   /* ── 첫 자리 ──
      한 마디도 오간 적이 없으면 인사로 시작하지 않는다. 자리에서 시작한다.
@@ -1971,11 +1786,10 @@ function Root() {
      다른 한 사람은 평소대로 첫인사를 보낸다 — 새벽이면 재언은 안 온다. */
   const openedRef=useRef(false);
   useEffect(()=>{
-    if(!ready||!bootAutoResumeDone||!name||enrolling||openedRef.current||fortuneOpenRef.current
-      ||transitionBusyRef.current) return;
+    if(!ready||!name||enrolling||openedRef.current) return;
     if(['jaeeon','minhyun','group','health'].some(r=>((msgs as any)[r]||[]).length)) return;
     openedRef.current=true;
-    void withTransition(async()=>{
+    (async()=>{
       const o=openingNow();
       /* 도장도 같이 찍는다 — 해금 목록에만 넣던 때는 오늘 도장이 안 찍혀서,
          빨래방에서 시작한 날 지도의 빨래방이 그대로 열려 있었다. 시작한
@@ -2010,30 +1824,27 @@ function Root() {
          만나야 하므로 출근해서 퇴근 전까지(야자 포함)가 아니면 안 건다. */
       const other=o.room==='jaeeon'?'minhyun':'jaeeon';
       if(canGreet(other)&&!roomLock(msgsForFlow(),other)){ greetAtRef.current=Date.now();
-        const epoch=sessionEpochRef.current;
-        setTimeout(()=>greet(other,0,epoch),2600+Math.random()*2600); }
-    }).catch(e=>console.warn('[NULL] 첫 장면 실패',e));
-  },[ready,bootAutoResumeDone,name,enrolling,msgs,fortuneOpen,transitionBusy]);
+        setTimeout(()=>greet(other,0),2600+Math.random()*2600); }
+    })();
+  },[ready,name,enrolling,msgs]);
 
   /* 강현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
      그가 방을 파고 유저를 부른다. 왜 불렀는지는 말해주지 않는다. */
   useEffect(()=>{
-    if(!ready||!name||groupOn||fortuneOpenRef.current||transitionBusyRef.current) return;
+    if(!ready||!name||groupOn) return;
     if(!groupReady(msgsForFlow())) return;
     saveGroupOn(); setGroupOn(true);
     if(!((msgs as any).group||[]).length) setGroupNew(true);
-  },[ready,name,groupOn,msgs,fortuneOpen,transitionBusy]);
+  },[ready,name,groupOn,msgs]);
   /* 안드로이드 물리 뒤로: 팝업 → 닫기, 방/프로필 → 목록 */
   useEffect(()=>{
     const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
-      if(fortuneOpen){ hideFortune(); return true; }
-      if(myDiary){ closeMyDiary(); return true; }
       if(popup){ setPopup(null); return true; }
       if(viewRef.current.type!=='list'){ setView({type:'list'}); return true; }
       return false;
     });
     return ()=>sub.remove();
-  },[popup,myDiary,fortuneOpen]);
+  },[popup]);
 
   /* 응답에 딸려오는 해금 목록과 상태메시지를 저장한다.
      이걸 안 하면 .hidden이 영영 안 열리고 프로필 상태메시지도 늘 비어 있다. */
@@ -2065,17 +1876,8 @@ function Root() {
           setToast(`bag — ${it.name}`); ok=true;
         }else skip=true;
       }else if(e.type==='invite'){
-        if(e.place&&e.char){
-          /* effect_done보다 초대 줄이 먼저 SQLite까지 남아야 한다. 화면 state만
-             열면 앱을 끈 뒤에는 done 표만 남고 질문은 영영 사라진다. */
-          const before=(globalThis as any).localStorage?.getItem('null_invite')??null;
-          if(!pushInvite({place:e.place,char:e.char}))return false;
-          if(!await flushShimKey('null_invite')){
-            await restoreShimKey('null_invite',before);
-            return false;
-          }
-          setInvite(headInvite()); ok=true;
-        } else skip=true;
+        if(e.place&&e.char){ setInvite({place:e.place,char:e.char}); ok=true; }
+        else skip=true;
       }
       else if(e.type==='story_transition'){
         /* 이야기 상태가 실제로 움직이는 유일한 자리 (E3). 앞으로만 옮기고,
@@ -2207,13 +2009,8 @@ function Root() {
      뿐이다. 약속 사슬 하나로 직렬화한다. 앱에는 워커 스레드가 없으므로
      이 큐가 곧 임계구역이다. */
   const autoGate=useRef<Promise<any>>(Promise.resolve());
-  const autoGateBusyRef=useRef(0);
   const inAutoGate=<T,>(fn:()=>Promise<T>):Promise<T>=>{
-    const guarded=async()=>{
-      autoGateBusyRef.current+=1;
-      try{return await fn()}finally{autoGateBusyRef.current=Math.max(0,autoGateBusyRef.current-1)}
-    };
-    const next=autoGate.current.then(guarded,guarded);
+    const next=autoGate.current.then(fn,fn);
     /* 이 사슬은 끊기면 안 된다 — 한 번의 실패가 다음 일까지 막는다 */
     autoGate.current=next.then(()=>{},()=>{});
     return next;
@@ -2309,7 +2106,6 @@ function Root() {
 
   const handleSend = async(text:string)=>{
     const room=view.id!; if(!name) return;
-    await withTransition(async()=>{
     const prevList:any[]=(msgs as any)[room]||[];
     await insertMsg({room,sender:'user',text,created_at:Date.now()});
     await reload(room);
@@ -2328,7 +2124,6 @@ function Root() {
       return;
     }
     await runTurn(room);
-    });
   };
 
   /* 선물 보내기.
@@ -2337,7 +2132,6 @@ function Root() {
      그대로 저장된다. isNarr가 이걸 보고 말풍선 대신 지문 줄로 그린다. */
   const giveGift = async(char:string, gift:any, memo?:string)=>{
     if(!name||!char||!gift) return;
-    await withTransition(async()=>{
     const have=gifts[char]||[];
     if(have.includes(gift.key)) return;            // 같은 걸 두 번 주지 않는다
     /* 물건은 손에서 손으로 간다. 문자로는 못 준다 — 재언이 직접 말했다.
@@ -2377,7 +2171,6 @@ function Root() {
       if(stale(char,rid))return;
       endTurn(char,rid); setTyping(false); failTurn(e,char);
     }
-    });
   };
 
   /* 실측. 내 짐작이 아니라 진짜 토큰 수다. 읽음이 계속 0이면 캐시가 안 맞고
@@ -2448,7 +2241,6 @@ function Root() {
      재시도해도 같은 말이 두 번 쌓이지 않는다. */
   const runTurn = async(room:string, left?:string, retry?:boolean)=>{
     if(!name) return;
-    await withTransition(async()=>{
     setFailed(null); setTyping(true);
     const ls=lastSent.current;
     const said=ls&&ls.room===room?ls.text:undefined;   // 각본을 고를 때만 쓴다
@@ -2511,7 +2303,6 @@ function Root() {
       if(stale(room,rid))return;
       endTurn(room,rid); setTyping(false); failTurn(e,room);
     }
-    });
   };
 
   /* 재시도는 같은 논리 요청이다 — 이름표를 새로 뽑지 않는다 */
@@ -2540,22 +2331,18 @@ function Root() {
     }
     const t=Date.now(); setAutoAt(t); setMeta('null_auto_at',String(t));
     setAutoLoading(true);
+    if(demoOn()){ await enqueue('health',demoReply('health')); setAutoLoading(false); return; }
+    const rid=startTurn('health');
     try{
-      await withTransition(async()=>{
-        if(demoOn()){ await enqueue('health',demoReply('health')); return; }
-        const rid=startTurn('health');
-        try{
-          const data=await genAuto(name,undefined,rid);
-          if(!stale('health',rid)){
-            endTurn('health',rid);
-            /* 대화·Effect·(사건 없음)를 원자 장부로 — Effect가 대화보다 먼저
-               적히는 길을 없앤다. 타이핑 연출 대신 한 번에 얹힌다. */
-            await commitAutoTurn(null,Date.now(),data);
-          }
-        }catch(e:any){
-          if(!stale('health',rid)){ endTurn('health',rid); failTurn(e,'health'); }
-        }
-      });
+      const data=await genAuto(name,undefined,rid);
+      if(!stale('health',rid)){
+        endTurn('health',rid);
+        /* 대화·Effect·(사건 없음)를 원자 장부로 — Effect가 대화보다 먼저
+           적히는 길을 없앤다. 타이핑 연출 대신 한 번에 얹힌다. */
+        await commitAutoTurn(null,Date.now(),data);
+      }
+    }catch(e:any){
+      if(!stale('health',rid)){ endTurn('health',rid); failTurn(e,'health'); }
     }finally{ setAutoLoading(false); }
   };
 
@@ -2576,43 +2363,20 @@ function Root() {
      저장소에만 써두면 이번 판에서는 안 보인다 — 가기로 한 자리가 해금
      사다리에 안 잡혔다. saveMet/saveRefused는 메모리와 저장소를 같이 쓴다. */
   const answerInvite = async(ok:boolean)=>{
-    if(transitionBusyRef.current)return;
-    const iv=invite; if(!iv) return;
-    /* 누른 즉시 창을 접는 기존 UX는 유지하되, 실제 답 처리가 실패하면 같은
-       초대를 다시 연다. 성공 전에는 영속 큐의 머리를 빼지 않는다. */
-    setInvite(null);
-    try{
-      await withTransition(async()=>{
-        const line=ok?`${jos(CHARS[iv.char].name,'과/와')} ${iv.place}에 가기로 했다`
-                     :`${jos(iv.place,'은/는')} 다음에 가기로 했다`;
-        lastSent.current={room:iv.char,text:line};
-        if(ok&&PLACE_BY[iv.place]) await goPlace(iv.place,iv.char,line,'invited');
-        else {
-          if(ok){ const nm=met.includes(iv.place)?met:[...met,iv.place]; setMet(nm); saveMet(nm);
-                  stampGone(iv.place); await markEvent({kind:'met', to:iv.char, name:iv.place}); }
-          else  { saveRefused([...loadRefused(), iv.place]); }
-          await sysLine(iv.char, line);
-          /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 — 가자고
-             해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다. 그 자리 얘기는 한
-             시간 뒤 관전방에서나 나왔고, 정작 같이 가기로 한 사람은 입을 다물고
-             있었다. 승낙이든 거절이든 반응이 있어야 사람이다. */
-          await runTurn(iv.char);
-        }
-      });
-      /* 답 처리까지 끝난 다음 앞엣것 하나만 뺀다. 저장 실패면 메모리도 원래
-         줄로 돌려, 다음 실행에서 같은 질문에 다시 답할 수 있게 한다. */
-      const before=(globalThis as any).localStorage?.getItem('null_invite')??null;
-      if(!shiftInvite()||!await flushShimKey('null_invite')){
-        await restoreShimKey('null_invite',before);
-        setInvite(headInvite());
-        return;
-      }
-      setInvite(headInvite());
-    }catch(e){
-      console.warn('[NULL] 초대 답변 저장 실패',e);
-      setInvite(headInvite());
-      setToast('다시 눌러 주세요 ♡');
-    }
+    const iv=invite; setInvite(null); if(!iv) return;
+    const line=ok?`${jos(CHARS[iv.char].name,'과/와')} ${iv.place}에 가기로 했다`
+                 :`${jos(iv.place,'은/는')} 다음에 가기로 했다`;
+    lastSent.current={room:iv.char,text:line};
+    if(ok&&PLACE_BY[iv.place]){ await goPlace(iv.place,iv.char,line,'invited'); return; }
+    if(ok){ const nm=met.includes(iv.place)?met:[...met,iv.place]; setMet(nm); saveMet(nm);
+            stampGone(iv.place); await markEvent({kind:'met', to:iv.char, name:iv.place}); }
+    else  { saveRefused([...loadRefused(), iv.place]); }
+    await sysLine(iv.char, line);
+    /* 답을 했으면 상대도 답을 해야 한다. 전에는 여기서 끝이었다 — 가자고
+       해놓고 갈게요 했더니 아무 말도 없이 대화가 멈췄다. 그 자리 얘기는 한
+       시간 뒤 관전방에서나 나왔고, 정작 같이 가기로 한 사람은 입을 다물고
+       있었다. 승낙이든 거절이든 반응이 있어야 사람이다. */
+    await runTurn(iv.char);
   };
 
   /* 줄에 넣는다. 앞엣것을 안 덮는다 — 선물을 연달아 둘 주면 둘 다 남는다.
@@ -2647,7 +2411,7 @@ function Root() {
      찍어만 두고 만들지는 않는다. 한 시간 뒤 아래 효과가 가져간다. */
   const evBusy=useRef(false);
   useEffect(()=>{
-    if(!ready||!name||enrolling||evBusy.current||transitionBusyRef.current) return;
+    if(!ready||!name||enrolling||evBusy.current) return;
     (async()=>{
       evBusy.current=true;
       try{
@@ -2660,31 +2424,26 @@ function Root() {
         };
         const shots=((msgs as any).jaeeon||[]).filter((m:any)=>m.photo&&m.sender!=='user').length;
         if(shots>=PHOTO_EVENT_AT&&await mark('photos',{kind:'photos',to:'jaeeon'})) return;
-        if(!anchor) return;
-        /* 화면과 같은 접속 일차를 쓴다. 현실 경과시간을 다시 계산하면 며칠
-           비운 한 번의 접속에서 사건만 여러 날 앞으로 달아난다. */
-        const d=dLeft;
+        const all=Object.values(msgs).flat() as any[];
+        const firstTs=all.reduce((a,m)=>!a||m.created_at<a?m.created_at:a,0);
+        if(!firstTs) return;
+        const d=Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5));
         if(DDAY_MARKS.includes(d)) await mark('dday:'+d,{kind:'dday',name:String(d)});
       }finally{ evBusy.current=false }
     })();
-  },[ready,name,enrolling,view,msgs,dLeft,accessRev,anchor,transitionBusy]);
+  },[ready,name,enrolling,view,msgs]);
 
   const autoBusy=useRef(false);
   useEffect(()=>{
     /* ref로 본다 — state는 다음 그림에서야 바뀌는데, 부팅 재개(비동기)가
        잠금을 세우기 전에 이 효과가 동기적으로 지나가면 잠긴 방 위로
        유료 호출이 나가고 하루 몫까지 깎인다. */
-    if(!ready||!bootAutoResumeDone||!name||enrolling||autoBusy.current||autoStuck||autoStuckRef.current
-      ||fortuneOpenRef.current||transitionBusyRef.current) return;
+    if(!ready||!name||enrolling||autoBusy.current||autoStuck||autoStuckRef.current) return;
     /* 목록에서도 돌고 관전방을 열 때도 돈다. 방을 열었는데 늘 같은 화면이면
        그 방은 죽은 방이다 — 유저 없이도 돌아간다는 게 이 앱의 전제인데
        정작 그 방만 유저가 뭘 해야 움직이고 있었다. */
     if(view.type!=='list'&&!(view.type==='chat'&&view.id==='health')) return;
-    /* effect의 첫 await보다 먼저 세운다. 그렇지 않으면 같은 render 묶음의 두
-       preflight가 모두 통과해 유료 관전 요청을 중복으로 만들 수 있다. */
-    autoBusy.current=true;
     (async()=>{
-      try{
       /* 사건이 있으면 그 일을 두고 얘기하고, 없으면 그냥 둘이 떠든다.
          전에는 사건이 없으면 아무것도 안 만들었다 — 선물도 안 주고 자리도
          안 간 사람에게는 관전방이 영영 첫 장면 그대로였다. */
@@ -2715,26 +2474,22 @@ function Root() {
       /* 하루 몫이 찼다. **사건은 안 지운다** — 유저가 한 일이 없던 일이 되면
          안 된다. 내일 그 얘기가 나온다. */
       if(used>=AUTO_MAX_DAY) return;
-      /* preflight를 기다리는 사이 사용자가 운세를 열거나 다른 장면이 시작됐으면
-         몫을 쓰기 전에 양보한다. 잠금이 풀리면 dependency가 다시 검사한다. */
-      if(fortuneOpenRef.current||transitionBusyRef.current)return;
-        await withTransition(async()=>{
-          await setMeta('null_auto_day',`${day}|${used+1}`);
-          await setMeta('null_auto_at',String(now)); setAutoAt(now);
-          try{
-            /* 실패해서 넘어간 데모(DEMO.auto)는 여기서 안 본다 — 그걸 보면 한 번의
-               실패 뒤 관전 생성이 진짜를 시도조차 않고 적어둔 사건을 각본에
-               삼킨다. 이 경로는 진짜 요청을 안 하니 래치가 풀릴 길도 없었다. */
-            const data=await genAuto(name,ev?{kind:ev.kind,to:ev.to,name:ev.name}:undefined);
-            /* 대화 → Effect(공개 포함) → **그 사건만** 소모 — 순서와 멱등은
-               runAutoBatch가 강제한다. 어느 저장이 실패해도 사건은 줄에 남고,
-               다음 부팅이 저장된 장부로만 이어서 한다(재호출 없음). */
-            await commitAutoTurn(ev,at,data);
-          }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
-        });
-      }catch{}finally{autoBusy.current=false}
+      autoBusy.current=true;
+      await setMeta('null_auto_day',`${day}|${used+1}`);
+      await setMeta('null_auto_at',String(now)); setAutoAt(now);
+      try{
+        /* 실패해서 넘어간 데모(DEMO.auto)는 여기서 안 본다 — 그걸 보면 한 번의
+           실패 뒤 관전 생성이 진짜를 시도조차 않고 적어둔 사건을 각본에
+           삼킨다. 이 경로는 진짜 요청을 안 하니 래치가 풀릴 길도 없었다. */
+        const data=await genAuto(name,ev?{kind:ev.kind,to:ev.to,name:ev.name}:undefined);
+        /* 대화 → Effect(공개 포함) → **그 사건만** 소모 — 순서와 멱등은
+           runAutoBatch가 강제한다. 어느 저장이 실패해도 사건은 줄에 남고,
+           다음 부팅이 저장된 장부로만 이어서 한다(재호출 없음). */
+        await commitAutoTurn(ev,at,data);
+      }catch(e:any){ /* 조용히 넘어간다. 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
+      autoBusy.current=false;
     })();
-  },[ready,bootAutoResumeDone,name,enrolling,view,msgs,autoStuck,fortuneOpen,transitionBusy]);
+  },[ready,name,enrolling,view,msgs,autoStuck]);
 
   /* 당신.txt: 빈칸 저장 / 이름 변경 */
   const saveProfile=(k:string,v:string)=>{
@@ -2745,9 +2500,7 @@ function Root() {
   /* YES — 세계가 생기는 순간. 프로필이 잠기고 나이는 세계 고정값 25가 된다.
      saveWorld는 멱등이라 연타·재렌더가 와도 시작은 한 번이다(웹과 같다). */
   const confirmYes=()=>{
-    startAccessClock(Date.now());                  // 새 유저의 첫날은 정확히 D-30
     saveWorld();
-    setAccessRev(v=>v+1);
     saveProfile('age','25');
     setEnrolling(false);
   };
@@ -2774,69 +2527,20 @@ function Root() {
     else if(m==='file') setPopup('file');
     else if(m==='chat') setPopup('chat');
   };
-  const openFortune=()=>{
-    Keyboard.dismiss();
-    if(fortuneOpenRef.current)return;
-    if(transitionBusyRef.current){setToast('잠깐만요 ♡');return}
-    const now=new Date();
-    const today=ensureFortuneForToday(now);
-    setFortune(markFortuneSeen(today,now));
-    showFortune();
-  };
-  const fillFortune=()=>setFortune(revealFortuneForToday(new Date(),fortune));
 
   const doReset = async()=>{
-    /* 진행 중인 저장·요청 위에서 DB를 지우면 그 작업의 늦은 완료가 새 판에
-       옛 값을 다시 쓴다. 버튼을 누른 그 tick에서 ref로 거절한다. */
-    if(transitionBusyRef.current||autoBusy.current||autoGateBusyRef.current>0||greetBusyRef.current>0
-      ||autoLoading||typing||myDiarySavingRef.current||evBusy.current
-      ||Object.values(summingRef.current).some(Boolean)){
-      setPopup(null); setToast('잠깐만요 ♡'); return;
-    }
     /* greetAtRef도 같이 지운다 — ref라 DB를 비워도 안 없어진다.
        방금 선톡을 받고 지웠으면 1분 동안 첫 인사가 안 왔다. */
     /* 저장소를 비웠으면 규칙이 보고 있는 메모리도 같이 비운다 — 안 비우면
        지운 값이 화면에 남아 있다가 다음 저장 때 도로 써진다(웹에서 겪었다) */
     /* 손으로 「새로 시작」한 것도 판 갈이와 같은 helper를 쓴다 — 접속
        설정까지 날리면 새로 시작할 때마다 열쇠를 다시 넣어야 한다 */
-    try{
-      await withTransition(async()=>{
-        /* 기다리는 선톡은 DB 작업이 아니어서 위 busy 표에 안 잡힌다. 먼저 판
-           번호를 바꿔, 아래 flush·wipe 사이에 깨어나도 새 화면에 못 붙게 한다. */
-        sessionEpochRef.current+=1;
-        /* localStorage shim 쓰기는 화면 전환이 끝난 뒤에도 SQLite 줄에 남을 수
-           있다. 모두 끝내고 지워야 늦은 INSERT가 wipe 뒤에 부활하지 않는다. */
-        await flushShim();
-        await wipeStory(); resetShim();
-
-        greetAtRef.current=0; greetBusyRef.current=0; summingRef.current={}; openedRef.current=false;
-        ridRef.current={}; inflightRef.current={}; getchaRef.current=null;
-        autoGate.current=Promise.resolve(); autoGateBusyRef.current=0;
-        autoBusy.current=false; evBusy.current=false; autoStuckRef.current=false;
-        lastSent.current=null; myDiarySavingRef.current=false; myDiaryRef.current=null;
-        sceneRef.current=null; bagRef.current=[]; fortuneOpenRef.current=false;
-        Object.keys(demoCount).forEach(k=>delete demoCount[k]);
-
-        setName(''); setEnrolling(false); setMsgs({}); setUnread({});
-        setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
-        setTyping(false); setFailed(null); setAutoLoading(false); setAutoStuck(false);
-        setInvite(null); setScene(null); setBag([]); setMet([]);
-        setGroupOn(false); setGroupNew(false); setGetcha(null);
-        setDiary(false); setMyDiarySaving(false); setMyDiary(null);
-        setFortune(null); setFortuneOpen(false); setFortuneRev(v=>v+1);
-        setAsk(null); setAskWho(null); setLeaving(null); setWay(null);
-        setPlate(null); setLook(null); setKiss(null);
-        /* 접속 시계도 처음으로 돌린다 — wipeStory/resetShim이 저장값을 지우고,
-           앵커와 React 계산도 함께 비운다. */
-        setAnchor(0); setWorldAt(0); setAccessRev(v=>v+1);
-        setAutoAt(0); setStamp(x=>x+1); setPopup(null); setToast(null);
-        setBootAutoResumeDone(true);
-        viewRef.current={type:'list'}; setView({type:'list'});
-      });
-    }catch(e){
-      console.warn('[NULL] restart 실패',e);
-      setPopup(null); setToast('다시 눌러 주세요 ♡');
-    }
+    await wipeStory(); resetShim(); greetAtRef.current=0; summingRef.current={};
+    setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
+    /* 세계 시계도 처음으로 돌린다 — 앵커를 안 지우면 새 판이 옛 판의
+       D-일차를 그대로 물려받는다. 모드도 저장소가 비었으니 기본값으로. */
+    setAnchor(0); setWorldAt(0); setMode(loadMode());
+    lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
   };
 
   /* 방별 누적 수와 받은 사진은 이미 들고 있는 msgs에서 뽑는다 — 따로 저장하지 않는다 */
@@ -2860,10 +2564,8 @@ function Root() {
      웹의 GREET_ASK와 글자 그대로 같아야 한다 — 두 곳에서 다른 말을 시키면
      같은 인물이 두 앱에서 다르게 군다. */
   const GREET_ASK="(유저는 한동안 말이 없다. 지금이 언제인지와 네 상황에 맞춰 네가 먼저 한두 마디를 건다 — 안부든, 지금 하고 있는 것이든. 유저가 방금 접속했는지 너는 모른다. 「왔어요」처럼 상대가 온 걸 아는 말은 하지 않는다.)";
-  const greet=async(id:string,delay:number,epoch=sessionEpochRef.current)=>{
-    if(epoch!==sessionEpochRef.current||id==='health'||id==='group'||!name)return;
-    greetBusyRef.current+=1;
-    try{
+  const greet=async(id:string,delay:number)=>{
+    if(id==='health'||id==='group'||!name)return;
     /* 자는 사람은 먼저 말을 안 건다. 목록의 점을 정하는 함수가 선톡도 정한다 —
        점은 「꺼짐」인데 그 사람 말풍선이 오면 그게 제일 이상하다 */
     if(!canGreet(id))return;
@@ -2889,7 +2591,6 @@ function Root() {
        아직 저장되기 전이라 두 번째가 봐도 방이 비어 있다. 기다리기 전에 찍는다. */
     if(gapMin<0&&!markOnce('first:'+id))return;
     if(delay) await new Promise(r=>setTimeout(r,delay));
-    if(epoch!==sessionEpochRef.current)return;
     /* 첫인사(기록 없는 방)는 문구집 각본이다 — 세계관이 열리는 자리라 문장을
        고정한다. 그 뒤의 선톡은 모델이 쓴다. 각본 스무 개는 아침이든 새벽이든
        같은 스무 개였다 — 낮에는 수업, 저녁에는 퇴근, 새벽에는 안 자냐는 말이
@@ -2899,9 +2600,7 @@ function Root() {
       greetAtRef.current=Date.now();
       try{
         const hist=[...(await getMsgs(id)), {room:id,sender:'user',text:GREET_ASK,created_at:Date.now()} as any];
-        if(epoch!==sessionEpochRef.current)return;
         const data=await sendChat(id,name,hist,{greet:true});
-        if(epoch!==sessionEpochRef.current)return;
         /* 답이 오는 사이 그 사람 자리에 들어갔으면 버린다 — 눈앞에 앉은
            사람이 보낸 원격 안부 문자가 도착하면 그게 처음 막으려던 그림이다 */
         if(sceneRef.current&&sceneRef.current.room===id)return;
@@ -2911,9 +2610,6 @@ function Root() {
     }
     const lines=demoProactive(id,demoGreetWhen(gapMin,id),name);
     if(lines.length) await enqueue(id,lines);
-    }finally{
-      greetBusyRef.current=Math.max(0,greetBusyRef.current-1);
-    }
   };
   /* 선톡은 방을 열어야 오는 게 아니다. 안 보고 있을 때 오는 것이 메신저다 —
      목록에 있는 동안 말이 도착하고 안 읽음이 붙는다.
@@ -2934,9 +2630,8 @@ function Root() {
       .sort((a,b)=>(b.gap<0?1e9:b.gap)-(a.gap<0?1e9:a.gap))[0];
     if(!cand)return;
     greetAtRef.current=Date.now();
-    const epoch=sessionEpochRef.current;
     let live=true;
-    const t=setTimeout(()=>{ if(live) greet(cand.id,0,epoch); },1600+Math.random()*2600);
+    const t=setTimeout(()=>{ if(live) greet(cand.id,0); },1600+Math.random()*2600);
     return()=>{live=false;clearTimeout(t)};
   },[name,view,msgs,demo]);
   useEffect(()=>{ Object.keys(msgs).forEach(k=>{ demoCount[k]=((msgs as any)[k]||[]).length }) },[msgs]);
@@ -2945,21 +2640,16 @@ function Root() {
   useEffect(()=>{ if(!demoOn())return;
     const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });
-  },[msgs,demo,dayN]);
+  },[msgs,demo]);
   /* 「두 사람」 방을 처음 열었는데 비어 있으면 이 방이 무슨 방인지 알 길이 없다.
      화면에 삼촌과 조카라고 적어주는 건 설명이지 이야기가 아니다 — 둘이 떠드는
      걸 한 번 보여준다. 첫 줄이 「삼촌,」으로 시작한다. */
   const seedWatch=async()=>{
-    const epoch=sessionEpochRef.current;
     if(((msgs as any).health||[]).length)return;
     if(!markOnce('watch:open'))return;   // 빨리 두 번 열면 두 번 깔렸다
     try{
       const lines=demoWatchOpen(name);
-      if(lines.length){
-        await new Promise(r=>setTimeout(r,450));
-        if(epoch!==sessionEpochRef.current)return;
-        await enqueue('health',lines);
-      }
+      if(lines.length){ await new Promise(r=>setTimeout(r,450)); await enqueue('health',lines); }
     }catch(e){ console.warn('[NULL] 첫 장면 실패', e); }
   };
   /* 잠긴 방은 열어도 말이 안 온다 — 안 막으면 「아직 출근하지 않았어요」
@@ -2973,28 +2663,6 @@ function Root() {
     greet(id,700); };
   /* 덮으면 그때 선톡이 걸린다 */
   const diaryDone=(v:string)=>{ saveDiary(v); setDiary(false); greet('jaeeon',700) };
-  const myDiaryDone=async(values:Record<string,string>)=>{
-    if(!myDiary||myDiarySavingRef.current)return false;
-    const targetAt=myDiary.at;
-    const before=(globalThis as any).localStorage?.getItem('null_mydiary')??null;
-    myDiarySavingRef.current=true; setMyDiarySaving(true);
-    try{
-      const saved=saveMyDiary(targetAt,values);
-      if(!saved)return false;
-      /* saveMyDiary의 동기 성공은 메모리 반영까지다. 이 화면은 실제 로컬 DB 쓰기
-         완료를 확인한 뒤에만 닫아, 실패나 직후 종료가 쓴 장을 삼키지 않게 한다.
-         기다리는 사이 화면이 바뀌었다면 늦은 완료가 새 일기까지 닫지 않는다. */
-      if(!await flushShimKey('null_mydiary')){
-        await restoreShimKey('null_mydiary',before);
-        return false;
-      }
-      if(myDiaryRef.current?.at!==targetAt)return false;
-      setMyDiary(null);
-      return true;
-    }finally{
-      myDiarySavingRef.current=false; setMyDiarySaving(false);
-    }
-  };
 
   /* ── 자리에 가고, 옮기고, 나온다 ──
      판단은 lib/flow.ts가 한다(웹 app.js와 같은 사다리). 여기서는 그 판단대로
@@ -3017,19 +2685,17 @@ function Root() {
 
   const goPlace=async(place:string,who:string,note?:string,came?:string)=>{
     if(!name) return;
-    return withTransition(async()=>{
-      stampGone(place);
-      const nextMet=met.includes(place)?met:[...met,place];
-      setMet(nextMet); saveMet(nextMet);
-      await markEvent({kind:'met',to:who,name:place});
-      if(sceneRef.current) closeScene();
-      await sysLine(who,note||`${place}에 갔다`);
-      const shot=sceneShot(place,who);
-      if(shot)stampShot(shot);
-      putScene({room:who,place,since:Date.now(),...(shot?{shot}:{}),...(came?{came}:{})});
-      setView({type:'chat',id:who}); setUnread(u=>({...u,[who]:0}));
-      await runTurn(who);
-    });
+    stampGone(place);
+    const nextMet=met.includes(place)?met:[...met,place];
+    setMet(nextMet); saveMet(nextMet);
+    await markEvent({kind:'met',to:who,name:place});
+    if(sceneRef.current) closeScene();
+    await sysLine(who,note||`${place}에 갔다`);
+    const shot=sceneShot(place,who);
+    if(shot)stampShot(shot);
+    putScene({room:who,place,since:Date.now(),...(shot?{shot}:{}),...(came?{came}:{})});
+    setView({type:'chat',id:who}); setUnread(u=>({...u,[who]:0}));
+    await runTurn(who);
   };
   const answerAsk=async(ok:boolean)=>{
     const place=ask, picked=askWho; setAsk(null); setAskWho(null);
@@ -3094,7 +2760,7 @@ function Root() {
   if(view.type==='profile') screen=<Profile char={view.id!} refresh={stamp} dLeft={dLeft} back={cameBack} days={dayN}
     onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='cart') screen=<CartScreen gifts={gifts} hearts={heartsOf(counts,gifts)}
-    keyboardHeight={kbRoot} onSend={giveGift} onBack={()=>setView({type:'list'})}/>;
+    onSend={giveGift} onBack={()=>setView({type:'list'})}/>;
   else if(view.type==='chat'){
     const room=ROOMS.find(r=>r.id===view.id)!;
     /* 자리에 있으면 그 자리를 같이 넘긴다. 뒤로가기는 나가기(묻는다)가 되고,
@@ -3112,9 +2778,7 @@ function Root() {
       onGuess={guessHidden}
       seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
-      onCart={()=>setView({type:'cart'})} onFortune={openFortune}
-      onBlockingChange={onRoomListBlockingChange} keyboardHeight={kbRoot}
-      demo={demo} name={name} gifts={gifts}
+      onCart={()=>setView({type:'cart'})} demo={demo} name={name}
       hearts={heartsOf(counts,gifts)}
       met={met} groupOn={groupOn} onGoPlace={(pl:string)=>{ expireScene(); setAskWho(null); setAsk(pl); }}
       onPlate={setPlate}/>;
@@ -3147,6 +2811,7 @@ function Root() {
     </Modal>
     {enrolling==='intro'&&<Intro onGo={()=>setEnrolling('enroll')}/>}
     {enrolling==='enroll'&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
+      mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={doRename} onDone={()=>setEnrolling('confirm')}/>}
     {enrolling==='confirm'&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling('enroll')}/>}
     {/* ── 지도와 자리의 창들 ── 판정은 flow.ts, 글월은 웹과 같다 */}
@@ -3164,10 +2829,6 @@ function Root() {
     {groupNew&&<GroupNewDialog onClose={()=>setGroupNew(false)}/>}
     {!!getcha&&<GetChaDialog name={(CHARS[getcha]||{}).name||'□□□'} onClose={()=>setGetcha(null)}/>}
     {diary&&<DiaryPage onDone={diaryDone}/>}
-    {!!myDiary&&<MyDiaryPage entry={myDiary} gifts={gifts} saving={myDiarySaving}
-      onDone={myDiaryDone} onClose={closeMyDiary}/>}
-    {fortuneOpen&&<FortuneDialog fortune={fortune}
-      onFill={fillFortune} onClose={hideFortune}/>}
     {look&&<LookOverlay shot={look.shot} onClose={()=>setLook(null)}/>}
     {/* ⑨ 답이 다 뜬 뒤에 화면이 통째로 그 얼굴이 된다 */}
     {!!kiss&&<KissTime shot={kiss} rise={KISS_RISE} hold={KISS_HOLD} out={KISS_OUT}
@@ -3198,10 +2859,6 @@ function Root() {
                   onPress={()=>setPopup('reset')}><Text style={mo.btnT}>restart</Text></Bevel>
               </View>}
               {popup==='file'&&<>
-                {!!myDiaryOpen(dLeft)&&<MenuRow label="♡  write my diary" onPress={()=>{
-                  const entry=myDiaryOpen(dLeft); setPopup(null);
-                  if(entry){ myDiarySavingRef.current=false; setMyDiarySaving(false); setMyDiary(entry); }
-                }}/>}
                 <MenuRow label="💾  save all (.txt)" onPress={()=>{setPopup(null);exportTxt()}}/>
                 <MenuRow label="♡  my stats" onPress={()=>setPopup('stats')}/>
               </>}

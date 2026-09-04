@@ -22,8 +22,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCES = [
   'scripts/data/00-runtime.js', 'scripts/data/10-memory.js',
   'scripts/data/20-content.js', 'scripts/data/30-world.js',
-  'scripts/data/40-places.js', 'scripts/data/45-fortune.js',
-  'scripts/data/50-story-state.js',
+  'scripts/data/40-places.js', 'scripts/data/50-story-state.js',
 ];
 const OUT = join(ROOT, 'app/lib/rules.ts');
 const SKIP = new Set(['API']);   // 앱에는 이미 있다

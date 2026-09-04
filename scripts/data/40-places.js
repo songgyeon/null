@@ -182,19 +182,12 @@ const nowLabel=(now)=>{
 /* 하루의 경계는 자정이 아니라 새벽 다섯 시다. 새벽 두 시에 여는 건 어제의
    연장이지 새 하루가 아니다 — 대화 도중에 날짜가 넘어가면 그게 제일 이상하다 */
 /* 「하루 한 번」 도장이 다 이걸 본다 — 선물·자리·귀갓길·관전 몫.
-   인자 없이 부르면 마지막 foreground에서 찍힌 05시 기준일을 쓴다. 탭을 계속
-   켜둔 채 경계만 지났다고 도장이 먼저 풀리면 접속 일차와 하루 제한이 갈린다.
-   과거 시각을 명시해서 묻는 자리는 그 현실 시각의 05시 기준일을 계산한다. */
-/* 기존 도장 값은 2026-9-3 꼴이었다. 접속 시계 내부의 정렬 가능한 0채움 key를
-   그대로 내보내면 업데이트 당일 선물·자리를 한 번 더 열어 주게 되므로, 도장
-   경계에서는 옛 문자열 모양을 보존한다. */
-const dailyStampKey=key=>{const [y,m,d]=String(key||"").split("-");
-  return y&&m&&d?y+"-"+Number(m)+"-"+Number(d):String(key||"")};
+   **세계 시각의 달력**을 본다. 스피드 모드면 그 달력이 네 배로 도니까
+   현실 여섯 시간마다 도장이 새로 찍힌다. 말풍선 수는 여기 안 들어온다 —
+   네 마디 나눴다고 하루가 넘어가면 그게 어제 터진 그 구조다. */
 const dayKey=now=>{
-  if(now!=null)return dailyStampKey(accessDayKey(now));
-  const state=loadAccessClock();
-  return dailyStampKey(state?state.lastKey:accessDayKey(Date.now()));
-};
+  const d=now?new Date(now):worldNow(); if(d.getHours()<5)d.setDate(d.getDate()-1);
+  return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
 const loadDaySeen=()=>{try{return localStorage.getItem("null_dayseen")||""}catch(e){return""}};
 const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};
 /* ── 선물은 한 사람에게 하루에 하나 ──

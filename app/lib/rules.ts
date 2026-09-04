@@ -79,15 +79,27 @@ const CHARS = {
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
 const ENROLL_DAYS = 30;
-/* ── 날짜는 접속할 때만 간다 ──
-   D-day·관계 단계·해금은 현실 경과시간이 아니라 이 판을 실제로 연 날을 센다.
-   새벽 다섯 시를 하루 경계로 삼고, 그 경계를 지난 뒤 처음 foreground가 된
-   순간에만 한 칸 간다. 며칠 비웠어도 한 칸뿐이고, 기기 시계가 뒤로 가면
-   마지막으로 본 날짜보다 앞선 날짜는 세지 않는다.
+/* ── 세계 시계는 하나다 ──
+   리얼 모드는 진짜 달력을 본다. 하루가 진짜 하루고, 30일을 실제로 살아야
+   끝이 난다 — 「당신이 말하지 않아도 세계는 돌아갑니다」를 진짜로 만드는 게
+   이 시계다. 스피드 모드는 같은 시계를 네 배로 돌린다. 그뿐이다.
 
-   현실 시각은 따로 그대로 흐른다. 말풍선 시각·요일·presence·시간표는
-   Date.now()를 보고, 접속 일차를 거꾸로 섞지 않는다. 오늘의 운세도 이 시계가
-   아니라 별도의 자정 경계를 쓴다. */
+     리얼      현실 1시간 = 게임 1시간
+     스피드    현실 1시간 = 게임 4시간
+     출발      켠 그 시각 · 현실 6시간 뒤 같은 시각 하루 뒤 · 현실 7.5일에 게임 30일
+
+   ── 말풍선은 시간에 손대지 않는다 ──
+   한때 쌓인 대화를 날로 셌다(네 마디 = 하루). 그러면 인물이 두 줄로 답하느냐
+   세 줄로 답하느냐가 달력을 민다. 실제로 그렇게 됐다 — 강현이 수다스러운 판에서
+   재언 방의 D-일차가 같이 탔고, 첫날 아침 8시 47분에 이미 37일째였다.
+   나눠지는 수를 바꿔봐야 「한 마디에 몇 시간」이라는 모양은 그대로다.
+   그래서 구조를 뗀다. **시각·D-일차·요일·시간표·도장·재회·해금의 day 조건이
+   전부 이 시계 하나에서 나온다.** 말풍선 수가 남아서 세는 것은 관계 대화량과
+   해금의 at 조건뿐이다 — 그건 시간이 아니라 「얼마나 나눴나」다.
+
+   대가는 알고 고른 것이다: 앱을 닫아도 세계는 흐른다. 스피드 모드에서 이틀
+   안 열면 게임 여드레가 지나 있다. 그게 「당신이 말하지 않아도」의 뒷면이다.
+   모드는 판마다 하나고 등록 화면에서 한 번 고른다. 중간에 바꾸면 D-N이 튄다. */
 /* ── 세계 확정 ──
    등록의 Click 뒤에 확인 화면이 한 번 선다 — 「{이름}, 너는 이 세계에 /
    NULL 존재하게 할 수 있을까?」. YES를 누른 순간에만 세계가 생긴다.
@@ -105,142 +117,75 @@ const savePartner=id=>{try{
   if(id!=="jaeeon"&&id!=="minhyun")return null;
   if(loadPartner())return null;                  // WHO는 한 번만이다
   localStorage.setItem("null_partner",id);return id}catch(e){return null}};
-/* 옛 판의 최초 변환에서만 읽는다. 변환 뒤에는 real/speed가 진행에 관여하지
-   않는다. 공개 선택 UI도 없어졌으므로 호환 이름은 언제나 real/false다. */
-const legacyMode=()=>{try{return localStorage.getItem("null_mode")==="speed"?"speed":"real"}catch(e){return"real"}};
-const loadMode=()=>"real";
-const saveMode=v=>"real";
-const speedOn=()=>false;
+const loadMode=()=>{try{return localStorage.getItem("null_mode")==="speed"?"speed":"real"}catch(e){return"real"}};
+const saveMode=v=>{try{localStorage.setItem("null_mode",v==="speed"?"speed":"real")}catch(e){}};
+const speedOn=()=>loadMode()==="speed";
 /* 시계가 출발하는 자리. 첫 마디가 있던 날이다 */
 const firstTsOf=store=>Object.values((store&&store.msgs)||{}).flat()
   .reduce((a,x)=>!a||(x&&x.ts<a)?(x&&x.ts)||a:a,0);
-const SPEED_RATE=4;         // 옛 speed 판을 최초 한 번 변환할 때만 쓰는 비율
-const ACCESS_CLOCK_KEY="null_access_clock_v1";
-const ACCESS_CLOCK_V=1;
-let WORLD_ANCHOR=0;         // 옛 판 변환용 첫 말풍선의 현실 epoch
+/* ── 세계 시계 ──
+   저장(ts·since·created_at)은 늘 **현실 epoch 그대로**다. 세계 시각은 그 위의
+   번역일 뿐이다 — 저장에 gameAt을 쓰면 앵커가 제 출력을 도로 먹어 시계가
+   발산한다(소스 검사로 막는다).
+
+   함수 넷의 몫이 다르다. 섞으면 어제 그 사고가 다시 난다:
+     gameAt(ts)   저장된 과거 epoch를 세계 시각으로 옮긴다. 개발 오프셋 없음
+     worldStart() 세계가 출발한 자리. 개발 오프셋 없음
+     worldNow()   세계가 보는 지금. **개발 오프셋은 여기에만 더한다**
+     worldDays()  worldNow - worldStart를 하루로 나눈 것
+   개발 오프셋을 gameAt에 넣으면 과거 말풍선 시각까지 통째로 움직이고,
+   일차 계산에서는 시작과 지금 양쪽에 들어가 상쇄돼 버린다. 지금에만 더한다. */
+/* ── 세계는 접속한 그 시각에서 출발한다 ──
+   전에는 첫날을 무조건 여덟 시로 옮겨놓고 시작했다(SPEED_START_HOUR).
+   그러면 스피드 모드의 첫 자리가 **늘 아침**이라, 오프닝 여섯 자리 중
+   후문 골목 하나만 나왔다. 밤에 켠 사람의 세계가 아침이 되는 것도 이상하다.
+   지금은 켠 시각 그대로에서 출발해 거기서부터 네 배로 흐른다 —
+   비율만 세계의 것이고 출발 자리는 현실의 것이다. */
+const SPEED_RATE=4;         // 실제 1분이 게임 4분. 진짜 하루가 게임 나흘이다
+let WORLD_ANCHOR=0;         // 첫 말풍선의 현실 epoch
+let DEV_SKEW=0;             // 개발 전용 시간 이동(ms). 배포판에서는 늘 0
 const setWorldAt=firstTs=>{ WORLD_ANCHOR=Number(firstTs)||0 };
-const asEpoch=now=>{const n=now instanceof Date?now.getTime():Number(now);return Number.isFinite(n)?n:Date.now()};
-/* 현실 로컬 날짜, 새벽 다섯 시 경계. 문자열 비교가 시간 순서가 되도록 0을 채운다. */
-const accessDayKey=now=>{
-  const d=new Date(now==null?Date.now():now); if(d.getHours()<5)d.setDate(d.getDate()-1);
-  const p=n=>String(n).padStart(2,"0");
-  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+const gameAt=ts=>{
+  const t=Number(ts)||Date.now();
+  if(!speedOn())return new Date(t);
+  const start=WORLD_ANCHOR||Date.now();
+  return new Date(start+Math.max(0,t-start)*SPEED_RATE);
 };
-const cleanAccessClock=value=>{
-  if(!value||value.v!==ACCESS_CLOCK_V||!Number.isInteger(value.elapsed)||value.elapsed<0
-    ||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value.lastKey||"")
-    ||!Number.isFinite(value.lastAt))return null;
-  const milestones={};
-  if(value.milestones&&typeof value.milestones==="object"&&!Array.isArray(value.milestones))
-    Object.keys(value.milestones).forEach(k=>{
-      const n=Number(k), at=Number(value.milestones[k]);
-      if(Number.isInteger(n)&&n>=0&&Number.isFinite(at)&&at>0)milestones[String(n)]=at;
-    });
-  let legacy=null;
-  if(value.legacy&&typeof value.legacy==="object"){
-    const firstTs=Number(value.legacy.firstTs), rate=Number(value.legacy.rate),
-      migratedAt=Number(value.legacy.migratedAt), elapsed=Number(value.legacy.elapsed);
-    if(Number.isFinite(firstTs)&&firstTs>0&&(rate===1||rate===SPEED_RATE)
-      &&Number.isFinite(migratedAt)&&Number.isInteger(elapsed)&&elapsed>=0)
-      legacy={firstTs,rate,migratedAt,elapsed};
-  }
-  return {v:ACCESS_CLOCK_V,elapsed:value.elapsed,lastKey:value.lastKey,
-    lastAt:value.lastAt,milestones,legacy};
-};
-const loadAccessClock=()=>{try{return cleanAccessClock(JSON.parse(localStorage.getItem(ACCESS_CLOCK_KEY)))}catch(e){return null}};
-const saveAccessClock=value=>{try{
-  const v=cleanAccessClock(value); if(!v)return null;
-  localStorage.setItem(ACCESS_CLOCK_KEY,JSON.stringify(v)); return v;
-}catch(e){return null}};
-/* YES를 누른 새 판은 그 순간 D-30이다. 첫 메시지가 생길 때까지 기다리지 않는다. */
-const startAccessClock=now=>{
-  const at=asEpoch(now==null?Date.now():now);
-  return saveAccessClock({v:ACCESS_CLOCK_V,elapsed:0,lastKey:accessDayKey(at),lastAt:at,
-    milestones:{"0":at},legacy:null});
-};
-/* 옛 판은 real/speed의 종전 계산 결과를 그대로 한 번 받아온다. 이 뒤부터
-   null_mode는 읽지 않는다. 변환한 날 자체는 새 접속일로 더 세지 않는다. */
-const legacyElapsed=(store,now,rate)=>{
-  const first=firstTsOf(store)||WORLD_ANCHOR, at=asEpoch(now==null?Date.now():now);
+/* 세계가 출발한 자리. 스피드든 리얼이든 첫 말풍선 그 시각이다 */
+const worldStart=()=>gameAt(WORLD_ANCHOR||Date.now());
+/* 세계가 보는 지금. 잠·시간표·자리 여는 시각·요일·도장이 전부 이걸 본다 */
+const worldNow=()=>new Date(gameAt(Date.now()).getTime()+DEV_SKEW);
+/* 만난 지 며칠. **말풍선 수가 아니라 시계가 센다** */
+const worldDays=()=>Math.max(0,
+  Math.floor((worldNow().getTime()-worldStart().getTime())/864e5));
+/* 저장소를 들고 묻는 자리용 — 앵커를 그 저장소에서 직접 읽는다.
+   전역 앵커가 아직 안 세워진 첫 그림에서도 맞는 답이 나온다. */
+const worldDaysOf=store=>{
+  const first=firstTsOf(store);
   if(!first)return 0;
-  return Math.max(0,Math.floor((at-first)*(rate||1)/864e5));
+  const a=WORLD_ANCHOR; WORLD_ANCHOR=first;
+  const d=worldDays();
+  WORLD_ANCHOR=a;
+  return d;
 };
-const migrateAccessClock=(store,now)=>{
-  const at=asEpoch(now==null?Date.now():now), first=firstTsOf(store)||WORLD_ANCHOR;
-  const rate=legacyMode()==="speed"?SPEED_RATE:1;
-  const elapsed=legacyElapsed(store,at,rate), milestones={};
-  if(first){
-    milestones["0"]=first;
-    [30,60].forEach(n=>{if(elapsed>=n)milestones[String(n)]=first+n*864e5/rate});
-  }else milestones["0"]=at;
-  return saveAccessClock({v:ACCESS_CLOCK_V,elapsed,lastKey:accessDayKey(at),lastAt:at,
-    milestones,legacy:first?{firstTs:first,rate,migratedAt:at,elapsed}:null});
-};
-/* 새 05시 기준일의 첫 foreground에서만 +1. 키가 같으면 재접속이어도 그대로,
-   키가 작으면 시계 역행이므로 lastKey와 elapsed를 모두 보존한다. */
-const touchAccessClock=(store,now)=>{
-  const at=asEpoch(now==null?Date.now():now);
-  let state=loadAccessClock();
-  if(!state){if(!loadWorld())return null;return migrateAccessClock(store,at)}
-  const key=accessDayKey(at);
-  if(key<=state.lastKey)return state;
-  const elapsed=state.elapsed+1;
-  const milestones={...state.milestones};
-  if(elapsed<=60)milestones[String(elapsed)]=at;
-  return saveAccessClock({...state,elapsed,lastKey:key,lastAt:at,milestones})||state;
-};
-const accessElapsed=store=>{
-  const state=loadAccessClock();
-  if(state)return state.elapsed;
-  return loadWorld()?legacyElapsed(store,Date.now(),legacyMode()==="speed"?SPEED_RATE:1):0;
-};
-/* 과거 물건의 D-일차용. 변환 이전 epoch는 옛 비율로, 이후는 실제 접속
-   milestone로 되짚는다. */
-const accessElapsedAt=(store,ts)=>{
-  const at=Number(ts); if(!Number.isFinite(at)||at<=0)return 0;
-  const state=loadAccessClock();
-  if(!state)return legacyElapsed(store,at,legacyMode()==="speed"?SPEED_RATE:1);
-  let elapsed=0;
-  if(state.legacy){
-    if(at<=state.legacy.migratedAt)
-      return Math.min(state.legacy.elapsed,Math.max(0,
-        Math.floor((at-state.legacy.firstTs)*state.legacy.rate/864e5)));
-    elapsed=state.legacy.elapsed;
-  }
-  Object.keys(state.milestones).forEach(k=>{
-    if(state.milestones[k]<=at)elapsed=Math.max(elapsed,Number(k)||0);
-  });
-  return Math.min(state.elapsed,elapsed);
-};
-const accessMilestoneAt=elapsed=>{
-  const state=loadAccessClock(), n=Math.max(0,Math.floor(Number(elapsed)||0));
-  if(!state||state.elapsed<n)return 0;
-  if(state.milestones[String(n)])return state.milestones[String(n)];
-  if(state.legacy&&state.legacy.elapsed>=n)
-    return state.legacy.firstTs+n*864e5/state.legacy.rate;
-  return 0;
-};
-/* 저장된 epoch와 현재 벽시계는 언제나 현실 그대로다. 옛 함수 이름은 호출부
-   호환을 위해 남기되 이제 어떤 배속도 적용하지 않는다. */
-const gameAt=ts=>new Date(Number(ts)||Date.now());
-const worldStart=()=>new Date(WORLD_ANCHOR||Date.now());
-const worldNow=()=>new Date(Date.now());
-const worldDays=()=>accessElapsed({msgs:{anchor:WORLD_ANCHOR?[{ts:WORLD_ANCHOR}]:[]}});
-const worldDaysOf=store=>accessElapsed(store);
-const nowClock=()=>new Date(Date.now());
-/* ── 개발 전용 일차 이동 ──
-   한 판에서 30일을 확인할 때 D-day 접속 눈금만 직접 민다. 저장된 ts와 현실
-   벽시계, presence, 시간표, 하루 도장은 움직이지 않는다. NULL_DEV가 켜진
-   빌드에만 실린다 — 켜는 자리는 빌드지 localStorage가 아니다. */
+/* 세계가 보는 지금. 옛 이름을 그대로 둔다 — 부르는 자리가 마흔 곳이 넘는다 */
+const nowClock=()=>worldNow();
+/* ── 개발 전용 시간 이동 ──
+   한 판에 30일을 봐야 할 때가 있다. 그렇다고 공개 스피드 모드의 비율을
+   건드리면 안 된다 — 그건 세계의 속도지 시험 도구가 아니다. 그래서 지금에만
+   더하는 오프셋을 따로 둔다. 저장된 ts도, 과거 말풍선의 시각도, 출발 자리도
+   안 움직인다. 움직이는 것은 「지금」 하나고, 일차·도장·시간표가 그걸 따라온다.
+   NULL_DEV가 켜진 빌드에만 실린다 — 켜는 자리는 빌드지 localStorage가 아니다.
+   콘솔 한 줄로 켤 수 있으면 테스터의 판이 조용히 달라진다. */
 const DEV_TIME = typeof NULL_DEV !== "undefined" && !!NULL_DEV;
-/* 개발 단추도 벽시계를 움직이지 않는다. 접속 일차만 직접 민다. */
-const devAddDay=n=>{if(!DEV_TIME)return;
-  const add=Math.max(1,Math.floor(Number(n)||1));
-  let state=loadAccessClock()||startAccessClock(Date.now()); if(!state)return;
-  const elapsed=state.elapsed+add, milestones={...state.milestones};
-  [30,60].forEach(x=>{if(state.elapsed<x&&elapsed>=x)milestones[String(x)]=Date.now()});
-  saveAccessClock({...state,elapsed,milestones});
-};
+const loadSkew=()=>{try{return +localStorage.getItem("null_devskew")||0}catch(e){return 0}};
+/* 껐다 켜도 이동한 자리에 그대로 선다. 배포판은 값이 남아 있어도 안 읽는다 */
+if(DEV_TIME)DEV_SKEW=loadSkew();
+const setSkew=ms=>{ if(!DEV_TIME)return;
+  DEV_SKEW=Math.max(0,Number(ms)||0);
+  try{localStorage.setItem("null_devskew",String(DEV_SKEW))}catch(e){}};
+/* 세계 하루만큼 뛴다. 현실로는 스피드에서 여섯 시간이지만 오프셋은 세계 값이다 */
+const devAddDay=n=>setSkew(DEV_SKEW+(Number(n)||1)*864e5);
 /* 남은 날을 콕 집어 맞춘다 — D-7·D-0 단추가 이걸 부른다. 지금 남은 날을
    받아서 그 차이만큼만 민다. 뒤로는 못 간다 — 오프셋을 음수로 두면 출발보다
    이른 「지금」이 나와서 일차가 음수가 되고, 그 아래 규칙들이 다 깨진다. */
@@ -250,11 +195,15 @@ const devToLeft=(curLeft,want)=>{
 };
 /* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
 const loadExtend=()=>{try{return +localStorage.getItem("null_extend")||0}catch(e){return 0}};
-/* 첫날의 통보. 현실 스무 시간이 지난 뒤 처음 여는 순간에 한 번만 띄운다. */
+/* 첫날의 통보. 하루가 끝나기 전에 판돈을 알려준다 — 방법은 빼고.
+   「24시간 안에」로 잡으면 그 시간에 앱을 안 연 사람에게는 영영 안 뜬다.
+   **세계 시각으로** 스무 시간이 지난 뒤 처음 여는 순간에 한 번만 띄운다 —
+   현실 시간으로 재면 스피드 모드의 첫날은 현실 여섯 시간이라 통보가
+   나흘째에 도착한다. */
 const SYS1_AFTER = 20*60*60*1000;
 const sys1Due=store=>{
   const first=firstTsOf(store);
-  return !!first && Date.now()-first >= SYS1_AFTER;
+  return !!first && worldNow().getTime()-gameAt(first).getTime() >= SYS1_AFTER;
 };
 /* ── 오프닝에서 만난 사람 ──
    세계가 시작된 자리에 있던 쪽이다. 다른 한 사람은 아직 안 만난 사람이고,
@@ -276,10 +225,11 @@ const sys1Due=store=>{
 
    「엄마가 사탕을 줬다」에서 멈춘다. 누구에게 줬는지는 비운다 —
    사탕 삼각형은 어떤 화면도 발설하지 않는다. */
-/* 종이의 결·빛·모서리는 사진이고, 글월과 빈칸은 화면의 실제 글자다.
-   20년 전 물건의 재질은 지키되 사진에 문장을 인쇄해 두지는 않는다 — 그래야
-   글자 크기와 줄 간격이 화면을 따라 흐르고, 빈칸도 같은 문장 안에 선다. */
-const DIARY_PAPER_IMG="diary-paper-child.webp";
+/* 화면에 그리는 것은 **사진**이다. 줄공책을 CSS로 흉내내던 때가 있었는데,
+   이건 20년 전 물건이고 물건은 흉내내면 물건이 아니게 된다.
+   아래 글은 그 사진에 적힌 정사 원문이다 — 사진을 못 읽는 사람에게 읽어주는
+   글(alt)이자, 이 빈칸이 어떤 문장인지 코드가 아는 자리다. */
+const DIARY_IMG="diary-jaeeon.webp";
 const DIARY_HEAD="200X.XX.XX";
 const DIARY_LINES=[
   "엄마가 이제 이사를 간다고 공부방을 안 한다고 했다.",
@@ -290,6 +240,9 @@ const DIARY_LINES=[
 const DIARY_TAIL_A="왜냐하면 나는 ";
 const DIARY_TAIL_B="니까.";
 const DIARY_MAX=8;
+/* 빈칸이 사진 위 어디에 앉는지. 사진에 그려진 네모를 실제로 재서 넣은
+   값이다(1024×1536 기준). 눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다. */
+const DIARY_BOX={left:51.56,top:77.41,w:25.98,h:4.62};
 const loadDiary=()=>{try{return localStorage.getItem("null_diary")||""}catch(e){return""}};
 const saveDiary=v=>{try{
   const t=(v||"").toString().trim().slice(0,DIARY_MAX);
@@ -347,8 +300,9 @@ const saveFlash=o=>{try{
 }catch(e){return null}};
 
 /* ── ⑩ 지금의 일기 ──
-   옛 일기는 오래된 줄공책, 지금의 일기는 밝은 바인더 종이다. 두 장 모두
-   종이만 사진으로 두고 글월과 빈칸은 흐르는 화면 글자로 얹는다.
+   옛 일기(diary-jaeeon.webp)는 20년 전 **물건**이라 사진 위에 빈칸이 앉는다.
+   이건 유저가 지금 쓰는 것이라 사진이 없다 — 흐르는 글 안에 칸이 박힌다.
+   같은 빈칸이어도 재질이 다르다.
 
    ── 선택이다 ──
    매일 쓰면 일과가 되고, 일과가 되면 안 쓴다. 그래서 날마다 안 묻는다.
@@ -359,58 +313,73 @@ const saveFlash=o=>{try{
    ⚠️ 채운 값은 **어떤 요청에도 안 실린다.** 옛 일기·엽서와 같은 자리다 —
    프롬프트에도, story에도, 페이로드에도 안 간다. 시험이 실제 요청 본문을
    뒤져서 이 값이 안 새는지 잰다. 두 사람이 모르는 것이 이 게임의 뼈다. */
-/* 다섯 장은 같은 빈 바인더 종이를 쓴다(1024×1536, 2:3).
-   blanks의 숫자는 저장할 수 있는 글자 수 계약이다. 화면 폭이나 네모 좌표가
-   아니라 입력값의 경계이므로 그대로 둔다. */
-const MY_DIARY_IMG="diary-paper-now.webp";
+/* ── 사진 한 장에 한 장 ──
+   옛 일기와 같은 규격이다(1024×1536, 2:3). 글은 사진에 이미 적혀 있고
+   네모도 사진에 그려져 있다 — 화면은 그 네모 안에 커서를 세울 뿐이다.
+   아래 text는 그 사진에 적힌 정사 원문이다. 사진을 못 읽는 사람에게
+   읽어주는 글(alt)이자, 어느 칸이 무슨 뜻인지 코드가 아는 자리다.
+   box는 사진에 그려진 네모를 **실제로 재서** 넣는다(1024×1536 기준).
+   눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다 — 옛 일기에서 그랬다.
+   재는 방법: 선을 쫓지 않고 **둘러싸인 밝은 칸**을 찾는다(바깥 종이를 칠해
+   없앤 뒤 남는 덩어리). 선이 흐린 장에서도 다섯 장 전부 정확히 나왔다.
+
+   blanks의 숫자는 그 네모에 실제로 들어가는 글자 수다. 옛 일기가 폭 25.98%에
+   여덟 자였으므로 한 자에 3.25% — 그 자로 네모 폭을 나눴다. 넉넉히 잡으면
+   글자가 그려진 네모 밖으로 삐져나온다. */
 const MY_DIARY=[
-  {at:25, text:
+  {at:25, img:"mydiary-1.webp", text:
     "오늘 이 선생님과 {talk} 얘기를 나눴다. 이 선생님은 가끔 나를 오래 안 것처럼 "+
     "쳐다본다. 그게 꼭 {feel}다. 강현이한테는 {told} 했는데 강현이는 내가 "+
     "{think}고 생각하는 거 같다. 내일은 {tmr}까? 잘 모르겠다. 나는 여전히 빈칸이다.",
-   blanks:{talk:6,feel:7,told:7,think:6,tmr:7}},
-  {at:20, text:
+   blanks:{talk:6,feel:7,told:7,think:6,tmr:7},
+   box:{talk:{left:46.58,top:22.66,w:19.14,h:3.84},feel:{left:49.51,top:35.29,w:22.36,h:3.65},
+        told:{left:40.33,top:44.40,w:21.88,h:3.78},think:{left:42.09,top:50.20,w:18.46,h:3.45},
+        tmr:{left:30.86,top:58.72,w:23.73,h:3.71}}},
+  {at:20, img:"mydiary-2.webp", text:
     "어쩌면 이 선생님은 나를 {know}도 모른다. 그게 나에게는 {feel}다. "+
     "강현이와 이 선생님 사이에서 나는 {between}다. 오늘은 강현이가 {like}처럼 "+
     "느껴졌다. 앞으로 어떻게 해야 할까. 아직은 더 채워야겠다.",
-   blanks:{know:8,feel:11,between:13,like:15}},
+   blanks:{know:8,feel:11,between:13,like:15},
+   box:{know:{left:53.22,top:20.57,w:25.00,h:4.95},feel:{left:41.31,top:29.82,w:34.38,h:4.49},
+        between:{left:27.34,top:46.09,w:43.26,h:4.82},like:{left:19.92,top:62.63,w:47.85,h:4.88}}},
   /* 두 칸은 코드가 안다 — 실제로 준 물건이다. 유저가 쓰는 것은 물건이 아니라
      **이유**다. 일기가 거울이 되는 자리라 여기만 자동이 섞인다.
      안 준 사람 칸은 그냥 빈칸으로 둔다 — 없는 선물을 지어내지 않는다. */
-  {at:14, text:
+  {at:14, img:"mydiary-3.webp", text:
     "내가 채운 빈칸들이 나에게 돌아오고 있다. 내가 강현이에게 {giftK}를 준 이유는 "+
     "정말 {whyK}뿐이었을까? 이 선생님에게 {giftJ}를 줬던 건 {whyJ}만은 아니었던 "+
     "것 같다. 나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
    blanks:{giftK:5,whyK:14,giftJ:5,whyJ:19,want:9,even:13},
-   auto:{giftK:"minhyun",giftJ:"jaeeon"}},
-  {at:7, text:
+   auto:{giftK:"minhyun",giftJ:"jaeeon"},
+   box:{giftK:{left:45.51,top:28.84,w:16.11,h:3.78},whyK:{left:28.61,top:35.68,w:45.12,h:4.82},
+        giftJ:{left:41.99,top:46.29,w:16.70,h:3.84},whyJ:{left:19.92,top:52.67,w:60.35,h:5.34},
+        want:{left:44.82,top:66.41,w:28.12,h:4.30},even:{left:27.83,top:73.96,w:41.31,h:5.08}}},
+  {at:7, img:"mydiary-4.webp", text:
     "이제는 내가 누구인지 {decide}해야 할 때가 온 거 같다. 두 사람을 언제까지고 "+
     "{keep} 할 수는 없다. 강현이도, 이 선생님도 전부 나에게는 {both}다. "+
     "지금의 나에게는 내 {mine}보다 두 사람의 {theirs} 더 {more}다.",
-   blanks:{decide:5,keep:11,both:10,mine:6,theirs:4,more:8}},
+   blanks:{decide:5,keep:11,both:10,mine:6,theirs:4,more:8},
+   box:{decide:{left:51.95,top:23.11,w:14.84,h:4.04},keep:{left:50.78,top:36.46,w:34.96,h:4.10},
+        both:{left:21.00,top:54.95,w:31.64,h:3.91},mine:{left:49.90,top:63.80,w:19.04,h:3.78},
+        theirs:{left:35.35,top:69.99,w:14.36,h:3.91},more:{left:57.23,top:70.18,w:25.20,h:3.91}}},
   /* 마지막은 두 칸이다. 여기까지 온 사람에게 더 물을 것이 없다 */
-  {at:0, text:"{last}. 나는 정말 {who}일까?",
-   blanks:{last:7,who:7}},
+  {at:0, img:"mydiary-5.webp", text:"{last}. 나는 정말 {who}일까?",
+   blanks:{last:7,who:7},
+   box:{last:{left:25.78,top:39.45,w:21.58,h:4.10},who:{left:44.53,top:49.15,w:23.73,h:3.97}}},
 ];
 /* 글에서 칸을 뽑아 조각으로 가른다. 화면도 시험도 이 하나를 쓴다 —
    글과 칸 차례를 두 군데서 세면 언젠가 어긋난다. */
 const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
   .filter(x=>x!=="").map(x=>/^\{[a-zA-Z]+\}$/.test(x)
     ? {blank:x.slice(1,-1)} : {text:x});
-/* 자동 칸의 소유권은 값이 아니라 MY_DIARY의 auto 표가 정한다.
-   선물을 안 줘 값이 비어 있어도 이 칸은 시스템 기록이다 — 유저 입력칸으로
-   바뀌면 주지 않은 선물을 지어내야만 일기를 덮을 수 있다. */
-const myDiarySystemOwned=(entry,key)=>Object.prototype.hasOwnProperty.call(
-  ((entry||{}).auto)||{},key);
 /* 자동으로 채워지는 칸의 값 — 그 사람에게 실제로 준 것 중 마지막 하나.
-   안 줬으면 빈 문자열인 **시스템 칸**으로 남는다. 소유권은 위 함수가 맡고,
-   값의 truthy/falsy로 입력 가능 여부를 정하지 않는다. */
+   안 줬으면 빈 문자열이고, 그러면 그냥 유저가 쓰는 칸이 된다. */
 const myDiaryAuto=(entry,gifts)=>{
   const out={};
   for(const [k,who] of Object.entries((entry||{}).auto||{})){
     const a=((gifts||{})[who])||[];
     const name=a.length?GIFT_NAME[a[a.length-1]]:"";
-    out[k]=name||"";
+    if(name)out[k]=name;
   }
   return out;
 };
@@ -418,20 +387,13 @@ const loadMyDiary=()=>{try{
   const v=JSON.parse(localStorage.getItem("null_mydiary"));
   return v&&typeof v==="object"&&!Array.isArray(v)?v:{};
 }catch(e){return{}}};
-/* 한 장을 통째로 저장한다. 유저 칸이 하나라도 비면 저장하지 않는다 —
-   반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다.
-
-   자동 칸은 작성 순간의 실제 선물명을 **그대로 snapshot**한다. 선물명은 유저
-   입력 한도와 무관하므로 자르지 않고, 미증정이면 빈 문자열도 정상 기록이다.
-   기존 저장본도 같은 평평한 모양이라 그대로 읽힌다. 이미 잘려 저장된 옛 값은
-   추측으로 고치지 않는다 — 현재 선물로 덮어쓰는 것보다 보존하는 편이 안전하다. */
+/* 한 장을 통째로 저장한다. 한 칸이라도 비면 저장하지 않는다 —
+   반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다. */
 const saveMyDiary=(at,vals)=>{try{
   const e=MY_DIARY.find(x=>x.at===at); if(!e)return null;
   const out={};
   for(const k of Object.keys(e.blanks)){
-    const raw=((vals||{})[k]||"").toString().trim();
-    if(myDiarySystemOwned(e,k)){out[k]=raw;continue}
-    const t=raw.slice(0,e.blanks[k]);
+    const t=((vals||{})[k]||"").toString().trim().slice(0,e.blanks[k]);
     if(!t)return null;
     out[k]=t;
   }
@@ -454,25 +416,21 @@ const myDiaryOpen=left=>{
    쓴 것이다 — 유저의 옛 일기 마지막 칸, 병원 옥상 엽서의 세 칸.
    그래서 두 사람 다음에 자기 이름으로 따로 선다. 채운 것만 나온다.
 
-   빈칸 값은 여전히 기기 밖으로 안 나간다. 사진첩에서도 종이 사진 위에
-   본문과 값을 실제 글자로 다시 그린다. */
-const userPics=(name,giftsOverride)=>{
+   빈칸 값은 여전히 기기 밖으로 안 나간다. 여기서 하는 일은 이미 저장돼
+   있는 값을 사진 위 제자리에 얹어 보여주는 것뿐이다. */
+const userPics=name=>{
   const out=[];
   const d=loadDiary();
-  if(d)out.push({src:DIARY_PAPER_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
-    diary:{kind:"child",src:DIARY_PAPER_IMG,values:{why:d}}});
-  /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동 칸까지 작성 순간에
-     저장한 snapshot을 그대로 읽는다. 사진첩을 여는 시점의 선물 목록으로 다시
-     계산하면 새 선물을 준 뒤 과거 일기의 물건이 바뀐다. */
-  /* giftsOverride 인자는 옛 호출부 호환을 위해 받되, 저장된 일기의 값에는 쓰지
-     않는다. 웹·Expo 어느 쪽도 재열람이 기록을 고치면 안 된다. */
-  const md=loadMyDiary();
+  if(d)out.push({src:DIARY_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
+    fill:[{...DIARY_BOX,text:d}]});
+  /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동으로 찬 칸도 같이
+     얹는다: 화면에서 본 그대로여야 한다 */
+  const md=loadMyDiary(), gf=loadGifts();
   for(const e of MY_DIARY){
     const w=md[e.at]; if(!w)continue;
-    out.push({src:MY_DIARY_IMG,label:`D-${e.at}`,
-      diary:{kind:"current",src:MY_DIARY_IMG,entry:e,
-        values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,
-          Object.prototype.hasOwnProperty.call(w,k)?String(w[k]??""):""]))}});
+    const auto=myDiaryAuto(e,gf);
+    out.push({src:e.img,label:`D-${e.at}`,
+      fill:Object.keys(e.blanks).map(k=>({...e.box[k],text:auto[k]||w[k]||""}))});
   }
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
@@ -530,14 +488,17 @@ const saveGetcha=id=>{try{
   return true;
 }catch(e){return false}};
 const saveSys1=()=>{try{localStorage.setItem("null_sys1","1")}catch(e){}};
-/* 남은 날·지난 날. 둘 다 foreground에서 찍힌 접속 일차 하나에서 나온다. */
+/* 남은 날·지난 날. 둘 다 세계 시계 하나에서 나온다 */
 const daysLeft=store=>Math.max(0,ENROLL_DAYS+loadExtend()-worldDaysOf(store));
-/* 세계를 실제로 연 05시 기준일 수. 단계와 해금의 day 조건이 이걸 같이 본다 */
+/* 첫 대화로부터 며칠 지났나. 단계와 해금의 day 조건이 이걸 같이 본다 */
 const daysSince=store=>worldDaysOf(store);
-/* D-0에 실제로 접속해 그 일차가 찍힌 현실 epoch. 아직 D-0에 닿지 않았으면
-   미래 시각을 지어내지 않고 0이다. 연장 판은 두 번째 D-0(60)을 본다. */
+/* 떠나는 날의 현실 epoch. 재회 판정과 가방의 D-일차가 같이 본다 —
+   세계 하루는 스피드에서 현실 여섯 시간이므로 나눠서 되돌린다. */
 const leaveTsOf=store=>{
-  return accessMilestoneAt(ENROLL_DAYS+loadExtend());
+  const first=firstTsOf(store);
+  if(!first)return 0;
+  const span=(ENROLL_DAYS+loadExtend())*864e5;
+  return first+(speedOn()?span/SPEED_RATE:span);
 };
 /* 떠난 뒤에 유저가 다시 말을 걸었나. 유저 발화만 센다 */
 const cameBackAt=store=>{
@@ -547,8 +508,9 @@ const cameBackAt=store=>{
 };
 /* 그 말풍선이 찍힌 날의 D-일차. 가방이 「받은 날」을 이걸로 적는다 */
 const dLeftAt=(store,ts)=>{
-  if(!firstTsOf(store)||!ts)return null;
-  const gone=accessElapsedAt(store,ts);
+  const first=firstTsOf(store);
+  if(!first||!ts)return null;
+  const gone=Math.floor((gameAt(ts).getTime()-gameAt(first).getTime())/864e5);
   return Math.min(ENROLL_DAYS,Math.max(0,ENROLL_DAYS-gone));
 };
 /* ── 이름이 불린 횟수 ──
@@ -581,7 +543,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=274";
+const AV="?v=270";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1254,19 +1216,12 @@ const nowLabel=(now)=>{
 /* 하루의 경계는 자정이 아니라 새벽 다섯 시다. 새벽 두 시에 여는 건 어제의
    연장이지 새 하루가 아니다 — 대화 도중에 날짜가 넘어가면 그게 제일 이상하다 */
 /* 「하루 한 번」 도장이 다 이걸 본다 — 선물·자리·귀갓길·관전 몫.
-   인자 없이 부르면 마지막 foreground에서 찍힌 05시 기준일을 쓴다. 탭을 계속
-   켜둔 채 경계만 지났다고 도장이 먼저 풀리면 접속 일차와 하루 제한이 갈린다.
-   과거 시각을 명시해서 묻는 자리는 그 현실 시각의 05시 기준일을 계산한다. */
-/* 기존 도장 값은 2026-9-3 꼴이었다. 접속 시계 내부의 정렬 가능한 0채움 key를
-   그대로 내보내면 업데이트 당일 선물·자리를 한 번 더 열어 주게 되므로, 도장
-   경계에서는 옛 문자열 모양을 보존한다. */
-const dailyStampKey=key=>{const [y,m,d]=String(key||"").split("-");
-  return y&&m&&d?y+"-"+Number(m)+"-"+Number(d):String(key||"")};
+   **세계 시각의 달력**을 본다. 스피드 모드면 그 달력이 네 배로 도니까
+   현실 여섯 시간마다 도장이 새로 찍힌다. 말풍선 수는 여기 안 들어온다 —
+   네 마디 나눴다고 하루가 넘어가면 그게 어제 터진 그 구조다. */
 const dayKey=now=>{
-  if(now!=null)return dailyStampKey(accessDayKey(now));
-  const state=loadAccessClock();
-  return dailyStampKey(state?state.lastKey:accessDayKey(Date.now()));
-};
+  const d=now?new Date(now):worldNow(); if(d.getHours()<5)d.setDate(d.getDate()-1);
+  return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
 const loadDaySeen=()=>{try{return localStorage.getItem("null_dayseen")||""}catch(e){return""}};
 const saveDaySeen=v=>{try{localStorage.setItem("null_dayseen",v)}catch(e){}};
 /* ── 선물은 한 사람에게 하루에 하나 ──
@@ -1683,338 +1638,6 @@ const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):l
    모델에게 시켜서 알아서 모으게 하는 길도 있는데 안 골랐다. ① 그 말이
    인물에게도 보이므로 인물이 거기 답한다. ② 알아채는 게 확률이라 놓치는
    날이 있다. 놓친 것은 없는 것이고, 그러면 모으는 뜻이 없다. */
-
-/* ── ✧ NULL 위한 오늘의 운세 ✧ ──
-   세계 시계(dayKey)가 아니라 이 기기의 실제 달력 날짜를 쓴다. 스피드 모드나
-   개발 시간 이동으로 운세를 여러 번 뽑을 수 있으면 「접속한 날 한 번」이라는
-   약속이 깨지기 때문이다.
-
-   빈칸은 유저 입력이 아니다. 시스템이 who/place/find/keyword를 만들고 이 기기에
-   저장한 뒤, FILL을 눌렀을 때만 공개한다. 모델 요청에는 공개된 오늘의 keywordId
-   하나만 보낼 수 있다. 나머지 운세와 덱은 전부 localStorage에서 끝난다. */
-const FORTUNE_STORAGE_KEY="null_fortune_v1";
-const FORTUNE_STATE_VERSION=1;
-/* current는 덱에서 마지막으로 새로 뽑은 장을 계속 가리킨다. 그래야 used의
-   마지막 값·긴장 간격 장부가 기존 v1과 같은 뜻을 유지한다. 현지 날짜가 잠깐
-   앞으로 갔다 돌아온 때를 위해 그 밖의 최근 날짜만 31개 둔다 — current까지
-   합치면 한 달짜리 NULL보다 긴 32일이고, 저장값은 몇 KB 안에서 멈춘다. */
-const FORTUNE_HISTORY_MAX=31;
-
-/* id는 워커가 허용 목록으로 확인하는 안정된 계약이고 label은 화면용이다.
-   intensity:tension은 연속해서 나오지 않도록 덱에서 따로 간격을 둔다. */
-const NULL_FORTUNE_KEYWORDS=[
-  {id:"check_in",label:"안부",category:"daily_rhythm",intensity:"light"},
-  {id:"morning",label:"아침",category:"daily_rhythm",intensity:"light"},
-  {id:"night",label:"밤",category:"daily_rhythm",intensity:"light"},
-  {id:"weather",label:"날씨",category:"daily_rhythm",intensity:"light"},
-  {id:"weekend",label:"주말",category:"daily_rhythm",intensity:"light"},
-  {id:"sleep",label:"잠",category:"daily_rhythm",intensity:"light"},
-  {id:"walk",label:"산책",category:"daily_rhythm",intensity:"light"},
-  {id:"rest",label:"휴식",category:"daily_rhythm",intensity:"light"},
-  {id:"going_out",label:"외출",category:"daily_rhythm",intensity:"light"},
-  {id:"homecoming",label:"귀가",category:"daily_rhythm",intensity:"light"},
-
-  {id:"coffee",label:"커피",category:"food",intensity:"light"},
-  {id:"ramen",label:"라면",category:"food",intensity:"light"},
-  {id:"snack",label:"간식",category:"food",intensity:"light"},
-  {id:"late_night_snack",label:"야식",category:"food",intensity:"light"},
-  {id:"lunchbox",label:"도시락",category:"food",intensity:"light"},
-  {id:"broth",label:"국물",category:"food",intensity:"light"},
-  {id:"dessert",label:"디저트",category:"food",intensity:"light"},
-  {id:"spicy_flavor",label:"매운맛",category:"food",intensity:"light"},
-  {id:"cooking",label:"요리",category:"food",intensity:"light"},
-  {id:"menu",label:"메뉴",category:"food",intensity:"light"},
-
-  {id:"song",label:"노래",category:"taste",intensity:"light"},
-  {id:"movie",label:"영화",category:"taste",intensity:"light"},
-  {id:"book",label:"책",category:"taste",intensity:"light"},
-  {id:"photo",label:"사진",category:"taste",intensity:"light"},
-  {id:"color",label:"색깔",category:"taste",intensity:"light"},
-  {id:"clothes",label:"옷",category:"taste",intensity:"light"},
-  {id:"hobby",label:"취미",category:"taste",intensity:"light"},
-  {id:"game",label:"게임",category:"taste",intensity:"light"},
-  {id:"collection",label:"소장품",category:"taste",intensity:"light"},
-  {id:"interior",label:"인테리어",category:"taste",intensity:"light"},
-
-  {id:"temperature",label:"온도",category:"senses",intensity:"light"},
-  {id:"sound",label:"소리",category:"senses",intensity:"light"},
-  {id:"scent",label:"향기",category:"senses",intensity:"light"},
-  {id:"texture",label:"촉감",category:"senses",intensity:"light"},
-  {id:"light",label:"빛",category:"senses",intensity:"light"},
-  {id:"shadow",label:"그림자",category:"senses",intensity:"light"},
-  {id:"breeze",label:"바람",category:"senses",intensity:"light"},
-  {id:"gaze",label:"시선",category:"senses",intensity:"personal"},
-  {id:"voice",label:"목소리",category:"senses",intensity:"personal"},
-  {id:"mood",label:"분위기",category:"senses",intensity:"light"},
-
-  {id:"class",label:"수업",category:"school_life",intensity:"light"},
-  {id:"break_time",label:"쉬는 시간",category:"school_life",intensity:"light"},
-  {id:"after_school",label:"방과 후",category:"school_life",intensity:"light"},
-  {id:"homework",label:"숙제",category:"school_life",intensity:"light"},
-  {id:"exam",label:"시험",category:"school_life",intensity:"light"},
-  {id:"presentation",label:"발표",category:"school_life",intensity:"light"},
-  {id:"cleaning",label:"청소",category:"school_life",intensity:"light"},
-  {id:"school_lunch",label:"급식",category:"school_life",intensity:"light"},
-  {id:"physical_education",label:"체육",category:"school_life",intensity:"light"},
-  {id:"attendance",label:"출석",category:"school_life",intensity:"light"},
-
-  {id:"question",label:"질문",category:"conversation",intensity:"light"},
-  {id:"answer",label:"대답",category:"conversation",intensity:"personal"},
-  {id:"request",label:"부탁",category:"conversation",intensity:"personal"},
-  {id:"compliment",label:"칭찬",category:"conversation",intensity:"personal"},
-  {id:"recommendation",label:"추천",category:"conversation",intensity:"light"},
-  {id:"teasing",label:"장난",category:"conversation",intensity:"light"},
-  {id:"brag",label:"자랑",category:"conversation",intensity:"light"},
-  {id:"encouragement",label:"응원",category:"conversation",intensity:"personal"},
-  {id:"help",label:"도움",category:"conversation",intensity:"personal"},
-  {id:"apology",label:"사과",category:"conversation",intensity:"tension"},
-
-  {id:"first_impression",label:"첫인상",category:"memory_time",intensity:"personal"},
-  {id:"memory",label:"기억",category:"memory_time",intensity:"personal"},
-  {id:"past",label:"과거",category:"memory_time",intensity:"personal"},
-  {id:"yesterday",label:"어제",category:"memory_time",intensity:"light"},
-  {id:"tomorrow",label:"내일",category:"memory_time",intensity:"light"},
-  {id:"timing",label:"타이밍",category:"memory_time",intensity:"personal"},
-  {id:"moment",label:"순간",category:"memory_time",intensity:"personal"},
-  {id:"repetition",label:"반복",category:"memory_time",intensity:"personal"},
-  {id:"season",label:"계절",category:"memory_time",intensity:"light"},
-  {id:"waiting",label:"기다림",category:"memory_time",intensity:"personal"},
-
-  {id:"dream",label:"꿈",category:"possibility",intensity:"personal"},
-  {id:"wish",label:"소원",category:"possibility",intensity:"personal"},
-  {id:"imagination",label:"상상",category:"possibility",intensity:"light"},
-  {id:"coincidence",label:"우연",category:"possibility",intensity:"light"},
-  {id:"possibility",label:"가능성",category:"possibility",intensity:"personal"},
-  {id:"hunch",label:"예감",category:"possibility",intensity:"personal"},
-  {id:"discovery",label:"발견",category:"possibility",intensity:"light"},
-  {id:"adventure",label:"모험",category:"possibility",intensity:"light"},
-  {id:"what_if",label:"만약",category:"possibility",intensity:"personal"},
-  {id:"opportunity",label:"기회",category:"possibility",intensity:"personal"},
-
-  {id:"promise",label:"약속",category:"connection",intensity:"personal"},
-  {id:"sincerity",label:"진심",category:"connection",intensity:"personal"},
-  {id:"trust",label:"믿음",category:"connection",intensity:"personal"},
-  {id:"comfort",label:"위로",category:"connection",intensity:"personal"},
-  {id:"consideration",label:"배려",category:"connection",intensity:"personal"},
-  {id:"courage",label:"용기",category:"connection",intensity:"personal"},
-  {id:"name",label:"이름",category:"connection",intensity:"personal"},
-  {id:"nickname",label:"별명",category:"connection",intensity:"light"},
-  {id:"form_of_address",label:"호칭",category:"connection",intensity:"personal"},
-  {id:"similarity",label:"닮은 점",category:"connection",intensity:"personal"},
-
-  {id:"secret",label:"비밀",category:"tension",intensity:"tension"},
-  {id:"lie",label:"거짓말",category:"tension",intensity:"tension"},
-  {id:"misunderstanding",label:"오해",category:"tension",intensity:"tension"},
-  {id:"silence",label:"침묵",category:"tension",intensity:"tension"},
-  {id:"boundary",label:"경계",category:"tension",intensity:"tension"},
-  {id:"regret",label:"후회",category:"tension",intensity:"tension"},
-  {id:"suspicion",label:"의심",category:"tension",intensity:"tension"},
-  {id:"excuse",label:"핑계",category:"tension",intensity:"tension"},
-  {id:"hesitation",label:"망설임",category:"tension",intensity:"tension"},
-  {id:"mistake",label:"실수",category:"tension",intensity:"tension"},
-];
-/* null prototype — 깨진 저장값의 __proto__/constructor가 허용 id처럼 보이면 안 된다. */
-const FORTUNE_KEYWORD_BY_ID=Object.create(null);
-NULL_FORTUNE_KEYWORDS.forEach(k=>{FORTUNE_KEYWORD_BY_ID[k.id]=k});
-
-/* 조사까지 화면 문구에 고정돼 있으므로 who는 받침 있는 이름, find는 「을」이
-   자연스러운 말만 둔다. place는 실제 NULL 지도에 있는 자리다. */
-const NULL_FORTUNE_WHO=["이재언","이강현"];
-const NULL_FORTUNE_PLACES=["학교","교실","보건실","옥상","체육관","편의점","도서관","레코드샵","빨래방","집"];
-const NULL_FORTUNE_FINDS=["작은 행운","반가운 우연","새로운 장면","숨은 흔적","기다리던 답","사소한 비밀","다정한 마음","작은 선물","좋은 소식","새로운 인연"];
-
-/* 실제 로컬 달력 날짜. nowClock/dayKey를 의도적으로 부르지 않는다. */
-const fortuneDayKey=(now)=>{
-  const d=now===undefined?new Date():(now instanceof Date?now:new Date(now));
-  if(!Number.isFinite(d.getTime()))return"";
-  const pad=n=>String(n).padStart(2,"0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-};
-const fortuneRandom=random=>{
-  let n=0;
-  try{n=Number((typeof random==="function"?random:Math.random)())}catch(e){n=0}
-  return Number.isFinite(n)?Math.max(0,Math.min(0.9999999999999999,n)):0;
-};
-const shuffleFortune=(list,random)=>{
-  const a=(list||[]).slice();
-  for(let i=a.length-1;i>0;i--){
-    const j=Math.floor(fortuneRandom(random)*(i+1));
-    [a[i],a[j]]=[a[j],a[i]];
-  }
-  return a;
-};
-
-/* 두 번째 값은 직전 tension 뒤로 지난 일반 키워드 수(0~6)다. 공개 helper를
-   단독으로 쓸 때는 intensity 문자열도 받는다: tension=0, 그 밖=간격 충족.
-   tension 사이에는 언제나 다른 키워드가 여섯 개 이상 놓인다. */
-const fortuneTensionGap=previousIntensity=>{
-  if(Number.isFinite(previousIntensity))return Math.max(0,Math.min(6,Math.floor(previousIntensity)));
-  return previousIntensity==="tension"?0:6;
-};
-const buildFortuneDeck=(random,previousIntensity)=>{
-  const tense=shuffleFortune(NULL_FORTUNE_KEYWORDS.filter(k=>k.intensity==="tension").map(k=>k.id),random);
-  const calm=shuffleFortune(NULL_FORTUNE_KEYWORDS.filter(k=>k.intensity!=="tension").map(k=>k.id),random);
-  /* 11 tension 앞·사이·뒤의 일반 키워드 묶음. 첫 묶음은 지난 덱의 꼬리와
-     합쳐 여섯 칸이 되고, 열 개의 사이 묶음은 각자 최소 여섯 칸이다. */
-  const gaps=Array(tense.length+1).fill(0);
-  gaps[0]=Math.max(0,6-fortuneTensionGap(previousIntensity));
-  for(let i=1;i<tense.length;i++)gaps[i]=6;
-  let extra=calm.length-gaps.reduce((a,b)=>a+b,0);
-  while(extra-->0)gaps[Math.floor(fortuneRandom(random)*gaps.length)]++;
-  const deck=[],rest=calm.slice();
-  for(let i=0;i<tense.length;i++){
-    deck.push(...rest.splice(0,gaps[i]));
-    deck.push(tense[i]);
-  }
-  deck.push(...rest);
-  return deck;
-};
-
-const fortuneRecordOk=r=>!!r&&typeof r==="object"
-  &&/^\d{4}-\d{2}-\d{2}$/.test(r.day||"")
-  &&NULL_FORTUNE_WHO.includes(r.who)
-  &&NULL_FORTUNE_PLACES.includes(r.place)
-  &&NULL_FORTUNE_FINDS.includes(r.find)
-  &&!!FORTUNE_KEYWORD_BY_ID[r.keywordId]
-  &&typeof r.revealed==="boolean"&&typeof r.seen==="boolean";
-const fortuneSequenceGap=(ids,startGap)=>{
-  let gap=startGap;
-  for(const id of ids){
-    const k=FORTUNE_KEYWORD_BY_ID[id];
-    if(!k)return-1;
-    if(k.intensity==="tension"){
-      if(gap<6)return-1;
-      gap=0;
-    }else gap=Math.min(6,gap+1);
-  }
-  return gap;
-};
-const fortuneDeckStateOk=s=>{
-  if(!s||s.v!==FORTUNE_STATE_VERSION||!fortuneRecordOk(s.current))return false;
-  if(!Array.isArray(s.deck)||!Array.isArray(s.used))return false;
-  /* history가 없으면 이 기능 전의 v1 저장값이다. 빈 과거로 받아 다음 저장 때
-     자연스럽게 새 모양이 된다. 필드가 있는데 모양이 틀린 것은 깨진 값이다. */
-  const history=s.history===undefined?[]:s.history;
-  if(!Array.isArray(history)||history.length>FORTUNE_HISTORY_MAX
-    ||history.some(r=>!fortuneRecordOk(r)))return false;
-  const days=[s.current.day,...history.map(r=>r.day)];
-  if(new Set(days).size!==days.length)return false;
-  const all=[...s.deck,...s.used];
-  if(all.length!==NULL_FORTUNE_KEYWORDS.length||new Set(all).size!==all.length)return false;
-  if(all.some(id=>!FORTUNE_KEYWORD_BY_ID[id]))return false;
-  if(!s.used.length||s.used[s.used.length-1]!==s.current.keywordId)return false;
-  if(s.lastKeywordId!==s.current.keywordId)return false;
-  if(!Number.isInteger(s.cycleStartGap)||s.cycleStartGap<0||s.cycleStartGap>6)return false;
-  if(!Number.isInteger(s.sinceTension)||s.sinceTension<0||s.sinceTension>6)return false;
-  const afterUsed=fortuneSequenceGap(s.used,s.cycleStartGap);
-  return afterUsed===s.sinceTension&&fortuneSequenceGap(s.deck,afterUsed)>=0;
-};
-const loadFortuneState=()=>{try{
-  const s=JSON.parse(localStorage.getItem(FORTUNE_STORAGE_KEY));
-  return fortuneDeckStateOk(s)?s:null;
-}catch(e){return null}};
-const saveFortuneState=s=>{try{
-  localStorage.setItem(FORTUNE_STORAGE_KEY,JSON.stringify(s));return true;
-}catch(e){return false}};
-const pickFortune=(list,random)=>list[Math.floor(fortuneRandom(random)*list.length)];
-const fortuneHistoryOf=s=>Array.isArray(s&&s.history)?s.history:[];
-const fortuneRecordForDay=(s,day)=>{
-  if(!s||!day)return null;
-  if(s.current&&s.current.day===day)return s.current;
-  return fortuneHistoryOf(s).find(r=>r.day===day)||null;
-};
-const replaceFortuneRecord=(s,record)=>{
-  if(!s||!record)return false;
-  if(s.current.day===record.day){s.current=record;return true}
-  const i=fortuneHistoryOf(s).findIndex(r=>r.day===record.day);
-  if(i<0)return false;
-  s.history=s.history.slice();s.history[i]=record;return true;
-};
-
-/* 반환값은 UI가 바로 쓰는 오늘 record뿐이다. 덱/used는 저장 wrapper 안에 숨긴다. */
-const ensureFortuneForToday=(now,random)=>{
-  const day=fortuneDayKey(now);
-  let old=loadFortuneState();
-  /* 이미 만든 현지 날짜면 current가 아니어도 그대로 돌려준다. current를 과거
-     날짜로 바꾸면 used의 마지막 값과 달라지므로, 덱 장부는 건드리지 않는다. */
-  const remembered=fortuneRecordForDay(old,day);
-  if(remembered)return remembered;
-
-  let deck=old?old.deck.slice():[];
-  let used=old?old.used.slice():[];
-  const history=old
-    ?[old.current,...fortuneHistoryOf(old).filter(r=>r.day!==old.current.day)]
-      .slice(0,FORTUNE_HISTORY_MAX)
-    :[];
-  const previousId=old&&old.lastKeywordId;
-  const previousGap=old?old.sinceTension:6;
-  let cycleStartGap=old?old.cycleStartGap:previousGap;
-  if(!deck.length){
-    deck=buildFortuneDeck(random,previousGap);
-    used=[];
-    cycleStartGap=previousGap;
-    /* 한 바퀴를 전부 쓴 경계에서는 반복이 허용되지만, 바로 같은 단어가
-       겹치는 것만은 피한다. 덱의 무반복 계약에는 영향을 주지 않는다. */
-    if(deck[0]===previousId){
-      /* 같은 intensity끼리만 바꿔야 tension 앞의 여섯 칸 간격이 보존된다. */
-      const kind=FORTUNE_KEYWORD_BY_ID[deck[0]].intensity;
-      const swap=deck.findIndex((id,i)=>i>0&&id!==previousId
-        &&FORTUNE_KEYWORD_BY_ID[id].intensity===kind);
-      if(swap>0)[deck[0],deck[swap]]=[deck[swap],deck[0]];
-    }
-  }
-  const keywordId=deck.shift();
-  used.push(keywordId);
-  const intensity=FORTUNE_KEYWORD_BY_ID[keywordId].intensity;
-  const sinceTension=intensity==="tension"?0:Math.min(6,previousGap+1);
-  const current={
-    day,
-    who:pickFortune(NULL_FORTUNE_WHO,random),
-    place:pickFortune(NULL_FORTUNE_PLACES,random),
-    find:pickFortune(NULL_FORTUNE_FINDS,random),
-    keywordId,
-    revealed:false,
-    seen:false,
-  };
-  saveFortuneState({v:FORTUNE_STATE_VERSION,deck,used,cycleStartGap,sinceTension,lastKeywordId:keywordId,current,history});
-  return current;
-};
-const fortuneNeedsAutoOpen=(record,now)=>!!record&&record.day===fortuneDayKey(now)&&record.seen!==true;
-const markFortuneSeen=(record,now)=>{
-  const day=fortuneDayKey(now),current=ensureFortuneForToday(now);
-  const s=loadFortuneState();
-  if(!s)return current;
-  /* stale UI record로 오늘 것을 덮지 않는다. record는 호출 의도를 확인하는 데만 쓴다. */
-  if(record&&record.day!==day)return current;
-  const saved=fortuneRecordForDay(s,day);
-  if(!saved)return current;
-  const next={...saved,seen:true};
-  if(!replaceFortuneRecord(s,next))return current;
-  saveFortuneState(s);
-  return next;
-};
-/* 둘째 인자는 지금 **화면에 보이는 장**이다. 23:59에 연 창을 00:01에
-   채웠다고 보이지 않는 새 날짜를 공개하면 안 된다. record가 없을 때만 기존
-   호출 호환대로 현재 로컬 날짜의 장을 잡는다. */
-const revealFortuneForToday=(now,record)=>{
-  const current=fortuneRecordOk(record)?record:ensureFortuneForToday(now);
-  const day=current.day;
-  const s=loadFortuneState();
-  if(!s)return current;
-  const saved=fortuneRecordForDay(s,day);
-  if(!saved)return current;
-  const next={...saved,revealed:true};
-  if(!replaceFortuneRecord(s,next))return current;
-  saveFortuneState(s);
-  return next;
-};
-/* 요청 조립부가 읽는 유일한 출구. 오늘 공개한 allowlisted id가 아니면 null이다. */
-const currentFortuneKeywordId=(now)=>{
-  const s=loadFortuneState(),day=fortuneDayKey(now);
-  const record=fortuneRecordForDay(s,day);
-  return record&&record.revealed===true&&FORTUNE_KEYWORD_BY_ID[record.keywordId]
-    ?record.keywordId:null;
-};
 
 const EDIT_MAX=500;
 const loadEdits=()=>{try{return JSON.parse(localStorage.getItem("null_edits"))||[]}catch(e){return[]}};
@@ -2446,28 +2069,14 @@ return {
   saveWorld,
   loadPartner,
   savePartner,
-  legacyMode,
   loadMode,
   saveMode,
   speedOn,
   firstTsOf,
   SPEED_RATE,
-  ACCESS_CLOCK_KEY,
-  ACCESS_CLOCK_V,
   WORLD_ANCHOR,
+  DEV_SKEW,
   setWorldAt,
-  asEpoch,
-  accessDayKey,
-  cleanAccessClock,
-  loadAccessClock,
-  saveAccessClock,
-  startAccessClock,
-  legacyElapsed,
-  migrateAccessClock,
-  touchAccessClock,
-  accessElapsed,
-  accessElapsedAt,
-  accessMilestoneAt,
   gameAt,
   worldStart,
   worldNow,
@@ -2475,17 +2084,20 @@ return {
   worldDaysOf,
   nowClock,
   DEV_TIME,
+  loadSkew,
+  setSkew,
   devAddDay,
   devToLeft,
   loadExtend,
   SYS1_AFTER,
   sys1Due,
-  DIARY_PAPER_IMG,
+  DIARY_IMG,
   DIARY_HEAD,
   DIARY_LINES,
   DIARY_TAIL_A,
   DIARY_TAIL_B,
   DIARY_MAX,
+  DIARY_BOX,
   loadDiary,
   saveDiary,
   FLASH_FRONT,
@@ -2499,10 +2111,8 @@ return {
   FLASH_TURN,
   loadFlash,
   saveFlash,
-  MY_DIARY_IMG,
   MY_DIARY,
   myDiaryParts,
-  myDiarySystemOwned,
   myDiaryAuto,
   loadMyDiary,
   saveMyDiary,
@@ -2621,7 +2231,6 @@ return {
   daySlots,
   slotNow,
   nowLabel,
-  dailyStampKey,
   dayKey,
   loadDaySeen,
   saveDaySeen,
@@ -2682,33 +2291,6 @@ return {
   placeNeed,
   loadScene,
   saveScene,
-  FORTUNE_STORAGE_KEY,
-  FORTUNE_STATE_VERSION,
-  FORTUNE_HISTORY_MAX,
-  NULL_FORTUNE_KEYWORDS,
-  FORTUNE_KEYWORD_BY_ID,
-  NULL_FORTUNE_WHO,
-  NULL_FORTUNE_PLACES,
-  NULL_FORTUNE_FINDS,
-  fortuneDayKey,
-  fortuneRandom,
-  shuffleFortune,
-  fortuneTensionGap,
-  buildFortuneDeck,
-  fortuneRecordOk,
-  fortuneSequenceGap,
-  fortuneDeckStateOk,
-  loadFortuneState,
-  saveFortuneState,
-  pickFortune,
-  fortuneHistoryOf,
-  fortuneRecordForDay,
-  replaceFortuneRecord,
-  ensureFortuneForToday,
-  fortuneNeedsAutoOpen,
-  markFortuneSeen,
-  revealFortuneForToday,
-  currentFortuneKeywordId,
   EDIT_MAX,
   loadEdits,
   saveEdits,
@@ -2800,28 +2382,14 @@ export const {
   saveWorld,
   loadPartner,
   savePartner,
-  legacyMode,
   loadMode,
   saveMode,
   speedOn,
   firstTsOf,
   SPEED_RATE,
-  ACCESS_CLOCK_KEY,
-  ACCESS_CLOCK_V,
   WORLD_ANCHOR,
+  DEV_SKEW,
   setWorldAt,
-  asEpoch,
-  accessDayKey,
-  cleanAccessClock,
-  loadAccessClock,
-  saveAccessClock,
-  startAccessClock,
-  legacyElapsed,
-  migrateAccessClock,
-  touchAccessClock,
-  accessElapsed,
-  accessElapsedAt,
-  accessMilestoneAt,
   gameAt,
   worldStart,
   worldNow,
@@ -2829,17 +2397,20 @@ export const {
   worldDaysOf,
   nowClock,
   DEV_TIME,
+  loadSkew,
+  setSkew,
   devAddDay,
   devToLeft,
   loadExtend,
   SYS1_AFTER,
   sys1Due,
-  DIARY_PAPER_IMG,
+  DIARY_IMG,
   DIARY_HEAD,
   DIARY_LINES,
   DIARY_TAIL_A,
   DIARY_TAIL_B,
   DIARY_MAX,
+  DIARY_BOX,
   loadDiary,
   saveDiary,
   FLASH_FRONT,
@@ -2853,10 +2424,8 @@ export const {
   FLASH_TURN,
   loadFlash,
   saveFlash,
-  MY_DIARY_IMG,
   MY_DIARY,
   myDiaryParts,
-  myDiarySystemOwned,
   myDiaryAuto,
   loadMyDiary,
   saveMyDiary,
@@ -2975,7 +2544,6 @@ export const {
   daySlots,
   slotNow,
   nowLabel,
-  dailyStampKey,
   dayKey,
   loadDaySeen,
   saveDaySeen,
@@ -3036,33 +2604,6 @@ export const {
   placeNeed,
   loadScene,
   saveScene,
-  FORTUNE_STORAGE_KEY,
-  FORTUNE_STATE_VERSION,
-  FORTUNE_HISTORY_MAX,
-  NULL_FORTUNE_KEYWORDS,
-  FORTUNE_KEYWORD_BY_ID,
-  NULL_FORTUNE_WHO,
-  NULL_FORTUNE_PLACES,
-  NULL_FORTUNE_FINDS,
-  fortuneDayKey,
-  fortuneRandom,
-  shuffleFortune,
-  fortuneTensionGap,
-  buildFortuneDeck,
-  fortuneRecordOk,
-  fortuneSequenceGap,
-  fortuneDeckStateOk,
-  loadFortuneState,
-  saveFortuneState,
-  pickFortune,
-  fortuneHistoryOf,
-  fortuneRecordForDay,
-  replaceFortuneRecord,
-  ensureFortuneForToday,
-  fortuneNeedsAutoOpen,
-  markFortuneSeen,
-  revealFortuneForToday,
-  currentFortuneKeywordId,
   EDIT_MAX,
   loadEdits,
   saveEdits,

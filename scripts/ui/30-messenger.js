@@ -1,45 +1,13 @@
-/* NULL web UI · fortune, timetable, bag, search, gift, room list
+/* NULL web UI · timetable, bag, search, gift, room list
    index.html의 선언 순서가 의존 순서다. 단독 로드하지 않는다. */
-/* ── 오늘의 운세 ──
-   유저가 적는 칸이 아니다. 그날 시스템이 고른 네 칸을 한 번에 드러내는 작은
-   의식이다. 그래서 input을 쓰지 않고, 기존 빈칸 모양만 빌린다. */
-function Fortune({fortune,onFill,onClose}){
-  if(!fortune)return null;
-  const filled=!!fortune.revealed;
-  const keyword=((NULL_FORTUNE_KEYWORDS||[]).find(x=>x.id===fortune.keywordId)||{}).label||"";
-  const slot=(kind,value,wide=false,order=0)=><span
-    className={`fortune-slot blank${filled?" filled reveal":""}${wide?" wide":""}${order?` reveal-${order}`:""}`}
-    aria-label={filled?value:`${kind} 빈칸`}>{filled?value:""}</span>;
-  return <Dialog title="null.exe" onClose={onClose} win="fortunewin">
-    <div className="fortune-title">✧ NULL 위한 오늘의 운세 ✧</div>
-    <div className="fortune-sub">행운은 쟁취하는 거야! <span className="kao">(ノ^∇^)ノ.｡･:*:･🍀</span></div>
-    <div className="fortune-copy" aria-live="polite">
-      <div className="fortune-row">
-        <span>오늘은</span>
-        <span className="fortune-unit">{slot("인물",fortune.who)}<span className="fortune-particle">과</span></span>
-        <span className="fortune-unit">{slot("장소",fortune.place,true,1)}<span className="fortune-particle">에 가면</span></span>
-      </div>
-      <div className="fortune-row">
-        <span>뜻밖의</span>{slot("발견",fortune.find,true,2)}
-        <span className="fortune-ending"><span className="fortune-particle">을 찾을 수 있어요</span><span className="fortune-kao">♡(｡•̀ᴗ-)✧</span></span>
-      </div>
-      <div className="fortune-keyword">
-        <span>행운의 키워드 :</span>{slot("키워드",keyword,true,3)}
-      </div>
-    </div>
-    <button className="wbtn inbtn fortune-fill" onClick={onFill} disabled={filled}>
-      [ FILL THE BLANK! ]
-    </button>
-  </Dialog>;
-}
-
 /* ── 시간표 ──
    그날 처음 열면 한 번 뜬다. 하루에 여섯 번 알림을 띄우면 사흘이면 벽지가
-   되는데, 하루에 한 번이면 의식이 된다. 그 뒤로는 file 메뉴에서 다시 본다.
+   되는데, 하루에 한 번이면 의식이 된다. 그 뒤로는 peek 옆 버튼이 지금이
+   몇 교시인지 들고 있고, 눌러서 다시 볼 수 있다.
    야자 감독인 주에는 경고가 하나 붙는다 — 그 주 아무 때나 들어와도 보이게. */
 function Timetable({wend,onFillWend,onClose}){
-  /* 시간표는 현실 벽시계를 본다. 접속 일차가 멈춰 있어도 실제 교시와 요일은
-     지금 기기 시각에 맞는다. */
+  /* 세계가 보는 시계다. 스피드 모드면 진행을 따라 도는 시계라, 대화가
+     쌓이는 대로 이 표의 「지금」도 출근에서 저녁으로 내려간다 */
   const now=nowClock();
   const wk=isWend(now), slots=daySlots(now), i=slotNow(now);
   const key=dayKey(), mine=(wend||{})[key]||[];
@@ -124,7 +92,7 @@ function Bag({bag,store,onClose}){
         const it=ITEMS[b.key], who=CHARS[b.from];
         /* 받은 날은 날짜가 아니라 남은 날로 적는다 — 이 앱에서 시간은 8월 16일이
            아니라 D-18이다. 첫 대화 날짜를 모르면 그냥 안 적는다.
-           **접속 일차로 잰다** — 화면의 D와 같은 눈금을 써야 한다. */
+           **세계 시계로 잰다** — 화면 어디에도 현실 날짜로 센 D는 없어야 한다. */
         const d=dLeftAt(store,b.ts);
         return <div key={b.key} className="cgcard">
           <img className="bagpic" src={av(`item-${b.key}.webp`)} alt=""/>
@@ -349,132 +317,22 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary,active,overlayBusy,accessRev}){
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary}){
   const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
-  const dlgRef=useRef(dlg); dlgRef.current=dlg;
-  const [zoom,setZoom]=useState(null);
-  const zoomRef=useRef(zoom); zoomRef.current=zoom;
-  const overlayBusyRef=useRef(overlayBusy); overlayBusyRef.current=overlayBusy;
-  const dailyPendingRef=useRef(false);
-  const checkDailyRef=useRef(null);
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
-  const [fortune,setFortune]=useState(null);
-  const fortuneRef=useRef(fortune); fortuneRef.current=fortune;
-  const fortuneOpenedAtRef=useRef(null);
-  const markShownFortuneRef=useRef(null);
-  const [timetableAfterFortune,setTimetableAfterFortune]=useState(false);
   /* 시간표. 그날 처음 열면 한 번 뜨고, 그 뒤로는 버튼으로 다시 본다.
      야자 감독인 주에는 에너지바가 가방에 들어온다 — 그 주에 한 번만. */
   const [wend,setWend]=useState(loadWend);
   const [level,setLevel]=useState("town");    // 지도 두 장 — 마을 길 / 학교 안
   const [tick,setTick]=useState(0);           // 교시가 바뀌면 버튼 글자도 바뀐다
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),60000);return()=>clearInterval(t)},[]);
-  const openDailyTimetable=()=>{
+  useEffect(()=>{
     const k=dayKey();
-    if(loadDaySeen()!==k){
-      saveDaySeen(k);
-      if(isYajaWeek())onEnergyBar&&onEnergyBar();
-    }
-    setDlg("timetable");
-  };
-  /* 하루 창은 지금 열린 창을 밀어내지 않는다. 여기서 seen을 찍지 않는 것이
-     중요하다 — 실제 Fortune 렌더 뒤 effect가 그 도장을 맡는다. 막혀 있으면
-     저장소의 unseen/daySeen 자체를 pending으로 남기고, 막이 걷힐 때 다시 본다. */
-  const checkDaily=()=>{
-    if(!active)return false;
-    if(document.hidden||dlgRef.current||zoomRef.current||overlayBusyRef.current){
-      dailyPendingRef.current=true;
-      return false;
-    }
-    dailyPendingRef.current=false;
-    const now=new Date();
-    const newTimetable=loadDaySeen()!==dayKey();
-    const today=ensureFortuneForToday(now);
-    setFortune(today);
-    if(fortuneNeedsAutoOpen(today,now)){
-      fortuneOpenedAtRef.current=now;
-      setTimetableAfterFortune(newTimetable);
-      setDlg("fortune");
-      return true;
-    }
-    if(newTimetable){setTimetableAfterFortune(false);openDailyTimetable();return true}
-    return false;
-  };
-  checkDailyRef.current=checkDaily;
-  /* 열린 시각을 들고 seen을 찍는다. 23:59:59에 그린 뒤 effect가 00:00:00에
-     돌아도, 실제로 화면에 오른 것은 어제 장이지 보이지 않는 오늘 장이 아니다. */
-  const markShownFortune=()=>{
-    const shown=fortuneRef.current,openedAt=fortuneOpenedAtRef.current;
-    if(document.hidden||dlgRef.current!=="fortune"||!shown||!openedAt
-      ||zoomRef.current||overlayBusyRef.current)return false;
-    if(!fortuneNeedsAutoOpen(shown,openedAt))return false;
-    const seen=markFortuneSeen(shown,openedAt);
-    if(!seen||seen.day!==shown.day||!seen.seen)return false;
-    setFortune(seen);
-    return true;
-  };
-  markShownFortuneRef.current=markShownFortune;
-  useEffect(()=>{
-    if(!active)return;
-    /* 부모의 foreground 접속 stamp와 같은 이벤트를 받는다. 한 task 뒤에 읽어야
-       listener 등록 순서와 무관하게 새 dayKey가 먼저 저장된다. */
-    let visibleTimer=0;
-    let midnightTimer=0;
-    const runDaily=()=>checkDailyRef.current&&checkDailyRef.current();
-    const onVisible=()=>{if(!document.hidden){
-      clearTimeout(visibleTimer); visibleTimer=setTimeout(()=>{
-        if(markShownFortuneRef.current)markShownFortuneRef.current();
-        runDaily();
-      },0);
-    }};
-    const armMidnight=()=>{
-      clearTimeout(midnightTimer);
-      const now=new Date();
-      const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
-      midnightTimer=setTimeout(()=>{runDaily();armMidnight()},
-        Math.max(1000,next.getTime()-Date.now()+120));
-    };
-    runDaily();
-    armMidnight();
-    window.addEventListener("pageshow",onVisible);
-    document.addEventListener("visibilitychange",onVisible);
-    return()=>{
-      clearTimeout(visibleTimer);
-      clearTimeout(midnightTimer);
-      window.removeEventListener("pageshow",onVisible);
-      document.removeEventListener("visibilitychange",onVisible);
-    };
-  },[active,accessRev]);
-  /* 자정·foreground 검사가 창 뒤에서 기다렸다면, 마지막 막이 사라진 렌더에서
-     딱 한 번 다시 검사한다. dlg와 zoom은 RoomList 안, overlayBusy는 그 위다. */
-  useEffect(()=>{
-    if(!active||dlg||zoom||overlayBusy||!dailyPendingRef.current)return;
-    checkDailyRef.current&&checkDailyRef.current();
-  },[active,dlg,zoom,overlayBusy]);
-  /* seen은 자동 검사 시점이 아니라 Fortune이 실제 트리에 오른 뒤에만 남긴다.
-     23:59의 장을 보고 있는 동안 날짜가 바뀌어도 그 장에는 손대지 않는다. */
-  useEffect(()=>{
-    if(markShownFortuneRef.current)markShownFortuneRef.current();
-  },[dlg,fortune,zoom,overlayBusy]);
-  const openFortune=()=>{
-    setMenu(null); setTimetableAfterFortune(false);
-    const now=new Date();
-    fortuneOpenedAtRef.current=now;
-    setFortune(ensureFortuneForToday(now)); setDlg("fortune");
-  };
-  const closeFortune=()=>{
-    /* 열린 장보다 달력이 앞서갔으면 옛 장을 먼저 온전히 닫고, pending 재검사가
-       새 장을 연다. 시간표가 대기 중이어도 새 날짜 운세보다 먼저 덮지 않는다. */
-    if(dailyPendingRef.current||(fortune&&fortune.day!==fortuneDayKey(new Date()))){
-      dailyPendingRef.current=true;
-      setDlg(null);
-      return;
-    }
-    if(timetableAfterFortune){setTimetableAfterFortune(false);openDailyTimetable();}
-    else setDlg(null);
-  };
-  const fillFortune=()=>setFortune(revealFortuneForToday(new Date(),fortune));
+    if(loadDaySeen()===k)return;
+    saveDaySeen(k); setDlg("timetable");
+    if(isYajaWeek())onEnergyBar&&onEnergyBar();
+  },[]);
   const fillWend=(k,n,v)=>setWend(w=>{
     const next={...w,[k]:[...(w[k]||[])]}; next[k][n]=v; saveWend(next); return next;
   });
@@ -485,7 +343,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   const totalN=allMsgs.length;
   /* 실습 남은 날. 교생은 한 달 뒤에 떠난다 — 첫 대화한 날을 D-30으로 잡고
      하루씩 깎는다. 0이 되면 거기서 멈춘다. 앱도 같은 식으로 센다.
-     세는 것은 접속 일차 하나다(daysLeft → worldDays). */
+     세는 것은 세계 시계 하나다(daysLeft → worldDays). */
   const dLeft=daysLeft(store);
   /* 빈칸 — 이름이 불린 만큼만 채운다. 칸에 글자를 넣지는 않는다:
      채워지는 것은 칸이지 이름이 아니다 */
@@ -495,6 +353,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   const namePct=Math.min(100,calls/Math.max(1,letters.length*CALL_PER_LETTER)*100);
   const dayN=daysSince(store);
   const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
+  const [zoom,setZoom]=useState(null);
   /* 지금 커서가 서 있는 잠긴 칸(⑥). 한 번에 하나만 선다 — 열여덟 칸에
      커서가 다 서 있으면 채워야 할 자리가 아니라 서식이 된다 */
   const [guess,setGuess]=useState(null);
@@ -529,8 +388,6 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
               알약(숫자)은 안 붙인다. 지우려고 여는 창이 되면 안 쓴다 */}
           {myDiaryOpen&&<div className="dditem" onClick={()=>{setMenu(null);onMyDiary()}}>
             <Sticker.heart size={12} color="#ffb0d4"/> write my diary</div>}
-          <div className="dditem" onClick={()=>{setMenu(null);setDlg("timetable")}}>
-            <Sticker.star size={13} color="#c3b2f0"/> today's timetable</div>
           <div className="dditem" onClick={()=>{setMenu(null);onExport()}}><Sticker.floppy size={15}/> save all (.txt)</div>
           <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}><Sticker.heart size={12} color="#c3b2f0"/> my stats</div>
         </div>}
@@ -552,10 +409,9 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           있다고 숫자가 뜨면 그걸 없애려고 여는 창이 된다 */}
       <span className="mbtn ico" title="what they gave u"
         onClick={()=>{setMenu(null);setDlg("bag")}}><img className="navpixel" src={av("ui/null-bag-icon.png")} alt=""/>bag</span>
-      {/* 폭은 늘리지 않는다. 시간표는 file 안에 그대로 두고, 그 자리를 하루의
-          의식이 쓴다 — 360px 메뉴에 단추 하나를 더 밀어 넣으면 peek이 잘린다. */}
-      <button className="toolkey nowbtn fortunebtn" title="오늘의 운세"
-        onClick={openFortune}><span>🍀 운세</span></button>
+      {/* 지금이 몇 교시인지. peek과 같은 단추라서 한 줄에 나란히 선다 */}
+      <button className="toolkey nowbtn" title="timetable"
+        onClick={()=>setDlg("timetable")}><span>{nowLabel()} ♡</span></button>
       <button className={"toolkey peekbtn"+(left>0&&!autoLoading?" cool":"")}
         title={autoLoading?"peeking...":left>0?"come back later":"see what theyre up 2"}
         onClick={()=>{ if(autoLoading)return;
@@ -745,18 +601,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
           if(mine.length)secs.push(<React.Fragment key="__me">
             <div className="sect">✧ {name||"당신"} · {mine.length} pics</div>
             <div className="galgrid">
-              {mine.map(m=>m.diary
-                ?<button type="button" key={`${m.label}:${m.src}`} className="galcell diarythumb"
-                    aria-label={`${m.label} 펼쳐 보기`} onClick={()=>setZoom(m)}>
-                    <img src={m.src} alt="" loading="lazy"/>
-                    <div className="dthumbfit" aria-hidden="true">
-                      <DiaryInk kind={m.diary.kind} entry={m.diary.entry}
-                        values={m.diary.values} readOnly/>
-                    </div>
-                    <span className="dthumblabel">{m.label}</span>
-                  </button>
-                :<img key={`${m.label}:${m.src}`} src={m.src} alt="" loading="lazy"
-                    onClick={()=>setZoom(m)}/>)}
+              {mine.map(m=><img key={m.src} src={m.src} alt="" loading="lazy" onClick={()=>setZoom(m)}/>)}
             </div>
           </React.Fragment>);
           return secs.length?secs:<div className="empty" style={{marginTop:60}}>
@@ -805,8 +650,6 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="bag"&&<Bag bag={bag||[]} store={store} onClose={()=>setDlg(null)}/>}
     {dlg==="timetable"&&<Timetable wend={wend} onFillWend={fillWend} onClose={()=>setDlg(null)}/>}
-    {dlg==="fortune"&&<Fortune fortune={fortune||ensureFortuneForToday()}
-      onFill={fillFortune} onClose={closeFortune}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onClose={()=>setDlg(null)}/>}
     {dlg==="log"&&<Dialog title="my stats" onClose={()=>setDlg(null)}>
@@ -844,3 +687,4 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     <PhotoWin shot={zoom} onClose={()=>setZoom(null)}/>
   </div>;
 }
+

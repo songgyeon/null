@@ -241,56 +241,6 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 /* 열려 있지만 지금 갈 시간이 아닌 자리. 잠긴 것과 달라 보여야 한다 —
    잠긴 건 아직 못 가는 곳이고 이건 나중에 오면 되는 곳이다 */
 
-/* ── 오늘의 운세 ──
-   null.exe 창틀과 기존 빈칸·입력 단추를 그대로 쓴다. 새 재질을 만들지 않고
-   「시스템이 내 화면에 하루치 칸을 띄웠다」는 느낌만 더한다. */
-.dlgov>.dialogmount>.profileframe.fortunewin{width:100%!important;max-width:320px!important}
-.profileframe.compact.fortunewin .ebody{min-height:0;padding:29px 16px 24px!important;gap:0;
- background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(253,249,255,.95))}
-.fortune-title{text-align:center;font-size:18px;line-height:1.35;letter-spacing:.035em;color:#51476f;
- text-shadow:0 1px 0 #fff}
-.fortune-sub{margin-top:9px;text-align:center;font-size:8.5px;line-height:1.5;letter-spacing:.035em;color:#b4a5c8}
-.fortune-sub .kao{font-size:9px;color:#9a8aad}
-.fortune-copy{display:flex;flex-direction:column;gap:11px;margin:38px auto 32px;color:#675a7b;
- font-size:13px;line-height:1.8;letter-spacing:.025em}
-.fortune-row,.fortune-keyword{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px}
-.fortune-keyword{margin-top:11px}
-.fortune-unit,.fortune-ending{display:inline-flex;flex:none;align-items:center;white-space:nowrap}
-.fortune-unit{gap:4px}
-.fortune-ending{gap:.35em}
-.fortune-particle{white-space:nowrap}
-.fortune-kao{white-space:nowrap;font-family:"Apple SD Gothic Neo","Malgun Gothic","Segoe UI Symbol",sans-serif;
- letter-spacing:0;color:#806c91}
-.fortune-slot.blank{display:inline-flex;flex:none;align-items:center;justify-content:center;width:72px;height:31px;
- margin:0;padding:2px 7px;box-sizing:border-box;border:1.5px dashed #dbb9d2;border-radius:5px;
- background:rgba(255,255,255,.7);box-shadow:inset 0 1px 2px rgba(123,89,145,.04);
- color:#6f586d;font-size:12px;line-height:1.15;letter-spacing:.02em;white-space:nowrap;overflow:hidden}
-.fortune-slot.blank.wide{width:84px}
-.fortune-slot.blank.filled{border-style:solid;border-color:#efbfd9;
- background:linear-gradient(180deg,#fff,#fff7fb);box-shadow:0 0 0 1px rgba(255,255,255,.8),inset 0 1px 2px rgba(123,89,145,.06)}
-.fortune-slot.reveal{animation:fortuneReveal .42s steps(4) both}
-.fortune-slot.reveal-1{animation-delay:.07s}
-.fortune-slot.reveal-2{animation-delay:.14s}
-.fortune-slot.reveal-3{animation-delay:.21s}
-.fortune-fill.wbtn.inbtn{display:block;min-width:210px;height:49px;margin:0 auto;padding:0 22px;
- font-size:14px;letter-spacing:.07em;border-radius:999px}
-.fortune-fill:disabled{cursor:default;opacity:.78;filter:saturate(.72)}
-.fortune-fill:disabled:active{transform:none}
-@keyframes fortuneReveal{from{opacity:.15;transform:translateY(3px)}to{opacity:1;transform:none}}
-@media(max-width:370px){
- .profileframe.compact.fortunewin .ebody{padding:25px 12px 21px!important}
- .fortune-title{font-size:16px}
- .fortune-copy{margin:31px auto 27px;font-size:12px;gap:10px}
- .fortune-slot.blank{width:68px;height:29px;font-size:11px}
- .fortune-slot.blank.wide{width:79px}
- .fortune-fill.wbtn.inbtn{min-width:198px;height:46px;font-size:13px}
-}
-@media(prefers-reduced-motion:reduce){.fortune-slot.reveal{animation:none}}
-
-/* 운세가 쓰는 상단 자리는 원래 시간표 단추와 똑같은 폭이다. */
-.menubar .nowbtn.fortunebtn{min-width:52px;padding:0 7px;color:#66547d;
- background:linear-gradient(180deg,#fffdfd 0%,#f5e8f5 54%,#e7def4 100%)}
-
 /* ── 시간표 ── */
 /* 판·알약·굽 전부 앱의 다른 창과 같은 결이다. 그림자는 번지지 않는 굽
    (.etcwarn이 0 3px 0을 쓴다) — 번지는 그림자를 쓰면 혼자 다른 물건이 된다 */

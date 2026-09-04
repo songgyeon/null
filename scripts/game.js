@@ -26,17 +26,12 @@ function GameApp(){
   const REQ_TIMEOUT=180000;
   const [autoLoading,setAutoLoading]=useState(false);
   const viewRef=useRef(view); viewRef.current=view;
-  /* 기존 판의 첫 그림 전에 먼저 찍는다. 자식의 시간표·운세 효과나 자동 요청이
-     옛 dayKey/days를 한 번 읽고 지나간 뒤 부모 effect가 고치면 그날 UI가
-     건너뛰어진다. 동기 저장소인 웹에서는 여기서 멱등 touch가 가능하다. */
-  const [accessRev,setAccessRev]=useState(()=>{
-    if(!loadWorld())return 0;
-    const before=loadAccessClock(), after=touchAccessClock(store);
-    return after&&(!before||before.elapsed!==after.elapsed||before.lastKey!==after.lastKey)?1:0;
-  });
+  /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 */
+  const [mode,setMode]=useState(loadMode);
   const storeRef=useRef(store); storeRef.current=store;
-  /* 옛 real/speed 판을 최초 변환할 때 쓸 첫 말풍선 시각을 세운다.
-     새 접속 시계가 생긴 뒤에는 이 앵커가 진행을 움직이지 않는다. */
+  /* 세계 시계의 출발 자리를 여기서 세운다. 규칙들은 시각만 받는 순수 함수라
+     저장소를 스스로 못 본다 — 여기가 store가 바뀔 때마다 지나가는 자리다.
+     세는 것은 첫 말풍선의 시각 하나뿐이다. 말풍선 수는 안 들어간다. */
   setWorldAt(firstTsOf(store));
   const profileRef=useRef(profile); profileRef.current=profile;
   const unlockedRef=useRef(unlocked); unlockedRef.current=unlocked;
@@ -1118,15 +1113,6 @@ function GameApp(){
          그게 문서가 못박은 「서버 전달 경계」다. */
       if(bucket==="minhyun"){ const fl=loadFlash(); if(fl)payload.flash=fl; }
     }
-    /* 오늘 운세는 일기와 반대쪽 경계다. 시스템이 고른 허용 ID 하나만,
-       FILL을 눌러 공개한 뒤의 chat/auto 요청에만 붙는다. 화면 문구나 빈칸,
-       null_mydiary 값은 여기서 읽지도 않는다. 재시도 payload에 어제 ID가
-       들어 있어도 오늘 공개값으로 덮고, 없으면 지운다. */
-    Object.keys(payload).forEach(k=>{if(/(?:fortune|diary|dblank)/i.test(k))delete payload[k]});
-    if(payload.mode==="chat"||payload.mode==="auto"){
-      const fortuneId=currentFortuneKeywordId();
-      if(fortuneId)payload.fortune_keyword_id=fortuneId;
-    }
     inflightRef.current[bucket]=rid;
     setBusy(b=>({...b,[bucket]:true}));
     setFailed(f=>({...f,[bucket]:null}));
@@ -1399,11 +1385,12 @@ function GameApp(){
     const m=storeRef.current.msgs||{};
     const shots=(m.jaeeon||[]).filter(x=>x.photo&&x.sender!=="user").length;
     if(shots>=PHOTO_EVENT_AT&&mark("photos",{kind:"photos",to:"jaeeon"}))return;
-    /* 남은 날은 접속 일차가 센다 — 화면의 D-N과 같은 값이어야 한다. */
+    /* 남은 날은 세계 시계가 센다 — 화면의 D-N과 같은 값이어야 한다.
+       현실 날짜로 따로 세면 스피드 모드에서 D-7 사건이 영영 안 뜬다. */
     if(!firstTsOf(storeRef.current))return;
     const d=daysLeft(storeRef.current);
     if(DDAY_MARKS.includes(d))mark("dday:"+d,{kind:"dday",name:String(d)});
-  },[name,view,store.msgs,accessRev]);
+  },[name,view,store.msgs]);
 
   /* 강현이 「삼촌도 유저를 알고, 유저도 삼촌을 안다」를 알게 되는 순간.
      그가 방을 파고 유저를 부른다. 왜 불렀는지는 말해주지 않는다. */
@@ -1493,24 +1480,21 @@ function GameApp(){
     if(DEMO.on){ data={messages:demoReply("health",null,name,storeRef.current.msgs)}; }
     else{
       try{
-        const autoPayload={mode:"auto",room:"health",user_name:name,counts:roomCounts(),
-          /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
-             같은 얘기를 두 번 싣는다 */
-          history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
-          ...(loadSum("health").text?{summary:loadSum("health").text}:{}),
-          signals:buildSignals(null),
-          /* 준 기록도 싣는다 — 선물 관측 사건(§8.5)은 워커가 이걸로
-             출처·보유 사실을 만들어 비대칭을 판정한다. 안 실으면
-             발견 장면이 영영 못 선다. request()의 배선과 같은 원본이다. */
-          gifts:giftsRef.current||{},
-          disclosed:loadDisclosed(),
-          ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})};
-        const fortuneId=currentFortuneKeywordId();
-        if(fortuneId)autoPayload.fortune_keyword_id=fortuneId;
         const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
           /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로
              떨어져 관전이 강현 1:1 방으로 처리된다 */
-          body:JSON.stringify(autoPayload)});
+          body:JSON.stringify({mode:"auto",room:"health",user_name:name,counts:roomCounts(),
+            /* 요약이 들고 있는 데까지는 빼고 보낸다. 안 빼면 요약과 원문이
+               같은 얘기를 두 번 싣는다 */
+            history:buildHistory(sinceSum("health",storeRef.current.msgs.health||[])),
+            ...(loadSum("health").text?{summary:loadSum("health").text}:{}),
+            signals:buildSignals(null),
+            /* 준 기록도 싣는다 — 선물 관측 사건(§8.5)은 워커가 이걸로
+               출처·보유 사실을 만들어 비대칭을 판정한다. 안 실으면
+               발견 장면이 영영 못 선다. request()의 888줄과 같은 원본이다. */
+            gifts:giftsRef.current||{},
+            disclosed:loadDisclosed(),
+            ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
         const body=await res.json().catch(()=>null);
         if(res.ok&&body)data=body;
       }catch(e){ /* 유저가 부른 적 없는 호출이라 실패를 알릴 이유가 없다 */ }
@@ -1762,7 +1746,8 @@ function GameApp(){
   const [sys1,setSys1]=useState(false);
   useEffect(()=>{
     if(!name||loadSys1())return;
-    /* 첫 말풍선부터 현실 스무 시간이 지난 뒤 처음 여는 순간에 뜬다. */
+    /* 세계 시각으로 잰다 — 현실로 재면 스피드 모드의 첫날은 현실 여섯
+       시간인데 통보는 스무 시간 뒤에 와서 나흘째에 도착한다 */
     if(!sys1Due(store))return;
     if(dLeft<=0)return;
     saveSys1(); setSys1(true);
@@ -1772,6 +1757,7 @@ function GameApp(){
      세계를 지우지 않고 자유대화로 계속된다. */
   const askDday=dLeft===0&&!!name&&ddayAns!==String(dSpan)&&!loadExtend();
   const [whoAsk,setWhoAsk]=useState(false);     // STAY 뒤 — 누구 곁에 남나
+  const [whoDone,setWhoDone]=useState(null);    // 방금 정해진 상대. 결과 카피 한 번
   const answerDday=yes=>{
     /* STAY는 아직 답이 아니다 — WHO까지 골라야 이 날의 답이 찍힌다.
        중간에 닫으면 d-0.exe가 다시 뜬다. */
@@ -1796,8 +1782,7 @@ function GameApp(){
     markScene(other,"partner_known");
     /* 관전방은 예약하지 않는다 — 워커가 auto를 무조건 일반 경로로 내리므로
        이 예약은 영영 안 쓰이는 죽은 배선이었다. 관전은 항상 일반 경로다. */
-    /* 선택 자체가 다음 대화의 장면이다. 별도 결과 팝업으로 결말처럼 닫지 않는다. */
-    setWhoAsk(false);
+    setWhoAsk(false); setWhoDone(got||id);
   };
 
   /* 프로필 화면. 대화 수는 그 캐릭터가 낀 모든 방을 합쳐 센다 (worker의 단계 기준과 같다) */
@@ -1827,32 +1812,10 @@ function GameApp(){
     }catch(e){return false}
   });
   const enter=n=>{localStorage.setItem("null_name",n);setName(n);setEnrolling("intro")};
-  /* 페이지를 실제로 연 순간만 접속으로 센다. 로드 직후 한 번, BFCache 복귀와
-     숨겼던 탭이 다시 보이는 순간에 한 번 확인한다. 같은 05시 기준일이면
-     touchAccessClock이 멱등이고, 여러 날 비웠어도 한 칸만 간다. */
-  useEffect(()=>{
-    if(!name||enrolling||!loadWorld())return;
-    const touch=()=>{
-      const before=loadAccessClock(), after=touchAccessClock(storeRef.current);
-      if(!after)return;
-      if(!before||before.elapsed!==after.elapsed||before.lastKey!==after.lastKey)
-        setAccessRev(v=>v+1);
-    };
-    const visible=()=>{if(document.visibilityState==="visible")touch()};
-    touch();
-    window.addEventListener("pageshow",touch);
-    document.addEventListener("visibilitychange",visible);
-    return()=>{
-      window.removeEventListener("pageshow",touch);
-      document.removeEventListener("visibilitychange",visible);
-    };
-  },[name,enrolling]);
   /* YES — 세계가 생기는 순간. 프로필이 잠기고 나이는 세계 고정값 25가 된다.
      saveWorld는 멱등이라 연타·재렌더가 와도 시작은 한 번이다. */
   const confirmYes=()=>{
-    startAccessClock(Date.now());                  // 새 유저의 첫날은 정확히 D-30
     saveWorld();
-    setAccessRev(v=>v+1);
     setProfile(p=>({...p,age:"25"}));
     setEnrolling(false);
   };
@@ -1950,5 +1913,5 @@ function GameApp(){
     return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
-  return <GameScreen game={{accessRev,answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,store,sys1,toast,unlocked,view,way,whoAsk}}/>;
+  return <GameScreen game={{answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}}/>;
 }
