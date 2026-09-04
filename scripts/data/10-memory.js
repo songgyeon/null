@@ -149,7 +149,7 @@ const MY_DIARY=[
         both:{left:21.00,top:54.95,w:31.64,h:3.91},mine:{left:49.90,top:63.80,w:19.04,h:3.78},
         theirs:{left:35.35,top:69.99,w:14.36,h:3.91},more:{left:57.23,top:70.18,w:25.20,h:3.91}}},
   /* 마지막은 두 칸이다. 여기까지 온 사람에게 더 물을 것이 없다 */
-  {at:0, img:"mydiary-5.webp", text:"{last}. 나는 정말 {who}일까?",
+  {at:1, img:"mydiary-5.webp", text:"{last}. 나는 정말 {who}일까?",
    blanks:{last:7,who:7},
    box:{last:{left:25.78,top:39.45,w:21.58,h:4.10},who:{left:44.53,top:49.15,w:23.73,h:3.97}}},
 ];
@@ -159,7 +159,7 @@ const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
   .filter(x=>x!=="").map(x=>/^\{[a-zA-Z]+\}$/.test(x)
     ? {blank:x.slice(1,-1)} : {text:x});
 /* 자동으로 채워지는 칸의 값 — 그 사람에게 실제로 준 것 중 마지막 하나.
-   안 줬으면 빈 문자열이고, 그러면 그냥 유저가 쓰는 칸이 된다. */
+   안 줬으면 빈 문자열인 시스템 고정 칸으로 남는다. */
 const myDiaryAuto=(entry,gifts)=>{
   const out={};
   for(const [k,who] of Object.entries((entry||{}).auto||{})){
@@ -169,18 +169,40 @@ const myDiaryAuto=(entry,gifts)=>{
   }
   return out;
 };
+/* 값이 실제로 찼는지가 아니라 장의 선언을 본다. 선물을 안 줬어도 giftK·giftJ는
+   유저가 지어내는 칸이 아니라 시스템이 비워 둔 고정 칸이다. */
+const myDiaryAutoKeys=entry=>Object.keys((entry||{}).auto||{});
+const myDiaryUserKeys=entry=>{
+  const auto=new Set(myDiaryAutoKeys(entry));
+  return Object.keys((entry||{}).blanks||{}).filter(k=>!auto.has(k));
+};
 const loadMyDiary=()=>{try{
   const v=JSON.parse(localStorage.getItem("null_mydiary"));
-  return v&&typeof v==="object"&&!Array.isArray(v)?v:{};
+  if(!v||typeof v!=="object"||Array.isArray(v))return{};
+  /* 마지막 장은 처음에 D-0이었다. 새 정본의 D-1로 옮기되 이미 쓴 두 칸은
+     그대로 든다. 새 키가 함께 있는 비정상 중복 저장은 어느 쪽도 버리지 않는다. */
+  if(Object.prototype.hasOwnProperty.call(v,"0")
+    && !Object.prototype.hasOwnProperty.call(v,"1")){
+    const next={...v,1:v[0]}; delete next[0];
+    try{localStorage.setItem("null_mydiary",JSON.stringify(next))}catch(e){}
+    return next;
+  }
+  return v;
 }catch(e){return{}}};
-/* 한 장을 통째로 저장한다. 한 칸이라도 비면 저장하지 않는다 —
+/* 한 장을 통째로 저장한다. 유저 칸이 하나라도 비면 저장하지 않는다 —
    반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다. */
 const saveMyDiary=(at,vals)=>{try{
   const e=MY_DIARY.find(x=>x.at===at); if(!e)return null;
+  const user=new Set(myDiaryUserKeys(e));
   const out={};
   for(const k of Object.keys(e.blanks)){
-    const t=((vals||{})[k]||"").toString().trim().slice(0,e.blanks[k]);
-    if(!t)return null;
+    /* 자동 칸은 실제 선물 이름이라 유저 입력 길이로 자르지 않는다. 선물을
+       안 줬다면 빈 문자열 그대로 저장해, 나중 선물이 옛 일기를 바꾸지 않게 한다. */
+    let t=((vals||{})[k]||"").toString().trim();
+    if(user.has(k)){
+      t=t.slice(0,e.blanks[k]);
+      if(!t)return null;
+    }
     out[k]=t;
   }
   const all={...loadMyDiary(),[at]:out};
@@ -207,7 +229,7 @@ const myDiaryOpen=left=>{
 const userPics=name=>{
   const out=[];
   const d=loadDiary();
-  if(d)out.push({src:DIARY_IMG,label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
+  if(d)out.push({src:DIARY_IMG,kind:"diary",label:`${(name||"당신").trim()||"당신"}의 옛 일기`,
     fill:[{...DIARY_BOX,text:d}]});
   /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동으로 찬 칸도 같이
      얹는다: 화면에서 본 그대로여야 한다 */
@@ -215,8 +237,10 @@ const userPics=name=>{
   for(const e of MY_DIARY){
     const w=md[e.at]; if(!w)continue;
     const auto=myDiaryAuto(e,gf);
-    out.push({src:e.img,label:`D-${e.at}`,
-      fill:Object.keys(e.blanks).map(k=>({...e.box[k],text:auto[k]||w[k]||""}))});
+    out.push({src:e.img,kind:"diary",label:`D-${e.at}`,
+      /* 저장 당시의 값이 정본이다. 빈 자동 칸도 이후 선물로 소급해 채우지 않는다. */
+      fill:Object.keys(e.blanks).map(k=>({...e.box[k],auto:Object.prototype.hasOwnProperty.call(e.auto||{},k),text:
+        Object.prototype.hasOwnProperty.call(w,k)?w[k]:(auto[k]||"")}))});
   }
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",

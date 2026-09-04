@@ -4,7 +4,8 @@
 /* 실습 남은 날을 칸으로 그린다. 서른 칸이 다 차 있다가 하루 지날 때마다
    앞에서 한 칸씩 빈다. 오늘 칸만 분홍이다.
    숫자를 안 쓰는 이유 — 숫자는 읽어야 알고 칸은 보면 안다. */
-function DayBar({left}){
+function DayBar({left,ended}){
+  if(ended)return <span className="dayinfinity" title="D-∞ ♡" aria-label="D-∞ ♡">D-∞ ♡</span>;
   const gone=ENROLL_DAYS-left;
   return <div className="dbar" title={"실습 D-"+left}>
     {Array.from({length:ENROLL_DAYS},(_,i)=>
@@ -41,7 +42,7 @@ const SCENE_LINES=6;
    길게 누르기(600ms)와 우클릭 둘 다 연다 — 손가락과 마우스가 다 있어야 한다.
    짧게 누르는 것은 원래 하던 일(사진 확대)이라 안 건드린다.
    고친 말풍선에는 모서리에 ✎가 붙는다. 어디를 손봤는지 보이게. */
-function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart,fixed,onFix,locked}){
+function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart,fixed,onFix,locked,ended}){
   const [v,setV]=useState("");
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
   /* 고칠 것 메모. 말풍선을 길게 누르거나(600ms) 우클릭하면 열린다 —
@@ -151,7 +152,7 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
         <div className="cname">{room.name}</div>
         <div className="csub">
           {watch?<><span className="rec"/> watching</>:room.sub}
-          {!watch&&<DayBar left={dLeft}/>}
+          {!watch&&<DayBar left={dLeft} ended={ended}/>}
         </div>
       </div>
     </div>
@@ -228,4 +229,3 @@ function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,s
     {fixBox}
   </div>;
 }
-

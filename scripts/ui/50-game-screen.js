@@ -1,8 +1,34 @@
 /* NULL web · GameApp render tree
    상태와 동작은 scripts/game.js가 소유하고, 이 파일은 화면 조립만 맡는다. */
 function GameScreen({game}){
-  const {answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}=game;
+  const {answerAsk,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,closeEnding,confirmYes,dLeft,dayN,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,ending,enrolling,enter,exportTxt,failed,finishEndingShot,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,look,met,mode,name,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,replayCinema,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,startEnding,startEndingShot,store,sys1,toast,unlocked,view,way}=game;
+  const ended=!!(ending&&ending.completed);
+  const endingActive=!!(ending&&ending.phase!=="daily");
+  /* 실제 저장값과 날짜를 건드리지 않고 현재 Fortune 컴포넌트를 그대로 보는
+     전용 미리보기. 일반 주소에서는 이 상태 자체가 생기지 않는다. */
+  const [fortunePreview,setFortunePreview]=useState(()=>fortunePreviewRequested()?{
+    day:"preview",who:"",place:"",find:"",keywordId:"coincidence",revealed:false,seen:true,
+  }:null);
+  /* RoomList 안의 LUCK·시간표·etc·사진은 이 조립 화면에서 상태를 볼 수 없다.
+     D-0이 그 위에 겹치지 않도록 열려 있는 동안만 선택 창을 줄에 세운다. */
+  const [roomOverlayBusy,setRoomOverlayBusy]=useState(false);
+  const fillFortunePreview=values=>setFortunePreview(f=>f?{
+    ...f,
+    who:cleanFortuneInput("who",values&&values.who),
+    place:cleanFortuneInput("place",values&&values.place),
+    find:cleanFortuneInput("find",values&&values.find),
+    revealed:true,
+  }:f);
+  /* 목록은 등록·첫 만남 화면의 뒤에도 마운트된다. 하루 창은 그 뒤에서 열리거나
+     seen을 먼저 찍으면 안 된다 — 실제 메신저를 얻고 모든 상위 창이 걷힌 뒤에만
+     RoomList가 오늘의 창을 검사한다. */
+  const ordinaryOverlayBusy=!!(diary||myDiary||flash||kiss||enrolling||invite||cart||plate
+    ||leaving||way||ask||look||prof||groupNew||getcha||sys1);
+  const dailyOverlayBusy=!!(diary||myDiary||flash||kiss||enrolling||invite||cart||plate
+    ||leaving||way||ask||look||prof||groupNew||getcha||sys1||askDday
+    ||(ending&&ending.phase!=="daily"));
   return <div className="phone">
+    {!endingActive&&<React.Fragment>
     {diary&&<Diary onDone={diaryDone}/>}
     {/* ⑩ 유저가 열어야 뜬다. 스스로 끼어들지 않는다 — 그게 선택이라는 뜻이다 */}
     {myDiary&&<MyDiary entry={myDiary} gifts={gifts}
@@ -20,20 +46,26 @@ function GameScreen({game}){
       mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {enrolling==="confirm"&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling("enroll")}/>}
+    </React.Fragment>}
     {!name?<Splash onEnter={enter}/>
     :view==="list"?<RoomList store={store} name={name} unlocked={unlocked} counts={roomCounts()}
        groupOn={groupOn} onCart={()=>setCart(true)} onPlate={setPlate} onOpen={openRoom} onProfile={openProfile} onAuto={doAuto} autoLoading={autoLoading} seenStage={seenStage}
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar} onGuess={guessHidden}
-       myDiaryOpen={myDiaryOpen(dLeft)} onMyDiary={()=>setMyDiary(myDiaryOpen(dLeft))}/>
+       ending={ending} ended={ended} replay={replayCinema}
+       myDiaryOpen={myDiaryOpen(dLeft)} onMyDiary={()=>setMyDiary(myDiaryOpen(dLeft))}
+       active={!enrolling&&!!loadWorld()&&(loadGetcha("jaeeon")||loadGetcha("minhyun"))}
+       overlayBusy={dailyOverlayBusy} onOverlayBusy={setRoomOverlayBusy}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
+       ended={ended}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onMinimize={()=>setView("list")} onCart={()=>setCart(true)}
        onBack={()=>setView("list")} onSend={t=>send(view,t)} onRetry={()=>retry(view)} onProfile={openProfile}
        fixed={new Set(edits.filter(e=>e.room===view&&e.mid).map(e=>e.mid))}
        locked={roomLock(store,view)}
        onFix={(mid,t)=>editLine(view,mid,t)}/>}
+    {!endingActive&&<React.Fragment>
     {invite&&<div className="dlgov" onClick={()=>answerInvite(false)}>
       <div className="dlg" onClick={e=>e.stopPropagation()}>
         <div className="tb">{CHARS[invite.char].name}<WinDots onClose={()=>answerInvite(false)}/></div>
@@ -186,7 +218,7 @@ function GameScreen({game}){
       <div className="lookshot"><img src={look.shot} alt="교실"/></div>
       <div className="lookcap">CLASS MODE ON!<br/>대화는 OFF, 살짝만 PEEK <span className="kao">(՞ ⸝⸝&gt; ̫ &lt;⸝⸝ ՞)</span></div>
     </div>}
-    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN}/>}
+    {prof&&<Profile char={prof} count={profCount(prof)} onBack={()=>setProf(null)} gifts={gifts} dLeft={dLeft} back={cameBack} days={dayN} ended={ended}/>}
     {/* 단톡방이 생겼다. 유저는 초대를 받은 쪽이라 무슨 방인지 모른 채로 들어간다 */}
     {groupNew&&<Dialog title="null.exe" onClose={()=>setGroupNew(false)}>
       <div className="ddq">
@@ -222,40 +254,43 @@ function GameScreen({game}){
         </div>
       </div>
     </Dialog>}
-    {askDday&&!ddayHide&&<Dialog title="d-0.exe" onClose={()=>setDdayHide(true)}>
+    </React.Fragment>}
+    {/* D-0은 게임을 닫는 날이 아니라 이후의 관계를 정하는 날이다.
+        자유 입력이나 이탈·연장 질문 없이 두 사람 중 한 명을 직접 고른다. */}
+    {askDday&&!ordinaryOverlayBusy&&!roomOverlayBusy&&<Dialog title="d-0.exe">
       <div className="ddq">
-        <div className="k">d-0 · last day</div>
-        <div className="q">stay or leave??</div>
-        <div className="s">{nameFull
-          ?<>ur not NULL anymore ♡<br/>stay = 30 more days w them</>
-          :<>still {name.length-lit} blank{name.length-lit>1?"s":""} left · still NULL<br/>a name has 2 be called out loud ♡</>}</div>
+        <div className="k">d-0 · relation</div>
+        <div className="q">누구의 옆자리를 채울까요?</div>
+        <div className="s">이 선택 뒤에도 둘의 일상은 계속돼요 ♡</div>
         <div className="ddyn">
-          <button className={nameFull?"":"dead"}
-            onClick={()=>nameFull?answerDday(true):setToast("still NULL ♡ □ "+(name.length-lit)+" left")}>
-            <span className="g">♡</span>stay w them<span className="tail">{nameFull?"+30d":"locked"}</span></button>
-          <button className="no" onClick={()=>answerDday(false)}>
-            <span className="g">✧</span>leave 4 real<span className="tail">bye bye</span></button>
+          <button onClick={()=>pickWho("jaeeon")}>
+            <span className="g">♡</span>이재언<span className="tail">choose</span></button>
+          <button className="no" onClick={()=>pickWho("minhyun")}>
+            <span className="g">✧</span>이강현<span className="tail">choose</span></button>
         </div>
       </div>
     </Dialog>}
-    {whoAsk&&<Dialog title="d-0.exe" onClose={()=>setWhoAsk(false)}>
+    {/* 선택 직후의 장소 이벤트 알림. 확인을 눌렀을 때만 영화관으로 들어간다.
+        새로고침해도 저장된 waiting 알림이 그대로 다시 열린다. */}
+    {ending&&ending.phase==="waiting"&&<Dialog title="d-0.exe">
       <div className="ddq">
-        <div className="k">stay ♡ but</div>
-        {/* 이 제품은 처음부터 끝까지 빈칸을 채우는 이야기다. 마지막 칸도 그래야
-            한다 — 얼굴을 고르는 게 아니라 이름을 쓴다. 아무 이름이나 되는 건
-            아니고, 이 세계에 있는 두 사람만 들어간다. */}
-        <div className="q">Stay with <WhoBlank onPick={pickWho}/>?</div>
-        <div className="s">선택은 NEVER EVER! <span className="kao">{'(ᐡ⊃ෆ  ̫ ෆ ᐡ)⊃︵ 💕💕💕'}</span></div>
+        <div className="q" style={{whiteSpace:"nowrap",fontSize:"clamp(9px,2.5vw,11px)"}}>
+          {ending.route==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이강현이 NULL 기다리고 있어!"}
+          {' '}<span className="kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</span>
+        </div>
+        <div className="dlgbtns" style={{justifyContent:"center"}}>
+          <button className="bevel pink" onClick={startEnding}>영화관으로 GO! ♡</button>
+        </div>
       </div>
     </Dialog>}
-    {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>
-      <div className="ddq">
-        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이강현이 NULL 기다리고 있어!"}
-          {' '}<span className="kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</span></div>
-        <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
-      </div>
-    </Dialog>}
+    {ending&&ending.phase==="dialogue"&&<EndingCinema route={ending.route} onDone={startEndingShot}/>}
+    {ending&&ending.phase==="shot"&&<EndingShot route={ending.route} onDone={finishEndingShot}/>}
+    {ending&&ending.phase==="complete"&&<EndingComplete name={name} onDone={closeEnding}/>}
+    {!endingActive&&<React.Fragment>
     {toast&&!getcha&&<div className="toast"><span>✧ {toast}</span></div>}
+    {/* 미리보기는 실제 진행 오버레이보다 마지막에 그려야 항상 확인할 수 있다. */}
+    {fortunePreview&&<Fortune fortune={fortunePreview} onFill={fillFortunePreview}
+      onClose={()=>setFortunePreview(null)}/>}
+    </React.Fragment>}
   </div>;
 }
-

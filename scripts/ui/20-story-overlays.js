@@ -22,6 +22,7 @@ function PhotoWin({shot,onClose,onNext}){
   useEffect(()=>{setBack(false)},[key]);   // 딴 사진을 열면 다시 앞면부터
   if(!shot)return null;
   const one=typeof shot==="string";
+  if(!one&&shot.kind==="diary")return <DiaryRecord shot={shot} onClose={onClose}/>;
   const src=one?shot:shot.src;
   const label=one?"":shot.label;
   const note=one?"":shot.note;
@@ -60,6 +61,24 @@ function PhotoWin({shot,onClose,onNext}){
       </div>
     </ProfileFrame>
     </div>
+  </div>;
+}
+
+/* CAM에서 다시 여는 일기도 작성할 때와 같은 종이 화면으로 본다.
+   generic photo 창 안에 다시 넣으면 2:3 종이가 작아지고 위아래 빈 UI가 붙어
+   같은 일기가 전혀 다른 물건처럼 보인다. */
+function DiaryRecord({shot,onClose}){
+  const fill=(shot&&shot.fill)||[];
+  return <div className="diary diaryrecord" onClick={onClose}>
+    <div className="dpage" onClick={e=>e.stopPropagation()}>
+      <img className="dshot" src={av(shot.src)} alt={shot.label||"일기"}/>
+      <div className="dfit">
+        {fill.map((f,i)=><span key={i} className={"dblank "+(f.auto?"dfixed":"dsaved")} style={{
+          left:f.left+"%",top:f.top+"%",width:f.w+"%",height:f.h+"%"
+        }}>{f.text}</span>)}
+      </div>
+    </div>
+    <button className="wbtn go dbtn" onClick={onClose}>덮기 ♡</button>
   </div>;
 }
 
@@ -117,8 +136,10 @@ function MyDiary({entry,gifts,onDone,onClose}){
   const [v,setV]=useState(auto);
   const [out,setOut]=useState(false);
   const keys=Object.keys(entry.blanks);
-  /* 자동으로 찬 칸은 안 묻는다 — 유저가 채울 칸만 다 차면 덮을 수 있다 */
-  const mine=keys.filter(k=>!auto[k]);
+  /* 자동 칸은 실제 값의 truthy가 아니라 장의 선언으로 가른다. 선물을 안 줘
+     빈 값이어도 gift 칸은 유저가 지어내는 입력칸으로 바뀌지 않는다. */
+  const fixed=new Set(myDiaryAutoKeys(entry));
+  const mine=myDiaryUserKeys(entry);
   const full=mine.every(k=>((v[k]||"").trim()));
   const done=()=>{if(out||!full)return;setOut(true);saveMyDiary(entry.at,v);setTimeout(onDone,420)};
   /* 사진을 못 읽는 사람에게는 적힌 글을 그대로 읽어준다 */
@@ -128,14 +149,14 @@ function MyDiary({entry,gifts,onDone,onClose}){
     <div className="dpage">
       <img className="dshot" src={av(entry.img)} alt={alt}/>
       <div className="dfit">
-        {keys.map((k,i)=>auto[k]
+        {keys.map((k,i)=>fixed.has(k)
           /* 이미 적힌 글자. 물건 이름이 길면 칸에 맞춰 줄어든다 */
-          ? <span key={k} className="dblank dfixed" style={st(entry.box[k])}>{auto[k]}</span>
+          ? <span key={k} className="dblank dfixed" style={st(entry.box[k])}>{auto[k]||""}</span>
           : <input key={k} className="dblank" value={v[k]||""}
               autoFocus={k===mine[0]} maxLength={entry.blanks[k]}
               aria-label={`빈칸 ${i+1}`} style={st(entry.box[k])}
               onChange={e=>setV(o=>({...o,[k]:e.target.value}))}
-              onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();
+              onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing&&e.keyCode!==229){e.preventDefault();
                 const n=mine[mine.indexOf(k)+1];
                 const el=n&&e.target.closest(".dfit").querySelector(`[aria-label="빈칸 ${keys.indexOf(n)+1}"]`);
                 if(el)el.focus(); else done()}}}/>)}
@@ -147,6 +168,76 @@ function MyDiary({entry,gifts,onDone,onClose}){
       <button className="wbtn go dbtn2" disabled={!full} onClick={done}>덮기 ♡</button>
     </div>
   </div>;
+}
+
+/* ── D-0 영화관 ──
+   대화는 선택지가 아니다. 화면을 한 번씩 눌러 세 줄을 읽고 나면 곧바로
+   옆자리 컷으로 넘어간다. 첫 줄과 마지막 이동은 새로고침 뒤에도 game.js의
+   phase가 복구한다. */
+function EndingCinema({route,onDone}){
+  const assets=ENDING_ASSETS[route]||ENDING_ASSETS.jaeeon;
+  const lines=ENDING_DIALOGUE[route]||ENDING_DIALOGUE.jaeeon;
+  const [at,setAt]=useState(0);
+  useEffect(()=>{
+    Object.values(assets).forEach(src=>{const img=new Image();img.src=av(src)});
+  },[route]);
+  const next=()=>{if(at<lines.length-1)setAt(n=>n+1);else onDone()};
+  const who=route==="jaeeon"?"이재언":"이강현";
+  return <div className="endingcinema" style={{backgroundImage:`url("${av(assets.dialogue)}")`}}
+      onClick={next} role="button" tabIndex="0" aria-label="영화관 대화 계속"
+      onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();next()}}}>
+    <div className="endingcinemadim"/>
+    <div className="endingtalk" aria-live="polite">
+      <div className="endingwho">{who}</div>
+      <div className="endingline">{lines[at]}</div>
+      <div className="endingnext">tap ♡</div>
+    </div>
+  </div>;
+}
+
+/* 혼자 0.8초 → 희미한 윤곽 0.2초 → 형태 0.3초 → 함께 2초 → 암전 0.5초.
+   화면 안에는 문구·창틀·픽셀 장식을 얹지 않는다. 세 사진은 같은 좌표에
+   겹쳐야 좌석이 움직이지 않고 사람만 나타난다. */
+const ENDING_TIMING=[800,200,300,2000,500];
+function EndingShot({route,onDone}){
+  const assets=ENDING_ASSETS[route]||ENDING_ASSETS.jaeeon;
+  const [stage,setStage]=useState(0);
+  const doneRef=useRef(onDone);doneRef.current=onDone;
+  useEffect(()=>{
+    [assets.alone,assets.faint,assets.present].forEach(src=>{const img=new Image();img.src=av(src)});
+  },[route]);
+  useEffect(()=>{
+    const t=setTimeout(()=>{
+      if(stage<ENDING_TIMING.length-1)setStage(n=>n+1);
+      else doneRef.current();
+    },ENDING_TIMING[stage]);
+    return()=>clearTimeout(t);
+  },[stage]);
+  return <div className={"endingshot stage"+stage} aria-label="비어 있던 영화관 옆자리가 채워지는 장면">
+    <img className="endingframe endingalone" src={av(assets.alone)} alt="선택한 사람이 영화관에 혼자 앉아 있다"/>
+    <img className="endingframe endingfaint" src={av(assets.faint)} alt="옆자리에 희미한 윤곽이 나타난다"/>
+    <img className="endingframe endingpresent" src={av(assets.present)} alt="두 사람이 나란히 스크린을 바라본다"/>
+    <span className="endingblack" aria-hidden="true"/>
+  </div>;
+}
+
+function EndingComplete({name,onDone}){
+  return <Dialog title="null.exe" win="endingcompletewin">
+    <div className="ddq endingcomplete">
+      <div className="k">[ N U L L ] ♡</div>
+      <div className="ddrows">
+        <div className="r"><span className="k2">대상</span><span className="dot"/><span className="v">{name}</span></div>
+        <div className="r"><span className="k2">등록</span><span className="dot"/><span className="v">완료 ♡</span></div>
+        <div className="r"><span className="k2">존재값</span><span className="dot"/><span className="v">∞</span></div>
+        <div className="r"><span className="k2">잔여</span><span className="dot"/><span className="v">D-∞</span></div>
+      </div>
+      <div className="s endingthanks">다 채워서 안 사라져요 ♡</div>
+      <div className="q endingtrue">진짜 완전 True <span className="kao">(☆´≧∀≦)σ</span></div>
+      <div className="dlgbtns" style={{justifyContent:"center"}}>
+        <button className="wbtn" onClick={onDone}>ok ♡</button>
+      </div>
+    </div>
+  </Dialog>;
 }
 
 /* ── 강현의 옛 일기 — 병원 옥상 ──
@@ -281,4 +372,3 @@ function LogPanel({store,counts,unlocked,album}){
     </div>
   </div>;
 }
-

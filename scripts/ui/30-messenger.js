@@ -1,5 +1,66 @@
-/* NULL web UI · timetable, bag, search, gift, room list
+/* NULL web UI · Luck, timetable, bag, search, gift, room list
    index.html의 선언 순서가 의존 순서다. 단독 로드하지 않는다. */
+/* ── Luck ──
+   세 빈칸은 유저가 직접 쓰고, 시스템은 행운의 키워드만 정한다.
+   이 입력값은 로컬 일일 카드에만 남고 모델 요청에는 절대 실리지 않는다. */
+function Fortune({fortune,onFill,onClose}){
+  const inputOrder=["who","place","find"];
+  const inputRefs=useRef({});
+  const [draft,setDraft]=useState(()=>({
+    who:(fortune&&fortune.who)||"",
+    place:(fortune&&fortune.place)||"",
+    find:(fortune&&fortune.find)||"",
+  }));
+  useEffect(()=>setDraft({
+    who:(fortune&&fortune.who)||"",
+    place:(fortune&&fortune.place)||"",
+    find:(fortune&&fortune.find)||"",
+  }),[fortune&&fortune.day]);
+  if(!fortune)return null;
+  const filled=fortune.revealed===true;
+  const ready=inputOrder.every(k=>(draft[k]||"").trim());
+  const keyword=((NULL_FORTUNE_KEYWORDS||[]).find(x=>x.id===fortune.keywordId)||{}).label||"";
+  const submit=()=>{if(!filled&&ready)onFill(draft)};
+  const onEnter=(e,key)=>{
+    if(e.key!=="Enter"||e.repeat||e.nativeEvent.isComposing||e.nativeEvent.keyCode===229)return;
+    e.preventDefault();
+    const next=inputOrder[inputOrder.indexOf(key)+1];
+    if(next)inputRefs.current[next]?.focus();
+    else submit();
+  };
+  const input=(key,label,wide=false)=><input
+    className={`fortune-slot blank${wide?" wide":""}`}
+    aria-label={label}
+    ref={el=>{inputRefs.current[key]=el}}
+    value={filled?fortune[key]:draft[key]}
+    maxLength={(FORTUNE_INPUT_MAX&&FORTUNE_INPUT_MAX[key])||20}
+    readOnly={filled}
+    onChange={e=>setDraft(v=>({...v,[key]:e.target.value}))}
+    onKeyDown={e=>onEnter(e,key)}/>;
+  return <Dialog title="null.exe" onClose={onClose} win="fortunewin">
+    <div className="fortune-title">✧ NULL 위한 오늘의 운세 ✧</div>
+    <div className="fortune-sub">행운은 쟁취하는 거야! <span className="kao">(ノ^∇^)ノ.｡･:*:･</span><span className="fortune-emoji" aria-hidden="true">🍀</span></div>
+    <div className="fortune-copy">
+      <div className="fortune-row">
+        <span>오늘은</span>
+        <span className="fortune-unit">{input("who","함께할 사람")}<span className="fortune-particle">과</span></span>
+        <span className="fortune-unit">{input("place","갈 장소",true)}<span className="fortune-particle">에 가면</span></span>
+      </div>
+      <div className="fortune-row">
+        <span>뜻밖의</span>{input("find","찾을 것",true)}
+        <span className="fortune-ending"><span className="fortune-particle">을 찾을 수 있어요</span><span className="fortune-kao">♡(｡•̀ᴗ-)✧</span></span>
+      </div>
+      <div className="fortune-keyword">
+        <span>행운의 키워드 :</span>
+        <output className={`fortune-slot blank wide${filled?" filled reveal":""}`} aria-live="polite">{filled?keyword:""}</output>
+      </div>
+    </div>
+    <button className="wbtn inbtn fortune-fill" onClick={submit} disabled={filled||!ready}>
+      FILL THE BLANK!
+    </button>
+  </Dialog>;
+}
+
 /* ── 시간표 ──
    그날 처음 열면 한 번 뜬다. 하루에 여섯 번 알림을 띄우면 사흘이면 벽지가
    되는데, 하루에 한 번이면 의식이 된다. 그 뒤로는 peek 옆 버튼이 지금이
@@ -317,22 +378,125 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary}){
-  const [menu,setMenu]=useState(null);     // 'you'|'edit'|'chat'|'help'
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,myDiaryOpen,onMyDiary,active,overlayBusy,onOverlayBusy,ending,ended,replay}){
+  const [menu,setMenu]=useState(null);     // 'edit'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
+  const dlgRef=useRef(dlg); dlgRef.current=dlg;
+  const [zoom,setZoom]=useState(null);
+  const zoomRef=useRef(zoom); zoomRef.current=zoom;
+  const overlayBusyRef=useRef(overlayBusy); overlayBusyRef.current=overlayBusy;
+  const dailyPendingRef=useRef(false);
+  const openDailyRef=useRef(null);
+  const [fortune,setFortune]=useState(null);
+  const [timetableAfterLuck,setTimetableAfterLuck]=useState(false);
+  const fortuneOpenedAt=useRef(null);
   const [confirming,setConfirming]=useState(false);   // etc.의 restart 2단계
+  const luckPreview=fortunePreviewRequested();
+  /* D-0은 목록 안에서 이미 쓰고 있는 창을 덮지 않는다. 값을 위로 알리기만 하고
+     창 자체는 그대로 두므로, 유저가 닫은 다음 선택 화면이 이어진다. */
+  useEffect(()=>{onOverlayBusy&&onOverlayBusy(!!(menu||dlg||zoom))},
+    [menu,dlg,zoom,onOverlayBusy]);
+  useEffect(()=>()=>{onOverlayBusy&&onOverlayBusy(false)},[onOverlayBusy]);
+  /* 엔딩 뒤의 하루는 현실 경과일이 아니라 실제 접속일만 센다. Luck의 하루도
+     같은 시계를 써야, 들어오지 않은 날의 카드가 생기거나 건너뛰지 않는다. */
+  const dayN=ended?endingGameDay(ending,store):daysSince(store);
   /* 시간표. 그날 처음 열면 한 번 뜨고, 그 뒤로는 버튼으로 다시 본다.
      야자 감독인 주에는 에너지바가 가방에 들어온다 — 그 주에 한 번만. */
   const [wend,setWend]=useState(loadWend);
   const [level,setLevel]=useState("town");    // 지도 두 장 — 마을 길 / 학교 안
   const [tick,setTick]=useState(0);           // 교시가 바뀌면 버튼 글자도 바뀐다
   useEffect(()=>{const t=setInterval(()=>setTick(x=>x+1),60000);return()=>clearInterval(t)},[]);
+  const openLuck=()=>{
+    /* Luck 단추는 0일차부터 있다. 다만 자동으로 끼어드는 것은 1일차부터고,
+       0일차에는 유저가 이 단추를 눌렀을 때만 오늘 카드를 만든다. */
+    const now=new Date();
+    fortuneOpenedAt.current=now;
+    setFortune(luckPreview
+      ?{day:"preview",who:"",place:"",find:"",keywordId:"coincidence",revealed:false,seen:true}
+      :ensureFortuneForToday(now));
+    setMenu(null);
+    setDlg("fortune");
+  };
+  const openDaily=()=>{
+    if(!active)return false;
+    if(document.hidden||dlgRef.current||zoomRef.current||overlayBusyRef.current){
+      dailyPendingRef.current=true;
+      return false;
+    }
+    dailyPendingRef.current=false;
+    const k=dayKey(),newTimetable=loadDaySeen()!==k;
+    /* 0일차에는 시간표만 자동으로 연다. Luck 카드를 자동으로 만들고 seen으로
+       소모하는 일은 실제 1일차부터 시작한다. 수동 Luck은 openLuck의 몫이다. */
+    if(fortuneAvailableForGameDay(dayN)){
+      const now=new Date(),today=ensureFortuneForToday(now);
+      if(fortuneNeedsAutoOpen(today,now)){
+        setTimetableAfterLuck(newTimetable);
+        fortuneOpenedAt.current=now;
+        setFortune(today);
+        setDlg("fortune");
+        return true;
+      }
+    }
+    if(newTimetable){
+      saveDaySeen(k); setDlg("timetable");
+      if(isYajaWeek())onEnergyBar&&onEnergyBar();
+      return true;
+    }
+    return false;
+  };
+  openDailyRef.current=openDaily;
   useEffect(()=>{
-    const k=dayKey();
-    if(loadDaySeen()===k)return;
-    saveDaySeen(k); setDlg("timetable");
-    if(isYajaWeek())onEnergyBar&&onEnergyBar();
-  },[]);
+    if(!active)return;
+    let timer=0;
+    const runDaily=()=>openDailyRef.current&&openDailyRef.current();
+    runDaily();
+    const foreground=()=>{if(!document.hidden){
+      clearTimeout(timer); timer=setTimeout(runDaily,0);
+    }};
+    window.addEventListener("pageshow",foreground);
+    document.addEventListener("visibilitychange",foreground);
+    return()=>{
+      clearTimeout(timer);
+      window.removeEventListener("pageshow",foreground);
+      document.removeEventListener("visibilitychange",foreground);
+    };
+  },[active]);
+  /* 등록·첫 만남·상위 창 때문에 미뤘다면, 마지막 막이 걷힌 직후 한 번만 연다. */
+  useEffect(()=>{
+    if(!active||dlg||zoom||overlayBusy||!dailyPendingRef.current)return;
+    openDailyRef.current&&openDailyRef.current();
+  },[active,dlg,zoom,overlayBusy]);
+  useEffect(()=>{
+    if(!active||document.hidden||overlayBusy||zoom||dlg!=="fortune"||!fortune||!fortuneOpenedAt.current)return;
+    if(!fortuneNeedsAutoOpen(fortune,fortuneOpenedAt.current))return;
+    setFortune(markFortuneSeen(fortune,fortuneOpenedAt.current));
+  },[active,dlg,fortune&&fortune.day,zoom,overlayBusy]);
+  const closeLuck=()=>{
+    if(timetableAfterLuck){
+      setTimetableAfterLuck(false);
+      const k=dayKey();
+      if(loadDaySeen()!==k){
+        saveDaySeen(k);
+        if(isYajaWeek())onEnergyBar&&onEnergyBar();
+      }
+      setDlg("timetable");
+      return;
+    }
+    setDlg(null);
+  };
+  const fillLuck=values=>{
+    if(luckPreview){
+      setFortune(f=>f?{
+        ...f,
+        who:cleanFortuneInput("who",values&&values.who),
+        place:cleanFortuneInput("place",values&&values.place),
+        find:cleanFortuneInput("find",values&&values.find),
+        revealed:true,
+      }:f);
+      return;
+    }
+    setFortune(fillFortuneForToday(fortuneOpenedAt.current||new Date(),fortune,values));
+  };
   const fillWend=(k,n,v)=>setWend(w=>{
     const next={...w,[k]:[...(w[k]||[])]}; next[k][n]=v; saveWend(next); return next;
   });
@@ -348,12 +512,11 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
   /* 빈칸 — 이름이 불린 만큼만 채운다. 칸에 글자를 넣지는 않는다:
      채워지는 것은 칸이지 이름이 아니다 */
   const calls=countCalls(store,name);
-  const lit=filledLetters(calls,name);
   const letters=(name||"").split("");
-  const namePct=Math.min(100,calls/Math.max(1,letters.length*CALL_PER_LETTER)*100);
-  const dayN=daysSince(store);
+  /* 완료 팝업의 「다 채워서」와 목록의 게이지가 서로 반대로 말하면 안 된다. */
+  const lit=ended?letters.length:filledLetters(calls,name);
+  const namePct=ended?100:Math.min(100,calls/Math.max(1,letters.length*CALL_PER_LETTER)*100);
   const [tab,setTab]=useState("rooms");    // 'rooms'|'map'|'cam'|'hidden'
-  const [zoom,setZoom]=useState(null);
   /* 지금 커서가 서 있는 잠긴 칸(⑥). 한 번에 하나만 선다 — 열여덟 칸에
      커서가 다 서 있으면 채워야 할 자리가 아니라 서식이 된다 */
   const [guess,setGuess]=useState(null);
@@ -381,7 +544,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     <div className="menubar">
       {mb("you","you",()=>{setMenu(null);setDlg("profile")})}
       <span className="ddwrap">
-        {mb("edit","file")}
+        {mb("edit","chat")}
         {menu==="edit"&&<div className="dd">
           {/* ⑩ 지금의 일기. 눈금을 지나 열린 장이 있을 때만 선다 —
               늘 서 있으면 「오늘도 안 썼네」가 되고 그러면 일과다.
@@ -390,15 +553,11 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
             <Sticker.heart size={12} color="#ffb0d4"/> write my diary</div>}
           <div className="dditem" onClick={()=>{setMenu(null);onExport()}}><Sticker.floppy size={15}/> save all (.txt)</div>
           <div className="dditem" onClick={()=>{setMenu(null);setDlg("log")}}><Sticker.heart size={12} color="#c3b2f0"/> my stats</div>
-        </div>}
-      </span>
-      <span className="ddwrap">
-        {mb("chat","chat")}
-        {menu==="chat"&&<div className="dd">
           <div className="dditem" onClick={()=>{setMenu(null);onReadAll()}}><Sticker.star size={13} color="#ffb0d4"/> mark all read</div>
           <div className="dditem" onClick={()=>{setMenu(null);setDlg("find")}}><Sticker.cursor size={13}/> search</div>
         </div>}
       </span>
+      {mb("luck","LUCK",openLuck)}
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
       {/* 🎁 선물은 메뉴 항목이다 — 버튼은 peek 하나뿐이어야 그게 특별한
           동작으로 보인다. 메뉴바는 조용해야 한다. */}
@@ -649,6 +808,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     </div>
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
     {dlg==="bag"&&<Bag bag={bag||[]} store={store} onClose={()=>setDlg(null)}/>}
+    {dlg==="fortune"&&<Fortune fortune={fortune} onFill={fillLuck} onClose={closeLuck}/>}
     {dlg==="timetable"&&<Timetable wend={wend} onFillWend={fillWend} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}
       onRename={onRename} onClose={()=>setDlg(null)}/>}
@@ -661,16 +821,25 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     {dlg==="help"&&<Dialog title="etc." win="etcwin" cls="etc" onClose={()=>{setDlg(null);setConfirming(false)}}>
       <div className="etcglit"/>
       <div className="etccd"/>
-      <div className="etchi">안녕, NULL 기다렸어. ✧</div>
-      <div className="etcsub">the blank u fill in</div>
-      <div className="etcdiv">♡ ・ ♡ ・ ♡</div>
-      <div className="etcrow"><span className="etctag">D-{dLeft} ♡</span></div>
+      <div className="etchi">{ended?"NULL, 채워줘서 고마워":"안녕, NULL 기다렸어. ✧"}</div>
+      <div className="etcsub">{ended?"the blank u filled in":"the blank u fill in"}</div>
+      <div className="etcdiv">{ended?"♡ · ♡ · ♡":"♡ ・ ♡ ・ ♡"}</div>
+      <div className="etcrow"><span className="etctag">{ended?"D-∞ ♡":`D-${dLeft} ♡`}</span></div>
       <div className="etcstk">
         {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#c3b2f0","#b9a7e6","#a78fe0","#8fd8e8","#d5c8ff"][i]}}>{x}</span>)}
       </div>
       {/* 되돌릴 수 없다는 말보다 숫자가 손을 멈춘다. 지우는 건 기록만이 아니라
           시계와 해금까지다 — 그걸 글로 쓰지 말고 지금 상태로 보여준다. */}
-      {!confirming
+      {ended
+        ?<React.Fragment>
+          <div className="etcrow" style={{marginTop:18}}>
+            <button className="etcdel" aria-label="↻ continue" onClick={()=>setDlg(null)}><span className="rr">↻</span>continue</button>
+          </div>
+          <div className="etcrow" style={{marginTop:8}}>
+            <button className="wbtn" onClick={()=>{setDlg(null);replay&&replay()}}>영화관 다시보기 ♡</button>
+          </div>
+        </React.Fragment>
+        :!confirming
         ?<div className="etcrow" style={{marginTop:18}}>
           <button className="etcdel" onClick={()=>setConfirming(true)}><span className="rr">↺</span>restart</button>
         </div>
@@ -687,4 +856,3 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
     <PhotoWin shot={zoom} onClose={()=>setZoom(null)}/>
   </div>;
 }
-

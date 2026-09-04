@@ -257,7 +257,7 @@ function MusicBar({track,color,onPlay}){
   </React.Fragment>;
 }
 
-function Profile({char,count,onBack,gifts,dLeft,back,days}){
+function Profile({char,count,onBack,gifts,dLeft,back,days,ended}){
   const ch=CHARS[char], p=PROFILES[char], room=roomOf(char);
   const [full,setFull]=useState(false);   // 배경만 크게 보기
   const st=p?(p.stages[stageIdx(count,days)]||p.stages[0]):null;
@@ -277,7 +277,7 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
   const bg=useBg(wanted,(p&&p.fallback)||char+"-bg.webp");
   if(!ch||!p)return null;
   /* 떠났으면 단계와 상관없이 작별 인사다. 시계가 단계를 이긴다 */
-  const status=((dLeft===0?(back?STATUS_BACK:STATUS_GONE)[char]:null)||st.status||"").trim();
+  const status=((!ended&&dLeft===0?(back?STATUS_BACK:STATUS_GONE)[char]:null)||st.status||"").trim();
   return <div className="pfscreen" style={{backgroundImage:`url("${bg}")`}}>
     <div className="pfdim" onClick={e=>{if(e.target===e.currentTarget)setFull(true)}}>
       <Sparkles/>
@@ -298,7 +298,7 @@ function Profile({char,count,onBack,gifts,dLeft,back,days}){
         </div>
         <MusicBar track={trackOf(st.track)} color={ch.dk}/>
         <div className="pfstats">
-          <div className="s"><span className="l">TODAY</span><span className="v" style={{color:"#ff7fae"}}>1</span></div>
+          <div className="s"><span className="l">{ended?"DAY":"TODAY"}</span><span className="v" style={{color:"#ff7fae"}}>{ended?"D-∞ ♡":"1"}</span></div>
           <div className="s"><span className="l">TALK</span><span className="v" style={{color:ch.dk}}>{count}</span></div>
         </div>
         <div className="pfstickers">

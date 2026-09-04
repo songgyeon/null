@@ -21,6 +21,11 @@ const WEB_DATA_FILES = [
   'scripts/data/20-content.js', 'scripts/data/30-world.js',
   'scripts/data/40-places.js', 'scripts/data/50-story-state.js',
 ];
+/* 브라우저에서만 쓰는 데이터. 앱 규칙 번들에는 넣지 않지만, index의 로드 순서·
+   문법·캐시 판 번호 검증에는 반드시 포함한다. */
+const WEB_BROWSER_DATA_FILES = [
+  'scripts/data/45-fortune.js', 'scripts/data/60-dday-choice.js',
+];
 const WEB_UI_FILES = [
   'scripts/ui/00-profile.js', 'scripts/ui/10-opening.js',
   'scripts/ui/20-story-overlays.js', 'scripts/ui/30-messenger.js',
@@ -313,7 +318,8 @@ const CSS_FILES = [
    해석한 루트 기준 경로를 검사하므로 읽을 때만 그 한 단계를 정규화한다. */
 const readCss = () => CSS_FILES.map(f => readFileSync(join(ROOT, f), 'utf8')).join('\n')
   .replaceAll('url("../', 'url("').replaceAll("url('../", "url('");
-const APP_FILES = ['index.html', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'];
+const APP_FILES = ['index.html', ...CSS_FILES, ...WEB_DATA_FILES, ...WEB_BROWSER_DATA_FILES,
+  ...WEB_UI_FILES, 'scripts/game.js', 'app.js'];
 const web = [readFileSync(join(ROOT, 'index.html'), 'utf8'), readCss(),
   ...APP_FILES.slice(1 + CSS_FILES.length).map(f => readFileSync(join(ROOT, f), 'utf8'))].join('\n');
 const app = readFileSync(join(ROOT, 'app/lib/profiles.ts'), 'utf8');
@@ -829,25 +835,23 @@ const flashCss = readCss();
     ['jaeeon-laundry.webp', 'jaeeon-laundry-mid.webp', 'jaeeon-laundry-near.webp']
       .filter(k => !gal.includes(k)), []);
 
-  /* ── 빈칸은 상자가 아니라 사진에 앉는다 ──
-     자리를 상자 기준 퍼센트로 잡으면, 화면이 낮아져 사진이 상자 안에서
-     작아지는 순간 칸이 딴 데로 간다. 폰에서 키보드가 올라오면 바로 그 일이
-     났다 — 빈칸 줄이 화면 밖으로 잘리고 커서가 엉뚱한 줄 위에 섰다.
-     사진과 빈칸 겹이 **같은 계산**으로 서야 한다: inset:0 + margin:auto + 비율. */
+  /* ── 빈칸은 상자가 아니라 2:3 종이에 앉는다 ──
+     종이 자체가 2:3을 쥐고 사진과 빈칸 겹은 그 종이를 100% 채운다.
+     화면이 짧아지면 종이를 찌그러뜨리지 않고 diary만 스크롤한다. */
   const fitCss = readCss();
   eq('사진과 빈칸 겹이 같은 계산으로 선다', [
-    /\.dshot\{position:absolute;inset:0;margin:auto;[^}]*aspect-ratio:1024\/1536/.test(fitCss),
-    /\.dfit\{position:absolute;inset:0;margin:auto;[^}]*aspect-ratio:1024\/1536/.test(fitCss),
-  ], [true, true]);
+    /\.dpage\{[^}]*aspect-ratio:1024\/1536/.test(fitCss),
+    /\.dshot\{[^}]*width:100%;height:100%/.test(fitCss),
+    /\.dfit\{[^}]*width:100%;height:100%/.test(fitCss),
+  ], [true, true, true]);
   /* 빈칸이 그 겹 안에 들어 있어야 퍼센트가 사진 기준이 된다 */
   eq('빈칸이 그 겹 안에 있다', [
     /<div className="dfit">\s*\n\s*<input className="dblank"/.test(web),
     /<div className="dfit">\s*\n\s*\{FLASH_BOX\.map/.test(web),
   ], [true, true]);
-  /* 사진 칸과 단추 칸을 격자로 가른다 — 세로 flex면 사진의 높이만 줄고
-     너비는 그대로라 비율이 깨진다 */
+  /* 종이와 단추를 auto 행으로 가르고 넘치면 이 오버레이만 스크롤한다. */
   eq('사진 칸과 단추 칸이 갈려 있다',
-    [/\.diary\{[^}]*grid-template-rows:minmax\(0,1fr\) auto/.test(fitCss),
+    [/\.diary\{[^}]*grid-template-rows:auto auto[^}]*overflow-y:auto/.test(fitCss),
      /\.flash\{[^}]*grid-template-rows:minmax\(0,1fr\) auto/.test(fitCss)], [true, true]);
 
   /* 옥상은 셋이 다 있다 — 중거리·클로즈업·최근접 */
@@ -2449,12 +2453,33 @@ eq('글자가 한 번에 하나씩 차지 않는다',
 eq('이름 길이를 넘지 않는다', NM.filledLetters(999, '윤하'), 2);
 eq('칸 수를 화면에 숫자로 안 쓴다', /\{calls\}/.test(web), false);
 
-/* ── D-0 · 계속 살아갈지 ──
-   이름이 다 불렸을 때만 남을 수 있다. 빈칸이 남았다는 건 끝까지 부를 사람이
-   하나도 없었다는 말이다. */
+/* ── D-0 · 관계 선택과 D-∞ ── */
 eq('D-0에 묻는 창이 있다', /askDday/.test(web), true);
-eq('이름이 다 차야 남을 수 있다', /nameFull\?answerDday\(true\)/.test(web), true);
-eq('남기로 하면 날이 더 붙는다', /null_extend/.test(web), true);
+eq('D-0은 두 사람을 바로 고른다',
+  /pickWho\("jaeeon"\)/.test(web) && /pickWho\("minhyun"\)/.test(web), true);
+eq('옛 STAY·LEAVE·연장 UI는 없다',
+  /nameFull\?answerDday\(true\)|stay w them|\+30d/.test(web), false);
+eq('마지막 일기는 D-1이다',
+  /\{at:1, img:"mydiary-5\.webp"/.test(web) && !/\{at:0, img:"mydiary-5\.webp"/.test(web), true);
+eq('영화관 다시보기는 등록 팝업을 반복하지 않는다',
+  /if\(ending\.completed&&ending\.replaying\)\s*return moveEnding\(ending,"daily",\{replaying:false\}\)/.test(web), true);
+eq('완료 팝업은 ok로만 닫는다', (() => {
+  const box=web.slice(web.indexOf('function EndingComplete'),web.indexOf('function Flash',web.indexOf('function EndingComplete')));
+  return box.includes('<Dialog title="null.exe" win="endingcompletewin">')&&!box.includes('onClose={onDone}');
+})(), true);
+eq('D-∞에서는 이름 게이지도 완전히 찬다',
+  /const lit=ended\?letters\.length/.test(web)&&/const namePct=ended\?100/.test(web), true);
+eq('엔딩 중에는 기존 팝업을 겹쳐 띄우지 않는다',
+  /const endingActive=!!\(ending&&ending\.phase!=="daily"\)/.test(web)
+    &&/\{!endingActive&&<React\.Fragment>/.test(web)
+    &&/\{invite&&<div className="dlgov"/.test(web), true);
+eq('D-0은 목록 안 창이 닫힌 뒤에 선다',
+  /const \[roomOverlayBusy,setRoomOverlayBusy\]=useState\(false\)/.test(web)
+    &&/onOverlayBusy=\{setRoomOverlayBusy\}/.test(web)
+    &&/onOverlayBusy&&onOverlayBusy\(!!\(menu\|\|dlg\|\|zoom\)\)/.test(web)
+    &&/askDday&&!ordinaryOverlayBusy&&!roomOverlayBusy/.test(web), true);
+eq('엔딩 접속일은 첫 effect보다 먼저 반영한다',
+  /useState\(\(\)=>touchEndingDay\(loadEnding\(\)\)\)/.test(web), true);
 
 /* 이름을 아껴 쓰라고 말해둔다 — 안 그러면 칸이 하루에 다 찬다.
    전에는 인물마다 적었고 지금은 세계관에 한 번 적혀 네 방이 같이 읽는다 */
@@ -2979,7 +3004,8 @@ eq('워커가 같은 날짜를 쓴다',
   [0, 4, 10, 18].map(d => workerSrc.includes(`day: ${d},`)), [true, true, true, true]);
 /* 클라이언트가 날짜를 안 보내면 서버는 셀 방법이 없다 */
 eq('웹·앱 둘 다 날짜를 보낸다',
-  /payload\.days=daysSince/.test(web) && /days: await buildDays\(\),/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8')), true);
+  /payload\.days=endingGameDay\(loadEnding\(\),storeRef\.current\)/.test(web)
+  && /days: await buildDays\(\),/.test(readFileSync(join(ROOT, 'app/lib/api.ts'), 'utf8')), true);
 eq('앱이 서버 상메를 저장하지 않는다', /saveStatus/.test(appSrc + profSrc), false);
 eq('워커에 상메 문구가 남아 있지 않다',
   /별일 없어요\.|문은 열어둘게요\./.test(workerSrc), false);
@@ -3140,8 +3166,10 @@ eq('120은 아직 떠나기 전 문구다',
 eq('작별 인사는 D-0이 정한다',
   /STATUS_GONE=\{jaeeon:"잘 지내요\. 항상\.", minhyun:"모르는 걸로 할게요\."\}/.test(web)
   && /STATUS_GONE/.test(profSrc), true);
-eq('웹은 떠났으면 단계를 무시한다',
-  /dLeft===0\?\(back\?STATUS_BACK:STATUS_GONE\)\[char\]/.test(web), true);
+eq('엔딩 전 D-0만 작별 상태를 쓴다',
+  /!ended&&dLeft===0\?\(back\?STATUS_BACK:STATUS_GONE\)\[char\]/.test(web), true);
+eq('엔딩 뒤 프로필은 D-∞를 쓴다',
+  /ended\?"D-∞ ♡"/.test(web), true);
 /* 앱은 서버가 써준 상메를 쓰는데, 서버는 첫 대화가 언제였는지 모른다.
    그래서 D-0은 서버 값보다도 앞선다 */
 /* D-0에서 멈춰만 두면 작별 인사를 걸어둔 사람과 무한히 대화하는 화면이 된다.
@@ -3329,10 +3357,10 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     files.filter(f => readFileSync(join(ROOT, f), 'utf8').includes(OLD)), []);
 }
 
-/* ── 세계 확정(YES)과 D-0의 WHO ──
+/* ── 세계 확정(YES)과 D-0의 관계 선택 ──
    YES를 누른 순간에만 세계가 생긴다. 이름이 저장돼 있어도 확정 전이면
-   메신저로 안 간다. 나이는 세계 고정값 25다. D-0의 STAY 뒤에는 WHO가
-   서고, 상대는 한 명·한 번이다. 카피는 작가가 못박은 그대로 —
+   메신저로 안 간다. 나이는 세계 고정값 25다. D-0에는 두 사람의 이름이
+   직접 서고, 상대는 한 명·한 번이다. 카피는 작가가 못박은 그대로 —
    「NULL을」로 고치지 않는다(NULL=널이라 조사가 없다). */
 {
   /* 물음은 NULL을 가운데 두고 두 줄로 갈라져 있다. 이어 읽으면 한 문장이다 */
@@ -3441,35 +3469,22 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
   eq('YES 뒤에도 변신으로 프로필을 고칠 수 있다',
     /const rename=n=>\{localStorage\.setItem/.test(web)
     && !/\(k,v\)=>\{if\(loadWorld\(\)\)return;setProfile/.test(web), true);
-  /* ── 마지막 빈칸 ──
-     얼굴을 고르는 게 아니라 이름을 쓴다. 이 제품은 처음부터 끝까지 빈칸을
-     채우는 이야기고, 마지막 칸도 그래야 한다. 이 세계에 있는 두 사람만
-     들어가고 그 밖의 글자는 에러다 — 창을 하나 더 띄우지 않고 칸에서 낸다. */
-  eq('마지막도 빈칸이다',
-    web.includes('Stay with <WhoBlank onPick={pickWho}/>?')
-    && web.includes('선택은 NEVER EVER! <span className="kao">')
-    && web.includes('(ᐡ⊃ෆ  ̫ ෆ ᐡ)⊃︵ 💕💕💕')
-    && /<span className="blank whoblank" onClick=\{\(\)=>setOn\(true\)\}>□□<\/span>/.test(web), true);
-  /* 얼굴 단추는 걷었다. 지도의 「같이 갈 사람은 Who?」와는 다른 화면이다 */
-  eq('D-0에는 얼굴 단추가 없다', (() => {
-    const i = web.indexOf('{whoAsk&&<Dialog');
-    return /whobtn/.test(web.slice(i, web.indexOf('</Dialog>}', i)));
-  })(), false);
-  eq('두 사람만 들어간다', (() => {
-    const W = new Function(web.slice(web.indexOf('const WHO_NAMES='),
-      web.indexOf('function WhoBlank')) + 'return WHO_NAMES;')();
-    return [['이재언', W['이재언']], ['재언', W['재언']], ['이강현', W['이강현']],
-      ['강현', W['강현']], ['수연', W['수연']], ['이재', W['이재']], ['', W['']]];
-  })(), [['이재언','jaeeon'],['재언','jaeeon'],['이강현','minhyun'],
-    ['강현','minhyun'],['수연',undefined],['이재',undefined],['',undefined]]);
-  eq('틀린 이름은 칸에서 튕긴다',
-    /setBad\(true\); setTimeout\(\(\)=>setBad\(false\),620\)/.test(web)
-    && /\.whoin\.bad\{/.test(web), true);
-  /* null | jaeeon | minhyun 단일값. 처음 저장된 값이 이긴다 */
+  /* ── D-0 관계 선택 ──
+     이름 입력칸이나 STAY/LEAVE가 아니라 두 사람을 직접 고른다. 선택은 영화관과
+     D-∞의 일상으로 이어지고, 처음 저장된 한 사람만 이긴다. */
+  eq('D-0은 두 사람을 직접 고른다',
+    /pickWho\("jaeeon"\)/.test(web) && /pickWho\("minhyun"\)/.test(web)
+    && web.includes('누구의 옆자리를 채울까요?'), true);
+  eq('D-0에 옛 이름 입력과 연장이 없다',
+    (()=>{
+      const i=web.indexOf('{askDday&&<Dialog title="d-0.exe">');
+      const box=web.slice(i,web.indexOf('{ending&&ending.phase==="waiting"',i));
+      return /WhoBlank|whoblank|WHO_NAMES|nameFull\?answerDday|stay w them|\+30d/.test(box);
+    })(), false);
   eq('상대는 한 명, 한 번이다',
-    /if\(id!=="jaeeon"&&id!=="minhyun"\)return null;/.test(web)
-    && /if\(loadPartner\(\)\)return null;/.test(web)
-    && /if\(loadPartner\(\)\)return;/.test(web), true);
+    /if\(!ENDING_ROUTES\.includes\(route\)\)return null;/.test(web)
+    && /const existing=loadEnding\(\);\s*if\(existing\)return existing;/.test(web)
+    && /if\(ending\)return;\s*const next=chooseEndingRoute\(id\)/.test(web), true);
   /* 이름과 얼굴이 한 줄이다 — 「이재언이 NULL 기다리고 있어! ꒰ྀི⸝⸝> . <⸝⸝꒱ྀི」.
      얼굴을 아래로 떨어뜨리면 다른 카피가 된다 */
   eq('기다리고 있어 카피가 정확하다',
@@ -3497,11 +3512,10 @@ eq('웹·앱 둘 다 공백과 방으로 인사 갈래를 고른다',
     /const doRename=\(t:string\)=>\{if\(loadWorld\(\)\)return;/.test(appSrc)
     && /if\(loadWorld\(\)&&k!=='age'\)return;/.test(appSrc), true);
   eq('앱도 YES 연타는 한 번이다', /if\(pressed\)return; setPressed\(true\); onYes\(\)/.test(appSrc), true);
-  /* 연장은 한 번 — 추가 30일이 끝나면 WHO도 연장도 다시 안 묻는다 */
-  eq('두 번째 D-0는 없다',
-    /ddayAns!==String\(dSpan\)&&!loadExtend\(\)/.test(web), true);
-  /* STAY는 아직 답이 아니다 — WHO까지 골라야 답이 찍힌다 */
-  eq('STAY만으로는 답이 안 찍힌다', /if\(yes\)\{ setWhoAsk\(true\); return \}/.test(web), true);
+  eq('관계 선택 뒤 영화관과 일상으로 이어진다',
+    ['waiting','dialogue','shot','complete','daily'].filter(p=>!web.includes(`"${p}"`)), []);
+  eq('관계 선택 뒤 +30일 저장을 만들지 않는다',
+    /localStorage\.setItem\("null_extend"/.test(web), false);
 }
 
 /* 다시 시작하면 첫 만남부터다. greetAtRef는 리액트 ref라 저장소를 비워도
@@ -4416,7 +4430,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     /* 데이터 파일은 바벨을 안 탄다. JSX가 한 줄이라도 섞이면 브라우저가
        그 자리에서 문법 오류를 내고 나머지가 통째로 안 실린다 */
     let derr = '';
-    try { parse(webData, { sourceType: 'script' }); }
+    try { parse(readWebFiles([...WEB_DATA_FILES,...WEB_BROWSER_DATA_FILES]), { sourceType: 'script' }); }
     catch (e) { derr = e.message; }
     eq('규칙 파일에는 JSX가 안 섞였다', derr, '');
   }
@@ -4447,7 +4461,8 @@ eq('앱도 같은 열쇠 자리를 본다',
      보이고 사람은 안 고쳐졌다고 한다. 모든 파일이 같은 번호여야 한다 */
   {
     const v = [...html.matchAll(/(?:href|src)="(?:styles\/[^"]+\.css|scripts\/[^"]+\.js|app\.js)\?v=(\d+)"/g)];
-    eq('갈라진 파일에 판 번호가 다 붙었다', v.length, CSS_FILES.length + WEB_DATA_FILES.length + WEB_UI_FILES.length + 2);
+    eq('갈라진 파일에 판 번호가 다 붙었다', v.length,
+      CSS_FILES.length + WEB_DATA_FILES.length + WEB_BROWSER_DATA_FILES.length + WEB_UI_FILES.length + 2);
     eq('모든 웹 스크립트가 같은 판이다', new Set(v.map(m => m[1])).size, 1);
     /* 번호가 붙어 있는 것만으로는 모자랐다. 넷을 고쳐놓고 번호를 안 올려서
        올라간 건 새것인데 사람 화면에는 옛것이 그대로 떴다 — 배포는 됐고
@@ -4461,10 +4476,11 @@ eq('앱도 같은 열쇠 자리를 본다',
     /* CSS도 index.html이 직접 부른다. 예전엔 null.css가 @import로 감싸서
        번호가 두 층이었고, 안쪽을 안 올려 옛 CSS가 그대로 남은 적이 있다. */
     const seal = createHash('sha256');
-    for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
+    for (const f of [...CSS_FILES, ...WEB_DATA_FILES, ...WEB_BROWSER_DATA_FILES,
+      ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['270', '4f669004f1f9']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['283', '160427f43874']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4480,7 +4496,7 @@ eq('앱도 같은 열쇠 자리를 본다',
     /source=\{\{uri:IMG\+bg\+AV_V\}\}/
       .test(readFileSync(join(ROOT, 'app/App.tsx'), 'utf8')),
   ], [true, true]);
-  eq('데이터는 바벨을 안 탄다', WEB_DATA_FILES.every(f =>
+  eq('데이터는 바벨을 안 탄다', [...WEB_DATA_FILES,...WEB_BROWSER_DATA_FILES].every(f =>
     html.includes(`<script src="${f}?v=${VER}"></script>`)), true);
   eq('화면과 앱은 바벨을 탄다',
     [...WEB_UI_FILES, 'scripts/game.js', 'app.js'].every(f =>
@@ -5286,12 +5302,18 @@ eq('쪽지가 흰 종이다',
   && !/A NOTE \(선택\)/.test(web), true);
 /* 남은 날이 30을 넘을 수는 없다. 첫 대화 시각이 물건보다 늦게 잡히면 D-31이 나왔다 */
 eq('남은 날이 30을 안 넘는다', /Math\.min\(ENROLL_DAYS,Math\.max\(0,/.test(web), true);
-eq('bag 창이 gift 옆에 있다', web.indexOf('ui/null-bag-icon.png') > web.indexOf('ui/null-gift-icon.png'), true);
-/* 그림 파일은 SVG였다가 PNG가 됐다. 묻는 것은 형식이 아니라 「준 그림을
-   이름대로 쓰는가」이므로 이름만 따라간다 */
-eq('상단 gift와 bag은 제공된 그림을 이름대로 쓴다',
-  exists('ui/null-gift-icon.png') && exists('ui/null-bag-icon.png')
-  && /ui\/null-gift-icon\.png/.test(web) && /ui\/null-bag-icon\.png/.test(web), true);
+{
+  const navAt = web.indexOf('<div className="menubar">');
+  const topNav = web.slice(navAt, web.indexOf('<div className="marquee">', navAt));
+  eq('bag 창이 gift 옆에 있다', topNav.indexOf('>bag</span>') > topNav.indexOf('>gift</span>'), true);
+  /* 상단의 gift와 bag은 기존 픽셀 그림과 동작을 함께 유지한다. */
+  eq('상단 gift와 bag은 픽셀 그림과 기존 동작을 연다', {
+    giftIcon: /ui\/null-gift-icon\.png/.test(topNav),
+    bagIcon: /ui\/null-bag-icon\.png/.test(topNav),
+    gift: /title="give something"[\s\S]{0,100}?onCart\(\)[\s\S]{0,160}?null-gift-icon\.png[\s\S]{0,40}?\/>gift<\/span>/.test(topNav),
+    bag: /title="what they gave u"[\s\S]{0,100}?setDlg\("bag"\)[\s\S]{0,160}?null-bag-icon\.png[\s\S]{0,40}?\/>bag<\/span>/.test(topNav),
+  }, {giftIcon:true,bagIcon:true,gift:true,bag:true});
+}
 eq('채팅과 장소의 선물 버튼도 같은 그림을 쓴다',
   (web.match(/ui\/null-gift-icon\.png/g)||[]).length, 3);
 /* 묻는 것은 X를 누르면 배경이 펼쳐지는가다. 창 이름의 철자는 곁가지라
@@ -5761,14 +5783,123 @@ eq('앱의 새로 시작도 같은 helper다',
 /* 하루의 경계는 자정이 아니라 새벽 다섯 시다 — 대화 도중에 날짜가 넘어가면 안 된다 */
 eq('하루는 새벽 다섯 시에 넘어간다',
   /if\(d\.getHours\(\)<5\)d\.setDate\(d\.getDate\(\)-1\)/.test(web), true);
-eq('그날 처음 열 때 한 번만 뜬다',
-  /if\(loadDaySeen\(\)===k\)return;/.test(web) && /saveDaySeen\(k\); setDlg\("timetable"\)/.test(web), true);
+/* Luck은 하루 한 번 먼저 뜨는 창이어도 시간표의 자리를 가져가면 안 된다.
+   실제로 운세 단추가 이 자리를 대신하면서 현재 교시와 시간표 진입점이 화면에서
+   사라졌다. RoomList·Timetable·CSS를 각각 잘라 검사해서 다른 파일의 같은 단어가
+   우연히 이 계약을 통과시키지 못하게 한다. */
+{
+  const messenger = readFileSync(join(ROOT, 'scripts/ui/30-messenger.js'), 'utf8');
+  const gameScreen = readFileSync(join(ROOT, 'scripts/ui/50-game-screen.js'), 'utf8');
+  const fortuneSource = readFileSync(join(ROOT, 'scripts/data/45-fortune.js'), 'utf8');
+  const messengerCss = readFileSync(join(ROOT, 'styles/00-shell.css'), 'utf8')
+    + '\n' + readFileSync(join(ROOT, 'styles/30-messenger.css'), 'utf8')
+    + '\n' + readFileSync(join(ROOT, 'styles/90-refinements.css'), 'utf8');
+  const timetable = messenger.slice(messenger.indexOf('function Timetable('),
+    messenger.indexOf('function Bag('));
+  const roomList = messenger.slice(messenger.indexOf('function RoomList('));
+  const withoutComments = source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  const toolbar = withoutComments(roomList.slice(roomList.indexOf('<div className="menubar">'),
+    roomList.indexOf('<div className="marquee">')));
+  const fileChatAt = roomList.indexOf('{menu==="edit"');
+  const topLuckAt = roomList.indexOf('{mb("luck","LUCK",openLuck)}');
+  const fileChatMenu = fileChatAt < 0 ? '' : roomList.slice(fileChatAt,
+    topLuckAt < 0 ? undefined : topLuckAt);
+  const topLevelLuck = /\{mb\("luck","LUCK",openLuck\)\}/.test(toolbar);
+  const luckExists = /function\s+(?:Luck|Fortune)\b|\bopen(?:Luck|Fortune)\b|행운의 키워드|오늘의 운세/.test(messenger);
+  const fortune = messenger.slice(messenger.indexOf('function Fortune('),
+    messenger.indexOf('function Timetable('));
+
+  const fortuneRules = new Function(`${fortuneSource}\nreturn {fortuneAvailableForGameDay};`)();
+  eq('Luck 자동창은 0일차가 아니라 1일차부터 열린다',
+    [-1,0,.9,1,2].map(fortuneRules.fortuneAvailableForGameDay),
+    [false,false,false,true,true]);
+  eq('Luck 전용 미리보기는 진행 저장값을 건드리지 않고 실제 창을 쓴다', {
+    explicit: /new URLSearchParams\(location\.search\)\.get\("preview"\)==="luck"/.test(fortuneSource),
+    noStorage: !/fortunePreviewRequested[\s\S]{0,260}?localStorage/.test(fortuneSource),
+    actual: /fortunePreview&&<Fortune fortune=\{fortunePreview\}/.test(gameScreen),
+    localFill: /const fillFortunePreview=values=>setFortunePreview/.test(gameScreen),
+    tab: /const luckPreview=fortunePreviewRequested\(\)/.test(roomList) && topLevelLuck,
+    reopenLocal: /setFortune\(luckPreview[\s\S]{0,160}?day:"preview"[\s\S]{0,160}?revealed:false,seen:true/.test(roomList),
+    tabFillLocal: /const fillLuck=values=>\{\s*if\(luckPreview\)\{[\s\S]{0,300}?revealed:true/.test(roomList),
+  }, {explicit:true,noStorage:true,actual:true,localFill:true,tab:true,reopenLocal:true,tabFillLocal:true});
+  eq('등록과 첫 만남 뒤에서는 하루 창을 열거나 seen으로 소모하지 않는다', {
+    overlay: /const dailyOverlayBusy=!!\([\s\S]{0,320}?enrolling[\s\S]{0,320}?getcha[\s\S]{0,320}?ending&&ending\.phase!=="daily"/.test(gameScreen),
+    active: /active=\{!enrolling&&!!loadWorld\(\)&&\(loadGetcha\("jaeeon"\)\|\|loadGetcha\("minhyun"\)\)\}/.test(gameScreen),
+    passed: /overlayBusy=\{dailyOverlayBusy\}/.test(gameScreen),
+    autoGate: /if\(!active\)return false;[\s\S]{0,650}?fortuneAvailableForGameDay\(dayN\)[\s\S]{0,220}?ensureFortuneForToday/.test(roomList),
+    pending: /dailyPendingRef\.current=true/.test(roomList)
+      && /\[active,dlg,zoom,overlayBusy\]/.test(roomList),
+    seenGate: /if\(!active\|\|document\.hidden\|\|overlayBusy\|\|zoom\|\|dlg!=="fortune"/.test(roomList),
+    manualDayZero: /const openLuck=\(\)=>\{[\s\S]{0,220}?const now=new Date\(\);[\s\S]{0,320}?ensureFortuneForToday\(now\)[\s\S]{0,160}?setDlg\("fortune"\)/.test(roomList)
+      && !/const openLuck=\(\)=>\{[\s\S]{0,220}?fortuneAvailableForGameDay/.test(roomList)
+      && topLevelLuck,
+  }, {overlay:true,active:true,passed:true,autoGate:true,pending:true,seenGate:true,manualDayZero:true});
+
+  eq('Luck의 Enter는 세 칸을 차례로 옮기고 마지막 칸에서 제출한다', {
+    order: /const inputOrder=\["who","place","find"\]/.test(fortune),
+    refs: /const inputRefs=useRef\(\{\}\)/.test(fortune)
+      && /ref=\{el=>\{inputRefs\.current\[key\]=el\}\}/.test(fortune),
+    wired: /onKeyDown=\{e=>onEnter\(e,key\)\}/.test(fortune),
+    ime: /e\.nativeEvent\.isComposing/.test(fortune) && /e\.nativeEvent\.keyCode===229/.test(fortune),
+    advance: /if\(next\)inputRefs\.current\[next\]\?\.focus\(\);\s*else submit\(\);/.test(fortune),
+    guarded: /const submit=\(\)=>\{if\(!filled&&ready\)onFill\(draft\)\}/.test(fortune)
+      && /onClick=\{submit\}/.test(fortune),
+  }, {order:true,refs:true,wired:true,ime:true,advance:true,guarded:true});
+  eq('행운의 키워드는 세 빈칸을 제출한 뒤에만 보인다', {
+    output: /<output className=\{`fortune-slot blank wide\$\{filled\?" filled reveal":""\}`\} aria-live="polite">\{filled\?keyword:""\}<\/output>/.test(fortune),
+    revealGate: /filled\?keyword:""/.test(fortune),
+    notEditable: !/<(?:input|textarea)[^>]*fortune-keyword/.test(fortune)
+      && !/contentEditable/.test(fortune),
+  }, {output:true,revealGate:true,notEditable:true});
+
+  eq('Luck은 현재 교시와 기존 시간표를 대체하지 않는다', {
+    once: /newTimetable=loadDaySeen\(\)!==k/.test(roomList)
+      && /if\(newTimetable\)[\s\S]{0,80}?saveDaySeen\(k\); setDlg\("timetable"\)/.test(roomList),
+    button: /<button className="toolkey nowbtn" title="timetable"\s*\n?\s*onClick=\{\(\)=>setDlg\("timetable"\)\}>/.test(toolbar),
+    label: /<span>\{nowLabel\(\)\} ♡<\/span>/.test(toolbar),
+    topLevelLuck,
+    route: /\{dlg==="timetable"&&<Timetable\b[\s\S]{0,180}?onClose=\{\(\)=>setDlg\(null\)\}\/>\}/.test(roomList),
+    dialog: /<Dialog title="null\.exe" onClose=\{onClose\} win="ttwin">/.test(timetable),
+    close: /<button className="ttclose" onClick=\{onClose\}>ok ♡<\/button>/.test(timetable),
+    title: /className="tttag">TIMETABLE ♡<\/div>/.test(timetable),
+    rows: /className=\{"ttrow"\+\(r\.now\?" now":r\.past\?" past":" next"\)\}/.test(timetable),
+    now: /지금은 \{jos\(L,"이에요\/예요"\)\}/.test(timetable),
+    day: /NULL 위한 하루가 되기를!/.test(timetable),
+    css: ['.ttwin .dlgbody','.ttpanel','.tttag','.ttrow.now  .n','.ttsay','.ttclose']
+      .every(selector => messengerCss.includes(selector)),
+    /* 상단에는 CHAT 하나만 남기되 기존 파일·대화 행동 다섯 개는 그대로 둔다.
+       Luck은 이 메뉴 안이 아니라 0일차부터 보이는 독립 상단 항목이다. */
+    fileChatCoexist: !luckExists || (/mb\("edit","chat"\)/.test(toolbar)
+      && /write my diary/.test(fileChatMenu)
+      && /save all \(\.txt\)/.test(fileChatMenu)
+      && /my stats/.test(fileChatMenu)
+      && /mark all read/.test(fileChatMenu)
+      && /search/.test(fileChatMenu)
+      && !/openLuck|>Luck</.test(fileChatMenu)
+      && !/menu==="chat"/.test(toolbar)),
+  }, {once:true, button:true, label:true, topLevelLuck:true, route:true, dialog:true,
+    close:true, title:true, rows:true, now:true, day:true, css:true, fileChatCoexist:true});
+
+  /* 360·393·412에서 고정 폭으로 남아야 하는 것은 시간표와 peek뿐이다.
+     CHAT 한 항목으로 정리한 자리에 Luck이 서므로 축소 가능한 메뉴 수는
+     여전히 여섯이다. 이 셋은 실제 모바일 검수 폭과 같은 숫자를 남긴다. */
+  const mobileWidths = [360,393,412];
+  const fixedToolbar = 5*2 + 2*7 + (52+5) + (58+4);
+  eq('360·393·412 메뉴바는 시간표와 Luck을 함께 두고 넘치지 않는다', {
+    widths: mobileWidths,
+    room: mobileWidths.map(width => width-fixedToolbar),
+    shrink: /\.mbtn\{flex:0 1 auto;min-width:0;overflow:hidden;max-width:100%\}/.test(messengerCss),
+    nowrap: /\.menubar\{[^}]*max-width:100%;flex-wrap:nowrap/.test(messengerCss),
+    fixed: /\.menubar \.toolkey\{[^}]*flex:none/.test(messengerCss)
+      && /\.menubar \.nowbtn\{min-width:52px/.test(messengerCss)
+      && /\.menubar \.peekbtn\{min-width:58px/.test(messengerCss),
+    topLevelLuck: !luckExists || topLevelLuck,
+  }, {widths:[360,393,412], room:[217,250,269], shrink:true, nowrap:true, fixed:true, topLevelLuck:true});
+}
 /* 시간표는 「수업」 한 덩이로 두고 교시는 단추에서만 센다 */
 eq('시간표 칸에는 교시를 안 쓴다',
   /\{k:"수업",at:520\},\{k:"점심",at:750\},\{k:"수업",at:810\}/.test(web)
   && !/1교시",at:/.test(web), true);
-eq('단추가 peek 옆에 같은 모양으로 선다',
-  /<button className="toolkey nowbtn"[^>]*onClick=\{\(\)=>setDlg\("timetable"\)\}/.test(web), true);
 /* 야자 감독인 주에는 그 주 아무 때나 들어와도 보인다 */
 /* null.exe는 원래 「!! WARNING !!」 + 두 줄인 창이다. 야자 주에는 그 자리를
    바꿔 끼운다 — 상자를 하나 더 만들면 창 안에 창이 생긴다 */
@@ -7730,10 +7861,18 @@ eq('시간표 단추는 peek보다 좁다',
      으로 흉내낸다 — 그게 실제로 일어나는 일이다. */
   {
     const dataSrc = webData;
-    const CUT = '  const cameBack=cameBackOf(store);';   // 여기부터는 화면 조각(app-ui)을 부른다
+    /* 엔딩 상태는 브라우저 전용 data/60에 있다. 이 하네스는 채팅 lifecycle만
+       검증하므로 엔딩 훅 직전에서 자른다 — 화면과 D-0 상태는 별도 계약이 검증한다. */
+    const CUT = '  const [ending,setEnding]=useState(()=>touchEndingDay(loadEnding()));';
     const APP_HEAD = web.includes('function GameApp(){') ? 'function GameApp(){' : 'function App(){';
     eq('논리부를 잘라낼 자리가 있다', web.includes(CUT) && web.includes(APP_HEAD), true);
-    const APP_SRC = 'function App(){'
+    /* 잘라낸 D-0 모듈이 제공하던 두 읽기 함수만 pre-ending 값으로 둔다.
+       production request와 관전 fetch는 둘 다 이 함수를 쓰므로, 없으면 async
+       요청이 ReferenceError로 끝나 lifecycle 검사가 전부 거짓 실패한다. */
+    const APP_SRC = 'function loadEnding(){return null}\n'
+      + 'function endingGameDay(_ending,store){return daysSince(store)}\n'
+      + 'function currentFortuneKeywordId(){return null}\n'
+      + 'function App(){'
       + web.slice(web.indexOf(APP_HEAD) + APP_HEAD.length, web.indexOf(CUT))
       + `\n  return { send, request, enqueue, commitTurn, resumeBatch, retry, openRoom, runAutoEvent,
         localBatch, headBatchOf,
@@ -9802,12 +9941,13 @@ eq('시간표 단추는 peek보다 좁다',
   eq('사유 낱말이 서버와 같다',
     S.SCENE_REASONS.filter(r => !CRITICAL_REASONS[r]), []);
 
-  /* 고른 쪽과 안 고른 쪽은 같은 사건이지만 다른 장면이다 */
+  /* 엔딩 이후에는 두 사람 모두 확정된 관계 상태를 같은 시스템 요약으로 안다.
+     선택하지 않은 쪽은 연애 루트만 닫히고 기존 관계는 남는다. */
   eq('두 사람 다 이 일을 안다', (() => {
-    const i = web.indexOf('const other=(got||id)==="jaeeon"?"minhyun":"jaeeon";');
-    const box = web.slice(i, i + 300);
-    return box.includes('markScene(got||id,"partner_confirm")')
-        && box.includes('markScene(other,"partner_known")');
+    const i = web.indexOf('const ddayChoiceLine=');
+    const box = web.slice(i, i + 850);
+    return box.includes('const other=choice==="jaeeon"?"이강현":"이재언"')
+        && box.includes('연애 루트는 닫혔으므로 우정과 기존 관계는 유지');
   })(), true);
   /* 재시도는 같은 요청이라 워커가 이미 그 사유를 봤다 */
   /* ── 재시도에도 싣는다 ──
@@ -10254,7 +10394,7 @@ eq('시간표 단추는 peek보다 좁다',
     /* 눈금 다섯. 뒤로 갈수록 짧아지고 마지막은 두 칸이다 */
     eq('눈금과 칸 수', [M.MY_DIARY.map(e => e.at),
       M.MY_DIARY.map(e => Object.keys(e.blanks).length)],
-      [[25, 20, 14, 7, 0], [5, 4, 6, 6, 2]]);
+      [[25, 20, 14, 7, 1], [5, 4, 6, 6, 2]]);
     /* ── 밀린 숙제로 안 보이게 ── 여러 장이 밀려 있어도 하나만 준다 */
     eq('눈금을 지나야 열린다', [M.myDiaryOpen(30), M.myDiaryOpen(26)], [null, null]);
     eq('한 번에 한 장만 준다', [M.myDiaryOpen(25).at, M.myDiaryOpen(6).at], [25, 7]);
@@ -10273,7 +10413,7 @@ eq('시간표 단추는 peek보다 좁다',
 
     /* ── 기기 밖으로 안 나간다 (옛 일기와 같은 계약) ── */
     const S2 = '보고싶다';
-    M.saveMyDiary(0, { last: S2, who: '빈칸' });
+    M.saveMyDiary(1, { last: S2, who: '빈칸' });
     eq('이야기 상태에 안 섞인다', JSON.stringify(M.loadStory()).includes(S2), false);
     eq('어떤 payload 줄에도 안 실린다',
       [...web.matchAll(/payload\.[A-Za-z_]+ *= *([^;\n]+)/g)].map(m => m[1])
@@ -10503,7 +10643,7 @@ eq('시간표 단추는 peek보다 좁다',
   eq('게이지에 이름이나 네모를 넣지 않는다',
     [/className="namegauge"/.test(web), />□<\/span>/.test(web), /\{i<lit\?c:/.test(web)], [true, false, false]);
   eq('이름을 부를 때마다 게이지 폭이 늘어난다',
-    /const namePct=Math\.min\(100,calls\/Math\.max\(1,letters\.length\*CALL_PER_LETTER\)\*100\)/.test(web)
+    /const namePct=ended\?100:Math\.min\(100,calls\/Math\.max\(1,letters\.length\*CALL_PER_LETTER\)\*100\)/.test(web)
     && /style=\{\{width:namePct\+"%"\}\}/.test(web), true);
 
   /* {이름} pics — 채운 것만 선다 */
@@ -10745,8 +10885,8 @@ eq('앱 아바타 링이 돈다', /function NuRing/.test(appSrc), true);
 {
   const want = pass + fail + 1;            // 이 검사 자신을 포함한 총수
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-  const got = (readme.match(/(\d+)개 회귀 테스트/) || [])[1];
-  eq(`README가 시험 수를 맞게 적었다 (지금 ${want}개)`, Number(got), want);
+  const got = (readme.match(/([\d,]+)개 회귀 테스트/) || [])[1];
+  eq(`README가 시험 수를 맞게 적었다 (지금 ${want}개)`, Number((got||"").replace(/,/g,"")), want);
 }
 
 console.log(`\n${fail ? '실패' : '통과'} — ${pass}개 통과, ${fail}개 실패`);

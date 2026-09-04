@@ -74,12 +74,12 @@
    이 앱의 다른 창은 전부 가짜 OS다. 여기만 물건이다 — 20년 전 공책이고,
    물건은 흉내내면 물건이 아니게 된다. 그래서 CSS로 줄공책을 그리지 않고
    사진을 그대로 놓는다. 창틀도 메뉴바도 없다. */
-/* 사진 칸과 단추 칸을 격자로 가른다. 세로 flex로 두면 화면이 낮아질 때
-   flex가 사진의 **높이만** 줄이고 너비는 그대로 둬서 비율이 깨진다 —
-   그러면 빈칸이 딴 데로 간다. 격자의 첫 줄은 definite라 max-height가
-   실제로 물고, 그때 aspect-ratio가 너비를 따라 줄인다. */
+/* 사진 칸과 단추 칸을 격자로 가른다. 둘 다 auto라 종이는 절대 찌그러지지
+   않는다. safe center는 자리가 넉넉할 때만 가운데에 두고, 키보드가 올라와
+   짧아지면 위에서부터 스크롤하게 한다. */
 .diary{position:absolute;inset:0;z-index:58;display:grid;
- grid-template-rows:minmax(0,1fr) auto;justify-items:center;align-items:center;
+ grid-template-rows:auto auto;justify-items:center;align-items:center;
+ align-content:start;align-content:safe center;overflow-y:auto;
  gap:14px;padding:20px 16px;
  background:rgba(20,13,36,.86);animation:fade .3s steps(3) both}
 .diary.out{animation:dclose .42s steps(5) both}
@@ -90,29 +90,34 @@
    퍼센트로 앉으므로, 상자와 사진의 모양이 갈리는 순간 칸이 딴 데로 간다.
    폰에서 키보드가 올라오면 바로 그 일이 났다 — 빈칸 줄은 화면 밖으로 잘리고
    커서는 엉뚱한 줄 위에 섰다. 상자에 사진 비율을 박고 사진은 그 안을 채운다. */
-.dpage{position:relative;width:100%;max-width:330px;height:100%;
+.dpage{position:relative;width:min(330px,100%);
+ aspect-ratio:1024/1536;height:auto;
+ container-type:inline-size;
  animation:dopen .5s ease-out both}
 @keyframes dopen{0%{opacity:0;transform:translateY(14px) scale(.985)}100%{opacity:1;transform:none}}
-/* 사진도 fit 겹과 **같은 계산으로** 앉힌다 — inset:0 + margin:auto + 비율.
-   한쪽만 object-fit에 맡기면 상자가 낮아질 때 둘이 갈린다(실제로 갈렸다). */
-.dshot{position:absolute;inset:0;margin:auto;display:block;
- aspect-ratio:1024/1536;width:auto;height:auto;max-width:100%;max-height:100%;
+/* 사진도 fit 겹과 **같은 계산으로** 앉힌다 — 둘 다 2:3 종이의 inset:0,
+   width·height 100%다. 한쪽만 object-fit에 맡기면 둘의 좌표가 갈린다. */
+.dshot{position:absolute;inset:0;margin:0;display:block;
+ width:100%;height:100%;object-fit:fill;
  border-radius:3px;box-shadow:0 16px 34px rgba(10,6,24,.6)}
 /* ── 사진이 실제로 그려진 칸 ──
-   object-fit:contain이 그리는 자리와 **같은 자리**에 서는 빈 겹이다.
-   inset:0 + margin:auto + aspect-ratio가 그 계산을 그대로 한다.
-   빈칸은 이 안에서만 퍼센트를 센다 — 상자 기준으로 세면 화면이 낮아져
-   사진이 상자 안에서 작아지는 순간 칸이 딴 데로 간다. */
-.dfit{position:absolute;inset:0;margin:auto;pointer-events:none;
- aspect-ratio:1024/1536;max-width:100%;max-height:100%}
+   사진과 **같은 자리·같은 크기**에 서는 빈 겹이다. 빈칸은 이 안에서만
+   퍼센트를 세므로 키보드 때문에 화면이 낮아져도 사진과 함께 움직인다. */
+.dfit{position:absolute;inset:0;margin:0;width:100%;height:100%;pointer-events:none}
 .dfit>*{pointer-events:auto}
 /* ── 그려진 네모 ──
    사진에 이미 네모가 그려져 있다. 그 안에 그대로 앉는다 — 칸을 새로 그리지
    않는다. 종이 위에 적히는 것이라 글자는 연필 색이고, 커서만 이 앱의 분홍이다.
    쓰는 사람은 20년 전 그 아이가 아니라 지금 이걸 읽는 사람이니까. */
-.dblank{position:absolute;margin:0;padding:0 4px;font-family:inherit;font-size:13px;
+.dblank{position:absolute;margin:0;padding:0 4px;min-width:0;box-sizing:border-box;
+ appearance:none;-webkit-appearance:none;border-radius:0;font-family:inherit;
+ font-size:9px;font-size:clamp(8px,2.7cqw,10px);
  line-height:1;text-align:center;color:#4f4636;caret-color:#ff5fa8;
- background:none;border:0;outline:none}
+ background:transparent!important;border:0;outline:none;box-shadow:none!important;
+ -webkit-text-fill-color:#4f4636}
+.dblank:-webkit-autofill,.dblank:-webkit-autofill:focus{
+ -webkit-box-shadow:0 0 0 1000px transparent inset!important;
+ transition:background-color 9999s ease-out 0s}
 .wbtn.go.dbtn{flex:none;width:auto;max-width:none;min-width:104px;
  padding:11px 20px;font-size:11px;letter-spacing:.12em}
 .wbtn.go.dbtn[disabled]{opacity:.45;cursor:default}
@@ -257,8 +262,60 @@
    단추가 둘이라 한 줄로 세운다. 「나중에」가 있어야 선택이 선택이다. */
 .dfixed{display:flex;align-items:center;justify-content:center;
  pointer-events:none;overflow:hidden;white-space:nowrap;
- font-size:clamp(9px,2.6vw,13px)}
+ font-size:7px;font-size:clamp(6.5px,2.1cqw,8px)}
+.dsaved{display:flex;align-items:center;justify-content:center;
+ pointer-events:none;overflow:hidden;white-space:nowrap}
 .drow{display:flex;gap:10px;justify-content:center}
 .wbtn.dbtn2{flex:none;width:auto;max-width:none;min-width:96px;
  padding:11px 18px;font-size:11px;letter-spacing:.12em}
 .wbtn.dbtn2[disabled]{opacity:.45;cursor:default}
+
+/* CAM 재열람도 작성 화면과 같은 종이다. photo 창·캡션·넓은 흰 여백을
+   다시 씌우지 않는다. */
+.diaryrecord{cursor:pointer}
+.diaryrecord .dpage{cursor:default}
+.diaryrecord .dfixed{pointer-events:none}
+
+/* ── D-0 영화관 엔딩 ── */
+.endingcinema,.endingshot{position:absolute;inset:0;z-index:70;overflow:hidden;
+ background:#050509 center/cover no-repeat}
+.endingcinema{display:flex;align-items:flex-end;cursor:pointer;outline:none}
+.endingcinemadim{position:absolute;inset:0;background:
+ linear-gradient(180deg,rgba(2,2,8,.04) 35%,rgba(2,2,8,.88) 100%)}
+.endingtalk{position:relative;z-index:2;width:100%;margin:0;
+ padding:64px max(28px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom))
+  max(28px,env(safe-area-inset-left));color:#f8f3ff;
+ background:linear-gradient(180deg,rgba(2,2,8,0),rgba(2,2,8,.9) 52%,rgba(2,2,8,.96));
+ border:0;box-shadow:none}
+.endingwho{margin-bottom:8px;font-size:9px;letter-spacing:.18em;color:#f2c9e4}
+.endingline{min-height:42px;font-size:13px;line-height:1.75;word-break:keep-all}
+.endingnext{text-align:right;margin-top:4px;font-size:8px;letter-spacing:.16em;
+ color:rgba(255,255,255,.62);animation:endingblink 1.1s steps(2) infinite}
+@keyframes endingblink{50%{opacity:.28}}
+.endingframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+ opacity:0;transition:opacity .2s linear}
+.endingshot .endingalone{opacity:1}
+.endingshot.stage1 .endingalone,.endingshot.stage2 .endingalone,
+.endingshot.stage3 .endingalone,.endingshot.stage4 .endingalone{opacity:0}
+.endingshot.stage1 .endingfaint{opacity:1}
+.endingshot.stage2 .endingfaint{opacity:1}
+.endingshot.stage3 .endingfaint,.endingshot.stage4 .endingfaint{opacity:0}
+.endingshot.stage2 .endingpresent,.endingshot.stage3 .endingpresent,
+.endingshot.stage4 .endingpresent{opacity:1}
+.endingshot.stage2 .endingpresent{transition-duration:.3s}
+.endingblack{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .5s linear}
+.endingshot.stage4 .endingblack{opacity:1}
+.endingcompletewin .dlgbody{padding:0}
+.endingcomplete{padding:20px 18px 16px}
+.endingcomplete .endingthanks{margin-top:18px;font-size:12px}
+.endingcomplete .endingtrue{margin-top:10px;font-size:12px}
+
+@media(max-height:620px){
+ .endingtalk{padding:46px max(22px,env(safe-area-inset-right))
+  max(18px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left))}
+}
+
+/* 엔딩 뒤 채팅 제목줄의 D-day. 서른 칸 대신 한 값만 남긴다. */
+.dayinfinity{display:inline-flex;align-items:center;justify-content:center;flex:none;
+ min-width:58px;padding:2px 7px;border:1px solid #c9b4dc;border-radius:999px;
+ color:#8a6fb5;background:rgba(255,255,255,.64);font-size:8px;letter-spacing:.08em}

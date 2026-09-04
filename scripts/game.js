@@ -1038,7 +1038,7 @@ function GameApp(){
         payload.can_go=canGoWith(payload.room,loadMet()); }
     if(up)payload.user_profile=up; else delete payload.user_profile;
     if(!payload.counts)payload.counts=roomCounts();
-    if(payload.days==null)payload.days=daysSince(storeRef.current);
+    if(payload.days==null)payload.days=endingGameDay(loadEnding(),storeRef.current);
     if(payload.now==null)payload.now=timeWord();
     if(payload.day==null)payload.day=dayWord();
     if(payload.season==null)payload.season=seasonWord();
@@ -1112,6 +1112,13 @@ function GameApp(){
          캐시가 통째로 깨진다). 재언 일기(③)와 달리 이건 나가는 유일한 빈칸이고,
          그게 문서가 못박은 「서버 전달 경계」다. */
       if(bucket==="minhyun"){ const fl=loadFlash(); if(fl)payload.flash=fl; }
+    }
+    /* Luck에서 사용자가 세 칸을 직접 채워 공개한 뒤에만, 시스템이 고른
+       허용 키워드 ID 하나를 대화 요청에 싣는다. 입력한 문장과 일기는 보내지 않는다. */
+    Object.keys(payload).forEach(k=>{if(/(?:fortune|diary|dblank)/i.test(k))delete payload[k]});
+    if(payload.mode==="chat"||payload.mode==="auto"){
+      const fortuneId=currentFortuneKeywordId();
+      if(fortuneId)payload.fortune_keyword_id=fortuneId;
     }
     inflightRef.current[bucket]=rid;
     setBusy(b=>({...b,[bucket]:true}));
@@ -1480,6 +1487,10 @@ function GameApp(){
     if(DEMO.on){ data={messages:demoReply("health",null,name,storeRef.current.msgs)}; }
     else{
       try{
+        /* request()를 거치지 않는 관전 호출에도 같은 세계 시계를 싣는다.
+           엔딩 뒤에는 경과일이 아니라 접속일이고, 선택한 상대도 빠지면 안 된다. */
+        const endingNow=loadEnding();
+        const partnerNow=loadPartner();
         const res=await fetch(apiUrl(),{method:"POST",headers:{"Content-Type":"application/json"},
           /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로
              떨어져 관전이 강현 1:1 방으로 처리된다 */
@@ -1494,6 +1505,8 @@ function GameApp(){
                발견 장면이 영영 못 선다. request()의 888줄과 같은 원본이다. */
             gifts:giftsRef.current||{},
             disclosed:loadDisclosed(),
+            days:endingGameDay(endingNow,storeRef.current),
+            ...(partnerNow?{partner:partnerNow}:{}),
             ...(ev&&ev.kind?{event:{kind:ev.kind,to:ev.to,name:ev.name}}:{})})});
         const body=await res.json().catch(()=>null);
         if(res.ok&&body)data=body;
@@ -1724,23 +1737,23 @@ function GameApp(){
      되고 일과가 되면 안 쓴다. 쓴 값은 여기 브라우저 밖으로 안 나간다. */
   const [myDiary,setMyDiary]=useState(null);
   const myDiaryDone=()=>setMyDiary(null);
+  /* D-0 선택부터 D-∞ 일상까지 한 상태로 복구한다. 옛 +30일 세이브도
+     loadEnding이 선택을 보존한 채 대기 알림으로 옮긴다. */
+  /* effect는 선언 순서대로 돈다. 자동 관전 effect보다 여기 선언이 아래에 있어도
+     initializer는 commit 전에 끝나므로, 다음 접속일을 먼저 저장해 두면 그날 첫
+     자동 요청부터 어제의 activeDays를 싣는 일이 없다. */
+  const [ending,setEnding]=useState(()=>touchEndingDay(loadEnding()));
   /* 실습 남은 날. 첫 대화한 날을 D-30으로 잡고 하루씩 깎는다.
      방 목록(RoomList)이 세는 것과 같은 식이다 — 둘이 어긋나면 같은 화면에서
      다른 날짜가 뜬다. */
   const dLeft=daysLeft(store);
-  const dayN=daysSince(store);
+  const dayN=endingGameDay(ending,store);
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 프로필만 열면 작별 인사고,
      한 마디 하면 재회다. 새로 저장할 상태가 없다. */
   const cameBack=cameBackOf(store);
-  /* ── D-0 · 계속 살아갈지 ──
-     이름이 다 불렸을 때만 y가 눌린다. 빈칸이 남았다는 건 여기 단 한 사람도
-     끝까지 부를 사람이 없었다는 말이다 — 그럼 계속 있을 이유도 없다. */
-  const dSpan=ENROLL_DAYS+loadExtend();
-  const calls=countCalls(store,name);
-  const lit=filledLetters(calls,name);
-  const nameFull=!!name&&lit>=name.length;
-  const [ddayAns,setDdayAns]=useState(()=>{try{return localStorage.getItem("null_dday_ans")||""}catch(e){return""}});
-  const [ddayHide,setDdayHide]=useState(false);
+  /* ── D-0 · 관계 선택 → 영화관 → D-∞ ──
+     마지막 일기는 전날 D-1이고 선택형이다. 쓰지 않았어도 D-0 선택을 막지
+     않으며, 숫자형 dLeft는 그대로 0이라 엔딩 뒤에도 미작성 장을 열 수 있다. */
   /* 첫날의 통보. 스무 시간이 지난 뒤 처음 여는 순간에 한 번만.
      떠나는 날(dLeft 0)에는 안 띄운다 — 그때는 d-0.exe가 할 말이 따로 있다. */
   const [sys1,setSys1]=useState(false);
@@ -1753,37 +1766,41 @@ function GameApp(){
     saveSys1(); setSys1(true);
   },[name,store,dLeft]);
 
-  /* 연장은 한 번뿐이다. 추가 30일이 끝나면 WHO도 연장도 다시 안 묻는다 —
-     세계를 지우지 않고 자유대화로 계속된다. */
-  const askDday=dLeft===0&&!!name&&ddayAns!==String(dSpan)&&!loadExtend();
-  const [whoAsk,setWhoAsk]=useState(false);     // STAY 뒤 — 누구 곁에 남나
-  const [whoDone,setWhoDone]=useState(null);    // 방금 정해진 상대. 결과 카피 한 번
-  const answerDday=yes=>{
-    /* STAY는 아직 답이 아니다 — WHO까지 골라야 이 날의 답이 찍힌다.
-       중간에 닫으면 d-0.exe가 다시 뜬다. */
-    if(yes){ setWhoAsk(true); return }
-    try{localStorage.setItem("null_dday_ans",String(dSpan))}catch(e){}
-    setDdayAns(String(dSpan));
-    /* 떠나기로 한 것도 되돌릴 수 없는 자리다 */
-    markScene("jaeeon","dday_choice"); markScene("minhyun","dday_choice");
-    setToast("left 4 real ✧");
-  };
+  const askDday=dLeft===0&&!!name&&!ending;
   const pickWho=id=>{
-    if(loadPartner())return;                    // 한 번 정해지면 무를 수 없다
-    try{localStorage.setItem("null_dday_ans",String(dSpan))}catch(e){}
-    setDdayAns(String(dSpan));
-    try{localStorage.setItem("null_extend",String(loadExtend()+ENROLL_DAYS))}catch(e){}
-    const got=savePartner(id);
-    /* 두 사람 다 이 일을 안다. 고른 쪽에는 정해진 직후의 첫 반응이고,
-       안 고른 쪽에는 그 사실을 처음 아는 자리다 — 같은 사건이지만 다른
-       장면이라 사유도 다르다. 각자 방의 다음 한 마디에 한 번만 실린다. */
-    const other=(got||id)==="jaeeon"?"minhyun":"jaeeon";
-    markScene(got||id,"partner_confirm");
-    markScene(other,"partner_known");
-    /* 관전방은 예약하지 않는다 — 워커가 auto를 무조건 일반 경로로 내리므로
-       이 예약은 영영 안 쓰이는 죽은 배선이었다. 관전은 항상 일반 경로다. */
-    setWhoAsk(false); setWhoDone(got||id);
+    if(ending)return;
+    const next=chooseEndingRoute(id);
+    if(next)setEnding(next);
   };
+  const startEnding=()=>setEnding(e=>moveEnding(e,"dialogue"));
+  const startEndingShot=()=>setEnding(e=>moveEnding(e,"shot"));
+  const finishEndingShot=()=>setEnding(e=>finishEnding(e));
+  const closeEnding=()=>setEnding(e=>continueEnding(e));
+  const replayCinema=()=>{setView("list");setEnding(e=>replayEnding(e))};
+  /* 같은 현실 날짜에는 몇 번 열어도 한 번만 센다. 탭을 밤새 켜둔 경우도
+     새로고침을 요구하지 않는다: 자정과 다시 포그라운드가 되는 순간에 읽는다. */
+  useEffect(()=>{
+    if(!ending||!ending.completed)return;
+    let midnight=0;
+    const refresh=()=>setEnding(current=>touchEndingDay(current));
+    const foreground=()=>{if(!document.hidden)refresh()};
+    const armMidnight=()=>{
+      clearTimeout(midnight);
+      const now=new Date();
+      const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,1);
+      midnight=setTimeout(()=>{refresh();armMidnight()},Math.max(1000,next.getTime()-now.getTime()));
+    };
+    refresh(); armMidnight();
+    window.addEventListener("pageshow",foreground);
+    window.addEventListener("focus",foreground);
+    document.addEventListener("visibilitychange",foreground);
+    return()=>{
+      clearTimeout(midnight);
+      window.removeEventListener("pageshow",foreground);
+      window.removeEventListener("focus",foreground);
+      document.removeEventListener("visibilitychange",foreground);
+    };
+  },[!!(ending&&ending.completed)]);
 
   /* 프로필 화면. 대화 수는 그 캐릭터가 낀 모든 방을 합쳐 센다 (worker의 단계 기준과 같다) */
   const [prof,setProf]=useState(null);
@@ -1793,7 +1810,7 @@ function GameApp(){
   const openProfile=id=>{
     setProf(id);
     if(!CHARS[id])return;
-    const at=stageIdx((roomCounts()[id])||0,daysSince(storeRef.current));
+    const at=stageIdx((roomCounts()[id])||0,endingGameDay(loadEnding(),storeRef.current));
     setSeenStage(s=>{const n={...s,[id]:at};saveSeenStage(n);return n});
   };
   const profCount=id=>{
@@ -1913,5 +1930,5 @@ function GameApp(){
     return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
-  return <GameScreen game={{answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}}/>;
+  return <GameScreen game={{answerAsk,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,closeEnding,confirmYes,dLeft,dayN,diary,diaryDone,doAuto,editLine,edits,ending,enrolling,enter,exportTxt,failed,finishEndingShot,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,look,met,mode,name,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,replayCinema,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,startEnding,startEndingShot,store,sys1,toast,unlocked,view,way,myDiary,setMyDiary,myDiaryDone}}/>;
 }

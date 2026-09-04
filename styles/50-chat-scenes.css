@@ -710,4 +710,5 @@
 .dialogmount{width:100%;max-width:400px}
 .profileframe.compact{max-width:320px}
 .profileframe.compact .ebody{aspect-ratio:auto;min-height:132px;padding:18px 16px 16px}
+.profileframe.compact.endingcompletewin .ebody.dlgbody{padding:0}
 .profileframe.compact .ebody::before,.profileframe.compact .ebody::after{content:""}
