@@ -6,13 +6,11 @@
 function ProfileQA(){
   const [name,setName]=useState("리리");
   const [profile,setProfile]=useState({});
-  const [mode,setMode]=useState("real");
   const [screen,setScreen]=useState("enroll");
   return <div className="phone">
     {screen==="enroll"&&<Enroll name={name} profile={profile}
       onDone={()=>setScreen("confirm")} onClose={()=>{}}
-      mode={mode} onMode={setMode} onRename={setName}
-      onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
+      onRename={setName} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {screen==="confirm"&&<Confirm name={name}
       onYes={()=>setScreen("enroll")} onBack={()=>setScreen("enroll")}/>}
   </div>;

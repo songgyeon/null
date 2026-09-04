@@ -22,7 +22,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Image, Pressable, TextInput, StyleSheet, Platform, Animated, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CHARS, AV_V, jos, DIARY_IMG, DIARY_BOX, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX } from '../lib/rules';
+import { CHARS, AV_V, jos, DIARY_PAPER_IMG, DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX, myDiaryParts } from '../lib/rules';
 import { IMG } from '../lib/api';
 /* 값이 아니라 모양만 가져온다 — 판정은 저쪽 파일의 일이다.
    askState는 {away,locked,shut,wk,done,empty,need,mv,klass,no,why,
@@ -301,20 +301,22 @@ export function GroupNewDialog({onClose}:{onClose:()=>void}) {
 export function DiaryPage({onDone}:{onDone:(v:string)=>void}) {
   const [v, setV] = useState('');
   const t = v.trim();
-  /* 사진을 못 읽는 사람에게는 적힌 글을 그대로 읽어준다 */
-  const alt = [DIARY_HEAD, ...DIARY_LINES, DIARY_TAIL_A + '□' + DIARY_TAIL_B].join(' ');
   return <View style={[dl.ov, dy.ov, {zIndex:58}]}>
     <View style={dy.page}>
-      <Image source={{uri:IMG+DIARY_IMG}} style={dy.shot} resizeMode="contain"
-        accessible accessibilityLabel={alt}/>
-      {/* ── 지워진 칸 ──
-          사진에서 검게 지워진 그 자리에 그대로 앉는다. 종이 색으로 덮어 새로
-          그리지 않는다 — 덮으면 조명도 결도 안 맞아서 붙인 티가 난다.
-          검은 칸을 그대로 두고 그 위에 글자가 들어찬다. */}
-      <TextInput style={[dy.blank, {left:`${DIARY_BOX.left}%`, top:`${DIARY_BOX.top}%`,
-        width:`${DIARY_BOX.w}%`, height:`${DIARY_BOX.h}%`}]}
-        value={v} onChangeText={setV} autoFocus maxLength={DIARY_MAX}
-        onSubmitEditing={()=>{ if(t) onDone(t) }} returnKeyType="done"/>
+      <Image source={{uri:IMG+DIARY_PAPER_IMG}} style={dy.shot} resizeMode="contain"
+        accessible={false}/>
+      {/* 종이만 사진이다. 글월과 칸은 웹과 같이 실제 텍스트/입력으로 흐른다. */}
+      <View style={dy.ink} accessibilityRole="summary">
+        <Text style={dy.head}>{DIARY_HEAD}</Text>
+        <View>{DIARY_LINES.map((line,i)=><Text key={i} style={dy.line}>{line}</Text>)}</View>
+        <View style={dy.tail}>
+          <Text style={dy.tailT}>{DIARY_TAIL_A}</Text>
+          <TextInput style={dy.blank} value={v} onChangeText={setV} autoFocus
+            maxLength={DIARY_MAX} accessibilityLabel="옛 일기의 마지막 빈칸"
+            onSubmitEditing={()=>{ if(t) onDone(t) }} returnKeyType="done"/>
+          <Text style={dy.tailT}>{DIARY_TAIL_B}</Text>
+        </View>
+      </View>
     </View>
     {/* 채워야 넘어간다. 비워두면 이 화면이 할 일이 없다 */}
     <Bevel style={[dy.btn, !t && dy.btnOff]} disabled={!t}
@@ -324,13 +326,23 @@ export function DiaryPage({onDone}:{onDone:(v:string)=>void}) {
 }
 const dy = StyleSheet.create({
   ov:{backgroundColor:'rgba(20,13,36,.86)', paddingHorizontal:16, paddingVertical:20, gap:14},
-  /* 사진 그대로. 줄공책을 그리지 않는다 — 물건은 흉내내면 물건이 아니게 된다 */
+  /* 줄과 종이결은 사진, 글월은 만세체다. */
   page:{position:'relative', width:'100%', maxWidth:330, aspectRatio:1024/1536,
     borderRadius:3, overflow:'hidden'},
   shot:{width:'100%', height:'100%'},
-  blank:{...F, position:'absolute', margin:0, paddingHorizontal:4, paddingVertical:0,
-    fontSize:13, lineHeight:15, textAlign:'center', color:'#fdf3e2',
-    backgroundColor:'transparent', borderWidth:0},
+  ink:{position:'absolute', left:'14%', right:'13%', top:'17.5%', bottom:'8%'},
+  head:{fontFamily:'ManSeh', fontSize:20, lineHeight:29, letterSpacing:3.2,
+    color:'rgba(53,43,36,.87)', marginBottom:18},
+  line:{fontFamily:'ManSeh', fontSize:20, lineHeight:30, letterSpacing:1.8,
+    color:'rgba(53,43,36,.87)', marginBottom:8},
+  tail:{marginTop:9, flexDirection:'row', alignItems:'center', flexWrap:'wrap'},
+  tailT:{fontFamily:'ManSeh', fontSize:20, lineHeight:32, letterSpacing:1.8,
+    color:'rgba(53,43,36,.87)'},
+  blank:{fontFamily:'ManSeh', width:104, height:35, marginHorizontal:6,
+    paddingHorizontal:7, paddingVertical:0, fontSize:18, lineHeight:29,
+    letterSpacing:.8, textAlign:'center', color:'rgba(73,52,47,.9)',
+    backgroundColor:'rgba(255,247,252,.72)', borderWidth:1,
+    borderStyle:'dashed', borderColor:'#d8a4c3', borderRadius:2},
   btn:{alignSelf:'center', minWidth:88, height:32, paddingHorizontal:15, borderRadius:6,
     borderColor:'#b69fda', backgroundColor:'#d8eaff'},
   btnOff:{opacity:.45},
@@ -460,9 +472,32 @@ const gc = StyleSheet.create({
    하나 더 얹는 일이었다. 뒤로 앱이 비치면 떠난 게 아니라 가까이 본 게 된다.
    부르는 자리가 셋이다(사진첩·히든·말풍선). 셋이 각자 그리면 어긋난다. */
 type PvFill = {left:number; top:number; w:number; h:number; text:string};
+export type PvDiary = {kind:'child'|'current'; src:string; entry?:any; values:Record<string,string>};
+export function DiaryPreviewInk({diary,compact=false}:{diary:PvDiary;compact?:boolean}) {
+  if (diary.kind === 'child') return <View pointerEvents="none"
+    style={[pv.diaryChild, compact && pv.diaryChildThumb]}>
+    <Text style={[pv.diaryHead, compact && pv.diaryHeadThumb]}>{DIARY_HEAD}</Text>
+    {DIARY_LINES.map((line,i)=><Text key={i}
+      style={[pv.diaryLine, compact && pv.diaryLineThumb]}>{line}</Text>)}
+    <Text style={[pv.diaryTail, compact && pv.diaryTailThumb]}>{DIARY_TAIL_A}
+      <Text style={[pv.diaryBlank, compact && pv.diaryBlankThumb]}>
+        {' '}{diary.values.why || ''}{' '}
+      </Text>{DIARY_TAIL_B}</Text>
+  </View>;
+  const entry = diary.entry;
+  if (!entry) return null;
+  return <Text style={[pv.diaryCurrent, compact && pv.diaryCurrentThumb,
+    entry.at===0 && pv.diaryCurrentLast, entry.at===0 && compact && pv.diaryCurrentLastThumb]}>
+    {myDiaryParts(entry.text).map((part:any,i:number)=>part.blank
+      ? <Text key={part.blank} style={[pv.diaryNowBlank, compact && pv.diaryNowBlankThumb]}>
+          {' '}{diary.values[part.blank] || ''}{' '}
+        </Text>
+      : <Text key={i}>{part.text}</Text>)}
+  </Text>;
+}
 export function PhotoWin({shot, onClose}:
   {shot:string|{uri:string; label?:string; note?:string;
-                back?:string; fill?:PvFill[]; backFill?:PvFill[]}|null; onClose:()=>void}) {
+                back?:string; fill?:PvFill[]; backFill?:PvFill[]; diary?:PvDiary}|null; onClose:()=>void}) {
   /* 사진마다 비율이 다르다(1024×1536도 있고 1122×1402도 있다). 웹은 height:auto로
      원본 비율이 저절로 나오는데 RN은 미리 알려줘야 해서, 흔한 쪽으로 그려두고
      사진이 도착하면 실제 값으로 고친다. 안 그러면 얼굴이 늘어난다. */
@@ -479,8 +514,9 @@ export function PhotoWin({shot, onClose}:
   /* 뒷면이 있는 것은 엽서 하나다. 누르면 넘어간다 — 뒤집는 단추를 따로
      달지 않는다. 엽서를 뒤집는 데 단추가 필요한 적은 없었다 */
   const flip  = one ? undefined : shot.back;
-  const uri   = (back && flip) ? flip : (one ? shot : shot.uri);
-  const fill  = ((back && flip) ? (one ? [] : shot.backFill) : (one ? [] : shot.fill)) || [];
+  const diary = one ? undefined : shot.diary;
+  const uri   = diary?.src || ((back && flip) ? flip : (one ? shot : shot.uri));
+  const fill  = diary ? [] : (((back && flip) ? (one ? [] : shot.backFill) : (one ? [] : shot.fill)) || []);
   return <View style={[dl.ov, pv.ov, {zIndex:50}]}>
     <Pressable style={StyleSheet.absoluteFill} onPress={onClose}/>
     <View style={[dl.wrap, pv.wrap]}>
@@ -497,6 +533,7 @@ export function PhotoWin({shot, onClose}:
                 onLoad={(e:any)=>{ const s = e && e.nativeEvent && e.nativeEvent.source;
                   if (s && s.width && s.height) setRatio(s.width/s.height) }}
                 style={[pv.img, {aspectRatio:ratio}]}/>
+              {!!diary && <DiaryPreviewInk diary={diary}/>}
               {/* 유저가 채운 칸 — 사진 위 제자리에 앉는다. 사진이 contain으로
                   그려지고 이 층도 같은 비율 상자라 퍼센트가 사진 위에 떨어진다 */}
               {!!fill.length && <View pointerEvents="none"
@@ -532,6 +569,29 @@ const pv = StyleSheet.create({
   capN:{...F, fontSize:11.5, lineHeight:19, color:'#4a4276'},
   /* 유저가 채운 칸 — 종이 위 연필이라 창의 보랏빛이 아니다 */
   fill:{...F, position:'absolute', fontSize:11, lineHeight:14, color:'#5b4a3a', textAlign:'center'},
+  diaryChild:{position:'absolute', left:'14%', right:'13%', top:'17.5%', bottom:'8%'},
+  diaryChildThumb:{},
+  diaryHead:{fontFamily:'ManSeh', fontSize:20, lineHeight:29, letterSpacing:3.2,
+    color:'rgba(53,43,36,.87)', marginBottom:18},
+  diaryHeadThumb:{fontSize:8, lineHeight:11, letterSpacing:1, marginBottom:5},
+  diaryLine:{fontFamily:'ManSeh', fontSize:20, lineHeight:30, letterSpacing:1.8,
+    color:'rgba(53,43,36,.87)', marginBottom:8},
+  diaryLineThumb:{fontSize:8, lineHeight:11, letterSpacing:.55, marginBottom:1},
+  diaryTail:{fontFamily:'ManSeh', fontSize:20, lineHeight:34, letterSpacing:1.8,
+    color:'rgba(53,43,36,.87)'},
+  diaryTailThumb:{fontSize:8, lineHeight:12, letterSpacing:.55},
+  diaryBlank:{fontFamily:'ManSeh', color:'rgba(73,52,47,.9)',
+    backgroundColor:'rgba(255,247,252,.78)'},
+  diaryBlankThumb:{fontSize:7.5},
+  diaryCurrent:{position:'absolute', left:'15%', right:'7%', top:'14%', bottom:'8%',
+    fontFamily:'GyuriDiary', fontSize:15, lineHeight:29, letterSpacing:1.35,
+    color:'rgba(53,43,36,.87)'},
+  diaryCurrentThumb:{fontSize:6, lineHeight:10, letterSpacing:.35},
+  diaryCurrentLast:{top:'35%', fontSize:19, lineHeight:46},
+  diaryCurrentLastThumb:{fontSize:8, lineHeight:15},
+  diaryNowBlank:{fontFamily:'GyuriDiary', color:'rgba(73,52,47,.9)',
+    backgroundColor:'rgba(255,247,252,.8)'},
+  diaryNowBlankThumb:{fontSize:5.5},
   foot:{flexDirection:'row', alignItems:'center', gap:7, padding:11},
   btn:{flex:1, height:32, borderRadius:6, borderColor:'#b69fda', backgroundColor:'#d8eaff'},
   btnT:{...F, fontSize:10, letterSpacing:.8, color:'#5e527b'},

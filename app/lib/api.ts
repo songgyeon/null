@@ -1,7 +1,7 @@
 import { getMsgs, getLastMsg, getFirstMsg, countToday, countMsgs, recentPhotos, getMeta, setMeta, Msg } from './db';
 /* 규칙은 웹과 같은 파일에서 온다(scripts/data/*.js → rules.ts). 여기서 시각·요일·
    접속 상태·문 닫은 자리를 그 규칙대로 재서 보낸다 */
-import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner, loadStory, originPhase, setWorldAt, daysSince } from './rules';
+import { presence, timeWord, seasonWord, dayWord, PLACES, placeHours, canGoWith, loadMet, loadPartner, loadStory, originPhase, setWorldAt, daysSince, currentFortuneKeywordId } from './rules';
 import { loadGifts, loadDisclosed } from './profiles';
 
 export const API = 'https://null-api.re-moonroom.workers.dev/';
@@ -165,6 +165,17 @@ export async function callApi(payload: any) {
   return data;
 }
 
+/* 오늘 운세를 FILL한 뒤에만 서버가 아는 허용 ID를 싣는다. 호출자가 extra로
+   같은 필드를 넣어도 최종 값은 로컬 운세 상태만 결정한다. 요약에는 이 함수를
+   쓰지 않아 대화 기억으로 남지 않는다. */
+function attachFortuneKeyword(payload: Record<string, any>) {
+  const safePayload = Object.fromEntries(
+    Object.entries(payload || {}).filter(([key]) => !/(?:fortune|diary|dblank)/i.test(key)));
+  if (safePayload.mode !== 'chat' && safePayload.mode !== 'auto') return safePayload;
+  const keywordId = currentFortuneKeywordId();
+  return keywordId ? { ...safePayload, fortune_keyword_id: keywordId } : safePayload;
+}
+
 /* 워커에 보내는 것은 웹과 한 글자도 다르면 안 된다 — 다르면 같은 인물이
    두 곳에서 다르게 군다. 웹의 request()가 얹는 것을 여기서도 다 얹는다:
    요일·접속 상태·지금 있는 자리·가방·문 닫은 자리·자리의 때·선톡 표시. */
@@ -201,7 +212,7 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     const pr = presence(id);
     if (pr && pr.t !== '주말') states[id] = pr.t;
   }
-  return callApi({
+  const payload = {
     mode: 'chat',
     room,
     user_name: userName,
@@ -266,7 +277,8 @@ export async function sendChat(room: string, userName: string, history: Msg[],
     story: loadStory(),
     ...(room === 'jaeeon' || room === 'minhyun' ? { origin_phase: originPhase(room) } : {}),
     ...(extra || {}),
-  });
+  };
+  return callApi(attachFortuneKeyword(payload));
 }
 async function loadList(key: string): Promise<string[]> {
   try { return JSON.parse((await getMeta(key)) || '[]'); } catch { return []; }
@@ -300,7 +312,7 @@ function m_len(m: Msg) { return m.text?.length || 0; }
 
 export async function genAuto(userName: string, event?: any, reqId?: string) {
   const healthMsgs = await getMsgs('health', 30);
-  return callApi({
+  const payload = {
     mode: 'auto',
     /* 관전방도 방 이름을 싣는다. 안 실으면 워커에서 minhyun으로 떨어져
        관전이 강현 1:1 방으로 처리된다 */
@@ -318,5 +330,6 @@ export async function genAuto(userName: string, event?: any, reqId?: string) {
     // 이 대화를 열게 만든 사건(선물·해금). 없으면 안 보낸다
     ...(event ? { event } : {}),
     ...(reqId ? { request_id: reqId } : {}),
-  });
+  };
+  return callApi(attachFortuneKeyword(payload));
 }

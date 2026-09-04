@@ -190,6 +190,88 @@ const PROBE = { ...BASE,
     && pairMsgs.replace(oneReq.msgs, "").includes("candidates"), true);
 }
 
+/* ══════════ 2.5 오늘 운세 — 모든 생성 경로에서 같은 경계 ══════════
+   공개한 label은 쓰는 쪽과 고르는/마무리하는 쪽만 본다. 사실을 판정하는
+   Canon·Character에는 보내지 않고, 어느 실험 경로도 이 경계를 우회하지 않는다. */
+{
+  const flavored = body => ({ ...JSON.parse(JSON.stringify(body)), fortune_keyword_id: "spicy_flavor" });
+  const systemOf = req => String(req.url).includes("api.openai.com")
+    ? (req.body.messages || []).filter(m => m.role === "system").map(m => m.content).join("\n")
+    : flatSys(req.body);
+  const stageOfReq = req => {
+    const sys = systemOf(req);
+    if (sys.includes("너는 이 세계의 사실만 본다")) return "canon";
+    if (sys.includes("이 사람이 이 사람다운지만 본다")) return "character";
+    if (sys.includes("이 장면의 마지막 손이다")) return "finalizer";
+    if (sys.includes("대사를 쓰지 않는다 — 고르기만 한다")
+        || sys.includes("SELECT_A · SELECT_B · RETRY") || sys.includes('{"choice"')) return "director";
+    return "writer";
+  };
+  const capture = async (env, body, hooks, replies) => {
+    const result = await run(env, flavored(body), replies || null, hooks);
+    return { result, calls: sentReq.map(req => ({ stage: stageOfReq(req), text: JSON.stringify(req.body) })) };
+  };
+  const sees = (calls, stage) => calls.filter(x => x.stage === stage).map(x => x.text.includes("매운맛"));
+  const cachedTextOf = value => {
+    const found = [];
+    const walk = v => {
+      if (Array.isArray(v)) return v.forEach(walk);
+      if (!v || typeof v !== "object") return;
+      if (v.cache_control) found.push(JSON.stringify(v));
+      else Object.values(v).forEach(walk);
+    };
+    walk(value);
+    return found.join("\n");
+  };
+
+  const hybrid = await capture({ ...HY, CANDIDATE_MODE: "one" }, BASE);
+  eq("hybrid는 Writer와 Director가 같은 오늘 label을 본다",
+    [sees(hybrid.calls, "writer"), sees(hybrid.calls, "director")], [[true], [true]]);
+  eq("서버 allowlist id 자체는 어느 모델 요청에도 노출하지 않는다",
+    hybrid.calls.some(x => x.text.includes("spicy_flavor")), false);
+
+  const soloCritical = await capture(SOLO, PROBE);
+  eq("solo 중요 장면은 Writer와 Finalizer만 오늘 label을 본다",
+    [sees(soloCritical.calls, "writer"), sees(soloCritical.calls, "finalizer")], [[true], [true]]);
+  eq("solo의 Canon·Character에는 운세가 사실처럼 안 샌다",
+    [...sees(soloCritical.calls, "canon"), ...sees(soloCritical.calls, "character")], [false, false]);
+  eq("선택된 오늘 id·label은 Writer·Finalizer의 캐시 블록 밖에만 있다",
+    sentReq.some(req => /spicy_flavor|매운맛/.test(cachedTextOf(req.body))), false);
+
+  const single = await capture({ ENGINE_MODE: "single" }, BASE);
+  eq("single도 제 유일한 Writer에 오늘 label을 준다", sees(single.calls, "writer"), [true]);
+  const single5 = await capture({ ENGINE_MODE: "single5" }, BASE);
+  eq("single5도 제 유일한 Writer에 오늘 label을 준다", sees(single5.calls, "writer"), [true]);
+  const pair5 = await capture({ ENGINE_MODE: "sonnet5-pair-haiku" }, BASE, { director: [
+    JSON.stringify({ choice: "A", reason_codes: [], fact_id: null, rule_id: null })] });
+  eq("s5pair도 Writer와 저비용 Director가 같은 오늘 label을 본다",
+    [sees(pair5.calls, "writer"), sees(pair5.calls, "director")], [[true], [true]]);
+  const golden = await capture({ ...HY, CANDIDATE_MODE: "pair", DIALOGUE_RULESET: "golden-v1" }, BASE);
+  eq("golden-v1도 Writer와 Director 경계를 그대로 쓴다",
+    [sees(golden.calls, "writer"), sees(golden.calls, "director")], [[true], [true]]);
+
+  const retried = await capture({ ...HY, CANDIDATE_MODE: "one" }, BASE, null, [
+    JSON.stringify({ messages: [{ sender: "minhyun", text: "잘못 온 답" }] }),
+    JSON.stringify({ messages: [{ text: "다시 쓴 답" }] }),
+  ]);
+  eq("일반 재시도의 두 Writer와 뒤 Director도 같은 오늘 label을 본다",
+    [sees(retried.calls, "writer"), sees(retried.calls, "director")], [[true, true], [true]]);
+  const pairFallback = await capture({ ENGINE_MODE: "sonnet5-pair-haiku" }, BASE, null, [
+    JSON.stringify({ candidates: [
+      { messages: [{ sender: "minhyun", text: "잘못 온 A" }] },
+      { messages: [{ sender: "minhyun", text: "잘못 온 B" }] },
+    ] }),
+    JSON.stringify({ messages: [{ text: "폴백 답" }] }),
+  ]);
+  eq("s5pair 폴백 Writer에도 공개한 오늘 label이 끊기지 않는다",
+    sees(pairFallback.calls, "writer"), [true, true]);
+
+  const clean = await run({ ...HY, CANDIDATE_MODE: "one" }, BASE);
+  eq("필드가 없는 기존 경로에는 선택값 머리와 label이 없다",
+    [clean.status, sentReq.some(req => /\n## \[오늘의 비밀 결\]\n/.test(JSON.stringify(req.body))),
+     sentReq.some(req => JSON.stringify(req.body).includes("매운맛"))], [200, false, false]);
+}
+
 /* ══════════ 3. 같은 후처리 — single도 같은 검사줄을 탄다 ══════════ */
 {
   /* 허용되지 않은 화자는 single에서도 hard다 — 떨어지면 같은 재시도를 돈다 */
@@ -1566,17 +1648,16 @@ const PROBE = { ...BASE,
   ] });
   eq("리얼 모드 시각 자가 수기 계산과 같다 — 시간대 무관",
     [real.total, real.mismatches, real.epochBad], [5, 1, 1]);
-  /* 세계는 켠 그 시각에서 출발한다. 그래서 기대 표기가 앵커에 매인다 —
-     여덟 시에 켰으면 십오 분째(세계로 한 시간 뒤)가 아홉 시다.
-     new Date(y,m,d,h,m)은 지역시라 어느 시간대에서 돌려도 같은 답이다. */
+  /* 공개 speed 모드는 끝났다. 옛 fixture가 speed를 적어도 호환 shim은 현실
+     시각을 그대로 재며, 앵커는 마이그레이션 외에는 표기를 배속하지 않는다. */
   const anchor = new Date(2026, 0, 6, 8, 0).getTime();
   const sp = EV.scoreClock({ mode: "speed", anchor, entries: [
     { ts: anchor + 15 * 60 * 1000, surface: "clock", shown: "오전 9:00" },
     { ts: anchor + 15 * 60 * 1000, surface: "prompt", shown: "아침" },
     { ts: anchor + 15 * 60 * 1000, surface: "clock", shown: "오후 3:00" },
   ] });
-  eq("스피드 모드 시각 자가 수기 계산과 같다",
-    [sp.total, sp.mismatches, sp.epochBad], [3, 1, 0]);
+  eq("옛 speed fixture도 배속 없이 현실 시각으로 잰다",
+    [sp.total, sp.mismatches, sp.epochBad], [3, 2, 0]);
 }
 
 /* ── 13.9 buildGiven — 추출 전후가 같다 (E3) ── */

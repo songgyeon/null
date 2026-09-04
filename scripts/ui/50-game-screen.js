@@ -1,7 +1,7 @@
 /* NULL web · GameApp render tree
    상태와 동작은 scripts/game.js가 소유하고, 이 파일은 화면 조립만 맡는다. */
 function GameScreen({game}){
-  const {answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,mode,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,setWhoDone,store,sys1,toast,unlocked,view,way,whoAsk,whoDone}=game;
+  const {accessRev,answerAsk,answerDday,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,confirmYes,dLeft,dayN,ddayHide,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,enrolling,enter,exportTxt,failed,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,lit,look,met,name,nameFull,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setDdayHide,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setPlate,setProf,setProfile,setSys1,setToast,setView,setWhoAsk,store,sys1,toast,unlocked,view,way,whoAsk}=game;
   return <div className="phone">
     {diary&&<Diary onDone={diaryDone}/>}
     {/* ⑩ 유저가 열어야 뜬다. 스스로 끼어들지 않는다 — 그게 선택이라는 뜻이다 */}
@@ -17,7 +17,6 @@ function GameScreen({game}){
     {kiss&&<KissTime shot={{shot:kiss}} onDone={()=>setKiss(null)}/>}
     {enrolling==="intro"&&<Intro onGo={()=>setEnrolling("enroll")}/>}
     {enrolling==="enroll"&&<Enroll name={name} profile={profile} onDone={()=>setEnrolling("confirm")} onClose={()=>setEnrolling("intro")}
-      mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={rename} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))}/>}
     {enrolling==="confirm"&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling("enroll")}/>}
     {!name?<Splash onEnter={enter}/>
@@ -26,7 +25,9 @@ function GameScreen({game}){
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar} onGuess={guessHidden}
-       myDiaryOpen={myDiaryOpen(dLeft)} onMyDiary={()=>setMyDiary(myDiaryOpen(dLeft))}/>
+       myDiaryOpen={myDiaryOpen(dLeft)} onMyDiary={()=>setMyDiary(myDiaryOpen(dLeft))}
+       active={!enrolling&&!!loadWorld()&&(loadGetcha("jaeeon")||loadGetcha("minhyun"))}
+       accessRev={accessRev}/>
     :<ChatRoom room={roomOf(view)} msgs={store.msgs[view]||[]} busy={!!busy[view]} failed={failed[view]} dLeft={dLeft}
        scene={scene&&scene.room===view?scene:null} onLeaveScene={leaveScene}
        onMinimize={()=>setView("list")} onCart={()=>setCart(true)}
@@ -248,14 +249,6 @@ function GameScreen({game}){
         <div className="s">선택은 NEVER EVER! <span className="kao">{'(ᐡ⊃ෆ  ̫ ෆ ᐡ)⊃︵ 💕💕💕'}</span></div>
       </div>
     </Dialog>}
-    {whoDone&&<Dialog title="d-0.exe" onClose={()=>setWhoDone(null)}>
-      <div className="ddq">
-        <div className="q">{whoDone==="jaeeon"?"이재언이 NULL 기다리고 있어!":"이강현이 NULL 기다리고 있어!"}
-          {' '}<span className="kao">{'꒰ྀི⸝⸝> . <⸝⸝꒱ྀི'}</span></div>
-        <div className="dlgbtns"><button className="bevel pink" onClick={()=>setWhoDone(null)}>+{ENROLL_DAYS}d ♡</button></div>
-      </div>
-    </Dialog>}
     {toast&&!getcha&&<div className="toast"><span>✧ {toast}</span></div>}
   </div>;
 }
-

@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Pressable, ScrollView, Image, Modal,
   ImageBackground, Animated, Easing, StyleSheet, Dimensions, StatusBar,
-  Platform, Share, BackHandler, Keyboard, useWindowDimensions, ImageStyle,
+  Platform, Share, BackHandler, Keyboard, AppState, useWindowDimensions, ImageStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
@@ -20,7 +20,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 
 import { hydrateShim, resetShim } from './lib/shim';
 import Cabinet from './screens/Cabinet';
-import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, ModeDialog, DiaryPage, PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
+import { AskDialog, LeaveDialog, WayDialog, PlateDialog, GroupNewDialog, GetChaDialog, DiaryPage, DiaryPreviewInk, PhotoWin, LookOverlay, KissTime, KAO } from './screens/Dialogs';
 import { askState, whoAt, sceneExpired, placeOverNow, openingNow, talkedEnough } from './lib/flow';
 /* ── 규칙은 웹과 같은 파일에서 온다 ──
    scripts/data/*.js가 원본이고 tools/build-rules.mjs가 app/lib/rules.ts를 만든다.
@@ -37,7 +37,9 @@ import {
   loadWorld, saveWorld, loadPartner, savePartner, markOnce, originGate, setOriginPhase, peekScene, ackScene,
   talkedEnoughIn, applyStoryTransition, markPartnerKnown, markSchoolMet, isSchoolPlace, atWorkNow,
   loadDiary, saveDiary,
-  openingFor, canGreet, asleep, allAsleep, bothAwake, speedOn, setWorldAt, leaveTsOf, loadMode, saveMode, stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
+  openingFor, canGreet, asleep, allAsleep, bothAwake, setWorldAt, leaveTsOf,
+  startAccessClock, touchAccessClock,
+  stampShot, loadRefused, saveRefused, daysLeft, daysSince, seenPhotos, PLACE_BG,
   GIFTS, GIFT_CATS, giftSpots as giftSpotsOf,
   fmtClock, fmtListTime, fmtDivider, dividerGap, gameAt, fmtDay,
   readAutoQueue, pushAutoBatch, runAutoQueue,
@@ -67,7 +69,8 @@ const F = { fontFamily:'Galmuri11' } as const; // 픽셀 폰트 — 모든 Text�
 /* .hidden — room/at은 worker.js의 UNLOCKS, index.html의 HIDDEN과 같아야 한다.
    어긋나면 화면에 뜨는 "N more"가 실제 해금 시점과 달라진다. */
 type HiddenItem={key:string;label:string;room:'jaeeon'|'minhyun';at:number;day:number;note?:string};
-type GalleryZoom={uri:string;label?:string;note?:string};
+type GalleryZoom={uri:string;label?:string;note?:string;back?:string;
+  fill?:any[];backFill?:any[];diary?:any};
 
 /* ── 데모 모드 ──
    대사와 매칭은 lib/demoLines.ts에 있다. 그 파일은 docs/dialogue-corpus.md에서
@@ -277,22 +280,18 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
 /* 같은 말을 두 번 하지 않는다 — 바로 앞 화면(Intro)이 전체 화면으로 그 말을
    하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 웹의 .etb와 같은 자리다. */
 function EnrTitle(){ return <Text style={en.tbT}>NULL.exe</Text>; }
-function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
+function Enroll({name,profile,onSaveField,onRename,onDone}:{
   name:string; profile:Record<string,string>;
   onSaveField:(k:string,v:string)=>void; onRename:(n:string)=>void; onDone:()=>void;
-  mode:string; onMode:(m:string)=>void;
 }) {
   /* 등록 화면인데 정작 이름만 못 고쳤다. 오타를 내면 목록의 edit 메뉴까지
      가야 했는데, 그때는 이미 두 사람이 그 이름으로 부르기 시작한 뒤다. */
   const [edit,setEdit]=useState(false);
-  /* 모드는 물어보고 바꾼다. 지금 켜진 걸 눌러도 창은 뜬다 —
-     무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
-  const [askMode,setAskMode]=useState('');
   const [nv,setNv]=useState(name||'');
   useEffect(()=>setNv(name||''),[name,edit]);
   const saveName=()=>{setEdit(false);const t=nv.trim();if(t&&t!==name)onRename(t)};
-  // 빈칸 넷 + MODE 한 줄 + DAYS LEFT 한 줄
-  const rows = useRef(Array.from({length:ENR_FIELDS.length+2},()=>new Animated.Value(0))).current;
+  // 빈칸 넷 + DAYS LEFT 한 줄
+  const rows = useRef(Array.from({length:ENR_FIELDS.length+1},()=>new Animated.Value(0))).current;
   const fade = useRef(new Animated.Value(0)).current;
   const kb   = useKeyboardHeight();
   useEffect(()=>{
@@ -332,20 +331,8 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
                  onEndEditing={e=>onSaveField(f.k,e.nativeEvent.text.trim())}/>}
             <Text style={en.rowT}>{f.tail}</Text>
           </Animated.View>)}
-        {/* ── 이 판을 어떻게 살 것인가 ── 웹의 .emode와 같은 자리·같은 글월.
-            중간에 바꾸면 D-N이 튀므로 판마다 한 번이다. */}
-        <Animated.View style={[en.row,anim(rows[4])]}>
-          <Text style={en.rowL}>MODE</Text>
-          <View style={en.mode}>
-            {['real','speed'].map(k=>
-              <TouchableOpacity key={k} activeOpacity={.8} onPress={()=>setAskMode(k)}
-                style={[en.modeB,mode===k&&en.modeBOn]}>
-                <Text style={[en.modeT,mode===k&&en.modeTOn]}>{k}</Text>
-              </TouchableOpacity>)}
-          </View>
-        </Animated.View>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
-        <Animated.View style={[en.row,anim(rows[5])]}>
+        <Animated.View style={[en.row,anim(rows[4])]}>
           <Text style={en.rowL}>DAYS LEFT</Text><Text style={en.nullv}>null</Text>
         </Animated.View>
         <View style={en.bar}><View style={[en.fill,{width:pct(filled/ENR_FIELDS.length*100)}]}/></View>
@@ -356,8 +343,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
           <Text style={en.goT}>Click!</Text></TouchableOpacity>
       </View>
     </View>
-    {!!askMode&&<ModeDialog which={askMode}
-      onYes={()=>{onMode(askMode);setAskMode('')}} onNo={()=>setAskMode('')}/>}
   </Animated.View>;
 }
 /* ── 세계 확정 ── 웹의 Confirm과 같은 그림, 즉 「[NULL] 상태」 창의 동생이다.
@@ -1091,7 +1076,7 @@ function Marquee({text,bare}:{text:string;bare?:boolean}) {
 }
 
 // ═══ 방 목록 ═══
-function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,met,groupOn,onGoPlace,onPlate,onGuess}:any) {
+function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpen,onProfile,onAuto,autoLoading,onMenu,onToast,onCart,demo,hearts,name,gifts,met,groupOn,onGoPlace,onPlate,onGuess}:any) {
   /* 방문자 카운터용 집계 — 오늘 오간 말 / 전체 말 */
   const allMsgs=ROOMS.flatMap((r:any)=>msgs[r.id]||[]);
   /* 단톡방은 강현이 나중에 판다 — 그전까지는 없는 방이다 */
@@ -1165,15 +1150,21 @@ function RoomList({msgs,unread,unlocked,counts,seenStage,dayN,album,autoAt,onOpe
             })}
             {/* 유저 몫 — 받은 사진이 아니라 자기가 채운 것이라 두 사람 다음에
                 자기 이름으로 선다. 엽서는 눌러서 뒤집는다 */}
-            {(()=>{ const mine=userPics(name); if(!mine.length)return null;
+            {(()=>{ const mine=userPics(name,gifts); if(!mine.length)return null;
               return <React.Fragment key="__me">
                 <Text style={[rl.sect,{color:'#8f7ccb'}]}>✧ {name||'당신'} · {mine.length} pics</Text>
                 <View style={rl.galgrid}>
-                  {mine.map((m:any)=><TouchableOpacity key={m.src} style={rl.galcell}
+                  {mine.map((m:any)=><TouchableOpacity key={`${m.label}:${m.src}`} style={rl.galcell}
+                    accessibilityRole="button" accessibilityLabel={`${m.label} 펼쳐 보기`}
                     onPress={()=>setZoom({uri:IMG+m.src, label:m.label,
                       ...(m.back?{back:IMG+m.back}:{}), ...(m.fill?{fill:m.fill}:{}),
-                      ...(m.backFill?{backFill:m.backFill}:{})})}>
+                      ...(m.backFill?{backFill:m.backFill}:{}),
+                      ...(m.diary?{diary:{...m.diary,src:IMG+m.diary.src}}:{})})}>
                     <Image source={{uri:IMG+m.src}} style={rl.galimg} resizeMode="cover"/>
+                    {!!m.diary && <DiaryPreviewInk diary={m.diary} compact/>}
+                    {!!m.diary && <View pointerEvents="none" style={rl.diaryThumbLabel}>
+                      <Text style={rl.diaryThumbLabelT}>{m.label}</Text>
+                    </View>}
                   </TouchableOpacity>)}
                 </View>
               </React.Fragment>; })()}
@@ -1340,6 +1331,10 @@ const rl=StyleSheet.create({
   galgrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',marginBottom:6},
   galcell:{width:'48.6%',aspectRatio:2/3,marginBottom:8,borderRadius:5,borderWidth:1,borderColor:'#cfc6ee',overflow:'hidden',backgroundColor:'#efeaf9'},
   galimg:{width:'100%',height:'100%'},
+  diaryThumbLabel:{position:'absolute',right:5,bottom:5,paddingVertical:2,paddingHorizontal:5,
+    borderRadius:9,backgroundColor:'rgba(255,248,253,.88)',borderWidth:1,
+    borderColor:'rgba(170,139,190,.3)'},
+  diaryThumbLabelT:{...F,fontSize:7,letterSpacing:.5,color:'#67577b'},
   lb:{flex:1,backgroundColor:'rgba(43,36,78,.85)',justifyContent:'center',alignItems:'center',padding:22},
   lbCard:{width:'100%',height:'90%',justifyContent:'center',alignItems:'center'},
   lbImg:{width:'100%',flex:1},
@@ -1605,7 +1600,11 @@ function Root() {
   /* 키보드가 뜨면 하단 내비게이션 여백은 의미가 없어진다. 접어두지 않으면
      입력바를 올릴 때 그만큼 모자라거나 두 번 밀린다. */
   const padBottom=kbRoot>0?0:insets.bottom;
-  const [fontsOk]=useFonts({ Galmuri11: require('./assets/fonts/Galmuri11.ttf') });
+  const [fontsOk]=useFonts({
+    Galmuri11: require('./assets/fonts/Galmuri11.ttf'),
+    ManSeh: require('./assets/fonts/ManSeh.ttf'),
+    GyuriDiary: require('./assets/fonts/GyuriDiary.ttf'),
+  });
   const [ready,setReady]=useState(false);
   const [name,setName]=useState<string|null>(null);
   const [msgs,setMsgs]=useState<Record<string,Msg[]>>({});
@@ -1641,8 +1640,6 @@ function Root() {
   /* intro는 배역을 받는 자리다 — 이름을 친 직후 한 번. 다시 열면 안 뜬다
      (등록만 하고 닫은 사람은 이미 봤다). 세계는 여전히 YES에서 생긴다. */
   const [enrolling,setEnrolling]=useState<false|'intro'|'enroll'|'confirm'>(false);
-  /* 판마다 하나. 등록 화면에서 고르고 저장소가 들고 있는다 — 웹과 같은 열쇠다 */
-  const [mode,setMode]=useState<string>(loadMode);
   const lastSent=useRef<{room:string;text:string}|null>(null);     // 재시도용
   const [invite,setInvite]=useState<any>(null);   // 같이 가자는 제안
   /* ── 자리 ──
@@ -1688,11 +1685,13 @@ function Root() {
   const [plate,setPlate]=useState<any>(null);      // 사물함 명패
   const [look,setLook]=useState<any>(null);        // 교실 문틈
   const viewRef=useRef(view); viewRef.current=view;
-  /* ── 세계 시계의 출발 자리 ──
+  /* ── 옛 판 변환용 출발 자리 ──
      msgs는 방마다 **최근 1000개**만 들고 있다. 그걸로 첫 시각을 뽑으면
      대화가 천 개를 넘는 순간 앵커가 앞으로 밀려서 D-일차가 도로 늘어난다.
      그래서 DB의 첫 행에서 한 번 읽어 저장해두고(anchor), 그것만 본다. */
   const [anchor,setAnchor]=useState(0);
+  /* 접속 일차가 foreground에서 바뀌면 D-day와 단계 계산을 다시 그린다. */
+  const [accessRev,setAccessRev]=useState(0);
   /* 첫 판은 저장소가 비어 있어서 위 load가 0을 가져온다. 첫 말풍선이 찍히면
      그때 세운다 — 그 시점엔 대화가 1000개 아래라 화면이 든 것이 곧 전부다. */
   useEffect(()=>{
@@ -1702,18 +1701,33 @@ function Root() {
     if(t)setAnchor(t);
   },[anchor,msgs]);
   setWorldAt(anchor);
-  /* 실습 남은 날·지난 날·재회. 셋 다 웹과 같은 세계 시계 하나에서 나온다 —
-     여기서 따로 세면 웹과 앱의 D-N이 갈린다. 그 사고가 실제로 있었다. */
+  /* 실습 남은 날·지난 날·재회. 셋 다 웹과 같은 접속 일차를 본다. */
   const clockStore={msgs:{anchor:anchor?[{ts:anchor,sender:'user'}]:[]}} as any;
-  const dLeft=anchor?daysLeft(clockStore):ENROLL_DAYS;
-  const dayN=anchor?daysSince(clockStore):0;
+  const dLeft=loadWorld()?daysLeft(clockStore):ENROLL_DAYS;
+  const dayN=loadWorld()?daysSince(clockStore):0;
   /* 떠난 뒤에 유저가 다시 말을 걸었나. 떠나는 날 이후의 유저 발화가 있으면
      그건 재회다. 새로 저장할 상태가 없다 — 이미 있는 시각으로 판정된다.
-     떠나는 날의 현실 시각은 leaveTsOf가 모드에 맞게 환산해 준다. */
-  const cameBack=anchor
-    ? Object.values(msgs).flat().some((m:any)=>m.sender==='user'
-        && m.created_at>=leaveTsOf(clockStore))
-    : false;
+     떠나는 날의 현실 시각은 D-0 접속 milestone이다. */
+  const leaveAt=leaveTsOf(clockStore);
+  const cameBack=!!anchor&&!!leaveAt
+    && Object.values(msgs).flat().some((m:any)=>m.sender==='user'
+      && m.created_at>=leaveAt);
+
+  /* 앱을 실제로 연 순간만 하루를 센다. hydrate가 끝난 첫 화면과, 백그라운드에서
+     다시 active가 된 순간을 확인한다. 같은 05시 기준일·시계 역행은 멱등이고,
+     며칠을 비웠어도 touchAccessClock이 한 칸만 더한다. */
+  useEffect(()=>{
+    if(!ready||!name||enrolling||!loadWorld())return;
+    const touch=()=>{
+      const after=touchAccessClock(clockStore);
+      if(!after)return;
+      /* 같은 접속 일차여도 foreground 복귀면 현실 시각/presence를 새로 그린다. */
+      setAccessRev(v=>v+1);
+    };
+    touch();
+    const sub=AppState.addEventListener('change',state=>{if(state==='active')touch()});
+    return()=>sub.remove();
+  },[ready,name,enrolling,anchor]);
 
   const reload=useCallback(async(room?:string)=>{
     const rooms = room?[room]:['jaeeon','minhyun','group','health'];
@@ -1736,12 +1750,9 @@ function Root() {
     /* 규칙이 들고 있는 것들을 화면 쪽으로 한 번 옮겨 온다. 저장은 계속
        규칙 파일이 하고(웹과 같은 열쇠), 화면은 그 사본을 그린다. */
     setScene(loadScene()); setBag(loadBag()); setMet(loadMet()); setGroupOn(loadGroupOn());
-    /* 모드도 여기서 가져온다. useState(loadMode)는 shim이 채워지기 **전에**
-       한 번 돌아서 늘 real로 굳었다 — 스피드 판으로 저장해두고 앱을 껐다
-       켜면 리얼 판이 됐다는 뜻이다. 값이 들어온 뒤에 다시 읽는다. */
-    setMode(loadMode());
-    /* 세계 시계의 앵커. 최근 1000개가 아니라 DB의 첫 행에서 읽는다 */
-    setAnchor(await firstTsFromDB());
+    /* 옛 판 변환용 앵커. 최근 1000개가 아니라 DB의 첫 행에서 읽는다. */
+    const first=await firstTsFromDB();
+    setAnchor(first);
     const n=await getMeta('user_name');
     const p=await getMeta('null_profile');
     if(p){try{setProfile(JSON.parse(p))}catch{}}
@@ -1751,7 +1762,17 @@ function Root() {
     setSeenStage(await loadSeenStage());
     const a=await getMeta('null_auto_at');
     if(a) setAutoAt(Number(a)||0);
-    if(n){ setName(n); if(!loadWorld()) setEnrolling('enroll'); await reload(); } else setName('');
+    if(n){
+      setName(n);
+      if(!loadWorld()) setEnrolling('enroll');
+      else {
+        /* hydrate가 끝난 뒤에만 옛 null_mode를 읽어 최초 변환한다. 변환한
+           당일은 +1하지 않고 현재 경과 일차만 보존한다. */
+        touchAccessClock({msgs:{anchor:first?[{ts:first,sender:'user'}]:[]}} as any);
+        setAccessRev(v=>v+1);
+      }
+      await reload();
+    } else setName('');
     setReady(true);
   })()},[]);
 
@@ -2424,14 +2445,14 @@ function Root() {
         };
         const shots=((msgs as any).jaeeon||[]).filter((m:any)=>m.photo&&m.sender!=='user').length;
         if(shots>=PHOTO_EVENT_AT&&await mark('photos',{kind:'photos',to:'jaeeon'})) return;
-        const all=Object.values(msgs).flat() as any[];
-        const firstTs=all.reduce((a,m)=>!a||m.created_at<a?m.created_at:a,0);
-        if(!firstTs) return;
-        const d=Math.max(0,ENROLL_DAYS-Math.floor((Date.now()-firstTs)/864e5));
+        if(!anchor) return;
+        /* 화면과 같은 접속 일차를 쓴다. 현실 경과시간을 다시 계산하면 며칠
+           비운 한 번의 접속에서 사건만 여러 날 앞으로 달아난다. */
+        const d=dLeft;
         if(DDAY_MARKS.includes(d)) await mark('dday:'+d,{kind:'dday',name:String(d)});
       }finally{ evBusy.current=false }
     })();
-  },[ready,name,enrolling,view,msgs]);
+  },[ready,name,enrolling,view,msgs,dLeft,accessRev,anchor]);
 
   const autoBusy=useRef(false);
   useEffect(()=>{
@@ -2500,7 +2521,9 @@ function Root() {
   /* YES — 세계가 생기는 순간. 프로필이 잠기고 나이는 세계 고정값 25가 된다.
      saveWorld는 멱등이라 연타·재렌더가 와도 시작은 한 번이다(웹과 같다). */
   const confirmYes=()=>{
+    startAccessClock(Date.now());                  // 새 유저의 첫날은 정확히 D-30
     saveWorld();
+    setAccessRev(v=>v+1);
     saveProfile('age','25');
     setEnrolling(false);
   };
@@ -2537,9 +2560,9 @@ function Root() {
        설정까지 날리면 새로 시작할 때마다 열쇠를 다시 넣어야 한다 */
     await wipeStory(); resetShim(); greetAtRef.current=0; summingRef.current={};
     setName(''); setMsgs({}); setUnread({}); setProfile({}); setUnlocked([]); setGifts({}); setSeenStage({});
-    /* 세계 시계도 처음으로 돌린다 — 앵커를 안 지우면 새 판이 옛 판의
-       D-일차를 그대로 물려받는다. 모드도 저장소가 비었으니 기본값으로. */
-    setAnchor(0); setWorldAt(0); setMode(loadMode());
+    /* 접속 시계도 처음으로 돌린다 — wipeStory/resetShim이 저장값을 지우고,
+       앵커와 React 계산도 함께 비운다. */
+    setAnchor(0); setWorldAt(0); setAccessRev(v=>v+1);
     lastSent.current=null; setAutoAt(0); setStamp(x=>x+1); setPopup(null); setView({type:'list'});
   };
 
@@ -2640,7 +2663,7 @@ function Root() {
   useEffect(()=>{ if(!demoOn())return;
     const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });
-  },[msgs,demo]);
+  },[msgs,demo,dayN]);
   /* 「두 사람」 방을 처음 열었는데 비어 있으면 이 방이 무슨 방인지 알 길이 없다.
      화면에 삼촌과 조카라고 적어주는 건 설명이지 이야기가 아니다 — 둘이 떠드는
      걸 한 번 보여준다. 첫 줄이 「삼촌,」으로 시작한다. */
@@ -2778,7 +2801,7 @@ function Root() {
       onGuess={guessHidden}
       seenStage={seenStage} dayN={dayN} autoAt={autoAt} onOpen={openRoom} onProfile={openProfile}
       onAuto={handleAuto} autoLoading={autoLoading} onMenu={handleMenu} onToast={setToast}
-      onCart={()=>setView({type:'cart'})} demo={demo} name={name}
+      onCart={()=>setView({type:'cart'})} demo={demo} name={name} gifts={gifts}
       hearts={heartsOf(counts,gifts)}
       met={met} groupOn={groupOn} onGoPlace={(pl:string)=>{ expireScene(); setAskWho(null); setAsk(pl); }}
       onPlate={setPlate}/>;
@@ -2811,7 +2834,6 @@ function Root() {
     </Modal>
     {enrolling==='intro'&&<Intro onGo={()=>setEnrolling('enroll')}/>}
     {enrolling==='enroll'&&<Enroll name={name} profile={profile} onSaveField={saveProfile}
-      mode={mode} onMode={m=>{setMode(m);saveMode(m)}}
       onRename={doRename} onDone={()=>setEnrolling('confirm')}/>}
     {enrolling==='confirm'&&<Confirm name={name} onYes={confirmYes} onBack={()=>setEnrolling('enroll')}/>}
     {/* ── 지도와 자리의 창들 ── 판정은 flow.ts, 글월은 웹과 같다 */}

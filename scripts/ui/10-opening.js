@@ -132,7 +132,7 @@ function ProfileFrame({title="NULL.exe",onClose,children,compact=false,frameClas
   </div>;
 }
 
-function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
+function Enroll({name,profile,onSaveField,onRename,onDone,onClose}){
   const [out,setOut]=useState(false);
   /* 진행 막대를 그림 다섯 장으로 갈아끼우던 때는 첫 요청에 한 칸이 비어
      보여서 미리 받아뒀다. 지금은 막대가 CSS 한 줄(width %)이라 받아올 것이
@@ -146,9 +146,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
   /* 한 칸 채우고 엔터를 치면 다음 칸이 열린다. 네 칸을 채우는 데 클릭이
      네 번 필요할 이유가 없다. -1은 아무 칸도 안 열린 상태다. */
   const [focus,setFocus]=useState(-1);
-  /* 모드는 물어보고 바꾼다. 지금 켜진 걸 눌러도 창은 뜬다 —
-     무엇을 고른 건지 다시 읽을 자리가 여기밖에 없다 */
-  const [askMode,setAskMode]=useState(null);
   /* 다섯 칸을 센다 — 이름·SUBJECT·AGE·LIKES·HATES. AGE는 세계가 정한
      값이라 처음부터 차 있고, 그래서 이름만 넣은 판은 2/5에서 시작한다.
      막대와 글자가 같은 수를 봐야 한다. 전에는 막대가 넷을 세고 글자가
@@ -185,15 +182,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
                  onNext={()=>{const n=ENR_FIELDS.findIndex((g,j)=>j>i&&g.k!=="age");setFocus(n)}}/>}
             <span className="etail">{f.tail}</span>
           </div>)}
-        {/* ── 이 판을 어떻게 살 것인가 ──
-            등록 화면이 이미 「이 판을 어떻게 살지」 정하는 자리라 여기 둔다.
-            중간에 바꾸면 D-N이 튀므로 판마다 한 번이다. */}
-        <div className="eline e-mode"><span className="lab">MODE</span>
-          <span className="emode">
-            {[["real","real"],["speed","speed"]].map(([k,t])=>
-              <b key={k} className={mode===k?"on":""} onClick={()=>setAskMode(k)}>{t}</b>)}
-          </span>
-        </div>
         {/* 남은 날은 세지 않는다. 이 값이 비어 있는 게 이 이야기다 */}
         <div className="eline e-days"><span className="lab">DAYS LEFT</span><span className="nullv">null</span></div>
         <div className={`ebar fill-${filled}`}><i/></div>
@@ -204,8 +192,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,onClose,mode,onMode}){
             자리를 따로 잡아야 해서 요소로 둔다 */}
         <button className="ego" onClick={leave}>Click!<i className="egostar"/></button>
     </ProfileFrame>
-    {askMode&&<ModeAsk which={askMode}
-      onYes={()=>{onMode(askMode);setAskMode(null)}} onNo={()=>setAskMode(null)}/>}
   </div>;
 }
 
@@ -325,66 +311,6 @@ function Intro({onGo}){
         이 세계에서는 <b>교생?</b>
         <span className="kao">{'(,,◕ᗝ◕,,)♡.ᐟ.ᐟ'}</span></div>
       <button className="wbtn go inbtn" onClick={onGo}>NULL 채우러 가기 ♡</button>
-    </div>
-  </div>;
-}
-
-/* ── 이 판을 어떻게 살 것인가 ──
-   비율만 말하던 자리다(「현실 하루 = NULL 하루!」 「하루가 4배로 Speed up!」).
-   비율은 숫자고, 유저가 정하는 건 숫자가 아니라 **살아지는 방식**이다 —
-   앱을 꺼둔 동안에도 세계가 흐르는가, 엔딩이 언제 오는가.
-
-   그리고 중간에 못 바꾼다는 것이 코드 주석에만 있었다. 화면이 말 안 하는
-   되돌릴 수 없는 선택은 선택이 아니라 함정이다. 여기서 말한다.
-
-   자재는 있는 것을 쓴다 — 겟챠 창과 같은 .dlgov/.dlg다. */
-const MODE_ASK={
-  real:{t:"real", days:1,
-    body:"현실 하루 = NULL 하루! ♡",
-    kao:"٩(❛ัᴗ❛ั ๑)"},
-  speed:{t:"speed", days:4,
-    body:"하루가 4배로 Speed up!",
-    kao:"˙˚ଘo(∗ ❛ั ᵕ ❛ั )੭່˙"},
-};
-/* 비율은 문장이 아니다. 이 앱은 이미 눈금으로 말하는 법을 갖고 있다
-   (이름 칸, D-day 막대). 한 칸 대 네 칸을 보여주면 읽지 않고도 안다. */
-const MdRow=({k,on,n})=><div className="mdrr">
-  <span className="k">{k}</span>
-  <span className="bx">{[0,1,2,3].map(i=><span key={i} className={i<on?"on":""}/>)}</span>
-  <span className="n"><b>{n}</b>일</span>
-</div>;
-function ModeAsk({which,onYes,onNo}){
-  const m=MODE_ASK[which]||MODE_ASK.real;
-  /* 이 창만 옛 문법(납작한 띠·실선 테두리·회색 알약)에 남아 있어서 다른
-     앱에서 온 창처럼 보였다. 오프닝·등록과 같은 부품을 쓴다 — 제목은 띠의
-     ::before가 그리므로 여기 글자는 font-size:0으로 숨는다 */
-  return <div className="dlgov" onClick={onNo}>
-    <div className="dlg modedlg" onClick={e=>e.stopPropagation()}>
-      <div className="tb">null.exe<WinDots onClose={onNo}/></div>
-      <div className="dlgbody mdbody">
-        {/* 고른 것이 제목이 된다. 확인창이 확인해야 하는 건 「무엇을 골랐는가」다 —
-            전에는 고른 값이 제일 작고 그걸 설명하는 문장이 제일 컸다 */}
-        <div className="mdpick"><b>{m.t}</b> <em className="kao">{m.kao}</em></div>
-        <div className="mdtx">{m.body}</div>
-        <div className="mdratio">
-          <MdRow k="현 실" on={1} n={1}/>
-          <MdRow k="게 임" on={m.days} n={m.days}/>
-        </div>
-        {/* 경고는 점선 상자에서 꺼낸다. 이 앱에서 점선 둥근 상자는 「채워야 할
-            빈칸」이라 경고를 담으면 입력 안 한 칸처럼 보인다. 자물쇠 한 줄이면 된다 */}
-        <div className="mdlock">
-          <svg width="10" height="11" viewBox="0 0 12 13" aria-hidden="true">
-            <path d="M4 5V3.6a2 2 0 0 1 4 0V5" fill="none" stroke="#c9b8e8" strokeWidth="1.3" strokeLinecap="round"/>
-            <rect x="2" y="5" width="8" height="6.5" rx="1.6" fill="#efe9fc" stroke="#c9b8e8" strokeWidth="1.2"/>
-          </svg>한 번 정하면 바꿀 수 없어요</div>
-        <div className="mdrow">
-          <button className="wbtn" onClick={onNo}>back</button>
-          {/* 이미 고른 모드냐 아니냐로 글자를 갈랐더니, real 은 ok 인데
-              speed 만 「이걸로」라 두 모드가 다른 창처럼 보였다.
-              같은 것을 고르는 자리니 같은 단추다 */}
-          <button className="wbtn go" onClick={onYes}>ok ♡</button>
-        </div>
-      </div>
     </div>
   </div>;
 }
