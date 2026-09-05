@@ -4527,7 +4527,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['286', 'a081d25b5392']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['287', '51c0fb085eea']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -10489,7 +10489,7 @@ eq('시간표 단추는 peek보다 좁다',
   {
     const M = new Function('localStorage', 'location',
       webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-      + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,myDiaryVariant,myDiaryUserKeys,saveMyDiary,loadMyDiary,loadStory};')
+      + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,myDiaryVariant,myDiaryEcho,myDiaryPage,myDiaryLast,myDiaryUserKeys,saveMyDiary,loadMyDiary,loadStory};')
       (g.localStorage, g.location);
     /* ── D-14만 네 갈래다 ──
        안 준 사람의 「그걸 준 이유」를 묻지 않으려고 문장을 갈랐다. 아래
@@ -10528,6 +10528,24 @@ eq('시간표 단추는 peek보다 좁다',
     /* 한 칸이라도 비면 저장하지 않는다 — 반쯤 쓴 일기는 나중에 뭔지 모른다 */
     eq('한 칸이라도 비면 저장 안 한다',
       M.saveMyDiary(20, { know: '누구', feel: '', between: 'ㄱ', like: 'ㄴ' }), null);
+    /* ── 갈래가 있는 장도 저장된다 ──
+       원장의 D-14에는 blanks가 없다(갈래 안에 산다). 그걸 모르고 raw.blanks를
+       읽으면 Object.keys(undefined)가 터지고 catch가 삼켜 **그 장이 통째로
+       저장이 안 됐다** — 다 채우고 「덮기 ♡」를 눌렀는데 아무 일도 안 났다.
+       들어온 값이 갈래를 말해준다: 자동 칸은 실제로 준 선물이 있을 때만 온다 */
+    eq('선물 없이도 D-14가 저장된다',
+      M.saveMyDiary(14, { want: '남고', even: 'ㄹ' }), { want: '남고', even: 'ㄹ' });
+    eq('한쪽만 준 D-14도 저장된다',
+      M.saveMyDiary(14, { giftK: '회색 머그컵', whyK: 'ㄱ', want: '남고', even: 'ㄹ' }),
+      { giftK: '회색 머그컵', whyK: 'ㄱ', want: '남고', even: 'ㄹ' });
+    /* 그 갈래에 없는 칸은 안 받는다 — 강현에게만 줬는데 재언 이유가 남으면
+       그건 그날 쓰지 않은 말이다 */
+    eq('그 갈래에 없는 칸은 안 들어간다',
+      Object.keys(M.saveMyDiary(14,
+        { giftK: '회색 머그컵', whyK: 'ㄱ', whyJ: '안 쓴 칸', want: 'ㄷ', even: 'ㄹ' }) || {}),
+      ['giftK', 'whyK', 'want', 'even']);
+    eq('갈래 안의 칸이 비면 여전히 저장 안 한다',
+      M.saveMyDiary(14, { giftK: '회색 머그컵', whyK: '', want: 'ㄷ', even: 'ㄹ' }), null);
     /* 선물 칸은 코드가 안다 — 실제로 준 것이고, 안 줬으면 그냥 빈칸이다 */
     const raw14 = M.MY_DIARY.find(e => e.at === 14);
     const both = { minhyun: ['mug'], jaeeon: ['photobook'] };
@@ -10576,6 +10594,68 @@ eq('시간표 단추는 peek보다 좁다',
       && !/setMyDiary\(myDiaryOpen\([^)]*\)\)/.test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
     /* 안 쓰고 닫을 수 있어야 선택이다 */
     eq('나중에로 닫을 수 있다', /<button className="wbtn dbtn2" onClick=\{onClose\}>나중에<\/button>/.test(web), true);
+
+    /* ══════ 채운 빈칸이 돌아온다 ══════
+       D-14에 「내가 채운 빈칸들이 나에게 돌아오고 있다」고 적혀 있었는데
+       앞 일기의 값이 단 하나도 안 돌아왔다. 종이에 쓰인 말이 거짓말이었다. */
+    g.localStorage.clear();
+    const P = (at, all) => M.myDiaryPage(M.MY_DIARY.find(e => e.at === at), {}, all);
+    eq('앞 일기에 쓴 말이 다음 장에 돌아온다', (() => {
+      const t = P(20, { 25: { feel: '오래 기다린 사람' } }).text;
+      return /^D-25에 나는 그 눈빛이 꼭 "오래 기다린 사람"다고 적었다\. 어쩌면/.test(t);
+    })(), true);
+    /* 원문 그대로 인용한다. 조사를 붙이면 유저가 쓴 말이 아니라 코드가 쓴
+       말이 된다 — 「나는 "다시 만날"고 싶다」 같은 문장을 코드가 지어내면
+       안 된다. 따옴표 안은 손대지 않는다 */
+    eq('쓴 글자를 그대로 인용한다', (() => {
+      const odd = '만날 수 있을';
+      return P(20, { 25: { feel: odd } }).text.includes(`"${odd}"`);
+    })(), true);
+    /* 일기는 건너뛸 수 있고 건너뛴 것은 벌이 아니다 — 있는 값 중 가장
+       가까운 날의 것으로 내려간다 */
+    eq('건너뛰면 그 앞의 값으로 내려간다', (() => {
+      const t = P(14, { 25: { feel: 'ㄱ' } }).text;      // D-20을 안 썼다
+      return /^D-25에 나는/.test(t) && !/D-20에 나는/.test(t);
+    })(), true);
+    eq('가장 가까운 날이 이긴다', /^D-20에 나는/.test(
+      P(14, { 20: { like: 'ㄴ' }, 25: { feel: 'ㄱ' } }).text), true);
+    /* 하나도 안 썼으면 없는 과거를 들이밀지 않는다 */
+    eq('아무것도 안 썼으면 아무 줄도 없다', (() => {
+      const e = P(14, {});
+      return !/D-\d+에 나는/.test(e.text) && !e.echoed && !('echo' in e);
+    })(), true);
+    eq('빈 값은 안 쓴 것과 같다',
+      /D-\d+에 나는/.test(P(20, { 25: { feel: '   ' } }).text), false);
+    /* 갈래와 인용이 같이 걸린다 — 갈래가 문장을 정하고 그 앞에 인용이 얹힌다 */
+    eq('갈래를 고른 뒤에 인용이 얹힌다', (() => {
+      const e = M.myDiaryPage(M.MY_DIARY.find(x => x.at === 14),
+        { minhyun: ['mug'] }, { 20: { like: 'ㄴ' } });
+      return /^D-20에 나는 강현이가 "ㄴ"처럼 느껴졌다고 적었다\. 내가 채운/.test(e.text)
+        && /강현이에게 \{giftK\}/.test(e.text) && !/\{giftJ\}/.test(e.text);
+    })(), true);
+    /* 인용은 본문일 뿐이라 칸은 하나도 안 는다 */
+    eq('인용이 칸을 늘리지 않는다', (() => {
+      const a = Object.keys(P(20, {}).blanks);
+      const b = Object.keys(P(20, { 25: { feel: 'ㄱ' } }).blanks);
+      return JSON.stringify(a) === JSON.stringify(b);
+    })(), true);
+
+    /* ══════ D-0에서 마지막으로 한 번 더 ══════
+       일기끼리만 주고받고 끝나면 그 값은 일기 밖으로 한 번도 안 나온 것이 된다.
+       「진짜 완전 True」는 유저가 자기 물음에 답을 받는 화면인데, 그 물음을
+       유저가 직접 적어뒀다 */
+    eq('안 썼으면 D-0에 아무것도 안 돌려준다', M.myDiaryLast(), null);
+    M.saveMyDiary(14, { whyK: 'ㄱ', whyJ: 'ㄴ', want: '남고', even: 'ㄹ' });
+    eq('마지막에 쓴 말이 엔딩에 돌아온다',
+      M.myDiaryLast(), { at: 14, key: 'want', text: '나는 두 사람에게 "남고"고 싶었다.' });
+    M.saveMyDiary(1, { last: '다 채웠다', who: '빈칸' });
+    eq('가장 마지막 장이 이긴다',
+      M.myDiaryLast(), { at: 1, key: 'who', text: '나는 정말 "빈칸"일까?' });
+    eq('엔딩 화면이 그 줄을 그린다',
+      /const back=myDiaryLast\(\);/.test(web)
+      && /\{back&&<div className="endingback">/.test(web)
+      && /\.ddq\.endingcomplete \.endingback\{/.test(readCss()), true);
+    g.localStorage.clear();
   }
   /* ══════════ Luck — 오늘의 결이 워커까지 닿는다 ══════════
    화면은 되살렸는데 받는 쪽이 안 돌아온 배선이었다. revert가 워커의 운세를

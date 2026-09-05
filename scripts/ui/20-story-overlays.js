@@ -171,9 +171,10 @@ function Diary({onDone}){
 
    ⚠️ 채운 값은 여기 브라우저 안에만 산다. 어떤 요청에도 안 실린다. */
 function MyDiary({entry:raw,gifts,onDone,onClose}){
-  /* 갈래가 있는 장(D-14)은 실제로 준 선물이 문장을 정한다 — 안 준 사람의
-     「그걸 준 이유」를 묻지 않기 위해서다. 갈래가 없으면 그대로다. */
-  const entry=myDiaryVariant(raw,gifts);
+  /* 갈래가 있는 장(D-14)은 실제로 준 선물이 문장을 정하고(안 준 사람의
+     「그걸 준 이유」를 묻지 않으려고), 그 앞에 앞 일기에서 쓴 말이 한 줄
+     얹힌다. 「내가 채운 빈칸들이 나에게 돌아오고 있다」가 그제야 사실이 된다. */
+  const entry=myDiaryPage(raw,gifts,loadMyDiary());
   const auto=myDiaryAuto(entry,gifts);
   const [v,setV]=useState(auto);
   const [out,setOut]=useState(false);
@@ -265,6 +266,14 @@ function EndingShot({route,onDone}){
 }
 
 function EndingComplete({name,onDone}){
+  /* ── 서른 날 동안 채운 빈칸이 마지막으로 돌아오는 자리 ──
+     이 창은 유저가 자기 물음에 답을 받는 화면인데, 그 물음을 유저가 직접
+     적어뒀다 — D-1의 「나는 정말 ____일까?」. 그걸 여기 그대로 올려놓고
+     바로 아래에서 「진짜 완전 True」가 답한다. 코드가 지어낸 말이 아니라
+     유저가 쓴 말에 답하는 것이라 이 화면이 그제야 유저의 것이 된다.
+     일기를 하나도 안 썼으면 이 줄은 없다 — 안 쓰는 것도 선택이었고,
+     안 쓴 사람에게 지어낸 과거를 보여주지 않는다. */
+  const back=myDiaryLast();
   return <Dialog title="null.exe" win="endingcompletewin">
     <div className="ddq endingcomplete">
       <div className="k">[ N U L L ] ♡</div>
@@ -275,6 +284,10 @@ function EndingComplete({name,onDone}){
         <div className="r"><span className="k2">잔여</span><span className="dot"/><span className="v">D-∞</span></div>
       </div>
       <div className="s endingthanks">다 채워서 안 사라져요 ♡</div>
+      {back&&<div className="endingback">
+        <span className="endingbackday">D-{back.at}</span>
+        <span className="endingbackline">{back.text}</span>
+      </div>}
       <div className="q endingtrue">진짜 완전 True <span className="kao">(☆´≧∀≦)σ</span></div>
       <div className="dlgbtns" style={{justifyContent:"center"}}>
         <button className="wbtn" onClick={onDone}>ok ♡</button>
