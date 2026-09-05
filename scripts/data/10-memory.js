@@ -208,11 +208,29 @@ const myDiaryEcho=(entry,all)=>{
   const {echo,...rest}=entry;
   return rest;
 };
-/* 화면이 쓰는 입구 하나. 갈래를 먼저 고르고(그 장의 문장이 정해진다)
-   그다음에 앞 일기를 앞에 얹는다 — 순서가 뒤집히면 갈래가 인용문까지
-   갈아치운다. */
-const myDiaryPage=(entry,gifts,all,saved)=>
-  myDiaryEcho(myDiaryVariant(entry,gifts,saved),all);
+/* ── 「회색 머그컵를 준 이유는」 ──
+   물건 이름은 코드가 채우는 칸인데 뒤 조사는 글에 박혀 있었다. 그런데
+   「회색 머그컵을」과 「사진집을」과 「편지지를」이 다 다르다 — 받침이 있으면
+   「을」, 없으면 「를」이다. 무엇이 들어갈지는 갈래를 고르고 값이 정해진
+   뒤라야 알 수 있으므로 여기서 한 번에 바꾼다.
+   유저가 쓴 칸에는 손대지 않는다. 코드가 채우는 칸(auto) 뒤에서만이다 —
+   유저가 쓴 말에 코드가 조사를 붙이는 순간 그건 유저가 쓴 말이 아니다. */
+const myDiaryJosa=(entry,auto)=>{
+  const src=String((entry||{}).text||"");
+  let t=src;
+  for(const [k,v] of Object.entries(auto||{})){
+    const name=String(v==null?"":v).trim(); if(!name)continue;
+    t=t.replace(new RegExp("\\{"+k+"\\}(을|를)"),"{"+k+"}"+jos(name,"을/를").slice(name.length));
+  }
+  return t===src?entry:{...entry,text:t};
+};
+/* 화면이 쓰는 입구 하나. 갈래를 먼저 고르고(그 장의 문장이 정해진다),
+   실제로 앉을 물건 이름에 조사를 맞추고, 그다음에 앞 일기를 앞에 얹는다 —
+   순서가 뒤집히면 갈래가 인용문까지 갈아치운다. */
+const myDiaryPage=(entry,gifts,all,saved)=>{
+  const v=myDiaryVariant(entry,gifts,saved);
+  return myDiaryEcho(myDiaryJosa(v,saved||myDiaryAuto(v,gifts)),all);
+};
 /* 글에서 칸을 뽑아 조각으로 가른다. 화면도 시험도 이 하나를 쓴다 —
    글과 칸 차례를 두 군데서 세면 언젠가 어긋난다. */
 const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
