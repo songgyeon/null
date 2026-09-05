@@ -545,7 +545,12 @@ function materializeEffects(requestId, picked, ctx) {
      placeItemAvailable은 talkedEnough까지 포함해 **부르기 전에** 계산된
      값이다. 여기서 다시 세지 않는다 — 두 곳에서 세면 갈린다. */
   if (picked.give && g.placeItemAvailable && !g.placeItemOwned) {
-    const item = pickGive(picked.give, g.place, g.placeItemOwned, g.room);
+    /* 값이 흔들려도 자리가 정한 것을 준다. 여기까지 온 give는 hardFilter가
+       「건넬 수 있는 턴」으로 이미 확인한 것이다 — 대사는 건넸다고 하는데
+       가방이 비는 일이 여기서 생기면 안 된다. 그게 이 자리의 계약이다. */
+    const item = pickGive(picked.give, g.place, g.placeItemOwned, g.room)
+              || (strayGive(picked.give, g.place)
+                    ? null : placeGiver(g.place, g.placeItemOwned, g.room));
     if (item) out.push(makeEffect(requestId, {
       type: "item_transfer", from: g.room, to: "user", item }));
   }
@@ -2849,12 +2854,23 @@ function buildPlace(place, placeItemOwned, room, over, came, placeItemAvailable)
     /* 「여기서 건넬 것」이라고 표제를 달아놓으니 첫 마디부터 건네줬다.
        자리에 앉자마자 물건을 내미는 사람은 없다. 표제부터 「언젠가」로 바꾸고,
        초대와 같은 모양으로 조건을 적는다 — 그쪽은 이 방식으로 잘 되고 있다. */
-    t += `\n## 여기서 언젠가 건넬 것\n${it.name}. ${it.how}\n`
-       + `**대부분의 턴에는 안 건넨다.** 안 건네고 끝나는 턴이 정상이다.\n`
-       + `- 막 도착해서 첫 마디를 주고받는 중이면 아니다. 앉기도 전에 내미는 사람은 없다.\n`
-       + `- 말이 그리로 흘렀을 때 건넨다 — 상대에게 필요해 보이거나, 하던 얘기에 걸리거나,\n`
-       + `  이제 일어설 참이거나. 건네려고 화제를 돌리지 않는다.\n`
-       + `- 그 턴이 아니면 "give"를 아예 쓰지 않는다.\n`
+    /* ── 마지막 턴에는 「언젠가」가 없다 ──
+       자리는 하루에 한 번이고, 문 닫을 시각이 되면 프론트가 닫는다. 그런데
+       이 블록은 매 턴 「대부분의 턴에는 안 건넨다」만 말해서 일어서는 턴에도
+       안 건네고 끝났다 — 그러면 그 물건은 그날 영영 없다. 안 건네고 끝나는
+       턴이 정상인 것과, 마지막 턴까지 안 건네는 것은 다르다.
+       나가면서 쥐여주는 것은 원래 이 사람들이 하는 짓이기도 하다 —
+       「자리가 끝나갈 때 붙잡는 대신 붙잡을 구실을 만든다」가 인물 설정에
+       이미 적혀 있다. */
+    t += `\n## 여기서 ${over ? "건넬 것" : "언젠가 건넬 것"}\n${it.name}. ${it.how}\n`
+       + (over
+         ? `**이번 턴이 마지막이다.** 일어서기 전에 건넨다 — 오늘 이 자리는 여기서 끝이라 지금 아니면 건넬 자리가 없다.\n`
+           + `- 건네려고 화제를 돌리지 않는다. 매듭짓는 말에 얹어서 쥐여준다.\n`
+         : `**대부분의 턴에는 안 건넨다.** 안 건네고 끝나는 턴이 정상이다.\n`
+           + `- 막 도착해서 첫 마디를 주고받는 중이면 아니다. 앉기도 전에 내미는 사람은 없다.\n`
+           + `- 말이 그리로 흘렀을 때 건넨다 — 상대에게 필요해 보이거나, 하던 얘기에 걸리거나,\n`
+           + `  이제 일어설 참이거나. 건네려고 화제를 돌리지 않는다.\n`
+           + `- 그 턴이 아니면 "give"를 아예 쓰지 않는다.\n`)
        + `- 건네는 턴에만 JSON에 "give": "${it.key}" 를 같이 쓴다. 한 번뿐이다.\n`;
   }
   return t;
@@ -3312,6 +3328,37 @@ ${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.ke
 - 위 설명은 읊지 않는다. 기억한 채 네 말투로 짧게 스치기만 한다.
 `;
 }
+/* ── 이 턴에 이 방이 건넬 수 있는 것 ──
+   값을 안 본다. 자리와 방만 본다 — 무엇을 건네는지는 자리가 이미 정해뒀고
+   자리마다 물건은 하나뿐이다. 「건넬 수 있나」와 「무엇을 적었나」는 다른
+   물음인데 pickGive 하나가 둘을 같이 보고 있었다. 그래서 값이 흔들리면
+   건넬 수 없는 턴과 같은 답이 나왔다. */
+function placeGiver(place, placeItemOwned, room) {
+  if (!place || placeItemOwned || !PLACE_ITEMS[place]) return null;
+  const it = PLACE_ITEMS[place];
+  /* by가 걸린 자리는 그 사람만 건넨다. 이건 표기 문제가 아니라 세계다 —
+     강현이 재언 집 열쇠를 내밀 수는 없다. */
+  if (it.by && it.by !== room) return null;
+  return it.key;
+}
+
+/* 모든 자리 물건의 키와 이름. 아래 하나를 위해 한 번만 만든다 */
+const EVERY_PLACE_ITEM = new Set(
+  Object.values(PLACE_ITEMS).flatMap(v => [v.key, v.name]));
+
+/* ── 다른 자리의 물건을 이름 대고 내밀었다 ──
+   값이 흔들린 것과 딴 물건을 부른 것은 다르다. 「캔커피」는 옥상에서
+   can을 달리 적은 것이지만 「접힌 쪽지」는 교실 것이다 — 옥상에서 그걸
+   내밀겠다고 해놓고 캔커피가 가방에 들어가면 그게 대사와 가방이 갈리는
+   것이다. 아는 물건을 잘못 부른 것만 어긴 것으로 센다. 「선물」처럼
+   아무 물건도 안 가리키는 말은 건네겠다는 신호로만 읽는다. */
+function strayGive(raw, place) {
+  const k = (raw || "").toString().trim();
+  const it = PLACE_ITEMS[place];
+  if (!k || !it || k === it.key || k === it.name) return false;
+  return EVERY_PLACE_ITEM.has(k);
+}
+
 /* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
 function pickGive(raw, place, placeItemOwned, room) {
   if (!place || placeItemOwned || !PLACE_ITEMS[place]) return null;
@@ -4510,7 +4557,18 @@ function hardFilter(cand, allowed, ctx) {
      가방이 갈리면 유저가 받은 줄 알고 안 받은 상태가 된다. */
   /* 못 건네는 턴인데 give를 냈다. 프롬프트에 안 보여줬는데도 지어냈으면
      그건 후보가 세계를 어긴 것이다 — 조용히 버리지 않고 떨어뜨린다. */
-  if (c.give && (!g.placeItemAvailable || !pickGive(c.give, g.place, g.placeItemOwned, g.room)))
+  /* ── 「건넬 수 있나」만 본다. 「무엇을 적었나」는 여기서 안 본다 ──
+     전에는 pickGive를 그대로 불러서 give 값이 자리의 key와 한 글자라도
+     다르면 떨어뜨렸다. 그런데 자리마다 물건은 하나뿐이라 값이 흔들려도
+     가리키는 것은 안 갈린다 — 「캔커피」라고 적은 것과 「can」이라고 적은
+     것 사이에 세계의 차이가 없다. 그 차이로 후보를 떨어뜨리면 물건을
+     건네려던 바로 그 턴에 대화가 죽고, 후보가 하나뿐인 길에서는 502다.
+     막을 것은 그대로 막는다: 못 건네는 턴(placeItemAvailable)과 임자가
+     아닌 쪽(by)이다. 그 둘은 값이 아니라 세계라서 여전히 탈락이다.
+     값이 어긋난 give는 materializeEffects가 자리의 것으로 확정한다 —
+     대사와 가방이 갈리지 않는다. */
+  if (c.give && (!g.placeItemAvailable || !placeGiver(g.place, g.placeItemOwned, g.room)
+                 || strayGive(c.give, g.place)))
     push("INVALID_GIVE");
   return codes;
 }
@@ -7297,7 +7355,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          buildEvent,
          makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
          makeEffect, mintEffectId, EFFECT_TYPES,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace,
+         PLACE_ITEMS, placeOf, pickGive, placeGiver, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,

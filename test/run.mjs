@@ -5,7 +5,7 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, buildPlace, dropMeta, dropSleepers, hardFilter,
+         PLACE_ITEMS, placeOf, pickGive, placeGiver, buildPlace, dropMeta, dropSleepers, hardFilter,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
@@ -4711,6 +4711,16 @@ eq('그래도 없는 물건은 없는 물건이다',
 eq('이름으로 적어도 임자는 안 바뀐다',
   [pickGive('여벌 열쇠', '집', false, 'jaeeon'), pickGive('여벌 열쇠', '집', false, 'minhyun')],
   ['key', null]);
+/* ── 「건넬 수 있나」와 「무엇을 적었나」는 다른 물음이다 ──
+   pickGive 하나가 둘을 같이 보고 있어서, 값이 흔들리면 건넬 수 없는 턴과
+   같은 답이 나왔다. 자리와 방만 보는 자를 따로 둔다 — 무엇을 건네는지는
+   자리가 이미 정해뒀고 자리마다 물건은 하나뿐이다. */
+eq('건넬 수 있나는 값을 안 본다',
+  [placeGiver('옥상', false, 'minhyun'), placeGiver('옥상', true, 'minhyun'),
+   placeGiver(null, false, 'minhyun'), placeGiver('용궁', false, 'minhyun')],
+  ['can', null, null, null]);
+eq('그래도 임자는 자리가 정한다',
+  [placeGiver('집', false, 'jaeeon'), placeGiver('집', false, 'minhyun')], ['key', null]);
 {
   const t = buildPlace('편의점', false, 'minhyun', false, '', true);
   eq('자리 블록은 마주 보고 있다고 알린다', /마주 보고/.test(t) && /어디냐고 묻지 않는다/.test(t), true);
@@ -5351,7 +5361,10 @@ eq('상태 경로가 하나다',
 /* 표제를 「여기서 건넬 것」이라고 달아놨더니 첫 마디부터 건네줬다 */
 eq('언젠가 건넨다고 적는다', (() => {
   const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
-  return /## 여기서 언젠가 건넬 것/.test(wk)
+  /* 일어서는 턴에는 표제가 「여기서 건넬 것」으로 바뀐다 — 그래서 소스에는
+     두 표제가 삼항으로 갈라져 있다. 실제로 뭐가 찍히는지는 buildPlace를
+     불러서 본다(「아직 앉아 있으면 언젠가다」) */
+  return /over \? "건넬 것" : "언젠가 건넬 것"/.test(wk)
     && /\*\*대부분의 턴에는 안 건넨다\.\*\*/.test(wk)
     && /막 도착해서 첫 마디를 주고받는 중이면 아니다/.test(wk)
     && !/## 여기서 건넬 것/.test(wk);
@@ -9461,6 +9474,46 @@ eq('시간표 단추는 peek보다 좁다',
     hardFilter({ messages: [{ text: 'ㄱ' }], give: 'can' }, MH,
       { place: '옥상', placeItemOwned: false, placeItemAvailable: false, room: 'minhyun' }),
     ['INVALID_GIVE']);
+  /* ── 값이 흔들렸다고 대사를 죽이지 않는다 ──
+     자리마다 물건은 하나뿐이라 「캔커피」와 「can」 사이에 세계의 차이가 없다.
+     그 차이로 후보를 떨어뜨리면 물건을 건네려던 바로 그 턴에 대화가 죽고,
+     후보가 하나뿐인 길에서는 502다. 막을 것은 값이 아니라 세계다. */
+  {
+    const AT = { place: '옥상', placeItemOwned: false, placeItemAvailable: true, room: 'minhyun' };
+    eq('이름으로 적어도 후보는 산다',
+      hardFilter({ messages: [{ text: 'ㄱ' }], give: '캔커피' }, MH, AT), []);
+    eq('엉뚱하게 적어도 후보는 산다',
+      hardFilter({ messages: [{ text: 'ㄱ' }], give: '선물' }, MH, AT), []);
+    /* 그리고 가방은 갈리지 않는다 — 자리가 정한 것으로 확정한다 */
+    eq('값이 흔들려도 자리의 것이 들어간다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }], give: '선물' }, AT)
+        .map(e => [e.type, e.item, e.from, e.to]),
+      [['item_transfer', 'can', 'minhyun', 'user']]);
+    eq('이름으로 적어도 같은 것이 들어간다',
+      ENG.materializeEffects('r2', { messages: [{ text: 'ㄱ' }], give: '캔커피' }, AT)
+        .map(e => e.item), ['can']);
+    /* by는 값이 아니라 세계다 — 강현이 재언 집 열쇠를 내미는 것은 여전히 어긴 것 */
+    eq('임자가 아니면 여전히 떨어진다',
+      hardFilter({ messages: [{ text: 'ㄱ' }], give: 'key' }, MH,
+        { place: '집', placeItemOwned: false, placeItemAvailable: true, room: 'minhyun' }),
+      ['INVALID_GIVE']);
+    eq('임자가 아니면 Effect도 안 난다',
+      ENG.materializeEffects('r3', { messages: [{ text: 'ㄱ' }], give: 'key' },
+        { place: '집', placeItemOwned: false, placeItemAvailable: true, room: 'minhyun' }).length, 0);
+  }
+  /* ── 마지막 턴에는 「언젠가」가 없다 ──
+     자리는 하루 한 번이고 문 닫을 시각이 되면 닫힌다. 일어서는 턴에도
+     「대부분의 턴에는 안 건넨다」만 말하면 그 물건은 그날 영영 없다. */
+  eq('일어서는 턴에는 건네라고 적는다', (() => {
+    const t = buildPlace('옥상', false, 'minhyun', true, '', true);
+    return /## 여기서 건넬 것/.test(t) && /이번 턴이 마지막이다/.test(t)
+      && !/대부분의 턴에는 안 건넨다/.test(t) && /"give": "can"/.test(t);
+  })(), true);
+  eq('아직 앉아 있으면 언젠가다', (() => {
+    const t = buildPlace('옥상', false, 'minhyun', false, '', true);
+    return /## 여기서 언젠가 건넬 것/.test(t) && /대부분의 턴에는 안 건넨다/.test(t)
+      && !/이번 턴이 마지막이다/.test(t);
+  })(), true);
 
   /* ── D 후속 · 입구가 하나다 ──
      안전 검사에 옛 입구를 남기면 「테스트는 통과했는데 저 경로만 안 걸러짐」이
