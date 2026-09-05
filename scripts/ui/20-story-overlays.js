@@ -170,7 +170,10 @@ function Diary({onDone}){
    그건 지어내는 것이 아니라 이미 한 일이다.
 
    ⚠️ 채운 값은 여기 브라우저 안에만 산다. 어떤 요청에도 안 실린다. */
-function MyDiary({entry,gifts,onDone,onClose}){
+function MyDiary({entry:raw,gifts,onDone,onClose}){
+  /* 갈래가 있는 장(D-14)은 실제로 준 선물이 문장을 정한다 — 안 준 사람의
+     「그걸 준 이유」를 묻지 않기 위해서다. 갈래가 없으면 그대로다. */
+  const entry=myDiaryVariant(raw,gifts);
   const auto=myDiaryAuto(entry,gifts);
   const [v,setV]=useState(auto);
   const [out,setOut]=useState(false);

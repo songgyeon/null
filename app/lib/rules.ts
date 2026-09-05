@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=285";
+const AV_V = "?v=286";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -325,12 +325,39 @@ const MY_DIARY=[
   /* 두 칸은 코드가 안다 — 실제로 준 물건이다. 유저가 쓰는 것은 물건이 아니라
      **이유**다. 일기가 거울이 되는 자리라 여기만 자동이 섞인다.
      안 준 사람 칸은 그냥 빈칸으로 둔다 — 없는 선물을 지어내지 않는다. */
-  {at:14, text:
-    "내가 채운 빈칸들이 나에게 돌아오고 있다. 내가 강현이에게 {giftK}를 준 이유는 "+
-    "정말 {whyK}뿐이었을까? 이 선생님에게 {giftJ}를 줬던 건 {whyJ}만은 아니었던 "+
-    "것 같다. 나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
-   blanks:{giftK:5,whyK:14,giftJ:5,whyJ:19,want:9,even:13},
-   auto:{giftK:"minhyun",giftJ:"jaeeon"}},
+  /* ── 그런데 이유는 물어보고 있었다 ──
+     물건 칸은 안 준 사람 것을 비워 두면서 「그걸 준 이유」는 유저 칸으로
+     남겨두었다. 그래서 아무에게도 선물을 안 준 판에서 이 장은
+     「내가 강현이에게 ___를 준 이유는 정말 [    ]뿐이었을까?」가 되고,
+     그 [    ]를 채워야만 일기가 닫혔다 — **주지도 않은 선물을 준 척
+     설명해야 저장되는 일기**였다. 없는 선물을 지어내지 않겠다고 해놓고
+     없는 이유를 받아 적고 있었던 셈이다.
+     문장을 네 갈래로 가른다. 준 사람 것만 묻고, 안 준 것은 안 물어본다.
+     못 준 것은 못 줬다고 적는다 — 그것도 그날의 사실이다. */
+  {at:14, variants:[
+    {when:"both", text:
+      "내가 채운 빈칸들이 나에게 돌아오고 있다. 내가 강현이에게 {giftK}를 준 이유는 "+
+      "정말 {whyK}뿐이었을까? 이 선생님에게 {giftJ}를 줬던 건 {whyJ}만은 아니었던 "+
+      "것 같다. 나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
+     blanks:{giftK:5,whyK:14,giftJ:5,whyJ:19,want:9,even:13},
+     auto:{giftK:"minhyun",giftJ:"jaeeon"}},
+    {when:"minhyun", text:
+      "내가 채운 빈칸들이 나에게 돌아오고 있다. 내가 강현이에게 {giftK}를 준 이유는 "+
+      "정말 {whyK}뿐이었을까? 이 선생님에게는 아직 아무것도 건네지 못했다. "+
+      "나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
+     blanks:{giftK:5,whyK:14,want:9,even:13},
+     auto:{giftK:"minhyun"}},
+    {when:"jaeeon", text:
+      "내가 채운 빈칸들이 나에게 돌아오고 있다. 이 선생님에게 {giftJ}를 줬던 건 "+
+      "{whyJ}만은 아니었던 것 같다. 강현이에게는 아직 아무것도 건네지 못했다. "+
+      "나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
+     blanks:{giftJ:5,whyJ:19,want:9,even:13},
+     auto:{giftJ:"jaeeon"}},
+    {when:"none", text:
+      "내가 채운 빈칸들이 나에게 돌아오고 있다. 그런데 나는 아직 두 사람 누구에게도 "+
+      "아무것도 건네지 못했다. 나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
+     blanks:{want:9,even:13}},
+  ]},
   {at:7, text:
     "이제는 내가 누구인지 {decide}해야 할 때가 온 거 같다. 두 사람을 언제까지고 "+
     "{keep} 할 수는 없다. 강현이도, 이 선생님도 전부 나에게는 {both}다. "+
@@ -339,6 +366,26 @@ const MY_DIARY=[
   /* 마지막은 두 칸이다. 여기까지 온 사람에게 더 물을 것이 없다 */
   {at:1, text:"{last}. 나는 정말 {who}일까?",blanks:{last:7,who:7}},
 ];
+/* ── 어느 갈래인가 ──
+   갈래가 없는 장은 그대로 돌려준다. 있는 장은 실제로 준 것이 정한다.
+   **쓸 때와 다시 볼 때가 다르다**: 쓸 때는 지금 준 선물이 정하고, 다시 볼
+   때는 그때 저장된 칸이 정한다. 나중에 선물을 더 줬다고 그날 쓴 일기의
+   문장이 바뀌면 그건 일기가 아니다 — 일기는 그날에 묶여 있어야 한다.
+   자동 칸은 실제로 준 것이 있을 때만 저장되므로(myDiaryAuto), 저장된
+   값에 그 칸이 있는지가 그날의 갈래를 그대로 말해준다. */
+const myDiaryVariant=(entry,gifts,saved)=>{
+  const vs=(entry||{}).variants;
+  if(!Array.isArray(vs)||!vs.length)return entry;
+  const has=saved
+    ? k=>Object.prototype.hasOwnProperty.call(saved,k)&&String(saved[k]||"").trim()!==""
+    : k=>((((gifts||{})[k==="giftK"?"minhyun":"jaeeon"])||[]).length>0);
+  const k=has("giftK"), j=has("giftJ");
+  const when=k&&j?"both":k?"minhyun":j?"jaeeon":"none";
+  const v=vs.find(x=>x.when===when)||vs[vs.length-1];
+  /* variants는 남기지 않는다 — 고른 뒤의 장은 갈래가 없는 장과 같은 모양이다 */
+  const {variants,...rest}=entry;
+  return {...rest,...v};
+};
 /* 글에서 칸을 뽑아 조각으로 가른다. 화면도 시험도 이 하나를 쓴다 —
    글과 칸 차례를 두 군데서 세면 언젠가 어긋난다. */
 const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
@@ -430,8 +477,11 @@ const userPics=(name,giftsOverride)=>{
   /* ⑩ 쓴 일기도 여기 쌓인다 — 옛 일기 다음 자리다. 자동으로 찬 칸도 같이
      얹는다: 화면에서 본 그대로여야 한다 */
   const md=loadMyDiary();
-  for(const e of MY_DIARY){
-    const w=md[e.at]; if(!w)continue;
+  for(const raw of MY_DIARY){
+    const w=md[raw.at]; if(!w)continue;
+    /* 다시 볼 때의 갈래는 그때 저장된 칸이 정한다 — 그 뒤에 선물을 더 줬어도
+       그날 쓴 문장은 안 바뀐다 */
+    const e=myDiaryVariant(raw,null,w);
     out.push({src:MY_DIARY_IMG,label:`D-${e.at}`,
       diary:{kind:"current",src:MY_DIARY_IMG,entry:e,
         values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,
@@ -548,7 +598,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=285";
+const AV="?v=286";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -2117,6 +2167,7 @@ return {
   saveFlash,
   MY_DIARY_IMG,
   MY_DIARY,
+  myDiaryVariant,
   myDiaryParts,
   myDiarySystemOwned,
   myDiaryAuto,
@@ -2436,6 +2487,7 @@ export const {
   saveFlash,
   MY_DIARY_IMG,
   MY_DIARY,
+  myDiaryVariant,
   myDiaryParts,
   myDiarySystemOwned,
   myDiaryAuto,
