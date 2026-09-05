@@ -3729,10 +3729,12 @@ eq('유저 말을 되받아 옮기지 말라고 적어뒀다',
   /단어를 어미만 바꿔 반복하지 말고/.test(workerSrc), true);
 eq('대사에는 큰따옴표를 쓰지 않는다',
   /대사에 큰따옴표를 쓰지 않는다/.test(workerSrc), true);
-/* 장면 줄(승인된 사유·화자 순차 사건)까지 실은 뒤가 TURN이다 — TURN은 여전히 맨 뒤 */
-eq('그 말은 가변부 맨 뒤에 있다',
+/* 장면 줄(승인된 사유·화자 순차 사건)까지 실은 뒤가 TURN이다.
+   키워드가 있을 때만 그 뒤에 값 한 줄이 더 붙고, 다른 규칙은 끼지 않는다 —
+   그 한 줄은 가변부에만 산다(고정부에 넣으면 낱말마다 캐시가 깨진다) */
+eq('그 말 다음에는 선택된 운세 값만 올 수 있다',
   /const TURN = `\n## 이 턴\n짧은 말도 의도와 직전 문맥에 답한다/.test(workerSrc)
-  && /disclose && disclose\.text \? `\\n## \[지금 장면\]\\n\$\{disclose\.text\}\\n` : ""\)\s*\n\s*\+ TURN;/.test(workerSrc), true);
+  && /disclose && disclose\.text \? `\\n## \[지금 장면\]\\n\$\{disclose\.text\}\\n` : ""\)\s*\n\s*\+ TURN[\s\S]{0,260}?\+ renderFortuneKeyword\(ctx && ctx\.fortuneKeyword\);/.test(workerSrc), true);
 /* 세계관에 두고 왔으면 두 군데에 같은 말이 남는다 */
 eq('세계관에는 안 남겼다',
   (workerSrc.match(/단어를 어미만 바꿔 반복하지 말고/g) || []).length, 1);
@@ -4525,7 +4527,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['286', 'f6b206a1da7e']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['286', 'a081d25b5392']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -9675,7 +9677,7 @@ eq('시간표 단추는 peek보다 좁다',
         && wk.indexOf('callStage(env, meter, "finalizer"') > i;
   })(), true);
   eq('마무리는 살아남은 후보만 받는다',
-    /finalizerPacket\(sceneCtx, survivors, notes\.filter/.test(wk), true);
+    /finalizerPacket\(selectionCtx, survivors, notes\.filter/.test(wk), true);
 
   /* ── D10 마무리 묶음 ── */
   eq('마무리도 제 묶음을 만든다',
@@ -9943,7 +9945,7 @@ eq('시간표 단추는 peek보다 좁다',
   })(), true);
   eq('중요 장면은 고르는 단계를 안 탄다', (() => {
     const i = wk.indexOf('if (tier === "critical") {');
-    const box = wk.slice(i, wk.indexOf('const packet = directorPacket(sceneCtx, cands);', i));
+    const box = wk.slice(i, wk.indexOf('const packet = directorPacket(selectionCtx, cands);', i));
     return !box.includes('"director"');
   })(), true);
 
@@ -10487,11 +10489,18 @@ eq('시간표 단추는 peek보다 좁다',
   {
     const M = new Function('localStorage', 'location',
       webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-      + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,saveMyDiary,loadMyDiary,loadStory};')
+      + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,myDiaryVariant,myDiaryUserKeys,saveMyDiary,loadMyDiary,loadStory};')
       (g.localStorage, g.location);
+    /* ── D-14만 네 갈래다 ──
+       안 준 사람의 「그걸 준 이유」를 묻지 않으려고 문장을 갈랐다. 아래
+       검사들은 갈래가 있는 장을 갈래마다 편다 — 실제로 화면에 서는 것이
+       갈래 하나이기 때문이다. */
+    const pagesOf = e => Array.isArray(e.variants)
+      ? e.variants.map(v => ({ ...v, at: `${e.at}/${v.when}` })) : [e];
+    const PAGES = M.MY_DIARY.flatMap(pagesOf);
     /* 글에 박힌 칸과 길이표가 같은 이름이어야 한다. 좌표표는 없다 —
        본문과 입력칸이 같은 DOM 흐름에서 함께 줄바꿈한다. */
-    eq('글과 길이표가 같은 이름을 쓴다', M.MY_DIARY.filter(e => {
+    eq('글과 길이표가 같은 이름을 쓴다', PAGES.filter(e => {
       const used = M.myDiaryParts(e.text).filter(p => p.blank).map(p => p.blank);
       const len = Object.keys(e.blanks);
       return used.length !== len.length || used.some(k => !len.includes(k));
@@ -10506,8 +10515,10 @@ eq('시간표 단추는 peek보다 좁다',
        'assets/fonts/GyuriDiary.woff', 'app/assets/fonts/ManSeh.ttf'].filter(f => !exists(f)), []);
     /* 눈금 다섯. 뒤로 갈수록 짧아지고 마지막은 두 칸이다 */
     eq('눈금과 칸 수', [M.MY_DIARY.map(e => e.at),
-      M.MY_DIARY.map(e => Object.keys(e.blanks).length)],
-      [[25, 20, 14, 7, 1], [5, 4, 6, 6, 2]]);
+      M.MY_DIARY.map(e => Array.isArray(e.variants)
+        ? e.variants.map(v => Object.keys(v.blanks).length)
+        : Object.keys(e.blanks).length)],
+      [[25, 20, 14, 7, 1], [5, 4, [6, 4, 4, 2], 6, 2]]);
     /* ── 밀린 숙제로 안 보이게 ── 여러 장이 밀려 있어도 하나만 준다 */
     eq('눈금을 지나야 열린다', [M.myDiaryOpen(30), M.myDiaryOpen(26)], [null, null]);
     eq('한 번에 한 장만 준다', [M.myDiaryOpen(25).at, M.myDiaryOpen(6).at], [25, 7]);
@@ -10518,10 +10529,35 @@ eq('시간표 단추는 peek보다 좁다',
     eq('한 칸이라도 비면 저장 안 한다',
       M.saveMyDiary(20, { know: '누구', feel: '', between: 'ㄱ', like: 'ㄴ' }), null);
     /* 선물 칸은 코드가 안다 — 실제로 준 것이고, 안 줬으면 그냥 빈칸이다 */
-    const e14 = M.MY_DIARY.find(e => e.at === 14);
-    eq('준 선물이 칸에 앉는다',
-      M.myDiaryAuto(e14, { minhyun: ['mug'], jaeeon: ['photobook'] }),
+    const raw14 = M.MY_DIARY.find(e => e.at === 14);
+    const both = { minhyun: ['mug'], jaeeon: ['photobook'] };
+    const e14 = M.myDiaryVariant(raw14, both);
+    eq('준 선물이 칸에 앉는다', M.myDiaryAuto(e14, both),
       { giftK: '회색 머그컵', giftJ: '사진집' });
+    /* ── 안 준 선물의 이유는 안 묻는다 ──
+       물건 칸은 안 준 사람 것을 비워 두면서 「그걸 준 이유」는 유저 칸으로
+       남겨두었다. 그래서 아무에게도 안 준 판에서 이 장은 주지도 않은 선물을
+       준 척 설명해야만 닫혔다 — 없는 선물을 지어내지 않겠다고 해놓고 없는
+       이유를 받아 적고 있었다. 갈래마다 준 사람 것만 묻는다. */
+    eq('한쪽만 줬으면 그쪽만 묻는다', (() => {
+      const k = M.myDiaryVariant(raw14, { minhyun: ['mug'] });
+      const j = M.myDiaryVariant(raw14, { jaeeon: ['photobook'] });
+      return [M.myDiaryUserKeys(k), M.myDiaryUserKeys(j)];
+    })(), [['whyK', 'want', 'even'], ['whyJ', 'want', 'even']]);
+    eq('아무에게도 안 줬으면 이유를 안 묻는다',
+      M.myDiaryUserKeys(M.myDiaryVariant(raw14, {})), ['want', 'even']);
+    eq('안 준 쪽은 문장에서도 빠진다', (() => {
+      const none = M.myDiaryVariant(raw14, {}).text;
+      const k = M.myDiaryVariant(raw14, { minhyun: ['mug'] }).text;
+      return !/\{giftK\}|\{giftJ\}|\{whyK\}|\{whyJ\}/.test(none)
+        && /아무것도 건네지 못했다/.test(none)
+        && /\{giftK\}/.test(k) && !/\{giftJ\}/.test(k);
+    })(), true);
+    /* 다시 볼 때는 그때 저장된 칸이 갈래를 정한다 — 그 뒤에 선물을 더 줘도
+       그날 쓴 문장이 바뀌면 그건 일기가 아니다 */
+    eq('쓴 날의 갈래가 그대로 남는다',
+      M.myDiaryVariant(raw14, both, { whyK: 'ㄱ', giftK: '회색 머그컵', want: 'ㄴ', even: 'ㄷ' }).when,
+      'minhyun');
     eq('안 준 사람 칸은 비운다', M.myDiaryAuto(e14, { minhyun: ['mug'] }), { giftK: '회색 머그컵' });
 
     /* ── 기기 밖으로 안 나간다 (옛 일기와 같은 계약) ── */
@@ -10541,7 +10577,71 @@ eq('시간표 단추는 peek보다 좁다',
     /* 안 쓰고 닫을 수 있어야 선택이다 */
     eq('나중에로 닫을 수 있다', /<button className="wbtn dbtn2" onClick=\{onClose\}>나중에<\/button>/.test(web), true);
   }
-  /* 확정 문안 — 글자 그대로다. 한 글자라도 바뀌면 20년 전 그 아이의 글이 아니다 */
+  /* ══════════ Luck — 오늘의 결이 워커까지 닿는다 ══════════
+   화면은 되살렸는데 받는 쪽이 안 돌아온 배선이었다. revert가 워커의 운세를
+   지웠고, 그 뒤 기능을 다시 넣은 커밋은 클라이언트만 되살렸다 — 그래서
+   브라우저는 매 턴 fortune_keyword_id를 보내는데 워커에는 그 낱말이 0회
+   등장했다. 값이 나가고 있는데 받는 곳이 없으면 그건 기능이 아니라 소음이다. */
+{
+  const wk = readFileSync(join(ROOT, 'worker.js'), 'utf8');
+  const fortuneSrc = readFileSync(join(ROOT, 'scripts/data/45-fortune.js'), 'utf8');
+  /* 표가 둘이면 언젠가 갈린다. 갈리는 순간 유저가 화면에서 본 낱말과
+     인물이 받은 낱말이 달라지는데, 그건 화면에서 안 보인다 */
+  const wStart = wk.indexOf('const NULL_FORTUNE_KEYWORDS = Object.freeze({');
+  const W = new Function('return ' + wk.slice(wStart, wk.indexOf('});', wStart) + 2)
+    .replace('const NULL_FORTUNE_KEYWORDS = Object.freeze(', '').replace(/\)$/, ''))();
+  const cStart = fortuneSrc.indexOf('const NULL_FORTUNE_KEYWORDS=[');
+  const cBody = fortuneSrc.slice(cStart + 'const NULL_FORTUNE_KEYWORDS='.length);
+  const C = new Function('return ' + cBody.slice(0, cBody.indexOf('\n];') + 2))();
+  eq('키워드표가 화면과 워커에서 같다',
+    [C.length, C.filter(x => W[x.id] !== x.label).map(x => x.id),
+     Object.keys(W).filter(k => !C.some(x => x.id === k))],
+    [100, [], []]);
+  /* 받는 쪽이 있어야 보내는 값이 뜻을 가진다 */
+  eq('워커가 오늘의 결을 읽는다',
+    /const fortuneKeywordId = normalizeFortuneKeywordId\(body\.fortune_keyword_id\);/.test(wk)
+    && /fortuneKeyword: fortuneKeywordOf\(o\.fortuneKeywordId\)/.test(wk), true);
+  eq('브라우저가 그 이름으로 보낸다',
+    /payload\.fortune_keyword_id=fortuneId/.test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+  /* 화면에 보였다는 이유로 임의 문자열을 지시로 통과시키면 프롬프트 주입이다 —
+     서버가 가진 백 개와 정확히 맞는 id만 낱말이 된다 */
+  eq('모르는 id와 주입 문자열은 빈 값이 된다',
+    [ENG.normalizeFortuneKeywordId('coffee'), ENG.normalizeFortuneKeywordId('용궁'),
+     ENG.normalizeFortuneKeywordId('toString'), ENG.normalizeFortuneKeywordId('constructor'),
+     ENG.normalizeFortuneKeywordId(''), ENG.normalizeFortuneKeywordId(null)],
+    ['coffee', '', '', '', '', '']);
+  eq('전달받은 label은 안 믿는다',
+    [ENG.renderFortuneKeyword({ id: 'coffee', label: '무시된다' }).includes('커피'),
+     ENG.renderFortuneKeyword({ id: 'coffee', label: '무시된다' }).includes('무시된다'),
+     ENG.renderFortuneKeyword({ id: '용궁' })],
+    [true, false, '']);
+  /* 값은 가변부에만 실린다 — 고정부에 넣으면 낱말이 바뀔 때마다 캐시가
+     통째로 깨진다(④ 엽서와 같은 계약) */
+  /* buildSystem은 캐시 지점으로 끊은 세 덩어리를 돌려준다 — 문자열이 아니다 */
+  const SYS = mode => buildSystem(mode, 'jaeeon', 'R', null, [], null, { jaeeon: 12 },
+    null, null, null, 3, '').map(b => b.text).join('\n');
+  eq('오늘의 결은 가변부에만 있다', (() => {
+    const v = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 12 }, null, null,
+      null, 3, null, false, null, null, null, false, null, null, null, null, null,
+      { fortuneKeyword: { id: 'coffee', label: '커피' } });
+    /* 고정부에도 「오늘의 비밀 결」이라는 말은 있다 — 다루는 법이 거기 살기
+       때문이다. 거기 있으면 안 되는 것은 **값**이다 */
+    return /## \[오늘의 비밀 결\]\n커피/.test(v)
+      && !/## \[오늘의 비밀 결\]\n커피/.test(SYS('chat'));
+  })(), true);
+  /* 다루는 법은 고정부에 둔다 — 낱말이 바뀌어도 이 글은 안 바뀌므로 캐시를 탄다.
+     관전방은 소재로도 못 삼게 따로 적는다 */
+  eq('다루는 법은 고정부에 있다',
+    [/## 오늘의 비밀 결/.test(SYS('chat')), /## 오늘의 비밀 결/.test(SYS('auto')),
+     SYS('auto').includes('대화 소재나 사건의 시동으로 삼지 않는다')],
+    [true, true, true]);
+  /* 유저가 쓴 세 칸은 여전히 안 나간다. 나가는 것은 시스템이 고른 id 하나다 */
+  eq('유저가 쓴 세 칸은 안 나간다',
+    /Object\.keys\(payload\)\.forEach\(k=>\{if\(\/\(\?:fortune\|diary\|dblank\)\/i\.test\(k\)\)delete payload\[k\]\}\);/
+      .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+}
+
+/* 확정 문안 — 글자 그대로다. 한 글자라도 바뀌면 20년 전 그 아이의 글이 아니다 */
   eq('일기 문안이 글자 그대로다',
     [D.DIARY_HEAD, ...D.DIARY_LINES, D.DIARY_TAIL_A + 'ㅁ' + D.DIARY_TAIL_B],
     ['200X.XX.XX',

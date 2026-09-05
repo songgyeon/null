@@ -1774,7 +1774,29 @@ function GameApp(){
   };
   const startEnding=()=>setEnding(e=>moveEnding(e,"dialogue"));
   const startEndingShot=()=>setEnding(e=>moveEnding(e,"shot"));
-  const finishEndingShot=()=>setEnding(e=>finishEnding(e));
+  /* ── 고른 뒤에 두 사람이 그것을 아는 자리 ──
+     옛 WHO 화면은 고르는 즉시 두 방에 장면을 예약했다. 영화관을 넣으면서
+     그 두 줄이 같이 지워졌고, 그 뒤로 markScene을 부르는 곳이 하나도 없다 —
+     예약 장부를 아무도 안 채우니 payload.scene_reason이 늘 비고, 워커는
+     detectScene이 잡는 넷(기억·고백·정체·키스)만 중요 장면으로 올린다.
+     예약으로만 열리는 partner_confirm·partner_known은 영영 안 열렸다.
+
+     예약 자리를 영화관 뒤로 옮긴다. 고르는 순간이 아니라 **다 보고 나온
+     뒤**가 두 사람이 이 일을 아는 시점이다 — 영화관 동안에는 대화가 없다.
+     같은 사건이지만 장면이 다르다: 고른 쪽에는 정해진 직후의 첫 반응이고,
+     안 고른 쪽에는 그 사실을 처음 아는 자리다. 각자 방의 다음 한 마디에
+     한 번만 실린다.
+     다시보기는 이미 지난 일이라 예약하지 않는다 — 볼 때마다 두 사람이
+     처음 아는 사람이 되면 그건 기록이 아니라 되풀이다. */
+  const finishEndingShot=()=>setEnding(e=>{
+    const next=finishEnding(e);
+    if(next&&next.completed&&!(e&&e.completed)&&ENDING_ROUTES.includes(next.route)){
+      const other=next.route==="jaeeon"?"minhyun":"jaeeon";
+      markScene(next.route,"partner_confirm");
+      markScene(other,"partner_known");
+    }
+    return next;
+  });
   const closeEnding=()=>setEnding(e=>continueEnding(e));
   const replayCinema=()=>{setView("list");setEnding(e=>replayEnding(e))};
   /* 같은 현실 날짜에는 몇 번 열어도 한 번만 센다. 탭을 밤새 켜둔 경우도

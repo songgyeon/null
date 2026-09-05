@@ -386,6 +386,55 @@ function contradicts(facts, fact_id, claimed) {
   return v !== claimed;
 }
 
+/* ── 오늘의 NULL 운세 키워드 ──
+   브라우저가 보내는 것은 이 id 하나뿐이다. 화면에 보였다는 이유로 임의 문자열을
+   모델 지시로 통과시키면 프롬프트 주입 통로가 된다 — 서버가 가진 백 개와 정확히
+   맞는 id만 한국어 낱말로 바꾼다. 이 값은 이번 턴의 결일 뿐 정사도 기억도 아니다. */
+const NULL_FORTUNE_KEYWORDS = Object.freeze({
+  check_in: "안부", morning: "아침", night: "밤", weather: "날씨", weekend: "주말",
+  sleep: "잠", walk: "산책", rest: "휴식", going_out: "외출", homecoming: "귀가",
+  coffee: "커피", ramen: "라면", snack: "간식", late_night_snack: "야식",
+  lunchbox: "도시락", broth: "국물", dessert: "디저트", spicy_flavor: "매운맛",
+  cooking: "요리", menu: "메뉴",
+  song: "노래", movie: "영화", book: "책", photo: "사진", color: "색깔", clothes: "옷",
+  hobby: "취미", game: "게임", collection: "소장품", interior: "인테리어",
+  temperature: "온도", sound: "소리", scent: "향기", texture: "촉감", light: "빛",
+  shadow: "그림자", breeze: "바람", gaze: "시선", voice: "목소리", mood: "분위기",
+  class: "수업", break_time: "쉬는 시간", after_school: "방과 후", homework: "숙제",
+  exam: "시험", presentation: "발표", cleaning: "청소", school_lunch: "급식",
+  physical_education: "체육", attendance: "출석",
+  question: "질문", answer: "대답", request: "부탁", compliment: "칭찬",
+  recommendation: "추천", teasing: "장난", brag: "자랑", encouragement: "응원",
+  help: "도움", apology: "사과",
+  first_impression: "첫인상", memory: "기억", past: "과거", yesterday: "어제",
+  tomorrow: "내일", timing: "타이밍", moment: "순간", repetition: "반복",
+  season: "계절", waiting: "기다림",
+  dream: "꿈", wish: "소원", imagination: "상상", coincidence: "우연",
+  possibility: "가능성", hunch: "예감", discovery: "발견", adventure: "모험",
+  what_if: "만약", opportunity: "기회",
+  promise: "약속", sincerity: "진심", trust: "믿음", comfort: "위로",
+  consideration: "배려", courage: "용기", name: "이름", nickname: "별명",
+  form_of_address: "호칭", similarity: "닮은 점",
+  secret: "비밀", lie: "거짓말", misunderstanding: "오해", silence: "침묵",
+  boundary: "경계", regret: "후회", suspicion: "의심", excuse: "핑계",
+  hesitation: "망설임", mistake: "실수",
+});
+const FORTUNE_KEYWORD_ID = /^[a-z][a-z0-9_]{0,31}$/;
+function normalizeFortuneKeywordId(raw) {
+  if (typeof raw !== "string" || raw.length > 32 || !FORTUNE_KEYWORD_ID.test(raw)) return "";
+  return Object.prototype.hasOwnProperty.call(NULL_FORTUNE_KEYWORDS, raw) ? raw : "";
+}
+function fortuneKeywordOf(raw) {
+  const id = normalizeFortuneKeywordId(raw);
+  return id ? Object.freeze({ id, label: NULL_FORTUNE_KEYWORDS[id] }) : null;
+}
+/* 전달받은 label은 믿지 않는다. TurnContext 안의 id를 다시 화이트리스트에 대고
+   서버의 낱말만 렌더한다. */
+function renderFortuneKeyword(value) {
+  const word = fortuneKeywordOf(value && value.id);
+  return word ? `\n## [오늘의 비밀 결]\n${word.label}\n` : "";
+}
+
 /* ── StoryState ──
    이야기가 어디까지 왔나. 「예약했다」와 「일어났다」를 구별하는 것이
    이 세 칸이 있는 이유다 — 모델을 부르기 전에 explained/acknowledged를
@@ -465,6 +514,9 @@ function makeTurnContext(state, t) {
        Fact 목록에는 안 넣는다: 정사가 아니라 유저가 지어낸 그날의 말이라
        Canon Critic이 「목록에 없다」고 잡을 근거가 아니다. */
     flash:    (o.flash && typeof o.flash === "object") ? { ...o.flash } : null,
+    /* 오늘 화면에서 뽑힌 결. 이번 요청에서만 살고 StoryState·Fact·요약에는
+       들어가지 않는다. makeTurnContext를 직접 부르는 테스트도 같은 검증을 탄다. */
+    fortuneKeyword: fortuneKeywordOf(o.fortuneKeywordId),
   };
 }
 
@@ -3424,6 +3476,24 @@ function buildEvent(event, userName) {
   return "";
 }
 
+/* 낱말 자체는 가변부에만 온다. 여기에는 다루는 법만 둬 세 번째 고정부의
+   기존 cache_control을 그대로 탄다 — 키워드가 바뀌어도 고정부는 안 바뀐다. */
+const FORTUNE_CHAT_RULES = `
+## 오늘의 비밀 결
+[오늘의 비밀 결]이 붙은 턴에만 적용한다.
+유저의 이번 말이 그 낱말이나 뜻에 닿았으면 유저 말에 먼저 답하고, 현재 관계 단계 안에서 반응을 한 걸음만 깊게 한다.
+닿지 않았으면 그 낱말을 먼저 꺼내거나 되풀이하지 않는다.
+운세·시스템·키워드라는 메타를 말하지 않는다. 새 사실·사건·약속·선물·초대·관계 도약을 만들지 않는다.
+정사·아는 범위·인물 말투·지금 장면이 언제나 먼저다.
+`;
+const FORTUNE_AUTO_RULES = `
+## 오늘의 비밀 결
+[오늘의 비밀 결]이 붙어도 대화 소재나 사건의 시동으로 삼지 않는다.
+이미 진행 중인 장면이 그 낱말이나 뜻에 자연스럽게 닿을 때만 말맛에 한 걸음 묻히고, 아니면 완전히 무시한다.
+그 낱말을 먼저 꺼내거나 되풀이하지 않는다. 운세·시스템·키워드라는 메타를 말하지 않는다.
+새 사실·사건·약속·선물·초대·관계 도약을 만들지 않는다. 정사·아는 범위·인물 말투·지금 장면이 먼저다.
+`;
+
 function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, counts, gift, event, invite, days, summary) {
   const sub = (t) => subName(t, userName || "선생님");
   // 인물 덩어리는 재언이 먼저다. 순서를 바꾸면 재언방과 단톡방이 공유하던
@@ -3445,6 +3515,7 @@ function buildSystem(mode, room, userName, signals, recentPhotos, userProfile, c
   rules += SLOTS;
   if (mode !== "auto") rules += SLOTS_PHOTO;
   if (mode === "chat" && INVITES[room]) rules += SLOTS_INVITE;
+  rules += mode === "auto" ? FORTUNE_AUTO_RULES : FORTUNE_CHAT_RULES;
   /* 요약은 고정부 맨 끝이다. 300턴에 한 번쯤 갱신되므로 그 사이에는 바이트가
      같아서 캐시에 얹혀 간다. 갱신되면 이 블록만 다시 쓰이고 세계관·인물
      블록은 그대로다 — 캐시는 앞부터 맞춰 가므로 앞 두 덩어리는 살아 있다. */
@@ -3556,7 +3627,10 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
           /* 화자 순차 호출의 사건 목적 — 대사는 고정하지 않는다. 코드가
              강제하는 것은 사건 목적·지식 범위·발화 순서뿐이다(§8.5). */
           + (disclose && disclose.text ? `\n## [지금 장면]\n${disclose.text}\n` : "")
-          + TURN;
+          + TURN
+          /* 값은 고정부에 두지 않는다. handler가 이 가변부를 캐시된 마지막
+             유저 발화 뒤에 붙이므로, 오늘의 낱말이 바뀌어도 이력 캐시는 산다. */
+          + renderFortuneKeyword(ctx && ctx.fortuneKeyword);
   return t.trim() ? sub(t) : "";
 }
 
@@ -4832,6 +4906,15 @@ decision은 A · B · RETRY 중 하나다. 후보가 하나면 ACCEPT · RETRY �
 둘 다 부족할 때만 RETRY다 — 더 나은 쪽이 있으면 그쪽을 고른다.
 후보를 고치거나, 둘을 합치거나, 새로 쓰지 않는다.`;
 
+/* 고르는 쪽·마무리만 받는 비사실 힌트. Canon·Character 꾸러미가 쓰는
+   sceneHead에는 부르지 않는다 — 정사 검사 근거로 승격되면 안 된다. */
+function fortuneSelectionLine(ctx) {
+  const word = fortuneKeywordOf(ctx && ctx.fortuneKeyword && ctx.fortuneKeyword.id);
+  return word
+    ? `[비밀 결] ${word.label} — 유저의 마지막 말이 그 뜻에 닿고 후보가 자연스럽게 반응한 경우에만 약한 우선 기준이다. 낱말 미언급은 결함이 아니다.`
+    : "";
+}
+
 function directorPacket(ctx, cands) {
   const L = [];
   L.push(`[화자] ${ctx.who}`);
@@ -4852,6 +4935,8 @@ function directorPacket(ctx, cands) {
     L.push(`[최근 대화]`);
     for (const m of ctx.recent) L.push(`${m.role === "user" ? "유저" : ctx.who}: ${String(m.content).slice(0, 160)}`);
   }
+  const fortune = fortuneSelectionLine(ctx);
+  if (fortune) L.push(fortune);
   L.push(``);
   /* 자리가 아니라 id로 적는다. A가 떨어지고 B만 남아도 B는 B다 —
      자리로 적으면 남은 하나가 「후보 A」가 되어 고르는 쪽이 딴것을 고른다. */
@@ -5214,6 +5299,17 @@ function kissMoment(routed, ctx) {
   const place = String(c.place || "").trim();
   if (!place) return null;                                    // ③ 마주 앉아 있을 것
   if (c.room !== "jaeeon" && c.room !== "minhyun") return null;
+  /* ④ 상대가 정해졌으면 그 사람 자리다 ─────────────────────────────
+     게이트 셋 중에 이것이 없었다. 그래서 D-0에 재언을 골라놓고 강현을
+     자리에서 만나 고백하면 강현의 키스 화면이 그대로 떴다 — 모델은
+     프롬프트대로 거절하는데 화면만 얼굴이 되는, 대사와 화면이 갈리는
+     그림이다. 옆자리를 정하는 것이 이 게임의 유일한 되돌릴 수 없는
+     선택인데 그 뒤에 아무 자리에서나 같은 장면이 열리면 고른 일이
+     아무것도 아닌 게 된다.
+     아직 안 정해진 판(D-0 전)은 그대로 둘 다 열린다 — 여기서 막는 것은
+     **정한 뒤에 딴 사람과 여는 것**이지 정하기 전이 아니다. */
+  const p = c.partner;
+  if ((p === "jaeeon" || p === "minhyun") && p !== c.room) return null;
   return { char: c.room, place };
 }
 
@@ -5664,6 +5760,8 @@ function readProblems(raw, critic, allowed) {
 
 function finalizerPacket(ctx, cands, notes) {
   const L = sceneHead(ctx);
+  const fortune = fortuneSelectionLine(ctx);
+  if (fortune) L.push(fortune);
   L.push(``, `[후보]`);
   cands.forEach(c => {
     L.push(`후보 ${c.id}`);
@@ -6140,6 +6238,10 @@ export default {
       }
     }
 
+    /* 요약 갈래가 끝난 뒤에만 읽는다. 운세의 결은 기억으로 압축하거나 다음
+       요약에 남길 사실이 아니다. 모르는 id와 주입 문자열은 조용히 빈 값이 된다. */
+    const fortuneKeywordId = normalizeFortuneKeywordId(body.fortune_keyword_id);
+
     // 대화 이력 정리 (프론트가 보내는 형식: [{role:"user"|"assistant", sender?, content}])
     const history = budgetHistory(Array.isArray(body.history) ? body.history : [], MAX_HISTORY_CHARS);
     const msgs = [];
@@ -6267,7 +6369,7 @@ export default {
     if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);
     /* ⑨ 고백 장면 위에 얹히는 한 겹. 여기서 **한 번** 재고, 아래 응답
        자리들이 같은 값을 그대로 싣는다 — 자리마다 다시 재면 갈린다 */
-    const kissNow = kissMoment(routed, { room, stageIdx, place });
+    const kissNow = kissMoment(routed, { room, stageIdx, place, partner: body.partner });
     if (kissNow) console.log(`[NULL] 키스타임 ▶ ${kissNow.char} · ${kissNow.place}`);
     /* ── 이번 요청의 사실 원본. 여기서 **한 번** 만든다 ──
        단계마다 다시 조립하지 않는다. 그러면 같은 fact_id가 단계마다 달라지고,
@@ -6313,6 +6415,7 @@ export default {
            일반 단톡·관전에 두 사람을 강제하지 않는다(0단계 계약). */
         requiredSpeakers: discloseNow ? [disclose.observer, disclose.owner] : [],
         facts: allFacts,
+        fortuneKeywordId,
         /* 최근 대화 — 이미 정규화된 msgs에서 자른다. 프롬프트에는 history가
            따로 실리므로 이 필드를 다시 렌더하지 않는다(E4). */
         recent: msgs.slice(-6).map(m => ({ role: m.role, content: String(m.content) })) });
@@ -6521,7 +6624,8 @@ export default {
           content: Array.isArray(m.content) ? m.content.map(b => b.text || "").join(" ") : m.content }));
         const sceneCtx5 = { who: fallbackSender, when: now, place, userName,
           stage: relLabel, knows: knowsLabel, facts: stageFacts, here,
-          recent: recent5, scene: routed.reason };
+          recent: recent5, scene: routed.reason,
+          fortuneKeyword: turnCtx.fortuneKeyword };
         /* 후보 하나를 기존 경로와 같은 후처리로 만든다 — 같은 파서, 같은
            sanitize, 같은 hardFilter 입구다. 후처리가 다르면 비교되는 것이
            모델이 아니라 후처리 차이가 된다. */
@@ -7115,6 +7219,10 @@ export default {
           stage: relLabel, knows: knowsLabel, facts: stageFacts, here,
           recent: recentForDirector, scene: routed.reason,
         };
+        /* 검사 둘은 위 sceneCtx만 받는다. 오늘의 결은 사실이 아니므로 고르는
+           쪽과 마무리에게만 별도 사본으로 건넨다. */
+        const selectionCtx = turnCtx.fortuneKeyword
+          ? { ...sceneCtx, fortuneKeyword: turnCtx.fortuneKeyword } : sceneCtx;
 
         /* ── 중요한 장면 ──
            여기서는 고르는 단계를 따로 안 탄다. 검사 둘이 나란히 돌아 경계를
@@ -7202,7 +7310,7 @@ export default {
              지점을 안 건드리는 자리다. */
           const finRaw = await callStage(env, meter, "finalizer",
             finalizerSystem,
-            [{ role: "user", content: finalizerPacket(sceneCtx, survivors, notes.filter(n => !denied.has(n.candidate)))
+            [{ role: "user", content: finalizerPacket(selectionCtx, survivors, notes.filter(n => !denied.has(n.candidate)))
                 + (selectedText ? `\n\n${selectedText}` : "") }],
             budget, attempt, tier, "");
           /* 마무리도 제 묶음을 만든다. **원래 후보의 부수 출력을 물려받지
@@ -7232,7 +7340,7 @@ export default {
            (검사 둘 + 마무리). 관전도 위에서 빠졌다. */
         if (soloNow) { picked = cands[0]; break; }
 
-        const packet = directorPacket(sceneCtx, cands);
+        const packet = directorPacket(selectionCtx, cands);
         /* selected-v1의 고르는 쪽은 사실을 다시 판정하지 않는다 — 앞
            단계가 이미 걸렀고, 여기서 되짚으면 추측이 판정이 된다. */
         const dirRules = goldenNow ? GOLDEN_DIRECTOR_RULES
@@ -7354,6 +7462,8 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          ITEM_WITNESS, ANY_NAME_BY_KEY,
          buildEvent,
          makeStoryState, makeTurnContext, FIRST_CONTACT, JAEEON_MEMORY,
+         NULL_FORTUNE_KEYWORDS, normalizeFortuneKeywordId, fortuneKeywordOf,
+         renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, placeGiver, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
