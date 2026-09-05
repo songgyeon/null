@@ -518,6 +518,18 @@ function GameApp(){
       if(!saveGifts(next)||!(loadGifts()[o.char]||[]).includes(o.key))return false;
       giftsRef.current=next; setGifts(next); return true;
     }
+    /* ── 돌려준다 ──
+       가방은 「받은 것」인데 빌린 것은 받은 것이 아니라 맡은 것이다.
+       돌려주면 목록에서 빠진다 — 그게 갚았다는 뜻이고, RETURN ME 표가
+       사라지는 것으로 화면이 그걸 말한다. 준 사람(from)까지 봐서 지운다:
+       같은 종류를 둘에게 받을 일은 없지만, 지우는 자리는 언제나 좁아야 한다. */
+    if(o.op==="returnItem"){
+      const bag=loadBag();
+      if(!bag.some(x=>x.key===o.key&&x.from===o.from))return true;   // 이미 갚았다
+      const next=bag.filter(x=>!(x.key===o.key&&x.from===o.from));
+      if(!saveBag(next)||loadBag().some(x=>x.key===o.key&&x.from===o.from))return false;
+      bagRef.current=next; setBag(next); return true;
+    }
     if(o.op==="refused"){
       const r=loadRefused();
       if(r.includes(o.place))return true;
@@ -1352,6 +1364,29 @@ function GameApp(){
       after_request:{extra:{gift:{name:gift.name,key:gift.key,note}}}});
   };
 
+  /* ── 빌린 것을 돌려준다 ──
+     ITEMS의 book에 「lent — 빌린 것. 돌려줘야 하는 게 하나쯤 있어야 다시
+     만날 이유가 남는다」고 적혀 있었는데, 정작 돌려주는 행동이 없었다.
+     표만 붙어 있고 갚을 길이 없으면 그건 빚이 아니라 장식이다.
+
+     선물과 같은 자리에서 같은 규칙으로 오간다: 물건은 손에서 손으로 간다.
+     다만 하루 한 번 제한은 없다 — 갚는 일은 고르는 일이 아니라서, 「오늘은
+     한 사람에게 하나」라는 셈이 여기서는 뜻이 없다. */
+  const returnItem=key=>{
+    const it=ITEMS[key]; if(!it||!it.lent)return;
+    const have=bagRef.current.find(b=>b.key===key);
+    if(!have)return;
+    const sc=sceneRef.current;
+    if(!sc||sc.room!==have.from){ setToast("만나서 돌려줘요 ♡"); return }
+    const id="return|"+have.from+"|"+key;
+    localBatch(id,have.from,{
+      sys:[{id:id+"#0",room:have.from,
+        text:`${jos(CHARS[have.from].name,"에게/에게")} ${jos(it.name,"을/를")} 돌려줬다`}],
+      local_ops:[{op:"returnItem",key,from:have.from},
+        {op:"toast",text:`returned — ${it.name}`}],
+      after_request:{extra:{returned:{key,name:it.name}}}});
+  };
+
   /* ── 만나러 가서 준다 ──
      물건은 손에서 손으로 간다. 그래서 선물이 만나러 가는 이유가 된다.
      자리로 가는 것과 주는 것을 한 번에 한다 — 가서 다시 눌러 줘야 하면
@@ -1968,5 +2003,5 @@ function GameApp(){
     return()=>{live=false;clearTimeout(t)};
   },[name,view,enrolling]);
 
-  return <GameScreen game={{answerAsk,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,closeEnding,confirmYes,dLeft,dayN,diary,diaryDone,doAuto,editLine,edits,ending,enrolling,enter,exportTxt,failed,finishEndingShot,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,look,met,mode,name,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,replayCinema,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,startEnding,startEndingShot,store,sys1,toast,unlocked,view,way,myDiary,setMyDiary,myDiaryDone}}/>;
+  return <GameScreen game={{answerAsk,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,closeEnding,confirmYes,dLeft,dayN,diary,diaryDone,doAuto,editLine,edits,ending,enrolling,enter,exportTxt,failed,finishEndingShot,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,returnItem,invite,kiss,leaveScene,leaving,look,met,mode,name,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,replayCinema,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,startEnding,startEndingShot,store,sys1,toast,unlocked,view,way,myDiary,setMyDiary,myDiaryDone}}/>;
 }

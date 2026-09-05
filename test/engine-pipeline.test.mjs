@@ -2196,6 +2196,20 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("안 보낸 판은 조용하다",
     [/방금 들은 말/.test(volOf()), /오늘 이 방에서/.test(volOf())], [false, false]);
 
+  /* ── 빌린 것을 돌려받았다 ──
+     가방에서 빠지는 것과 방금 돌려받은 것은 다른 사실이다. 앞엣것은 없는
+     것이고 뒤엣것은 일어난 일이라, 없는 것만으로는 인물이 반응을 못 한다. */
+  await run({}, { ...BASE, returned: { key: "book", name: "빌린 책" } });
+  const back = volOf();
+  eq("돌려준 턴에 그 사실이 실린다",
+    [/## 방금 돌려받았다/.test(back), /빌린 책을 방금 돌려줬다/.test(back),
+     /빌려 간/.test(back)], [true, true, false]);
+  /* 단톡·관전에는 손에서 손으로 건네줄 자리가 없다 */
+  await run({}, { ...BASE, room: "group", returned: { key: "book", name: "빌린 책" } });
+  eq("단톡에는 안 실린다", /방금 돌려받았다/.test(volOf()), false);
+  await run({}, BASE);
+  eq("안 돌려준 턴은 조용하다", /방금 돌려받았다/.test(volOf()), false);
+
   /* ── 키스 파트너 게이트 ──
      옆자리를 정하는 것이 이 게임의 유일한 되돌릴 수 없는 선택인데, 그 뒤에
      아무 자리에서나 같은 장면이 열리면 고른 일이 아무것도 아닌 게 된다.
