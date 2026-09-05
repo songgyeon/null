@@ -6,7 +6,7 @@
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
-  buildPlace, dropMeta, dropSleepers, hardFilter,
+  buildReturned, buildPlace, dropMeta, dropSleepers, hardFilter,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
@@ -4528,7 +4528,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['291', 'd16f9d5269f1']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['292', '9beb364f3ece']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -5258,7 +5258,7 @@ eq('map 탭이 있다', /onClick=\{\(\)=>setTab\("map"\)\}>map</.test(web), true
 /* gift가 준 것이면 bag은 받은 것이다. 작은 대화상자에 흰 줄로 늘어놓으니
    이 앱에서 혼자 다른 물건처럼 보였다 — 같은 부품을 쓴다 */
 eq('bag이 gift와 같은 창을 쓴다',
-  /function Bag\(\{bag,store,onClose\}\)/.test(web)
+  /function Bag\(\{bag,store,scene,onReturn,onClose\}\)/.test(web)
   && /className="cartscreen"><div className="cartwin glasswindow bagwin">[\s\S]{0,200}<WindowChrome title="bag"/.test(web), true);
 eq('bag이 gift와 같은 카드·칩을 쓴다',
   /className="cgcard">[\s\S]{0,120}bagpic/.test(web)
@@ -5302,7 +5302,9 @@ eq('빈 칸과 빈 가방을 다르게 말한다',
 eq('가방의 기존 표와 물건 상태는 유지한다',
   /className="bagcount">RECEIVED /.test(web)
   && /className="baglent">TO RETURN /.test(web)
-  && /className="baglabel">RETURN ME</.test(web), true);
+  /* RETURN ME는 이제 표이면서 단추다 — 마주 앉아 있으면 눌려서 갚을 수
+     있고, 아니면 그대로 표로 남는다(「갚을 길」 묶음이 잰다) */
+  && /\{here\?"RETURN ♡":"RETURN ME"\}/.test(web), true);
 eq('선물 검색 안내는 원문이다', /placeholder="what r u looking 4 \?"/.test(web), true);
 /* 두 창이 같은 표를 본다 — 한쪽만 고치면 선물과 가방의 칸 이름이 갈린다 */
 eq('칸 이름 표가 하나다',
@@ -9646,6 +9648,54 @@ eq('시간표 단추는 peek보다 좁다',
     eq('브라우저가 하루 경계를 재서 보낸다',
       /if\(CHARS\[bucket\]&&refusedToday\(bucket\)\)payload\.refused_today=true;/
         .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+  }
+
+  /* ── D2 빌린 것을 돌려준다 ──
+     ITEMS의 book에 「lent — 빌린 것. 돌려줘야 하는 게 하나쯤 있어야 다시
+     만날 이유가 남는다」고 적혀 있었는데 정작 돌려주는 행동이 없었다.
+     표만 붙어 있고 갚을 길이 없으면 그건 빚이 아니라 장식이다. */
+  {
+    /* 빌린 표가 붙은 것은 하나다 — 늘어나면 이 묶음이 그것도 재게 고쳐야 한다 */
+    eq('빌린 표가 붙은 것은 하나다', (() => {
+      const t = web.slice(web.indexOf('const ITEMS={'));
+      return [...t.slice(0, t.indexOf('};')).matchAll(/(\w+):\s*\{[^}]*lent:true/g)].map(m => m[1]);
+    })(), ['book']);
+    /* 가방에서 빠지는 것과 방금 돌려받은 것은 다른 사실이다 — 앞엣것은
+       없는 것이고 뒤엣것은 일어난 일이라, 없는 것만으로는 반응을 못 한다 */
+    eq('돌려받은 턴에 그 사실이 실린다', (() => {
+      const t = buildReturned({ name: '빌린 책' }, '리현');
+      return /## 방금 돌려받았다/.test(t) && /리현이 빌린 책을 방금 돌려줬다/.test(t)
+        && /받는 시늉만 하고 넘기지 않는다/.test(t);
+    })(), true);
+    /* 「빌려 간 빌린 책」이 되지 않게 한다 — 이름에 이미 「빌린」이 들어 있다 */
+    eq('말이 겹치지 않는다', /빌려 간/.test(buildReturned({ name: '빌린 책' }, '리현')), false);
+    eq('안 돌려준 턴에는 한 줄도 없다',
+      [buildReturned(null, '리현'), buildReturned({}, '리현'), buildReturned({ name: '  ' }, '리현')],
+      ['', '', '']);
+
+    /* ── 브라우저 ── 물건은 손에서 손으로 간다 */
+    eq('마주 앉아 있어야 돌려준다',
+      /if\(!sc\|\|sc\.room!==have\.from\)\{ setToast\("만나서 돌려줘요 ♡"\); return \}/
+        .test(web), true);
+    eq('빌린 것만 돌려준다', /const it=ITEMS\[key\]; if\(!it\|\|!it\.lent\)return;/.test(web), true);
+    /* 돌려주면 가방에서 빠진다 — 그게 갚았다는 뜻이고 RETURN 표가 사라진다 */
+    eq('돌려주면 가방에서 빠진다',
+      /o\.op==="returnItem"[\s\S]{0,420}bag\.filter\(x=>!\(x\.key===o\.key&&x\.from===o\.from\)\)/
+        .test(web), true);
+    /* 적용하는 자리는 장부 하나다 — 다른 상태들과 같은 계약 */
+    eq('돌려주기도 장부를 거친다',
+      /local_ops:\[\{op:"returnItem",key,from:have\.from\}/.test(web), true);
+    /* 그 턴 요청에 실려서 인물이 안다 */
+    eq('그 턴 요청에 실린다',
+      /after_request:\{extra:\{returned:\{key,name:it\.name\}\}\}/.test(web), true);
+    /* 갚을 수 있을 때만 단추다. 아니면 표로 남는다 — 아예 빼면 왜 없는지를 모른다 */
+    eq('마주 앉았을 때만 눌린다', (() => {
+      const ui = readFileSync(join(ROOT, 'scripts/ui/30-messenger.js'), 'utf8');
+      return /const here=scene&&scene\.room===b\.from;/.test(ui)
+        && /disabled=\{!here\}/.test(ui) && /\{here\?"RETURN ♡":"RETURN ME"\}/.test(ui);
+    })(), true);
+    /* button은 제 글꼴을 들고 온다 — 안 적으면 이 알약만 시스템 글꼴이 된다 */
+    eq('알약이 옆 글자와 같은 글꼴이다', /\.baglabel\{font-family:inherit/.test(readCss()), true);
   }
 
   /* ── D2 초대·지급 제안 검사 ── */

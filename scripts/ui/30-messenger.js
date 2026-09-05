@@ -135,7 +135,7 @@ function Timetable({wend,onFillWend,onClose}){
    작은 대화상자에 흰 줄로 늘어놓으니 이 앱에서 혼자 다른 물건처럼 보였다.
    누가 어디서 줬는지가 물건보다 중요해서 얼굴을 앞에 놓는다.
    빌린 것은 따로 표시한다 — 돌려줄 게 남아 있으면 아직 안 끝난 것이다. */
-function Bag({bag,store,onClose}){
+function Bag({bag,store,scene,onReturn,onClose}){
   const [cat,setCat]=useState("전체");
   const rows=bag.filter(b=>ITEMS[b.key]).filter(b=>cat==="전체"||ITEMS[b.key].cat===cat)
     .slice().sort((a,b)=>b.ts-a.ts);
@@ -162,7 +162,18 @@ function Bag({bag,store,onClose}){
             {/* 누가 줬는지는 오른쪽 얼굴이 이미 말한다. 이름까지 적으면 두 번이다 */}
             <div className="bagmeta">{b.where}{d!=null?" · D-"+d:""}</div>
             <div className="itemsay">{it.say}</div>
-            {it.lent&&<span className="baglabel">RETURN ME</span>}
+            {/* ── 갚을 길 ──
+                「돌려줘야 하는 게 하나쯤 있어야 다시 만날 이유가 남는다」고
+                적어놓고 정작 돌려주는 자리가 없었다. 표만 붙어 있고 갚을 길이
+                없으면 그건 빚이 아니라 장식이다.
+                물건은 손에서 손으로 간다 — 마주 앉아 있을 때만 눌린다. 아니면
+                흐리게 두고 왜 안 되는지 적는다: 아예 빼면 왜 없는지를 모른다. */}
+            {it.lent&&(()=>{
+              const here=scene&&scene.room===b.from;
+              return <button className={"baglabel bagreturn"+(here?" on":"")}
+                disabled={!here} onClick={()=>here&&onReturn&&onReturn(b.key)}>
+                {here?"RETURN ♡":"RETURN ME"}</button>;
+            })()}
           </div>
           {who&&<span className="bagwho" style={faceBg(who)}><i>♡</i></span>}
         </div>;
@@ -378,7 +389,7 @@ function ProfileDialog({name,profile,onSaveField,onRename,onClose}){
 }
 
 /* ── 방 목록: 메신저 창 ── */
-function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,onMyDiary,active,overlayBusy,onOverlayBusy,ending,ended}){
+function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,onOpen,onProfile,onAuto,autoLoading,onExport,onReadAll,onRename,onReset,onToast,profile,onSaveField,gifts,onGift,hearts,bag,met,onGoPlace,onEnergyBar,onGuess,onReturn,onMyDiary,active,overlayBusy,onOverlayBusy,ending,ended,scene}){
   const [menu,setMenu]=useState(null);     // 'edit'
   const [dlg,setDlg]=useState(null);       // 'profile'|'help'|'log'|'find'
   const dlgRef=useRef(dlg); dlgRef.current=dlg;
@@ -820,7 +831,7 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       </div>}
     </div>
     <div className="statusbar"><span>the blank u fill in ♡ NULL v1.1{demoOn()?" · demo":""}</span><span>{fmtClock(Date.now())}</span></div>
-    {dlg==="bag"&&<Bag bag={bag||[]} store={store} onClose={()=>setDlg(null)}/>}
+    {dlg==="bag"&&<Bag bag={bag||[]} store={store} scene={scene} onReturn={onReturn} onClose={()=>setDlg(null)}/>}
     {dlg==="fortune"&&<Fortune fortune={fortune} onFill={fillLuck} onClose={closeLuck}/>}
     {dlg==="timetable"&&<Timetable wend={wend} onFillWend={fillWend} onClose={()=>setDlg(null)}/>}
     {dlg==="profile"&&<ProfileDialog name={name} profile={profile} onSaveField={onSaveField}

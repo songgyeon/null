@@ -372,6 +372,17 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
  background:#fff;border-radius:50%;box-shadow:0 0 0 1px #f4c3d8,0 1px 2px rgba(150,135,210,.3)}
 .baglabel{display:inline-block;margin-top:6px;padding:3px 9px 4px;font-size:9px;letter-spacing:.06em;
  color:#c05f8c;background:#fff2f8;border:1px solid #f4c3d8;border-radius:999px}
+/* ── 갚을 수 있을 때만 단추다 ──
+   표(RETURN ME)와 단추(RETURN ♡)가 같은 알약이다. 마주 앉아 있지 않으면
+   눌리지 않고, 그때는 표로만 남는다 — 아예 빼면 왜 없는지를 모른다.
+   font는 상속받는다: button은 제 글꼴을 들고 오므로 안 적으면 이 알약만
+   시스템 글꼴이 되어 옆 글자와 다른 세계가 된다. */
+.baglabel{font-family:inherit;cursor:default}
+.bagreturn:disabled{opacity:.62}
+.bagreturn.on{cursor:pointer;color:#fff;background:linear-gradient(180deg,#ff9ec6,#f07aa8);
+ border-color:#e26f9d;
+ box-shadow:inset 1px 1px 0 rgba(255,255,255,.55),1px 1px 0 rgba(176,95,140,.28)}
+.bagreturn.on:active{transform:translate(1px,1px);box-shadow:inset 1px 1px 0 rgba(176,95,140,.3)}
 .bagmeta{margin-top:5px;font-size:10px;letter-spacing:.02em;color:#a99bd0}
 /* 해금 알림 */
 /* 알림 — 사진 위에 띄워서 가리면 겹쳐 보인다. 하단 상태바 자리에 대신 앛는다 */

@@ -1,7 +1,7 @@
 /* NULL web · GameApp render tree
    상태와 동작은 scripts/game.js가 소유하고, 이 파일은 화면 조립만 맡는다. */
 function GameScreen({game}){
-  const {answerAsk,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,closeEnding,confirmYes,dLeft,dayN,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,ending,enrolling,enter,exportTxt,failed,finishEndingShot,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,invite,kiss,leaveScene,leaving,look,met,mode,name,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,replayCinema,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,startEnding,startEndingShot,store,sys1,toast,unlocked,view,way}=game;
+  const {answerAsk,answerInvite,answerLeave,answerMove,answerWay,ask,askDday,askWho,autoLoading,bag,busy,cameBack,cart,closeEnding,confirmYes,dLeft,dayN,diary,diaryDone,myDiary,setMyDiary,myDiaryDone,doAuto,editLine,edits,ending,enrolling,enter,exportTxt,failed,finishEndingShot,flash,getcha,gifts,giveEnergyBar,giveGift,giveGiftAt,groupNew,groupOn,guessHidden,returnItem,invite,kiss,leaveScene,leaving,look,met,mode,name,openAsk,openProfile,openRoom,pickWho,plate,prof,profCount,profile,readAll,rename,replayCinema,reset,retry,roomCounts,scene,seenStage,send,setAsk,setAskWho,setCart,setEnrolling,setFlash,setGetcha,setGroupNew,setKiss,setLook,setMode,setPlate,setProf,setProfile,setSys1,setToast,setView,startEnding,startEndingShot,store,sys1,toast,unlocked,view,way}=game;
   const ended=!!(ending&&ending.completed);
   const endingActive=!!(ending&&ending.phase!=="daily");
   /* 실제 저장값과 날짜를 건드리지 않고 현재 Fortune 컴포넌트를 그대로 보는
@@ -53,6 +53,7 @@ function GameScreen({game}){
        onExport={exportTxt} onReadAll={readAll} onRename={rename} onReset={reset} onToast={setToast}
        profile={profile} onSaveField={(k,v)=>setProfile(p=>({...p,[k]:v}))} gifts={gifts} onGift={giveGift} hearts={heartsOf(store,gifts)}
        bag={bag} met={met} onGoPlace={openAsk} onEnergyBar={giveEnergyBar} onGuess={guessHidden}
+       onReturn={returnItem} scene={scene}
        ending={ending} ended={ended}
        onMyDiary={setMyDiary}
        active={!enrolling&&!!loadWorld()&&(loadGetcha("jaeeon")||loadGetcha("minhyun"))}

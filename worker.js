@@ -516,6 +516,12 @@ function makeTurnContext(state, t) {
        방금은 이번 대답의 태도를 정하고, 오늘은 다시 꺼내지 말라는 뜻이다. */
     refusedNow:   o.refusedNow === true,
     refusedToday: o.refusedToday === true,
+    /* 이번 턴에 유저가 돌려준 것. 이름만 받는다 — 무엇이었는지는 이름이
+       말하고, 키는 가방이 이미 들고 있다. */
+    returned: (() => {
+      const n = String(((o.returned || {}).name) || "").trim().slice(0, 20);
+      return n ? { name: n } : null;
+    })(),
     giftNow:  o.giftNow || null,                 // 이번 턴에 유저가 건넨 것
     givenHistory: gh,                            // {jaeeon:["mug"], minhyun:["letter"]}
     now:      o.now || null,
@@ -2657,6 +2663,24 @@ function buildRefusal(ctx) {
   return t;
 }
 
+/* ── 빌린 것을 돌려받았다 ──
+   가방에서는 빠졌지만(buildBag이 이미 그걸 안다) 「빠졌다」와 「방금 돌려받았다」는
+   다른 사실이다. 앞엣것은 없는 것이고 뒤엣것은 일어난 일이라, 없는 것만으로는
+   인물이 아무 반응도 못 한다.
+   빌려준 사람만 이 줄을 받는다 — 돌려받은 것은 그 사람이 겪은 일이다.
+   짧게 둔다. 갚는 일은 사건이지 장면이 아니다. */
+function buildReturned(returned, userName) {
+  const name = String((returned || {}).name || "").trim().slice(0, 20);
+  if (!name) return "";
+  const u = userName || "선생님";
+  /* 「빌려 간 빌린 책」이 되지 않게 한다 — 물건 이름에 이미 「빌린」이 들어
+     있다(ITEMS의 book). 빌려줬다는 사실은 돌려받았다는 말이 이미 담고 있다. */
+  return `\n## 방금 돌려받았다\n`
+       + `${jos(u, "이/가")} ${jos(name, "을/를")} 방금 돌려줬다.\n`
+       + `- 받는 시늉만 하고 넘기지 않는다. 빌려준 것이 돌아온 자리다.\n`
+       + `- 고맙다고 할 쪽은 네가 아니다. 그래도 한마디는 할 수 있다.\n`;
+}
+
 function buildLeft(left, userName) {
   const p = (left || "").toString().slice(0, 20).trim();
   if (!p) return "";
@@ -3789,6 +3813,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
               userName)
           + buildBag(bag || [], room, userName)
           + buildRefusal(ctx)
+          + buildReturned(ctx && ctx.returned, userName)
           + buildLeft(left, userName)
           + buildPlace(place, placeItemOwned, room, placeOver, came, placeItemAvailable)
           + (place ? "" : buildInvite(invite, room))
@@ -6606,6 +6631,9 @@ export default {
            오늘 이미 거절당한 뒤의 턴들(브라우저 도장이 알려준다). */
         refusedNow: pickRefusal(lastUser, lastChar),
         refusedToday,
+        /* 빌린 것을 돌려준 턴. 1:1에서만 뜻이 있다 — 단톡에 손에서 손으로
+           건네줄 자리는 없다. */
+        returned: mode === "chat" && room !== "group" ? body.returned : null,
         sceneReason: routed.reason,
         /* 두 사람의 반응이 계약인 사건에만 채운다 — 기본은 빈 배열이다.
            일반 단톡·관전에 두 사람을 강제하지 않는다(0단계 계약). */
@@ -7666,7 +7694,8 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          NULL_FORTUNE_KEYWORDS, normalizeFortuneKeywordId, fortuneKeywordOf,
          renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
-         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal, buildPlace,
+         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
+         buildReturned, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
