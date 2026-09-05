@@ -25,8 +25,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   CHARS, AV_V, jos,
   DIARY_HEAD, DIARY_LINES, DIARY_TAIL_A, DIARY_TAIL_B, DIARY_MAX,
-  myDiaryParts, myDiarySystemOwned, myDiaryAuto, myDiaryVariant,
-  myDiaryUserKeys, saveMyDiary,
+  myDiaryParts, myDiarySystemOwned, myDiaryAuto,
+  myDiaryUserKeys, saveMyDiary, loadMyDiary, myDiaryPage,
 } from '../lib/rules';
 import { IMG } from '../lib/api';
 /* 값이 아니라 모양만 가져온다 — 판정은 저쪽 파일의 일이다.
@@ -355,9 +355,10 @@ export function DiaryPage({onDone}:{onDone:(v:string)=>void}){
 }
 
 export function MyDiaryPage({entry:raw,gifts,onDone,onClose}:{entry:DiaryEntry;gifts:Record<string,string[]>;onDone:()=>void;onClose:()=>void}){
-  /* 갈래가 있는 장(D-14)은 실제로 준 선물이 문장을 정한다 — 안 준 사람의
-     「그걸 준 이유」를 묻지 않기 위해서다. 웹과 같은 함수를 쓴다(rules.ts). */
-  const entry=myDiaryVariant(raw,gifts);
+  /* 갈래가 있는 장(D-14)은 실제로 준 선물이 문장을 정하고(안 준 사람의
+     「그걸 준 이유」를 묻지 않으려고), 그 앞에 앞 일기에서 쓴 말이 한 줄
+     얹힌다. 웹과 같은 함수를 쓴다(rules.ts). */
+  const entry=myDiaryPage(raw,gifts,loadMyDiary());
   const auto=myDiaryAuto(entry,gifts); const [values,setValues]=useState<Record<string,string>>(auto);
   const refs=useRef<Record<string,TextInput|null>>({}); const mine=myDiaryUserKeys(entry);
   const full=mine.every((k:string)=>String(values[k]||'').trim());

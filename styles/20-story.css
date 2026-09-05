@@ -352,6 +352,20 @@
 .ddq.endingcomplete{padding:32px 20px 38px}
 .ddq.endingcomplete .ddrows{margin-top:20px;gap:9px}
 .ddq.endingcomplete .endingthanks{margin-top:28px;font-size:12px}
+/* ── 서른 날 전에 유저가 쓴 한 줄 ──
+   창의 다른 글자와 같은 크기로 두면 시스템이 출력한 값처럼 읽힌다. 이건
+   기계가 센 값이 아니라 사람이 쓴 말이라, 일기와 같은 글씨로 그리고 위아래에
+   숨 쉴 자리를 준다. ⚠️ 클래스를 둘 다 적는 이유는 이 파일 위쪽 주석에 있다
+   (.ddq의 껍데기 규칙이 30-messenger.css에 있고 그 파일이 뒤에 실린다). */
+.ddq.endingcomplete .endingback{
+ margin:22px auto 2px;max-width:19em;
+ display:flex;flex-direction:column;align-items:center;gap:5px}
+.ddq.endingcomplete .endingbackday{
+ font-size:9px;letter-spacing:.18em;color:rgba(120,96,150,.72)}
+.ddq.endingcomplete .endingbackline{
+ font-family:"Gyuri Diary","ManSeh Diary",sans-serif;
+ font-size:14px;line-height:1.55;letter-spacing:.02em;
+ color:rgba(58,40,72,.94);word-break:keep-all;text-align:center}
 .ddq.endingcomplete .endingtrue{margin:18px 0 6px;font-size:13px;line-height:1.6}
 .ddq.endingcomplete .dlgbtns{margin-top:26px}
 

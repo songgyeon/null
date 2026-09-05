@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=286";
+const AV_V = "?v=287";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -321,7 +321,8 @@ const MY_DIARY=[
     "어쩌면 이 선생님은 나를 {know}도 모른다. 그게 나에게는 {feel}다. "+
     "강현이와 이 선생님 사이에서 나는 {between}다. 오늘은 강현이가 {like}처럼 "+
     "느껴졌다. 앞으로 어떻게 해야 할까. 아직은 더 채워야겠다.",
-   blanks:{know:8,feel:11,between:13,like:15}},
+   blanks:{know:8,feel:11,between:13,like:15},
+   echo:[{from:25,key:"feel",line:'D-25에 나는 그 눈빛이 꼭 "%s"다고 적었다.'}]},
   /* 두 칸은 코드가 안다 — 실제로 준 물건이다. 유저가 쓰는 것은 물건이 아니라
      **이유**다. 일기가 거울이 되는 자리라 여기만 자동이 섞인다.
      안 준 사람 칸은 그냥 빈칸으로 둔다 — 없는 선물을 지어내지 않는다. */
@@ -357,14 +358,20 @@ const MY_DIARY=[
       "내가 채운 빈칸들이 나에게 돌아오고 있다. 그런데 나는 아직 두 사람 누구에게도 "+
       "아무것도 건네지 못했다. 나는 두 사람에게 {want}고 싶다. 그게 {even}일지라도.",
      blanks:{want:9,even:13}},
-  ]},
+  ],
+  echo:[{from:20,key:"like",line:'D-20에 나는 강현이가 "%s"처럼 느껴졌다고 적었다.'},
+        {from:25,key:"feel",line:'D-25에 나는 그 눈빛이 꼭 "%s"다고 적었다.'}]},
   {at:7, text:
     "이제는 내가 누구인지 {decide}해야 할 때가 온 거 같다. 두 사람을 언제까지고 "+
     "{keep} 할 수는 없다. 강현이도, 이 선생님도 전부 나에게는 {both}다. "+
     "지금의 나에게는 내 {mine}보다 두 사람의 {theirs} 더 {more}다.",
-   blanks:{decide:5,keep:11,both:10,mine:6,theirs:4,more:8}},
+   blanks:{decide:5,keep:11,both:10,mine:6,theirs:4,more:8},
+   echo:[{from:14,key:"want",line:'D-14에 나는 두 사람에게 "%s"고 싶다고 적었다.'},
+         {from:20,key:"between",line:'D-20에 나는 두 사람 사이에서 내가 "%s"라고 적었다.'}]},
   /* 마지막은 두 칸이다. 여기까지 온 사람에게 더 물을 것이 없다 */
-  {at:1, text:"{last}. 나는 정말 {who}일까?",blanks:{last:7,who:7}},
+  {at:1, text:"{last}. 나는 정말 {who}일까?",blanks:{last:7,who:7},
+   echo:[{from:7,key:"both",line:'D-7에 나는 두 사람이 나에게는 "%s"라고 적었다.'},
+         {from:14,key:"want",line:'D-14에 나는 두 사람에게 "%s"고 싶다고 적었다.'}]},
 ];
 /* ── 어느 갈래인가 ──
    갈래가 없는 장은 그대로 돌려준다. 있는 장은 실제로 준 것이 정한다.
@@ -386,6 +393,40 @@ const myDiaryVariant=(entry,gifts,saved)=>{
   const {variants,...rest}=entry;
   return {...rest,...v};
 };
+/* ── 채운 빈칸이 돌아온다 ──
+   D-14에는 「내가 채운 빈칸들이 나에게 돌아오고 있다」고 적혀 있었는데
+   실제로는 앞 일기의 값이 단 하나도 안 돌아왔다. 종이에 쓰인 말이
+   거짓말이었던 셈이다.
+
+   돌려보내는 것은 유저가 쓴 그 글자 그대로다. 조사를 붙이지 않고 따옴표
+   안에 그대로 인용한다 — 「나는 "다시 만날"고 싶다」 같은 문장을 코드가
+   지어내면 유저가 쓴 말이 아니라 코드가 쓴 말이 된다. 인용은 원문을
+   건드리지 않는 유일한 방법이다.
+
+   여러 후보를 앞에서부터 본다. 일기는 건너뛸 수 있고, 건너뛴 것은 벌이
+   아니다 — 있는 값 중 가장 가까운 날의 것을 쓰고, 하나도 없으면 아무
+   줄도 안 붙는다. 그날 처음 쓰는 사람에게 없는 과거를 들이밀지 않는다.
+
+   ⚠️ 이 값은 여전히 기기 밖으로 안 나간다. 돌아오는 자리는 다음 일기
+   종이 안이지 프롬프트가 아니다 — 「서버 전달 경계」는 그대로다. */
+const myDiaryEcho=(entry,all)=>{
+  const list=(entry||{}).echo;
+  if(!Array.isArray(list)||!list.length)return entry;
+  for(const e of list){
+    const v=((all||{})[e.from]||{})[e.key];
+    const t=String(v==null?"":v).trim();
+    if(!t)continue;
+    const {echo,...rest}=entry;
+    return {...rest,text:e.line.replace("%s",t)+" "+entry.text,echoed:{from:e.from,key:e.key,text:t}};
+  }
+  const {echo,...rest}=entry;
+  return rest;
+};
+/* 화면이 쓰는 입구 하나. 갈래를 먼저 고르고(그 장의 문장이 정해진다)
+   그다음에 앞 일기를 앞에 얹는다 — 순서가 뒤집히면 갈래가 인용문까지
+   갈아치운다. */
+const myDiaryPage=(entry,gifts,all,saved)=>
+  myDiaryEcho(myDiaryVariant(entry,gifts,saved),all);
 /* 글에서 칸을 뽑아 조각으로 가른다. 화면도 시험도 이 하나를 쓴다 —
    글과 칸 차례를 두 군데서 세면 언젠가 어긋난다. */
 const myDiaryParts=text=>String(text||"").split(/(\{[a-zA-Z]+\})/)
@@ -434,7 +475,15 @@ const loadMyDiary=()=>{try{
 /* 한 장을 통째로 저장한다. 유저 칸이 하나라도 비면 저장하지 않는다 —
    반쯤 채운 일기는 나중에 열었을 때 뭘 하다 만 건지 알 수 없다. */
 const saveMyDiary=(at,vals)=>{try{
-  const e=MY_DIARY.find(x=>x.at===at); if(!e)return null;
+  const raw=MY_DIARY.find(x=>x.at===at); if(!raw)return null;
+  /* ── 갈래가 있는 장은 지금 들어온 값이 갈래를 정한다 ──
+     원장(MY_DIARY)의 D-14에는 blanks가 없다 — 갈래 안에 산다. 그걸 모르고
+     raw.blanks를 그대로 읽으면 Object.keys(undefined)가 터지고, catch가
+     그것을 삼켜 **그 장이 통째로 저장이 안 된다**. 화면에서는 다 채우고
+     「덮기 ♡」를 눌렀는데 아무 일도 안 일어나는 그림이었다.
+     화면이 어느 갈래로 그렸는지는 들어온 값이 말해준다: 자동 칸(giftK·giftJ)은
+     실제로 준 선물이 있을 때만 채워져 오므로, 그 존재가 곧 그날의 갈래다. */
+  const e=myDiaryVariant(raw,null,vals||{});
   const user=new Set(myDiaryUserKeys(e));
   const out={};
   for(const k of Object.keys(e.blanks)){
@@ -469,6 +518,31 @@ const myDiaryOpen=left=>{
 
    빈칸 값은 여전히 기기 밖으로 안 나간다. 여기서 하는 일은 이미 저장돼
    있는 값을 사진 위 제자리에 얹어 보여주는 것뿐이다. */
+/* ── D-0에서 마지막으로 한 번 더 ──
+   서른 날 동안 채운 빈칸이 돌아오는 마지막 자리다. 일기끼리만 주고받고
+   끝나면 그 값은 일기 밖으로 한 번도 안 나온 것이 된다 — 「진짜 완전 True」는
+   유저가 자기 물음에 답을 받는 화면인데, 그 물음을 유저가 직접 적어뒀다.
+
+   D-1의 「나는 정말 {who}일까?」가 첫 후보다. 그 장을 안 썼으면 D-7·D-14로
+   내려간다. 하나도 안 썼으면 아무것도 안 돌려준다 — 안 쓴 사람에게 지어낸
+   과거를 보여주지 않는다. 안 쓰는 것도 선택이었다.
+
+   여기서도 값은 기기 밖으로 안 나간다. 화면에 그리는 것뿐이다. */
+const MY_DIARY_LAST=[
+  {from:1,  key:"who",  line:'나는 정말 "%s"일까?'},
+  {from:7,  key:"both", line:'두 사람은 나에게 "%s"였다.'},
+  {from:14, key:"want", line:'나는 두 사람에게 "%s"고 싶었다.'},
+  {from:20, key:"like", line:'강현이가 "%s"처럼 느껴졌던 날이 있었다.'},
+  {from:25, key:"feel", line:'그 눈빛이 꼭 "%s" 같았다.'},
+];
+const myDiaryLast=()=>{
+  const all=loadMyDiary();
+  for(const e of MY_DIARY_LAST){
+    const t=String(((all||{})[e.from]||{})[e.key]||"").trim();
+    if(t)return {at:e.from,key:e.key,text:e.line.replace("%s",t)};
+  }
+  return null;
+};
 const userPics=(name,giftsOverride)=>{
   const out=[];
   const d=loadDiary();
@@ -481,7 +555,7 @@ const userPics=(name,giftsOverride)=>{
     const w=md[raw.at]; if(!w)continue;
     /* 다시 볼 때의 갈래는 그때 저장된 칸이 정한다 — 그 뒤에 선물을 더 줬어도
        그날 쓴 문장은 안 바뀐다 */
-    const e=myDiaryVariant(raw,null,w);
+    const e=myDiaryPage(raw,null,md,w);
     out.push({src:MY_DIARY_IMG,label:`D-${e.at}`,
       diary:{kind:"current",src:MY_DIARY_IMG,entry:e,
         values:Object.fromEntries(Object.keys(e.blanks).map(k=>[k,
@@ -598,7 +672,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=286";
+const AV="?v=287";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -2168,6 +2242,8 @@ return {
   MY_DIARY_IMG,
   MY_DIARY,
   myDiaryVariant,
+  myDiaryEcho,
+  myDiaryPage,
   myDiaryParts,
   myDiarySystemOwned,
   myDiaryAuto,
@@ -2179,6 +2255,8 @@ return {
   loadMyDiary,
   saveMyDiary,
   myDiaryOpen,
+  MY_DIARY_LAST,
+  myDiaryLast,
   userPics,
   FLASH_SAY_A,
   FLASH_SAY_B,
@@ -2488,6 +2566,8 @@ export const {
   MY_DIARY_IMG,
   MY_DIARY,
   myDiaryVariant,
+  myDiaryEcho,
+  myDiaryPage,
   myDiaryParts,
   myDiarySystemOwned,
   myDiaryAuto,
@@ -2499,6 +2579,8 @@ export const {
   loadMyDiary,
   saveMyDiary,
   myDiaryOpen,
+  MY_DIARY_LAST,
+  myDiaryLast,
   userPics,
   FLASH_SAY_A,
   FLASH_SAY_B,
