@@ -4527,7 +4527,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['288', 'c29b9ca7c7ef']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['289', 'fb8dbcaf9e15']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -10584,7 +10584,7 @@ eq('시간표 단추는 peek보다 좁다',
   {
     const M = new Function('localStorage', 'location',
       webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-      + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,myDiaryVariant,myDiaryEcho,myDiaryPage,myDiaryLast,myDiaryUserKeys,saveMyDiary,loadMyDiary,loadStory};')
+      + '\nreturn {MY_DIARY,myDiaryParts,myDiaryAuto,myDiaryOpen,myDiaryVariant,myDiaryEcho,myDiaryJosa,myDiaryPage,myDiaryLast,myDiaryUserKeys,saveMyDiary,loadMyDiary,loadStory};')
       (g.localStorage, g.location);
     /* ── D-14만 네 갈래다 ──
        안 준 사람의 「그걸 준 이유」를 묻지 않으려고 문장을 갈랐다. 아래
@@ -10727,6 +10727,27 @@ eq('시간표 단추는 peek보다 좁다',
         { minhyun: ['mug'] }, { 20: { like: 'ㄴ' } });
       return /^D-20에 나는 강현이가 "ㄴ"처럼 느껴졌다고 적었다\. 내가 채운/.test(e.text)
         && /강현이에게 \{giftK\}/.test(e.text) && !/\{giftJ\}/.test(e.text);
+    })(), true);
+    /* ── 「회색 머그컵를 준 이유는」 ──
+       물건 이름은 코드가 채우는 칸인데 뒤 조사가 글에 박혀 있었다. 받침이
+       있으면 「을」, 없으면 「를」이고 그건 무엇이 들어갈지 정해진 뒤라야 안다.
+       실제 화면에 그대로 찍히던 오류다. */
+    eq('앉을 물건에 조사를 맞춘다', (() => {
+      const g = k => M.myDiaryPage(M.MY_DIARY.find(e => e.at === 14), k, {})
+        .text.match(/\{gift[KJ]\}[을를]/g);
+      return [g({ minhyun: ['mug'] }), g({ minhyun: ['letter'] }),
+              g({ jaeeon: ['photobook'] }), g({ minhyun: ['mug'], jaeeon: ['candy'] })];
+    })(), [['{giftK}을'], ['{giftK}를'], ['{giftJ}을'], ['{giftK}을', '{giftJ}를']]);
+    /* 다시 볼 때도 그때 앉았던 이름으로 맞춘다 */
+    eq('다시 볼 때도 조사가 맞는다',
+      M.myDiaryPage(M.MY_DIARY.find(e => e.at === 14), null, {},
+        { giftK: '회색 머그컵', whyK: 'ㄱ', want: 'ㄴ', even: 'ㄷ' })
+        .text.match(/\{giftK\}[을를]/g), ['{giftK}을']);
+    /* 유저가 쓴 칸에는 손대지 않는다 — 코드가 조사를 붙이는 순간 그건
+       유저가 쓴 말이 아니다 */
+    eq('유저 칸의 조사는 안 건드린다', (() => {
+      const t = M.myDiaryPage(M.MY_DIARY.find(e => e.at === 14), { minhyun: ['mug'] }, {}).text;
+      return /\{whyK\}뿐이었을까/.test(t) && /\{want\}고 싶다/.test(t);
     })(), true);
     /* 인용은 본문일 뿐이라 칸은 하나도 안 는다 */
     eq('인용이 칸을 늘리지 않는다', (() => {
