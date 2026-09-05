@@ -5,7 +5,7 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, placeGiver, buildPlace, dropMeta, dropSleepers, hardFilter,
+         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, buildPlace, dropMeta, dropSleepers, hardFilter,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
@@ -4527,7 +4527,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['287', '51c0fb085eea']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['288', 'c29b9ca7c7ef']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -8764,7 +8764,9 @@ eq('시간표 단추는 peek보다 좁다',
         eq('요청에 이야기 상태가 실린다', W.sent[0].story,
           { firstContact: 'unseen', jaeeonMemory: 'hidden',
             partnerKnown: { jaeeon: false, minhyun: false },
-            schoolMet: { jaeeon: false, minhyun: false } });
+            schoolMet: { jaeeon: false, minhyun: false },
+            /* 유저가 그은 선도 이야기 상태다 — 방마다 따로 선다 */
+            boundaries: { jaeeon: [], minhyun: [] } });
         eq('출처 문답 단계도 실린다', W.sent[0].origin_phase, 'unasked');
         await W.tick(5000);
         eq('전환이 장부를 거쳐 적용된다', W.ls('null_story').jaeeonMemory, 'opened');
@@ -9450,6 +9452,99 @@ eq('시간표 단추는 peek보다 좁다',
       { giftNow: { key: 'mug', name: '회색 머그컵' }, giftRoom: 'jaeeon' }), []);
   eq('멀쩡한 감사는 hard가 아니다',
     hardFilter(say('회색 머그컵 잘 쓸게요.'), ['jaeeon'], GIFT), []);
+
+  /* ── D2 유저가 그은 선 ──
+     플레이로그가 잡은 것 중 제일 아팠던 것. 유저가 「둘이 있을 때 삼촌 얘기
+     하지 마」라고 했는데 다음 날 그 얘기가 다시 나왔다. 대사가 촌스러워서가
+     아니라 어제 한 말이 없는 일이 되어서 재미가 끊긴다 — 커뮤니티가 「치매」라
+     부르는 그것이고, 「핵심 사건 걍 통으로 잊어버리면 현타 존나 옴」이 그
+     원문이다. 선물과 같은 길로 세계에 남긴다. */
+  {
+    const B = (said, room) => pickBoundary(said, room);
+    eq('그 방의 상대 얘기를 그만하자면 선이 그어진다',
+      [B('삼촌 얘기 하지 마세요', 'minhyun'), B('강현이 얘기는 그만할까요', 'jaeeon'),
+       B('둘이 있을 때 삼촌 얘기 꺼내지 마요', 'minhyun'), B('걔 얘기 안 했으면 좋겠어요', 'jaeeon')],
+      ['partner', 'partner', 'partner', 'partner']);
+    /* 방마다 부르는 이름이 다르다. 강현은 재언을 「삼촌」이라 부른다 */
+    eq('그 방에서 안 부르는 이름은 안 잡는다',
+      [B('삼촌 얘기 하지 마세요', 'jaeeon'), B('강현이 얘기 그만해요', 'minhyun')],
+      [null, null]);
+    /* 「선생님」은 두 사람이 유저를 부르는 말이다. 넣으면 유저가 제 얘기를
+       그만하자고 한 것까지 상대 얘기로 잡힌다 */
+    eq('선생님 얘기는 상대 얘기가 아니다',
+      [B('선생님 얘기 그만해요', 'jaeeon'), B('선생님 얘기 그만해요', 'minhyun')], [null, null]);
+    /* 한 문장 안에서 둘이 같이 나와야 한다 — 「그 얘기」가 무엇인지 코드는
+       모르고, 모르는 것을 안다고 치고 그은 선은 유저의 선이 아니다 */
+    eq('두 문장에 걸치면 안 잡는다',
+      B('삼촌은 잘 있어요. 그 얘기 그만할까요', 'minhyun'), null);
+    /* 그냥 얘기하는 것은 선이 아니다 */
+    eq('평범한 언급은 선이 아니다',
+      [B('삼촌이랑 무슨 얘기 했어요?', 'minhyun'), B('강현이 얘기 들었어요', 'jaeeon'),
+       B('그만 잘게요', 'minhyun'), B('', 'minhyun'), B('삼촌 얘기 하지 마세요', 'group')],
+      [null, null, null, null, null]);
+
+    /* Effect가 되고, 이미 그어져 있으면 다시 안 난다 */
+    const said = '둘이 있을 때 삼촌 얘기 하지 마세요';
+    eq('선이 Effect가 된다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] },
+        { room: 'minhyun', lastUser: said, boundaries: { minhyun: [] } })
+        .map(e => [e.type, e.room, e.topic]),
+      [['boundary', 'minhyun', 'partner']]);
+    eq('이미 그어진 선은 다시 안 난다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] },
+        { room: 'minhyun', lastUser: said, boundaries: { minhyun: ['partner'] } }).length, 0);
+    /* 방마다 따로 선다 — 강현에게 그은 선이 재언 방까지 가면 유저가 긋지
+       않은 선이 세계에 남는다 */
+    eq('다른 방의 선은 여기 없다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] },
+        { room: 'minhyun', lastUser: said, boundaries: { jaeeon: ['partner'] } })
+        .map(e => e.room), ['minhyun']);
+
+    /* 사실로 실려서 다음 턴의 행동을 바꾼다. 아는 사람은 그 방 사람과 유저뿐이다 —
+       다른 방으로 새면 유저가 한 방에서 그은 선이 다른 방에서 화제가 된다 */
+    const F = ENG.storyFacts(ENG.makeStoryState({ boundaries: { minhyun: ['partner'] } }))
+      .filter(f => /^story\.boundary\./.test(f.fact_id));
+    eq('선이 사실이 된다', F.map(f => [f.fact_id, f.source, f.known_by.join(',')]),
+      [['story.boundary.minhyun.partner', 'state', 'minhyun,user']]);
+    eq('무엇을 안 꺼낼지까지 적는다',
+      /이재언 얘기를 그만하자는 말을 들었다\. 네가 먼저 그 사람을 화제로 꺼내지 않는다/
+        .test(F[0].value), true);
+    eq('안 그은 방에는 사실이 없다',
+      ENG.storyFacts(ENG.makeStoryState({})).filter(f => /^story\.boundary\./.test(f.fact_id)), []);
+    /* 모르는 화제는 조용히 버린다 — 없는 것은 거짓이 아니다 */
+    eq('모르는 화제는 안 받는다',
+      ENG.makeStoryState({ boundaries: { minhyun: ['partner', '삼촌', 7] } }).boundaries.minhyun,
+      ['partner']);
+
+    /* ── 브라우저 쪽 장부 ──
+       선물과 같은 길이다: 워커가 유저의 말에서 읽어내고, 장부가 적고,
+       다음 요청이 그것을 이야기 상태로 실어 나른다. */
+    {
+      const mem = new Map();
+      const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+        setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
+      const S = new Function('localStorage', 'location',
+        webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+        + '\nreturn {markBoundary,loadStory};')(ls, { search: '' });
+      eq('선을 그으면 장부에 남는다',
+        [S.markBoundary('minhyun', 'partner'), S.loadStory().boundaries],
+        ['done', { jaeeon: [], minhyun: ['partner'] }]);
+      /* 되풀이해도 같다 — 같은 응답을 두 번 처리해도 결과가 한 번과 같아야 한다 */
+      eq('두 번 그어도 한 번이다',
+        [S.markBoundary('minhyun', 'partner'), S.loadStory().boundaries.minhyun],
+        ['done', ['partner']]);
+      eq('모르는 방·화제는 안 적는다',
+        [S.markBoundary('group', 'partner'), S.markBoundary('minhyun', '삼촌')],
+        ['skip', 'skip']);
+      /* 지우는 길은 코드에 없다 — 유저가 그은 선을 코드가 지우는 자리를 만들지 않는다 */
+      eq('선을 지우는 함수는 없다',
+        /const (?:clear|drop|unmark|remove)Boundary/.test(web), false);
+      /* 적용하는 자리는 장부 하나다(상태 경로가 하나다와 같은 계약) */
+      eq('선도 장부를 거쳐 적용된다',
+        /e\.type==="boundary"[\s\S]{0,200}markBoundary\(e\.room,e\.topic\)/
+          .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+    }
+  }
 
   /* ── D2 초대·지급 제안 검사 ── */
   /* 잠긴 자리 제안으로 대사를 죽이지 않는다 — 억제할 것은 invite Effect

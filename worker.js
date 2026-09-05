@@ -472,6 +472,17 @@ function makeStoryState(s) {
        옛 판과 replay 묶음이 통째로 「아직」이 되어 없던 규칙이 선다. */
     schoolMet: sm && typeof sm === "object"
       ? { jaeeon: !!sm.jaeeon, minhyun: !!sm.minhyun } : null,
+    /* ── 유저가 그은 선 ──
+       방마다 따로 선다. 되돌릴 수 없는 것은 아니지만 되돌리는 길은 코드에
+       없다 — 유저가 그은 선을 코드가 지우는 자리를 만들지 않는다.
+       모르는 화제는 조용히 버린다: 없는 것은 거짓이 아니다. */
+    boundaries: (() => {
+      const b = o.boundaries || {}, out = {};
+      for (const who of ["jaeeon", "minhyun"])
+        out[who] = (Array.isArray(b[who]) ? b[who] : [])
+          .map(String).filter(t => t === "partner");
+      return out;
+    })(),
   };
 }
 
@@ -528,7 +539,7 @@ function makeTurnContext(state, t) {
    선택이 끝난 뒤 코드가 `request_id + type + 대상 + item/key`로 만든다.
    모델이 임의 ID를 쓰거나 재시도마다 다른 ID를 내면 같은 선물이 두 번
    지급된다. 재시도해도 같은 재료면 같은 id가 나오는 것이 요점이다. */
-const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure"];
+const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary"];
 
 function mintEffectId(requestId, type, target, key) {
   return [String(requestId || ""), String(type || ""),
@@ -544,6 +555,15 @@ function makeEffect(requestId, e) {
     if (!to || !item) throw new Error("item_transfer에 to/item이 없다");
     return { id: mintEffectId(requestId, type, to, item),
              type, from: String(o.from || ""), to, item };
+  }
+  /* ── 유저가 그은 선 ──
+     물건이 오가는 것도 아니고 이야기가 나아가는 것도 아니다. 유저가 「그
+     얘기는 그만하자」고 말한 그 사실 하나가 세계에 남는 것이다. 남는 것은
+     방과 화제뿐이라 id도 그 둘로 만든다 — 같은 말을 몇 번 해도 한 번이다. */
+  if (type === "boundary") {
+    const room = String(o.room || ""), topic = String(o.topic || "");
+    if (!room || !topic) throw new Error("boundary에 room/topic이 없다");
+    return { id: mintEffectId(requestId, type, room, topic), type, room, topic };
   }
   if (type === "invite") {
     const place = String(o.place || ""), char = String(o.char || "");
@@ -605,6 +625,16 @@ function materializeEffects(requestId, picked, ctx) {
                     ? null : placeGiver(g.place, g.placeItemOwned, g.room));
     if (item) out.push(makeEffect(requestId, {
       type: "item_transfer", from: g.room, to: "user", item }));
+  }
+  /* ── 유저가 그은 선은 그 턴에 새겨진다 ──
+     모델이 뭐라고 답했는지와 무관하다 — 선을 그은 것은 유저다. 그래도 여기서
+     내는 이유는 그 턴이 통째로 실패하면(502) 화면에 아무것도 안 남기 때문이다.
+     대사가 안 뜬 턴에 세계만 조용히 바뀌면, 유저는 자기가 그은 선이 언제
+     그어졌는지 알 길이 없다. 이미 그어져 있으면 다시 안 낸다. */
+  if (g.room === "jaeeon" || g.room === "minhyun") {
+    const topic = pickBoundary(g.lastUser, g.room);
+    if (topic && !((g.boundaries || {})[g.room] || []).includes(topic))
+      out.push(makeEffect(requestId, { type: "boundary", room: g.room, topic }));
   }
   /* ── 초대는 열려 있는 자리로만 ──
      지금 앉아 있는 자리로 다시 부르는 것은 모순이라 openPlaces가 비어 있다. */
@@ -3053,6 +3083,20 @@ function buildFacts(gifts, bag, giftNow, giftRoom) {
    뒤에야 유저 귀에 들어간 것이다), 강현의 설명은 강현과 유저가 안다. */
 function storyFacts(st) {
   const F = [];
+  /* ── 유저가 그은 선 ──
+     사실 목록에 둔다. 여기 있는 것은 「아는 것」이고, 아는 채로 굴라는 지시가
+     이미 목록 끝에 붙어 있다 — 별도 블록을 하나 더 만들면 같은 말이 두 군데서
+     서로를 갉는다. 다만 값에 행동까지 적는다: 안 것과 그에 따라 구는 것은
+     다른 일이고, 이 사실은 알기만 해서는 아무 소용이 없다.
+     아는 사람은 그 방 사람과 유저뿐이다. 다른 방으로 새면 유저가 한 방에서
+     그은 선이 다른 방에서 화제가 된다 — 그것이야말로 유저가 막으려던 일이다. */
+  for (const who of ["jaeeon", "minhyun"]) {
+    if (!((st.boundaries || {})[who] || []).includes("partner")) continue;
+    const other = who === "jaeeon" ? "이강현" : "이재언";
+    F.push(makeFact(`story.boundary.${who}.partner`,
+      `이 방에서 ${other} 얘기를 그만하자는 말을 들었다. 네가 먼저 그 사람을 화제로 꺼내지 않는다`,
+      "state", [who, "user"]));
+  }
   /* ── 아직 학교에서 안 만났다 ──
      호칭 절의 규칙은 「학교가 아닌 장소에서 세계가 시작될 경우」로 조건이
      달려 있다. 그런데 그 조건이 참인지를 모델에게 알려주는 것이 아무것도
@@ -3380,6 +3424,46 @@ ${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.ke
 - 위 설명은 읊지 않는다. 기억한 채 네 말투로 짧게 스치기만 한다.
 `;
 }
+/* ── 유저가 그은 선 ──
+   플레이로그가 잡은 것 중 제일 아팠던 것이 이것이다. 유저가 「둘이 있을 때
+   삼촌 얘기 하지 마」라고 했는데 다음 날 그 얘기가 다시 나왔다. 저녁을
+   거절했는데 같은 턴에 또 권했다. 대사가 촌스러워서가 아니라 **어제 한 말이
+   없는 일이 되어서** 재미가 끊긴다 — 커뮤니티가 「치매」라고 부르고 「현타
+   존나 옴」이라고 쓰는 그것이다.
+
+   선물이 이미 이 구조를 가지고 있다: 유저가 한 일 → 검증된 Effect → 장부 →
+   다음 턴의 사실. 그 모양을 그대로 쓴다. 새로 만드는 것은 감지 하나뿐이다.
+
+   ── 무엇을 경계로 세는가 ──
+   화제를 자유롭게 뽑지 않는다. 이 세계에서 실제로 문제가 되는 화제는 하나고
+   (상대 인물), 그건 정보 삼각형의 한복판이라 유저가 선을 그을 만한 자리다.
+   자유 화제를 뽑으려면 자연어를 이해해야 하는데, 그건 정규식이 할 수 있다고
+   가정하면 안 되는 일이다 — 못 잡는 것은 다음에 잡으면 되지만, 잘못 잡으면
+   유저가 긋지 않은 선이 세계에 남는다. 그건 되돌릴 방법이 없다.
+
+   ── 방마다 부르는 이름이 다르다 ──
+   강현은 재언을 「삼촌」이라 부르고 유저도 그 방에서는 그렇게 말한다.
+   「선생님」은 여기 안 넣는다 — 그건 두 사람이 유저를 부르는 말이라, 넣으면
+   유저가 제 얘기를 그만하자고 한 것까지 상대 얘기로 잡힌다. */
+const BOUNDARY_PARTNER = {
+  jaeeon:  /(?:이?강현|걔|그\s*애|조카)/,
+  minhyun: /(?:삼촌|이?재언)/,
+};
+const BOUNDARY_STOP =
+  /(?:얘기|이야기|말)[^,]{0,8}?(?:하지\s*마|꺼내지\s*마|묻지\s*마|그만|안\s*했으면|안\s*하면\s*안|빼고|말고)/;
+
+/* 한 문장 안에서 둘이 같이 나와야 한다. 「강현이는 잘 있어요. 그 얘기 그만
+   할까요」는 두 문장이고 뒤 문장의 「그 얘기」가 무엇인지 코드는 모른다 —
+   모르는 것을 안다고 치고 선을 그으면 그건 유저의 선이 아니다. */
+function pickBoundary(said, room) {
+  const name = BOUNDARY_PARTNER[room];
+  if (!name) return null;
+  for (const clause of String(said || "").split(/[.!?\n·]|\s{2,}/)) {
+    if (name.test(clause) && BOUNDARY_STOP.test(clause)) return "partner";
+  }
+  return null;
+}
+
 /* ── 이 턴에 이 방이 건넬 수 있는 것 ──
    값을 안 본다. 자리와 방만 본다 — 무엇을 건네는지는 자리가 이미 정해뒀고
    자리마다 물건은 하나뿐이다. 「건넬 수 있나」와 「무엇을 적었나」는 다른
@@ -6499,6 +6583,9 @@ export default {
           코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
       const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned,
                         placeItemAvailable, room,
+                        /* 경계는 모델 응답이 아니라 **유저의 말**에서 온다.
+                           그 말과 이미 그어진 선을 같이 실어야 여기서 판정할 수 있다. */
+                        lastUser, boundaries: story.boundaries,
                         /* 두 사람의 반응이 계약인 사건의 필수 화자(A2).
                            모든 경로(critical의 마무리 후보 포함)가 같은
                            hardFilter 입구를 타므로 여기 실으면 다 받는다. */
@@ -7465,7 +7552,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          NULL_FORTUNE_KEYWORDS, normalizeFortuneKeywordId, fortuneKeywordOf,
          renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
-         PLACE_ITEMS, placeOf, pickGive, placeGiver, buildPlace,
+         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
