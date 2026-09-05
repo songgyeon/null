@@ -2162,6 +2162,40 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   await run({}, { ...AT, talked_enough: false });
   eq("두 마디 전에는 물건을 안 보여준다", /건넬 것/.test(volOf()), false);
 
+  /* ── 유저가 아니라고 한 것 ──
+     경계와 같은 길이되 하루만 산다. 여기서 재는 것은 유저의 말과 직전 인물
+     발화가 요청 경로를 지나 Effect와 프롬프트까지 닿는가다 — 경계가 바로
+     여기서 안 실리고 있었다(makeStoryState 호출부 한 줄). */
+  const offer = (room, u) => ({ ...BASE, room,
+    history: [{ role: "user", content: "뭐 해요?" },
+      { role: "assistant", sender: room, content: "같이 저녁 먹을래요?" },
+      { role: "user", content: u }] });
+  const no = await run({}, offer("minhyun", "오늘은 좀 무리예요"));
+  eq("거절이 요청 경로에서 Effect가 된다",
+    (no.data.effects || []).filter(e => e.type === "refusal").map(e => e.room), ["minhyun"]);
+  eq("거절당한 그 턴에 태도가 실린다",
+    [/## 방금 들은 말/.test(volOf()), /이번 대답에서 다시 권하지 않는다/.test(volOf())],
+    [true, true]);
+  /* 수락은 거절이 아니다 */
+  const yes = await run({}, offer("minhyun", "좋아요 갈게요"));
+  eq("수락에는 아무것도 안 실린다",
+    [(yes.data.effects || []).filter(e => e.type === "refusal").length,
+     /방금 들은 말/.test(volOf())], [0, false]);
+  /* 그 뒤의 턴들 — 브라우저가 하루 경계를 재서 보낸다 */
+  await run({}, { ...BASE, room: "minhyun", refused_today: true });
+  eq("오늘 이미 거절당한 뒤에는 다시 안 꺼낸다",
+    [/## 오늘 이 방에서/.test(volOf()), /오늘은 같은 것을 다시 꺼내지 않는다/.test(volOf())],
+    [true, true]);
+  /* 도장이 찍힌 날에는 같은 거절이 두 번 안 난다 */
+  const twice = await run({}, { ...offer("minhyun", "싫어요"), refused_today: true });
+  eq("도장이 찍힌 날에는 두 번 안 난다",
+    (twice.data.effects || []).filter(e => e.type === "refusal").length, 0);
+  /* 안 보낸 판은 안 찍힌 것으로 둔다 — 없는 것을 「거절당했다」로 읽으면
+     인물이 아무 말도 못 꺼내는 판이 된다 */
+  await run({}, { ...BASE, room: "minhyun" });
+  eq("안 보낸 판은 조용하다",
+    [/방금 들은 말/.test(volOf()), /오늘 이 방에서/.test(volOf())], [false, false]);
+
   /* ── 키스 파트너 게이트 ──
      옆자리를 정하는 것이 이 게임의 유일한 되돌릴 수 없는 선택인데, 그 뒤에
      아무 자리에서나 같은 장면이 열리면 고른 일이 아무것도 아닌 게 된다.

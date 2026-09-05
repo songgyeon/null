@@ -5,7 +5,8 @@
    화면이 깨졌을 때 하나씩 추가했다. 그래서 이름이 증상으로 붙어 있다. */
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
-         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, buildPlace, dropMeta, dropSleepers, hardFilter,
+         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
+  buildPlace, dropMeta, dropSleepers, hardFilter,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
@@ -4527,7 +4528,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['290', 'f9e32e911d6d']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['291', 'd16f9d5269f1']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -9544,6 +9545,107 @@ eq('시간표 단추는 peek보다 좁다',
         /e\.type==="boundary"[\s\S]{0,200}markBoundary\(e\.room,e\.topic\)/
           .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
     }
+  }
+
+  /* ── D2 유저가 아니라고 한 것 ──
+     플레이로그: 유저가 저녁을 거절했는데 같은 턴에 또 권했고, 몇 번을 더
+     물어서 유저가 스트레스를 호소했다. 모델의 기본값은 물러서는 것이 아니라
+     설득하는 것이라(「예스맨/아첨」이 열한 개 모델 공통·인간 대비 +49%),
+     아첨하지 말라고만 시키면 이번엔 물러설 줄을 모른다. */
+  {
+    const R = (c, u) => pickRefusal(u, c);
+    eq('제안을 거절하면 잡는다',
+      [R('같이 저녁 먹을래요?', '아니요 오늘은 좀'), R('같이 갈까요?', '싫어요'),
+       R('같이 볼까요?', '다음에요'), R('저녁 어때요?', '무리예요')],
+      [true, true, true, true]);
+    /* ── 종성을 정규식으로 다루지 않는다 ──
+       처음엔 「ㄹ까요」라고 적었는데 「갈까요」에는 안 맞았다. ㄹ이 낱글자가
+       아니라 「갈」의 종성으로 들어가 있어서다 — 한글은 조합 문자다. */
+    eq('갈까요·갈래요도 제안이다',
+      [R('같이 갈까요?', '싫어요'), R('같이 갈래요?', '싫어요'),
+       R('같이 할래요?', '됐어요')], [true, true, true]);
+    /* 둘이 같이 있어야 거절이다 — 하나만 보면 엉뚱한 것이 걸린다 */
+    eq('수락은 거절이 아니다', R('같이 저녁 먹을래요?', '좋아요'), false);
+    eq('제안이 아니면 거절이 아니다',
+      [R('오늘 날씨 좋네요.', '아니요'), R('', '싫어요')], [false, false]);
+    eq('답이 없으면 거절이 아니다', R('같이 갈래요?', ''), false);
+    /* 「왜 그래요?」는 되묻는 말이지 제안이 아니다 */
+    eq('그래요는 제안이 아니다', R('왜 그래요?', '아니요'), false);
+    /* 「밥 먹었어요?」에 「아뇨」는 거절이 아니라 사실 답변이다 */
+    eq('사실을 묻는 말에 아뇨는 거절이 아니다', R('밥은 먹었어요?', '아뇨'), false);
+    /* 부정으로 시작하지만 거절이 아닌 말 */
+    eq('아니로 시작한다고 다 거절은 아니다',
+      R('같이 갈래요?', '아니 그게 아니라 제가 먼저 가 있을게요'), false);
+    /* 물음표가 없으면 권유가 아니라 통보다 — 못 잡는 것은 다음에 잡으면 된다 */
+    eq('안 물으면 제안으로 안 센다', R('같이 가요.', '싫어요'), false);
+
+    /* Effect가 되고, 오늘 이미 찍혔으면 다시 안 난다 */
+    const ctx = extra => ({ room: 'minhyun', lastChar: '같이 저녁 먹을래요?',
+      lastUser: '오늘은 좀 무리예요', ...(extra || {}) });
+    eq('거절이 Effect가 된다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] }, ctx())
+        .map(e => [e.type, e.room]), [['refusal', 'minhyun']]);
+    eq('오늘 이미 찍혔으면 다시 안 난다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] },
+        ctx({ refusedToday: true })).length, 0);
+    eq('단톡·관전에는 안 남는다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] },
+        ctx({ room: 'group' })).length, 0);
+
+    /* ── 프롬프트 ── 방금과 오늘은 다른 사실이다 */
+    eq('방금 거절당한 턴은 태도를 정한다', (() => {
+      const t = buildRefusal({ refusedNow: true });
+      return /## 방금 들은 말/.test(t) && /네가 방금 꺼낸 것을 거절당했다/.test(t)
+        && /이번 대답에서 다시 권하지 않는다/.test(t)
+        && /왜 안 되는지 캐묻지 않는다/.test(t);
+    })(), true);
+    eq('그 뒤의 턴은 다시 꺼내지 말라는 뜻이다', (() => {
+      const t = buildRefusal({ refusedToday: true });
+      /* 표제도 갈린다 — 「방금 일어난 일」은 buildLeft(자리에서 나왔다)가
+         이미 쓰고 있어서, 같은 표제가 한 프롬프트에 두 번 서면 안 된다 */
+      return /## 오늘 이 방에서/.test(t) && /이미 한 번 거절당했다/.test(t)
+        && /내일은 다른 날이다/.test(t) && !/방금/.test(t);
+    })(), true);
+    /* 같이 참이면 방금 쪽이 이긴다 — 그 턴의 태도가 먼저다 */
+    eq('둘 다면 방금 쪽을 적는다',
+      /방금 꺼낸 것을 거절당했다/.test(buildRefusal({ refusedNow: true, refusedToday: true })), true);
+    eq('아무것도 아니면 한 줄도 없다', buildRefusal({}), '');
+    /* buildLeft와 표제가 겹치지 않는다 — 겹치면 뒤엣것이 앞엣것의 부연으로 읽힌다 */
+    eq('자리에서 나온 줄과 표제가 다르다',
+      [/## 방금 일어난 일/.test(buildRefusal({ refusedNow: true })),
+       /## 방금 일어난 일/.test(buildRefusal({ refusedToday: true }))], [false, false]);
+    /* 거절은 사건이지 성격이 아니다 — 길게 적으면 인물이 「거절당한 사람」이 된다 */
+    eq('짧게 둔다', buildRefusal({ refusedNow: true }).length < 260, true);
+
+    /* ── 브라우저 장부 ── 선물 도장과 같은 모양·같은 하루 경계 */
+    {
+      const mem = new Map();
+      const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+        setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
+      const P = new Function('localStorage', 'location',
+        webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+        + '\nreturn {stampRefuse,refusedToday,loadRefuseDay,dayKey};')(ls, { search: '' });
+      eq('찍으면 오늘로 남는다',
+        [P.refusedToday('minhyun'), P.stampRefuse('minhyun'), P.refusedToday('minhyun')],
+        [false, true, true]);
+      eq('두 번 찍어도 한 번이다', P.stampRefuse('minhyun'), true);
+      eq('방마다 따로 찍힌다', P.refusedToday('jaeeon'), false);
+      /* 하루가 지나면 사라진다 — 오늘 거절한 것이 내일까지 가면 절교다 */
+      eq('어제 것은 오늘이 아니다', (() => {
+        const y = new Date(Date.now() - 36 * 3600e3);
+        return P.refusedToday('minhyun', y.getTime());
+      })(), false);
+      /* 선물 도장과 같은 하루 경계를 본다(새벽 다섯 시) */
+      eq('선물 도장과 같은 하루를 쓴다',
+        /const refusedToday=\(char,now\)=>loadRefuseDay\(\)\[char\]===dayKey\(now\)/.test(web), true);
+    }
+    /* 적용하는 자리는 장부 하나다 */
+    eq('거절도 장부를 거쳐 적용된다',
+      /e\.type==="refusal"[\s\S]{0,260}stampRefuse\(e\.room\)/
+        .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+    eq('브라우저가 하루 경계를 재서 보낸다',
+      /if\(CHARS\[bucket\]&&refusedToday\(bucket\)\)payload\.refused_today=true;/
+        .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
   }
 
   /* ── D2 초대·지급 제안 검사 ── */

@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=290";
+const AV_V = "?v=291";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -690,7 +690,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=290";
+const AV="?v=291";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1384,6 +1384,18 @@ const loadGiftDay=()=>{try{return JSON.parse(localStorage.getItem("null_giftday"
 const saveGiftDay=v=>{try{localStorage.setItem("null_giftday",JSON.stringify(v));return true}catch(e){return false}};
 const giftedToday=(char,now)=>loadGiftDay()[char]===dayKey(now);
 const stampGift=(char,now)=>giftedToday(char,now)||saveGiftDay({...loadGiftDay(),[char]:dayKey(now)});
+/* ── 오늘 이 방에서 아니라고 했다 ──
+   선물 도장과 같은 모양이고 같은 하루 경계를 본다(새벽 다섯 시).
+   경계(story.boundaries)는 되돌릴 일이 아니라 영구지만, 거절에는 대개
+   「오늘은」이 붙는다 — 저녁을 오늘 거절한 것이 내일까지 가면 그건 거절이
+   아니라 절교다. 그래서 하루만 산다.
+   무엇을 거절했는지는 안 적는다. 제안은 자유 자연어라 목록이 없고, 코드가
+   뽑아 적으면 유저가 안 한 말이 장부에 남는다 — 남기는 것은 「한 번 아니라고
+   했다」 하나고 무엇이었는지는 대화가 이미 알고 있다. */
+const loadRefuseDay=()=>{try{return JSON.parse(localStorage.getItem("null_refuseday"))||{}}catch(e){return{}}};
+const saveRefuseDay=v=>{try{localStorage.setItem("null_refuseday",JSON.stringify(v));return true}catch(e){return false}};
+const refusedToday=(char,now)=>loadRefuseDay()[char]===dayKey(now);
+const stampRefuse=(char,now)=>refusedToday(char,now)||saveRefuseDay({...loadRefuseDay(),[char]:dayKey(now)});
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
 const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};
@@ -2425,6 +2437,10 @@ return {
   saveGiftDay,
   giftedToday,
   stampGift,
+  loadRefuseDay,
+  saveRefuseDay,
+  refusedToday,
+  stampRefuse,
   loadWend,
   saveWend,
   jos,
@@ -2753,6 +2769,10 @@ export const {
   saveGiftDay,
   giftedToday,
   stampGift,
+  loadRefuseDay,
+  saveRefuseDay,
+  refusedToday,
+  stampRefuse,
   loadWend,
   saveWend,
   jos,

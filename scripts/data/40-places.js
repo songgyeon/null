@@ -203,6 +203,18 @@ const loadGiftDay=()=>{try{return JSON.parse(localStorage.getItem("null_giftday"
 const saveGiftDay=v=>{try{localStorage.setItem("null_giftday",JSON.stringify(v));return true}catch(e){return false}};
 const giftedToday=(char,now)=>loadGiftDay()[char]===dayKey(now);
 const stampGift=(char,now)=>giftedToday(char,now)||saveGiftDay({...loadGiftDay(),[char]:dayKey(now)});
+/* ── 오늘 이 방에서 아니라고 했다 ──
+   선물 도장과 같은 모양이고 같은 하루 경계를 본다(새벽 다섯 시).
+   경계(story.boundaries)는 되돌릴 일이 아니라 영구지만, 거절에는 대개
+   「오늘은」이 붙는다 — 저녁을 오늘 거절한 것이 내일까지 가면 그건 거절이
+   아니라 절교다. 그래서 하루만 산다.
+   무엇을 거절했는지는 안 적는다. 제안은 자유 자연어라 목록이 없고, 코드가
+   뽑아 적으면 유저가 안 한 말이 장부에 남는다 — 남기는 것은 「한 번 아니라고
+   했다」 하나고 무엇이었는지는 대화가 이미 알고 있다. */
+const loadRefuseDay=()=>{try{return JSON.parse(localStorage.getItem("null_refuseday"))||{}}catch(e){return{}}};
+const saveRefuseDay=v=>{try{localStorage.setItem("null_refuseday",JSON.stringify(v));return true}catch(e){return false}};
+const refusedToday=(char,now)=>loadRefuseDay()[char]===dayKey(now);
+const stampRefuse=(char,now)=>refusedToday(char,now)||saveRefuseDay({...loadRefuseDay(),[char]:dayKey(now)});
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
 const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};

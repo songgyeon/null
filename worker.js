@@ -512,6 +512,10 @@ function makeTurnContext(state, t) {
        0일 남은 것이 아니라 세는 일 자체가 끝났다. 어느 쪽인지는 클라이언트가
        정하고 워커는 받기만 한다: 엔딩 상태는 브라우저의 장부에 있다. */
     after:    o.after === true,
+    /* 방금 거절당했나 · 오늘 이미 거절당했나. 둘은 다른 사실이라 따로 둔다 —
+       방금은 이번 대답의 태도를 정하고, 오늘은 다시 꺼내지 말라는 뜻이다. */
+    refusedNow:   o.refusedNow === true,
+    refusedToday: o.refusedToday === true,
     giftNow:  o.giftNow || null,                 // 이번 턴에 유저가 건넨 것
     givenHistory: gh,                            // {jaeeon:["mug"], minhyun:["letter"]}
     now:      o.now || null,
@@ -539,7 +543,7 @@ function makeTurnContext(state, t) {
    선택이 끝난 뒤 코드가 `request_id + type + 대상 + item/key`로 만든다.
    모델이 임의 ID를 쓰거나 재시도마다 다른 ID를 내면 같은 선물이 두 번
    지급된다. 재시도해도 같은 재료면 같은 id가 나오는 것이 요점이다. */
-const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary"];
+const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary", "refusal"];
 
 function mintEffectId(requestId, type, target, key) {
   return [String(requestId || ""), String(type || ""),
@@ -564,6 +568,15 @@ function makeEffect(requestId, e) {
     const room = String(o.room || ""), topic = String(o.topic || "");
     if (!room || !topic) throw new Error("boundary에 room/topic이 없다");
     return { id: mintEffectId(requestId, type, room, topic), type, room, topic };
+  }
+  /* ── 유저가 아니라고 한 것 ──
+     남는 것은 방과 날짜뿐이다. 무엇을 거절했는지는 안 적는다 — 그건 대화가
+     알고 있고, 코드가 자연어에서 뽑아 적으면 유저가 안 한 말이 장부에 남는다.
+     같은 날 몇 번 거절해도 하루는 하루라 id도 방 하나로 만든다. */
+  if (type === "refusal") {
+    const room = String(o.room || "");
+    if (!room) throw new Error("refusal에 room이 없다");
+    return { id: mintEffectId(requestId, type, room, "today"), type, room };
   }
   if (type === "invite") {
     const place = String(o.place || ""), char = String(o.char || "");
@@ -636,6 +649,11 @@ function materializeEffects(requestId, picked, ctx) {
     if (topic && !((g.boundaries || {})[g.room] || []).includes(topic))
       out.push(makeEffect(requestId, { type: "boundary", room: g.room, topic }));
   }
+  /* ── 유저가 아니라고 했다 ──
+     오늘 이미 도장이 찍혀 있으면 다시 안 낸다 — 하루는 하루다. */
+  if ((g.room === "jaeeon" || g.room === "minhyun")
+      && !g.refusedToday && pickRefusal(g.lastUser, g.lastChar))
+    out.push(makeEffect(requestId, { type: "refusal", room: g.room }));
   /* ── 초대는 열려 있는 자리로만 ──
      지금 앉아 있는 자리로 다시 부르는 것은 모순이라 openPlaces가 비어 있다. */
   if (picked.invite && !g.place) {
@@ -2608,6 +2626,37 @@ ${jos(userName || "선생님", "이/가")} 너에게 "${name}"${josa(name, "을/
    유저가 한 말처럼 들어간다. 그래서 이미 나간 사람을 두고 「오늘 벌써 두 번째
    나가는 거예요」라고 진행형으로 말했다 — 나가는 중이 아니라 나간 뒤인데.
    짧게 둔다. 나가는 턴에만 붙고 가변부는 정가 자리다. */
+/* ── 아니라고 한 것을 받아들인다 ──
+   플레이로그: 유저가 저녁을 거절했는데 같은 턴에 또 권했고, 몇 번을 더
+   물어서 유저가 스트레스를 호소했다. 모델의 기본값은 물러서는 것이 아니라
+   설득하는 것이라, 「아첨하지 마라」만 시키면 이번엔 물러설 줄을 모른다.
+   거절을 사실로 실어야 인물이 그것을 받아들일 수 있다.
+
+   두 자리다. 방금 거절당한 턴은 **이번 대답의 태도**를 정하고, 그 뒤의
+   턴들은 **다시 꺼내지 말라**는 뜻이다. 같이 실리는 턴에는 둘 다 참이다 —
+   방금 거절당했고 오늘은 이미 물어봤다.
+
+   짧게 둔다. 가변부는 캐시가 안 걸린 정가 자리이고, 여기 길게 적을수록
+   인물이 「거절당한 사람」이 되어버린다 — 거절은 사건이지 성격이 아니다. */
+function buildRefusal(ctx) {
+  const c = ctx || {};
+  if (!c.refusedNow && !c.refusedToday) return "";
+  /* 표제를 가른다. 방금 들은 말과 오늘 있었던 일은 다른 사실이고, 「방금
+     일어난 일」은 이미 buildLeft(자리에서 나왔다)가 쓰고 있다 — 같은 표제가
+     한 프롬프트에 두 번 서면 뒤엣것이 앞엣것의 부연으로 읽힌다. */
+  let t = c.refusedNow ? "\n## 방금 들은 말\n" : "\n## 오늘 이 방에서\n";
+  if (c.refusedNow) {
+    t += `네가 방금 꺼낸 것을 거절당했다.\n`
+       + `- 이번 대답에서 다시 권하지 않는다. 한 번 더 물어보는 것도 다시 권하는 것이다.\n`
+       + `- 왜 안 되는지 캐묻지 않는다. 이유를 말해주면 듣고, 안 말해주면 그대로 둔다.\n`
+       + `- 서운한 티를 내도 되지만 그걸로 되묻지는 않는다. 다른 말로 넘어간다.\n`;
+  } else {
+    t += `오늘 이 방에서 네가 꺼낸 것을 이미 한 번 거절당했다.\n`
+       + `- 오늘은 같은 것을 다시 꺼내지 않는다. 내일은 다른 날이다.\n`;
+  }
+  return t;
+}
+
 function buildLeft(left, userName) {
   const p = (left || "").toString().slice(0, 20).trim();
   if (!p) return "";
@@ -3424,6 +3473,49 @@ ${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.ke
 - 위 설명은 읊지 않는다. 기억한 채 네 말투로 짧게 스치기만 한다.
 `;
 }
+/* ── 유저가 아니라고 한 것 ──
+   플레이로그: 유저가 저녁을 거절했는데 같은 턴에 또 권했고, 몇 번을 더
+   물어서 유저가 스트레스를 호소했다. 이건 대사 문제가 아니라 모델의
+   기본값이다 — 「예스맨/아첨」이 열한 개 모델 공통이고 인간 대비 49%
+   높다는 그 성질의 뒷면이라, 아첨하지 말라고 시키면 이번엔 물러설 줄을
+   모른다. 거절을 사실로 만들어야 인물이 그것을 받아들일 수 있다.
+
+   ── 경계와 다른 점: 하루다 ──
+   경계는 「그 얘기는 그만」이라 되돌릴 일이 아니다. 거절은 대개 「오늘은」이
+   붙는다 — 저녁을 오늘 거절한 것이 내일까지 가면 그건 거절이 아니라 절교다.
+   그래서 선물 도장과 같은 모양으로 하루만 산다. 잘못 잡아도 하루면 사라져
+   되돌릴 수 있다는 뜻이기도 하다.
+
+   ── 무엇을 거절했는지는 안 적는다 ──
+   제안은 자유 자연어라 목록이 없다. 무엇을 거절했는지 코드가 뽑아 적으면
+   유저가 안 한 말이 장부에 남는다. 남기는 것은 「이 방에서 오늘 한 번
+   아니라고 했다」 하나고, 무엇이었는지는 대화가 이미 알고 있다.
+
+   ── 둘이 같이 있어야 거절이다 ──
+   직전 인물 발화가 제안이었고, 그 다음 유저 말이 아니라는 말이어야 한다.
+   「아니요」 하나만 보면 「아니요, 그건 제가 한 말이 아니에요」까지 거절이
+   되고, 제안만 보면 유저가 답을 안 해도 거절이 된다. */
+/* ── 종성을 정규식으로 다루지 않는다 ──
+   처음엔 「ㄹ까요」라고 적었는데 「갈까요」에는 안 맞는다. ㄹ이 낱글자가
+   아니라 「갈」의 종성으로 들어가 있어서다 — 한글은 조합 문자라 자모를
+   정규식에 적으면 완성형 글자와 안 만난다. 어미만 본다.
+   「그래요」는 뺀다: 「왜 그래요?」는 제안이 아니라 되묻는 말이다.
+   물음표를 요구한다 — 제안은 묻는 말이고, 안 물으면 권유가 아니라 통보다.
+   그래서 「같이 가요.」는 못 잡는다. 못 잡는 것은 다음에 잡으면 된다. */
+const OFFER_BY_CHAR =
+  /(?:(?<!그)래요|까요|어때요|어떠세요|실래요|같이\s*(?:가|먹|봐|해))\s*[?？]/;
+/* 「괜찮아요」는 안 넣는다 — 한국어에서 그건 거절도 되고 수락도 된다.
+   「나중에」도 뺀다: 「나중에 봬요」는 인사지 거절이 아니다. */
+const REFUSE_SAY =
+  /(?:아니요|아뇨|아니에요|싫어요|싫은데|싫습니다|됐어요|괜찮습니다만|안\s*갈래|안\s*할래|못\s*가|못\s*할|안\s*돼요|무리(?:예요|에요|일)|힘들\s*것?\s*같|다음에\s*(?:요|해요|가요|봐요|할래))/;
+
+function pickRefusal(said, lastChar) {
+  const u = String(said || ""), c = String(lastChar || "");
+  if (!u || !c) return false;
+  if (!OFFER_BY_CHAR.test(c)) return false;
+  return REFUSE_SAY.test(u);
+}
+
 /* ── 유저가 그은 선 ──
    플레이로그가 잡은 것 중 제일 아팠던 것이 이것이다. 유저가 「둘이 있을 때
    삼촌 얘기 하지 마」라고 했는데 다음 날 그 얘기가 다시 나왔다. 저녁을
@@ -3696,6 +3788,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
                   : factsForSpeaker(ctx, room),
               userName)
           + buildBag(bag || [], room, userName)
+          + buildRefusal(ctx)
           + buildLeft(left, userName)
           + buildPlace(place, placeItemOwned, room, placeOver, came, placeItemAvailable)
           + (place ? "" : buildInvite(invite, room))
@@ -6447,6 +6540,12 @@ export default {
        썼다. 판정이 먼저고, 승인된 사유만 아래 turnCtx로 들어간다. */
     const lastUser = lastUserUtterance(Array.isArray(body.history) ? body.history : []);
     const lastChar = lastCharUtterance(Array.isArray(body.history) ? body.history : []);
+    /* ── 오늘 이 방에서 이미 거절당했나 ──
+       하루의 경계는 브라우저가 잰다 — 새벽 다섯 시가 하루의 시작이라는 규칙이
+       거기 있고(dayKey), 워커에는 그 시계가 없다. 옛 클라이언트는 안 보낸다:
+       그때는 안 찍힌 것으로 둔다. 없는 것을 「거절당했다」로 읽으면 인물이
+       아무 말도 못 꺼내는 판이 된다. */
+    const refusedToday = body.refused_today === true;
     const stageIdx = STAGES.indexOf(stageOf(Number((counts || {})[room]) || 0, days));
     /* 모르는 방 이름은 위에서 강현 방으로 눌러 **대화는** 살린다. 그런데
        한 번뿐인 장면까지 그 위에서 태우면, health나 오타 방으로 온 예약이
@@ -6503,6 +6602,10 @@ export default {
            남은 날을 센다. 안 보낸 것을 「지났다」로 읽으면 서른 날이 남은
            첫날에 끝나는 날이 없어진다. */
         after: body.dday_done === true,
+        /* 거절은 두 자리에서 산다: 방금 거절당한 턴(말에서 읽는다)과,
+           오늘 이미 거절당한 뒤의 턴들(브라우저 도장이 알려준다). */
+        refusedNow: pickRefusal(lastUser, lastChar),
+        refusedToday,
         sceneReason: routed.reason,
         /* 두 사람의 반응이 계약인 사건에만 채운다 — 기본은 빈 배열이다.
            일반 단톡·관전에 두 사람을 강제하지 않는다(0단계 계약). */
@@ -6592,9 +6695,11 @@ export default {
           코드가 확실히 아는 이번 턴의 값. 후보가 이걸 직접 뒤집으면 hard다 */
       const hardCtx = { giftNow: gift, giftRoom: room, place, placeItemOwned,
                         placeItemAvailable, room,
-                        /* 경계는 모델 응답이 아니라 **유저의 말**에서 온다.
-                           그 말과 이미 그어진 선을 같이 실어야 여기서 판정할 수 있다. */
-                        lastUser, boundaries: story.boundaries,
+                        /* 경계와 거절은 모델 응답이 아니라 **유저의 말**에서 온다.
+                           거절은 직전 인물 발화(제안)까지 봐야 하고, 오늘 이미
+                           찍힌 도장을 알아야 같은 날 두 번 안 낸다. */
+                        lastUser, lastChar, boundaries: story.boundaries,
+                        refusedToday,
                         /* 두 사람의 반응이 계약인 사건의 필수 화자(A2).
                            모든 경로(critical의 마무리 후보 포함)가 같은
                            hardFilter 입구를 타므로 여기 실으면 다 받는다. */
@@ -7561,7 +7666,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          NULL_FORTUNE_KEYWORDS, normalizeFortuneKeywordId, fortuneKeywordOf,
          renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
-         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, buildPlace,
+         PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
