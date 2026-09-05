@@ -2398,6 +2398,45 @@ eq('첫날은 첫날이라고 적는다', (() => {
   const t = buildVolatile('chat', 'jaeeon', 'R', null, [], null, { jaeeon: 3 }, null, null, null, 0);
   return t.includes('오늘 처음 만났다') && !t.includes('0일째');
 })(), true);
+/* ── D-∞에는 남은 날을 안 센다 ──
+   서른에서 며칠째를 뺀 값을 적고 있었는데, D-0을 지난 판의 days는 서른을
+   넘으므로 그 뺄셈이 늘 0이었다. 화면이 D-∞를 그리는 내내 프롬프트는
+   매 턴 「떠나기까지 0일 남았다」를 보냈고, 모델은 오늘을 떠나는 날로 알았다.
+   0일 남은 것과 셀 것이 없는 것은 다르다. */
+{
+  const VOL = (days, ctx) => buildVolatile('chat', 'jaeeon', 'R', null, [], null,
+    { jaeeon: 40 }, null, null, null, days, null, false, null, null, null,
+    false, null, null, null, null, null, ctx);
+  eq('D-0을 지나면 떠나기까지를 안 적는다', (() => {
+    const t = VOL(30, { after: true });
+    return !/떠나기까지/.test(t) && /떠나는 날은 이미 지났다/.test(t)
+      && /함께 지낸 지 1일째/.test(t) && /남은 날은 세지 않는다/.test(t);
+  })(), true);
+  eq('함께 지낸 날은 엔딩 뒤로 센다', (() => {
+    const t = VOL(34, { after: true });
+    return /함께 지낸 지 5일째/.test(t) && !/떠나기까지/.test(t);
+  })(), true);
+  /* 안 실려 오면 여느 판이다. 없는 것을 「지났다」로 읽으면 서른 날이 남은
+     첫날에 끝나는 날이 없어진다 — 옛 클라이언트는 이 값을 안 보낸다 */
+  eq('안 실려 오면 여전히 남은 날을 센다', (() => {
+    const t = VOL(12, null);
+    return /떠나기까지 18일/.test(t) && !/떠나는 날은 이미 지났다/.test(t);
+  })(), true);
+  eq('D-0 당일은 아직 세는 날이다', (() => {
+    const t = VOL(30, { after: false });
+    return /떠나기까지 0일/.test(t) && !/떠나는 날은 이미 지났다/.test(t);
+  })(), true);
+}
+/* 값은 브라우저 장부에서 온다. 산문(summary)만으로는 안 되는 이유가 여기 있다 —
+   요약은 「그동안 있었던 일」 자리라, 바로 뒤의 [지금까지]가 숫자로 반대말을
+   하면 숫자가 이긴다. 그래서 세는 일이 끝났다는 것 자체를 값으로 보낸다 */
+eq('워커는 안 보낸 것을 지난 것으로 안 읽는다',
+  /after:\s*o\.after === true,/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8')), true);
+eq('엔딩을 끝까지 본 판만 D-∞를 싣는다', (() => {
+  const d = readFileSync(join(ROOT, 'scripts/data/60-dday-choice.js'), 'utf8');
+  return /\.\.\.\(ending\.completed\?\{dday_done:true\}:\{\}\),/.test(d)
+    && /after: body\.dday_done === true,/.test(readFileSync(join(ROOT, 'worker.js'), 'utf8'));
+})(), true);
 /* 단계표를 걷어내니 「며칠째면 어떤 상태인가」를 말하는 문장이 없었다.
    표를 다시 만드는 대신 원칙 한 줄을 세계관에 둔다 — 관계는 이미 있는 게
    아니라 쌓이는 것이라고. 이건 코드가 지어낸 말이 아니라 작가의 문장이다 */
@@ -4486,7 +4525,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['285', 'b3d8f18efee1']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['286', 'f6b206a1da7e']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -4657,6 +4696,21 @@ eq('그 자리 물건만 인정한다',
   [pickGive('haribo', '편의점', false), pickGive('book', '편의점', false), pickGive('haribo', null, false)],
   ['haribo', null, null]);
 eq('이미 받았으면 또 안 준다', pickGive('haribo', '편의점', true), null);
+/* ── 표기가 흔들린 것은 다른 물건이 아니다 ──
+   프롬프트는 키를 알려주므로 키로 오는 것이 정상인데, 모델은 방금 제 대사에
+   쓴 이름을 그대로 적기도 한다. 그러면 여기가 null을 뱉고 hardFilter가 그걸
+   INVALID_GIVE로 읽어 **후보를 통째로 떨어뜨린다** — 물건을 건네려던 바로 그
+   턴에 대화가 죽는다. 자리마다 물건은 하나뿐이라 이름과 키가 갈릴 수 없다. */
+eq('이름으로 적어도 같은 물건이다',
+  [pickGive('하리보 젤리', '편의점', false), pickGive('캔커피', '옥상', false)],
+  ['haribo', 'can']);
+eq('그래도 없는 물건은 없는 물건이다',
+  [pickGive('빌린 책', '편의점', false), pickGive('선물', '옥상', false), pickGive('  ', '옥상', false)],
+  [null, null, null]);
+/* by가 걸린 자리는 그 사람 턴에만 건넨다 — 강현이 재언 집 열쇠를 내밀지 않는다 */
+eq('이름으로 적어도 임자는 안 바뀐다',
+  [pickGive('여벌 열쇠', '집', false, 'jaeeon'), pickGive('여벌 열쇠', '집', false, 'minhyun')],
+  ['key', null]);
 {
   const t = buildPlace('편의점', false, 'minhyun', false, '', true);
   eq('자리 블록은 마주 보고 있다고 알린다', /마주 보고/.test(t) && /어디냐고 묻지 않는다/.test(t), true);

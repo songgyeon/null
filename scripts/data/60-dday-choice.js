@@ -161,7 +161,16 @@ const attachDdayChoice=payload=>{
   if(!ENDING_ROUTES.includes(choice))return payload;
   const old=String(payload.summary||"").split("\n")
     .filter(line=>!line.startsWith(DDAY_CHOICE_TAG)).join("\n").trim();
+  /* ── D-∞라는 사실은 산문 말고 값으로도 보낸다 ──
+     위 한 줄은 요약(summary) 자리에 실린다. 요약은 「그동안 있었던 일」이라
+     모델이 지난 일로 읽는 자리다 — 거기 「일상이 계속된다」고 적어두어도
+     [지금까지]가 바로 뒤에서 「떠나기까지 0일 남았다」를 말하면 숫자가 이긴다.
+     그래서 세는 일이 끝났다는 것 자체를 값으로 보낸다. 워커의 [지금까지]가
+     이걸 보고 남은 날을 셀지 말지를 정한다.
+     관계만 고르고 영화관을 안 지난 판은 아직 D-0이다 — 그날은 남은 날이
+     정말로 0이라 세는 것이 맞다. completed일 때만 참이다. */
   return {...payload,dday_choice:choice,
+    ...(ending.completed?{dday_done:true}:{}),
     summary:ddayChoiceLine(choice,ending)+(old?"\n"+old:"")};
 };
 

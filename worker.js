@@ -447,6 +447,11 @@ function makeTurnContext(state, t) {
     place:    o.place || null,
     came:     o.came || null,
     left:     o.left || null,
+    /* ── 떠나는 날이 지난 뒤 ──
+       D-0에 유저는 떠나지 않고 남기로 했다. 그 뒤의 판에는 남은 날이 없다 —
+       0일 남은 것이 아니라 세는 일 자체가 끝났다. 어느 쪽인지는 클라이언트가
+       정하고 워커는 받기만 한다: 엔딩 상태는 브라우저의 장부에 있다. */
+    after:    o.after === true,
     giftNow:  o.giftNow || null,                 // 이번 턴에 유저가 건넨 것
     givenHistory: gh,                            // {jaeeon:["mug"], minhyun:["letter"]}
     now:      o.now || null,
@@ -2349,13 +2354,26 @@ function buildNow(now, day, states, season) {
   return `\n## [지금] ${head}${st ? ` · ${st}` : ""}\n먼저 꺼내는 화제로 쓰지 않는다. 이 시간에 있을 만한 곳에 있고 이 시간에 할 만한 말을 하면 그걸로 족하다.\n`;
 }
 
-function buildStage(mode, room, counts, days) {
+function buildStage(mode, room, counts, days, after) {
   if (!counts) return "";
   const n = k => Math.max(0, Number(counts[k]) || 0);
   const d = Math.max(0, Number(days) || 0);
-  /* 「만난 지 0일째」는 아무 말도 아니다. 첫날은 첫날이라고 적어야 한다 —
-     인물 설정의 첫 만남을 이미 끝난 일로 읽고 아는 사이처럼 구는 일이 있었다 */
-  const parts = [d === 0
+  /* ── D-∞에는 남은 날을 안 센다 ──
+     이 줄은 서른에서 며칠째를 뺀 값을 그대로 적었다. 그런데 D-0을 지난
+     판의 days는 서른을 넘으므로 그 뺄셈은 늘 0이었다 — 화면이 D-∞를
+     그리는 내내 프롬프트는 매 턴 「떠나기까지 0일 남았다」를 보냈다.
+     모델이 오늘을 떠나는 날로 아는 것은 모델 탓이 아니었다. 매 턴 그렇게
+     적어 보냈으니까.
+     0일 남은 것과 셀 것이 없는 것은 다르다. 유저는 남았고, 그래서 이
+     세계에는 이제 끝나는 날이 없다. 대신 함께 지낸 날을 센다 — 남은 날을
+     세던 자리에 아무것도 안 적으면 모델은 「지금까지」가 통째로 빈 것으로
+     읽고 첫날처럼 군다. */
+  const parts = [after
+    ? `- 떠나는 날은 이미 지났다. 유저는 떠나지 않고 남았고, 함께 지낸 지 ${Math.max(1, d - ENROLL_DAYS + 1)}일째다.`
+      + ` 남은 날은 세지 않는다 — 이제 끝나는 날이 없다. 헤어짐을 앞둔 사람처럼 굴지 않는다.`
+    /* 「만난 지 0일째」는 아무 말도 아니다. 첫날은 첫날이라고 적어야 한다 —
+       인물 설정의 첫 만남을 이미 끝난 일로 읽고 아는 사이처럼 구는 일이 있었다 */
+    : d === 0
     ? `- 오늘 처음 만났다. 떠나기까지 ${ENROLL_DAYS}일 남았다.`
     : `- 유저를 만난 지 ${d}일째다. 떠나기까지 ${Math.max(0, ENROLL_DAYS - d)}일 남았다.`];
   if (mode === "auto" || room === "group") {
@@ -3297,9 +3315,20 @@ ${mine.map(b => `- ${ITEM_NAME_BY_KEY[b.key]}${lore[b.key] ? " — " + lore[b.ke
 /* 모델이 준 give가 진짜 이 자리의 것인지 본다. 아니면 없던 일로 한다 */
 function pickGive(raw, place, placeItemOwned, room) {
   if (!place || placeItemOwned || !PLACE_ITEMS[place]) return null;
-  if (PLACE_ITEMS[place].by && PLACE_ITEMS[place].by !== room) return null;
+  const it = PLACE_ITEMS[place];
+  if (it.by && it.by !== room) return null;
   const k = (raw || "").toString().trim();
-  return k && PLACE_ITEMS[place].key === k ? k : null;
+  if (!k) return null;
+  /* ── 같은 것을 다르게 적은 것은 다른 것이 아니다 ──
+     프롬프트는 키를 알려주므로 키로 오는 것이 정상이다. 그런데 모델은
+     방금 제 대사에 쓴 이름을 그대로 적기도 한다 — 「give: "캔커피"」.
+     그러면 여기가 null을 뱉고, hardFilter가 그걸 INVALID_GIVE로 읽어
+     **후보를 통째로 떨어뜨린다**. 물건을 건네려던 바로 그 턴에 대화가
+     죽는 것이다. 자리마다 물건은 하나뿐이라 이름과 키가 가리키는 것이
+     갈릴 수 없다. 표기가 흔들린 것을 다른 물건으로 세지 않는다.
+     이 자리 것이 아닌 값은 그대로 무효다 — 편의점에서 책을 내미는 것은
+     표기 흔들림이 아니라 없는 물건이다. */
+  return k === it.key || k === it.name ? it.key : null;
 }
 
 /* 「두 사람」방을 열게 만든 사건. 유저가 선물을 줬거나 무언가 해금됐을 때,
@@ -3447,7 +3476,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
   }
   const t = buildNow(now, day, st, season)
           + (mode === "auto" ? `두 사람은 지금 ${watchPlace(now, day)}에 있다.\n` : "")
-          + buildStage(mode, room, counts, days) + buildProfile(userProfile)
+          + buildStage(mode, room, counts, days, ctx && ctx.after) + buildProfile(userProfile)
           + buildSignals(signals, mode === "auto" ? null : room, counts, days) + exclude
           + buildGift(gift, userName, room) + buildEvent(event, userName)
           + buildFlash(ctx && ctx.flash, room)
@@ -6217,6 +6246,10 @@ export default {
            상대를 모르는 반쪽이 된다. */
         partnerId: story.partnerId },
       { place, came, left, giftNow: gift, givenHistory, now, day, season,
+        /* D-0을 지났나. 옛 클라이언트는 안 보낸다 — 그때는 여느 판과 같이
+           남은 날을 센다. 안 보낸 것을 「지났다」로 읽으면 서른 날이 남은
+           첫날에 끝나는 날이 없어진다. */
+        after: body.dday_done === true,
         sceneReason: routed.reason,
         /* 두 사람의 반응이 계약인 사건에만 채운다 — 기본은 빈 배열이다.
            일반 단톡·관전에 두 사람을 강제하지 않는다(0단계 계약). */
