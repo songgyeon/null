@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=287";
+const AV_V = "?v=288";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -672,7 +672,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=287";
+const AV="?v=288";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1934,6 +1934,20 @@ const STORY_FC=["unseen","pending","explained","recognized"];
 const SCHOOL_PLACES=["학교","교실","보건실","옥상","체육관"];
 const isSchoolPlace=place=>SCHOOL_PLACES.includes(place);
 const STORY_JM=["hidden","opened","acknowledged"];
+/* ── 유저가 그은 선 ──
+   「둘이 있을 때 삼촌 얘기 하지 마」는 유저가 한 말이고, 그 말은 다음 날에도
+   유효해야 한다. 안 그러면 어제 한 말이 없는 일이 되고, 그게 이 장르에서
+   유저가 제일 못 견디는 것이다(치매·현타).
+   지금 아는 화제는 하나다 — partner, 그 방에서 안 꺼냈으면 하는 상대 인물.
+   방마다 따로 선다: 재언에게 그은 선이 강현에게까지 가면 그건 유저가 긋지
+   않은 선이다. */
+const STORY_TOPICS=["partner"];
+const normBoundaries=b=>{
+  const o=b||{},out={};
+  for(const who of ["jaeeon","minhyun"])
+    out[who]=(Array.isArray(o[who])?o[who]:[]).filter(t=>STORY_TOPICS.includes(t));
+  return out;
+};
 const loadStory=()=>{try{
   const o=JSON.parse(localStorage.getItem("null_story"))||{};
   const pk=o.partnerKnown||{};
@@ -1941,9 +1955,23 @@ const loadStory=()=>{try{
   return{firstContact:STORY_FC.includes(o.firstContact)?o.firstContact:"unseen",
     jaeeonMemory:STORY_JM.includes(o.jaeeonMemory)?o.jaeeonMemory:"hidden",
     partnerKnown:{jaeeon:!!pk.jaeeon,minhyun:!!pk.minhyun},
-    schoolMet:{jaeeon:!!sm.jaeeon,minhyun:!!sm.minhyun}};
+    schoolMet:{jaeeon:!!sm.jaeeon,minhyun:!!sm.minhyun},
+    boundaries:normBoundaries(o.boundaries)};
 }catch(e){return{firstContact:"unseen",jaeeonMemory:"hidden",
-  partnerKnown:{jaeeon:false,minhyun:false},schoolMet:{jaeeon:false,minhyun:false}}}};
+  partnerKnown:{jaeeon:false,minhyun:false},schoolMet:{jaeeon:false,minhyun:false},
+  boundaries:{jaeeon:[],minhyun:[]}}}};
+/* 선은 긋기만 하고 지우지 않는다 — 지우는 자리를 코드에 만들지 않는다.
+   되풀이해도 같다. 저장은 쓰고 나서 다시 읽어 확인한다(장부의 규칙 그대로). */
+const markBoundary=(room,topic)=>{
+  if(room!=="jaeeon"&&room!=="minhyun")return "skip";
+  if(!STORY_TOPICS.includes(topic))return "skip";
+  const s=loadStory();
+  if((s.boundaries[room]||[]).includes(topic))return "done";
+  const next={...s,boundaries:{...s.boundaries,
+    [room]:[...(s.boundaries[room]||[]),topic]}};
+  if(!saveStory(next)||!(loadStory().boundaries[room]||[]).includes(topic))return "fail";
+  return "done";
+};
 const saveStory=v=>{try{localStorage.setItem("null_story",JSON.stringify(v));return true}catch(e){return false}};
 /* 앞으로만 간다. 이미 지나 있으면 한 것으로 친다 — 두 번 적용해도 같다.
    저장은 쓰고 나서 다시 읽어 확인한다(장부의 규칙 그대로). */
@@ -2468,7 +2496,10 @@ return {
   SCHOOL_PLACES,
   isSchoolPlace,
   STORY_JM,
+  STORY_TOPICS,
+  normBoundaries,
   loadStory,
+  markBoundary,
   saveStory,
   applyStoryTransition,
   markPartnerKnown,
@@ -2792,7 +2823,10 @@ export const {
   SCHOOL_PLACES,
   isSchoolPlace,
   STORY_JM,
+  STORY_TOPICS,
+  normBoundaries,
   loadStory,
+  markBoundary,
   saveStory,
   applyStoryTransition,
   markPartnerKnown,

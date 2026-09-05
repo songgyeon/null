@@ -352,6 +352,12 @@ function GameApp(){
       if(!loadInvites().some(x=>x.place===e.place&&x.char===e.char))
         return{status:"storage_error",key:"null_invite"};
       setInvite(headInvite());
+    }else if(e.type==="boundary"){
+      /* 유저가 그은 선. 워커가 유저의 말에서 읽어내고 여기서 장부에 적는다 —
+         선물과 같은 길이다. 두 번 적용해도 결과가 같다. */
+      const r=markBoundary(e.room,e.topic);
+      if(r==="fail")return{status:"storage_error",key:"null_story"};
+      if(r==="skip")return{status:"not_applicable"};
     }else if(e.type==="story_transition"){
       /* 이야기 상태가 실제로 움직이는 유일한 자리 (E3). 워커가 검증된
          응답 뒤에만 내고, 여기서는 앞으로만 옮긴다 — 이미 지나 있으면
