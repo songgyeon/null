@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=292";
+const AV_V = "?v=293";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -690,7 +690,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=292";
+const AV="?v=293";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1396,6 +1396,33 @@ const loadRefuseDay=()=>{try{return JSON.parse(localStorage.getItem("null_refuse
 const saveRefuseDay=v=>{try{localStorage.setItem("null_refuseday",JSON.stringify(v));return true}catch(e){return false}};
 const refusedToday=(char,now)=>loadRefuseDay()[char]===dayKey(now);
 const stampRefuse=(char,now)=>refusedToday(char,now)||saveRefuseDay({...loadRefuseDay(),[char]:dayKey(now)});
+/* ── 인물이 한 약속 ──
+   방마다 하나만 들고 있는다. 새 약속이 생기면 앞엣것은 밀려난다 — 여럿을
+   쌓으면 인물이 지킬 것 목록을 읽는 사람이 되고, 그건 사람이 아니라 일정표다.
+
+   며칠이 지났는지는 여기서 잰다(하루의 경계가 여기 있다). PROMISE_DAYS가
+   지나면 아예 안 실어 보낸다 — 지켰는지를 잴 방법이 없으니, 대신 오래된
+   말은 스스로 물러나게 한다. 안 그러면 「아직 안 지켰다」가 영영 따라다닌다.
+   닷새로 둔 것은 로그에서 콜백이 돌아오는 데 걸린 날이 닷새였기 때문이다. */
+const PROMISE_DAYS=5;
+const loadPromise=()=>{try{return JSON.parse(localStorage.getItem("null_promise"))||{}}catch(e){return{}}};
+const savePromise=v=>{try{localStorage.setItem("null_promise",JSON.stringify(v));return true}catch(e){return false}};
+const markPromise=(char,text,now)=>{
+  const t=String(text||"").trim().slice(0,60); if(!t)return false;
+  const next={...loadPromise(),[char]:{text:t,day:dayKey(now)}};
+  return !!savePromise(next)&&((loadPromise()[char]||{}).text===t);
+};
+/* 며칠 전 것인가. 날짜 문자열 둘을 견주는 게 아니라 하루씩 되짚는다 —
+   dayKey는 새벽 다섯 시가 경계라 Date 뺄셈과 어긋난다. 닷새만 보면 되므로
+   되짚는 값도 그만큼이다. */
+const promiseFor=(char,now)=>{
+  const p=loadPromise()[char];
+  if(!p||!p.text)return null;
+  const base=now==null?Date.now():now;
+  for(let d=0;d<=PROMISE_DAYS;d++)
+    if(dayKey(base-d*864e5)===p.day)return {text:p.text,daysAgo:d};
+  return null;                                  // 닷새보다 오래된 말은 물러난다
+};
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
 const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};
@@ -2441,6 +2468,11 @@ return {
   saveRefuseDay,
   refusedToday,
   stampRefuse,
+  PROMISE_DAYS,
+  loadPromise,
+  savePromise,
+  markPromise,
+  promiseFor,
   loadWend,
   saveWend,
   jos,
@@ -2773,6 +2805,11 @@ export const {
   saveRefuseDay,
   refusedToday,
   stampRefuse,
+  PROMISE_DAYS,
+  loadPromise,
+  savePromise,
+  markPromise,
+  promiseFor,
   loadWend,
   saveWend,
   jos,

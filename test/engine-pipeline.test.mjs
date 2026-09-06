@@ -2196,6 +2196,33 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("안 보낸 판은 조용하다",
     [/방금 들은 말/.test(volOf()), /오늘 이 방에서/.test(volOf())], [false, false]);
 
+  /* ── 인물이 한 약속 ──
+     유저의 말이 아니라 인물이 직전에 한 말에서 온다. 좋았던 콜백이 우연이
+     아니게 하려면, 이력이 잘려도 그 말이 남아 있어야 한다. */
+  const vowed = await run({}, { ...BASE, room: "minhyun",
+    history: [{ role: "user", content: "늦을 것 같아요" },
+      { role: "assistant", sender: "minhyun", content: "늦으면 데리러 갈게요." },
+      { role: "user", content: "고마워요" }] });
+  eq("약속이 요청 경로에서 Effect가 된다",
+    (vowed.data.effects || []).filter(e => e.type === "promise").map(e => [e.room, e.text]),
+    [["minhyun", "늦으면 데리러 갈게요"]]);
+  /* 지금 하는 말은 약속이 아니다 */
+  const now = await run({}, { ...BASE, room: "minhyun",
+    history: [...BASE.history.slice(0, 1),
+      { role: "assistant", sender: "minhyun", content: "그럼 갈게요." },
+      { role: "user", content: "네" }] });
+  eq("지금 하는 말에는 아무것도 안 남는다",
+    (now.data.effects || []).filter(e => e.type === "promise").length, 0);
+  /* 며칠 전 것인지는 브라우저가 재서 보낸다 */
+  await run({}, { ...BASE, room: "minhyun",
+    promise: { text: "늦으면 데리러 갈게요", daysAgo: 5 } });
+  const kept = volOf();
+  eq("며칠 전 한 말이 프롬프트로 돌아온다",
+    [/## 네가 한 말/.test(kept), /5일 전 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(kept),
+     /지금 그때가 아니면 꺼내지 않는다/.test(kept)], [true, true, true]);
+  await run({}, { ...BASE, room: "minhyun" });
+  eq("약속이 없으면 조용하다", /네가 한 말/.test(volOf()), false);
+
   /* ── 빌린 것을 돌려받았다 ──
      가방에서 빠지는 것과 방금 돌려받은 것은 다른 사실이다. 앞엣것은 없는
      것이고 뒤엣것은 일어난 일이라, 없는 것만으로는 인물이 반응을 못 한다. */

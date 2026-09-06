@@ -6,7 +6,7 @@
 
 import { parseMessages, splitLines, trimTics, sanitizePhotos, unlabel, buildSystem, buildVolatile, budgetHistory,
          PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
-  buildReturned, buildPlace, dropMeta, dropSleepers, hardFilter,
+  buildReturned, buildPromise, pickPromise, buildPlace, dropMeta, dropSleepers, hardFilter,
          dropEcho, lastSaid } from '../worker.js';
 import worker from '../worker.js';
 import * as ENG from '../worker.js';
@@ -4528,7 +4528,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['292', '9beb364f3ece']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['293', '4bcf7e3581b0']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -9696,6 +9696,98 @@ eq('시간표 단추는 peek보다 좁다',
     })(), true);
     /* button은 제 글꼴을 들고 온다 — 안 적으면 이 알약만 시스템 글꼴이 된다 */
     eq('알약이 옆 글자와 같은 글꼴이다', /\.baglabel\{font-family:inherit/.test(readCss()), true);
+  }
+
+  /* ── D2 인물이 한 약속 ──
+     로그에서 제일 좋았던 순간이 이것이었다: 「늦으면 데리러 간다」는 말이
+     닷새 뒤에 돌아왔다. 그런데 그건 그 말이 아직 대화 이력에 남아 있어서
+     우연히 된 것이라, 이력이 잘리면 같이 사라진다. 좋았던 것이 우연이면
+     그건 기능이 아니다. */
+  {
+    const V = pickPromise;
+    eq('조건이 붙은 말은 약속이다',
+      [V('늦으면 데리러 갈게요.'), V('비 오면 우산 갖다드릴게요. 걱정 마세요.'),
+       V('내일 아침에 챙겨 올게요'), V('이따 전화할게요')],
+      ['늦으면 데리러 갈게요', '비 오면 우산 갖다드릴게요',
+       '내일 아침에 챙겨 올게요', '이따 전화할게요']);
+    /* 「그럼 갈게요」는 지금 가는 것이고 「늦으면 갈게요」는 약속이다 —
+       둘을 가르는 것은 미래를 가리키는 말이 앞에 있느냐다 */
+    eq('지금 하는 말은 약속이 아니다',
+      [V('그럼 갈게요.'), V('알겠어요.'), V('다음에 같이 가요.'), V(''), V(null)],
+      ['', '', '', '', '']);
+    /* 말 그대로 남긴다. 조건도 날짜도 안 뽑는다 — 알 수 없는 것을 뽑아 적으면
+       인물이 안 한 약속이 장부에 남고, 그건 없는 약속을 지키는 인물을 만든다 */
+    eq('한 문장만 잘라 온다', V('늦으면 데리러 갈게요. 그러니까 걱정 말고요. 진짜로요.'),
+      '늦으면 데리러 갈게요');
+    eq('길면 잘린다', V('내일' + '가'.repeat(80) + '할게요').length <= 60, true);
+
+    /* Effect — 인물이 방금 한 말에서 온다. 같은 말은 다시 안 새긴다 */
+    const ctx = extra => ({ room: 'minhyun', lastChar: '늦으면 데리러 갈게요.',
+      lastUser: '네', ...(extra || {}) });
+    eq('약속이 Effect가 된다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] }, ctx())
+        .filter(e => e.type === 'promise').map(e => [e.room, e.text]),
+      [['minhyun', '늦으면 데리러 갈게요']]);
+    eq('같은 말은 다시 안 새긴다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] },
+        ctx({ promise: { text: '늦으면 데리러 갈게요' } }))
+        .filter(e => e.type === 'promise').length, 0);
+    eq('새 약속은 앞엣것을 밀어낸다',
+      ENG.materializeEffects('r1', { messages: [{ text: 'ㄱ' }] },
+        ctx({ promise: { text: '내일 챙겨 올게요' } }))
+        .filter(e => e.type === 'promise').map(e => e.text), ['늦으면 데리러 갈게요']);
+
+    /* ── 프롬프트 ── 말 그대로 돌려준다 */
+    eq('제가 한 말을 그대로 돌려준다', (() => {
+      const t = buildPromise({ text: '늦으면 데리러 갈게요', daysAgo: 5 });
+      return /## 네가 한 말/.test(t) && /5일 전 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(t)
+        && /그 말은 아직 유효하다/.test(t);
+    })(), true);
+    /* 어제 한 말과 사흘 전에 한 말은 무게가 다르다 — 그 무게를 정하는 것은
+       인물이지 코드가 아니라, 며칠 전인지만 준다 */
+    eq('며칠 전인지를 말로 적는다',
+      [0, 1, 3].map(d => (buildPromise({ text: 'ㄱ', daysAgo: d })
+        .match(/\n([^\n]+?) 네가 이렇게 말했다/) || [])[1]),
+      ['오늘', '어제', '3일 전']);
+    /* 지킬 마음을 매번 확인받게 하면 그게 곧 되풀이다 */
+    eq('그때가 아니면 안 꺼낸다',
+      /지금 그때가 아니면 꺼내지 않는다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 })), true);
+    eq('약속이 없으면 한 줄도 없다',
+      [buildPromise(null), buildPromise({}), buildPromise({ text: '  ' })], ['', '', '']);
+
+    /* ── 브라우저 ── 하나만 들고, 닷새가 지나면 물러난다 */
+    {
+      const mem = new Map();
+      const ls = { getItem: k => mem.has(k) ? mem.get(k) : null,
+        setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
+      const P = new Function('localStorage', 'location',
+        webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
+        + '\nreturn {markPromise,promiseFor,loadPromise,PROMISE_DAYS};')(ls, { search: '' });
+      eq('찍으면 오늘 한 말이 된다',
+        [P.markPromise('minhyun', '늦으면 데리러 갈게요'), P.promiseFor('minhyun')],
+        [true, { text: '늦으면 데리러 갈게요', daysAgo: 0 }]);
+      /* 며칠이 지났는지는 브라우저가 잰다 — 하루의 경계가 여기 있다 */
+      eq('며칠 전인지 센다',
+        [1, 3, 5].map(d => (P.promiseFor('minhyun', Date.now() + d * 864e5) || {}).daysAgo),
+        [1, 3, 5]);
+      /* 지켰는지를 잴 방법이 없으니 오래된 말은 스스로 물러난다 —
+         안 그러면 「아직 안 지켰다」가 영영 따라다닌다 */
+      eq('닷새가 지나면 물러난다',
+        P.promiseFor('minhyun', Date.now() + (P.PROMISE_DAYS + 1) * 864e5), null);
+      /* 방마다 하나뿐이다. 여럿을 쌓으면 인물이 아니라 일정표가 된다 */
+      eq('새 약속이 앞엣것을 밀어낸다', (() => {
+        P.markPromise('minhyun', '내일 챙겨 올게요');
+        return [P.promiseFor('minhyun').text, Object.keys(P.loadPromise()).length];
+      })(), ['내일 챙겨 올게요', 1]);
+      eq('방마다 따로 든다', P.promiseFor('jaeeon'), null);
+      eq('빈 말은 안 찍는다', P.markPromise('jaeeon', '   '), false);
+    }
+    eq('약속도 장부를 거쳐 적용된다',
+      /e\.type==="promise"[\s\S]{0,260}markPromise\(e\.room,e\.text\)/
+        .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+    eq('브라우저가 며칠 전인지 재서 보낸다',
+      /const vow=promiseFor\(bucket\); if\(vow\)payload\.promise=vow;/
+        .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
   }
 
   /* ── D2 초대·지급 제안 검사 ── */
