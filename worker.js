@@ -516,6 +516,12 @@ function makeTurnContext(state, t) {
        방금은 이번 대답의 태도를 정하고, 오늘은 다시 꺼내지 말라는 뜻이다. */
     refusedNow:   o.refusedNow === true,
     refusedToday: o.refusedToday === true,
+    /* 인물이 며칠 전에 한 약속. 말 그대로와 며칠 전인지만 들고 있는다 */
+    promise: (() => {
+      const p = o.promise || {};
+      const text = String(p.text || "").trim().slice(0, 60);
+      return text ? { text, daysAgo: Math.max(0, Math.floor(Number(p.daysAgo) || 0)) } : null;
+    })(),
     /* 이번 턴에 유저가 돌려준 것. 이름만 받는다 — 무엇이었는지는 이름이
        말하고, 키는 가방이 이미 들고 있다. */
     returned: (() => {
@@ -549,7 +555,7 @@ function makeTurnContext(state, t) {
    선택이 끝난 뒤 코드가 `request_id + type + 대상 + item/key`로 만든다.
    모델이 임의 ID를 쓰거나 재시도마다 다른 ID를 내면 같은 선물이 두 번
    지급된다. 재시도해도 같은 재료면 같은 id가 나오는 것이 요점이다. */
-const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary", "refusal"];
+const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary", "refusal", "promise"];
 
 function mintEffectId(requestId, type, target, key) {
   return [String(requestId || ""), String(type || ""),
@@ -583,6 +589,15 @@ function makeEffect(requestId, e) {
     const room = String(o.room || "");
     if (!room) throw new Error("refusal에 room이 없다");
     return { id: mintEffectId(requestId, type, room, "today"), type, room };
+  }
+  /* ── 인물이 한 약속 ──
+     남는 것은 그 사람이 한 말 그대로다. 조건도 날짜도 안 뽑는다 — 「늦으면」이
+     언제인지는 코드가 알 수 없고, 알 수 없는 것을 뽑아 적으면 인물이 안 한
+     약속이 장부에 남는다. 말을 그대로 두면 인물이 읽고 스스로 판단한다. */
+  if (type === "promise") {
+    const room = String(o.room || ""), text = String(o.text || "");
+    if (!room || !text) throw new Error("promise에 room/text가 없다");
+    return { id: mintEffectId(requestId, type, room, text.slice(0, 24)), type, room, text };
   }
   if (type === "invite") {
     const place = String(o.place || ""), char = String(o.char || "");
@@ -660,6 +675,16 @@ function materializeEffects(requestId, picked, ctx) {
   if ((g.room === "jaeeon" || g.room === "minhyun")
       && !g.refusedToday && pickRefusal(g.lastUser, g.lastChar))
     out.push(makeEffect(requestId, { type: "refusal", room: g.room }));
+  /* ── 인물이 한 약속 ──
+     유저의 말이 아니라 **인물이 방금 한 말**에서 온다. 그래서 이 턴의 응답이
+     아니라 직전 턴의 발화를 본다 — 이번 턴에 인물이 무슨 약속을 할지는
+     이 자리에서 알 수 없고, 다음 턴에 lastChar로 돌아온다.
+     같은 말을 또 잡아 다시 새기지 않는다: 이미 들고 있는 것과 같으면 넘긴다. */
+  if (g.room === "jaeeon" || g.room === "minhyun") {
+    const vow = pickPromise(g.lastChar);
+    if (vow && vow !== ((g.promise || {}).text || ""))
+      out.push(makeEffect(requestId, { type: "promise", room: g.room, text: vow }));
+  }
   /* ── 초대는 열려 있는 자리로만 ──
      지금 앉아 있는 자리로 다시 부르는 것은 모순이라 openPlaces가 비어 있다. */
   if (picked.invite && !g.place) {
@@ -2669,6 +2694,24 @@ function buildRefusal(ctx) {
    인물이 아무 반응도 못 한다.
    빌려준 사람만 이 줄을 받는다 — 돌려받은 것은 그 사람이 겪은 일이다.
    짧게 둔다. 갚는 일은 사건이지 장면이 아니다. */
+/* ── 제가 한 말을 들고 있는다 ──
+   말 그대로 돌려준다. 「무엇을 언제까지」로 바꿔 적지 않는다 — 그건 코드가
+   지어낸 약속이고, 인물이 한 말은 이미 저 문장이다.
+   며칠 전인지만 같이 준다. 어제 한 말과 사흘 전에 한 말은 무게가 다르고,
+   그 무게를 정하는 것은 인물이지 코드가 아니다.
+   지켰는지는 안 잰다. 잴 방법이 없고, 재려 들면 안 지킨 것으로 몰거나
+   지킨 것을 또 지키게 만든다 — 인물이 제 말을 읽고 알아서 한다. */
+function buildPromise(promise) {
+  const p = promise || {};
+  const text = String(p.text || "").trim();
+  if (!text) return "";
+  const d = Math.max(0, Math.floor(Number(p.daysAgo) || 0));
+  const when = d === 0 ? "오늘" : d === 1 ? "어제" : `${d}일 전`;
+  return `\n## 네가 한 말\n${when} 네가 이렇게 말했다 — 「${text}」\n`
+       + `- 그 말은 아직 유효하다. 그때가 오면 네가 먼저 움직인다.\n`
+       + `- 지금 그때가 아니면 꺼내지 않는다. 지킬 마음을 매번 말로 확인받지 않는다.\n`;
+}
+
 function buildReturned(returned, userName) {
   const name = String((returned || {}).name || "").trim().slice(0, 20);
   if (!name) return "";
@@ -3533,6 +3576,38 @@ const OFFER_BY_CHAR =
 const REFUSE_SAY =
   /(?:아니요|아뇨|아니에요|싫어요|싫은데|싫습니다|됐어요|괜찮습니다만|안\s*갈래|안\s*할래|못\s*가|못\s*할|안\s*돼요|무리(?:예요|에요|일)|힘들\s*것?\s*같|다음에\s*(?:요|해요|가요|봐요|할래))/;
 
+/* ── 인물이 한 약속 ──
+   로그에서 제일 좋았던 순간이 이것이었다: 「늦으면 데리러 간다」는 말이
+   닷새 뒤에 돌아왔다. 그런데 그건 그 말이 아직 대화 이력에 남아 있어서
+   우연히 된 것이라, 이력이 잘리면 같이 사라진다. 좋았던 것이 우연이면
+   그건 기능이 아니다.
+
+   ── 조건도 날짜도 안 뽑는다 ──
+   「늦으면」이 언제인지 코드는 모른다. 뽑으려면 자연어를 이해해야 하고,
+   알 수 없는 것을 뽑아 적으면 인물이 안 한 약속이 장부에 남는다 —
+   그건 거절 오탐보다 나쁘다: 거절은 조용히 물러서는 것이지만 약속은
+   지키려 드는 것이라, 없는 약속을 지키는 인물이 된다.
+   말을 그대로 남긴다. 인물이 제가 한 말을 읽고 스스로 판단한다.
+
+   ── 조건이 있어야 약속이다 ──
+   「그럼 갈게요」는 지금 가는 것이고 「늦으면 데리러 갈게요」는 약속이다.
+   둘을 가르는 것은 미래를 가리키는 말이 앞에 있느냐다. 종성은 정규식으로
+   다루지 않는다(거절에서 배운 것) — 어미만 본다.
+
+   ── 하나만 들고 있는다 ──
+   새 약속이 생기면 앞엣것은 밀려난다. 여럿을 쌓으면 인물이 지킬 것 목록을
+   읽는 사람이 되고, 그건 사람이 아니라 일정표다. */
+const PROMISE_BY_CHAR =
+  /(?:면|다음에|나중에|내일|담에|언젠가|이따|있다가)[^.!?]{0,18}?(?:게요|께요|드릴|줄게|볼게)/;
+
+function pickPromise(lastChar) {
+  for (const clause of String(lastChar || "").split(/[.!?\n]/)) {
+    const t = clause.trim();
+    if (t && PROMISE_BY_CHAR.test(t)) return t.slice(0, 60);
+  }
+  return "";
+}
+
 function pickRefusal(said, lastChar) {
   const u = String(said || ""), c = String(lastChar || "");
   if (!u || !c) return false;
@@ -3813,6 +3888,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
               userName)
           + buildBag(bag || [], room, userName)
           + buildRefusal(ctx)
+          + buildPromise(ctx && ctx.promise)
           + buildReturned(ctx && ctx.returned, userName)
           + buildLeft(left, userName)
           + buildPlace(place, placeItemOwned, room, placeOver, came, placeItemAvailable)
@@ -6571,6 +6647,17 @@ export default {
        그때는 안 찍힌 것으로 둔다. 없는 것을 「거절당했다」로 읽으면 인물이
        아무 말도 못 꺼내는 판이 된다. */
     const refusedToday = body.refused_today === true;
+    /* ── 인물이 며칠 전에 한 약속 ──
+       하나만 들고 있고, 며칠 지났는지는 브라우저가 잰다 — 하루의 경계가
+       거기 있다. 오래된 것은 아예 안 실려 온다(브라우저가 거른다).
+       옛 클라이언트는 안 보낸다: 그때는 약속이 없는 것으로 둔다. */
+    const promise = (() => {
+      const o = body.promise;
+      if (!o || typeof o !== "object") return null;
+      const text = String(o.text || "").trim().slice(0, 60);
+      if (!text) return null;
+      return { text, daysAgo: Math.max(0, Math.floor(Number(o.daysAgo) || 0)) };
+    })();
     const stageIdx = STAGES.indexOf(stageOf(Number((counts || {})[room]) || 0, days));
     /* 모르는 방 이름은 위에서 강현 방으로 눌러 **대화는** 살린다. 그런데
        한 번뿐인 장면까지 그 위에서 태우면, health나 오타 방으로 온 예약이
@@ -6630,7 +6717,7 @@ export default {
         /* 거절은 두 자리에서 산다: 방금 거절당한 턴(말에서 읽는다)과,
            오늘 이미 거절당한 뒤의 턴들(브라우저 도장이 알려준다). */
         refusedNow: pickRefusal(lastUser, lastChar),
-        refusedToday,
+        refusedToday, promise,
         /* 빌린 것을 돌려준 턴. 1:1에서만 뜻이 있다 — 단톡에 손에서 손으로
            건네줄 자리는 없다. */
         returned: mode === "chat" && room !== "group" ? body.returned : null,
@@ -6727,7 +6814,7 @@ export default {
                            거절은 직전 인물 발화(제안)까지 봐야 하고, 오늘 이미
                            찍힌 도장을 알아야 같은 날 두 번 안 낸다. */
                         lastUser, lastChar, boundaries: story.boundaries,
-                        refusedToday,
+                        refusedToday, promise,
                         /* 두 사람의 반응이 계약인 사건의 필수 화자(A2).
                            모든 경로(critical의 마무리 후보 포함)가 같은
                            hardFilter 입구를 타므로 여기 실으면 다 받는다. */
@@ -7695,7 +7782,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
-         buildReturned, buildPlace,
+         buildReturned, buildPromise, pickPromise, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,

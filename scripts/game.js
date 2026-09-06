@@ -358,6 +358,11 @@ function GameApp(){
       if(e.room!=="jaeeon"&&e.room!=="minhyun")return{status:"not_applicable"};
       if(!stampRefuse(e.room)||!refusedToday(e.room))
         return{status:"storage_error",key:"null_refuseday"};
+    }else if(e.type==="promise"){
+      /* 인물이 한 말을 그대로 들고 있는다. 방마다 하나뿐이라 새것이 앞엣것을
+         밀어낸다 — 되풀이해도 결과가 같다. */
+      if(e.room!=="jaeeon"&&e.room!=="minhyun")return{status:"not_applicable"};
+      if(!markPromise(e.room,e.text))return{status:"storage_error",key:"null_promise"};
     }else if(e.type==="boundary"){
       /* 유저가 그은 선. 워커가 유저의 말에서 읽어내고 여기서 장부에 적는다 —
          선물과 같은 길이다. 두 번 적용해도 결과가 같다. */
@@ -1140,6 +1145,9 @@ function GameApp(){
          새벽 다섯 시가 하루의 시작이라는 규칙이 이쪽에 있고 워커에는
          그 시계가 없다. */
       if(CHARS[bucket]&&refusedToday(bucket))payload.refused_today=true;
+      /* 인물이 며칠 전에 한 약속. 며칠인지도 여기서 재고, 닷새가 지나면
+         promiseFor가 null을 준다 — 오래된 말은 스스로 물러난다. */
+      if(CHARS[bucket]){ const vow=promiseFor(bucket); if(vow)payload.promise=vow; }
     }
     /* Luck에서 사용자가 세 칸을 직접 채워 공개한 뒤에만, 시스템이 고른
        허용 키워드 ID 하나를 대화 요청에 싣는다. 입력한 문장과 일기는 보내지 않는다. */
