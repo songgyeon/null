@@ -2117,8 +2117,25 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("D-∞ 요청에는 남은 날이 없다",
     [/떠나는 날은 이미 지났다/.test(inf), /함께 지낸 지 5일째/.test(inf),
      /떠나기까지/.test(inf)], [true, true, false]);
+  /* ── 지났는지는 날짜가 먼저 안다 ──
+     앞 판의 이 자리는 「안 보낸 판은 여전히 남은 날을 센다」를 기대값으로
+     박아뒀다. dday_done은 **엔딩을 끝냈을 때만** 오는 값인데, 끝내지 않고
+     계속 말을 거는 판에서 그 기대는 「서른하루째에도 떠나기까지 0일」을
+     정답으로 굳힌 것이었다. 실제 기록이 그 대가를 보여줬다 —
+     「오늘이네요」가 엿새에 걸쳐 여섯 번, 「오늘」계열 낱말이 31회.
+     버그를 시험으로 굳히면 시험이 통과하는 동안 제품이 망가진다. */
   await run({}, { ...BASE, days: 34 });
-  eq("안 보낸 판은 여전히 남은 날을 센다", /떠나기까지 0일 남았다/.test(volOf()), true);
+  const late = volOf();
+  eq("안 보내도 날짜가 지났으면 안 센다",
+    [/떠나는 날은 이미 지났다/.test(late), /함께 지낸 지 5일째/.test(late),
+     /떠나기까지/.test(late)], [true, true, false]);
+  /* 그날 당일은 아직 지난 게 아니다 — 경계는 하루 뒤다 */
+  await run({}, { ...BASE, days: 30 });
+  const onDay = volOf();
+  eq("떠나는 날 당일은 아직 센다",
+    [/떠나기까지 0일 남았다/.test(onDay), /이미 지났다/.test(onDay)], [true, false]);
+  await run({}, { ...BASE, days: 29 });
+  eq("전날은 하루 남았다", /떠나기까지 1일 남았다/.test(volOf()), true);
   /* D-0 당일은 진짜로 0일 남았다 — 그날까지 세는 것이 맞다 */
   await run({}, { ...BASE, days: 30, dday_done: false });
   eq("D-0 당일은 아직 세는 날이다",
