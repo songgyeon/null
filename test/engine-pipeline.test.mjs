@@ -1970,7 +1970,7 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("기본이 도전자 진영이다 — 쓰기 한 번", writersOf(r), 1);
   eq("쓰는 자리만 다른 진영으로 나간다", oaiReqs().length, 1);
   eq("주소가 그 진영의 것이다", oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
-  eq("계측에 남는 모델도 도전자다", r.data.stages[0].model, "gpt-4.1-2025-04-14");
+  eq("계측에 남는 모델도 그 손이다", r.data.stages[0].model, ENG.OPENAI_MODEL);
 
   /* 클라이언트 입력은 진영도 모델도 못 바꾼다 — env만이 정한다.
      기본을 옛 배선으로 되돌리려는 시도도 안 먹는다. */
@@ -1980,12 +1980,22 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("요청 본문으로는 모델도 못 바꾼다", spoof.data.stages[0].model, ENG.OPENAI_MODEL);
 }
 
-/* ── 15.3 별칭이 아니라 snapshot이다 ── */
+/* ── 15.3 이름은 코드가 정한다 ──
+   예전에는 여기서 「날짜가 박힌 판인가」를 쟀다. 그 자리가 replay 도전자
+   였을 때의 규칙이다 — 두 모델을 나란히 재려면 별칭이 조용히 갈아타면
+   안 되니까. 지금 이 자리는 운영의 쓰는 손이고, 이 진영이 날짜 판을
+   안 내주면 별칭이 유일한 이름이다. 그래서 재는 것을 바꾼다: 이름의
+   **모양**이 아니라 **누가 정하는가**다. */
 {
-  eq("snapshot 문자열이 박혀 있다", ENG.OPENAI_MODEL, "gpt-4.1-2025-04-14");
-  eq("날짜가 붙은 고정 판이다", /^gpt-4\.1-\d{4}-\d{2}-\d{2}$/.test(ENG.OPENAI_MODEL), true);
+  eq("이름이 코드에 박혀 있다", typeof ENG.OPENAI_MODEL === "string"
+    && ENG.OPENAI_MODEL.length > 0, true);
   await run({}, BASE);
-  eq("요청 본문의 모델이 그 snapshot이다", oaiReqs()[0].body.model, "gpt-4.1-2025-04-14");
+  eq("요청 본문의 모델이 그 이름이다", oaiReqs()[0].body.model, ENG.OPENAI_MODEL);
+  /* 클라이언트가 어느 이름으로 불러도 이 값 근처에 못 온다 */
+  for (const key of ["model", "OPENAI_MODEL", "OPENAI_WRITER_MODEL", "engine"]) {
+    await run({}, { ...BASE, [key]: "몰래-바꾼-손" });
+    eq(`요청 본문의 ${key}로는 못 바꾼다`, oaiReqs()[0].body.model, ENG.OPENAI_MODEL);
+  }
 }
 
 /* ── 15.4 열쇠가 없으면 부르기 전에 멈춘다 ──
@@ -2081,7 +2091,7 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     [1, "canon"]);
   eq("쓰는 자리만 도전자다",
     r.data.stages.filter(s => s.stage === "writer")
-      .every(s => s.model === "gpt-4.1-2025-04-14"), true);
+      .every(s => s.model === ENG.OPENAI_MODEL), true);
   eq("정사 검사는 기존 저비용 그대로다",
     r.data.stages.filter(s => s.stage !== "writer").map(s => s.model),
     [MID.canon]);

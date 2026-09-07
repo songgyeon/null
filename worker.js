@@ -86,7 +86,18 @@ const MODELS = [
 /* replay 전용 도전자의 모델 snapshot과 주소. 별칭이 아니라 날짜가 박힌
    판이다 — 별칭은 조용히 갈아타서 「같은 조건」이 깨진다. 클라이언트
    입력이 이 값을 바꿀 길은 없다(요청 본문을 안 본다). */
-const OPENAI_MODEL = "gpt-4.1-2025-04-14";
+/* ── 쓰는 자리에 앉은 손 ──
+   이 자리는 이제 replay 도전자가 아니라 **운영의 쓰는 손**이다. 그래서
+   이름 규칙이 하나 바뀐다: 예전에는 날짜가 박힌 판만 앉혔다(별칭은 조용히
+   갈아타서 「같은 조건」이 깨지니까). 그 규칙은 **두 모델을 나란히 재려고**
+   있던 것이고, 지금은 재는 게 아니라 쓰는 것이다. 이 진영이 이 손에
+   날짜 판을 안 내주면 별칭이 유일한 이름이다.
+
+   지켜야 할 계약은 그대로다 — **코드가 정하고 요청 본문이 못 바꾼다.**
+   클라이언트 입력은 이 값 근처에도 못 온다(요청 본문을 안 본다).
+   갈아끼우려면 대시보드의 OPENAI_WRITER_MODEL이고, 되돌리기는 그 값을
+   지우면 끝이다. */
+const OPENAI_MODEL = "gpt-5.6-luna";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 /* ── 도전자 자리의 손을 갈아끼우는 문 ──
    기본값은 위의 snapshot 그대로다 — 재던 조건을 이 문이 건드리면 안 된다.
@@ -159,10 +170,12 @@ const ENGINE = {
      thinking과 비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다(G2 스윕과 같다). */
   pairWriter5: { id: (MODELS.find(m => m.id === "claude-sonnet-5") || {}).id,
                  effort: null, noThinking: false },
-  /* ── replay 전용 도전자 ──
-     ENGINE_MODE=gpt41을 명시했을 때만 쓰인다. openai 표지가 붙은 자리는
-     callModel이 다른 진영으로 보낸다 — 열쇠도 주소도 다르다.
-     운영 기본 경로(solo)는 이 자리를 한 번도 안 본다. */
+  /* ── 쓰는 자리 ──
+     깃발을 안 주면 여기다(engineMode의 기본이 gpt41). openai 표지가 붙은
+     자리는 callModel이 다른 진영으로 보낸다 — 열쇠도 주소도 다르다.
+     id는 openaiModel(env)이 정한다: 표의 이름이 기본이고, 대시보드의
+     OPENAI_WRITER_MODEL이 있으면 그것이 이긴다.
+     옛 배선(solo·hybrid·legacy·single·single5)은 이 자리를 안 본다. */
   gptWriter: { id: OPENAI_MODEL, openai: true, effort: null, noThinking: true },
   /* ── OpenRouter 도전자 ──
      ENGINE_MODE=openrouter를 명시했을 때만 쓰인다. id는 비어 있다 —
