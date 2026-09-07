@@ -117,6 +117,19 @@ function openaiModel(env) {
   return String((env && (env.OPENAI_WRITER_MODEL || env.openai_writer_model)) || "").trim()
     || OPENAI_MODEL;
 }
+/* ── 사고에 얼마를 줄 것인가 ──
+   이 파일 맨 위가 겪은 것을 다른 진영에서 다시 겪지 않으려고 둔다:
+   사고와 답이 같은 통을 쓰고 사고가 먼저 쓰면, 값은 다 내면서 답이
+   쪼그라든다(「비싼데 밋밋함」). 말풍선 한둘짜리 대화에 사고는 안 쓰인다.
+
+   기본은 **안 싣는다.** 이 손이 이 파라미터를 어떤 모양으로 받는지
+   확인한 바가 없고, 모르는 모양은 400이다 — 대사 자리에서 400은 화면의
+   재시도다. 대시보드에 OPENAI_REASONING을 적었을 때만 그 값으로 나간다.
+   지우면 원래대로 안 싣는다. 값은 이 진영이 쓰는 낱말 그대로 적는다. */
+function openaiReasoning(env) {
+  const v = String((env && (env.OPENAI_REASONING || env.openai_reasoning)) || "").trim();
+  return /^[a-z]+$/.test(v) ? v : "";
+}
 /* ── OpenRouter 도전자의 주소 ──
    OpenAI 호환 엔드포인트라 요청 모양은 도전자 경로와 같다. 다른 것은 셋:
    주소·열쇠(OPENROUTER_API_KEY)·모델 id(OPENROUTER_MODEL).
@@ -4105,6 +4118,7 @@ async function callOpenAI(env, system, messages, maxTokens, m) {
      빈 채로 나가면 「모델을 안 적었다」가 400 본문으로 돌아오고, 그게
      대사 자리의 오류로 보인다. 여기서 끊는다. */
   const model = router ? routerModel(env) : openaiModel(env);
+  const reasoning = openaiReasoning(env);
   if (!model) return { ok: false, status: 0, body: "OPENROUTER_MODEL이 없다 (replay 전용 경로)" };
   let r;
   try {
@@ -4117,6 +4131,8 @@ async function callOpenAI(env, system, messages, maxTokens, m) {
            도전자(OpenAI 직결)는 원래 이름 그대로 둔다: 재던 조건을 이
            작업이 건드리면 안 된다. */
         ...(router ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens }),
+        /* 적었을 때만 실린다 — 위 주석이 그 이유다 */
+        ...(reasoning ? { reasoning: { effort: reasoning } } : {}),
         messages: router ? toRouterMessages(system, messages)
                          : toOpenAIMessages(system, messages),
         /* ── 조용한 갈아타기를 막는다 ──
@@ -7919,7 +7935,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, kissMoment, storyFacts, partnerSceneFacts,
          userLine,
          OPENAI_MODEL, GPT_STAGES, joinBlocks, toOpenAIMessages, openAIUsage, callOpenAI, stageModel,
-         OPENROUTER_URL, ROUTER_MODEL, routerModel, toRouterMessages, openaiModel,
+         OPENROUTER_URL, ROUTER_MODEL, routerModel, toRouterMessages, openaiModel, openaiReasoning,
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,

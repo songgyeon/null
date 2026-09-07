@@ -2297,6 +2297,26 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   await run({ OPENAI_API_KEY: "sk-가짜" },
     { ...BASE, OPENAI_WRITER_MODEL: "몰래-바꾼-손", model: "몰래-바꾼-손" });
   eq("요청 본문으로는 이 문을 못 연다", oaiReqs()[0].body.model, ENG.OPENAI_MODEL);
+  /* ── 사고 몫 ──
+     기본은 안 싣는다. 이 손이 이 파라미터를 어떤 모양으로 받는지 확인한
+     바가 없고, 모르는 모양은 400이다 — 대사 자리에서 400은 재시도 화면이다. */
+  eq("기본은 안 싣는다", ENG.openaiReasoning({}), "");
+  eq("적었을 때만이다", ENG.openaiReasoning({ OPENAI_REASONING: "none" }), "none");
+  eq("낱말이 아니면 안 싣는다",
+    ["none; drop", "", "  ", "None", "3"].map(v => ENG.openaiReasoning({ OPENAI_REASONING: v })),
+    ["", "", "", "", ""]);
+  await run({ OPENAI_API_KEY: "sk-가짜" }, BASE);
+  eq("안 적으면 요청에 없다", "reasoning" in oaiReqs()[0].body, false);
+  await run({ OPENAI_API_KEY: "sk-가짜", OPENAI_REASONING: "none" }, BASE);
+  eq("적으면 그 값으로 실린다",
+    JSON.stringify(oaiReqs()[0].body.reasoning), '{"effort":"none"}');
+  eq("그것 말고는 안 바뀐다",
+    [oaiReqs()[0].body.model, typeof oaiReqs()[0].body.max_tokens],
+    [ENG.OPENAI_MODEL, "number"]);
+  await run({ OPENAI_API_KEY: "sk-가짜" },
+    { ...BASE, OPENAI_REASONING: "high", reasoning: { effort: "high" } });
+  eq("요청 본문으로는 못 켠다", "reasoning" in oaiReqs()[0].body, false);
+
   /* 갈아낄 손이 단가표에 있어야 보고가 INVALID로 안 죽는다 */
   eq("직결 이름도 단가표에 있다",
     !!RP.PRICES[String(ENG.ROUTER_MODEL).replace(/^openai\//, "")], true);
