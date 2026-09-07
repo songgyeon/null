@@ -170,6 +170,19 @@ export const PRICES = {
   /* 운영 기본의 쓰는 자리. 캐시 읽기는 기본 단가의 0.25배다(진영마다 다르다)
      — priceFor의 기본 0.1배를 쓰면 실제보다 싸게 잰다. */
   "gpt-4.1":           { in: 2.00, out: 8.00, cachedIn: 0.50 },
+  /* ── OpenRouter 좌석의 후보들 ──
+     여기 적힌 값은 **우리가 잰 것이 아니다.** 2026-09-07에 조사해서 받은
+     공개 단가이고, 이 저장소가 교차 확인할 수 있었던 것은 위의 Anthropic
+     두 줄(sonnet-5 · haiku-4-5)이 같은 값으로 맞아떨어졌다는 것뿐이다.
+     후보를 실제로 태우면 응답 usage와 청구서가 정본이다 — 어긋나면
+     여기가 틀린 것이니 고친다. 모르는 모델은 INVALID로 죽는 편이 낫고,
+     그래서 후보를 늘릴 때마다 이 표에 먼저 적는다.
+
+     cacheWriteX가 따로 붙는 이유: 워커의 1시간 계약(2×)은 Anthropic
+     직결의 배율이다. OpenRouter 뒤의 진영은 5분 캐시가 기본이고 쓰기가
+     1.25×인 곳이 있다 — 한 숫자로 뭉뚱그리면 첫 턴 값을 잘못 센다. */
+  "openai/gpt-5.6-luna": { in: 0.20, out: 1.20, cachedIn: 0.02, cacheWriteX: 1.25 },
+  "qwen/qwen3.6-plus":   { in: 0.325, out: 1.95, cachedIn: 0.0325, cacheWriteX: 1.25 },
 };
 export const CACHE_WRITE_X = 2.0;      // 워커 CACHE ttl "1h"의 쓰기 배율
 /* 날짜 접미(claude-…-20250929)는 떼고 찾는다. 그래도 모르는 모델은 적어
@@ -187,12 +200,21 @@ export const priceFor = model => {
   }
   return { in: 0, out: 0 };
 };
+/* ── 표에 적은 값을 실제로 읽는다 ──
+   cachedIn은 예전부터 표에 있었지만 아무도 안 읽었다. gpt-4.1의 캐시
+   읽기가 $0.50인데 기본 0.1배($0.20)로 재고 있었다 — 2.5배 싸게. 바로
+   위 주석이 「기본 0.1배를 쓰면 실제보다 싸게 잰다」고 경고까지 해두고
+   코드가 그 짓을 하고 있었다. 값을 적어두고 안 읽으면 적어둔 적 없는
+   것과 같고, 그 상태로 모델을 비교하면 싼 쪽을 더 싸게 본다.
+   적힌 게 없으면 예전 기본(0.1배 · CACHE_WRITE_X)이 그대로다. */
+export const cachedInOf = p => (p.cachedIn != null ? p.cachedIn : p.in * 0.1);
+export const cacheWriteXOf = p => (p.cacheWriteX != null ? p.cacheWriteX : CACHE_WRITE_X);
 export const costOf = rows => (rows || []).reduce((c, r) => {
   const p = priceFor(r.model);
   return c + (r.input_tokens || 0) * p.in / 1e6
            + (r.output_tokens || 0) * p.out / 1e6
-           + (r.cache_creation_input_tokens || 0) * p.in * CACHE_WRITE_X / 1e6
-           + (r.cache_read_input_tokens || 0) * p.in * 0.1 / 1e6;
+           + (r.cache_creation_input_tokens || 0) * p.in * cacheWriteXOf(p) / 1e6
+           + (r.cache_read_input_tokens || 0) * cachedInOf(p) / 1e6;
 }, 0);
 /* 요약 응답에는 stages가 없다(usage 하나뿐) — 그 한 호출을 usage로 잰다.
    워커 callModel이 usage.model을 늘 실어 보내므로 그것이 이긴다. */

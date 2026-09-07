@@ -6737,9 +6737,17 @@ eq('시간표 단추는 peek보다 좁다',
      /writer5:  \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng),
      /writer46: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-4-6"\)/.test(eng)],
     [true, true, true]);
-  /* 쓰는 손은 셋인데 배선은 하나다 — 셋 다 engineMode에서 gpt41을 돌려받는다 */
+  /* 쓰는 손은 넷인데 배선은 하나다 — 넷 다 engineMode에서 gpt41을 돌려받는다.
+     문자열 모양이 아니라 **함수를 실제로 불러서** 잰다. 줄바꿈 한 번에
+     깨지는 시험은 계약이 아니라 서식을 지키는 시험이다. */
   eq('쓰는 손 깃발이 배선을 안 건드린다',
-    /: v === "sonnet45" \|\| v === "sonnet5" \|\| v === "sonnet46" \? "gpt41" : "gpt41";/.test(wk), true);
+    ["sonnet45", "sonnet5", "sonnet46", "openrouter"]
+      .map(v => ENG.engineMode({ ENGINE_MODE: v })),
+    ["gpt41", "gpt41", "gpt41", "gpt41"]);
+  eq('쓰는 손 깃발마다 앉는 손이 다르다',
+    ["sonnet45", "sonnet5", "sonnet46", "openrouter", ""]
+      .map(v => ENG.writerSeat({ ENGINE_MODE: v })),
+    ["sonnet", "sonnet5", "sonnet46", "router", "gpt"]);
 
   /* ── 폴백 금지 ──
      실패하면 다른 모델로 넘어가지 않는다. 진짜 오류를 그대로 올린다. */

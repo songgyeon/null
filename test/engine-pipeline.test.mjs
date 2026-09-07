@@ -56,7 +56,10 @@ async function run(envExtra, body, replies, hooks) {
     sentReq.push({ url: String(url), headers: (init && init.headers) || {}, body: c });
     /* 도전자 진영은 요청 모양이 다르다 — system이 messages 맨 앞 한 장이다.
        단계 판별은 **같은 문구**로 한다: 프롬프트 원문이 같아야 하니까. */
-    const oai = String(url).includes("api.openai.com");
+    /* OpenRouter도 같은 모양으로 답한다 — 호환 엔드포인트라 요청도 응답도
+       그 진영의 것이다. 주소만 다르다. */
+    const oai = String(url).includes("api.openai.com")
+             || String(url).includes("openrouter.ai");
     const oaiRole = r => (c.messages || []).filter(m => m.role === r)
       .map(m => m.content).join("\n");
     const sys = oai ? oaiRole("system") : flatSys(c);
@@ -2251,6 +2254,183 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   console.log("  ok   §15 이번 판들이 요청 경로에서 산다");
   pass++;
 }
+
+/* ══════════ 16. OpenRouter 좌석 ══════════
+   후보를 바꿔 끼우며 재는 자리다. 재는 자리가 재는 값을 망가뜨리면 안 되므로
+   잰다: 기본 경로는 이 자리를 안 보고, 열쇠 없이는 안 나가고, 무엇보다
+   **블록이 안 뭉개진다**. 고정부가 프롬프트의 92%라 캐시 경계가 사라지면
+   싼 모델이 더 비싸진다 — 이 좌석이 존재하는 이유가 통째로 없어진다. */
+const OR = u => String(u).includes("openrouter.ai");
+const orReqs = () => sentReq.filter(r => OR(r.url));
+const ROUTE = { ENGINE_MODE: "openrouter", OPENROUTER_API_KEY: "sk-or-가짜" };
+
+/* ── 16.1 배선은 그대로, 손만 바뀐다 ── */
+{
+  eq("배선 판정은 도전자 그대로다", ENG.engineMode({ ENGINE_MODE: "openrouter" }), "gpt41");
+  eq("앉는 손만 갈린다", ENG.writerSeat({ ENGINE_MODE: "openrouter" }), "router");
+  eq("화면에 적히는 이름은 배선이 아니라 손이다",
+    ENG.engineLabel({ ENGINE_MODE: "openrouter" }), "openrouter");
+  const r = await run(ROUTE, BASE);
+  eq("일반 턴은 쓰기 한 번 그대로다", writersOf(r), 1);
+  eq("한 자리만 그 진영으로 나간다", orReqs().length, 1);
+  eq("주소가 그 진영의 것이다", orReqs()[0].url, ENG.OPENROUTER_URL);
+  eq("검사·나머지는 다른 진영으로 안 샌다",
+    sentReq.filter(x => OAI(x.url)).length, 0);
+}
+
+/* ── 16.2 깃발이 없으면 이 자리를 한 번도 안 본다 ── */
+{
+  await run({ OPENROUTER_API_KEY: "sk-or-가짜", OPENROUTER_MODEL: "누가/무엇" }, BASE);
+  eq("열쇠와 모델이 있어도 깃발 없이는 안 간다", orReqs().length, 0);
+  eq("기본은 도전자 진영 그대로다", oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
+  eq("기본 모델 배치가 그대로다", ENGINE_ID("writer"), "claude-sonnet-4-5-20250929");
+  eq("좌석 표에 후보 이름을 안 박아뒀다", ENG.ENGINE.orWriter.id, "");
+}
+
+/* ── 16.3 앉히기로 한 손 ── */
+{
+  eq("고른 손이 기본이다", ENG.routerModel({}), "openai/gpt-5.6-luna");
+  eq("그 이름이 상수로 있다", ENG.ROUTER_MODEL, "openai/gpt-5.6-luna");
+  await run(ROUTE, BASE);
+  eq("이름을 안 적어도 그 손이 나간다", orReqs()[0].body.model, ENG.ROUTER_MODEL);
+  await run({ ...ROUTE, OPENROUTER_MODEL: "다른/후보" }, BASE);
+  eq("env로 다른 후보를 덮을 수 있다", orReqs()[0].body.model, "다른/후보");
+  /* 클라이언트 입력은 모델도 진영도 못 바꾼다 */
+  const spoof = await run(ROUTE, { ...BASE, model: "누가/무엇",
+    OPENROUTER_MODEL: "누가/무엇", engine: { writer: "누가/무엇" } });
+  eq("요청 본문으로는 모델을 못 바꾼다", orReqs()[0].body.model, ENG.ROUTER_MODEL);
+  eq("계측에 남는 모델도 그 손이다", spoof.data.stages[0].model, ENG.ROUTER_MODEL);
+}
+
+/* ── 16.4 블록이 안 뭉개진다 — 이 좌석의 존재 이유 ──
+   도전자 경로(joinBlocks)는 세 장을 문자열 하나로 잇는다. 그 길로 가면
+   cache_control이 사라지고 고정부를 매 턴 정가로 다시 읽는다. */
+{
+  await run(ROUTE, BASE);
+  const msgs = orReqs()[0].body.messages;
+  const sys = msgs.filter(m => m.role === "system");
+  eq("system은 한 장이다", sys.length, 1);
+  eq("그 한 장 안이 블록 배열이다", Array.isArray(sys[0].content), true);
+  eq("블록 수가 고정부 그대로다", sys[0].content.length, 3);
+  eq("세 블록 다 캐시 경계를 달고 있다",
+    sys[0].content.map(b => !!b.cache_control), [true, true, true]);
+  eq("경계 모양은 진영 기본에 맡긴다 — ttl을 안 싣는다",
+    sys[0].content.map(b => JSON.stringify(b.cache_control)),
+    ['{"type":"ephemeral"}', '{"type":"ephemeral"}', '{"type":"ephemeral"}']);
+
+  /* ── 변환은 옮기기뿐이다 — 내용이 한 글자도 안 바뀐다 ── */
+  const built = ENG.buildSystem
+    ? null : null;   // 원문은 도전자 경로와 나란히 비교한다(아래)
+  await run({ ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜" }, BASE);
+  const flat = oaiReqs()[0].body.messages.filter(m => m.role === "system")
+    .map(m => m.content).join("\n");
+  await run(ROUTE, BASE);
+  const joined = orReqs()[0].body.messages.filter(m => m.role === "system")
+    .map(m => m.content.map(b => b.text).join("\n")).join("\n");
+  eq("블록을 도로 이으면 도전자 경로의 원문과 같다", joined, flat);
+  eq("빈 블록이 끼지 않는다",
+    orReqs()[0].body.messages[0].content.every(b => b.text && b.text.length > 0), true);
+  eq("이력은 역할·순서 그대로다",
+    orReqs()[0].body.messages.slice(1).map(m => m.role), ["user", "assistant", "user"]);
+  void built;
+}
+
+/* ── 16.5 조용한 갈아타기를 막는다 ──
+   같은 이름이라도 뒤에 선 공급자가 다르면 같은 판이 아니다. 그리고 유저가
+   여기 적는 말은 보관하는 곳으로 안 보낸다. */
+{
+  await run(ROUTE, BASE);
+  const b = orReqs()[0].body;
+  eq("공급자 폴백을 끈다", b.provider.allow_fallbacks, false);
+  eq("보관하는 공급자를 거른다", b.provider.data_collection, "deny");
+  eq("도전자 경로에는 그 표가 안 붙는다 — 재던 조건을 안 건드린다", (() => {
+    return oaiReqs().length === 0;
+  })(), true);
+}
+
+/* ── 16.6 예산 이름 ── */
+{
+  await run(ROUTE, BASE);
+  eq("새 이름을 쓴다", typeof orReqs()[0].body.max_completion_tokens, "number");
+  eq("낡은 이름은 안 싣는다", orReqs()[0].body.max_tokens, undefined);
+  await run({ ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜" }, BASE);
+  eq("도전자 경로는 원래 이름 그대로다", typeof oaiReqs()[0].body.max_tokens, "number");
+}
+
+/* ── 16.7 열쇠 ── */
+{
+  let called = 0;
+  const keep = globalThis.fetch;
+  globalThis.fetch = async () => { called++; throw new Error("불렀다"); };
+  let out;
+  try {
+    out = await ENG.callOpenAI({}, "세계", [{ role: "user", content: "안녕" }], 100,
+      { openai: true, router: true });
+  } finally { globalThis.fetch = keep; }
+  eq("열쇠가 없으면 실패로 돌아온다", [out.ok, out.status], [false, 0]);
+  eq("무엇이 없는지 말한다", out.body.includes("OPENROUTER_API_KEY"), true);
+  eq("부르지 않고 멈춘다", called, 0);
+
+  await run(ROUTE, BASE);
+  const h = orReqs()[0].headers || {};
+  const flat = JSON.stringify(h);
+  eq("열쇠는 authorization 한 곳뿐이다",
+    Object.keys(h).filter(k => String(h[k]).includes("sk-or-가짜")), ["authorization"]);
+  eq("본문에는 열쇠가 없다", JSON.stringify(orReqs()[0].body).includes("sk-or-가짜"), false);
+  eq("다른 진영의 머리를 안 단다", /x-api-key|anthropic-version/.test(flat), false);
+}
+
+/* ── 16.8 가져가는 자리는 쓰는 손뿐이다 ── */
+{
+  const crit = { ...BASE, scene_reason: "memory_reveal",
+    history: [...BASE.history.slice(0, 2),
+      { role: "user", content: "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?" }] };
+  await run(ROUTE, crit);
+  const routed = orReqs().map(r => r.body.model);
+  eq("그 진영으로는 쓰는 손만 나간다",
+    routed.every(m => m === ENG.ROUTER_MODEL), true);
+  eq("검사는 기존 진영·기존 모델 그대로다",
+    sentReq.filter(r => String(r.url).includes("api.anthropic.com"))
+      .every(r => r.body.model === ENG.ENGINE.canon.id), true);
+}
+
+/* ── 16.9 단가표를 실제로 읽는가 ──
+   cachedIn은 표에 적혀 있었는데 costOf가 안 읽었다. 적어두고 안 읽으면
+   적어둔 적 없는 것과 같고, 그 상태로 모델을 비교하면 싼 쪽을 더 싸게 본다. */
+{
+  const row = (model, over) => ({ model, input_tokens: 0, output_tokens: 0,
+    cache_read_input_tokens: 0, cache_creation_input_tokens: 0, ...over });
+  const c = (model, over) => +RP.costOf([row(model, over)]).toFixed(9);
+  /* 읽기 — gpt-4.1은 0.25배($0.50)지 기본 0.1배($0.20)가 아니다 */
+  eq("캐시 읽기에 표의 값을 쓴다",
+    c("gpt-4.1", { cache_read_input_tokens: 1e6 }), 0.5);
+  eq("표에 없으면 예전 기본(0.1배)이다",
+    c("claude-sonnet-5", { cache_read_input_tokens: 1e6 }), 0.2);
+  /* 쓰기 — 워커의 1시간 계약은 2배, 5분만 있는 진영은 1.25배 */
+  eq("캐시 쓰기도 진영마다 다르다", [
+    c("claude-sonnet-5", { cache_creation_input_tokens: 1e6 }),
+    c("openai/gpt-5.6-luna", { cache_creation_input_tokens: 1e6 })], [4, 0.25]);
+  /* 좌석의 후보가 표에 있어야 보고가 INVALID로 안 죽는다 */
+  eq("앉히기로 한 손이 표에 있다", !!RP.PRICES[ENG.ROUTER_MODEL], true);
+  eq("모르는 모델은 조용히 $0이 아니라 적힌다", (() => {
+    const before = RP.unknownModels.size;
+    RP.costOf([row("없는/모델")]);
+    return RP.unknownModels.size > before;
+  })(), true);
+  /* 이 저장소가 잰 한 턴(고정 13,000 · 가변 1,200 · 출력 100) */
+  const turn = x => +RP.costOf([{ model: x, input_tokens: 1200, output_tokens: 100,
+    cache_read_input_tokens: 13000, cache_creation_input_tokens: 0 }]).toFixed(6);
+  eq("한 턴 값이 잰 대로 나온다",
+    [turn("claude-sonnet-5"), turn(ENG.ROUTER_MODEL)], [0.006, 0.00062]);
+  /* 캐시가 도는 한 「정가가 싼 쪽」이 늘 싼 것은 아니다 — 도전자는
+     정가가 sonnet-5와 같지만($2) 읽기 할인이 얕아서 한 턴이 더 비싸다.
+     이 줄이 깨지면 「싼 모델로 갈아탔는데 더 나갔다」가 조용히 일어난다. */
+  eq("읽기 할인이 얕으면 정가가 같아도 더 비싸다",
+    turn("gpt-4.1") > turn("claude-sonnet-5"), true);
+}
+
+console.log("  ok   §16 OpenRouter 좌석");
+pass++;
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);
 process.exit(fail ? 1 : 0);

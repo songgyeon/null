@@ -88,6 +88,26 @@ const MODELS = [
    입력이 이 값을 바꿀 길은 없다(요청 본문을 안 본다). */
 const OPENAI_MODEL = "gpt-4.1-2025-04-14";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+/* ── OpenRouter 도전자의 주소 ──
+   OpenAI 호환 엔드포인트라 요청 모양은 도전자 경로와 같다. 다른 것은 셋:
+   주소·열쇠(OPENROUTER_API_KEY)·모델 id(OPENROUTER_MODEL).
+
+   모델 id를 여기에 안 적는 이유가 있다. 이 자리는 **후보를 바꿔 끼우며
+   재는 자리**다 — id를 코드에 박으면 후보 하나를 재려고 배포를 해야 하고,
+   그러면 「같은 코드로 두 모델을 나란히」가 깨진다. 대시보드에서 값만
+   갈아끼운다(engineMode를 지우면 원래 자리로 돌아온다). */
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+/* 고른 손. 이 자리에 앉히기로 한 모델이다 — 대시보드에서 ENGINE_MODE만
+   켜면 이름을 따로 안 적어도 이걸로 돈다. 다른 후보를 재려면 env로 덮는다.
+   snapshot이 아니라 별칭인 것은 이 진영이 그렇게 부르기 때문이다. */
+const ROUTER_MODEL = "openai/gpt-5.6-luna";
+/* 클라이언트 입력은 이 값을 못 바꾼다 — env만 본다. 빈 값이면 위의 기본,
+   그것도 비면 부르기 전에 멈춘다(callOpenAI). 모르는 모델로 조용히
+   나가지 않는다. */
+function routerModel(env) {
+  return String((env && (env.OPENROUTER_MODEL || env.openrouter_model)) || "").trim()
+    || ROUTER_MODEL;
+}
 
 const ENGINE = {
   /* ── 쓰는 자리는 상급이다 ──
@@ -126,6 +146,16 @@ const ENGINE = {
      callModel이 다른 진영으로 보낸다 — 열쇠도 주소도 다르다.
      운영 기본 경로(solo)는 이 자리를 한 번도 안 본다. */
   gptWriter: { id: OPENAI_MODEL, openai: true, effort: null, noThinking: true },
+  /* ── OpenRouter 도전자 ──
+     ENGINE_MODE=openrouter를 명시했을 때만 쓰인다. id는 비어 있다 —
+     stageModel이 env(OPENROUTER_MODEL)에서 채운다. 여기에 후보 이름을
+     적어두면 그 후보가 기본값처럼 굳는다.
+
+     router 표지가 도전자(openai)와 따로 있는 이유: 주소·열쇠가 다르고,
+     무엇보다 **블록을 안 뭉갠다**. 도전자 경로는 system 세 장을 문자열
+     하나로 이어 붙이는데(joinBlocks), 그러면 cache_control이 사라진다.
+     이 프롬프트는 92%가 고정부라 캐시가 죽으면 싼 모델이 더 비싸진다. */
+  orWriter: { id: "", openai: true, router: true, effort: null, noThinking: true },
   /* ── 쓰는 손을 갈아끼우는 자리 ──
      ENGINE_MODE=sonnet5 · sonnet46을 명시했을 때만 쓰인다. id는 둘 다
      MODELS에 이미 등록된 항목을 그대로 재사용한다 — 새 id를 지어내지 않는다.
@@ -222,7 +252,8 @@ function engineMode(env) {
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku"
        : v === "solo" ? "solo"
        : v === "hybrid" ? "hybrid"
-       : v === "sonnet45" || v === "sonnet5" || v === "sonnet46" ? "gpt41" : "gpt41";
+       : v === "sonnet45" || v === "sonnet5" || v === "sonnet46"
+         || v === "openrouter" ? "gpt41" : "gpt41";
 }
 /* 쓰는 자리에 누가 앉나. 기본 배선(gpt41)에서만 갈린다 —
    ENGINE_MODE=sonnet45면 상급 Writer, 그 밖에는 도전자(GPT)다.
@@ -232,11 +263,13 @@ function writerSeat(env) {
   if (engineMode(env) !== "gpt41") return "own";
   return v === "sonnet45" ? "sonnet"
        : v === "sonnet5"  ? "sonnet5"
-       : v === "sonnet46" ? "sonnet46" : "gpt";
+       : v === "sonnet46" ? "sonnet46"
+       : v === "openrouter" ? "router" : "gpt";
 }
 /* 화면·trace에 적는 이름. 배선 이름만 적으면 sonnet45가 「gpt41」로 보인다 —
    「고쳤는데 반영이 안 된다」를 헤매게 만드는 바로 그 거짓말이다. */
-const SEAT_LABEL = { sonnet: "sonnet45", sonnet5: "sonnet5", sonnet46: "sonnet46" };
+const SEAT_LABEL = { sonnet: "sonnet45", sonnet5: "sonnet5", sonnet46: "sonnet46",
+  router: "openrouter" };
 function engineLabel(env) {
   const em = engineMode(env);
   return (em === "gpt41" && SEAT_LABEL[writerSeat(env)]) || em;
@@ -3971,6 +4004,33 @@ function joinBlocks(v) {
   if (typeof v === "string") return v;
   return (Array.isArray(v) ? v : []).map(b => (b && b.text) || "").join("\n");
 }
+/* ── OpenRouter용 변환 — 블록을 뭉개지 않는다 ──
+   joinBlocks는 세 장을 문자열 하나로 잇는다. 도전자(OpenAI 직결)는 자동
+   캐싱뿐이라 그래도 됐지만, OpenRouter는 블록의 cache_control을 그대로
+   읽어 캐시 경계로 쓴다. 뭉개면 경계가 사라지고 고정부(전체의 92%)를
+   매 턴 정가로 다시 읽는다 — 싸게 갈아탔는데 더 비싸지는 자리가 여기다.
+
+   그래서 system은 **한 장의 메시지 안에 여러 text 블록**으로 보낸다.
+   system 메시지를 여러 장으로 쪼개지 않는 이유: 어떤 진영은 위쪽에서
+   그것들을 하나로 합쳐버려서 블록 경계가 남는다는 보장이 없다.
+
+   ttl은 떼고 보낸다. 지금 Anthropic 직결은 1시간(CACHE.ttl)을 쓰지만
+   OpenRouter 뒤의 모델은 5분만 있는 쪽이 있고, 모르는 ttl 값에 400을
+   내는 진영이 있다. 경계는 살리고 수명은 진영 기본값에 맡긴다. */
+function toRouterMessages(system, messages) {
+  const src = Array.isArray(system) ? system
+    : (system ? [{ text: String(system) }] : []);
+  const blocks = src.filter(b => b && b.text).map(b => ({
+    type: "text", text: b.text,
+    ...(b.cache_control ? { cache_control: { type: "ephemeral" } } : {}),
+  }));
+  const out = blocks.length ? [{ role: "system", content: blocks }] : [];
+  for (const m of (messages || [])) {
+    out.push({ role: m.role === "assistant" ? "assistant" : "user",
+               content: joinBlocks(m.content) });
+  }
+  return out;
+}
 /* Anthropic 요청을 OpenAI messages로 옮긴다. system은 맨 앞 한 장이고,
    나머지는 역할·순서 그대로다. 내용은 한 글자도 안 바꾼다. */
 function toOpenAIMessages(system, messages) {
@@ -3987,29 +4047,54 @@ function toOpenAIMessages(system, messages) {
    입력」이 같은 자리를 잰다. 캐시 쓰기 비용은 없다(자동 캐싱). */
 function openAIUsage(u, model) {
   if (!u) return null;
-  const cached = (u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0;
+  const d = u.prompt_tokens_details || {};
+  const cached = d.cached_tokens || 0;
+  /* 캐시 **쓰기**는 도전자(자동 캐싱)에는 없지만 OpenRouter 뒤의 진영에는
+     있고 값이 붙는다(입력의 1.25~2배). 안 잡으면 replay 보고가 첫 턴을
+     공짜로 세고, 그 숫자로 「싸다」를 판정하게 된다. 이름이 진영마다
+     달라서 아는 자리를 차례로 본다 — 없으면 0이다. */
+  const written = u.cache_write_tokens || u.cache_creation_input_tokens
+    || d.cache_write_tokens || d.cache_creation_tokens || 0;
   return {
-    input_tokens: Math.max(0, (u.prompt_tokens || 0) - cached),
+    input_tokens: Math.max(0, (u.prompt_tokens || 0) - cached - written),
     output_tokens: u.completion_tokens || 0,
     cache_read_input_tokens: cached,
-    cache_creation_input_tokens: 0,
+    cache_creation_input_tokens: written,
     model, stop_reason: null,
   };
 }
-async function callOpenAI(env, system, messages, maxTokens) {
-  const key = (env && env.OPENAI_API_KEY ? String(env.OPENAI_API_KEY) : "").trim();
+async function callOpenAI(env, system, messages, maxTokens, m) {
+  const router = !!(m && m.router);
+  const keyName = router ? "OPENROUTER_API_KEY" : "OPENAI_API_KEY";
+  const key = (env && env[keyName] ? String(env[keyName]) : "").trim();
   /* 열쇠가 없으면 **부르기 전에** 멈춘다. 없는 채로 나가면 401 본문이
      오류 메시지가 되고, 그게 산출물에 실린다. */
-  if (!key) return { ok: false, status: 0, body: "OPENAI_API_KEY가 없다 (replay 전용 경로)" };
+  if (!key) return { ok: false, status: 0, body: `${keyName}가 없다 (replay 전용 경로)` };
+  /* 모델 id도 마찬가지다 — OpenRouter 좌석은 표에 id가 없고 env가 준다.
+     빈 채로 나가면 「모델을 안 적었다」가 400 본문으로 돌아오고, 그게
+     대사 자리의 오류로 보인다. 여기서 끊는다. */
+  const model = router ? routerModel(env) : OPENAI_MODEL;
+  if (!model) return { ok: false, status: 0, body: "OPENROUTER_MODEL이 없다 (replay 전용 경로)" };
   let r;
   try {
-    r = await fetch(OPENAI_URL, {
+    r = await fetch(router ? OPENROUTER_URL : OPENAI_URL, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: OPENAI_MODEL,          // 별칭이 아니라 snapshot 고정. 요청 본문이 못 바꾼다
-        max_tokens: maxTokens,
-        messages: toOpenAIMessages(system, messages),
+        model,                        // 별칭이 아니라 snapshot 고정. 요청 본문이 못 바꾼다
+        /* 새 이름을 쓴다 — max_tokens는 이 문 앞에서 낡은 이름이 됐다.
+           도전자(OpenAI 직결)는 원래 이름 그대로 둔다: 재던 조건을 이
+           작업이 건드리면 안 된다. */
+        ...(router ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens }),
+        messages: router ? toRouterMessages(system, messages)
+                         : toOpenAIMessages(system, messages),
+        /* ── 조용한 갈아타기를 막는다 ──
+           같은 모델 이름이라도 뒤에 선 공급자가 다르면 같은 판이 아니다.
+           이 파일 맨 위가 못박은 계약(별칭은 조용히 갈아탄다)을 여기서도
+           지킨다: 공급자를 못 찾으면 다른 데로 넘어가지 말고 실패하라.
+           data_collection은 값이 아니라 원칙이다 — 유저가 여기 적는 말은
+           보관하는 곳으로 안 보낸다. */
+        ...(router ? { provider: { allow_fallbacks: false, data_collection: "deny" } } : {}),
       }),
     });
   } catch (e) {
@@ -4024,12 +4109,12 @@ async function callOpenAI(env, system, messages, maxTokens) {
   const data = await r.json();
   const text = (((data.choices || [])[0] || {}).message || {}).content || "";
   return { ok: true, text: String(text).trim(),
-           usage: openAIUsage(data.usage, data.model || OPENAI_MODEL) };
+           usage: openAIUsage(data.usage, data.model || model) };
 }
 
 async function callModel(env, m, system, messages, maxTokens, effort) {
   /* 도전자 경로 — 생성 자리만 갈아탄다(m.openai가 붙은 단계) */
-  if (m && m.openai) return await callOpenAI(env, system, messages, maxTokens);
+  if (m && m.openai) return await callOpenAI(env, system, messages, maxTokens, m);
   const body = {
     model: m.id,
     max_tokens: maxTokens,
@@ -4176,6 +4261,10 @@ function stageModel(env, stage) {
   if (seat === "gpt" && GPT_STAGES.has(stage)) return ENGINE.gptWriter;
   if (seat === "sonnet5" && GPT_STAGES.has(stage)) return ENGINE.writer5;
   if (seat === "sonnet46" && GPT_STAGES.has(stage)) return ENGINE.writer46;
+  /* id는 표가 아니라 env가 준다 — 빈 값이면 빈 채로 내려간다. 조용히
+     다른 모델로 넘어가지 않고 callOpenAI가 부르기 전에 멈춘다. */
+  if (seat === "router" && GPT_STAGES.has(stage))
+    return { ...ENGINE.orWriter, id: routerModel(env) };
   /* override는 G2 스윕의 두 자리(single/anchor)에만 닿는다 — G3의
      sonnet45_fallback이 singleWriter 설정을 재사용해도 갈아끼워지지 않고,
      haiku_director는 더더욱 아니다. */
@@ -7798,6 +7887,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, kissMoment, storyFacts, partnerSceneFacts,
          userLine,
          OPENAI_MODEL, GPT_STAGES, joinBlocks, toOpenAIMessages, openAIUsage, callOpenAI, stageModel,
+         OPENROUTER_URL, ROUTER_MODEL, routerModel, toRouterMessages,
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,
