@@ -4509,42 +4509,6 @@ function stripHan(t) {
 const NOT_A_WORD = /갖다\s*(왔|올|와|오)/g;
 const fixWords = t => (t && NOT_A_WORD.test(t) ? t.replace(NOT_A_WORD, "가지고 $1") : t);
 
-/* ── 깨진 말풍선 ──
-   기록에서 세 줄이 나왔다:
-     「om다.」          — 무슨 말을 하려다 영문 조각만 남았다
-     「메롱 이러깄네요.」 — 「이러고 있네요」의 「고 있」이 「깄」 한 글자로 뭉쳤다
-     「건 이거요.」      — 「지금」이 「건」으로 나갔고, 다음 턴에 인물이 스스로
-                          「오타예요, "지금"이 잘못 나갔어요」라고 정정했다
-   셋 다 **인코딩이 깨진 것이 아니다.** 전부 멀쩡한 완성형 음절이고, 모델이
-   그렇게 만들어 보냈다. 그래서 고쳐 쓸 수가 없다 — 무슨 말을 하려던 건지는
-   짐작이고, 짐작해서 바꾸면 더 이상해진다(stripHan이 적어둔 그 이유다).
-   버린다. 한 줄 없어지는 것은 티가 안 나는데 깨진 글자는 티가 난다.
-
-   ① 소문자 영문이 한글에 붙은 것. 대문자 약어는 안 본다 — 「INFP요」와
-      「CD는」은 실제로 오간 멀쩡한 말이다. 상표·약어는 대문자로 온다.
-   ② ㅣ+ㅆ 음절 중 「있 밌 딨」이 아닌 것. ㅆ 받침은 과거형 어미(갔·왔·했)와
-      「있」 계열뿐인데, 과거형은 중성이 ㅏㅓㅐㅕㅘㅝ… 쪽이고 ㅣ로 끝나는
-      어간은 없다. 그래서 ㅣ+ㅆ는 저 셋으로 닫힌다.
-      **종성은 정규식으로 다루지 않는다.** ㅆ은 「깄」의 받침이라 글자 안에
-      들어 있고, 낱자 ㅆ을 찾는 정규식으로는 영원히 안 걸린다. 음절 번호로
-      계산한다.
-   이 기록 966발화로 재보면 ①이 한 줄, ②가 한 줄 걸리고 오검출은 없다.
-   「건」처럼 멀쩡한 음절로 깨진 것은 글자로 못 가른다 — 그건 문맥이라
-   여기서 손대지 않는다. */
-const LOW_IN_WORD = /(?<![A-Za-z])[a-z]+[가-힣]|[가-힣][a-z]+(?![A-Za-z])/;
-const SS_OK = new Set(["있", "밌", "딨"]);
-function brokenSyllable(t) {
-  for (const ch of t) {
-    const o = ch.codePointAt(0) - 0xac00;
-    if (o < 0 || o > 11171) continue;
-    /* 음절 = 0xAC00 + (초성×21 + 중성)×28 + 종성 */
-    const jung = Math.floor(o / 28) % 21, jong = o % 28;
-    if (jung === 20 && jong === 20 && !SS_OK.has(ch)) return true;   // ㅣ + ㅆ
-  }
-  return false;
-}
-const dropBroken = t => (t && (LOW_IN_WORD.test(t) || brokenSyllable(t)) ? "" : t);
-
 /* 한글이 한 자도 없는데 영문이 든 말풍선. 모델이 흘린 조각이다 —
    "Table of contents"가 강현의 말로 화면에 떨어진 적이 있다.
    한글이 섞인 줄은 안 건드린다. 노래 제목이나 상표를 말할 수 있어야 하니까.
@@ -4556,8 +4520,7 @@ function isStray(t) {
 const ONLY_PAREN = /^[（(][^()（）]*[)）]$/;
 
 function trimTics(list) {
-  /* 깨짐 판정은 원문에서 한다 — 한자를 걷어낸 뒤의 글자로 보면 안 된다 */
-  list = list.map(m => (m.text ? { ...m, text: fixWords(stripHan(dropBroken(m.text))) } : m))
+  list = list.map(m => (m.text ? { ...m, text: fixWords(stripHan(m.text)) } : m))
              .filter(m => m.photo || (m.text || "").trim())
              .map(m => (m.photo && isStray(m.text) ? { ...m, text: "" } : m))
              .filter(m => m.photo || !isStray(m.text));
@@ -7950,7 +7913,7 @@ export default {
 /* isLeak·isMeta는 품질 자(tools/eval.mjs)도 쓴다. 정규식을 저쪽에 복사하면
    두 판정이 갈린다 — 워커가 거른 것과 자가 세는 것이 달라지면 「고쳤다」를
    확인할 수가 없다. 판정은 여기 하나다. */
-export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, dropBroken, brokenSyllable, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
+export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos, unlabel, dropMeta, dropSleepers, buildSystem, buildVolatile, budgetHistory,
          isLeak, isMeta,
          /* 공통 계약 — 모든 단계가 같은 세계를 보게 하는 모양 */
          makeFact, factsForSpeaker, sharedFactsForRoom, factValue, contradicts,

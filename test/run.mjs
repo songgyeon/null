@@ -3131,33 +3131,6 @@ eq('뒤에 붙은 것도 버린다',
   trimTics([{ sender: 'jaeeon', text: '편의店 가서 사요.' },
             { sender: 'jaeeon', text: '네.' }]).map(m => m.text), ['네.']);
 
-/* ── 깨진 말풍선 ──
-   같은 원칙을 한자 아닌 깨짐에도 쓴다. 기록에서 세 줄이 나왔다:
-   「om다.」(영문 조각만 남음) · 「메롱 이러깄네요.」(「고 있」이 「깄」으로
-   뭉침) · 「건 이거요.」(「지금」이 「건」으로 나가고 다음 턴에 인물이 스스로
-   오타라고 정정했다). 셋 다 인코딩이 깨진 게 아니라 멀쩡한 완성형 음절이고,
-   모델이 그렇게 만들어 보냈다. 무슨 말을 하려던 건지는 짐작이라 고쳐 쓰지
-   않고 버린다. 그 기록 966발화로 재면 아래 둘이 각각 한 줄씩 걸리고
-   오검출은 없다. */
-const brokenKeeps = t => trimTics([{ sender: 'jaeeon', text: t },
-  { sender: 'jaeeon', text: '뒤에 오는 말.' }]).map(m => m.text).includes(t);
-eq('소문자 영문이 한글에 붙으면 버린다', brokenKeeps('om다.'), false);
-eq('대문자 약어는 안 건드린다 — 실제로 오간 말이다',
-  [brokenKeeps('INFP요.'), brokenKeeps('CD는 아직 못 들어봤어요, 선생님.')],
-  [true, true]);
-eq('ㅣ+ㅆ로 뭉친 음절이 있으면 버린다', brokenKeeps('메롱 이러깄네요.'), false);
-/* ㅆ 받침은 과거형 어미와 「있」 계열뿐이다 — 하나라도 먹으면 멀쩡한 말이 사라진다 */
-eq('과거형과 있 계열은 다 남는다',
-  ['여기 있어요.', '재밌어요.', '어딨어요?', '갔다 왔어요.', '뭐 했어요?',
-   '됐어요.', '그랬어요.', '봤어요.', '줬어요.', '셨어요.'].map(brokenKeeps),
-  [true, true, true, true, true, true, true, true, true, true]);
-/* 멀쩡한 음절로 깨진 것은 문맥이라 글자로 못 가른다. 손대지 않는다 */
-eq('멀쩡한 음절은 문맥이 이상해도 안 건드린다', brokenKeeps('건 이거요.'), true);
-/* 유일한 말풍선이면 비운다 — 침묵이 나가는 게 아니라 hardFilter가 EMPTY로
-   받아 재시도가 돈다(trimTics가 hardFilter보다 먼저 돈다). */
-eq('깨진 게 유일하면 빈 채로 넘긴다',
-  trimTics([{ sender: 'jaeeon', text: 'om다.' }]).length, 0);
-
 /* ── 제 이름을 호칭 자리에 ──
    「식사 맛있게 하세요」에 「이재언도요.」가 돌아왔다. 「선생님도요」가
    나와야 할 자리다(docs/playlog-review.md). */
