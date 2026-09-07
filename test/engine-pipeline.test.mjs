@@ -2255,6 +2255,43 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   pass++;
 }
 
+/* ── 15.10 도전자 자리의 손을 갈아끼운다 ──
+   같은 진영 안에서 모델만 바꾸는 문. 좌석도 배선도 안 늘린다. */
+{
+  eq("기본은 표의 snapshot 그대로다", ENG.openaiModel({}), ENG.OPENAI_MODEL);
+  eq("적었을 때만 그 이름이다",
+    ENG.openaiModel({ OPENAI_WRITER_MODEL: "다른-손" }), "다른-손");
+  eq("빈 값은 안 적은 것과 같다",
+    ENG.openaiModel({ OPENAI_WRITER_MODEL: "   " }), ENG.OPENAI_MODEL);
+
+  const SWAP = { OPENAI_API_KEY: "sk-가짜", OPENAI_WRITER_MODEL: "갈아낀-손" };
+  const r = await run(SWAP, BASE);
+  eq("요청 본문의 모델이 갈아낀 손이다", oaiReqs()[0].body.model, "갈아낀-손");
+  eq("계측에 남는 모델도 그것이다", r.data.stages[0].model, "갈아낀-손");
+  eq("주소는 그대로 그 진영이다",
+    oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
+  eq("중개를 안 끼운다",
+    sentReq.filter(x => String(x.url).includes("openrouter.ai")).length, 0);
+  /* 배선도 요청 모양도 안 움직인다 — 바뀌는 것은 이름 하나다 */
+  eq("배선은 그대로다", writersOf(r), 1);
+  eq("예산 이름도 그대로다", typeof oaiReqs()[0].body.max_tokens, "number");
+  eq("고정부는 한 장으로 잇는 그대로다",
+    typeof oaiReqs()[0].body.messages[0].content, "string");
+  eq("캐시 경계를 새로 안 만든다",
+    JSON.stringify(oaiReqs()[0].body).includes("cache_control"), false);
+
+  /* 검사는 이 문으로 안 갈린다 */
+  eq("검사는 기존 진영·기존 모델 그대로다",
+    ENG.stageModel(SWAP, "canon").id, ENG.ENGINE.canon.id);
+  /* 클라이언트 입력은 이 문도 못 연다 */
+  await run({ OPENAI_API_KEY: "sk-가짜" },
+    { ...BASE, OPENAI_WRITER_MODEL: "몰래-바꾼-손", model: "몰래-바꾼-손" });
+  eq("요청 본문으로는 이 문을 못 연다", oaiReqs()[0].body.model, ENG.OPENAI_MODEL);
+  /* 갈아낄 손이 단가표에 있어야 보고가 INVALID로 안 죽는다 */
+  eq("직결 이름도 단가표에 있다",
+    !!RP.PRICES[String(ENG.ROUTER_MODEL).replace(/^openai\//, "")], true);
+}
+
 /* ══════════ 16. OpenRouter 좌석 ══════════
    후보를 바꿔 끼우며 재는 자리다. 재는 자리가 재는 값을 망가뜨리면 안 되므로
    잰다: 기본 경로는 이 자리를 안 보고, 열쇠 없이는 안 나가고, 무엇보다

@@ -88,6 +88,24 @@ const MODELS = [
    입력이 이 값을 바꿀 길은 없다(요청 본문을 안 본다). */
 const OPENAI_MODEL = "gpt-4.1-2025-04-14";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+/* ── 도전자 자리의 손을 갈아끼우는 문 ──
+   기본값은 위의 snapshot 그대로다 — 재던 조건을 이 문이 건드리면 안 된다.
+   대시보드에 OPENAI_WRITER_MODEL을 적었을 때만 그 이름으로 나간다.
+   되돌리기는 그 값을 지우면 끝이고 배포가 필요 없다.
+
+   ── 왜 프록시를 안 거치나 ──
+   이 진영의 모델을 이 진영에 직접 부르는 데 중개를 한 겹 끼우면 값(수수료)·
+   지연·장애 지점이 늘 뿐이다. 중개가 필요한 것은 **다른 진영**의 손을
+   앉힐 때고, 그 자리는 따로 있다(ENGINE_MODE=openrouter).
+
+   ── 블록을 안 살려도 되는 이유 ──
+   이 진영의 캐시는 접두 기반이다. 매 턴 같은 문자열로 시작하기만 하면
+   잡히므로, joinBlocks가 고정부 세 장을 한 줄로 이어도 경계가 필요 없다.
+   경계를 명시해야 하는 것은 cache_control을 읽는 진영뿐이다. */
+function openaiModel(env) {
+  return String((env && (env.OPENAI_WRITER_MODEL || env.openai_writer_model)) || "").trim()
+    || OPENAI_MODEL;
+}
 /* ── OpenRouter 도전자의 주소 ──
    OpenAI 호환 엔드포인트라 요청 모양은 도전자 경로와 같다. 다른 것은 셋:
    주소·열쇠(OPENROUTER_API_KEY)·모델 id(OPENROUTER_MODEL).
@@ -4073,7 +4091,7 @@ async function callOpenAI(env, system, messages, maxTokens, m) {
   /* 모델 id도 마찬가지다 — OpenRouter 좌석은 표에 id가 없고 env가 준다.
      빈 채로 나가면 「모델을 안 적었다」가 400 본문으로 돌아오고, 그게
      대사 자리의 오류로 보인다. 여기서 끊는다. */
-  const model = router ? routerModel(env) : OPENAI_MODEL;
+  const model = router ? routerModel(env) : openaiModel(env);
   if (!model) return { ok: false, status: 0, body: "OPENROUTER_MODEL이 없다 (replay 전용 경로)" };
   let r;
   try {
@@ -4258,7 +4276,8 @@ function stageModel(env, stage) {
   /* 쓰는 손이 갈리는 자리는 GPT_STAGES 그대로다 — 도전자든 최상급이든
      같은 자리를 갈아끼운다. 검사(canon)는 어느 쪽에서도 안 바뀐다. */
   const seat = writerSeat(env);
-  if (seat === "gpt" && GPT_STAGES.has(stage)) return ENGINE.gptWriter;
+  if (seat === "gpt" && GPT_STAGES.has(stage))
+    return { ...ENGINE.gptWriter, id: openaiModel(env) };
   if (seat === "sonnet5" && GPT_STAGES.has(stage)) return ENGINE.writer5;
   if (seat === "sonnet46" && GPT_STAGES.has(stage)) return ENGINE.writer46;
   /* id는 표가 아니라 env가 준다 — 빈 값이면 빈 채로 내려간다. 조용히
@@ -7887,7 +7906,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, kissMoment, storyFacts, partnerSceneFacts,
          userLine,
          OPENAI_MODEL, GPT_STAGES, joinBlocks, toOpenAIMessages, openAIUsage, callOpenAI, stageModel,
-         OPENROUTER_URL, ROUTER_MODEL, routerModel, toRouterMessages,
+         OPENROUTER_URL, ROUTER_MODEL, routerModel, toRouterMessages, openaiModel,
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,

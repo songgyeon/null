@@ -182,6 +182,10 @@ export const PRICES = {
      직결의 배율이다. OpenRouter 뒤의 진영은 5분 캐시가 기본이고 쓰기가
      1.25×인 곳이 있다 — 한 숫자로 뭉뚱그리면 첫 턴 값을 잘못 센다. */
   "openai/gpt-5.6-luna": { in: 0.20, out: 1.20, cachedIn: 0.02, cacheWriteX: 1.25 },
+  /* 같은 손을 그 진영에 직접 부를 때의 이름. 중개를 거치지 않으므로
+     크레딧 수수료가 안 붙는다 — 그만큼 실제로 더 싸다. 단가는 같은 자리로
+     둔다: 다르다는 근거를 못 봤고, 지어낸 차이로 비교를 기울이면 안 된다. */
+  "gpt-5.6-luna":        { in: 0.20, out: 1.20, cachedIn: 0.02, cacheWriteX: 1.25 },
   "qwen/qwen3.6-plus":   { in: 0.325, out: 1.95, cachedIn: 0.0325, cacheWriteX: 1.25 },
 };
 export const CACHE_WRITE_X = 2.0;      // 워커 CACHE ttl "1h"의 쓰기 배율
