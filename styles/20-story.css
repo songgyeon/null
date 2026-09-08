@@ -176,16 +176,24 @@
    1px 여백이 생기는 것까지 막는다(.dshot과 같다) */
 .fside img{display:block;width:100%;height:100%;object-fit:cover}
 .fback{transform:rotateY(180deg)}
-/* ── 그려진 네모 셋 ──
-   엽서에 이미 네모가 그려져 있다. 그 안에 그대로 앉는다. 검은 펜으로 적힌
-   글이라 글자도 그 색이고, 커서만 이 앱의 분홍이다. */
-/* 종이에 손으로 적은 글씨다. inherit로 두면 상속할 손글씨가 이 자리 위에
-   없어서 body의 픽셀 글꼴까지 올라간다 — 손글씨 종이 위에 앱 글꼴이 앉았다.
-   일기 빈칸(.dblank)이 손글씨로 보이는 것은 부모(.dcurrent)가 이미 그
-   글꼴이라 저절로 상속되기 때문이고, 엽서에는 그 부모가 없다. */
-.fblank{position:absolute;margin:0;padding:0 4px;font-family:"Gyuri Diary",sans-serif;font-size:12.5px;
- line-height:1;text-align:center;color:#2b2b2b;caret-color:#ff5fa8;
- background:none;border:0;outline:none}
+/* ── 빈 종이에 그리는 본문 ──
+   전에는 글이 인쇄된 사진을 쓰고 그 위 네모에 입력칸을 좌표로 맞췄다.
+   그러면 상자 비율이 조금만 어긋나도 글자가 네모 밖으로 밀리고(실제로
+   났다), 본문은 사진이라 크기가 고정인데 빈칸만 CSS라 글씨 크기도 따로
+   놀았다. 지금은 일기와 같다 — 빈 종이 위에 글을 그리고, 네모는 칸을
+   그리는 부품(.dblank.blank)이 쓰는 동안에만 그린다.
+
+   cqw를 쓰므로 종이가 컨테이너여야 한다. .fwrap이 아니라 여기다 —
+   .fwrap에는 perspective가 있고 .fcard가 preserve-3d라, 거기에 containment를
+   걸면 넘어가는 것이 평면으로 주저앉는다. */
+.fback{container-type:size}
+/* 자리는 원본 종이를 재서 맞췄다 — 글줄이 사진 높이의 28%에서 시작해
+   77%에서 끝나고, 그 사이에 여덟 줄이 든다. 글자 크기도 원본과 같다
+   (1536 기준 36px = 495px로 줄이면 11.6px). */
+.fink{padding:26% 9% 9% 13%;font-family:"Gyuri Diary",sans-serif;
+ font-size:13px;font-size:clamp(8px,3.9cqw,14px);line-height:2.2;letter-spacing:.05em;
+ color:rgba(31,23,17,.98)}
+.fink p{margin:0 0 .38em}
 .wbtn.go.fbtn{flex:none;width:auto;max-width:none;min-width:104px;
  padding:11px 20px;font-size:11px;letter-spacing:.12em;
  transition:opacity .4s ease}

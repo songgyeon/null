@@ -559,7 +559,7 @@ const flashCss = readCss();
   const D = new Function('localStorage', 'location',
     webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {saveFlash,loadFlash,FLASH_KEYS,FLASH_BOX,FLASH_MAX,FLASH_ALT,'
+    + '\nreturn {saveFlash,loadFlash,FLASH_KEYS,FLASH_LINES,FLASH_MAX,FLASH_ALT,'
     + 'FLASH_FRONT,FLASH_BACK,FLASH_RISE,FLASH_HOLD,FLASH_TURN,loadStory};')(g.localStorage, g.location);
 
   /* 셋이 다 차야 저장한다 — 하나라도 비면 이 화면이 할 일이 남아 있다 */
@@ -582,11 +582,17 @@ const flashCss = readCss();
     '내가 책임질 사이에나 그런 말을 하는 거랬더니',
     '한 대 더 꺼내길래 그만 피우라고 했다.',
     '내가 책임지겠다고.',
-    '걔는 □ 표정으로 날 보면서 □ 라고 했다.',
+    '걔는 □ 표정으로',
+    '날 보면서 □ 라고 했다.',
     '다시 만나면 □ 고 싶다.',
   ]);
   eq('빈칸은 상대의 반응과 내 소망 셋이다', D.FLASH_KEYS, ['face', 'said', 'wish']);
-  eq('빈칸 자리가 셋이고 순서가 같다', D.FLASH_BOX.map(b => b.key), D.FLASH_KEYS);
+  /* 좌표 표(FLASH_BOX)는 없앴다 — 사진에 인쇄된 네모 위로 입력칸을 맞추던
+     자리다. 지금은 빈 종이에 글을 그리므로 글줄 안의 {열쇠}가 그 순서다. */
+  eq('글줄이 열쇠를 순서대로 물고 있다',
+    D.FLASH_LINES.join('\n').match(/\{([a-z]+)\}/g).map(x => x.slice(1, -1)), D.FLASH_KEYS);
+  eq('보이는 글과 읽어주는 글이 같다',
+    D.FLASH_LINES.map(l => l.replace(/\{[a-z]+\}/g, '□')), D.FLASH_ALT);
 
   /* ── 언제 뜨나 ──
      실제로 강현을 만났고, 아직 안 채웠고, 그가 이미 말을 걸어둔 뒤다.
@@ -630,8 +636,10 @@ const flashCss = readCss();
     [D.FLASH_RISE > 0, D.FLASH_HOLD > 0, D.FLASH_TURN > 0], [true, true, true]);
   eq('넘어가는 것은 앉은 다음이다',
     /setTurn\(true\),FLASH_RISE\+FLASH_HOLD/.test(web), true);
+  /* 칸은 DiaryInk가 그리므로 ref를 칸에 직접 못 건다(함수 부품이다) —
+     종이 겹에 ref를 걸고 그 안에서 첫 칸을 찾아 세운다. */
   eq('커서는 다 넘어간 다음에 선다',
-    /if\(!turn\)return;[\s\S]{0,120}first\.current\.focus\(\)\},FLASH_TURN/.test(web), true);
+    /if\(!turn\)return;[\s\S]{0,260}first\.current\.querySelector\("\.dblank\.blank"\)[\s\S]{0,80}FLASH_TURN/.test(web), true);
   /* 앉는 것과 넘어가는 것을 두 겹으로 나눈다 — 한 겹이면 앉는 애니메이션이
      transform을 끝까지 붙들어서 넘어가는 게 화면에 안 나온다 */
   eq('앉는 겹과 넘어가는 겹이 다르다',
@@ -639,8 +647,10 @@ const flashCss = readCss();
     && !/\.fcard\{[^}]*animation:frise/.test(flashCss), true);
   /* 말풍선이 아니라 화면 전환이다 — 말풍선으로 오면 「상대가 보낸 셀카」가 된다 */
   eq('말풍선이 아니라 화면이다', /\.flash\{position:absolute;inset:0;z-index:58;/.test(flashCss), true);
-  /* 두 장을 다 쓴다 — 앞면이 그날의 옥상이고 뒷면이 일기다 */
-  eq('앞뒤 두 장을 쓴다', [D.FLASH_FRONT, D.FLASH_BACK], ['card-rooftop.webp', 'card-note.webp']);
+  /* 두 장을 다 쓴다 — 앞면이 그날의 옥상이고 뒷면이 **빈 종이**다.
+     전에는 글이 인쇄된 사진(card-note)을 쓰고 그 위 네모에 입력칸을 좌표로
+     맞췄는데, 상자 비율이 조금만 어긋나도 글자가 네모 밖으로 밀렸다. */
+  eq('앞뒤 두 장을 쓴다', [D.FLASH_FRONT, D.FLASH_BACK], ['card-rooftop.webp', 'card-paper.webp']);
 }
 
 /* ── 거리 곡선 ──
@@ -848,7 +858,7 @@ const flashCss = readCss();
   /* 빈칸이 그 겹 안에 들어 있어야 퍼센트가 사진 기준이 된다 */
   eq('빈칸이 그 겹 안에 있다', [
     /<div className="dfit dinkfit">\s*\n\s*<DiaryInk kind="child"/.test(web),
-    /<div className="dfit">\s*\n\s*\{FLASH_BOX\.map/.test(web),
+    /<div className="dfit">[\s\S]{0,400}<DiaryInk kind="flash"/.test(web),
   ], [true, true]);
   /* 종이와 단추를 auto 행으로 가르고 넘치면 이 오버레이만 스크롤한다. */
   eq('사진 칸과 단추 칸이 갈려 있다',
@@ -4528,7 +4538,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['294', '56acf2e0c671']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['295', 'fe9bd4e6571c']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -11296,7 +11306,7 @@ eq('시간표 단추는 peek보다 좁다',
   const D = new Function('localStorage', 'location',
     webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {userPics,saveDiary,saveFlash,DIARY_PAPER_IMG,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
+    + '\nreturn {userPics,saveDiary,saveFlash,DIARY_PAPER_IMG,FLASH_FRONT,FLASH_BACK,FLASH_LINES,FLASH_KEYS};')(ls, { search: '' });
   const dlg2 = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
   const appSrc3 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
   const css2 = readCss();
@@ -11318,8 +11328,10 @@ eq('시간표 단추는 peek보다 좁다',
   eq('엽서까지 채우면 두 장', mine.length, 2);
   /* 앞면은 옥상 사진 한 장이다 — 채운 칸은 뒷면에 있다 */
   eq('엽서 앞면에는 채운 칸이 없다', [(mine[1].fill || []).length, mine[1].src], [0, D.FLASH_FRONT]);
-  eq('뒷면에 셋이 제자리로 간다',
-    [mine[1].back, mine[1].backFill.map(f => [f.key, f.text])],
+  /* 좌표로 앉히던 자리다(backFill). 지금은 빈 종이에 글을 그리므로 값만
+     넘기고 쓰는 화면과 같은 렌더러가 그린다 — 쓸 때와 볼 때가 갈리면 안 된다. */
+  eq('뒷면에 셋이 값 그대로 간다',
+    [mine[1].back, D.FLASH_KEYS.map(k => [k, mine[1].backInk[k]])],
     [D.FLASH_BACK, [['face', '이상한'], ['said', '진짜요'], ['wish', '또 보고']]]);
   /* 빈칸 값은 여전히 기기 밖으로 안 나간다 — 여기서 하는 일은 보여주기뿐 */
   eq('보여줘도 서버로는 안 간다',
