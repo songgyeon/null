@@ -462,10 +462,12 @@
  background-color:#faf8ff !important;
  background-image:url("../assets/ui/profile-v2/messenger-wallpaper.webp?v=192") !important;
  background-position:center !important;background-size:cover !important;background-repeat:no-repeat !important}
+/* gift와 bag은 같은 부품(.cartwin.glasswindow)이라 같은 자리에 서야 한다.
+   bag만 top/bottom을 5px로 덮고 있어서 390×844에서 bag 창이 6px 더 길었다
+   (gift 828 · bag 834). 창 둘이 번갈아 뜨는 화면이라 그 차이가 프레임이
+   흔들리는 것으로 보인다. 공통 인셋 하나만 남긴다. */
 .phone>.screen>.cartscreen>.cartwin.glasswindow{
  left:8px !important;right:8px !important;top:8px !important;bottom:8px !important}
-.phone>.screen>.cartscreen>.cartwin.bagwin{
- top:5px !important;bottom:5px !important}
 
 /* 아이템 옆의 줄무늬 리본은 제거한다. DOM에서도 뺐지만 옛 캐시와 섞여도
    다시 보이지 않게 한다. */
