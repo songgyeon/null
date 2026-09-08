@@ -153,7 +153,17 @@
 /* 앉는 것과 넘어가는 것을 두 겹으로 나눈다. 한 겹에 얹으면 앉는 애니메이션이
    (fill:both라) transform을 끝까지 붙들어서 넘어가는 게 화면에 안 나온다 —
    클래스는 바뀌는데 앞면이 그대로 있었다. 바깥이 앉고 안쪽이 넘어간다. */
-.fwrap{position:relative;width:100%;max-width:330px;height:100%;perspective:1400px;
+/* ── 종이는 사진 비율이다 ──
+   전에는 높이를 화면에서 그대로 받았다(height:100%). 그러면 종이 상자가
+   사진보다 세로로 길어지고, object-fit:contain이 그 안에서 사진을 줄여
+   위아래에 여백을 만든다. 빈칸은 상자(.dfit)에 퍼센트로 앉으므로 그 여백만큼
+   **사진에 그려진 네모 아래로 밀린다** — 실측 412×915에서 상자 330×827,
+   사진 330×495, 위아래 여백 166px, 칸이 각각 +33·+55·+78px 어긋났다.
+   아래 칸일수록 더 밀려서 said 값이 wish 네모에 앉는 그림이 나왔다.
+   상자를 사진 비율로 못박으면 여백이 0이 되고 퍼센트가 제자리에 떨어진다.
+   옛 일기(.dpage)가 처음부터 쓰던 셈이다 — 같은 문법을 쓴다. */
+.fwrap{position:relative;width:min(330px,100%);
+ aspect-ratio:1024/1536;height:auto;perspective:1400px;
  animation:frise var(--rise,1400ms) ease-out both}
 @keyframes frise{0%{opacity:0;transform:translateY(26px) scale(.94)}100%{opacity:1;transform:none}}
 .fcard{position:relative;width:100%;height:100%;transform-style:preserve-3d;
@@ -162,12 +172,18 @@
 .fside{position:absolute;inset:0;border-radius:4px;overflow:hidden;
  backface-visibility:hidden;-webkit-backface-visibility:hidden;
  box-shadow:0 18px 40px rgba(0,0,0,.6)}
-.fside img{display:block;width:100%;height:100%;object-fit:contain}
+/* 상자가 이미 사진 비율이라 잘릴 것이 없다. cover는 소수점 반올림으로
+   1px 여백이 생기는 것까지 막는다(.dshot과 같다) */
+.fside img{display:block;width:100%;height:100%;object-fit:cover}
 .fback{transform:rotateY(180deg)}
 /* ── 그려진 네모 셋 ──
    엽서에 이미 네모가 그려져 있다. 그 안에 그대로 앉는다. 검은 펜으로 적힌
    글이라 글자도 그 색이고, 커서만 이 앱의 분홍이다. */
-.fblank{position:absolute;margin:0;padding:0 4px;font-family:inherit;font-size:12.5px;
+/* 종이에 손으로 적은 글씨다. inherit로 두면 상속할 손글씨가 이 자리 위에
+   없어서 body의 픽셀 글꼴까지 올라간다 — 손글씨 종이 위에 앱 글꼴이 앉았다.
+   일기 빈칸(.dblank)이 손글씨로 보이는 것은 부모(.dcurrent)가 이미 그
+   글꼴이라 저절로 상속되기 때문이고, 엽서에는 그 부모가 없다. */
+.fblank{position:absolute;margin:0;padding:0 4px;font-family:"Gyuri Diary",sans-serif;font-size:12.5px;
  line-height:1;text-align:center;color:#2b2b2b;caret-color:#ff5fa8;
  background:none;border:0;outline:none}
 .wbtn.go.fbtn{flex:none;width:auto;max-width:none;min-width:104px;
