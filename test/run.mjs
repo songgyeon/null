@@ -4538,7 +4538,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['297', '8a5cd76d9ad3']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['298', '57483d73df16']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -10662,6 +10662,18 @@ eq('시간표 단추는 peek보다 좁다',
       lastUser: '점심 뭐 먹지' })).tier, 'critical');
   eq('선톡 턴에는 감지가 없다',
     detectScene(CTX({ greet: true, lastUser: '공부방 기억나요?' })), '');
+  /* 선톡에는 유저 말이 없다 — 그래서 약속은 여기서 선다. 그 사람이 먼저 입을
+     여는 자리가 「데리러 갈게요」를 지키는 모양이다 */
+  eq('선톡 턴에도 약속은 선다',
+    detectScene(CTX({ room: 'minhyun', greet: true, promise: { text: 'ㄱ', daysAgo: 1 } })), 'promise_due');
+  /* 처음엔 약속을 감지 맨 앞에 뒀다 — 하루 지난 약속이 있는 날엔 「키스해도
+     돼요?」까지 약속에 먹혔다. 말에서 오는 사유가 있으면 그게 먼저다 */
+  eq('유저가 방금 한 말이 장부보다 먼저다', [
+    detectScene(CTX({ room: 'minhyun', place: '보건실', lastUser: '키스해도 돼요?',
+      promise: { text: 'ㄱ', daysAgo: 1 } })),
+    detectScene(CTX({ lastUser: '공부방 기억나요?', promise: { text: 'ㄱ', daysAgo: 1 } })),
+    detectScene(CTX({ room: 'minhyun', lastUser: '점심 뭐 먹지', promise: { text: 'ㄱ', daysAgo: 1 } })),
+  ], ['kiss', 'memory_reveal', 'promise_due']);
   eq('관전 경로에는 감지가 없다',
     detectScene(CTX({ mode: 'auto', lastUser: '공부방 기억나요?' })), '');
   /* 감지의 재료는 이력 **맨 끝**의 유저 발화다. 끝이 지문이면 이번 턴에
@@ -10776,6 +10788,34 @@ eq('시간표 단추는 peek보다 좁다',
      장면은 다시 오면 되지만 전진은 되돌릴 수 없다 */
   eq('도망간 답에는 기억이 안 움직인다',
     materializeEffects('r1', CAND(['…아뇨. 밥은 먹었어요?']), JC({})), []);
+  /* 약속도 같은 계약이다 — 승인된 promise_due 장면이라도 답이 그 말을
+     지키거나 거두지 않았으면 안 닫힌다. 처음엔 사유만 보고 닫았다 */
+  const PC = o => ({ room: 'minhyun', story: makeStoryState({}), sceneReason: 'promise_due',
+    promise: { text: '늦으면 데리러 갈게요', daysAgo: 1 }, ...o });
+  const DONE = { id: mintEffectId('r1', 'promise_done', 'minhyun', 'due'), type: 'promise_done', room: 'minhyun' };
+  eq('지킨 답이면 약속이 닫힌다', materializeEffects('r1', CAND(['데리러 왔어요.']), PC({})), [DONE]);
+  eq('거둔 답이면 약속이 닫힌다', materializeEffects('r1', CAND(['못 가겠어요, 오늘은.']), PC({})), [DONE]);
+  eq('지키지도 거두지도 않은 답에는 약속이 안 닫힌다',
+    materializeEffects('r1', CAND(['그냥.']), PC({})), []);
+  eq('선톡의 답도 지켰으면 닫힌다 — 그게 먼저 움직인 것이다',
+    materializeEffects('r1', CAND(['데리러 왔어요.']), PC({ greet: true })), [DONE]);
+  eq('승인 없는 턴에는 약속이 안 닫힌다',
+    materializeEffects('r1', CAND(['데리러 왔어요.']), PC({ sceneReason: '' })), []);
+  /* 지킴·거둠의 낱말은 실제 기록에서 왔다 — 두 판 2,873줄에서 넷이 걸렸고
+     일반 답 쉰 개는 하나도 안 걸렸다. 「아직」은 지킴이 아니다 */
+  eq('실제 기록의 지킴·거둠은 걸린다', [
+    'CD, 방금 겨우 한 번 들었어요.', '보리차 끓여놓은 거 있어요.', '까먹었어요.',
+    '많아진다고 약속은 못 하겠어요.', '데리러 왔어요.', '챙겨 왔어요, 어제 말한 거.',
+    '그 말은 없던 걸로 해요.', '정문에서 기다렸어요.',
+  ].filter(t => !ENG.PROMISE_TOUCH.test(t)), []);
+  eq('일반 답과 「아직」은 안 걸린다', [
+    '그냥.', '네.', '왜요.', '알았어요.', '오늘이네요.', '퇴근했어요.', '밥은 먹었어요.',
+    '듣고 있어요.', '받았어요.', '잘 자요.', '삼촌, 저 왔어요. 좀 늦었죠.',
+    '두 개 가져왔어요?', '밥은 먹고 왔어요?', '내일 봐요.', '내일 씹을게요.',
+    'CD는 아직 못 들어봤어요, 선생님.', '씨디는 계속 주머니에 있어요.',
+    '오늘 비 안 오네요.', '커피 내렸어요.', '다음엔 진짜로 데려다줄게요.',
+    '오늘은 좀 늦을 것 같고.', '아까까지도 잊고 있었잖아요.',
+  ].filter(t => ENG.PROMISE_TOUCH.test(t)), []);
   /* 선톡 턴에는 상태가 안 움직인다 — 유저의 턴이 아니다 */
   eq('선톡 턴에는 전환이 없다', [
     materializeEffects('r1', CAND(['…그때 그 공부방.']), JC({ greet: true })),

@@ -677,9 +677,9 @@ function makeEffect(requestId, e) {
     return { id: mintEffectId(requestId, type, room, text.slice(0, 24)), type, room, text };
   }
   /* ── 그 말을 지켰다 — 또는 거뒀다 ──
-     승인된 promise_due 장면이 답까지 나왔다. 감지로 오른 장면이라 scene_ack가
-     없다(예약이 아니므로) — 닫는 것은 이 Effect다. 장부의 말이 무엇이었든
-     그 방의 것을 닫는다. */
+     승인된 promise_due 장면에서 답이 그 말을 실제로 지키거나 거뒀다
+     (PROMISE_TOUCH). 감지로 오른 장면이라 scene_ack가 없다(예약이 아니므로) —
+     닫는 것은 이 Effect다. 장부의 말이 무엇이었든 그 방의 것을 닫는다. */
   if (type === "promise_done") {
     const room = String(o.room || "");
     if (!room) throw new Error("promise_done에 room이 없다");
@@ -733,6 +733,9 @@ function materializeEffects(requestId, picked, ctx) {
   const out = [];
   if (!picked) return out;
   const g = ctx || {};
+  /* 답 전체를 한 줄로. 상태를 움직이는 자리마다 이걸 본다 — 승인된 장면이라도
+     답이 그 장면을 실제로 지나갔는지는 말이 말한다. */
+  const saidByChar = (picked.messages || []).map(m => (m && m.text) || "").join(" ");
   /* ── 물건은 유저가 두 마디는 하고 나서만 ──
      placeItemAvailable은 talkedEnough까지 포함해 **부르기 전에** 계산된
      값이다. 여기서 다시 세지 않는다 — 두 곳에서 세면 갈린다. */
@@ -762,12 +765,16 @@ function materializeEffects(requestId, picked, ctx) {
       && !g.refusedToday && pickRefusal(g.lastUser, g.lastChar))
     out.push(makeEffect(requestId, { type: "refusal", room: g.room }));
   /* ── 그때가 와서 움직였다 ──
-     이 턴이 promise_due로 올라 답까지 나왔으면 그 말은 지켜졌거나 거둬진
-     것이다. 브라우저가 장부에서 지우면 다음 턴부터 안 실려 오고 감지도 선다.
+     이 턴이 promise_due로 올랐고 **답이 그 말을 지키거나 거뒀으면** 닫는다.
+     사유만 보고 닫았던 앞 판에서는 답이 「그냥.」이어도 닫혔다 — 꺼낸 것과
+     지킨 것이 구별이 안 됐다. memory_reveal이 MEMORY_TOUCH로 답을 보는 것과
+     같은 계약이다: 장면은 다시 오면 되지만 장부를 지우는 것은 되돌릴 수 없다.
+     지키지도 거두지도 않은 답이면 장부가 남아 다음 턴에 다시 선다.
+     선톡(greet)도 본다 — 「데리러 왔어요」로 먼저 입을 열었으면 그게 지킨 것이다.
      **닫는 것이 새 약속보다 먼저다** — 같은 턴에 새 말이 잡히면 옛 말을 닫은
      뒤 새 말이 적혀야 한다. 적용은 배열 순서라 여기가 앞이어야 한다. */
   if ((g.room === "jaeeon" || g.room === "minhyun") && g.sceneReason === "promise_due"
-      && g.promise && g.promise.text)
+      && g.promise && g.promise.text && PROMISE_TOUCH.test(saidByChar))
     out.push(makeEffect(requestId, { type: "promise_done", room: g.room }));
   /* ── 인물이 한 약속 ──
      유저의 말이 아니라 **인물이 방금 한 말**에서 온다. 그래서 이 턴의 응답이
@@ -791,7 +798,6 @@ function materializeEffects(requestId, picked, ctx) {
      클라이언트가 보낸 지금 상태(g.story)에서 다음 칸으로 가는 전환만 낸다.
      적용은 클라이언트 장부가 한다 — 워커는 아무것도 기억하지 않는다. */
   const st = g.story;
-  const saidByChar = (picked.messages || []).map(m => (m && m.text) || "").join(" ");
   /* 선톡 턴에는 상태가 안 움직인다 — 유저의 턴이 아니다 */
   if (st && g.room === "minhyun" && !g.greet) {
     /* 강현의 첫 만남 설명. 물었는데(pending) 답에 정사 낱말(병원·옥상·재활)이
@@ -2803,8 +2809,9 @@ function buildRefusal(ctx) {
    지어낸 약속이고, 인물이 한 말은 이미 저 문장이다.
    며칠 전인지만 같이 준다. 어제 한 말과 사흘 전에 한 말은 무게가 다르고,
    그 무게를 정하는 것은 인물이지 코드가 아니다.
-   지켰는지는 안 잰다. 잴 방법이 없고, 재려 들면 안 지킨 것으로 몰거나
-   지킨 것을 또 지키게 만든다 — 인물이 제 말을 읽고 알아서 한다. */
+   여기서는 지켰는지 안 잰다 — 그건 답이 나온 뒤 materializeEffects가
+   PROMISE_TOUCH로 본다. 프롬프트가 미리 「안 지켰다」로 몰면 지킨 것을 또
+   지키게 만든다 — 인물이 제 말을 읽고 알아서 한다. */
 function buildPromise(promise, sceneReason) {
   const p = promise || {};
   const text = String(p.text || "").trim();
@@ -2815,7 +2822,7 @@ function buildPromise(promise, sceneReason) {
   /* ── 그때가 왔다 ──
      「그때가 오면 먼저 움직여라」만 적어두면 언제가 그때인지는 모델이 정했고,
      미루면 닷새 뒤 아무 일 없이 사라졌다. 로그에서 좋았던 콜백은 운이었다.
-     브라우저가 하루 지난 말을 장면으로 예약해 오면 이 턴이 그때다. 길은
+     하루 지난 말을 워커가 감지로 올리면 이 턴이 그때다. 길은
      둘뿐이다 — 지키거나, 지킬 수 없게 됐으면 그 말을 다시 꺼내 거두거나.
      「나중에」는 셋째 길이고 그 길은 이 자리에 없다. */
   if (sceneReason === "promise_due")
@@ -5617,6 +5624,19 @@ const YES_SAY = /^\s*(?:네+|넹|녜|응+|어+|그래|그럼요?|좋아요?|좋�
    한 마디도 안 건드리면 상태를 전진시키지 않는다. 장면은 다시 올 수 있지만
    전진은 되돌릴 수 없다. */
 const MEMORY_TOUCH = /기억|공부방|사탕|목걸이|20년|그때|그\s*아이/;
+/* ── 약속을 지켰거나 거둔 말 ──
+   promise_due 장면의 답이 이걸 지나야 promise_done이 나간다. 낱말은 실제
+   기록 두 판(2,873줄)에서 왔다 — 「보리차 끓여놓은 거 있어요」「CD, 방금 겨우
+   한 번 들었어요」「약속은 못 하겠어요」「까먹었어요」. 일반 답 쉰 개(「그냥」
+   「네」「받았어요」「퇴근했어요」)는 하나도 안 걸린다.
+   좁게 잡는다 — 오탐이 미탐보다 비싸다. 미탐은 장부가 하루 더 남을 뿐이고
+   닷새면 물러나지만, 오탐은 지키지도 않은 말을 지운다.
+   「아직 못 들었어요」「다음엔 진짜로」「오늘은 좀 늦을 것 같고」는 지킴도
+   거둠도 아니라 일부러 안 넣었다 — CD는 지키기 전 일주일간 「아직」이 열 번이었다.
+   「미안」도 뺐다 — 기록의 미안 넷은 전부 약속과 무관했다.
+   반말 「들고 왔어.」는 안 잡는다(어미를 어요·습니다·는데로 좁혔다) —
+   그건 관전방 말투고 이 검사는 1:1 방에서만 돈다. */
+const PROMISE_TOUCH = /(?:데리러\s*(?:왔|가요|갈\s*테니|나와요)|데려다\s*(?:주러|줄\s*테니)|(?:가져|가지고|들고|챙겨)\s*왔(?:어요|습니다|는데)(?!\s*\?)|챙겨\s*(?:뒀|놨|드렸|줬)(?:어요|습니다|는데)|끓여\s*(?:놓|뒀|놨|둔)|기다리고\s*있었|기다렸(?:어요|습니다|는데)|(?:방금|겨우|드디어)[^.!?]{0,10}(?:들었|봤|읽었|씹었|샀|달았|해봤|먹어봤)|약속(?:한|했던)\s*(?:거|대로)|약속은\s*못|말한\s*대로|그때\s*말한|못\s*(?:가겠|갈\s*것\s*같|지키겠|하겠|데리러)|안\s*되겠(?:어요|습니다)|깜빡했|까먹었|거둘게|거둬야|없던\s*걸로)/;
 /* NULL 출처를 파고드는 말. 「무슨 말이에요」는 어디서나 나오는 말이라
    이것 하나로는 못 쓴다 — 직전 문답 조건(마지막 인물 발화가 「처음부터」)이
    같이 맞아야 한다. approveReason이 그 둘을 본다. */
@@ -5722,20 +5742,28 @@ function approveReason(r, ctx) {
    값이 두 배가 되고 어조까지 무거워진다. 상태는 문을 열어두는 것이고,
    문을 지나는 것은 말이다. */
 function detectScene(ctx) {
+  if (ctx.mode !== "chat") return "";
+  /* ── 유저가 방금 한 말이 장부보다 먼저다 ──
+     기억·키스·고백·정체는 말에서 온다. 그 말이 있는 턴에는 그게 이긴다 —
+     약속은 안 닫히고 장부에 남아 다음 턴에 선다. 선톡(greet)에는 유저 말이
+     없으니 여기를 건너뛴다. */
+  if (!ctx.greet) {
+    if (ctx.room === "jaeeon" && ((ctx.story || {}).jaeeonMemory !== "acknowledged")
+        && MEMORY_PROBE.test(String(ctx.lastUser || ""))) return "memory_reveal";
+    /* 고백·정체는 조건 자체가 실제 발화를 요구한다 — 상태만으로는 못 오른다 */
+    for (const r of ["kiss", "confession", "null_identity"])
+      if (approveReason(r, ctx)) return r;
+  }
   /* ── 그때가 왔다 ──
      재료가 말이 아니라 장부다. 브라우저는 며칠 전 말인지만 싣고(하루의 경계가
      거기 있다), 「그때」인지는 여기서 정한다 — 클라이언트가 예약하는 것은
      화면의 선택뿐이다(E4). 「그때가 오면 먼저 움직여라」만 적어두면 언제가
      그때인지를 모델이 정했고, 미루면 닷새 뒤 아무 일 없이 사라졌다.
+     말에서 오는 사유가 하나도 없을 때만 선다 — 처음엔 맨 앞에 뒀더니 하루
+     지난 약속이 있는 날엔 「키스해도 돼요?」까지 약속에 먹혔다.
      인물이 먼저 말하는 턴(greet)도 그때다 — 「데리러 갈게요」의 다음 날
      방을 열면 그 사람이 먼저 입을 여는 것이 그 말을 지키는 모양이다. */
-  if (ctx.mode === "chat" && approveReason("promise_due", ctx)) return "promise_due";
-  if (ctx.mode !== "chat" || ctx.greet) return "";
-  if (ctx.room === "jaeeon" && ((ctx.story || {}).jaeeonMemory !== "acknowledged")
-      && MEMORY_PROBE.test(String(ctx.lastUser || ""))) return "memory_reveal";
-  /* 고백·정체는 조건 자체가 실제 발화를 요구한다 — 상태만으로는 못 오른다 */
-  for (const r of ["kiss", "confession", "null_identity"])
-    if (approveReason(r, ctx)) return r;
+  if (approveReason("promise_due", ctx)) return "promise_due";
   return "";
 }
 
@@ -7979,7 +8007,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
-         buildReturned, buildPromise, pickPromise, buildPlace,
+         buildReturned, buildPromise, pickPromise, PROMISE_TOUCH, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,

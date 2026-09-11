@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=297";
+const AV_V = "?v=298";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -699,7 +699,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=297";
+const AV="?v=298";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1410,8 +1410,9 @@ const stampRefuse=(char,now)=>refusedToday(char,now)||saveRefuseDay({...loadRefu
    쌓으면 인물이 지킬 것 목록을 읽는 사람이 되고, 그건 사람이 아니라 일정표다.
 
    며칠이 지났는지는 여기서 잰다(하루의 경계가 여기 있다). PROMISE_DAYS가
-   지나면 아예 안 실어 보낸다 — 지켰는지를 잴 방법이 없으니, 대신 오래된
-   말은 스스로 물러나게 한다. 안 그러면 「아직 안 지켰다」가 영영 따라다닌다.
+   지나면 아예 안 실어 보낸다 — 지킨 답은 워커가 promise_done으로 닫지만,
+   지키지도 거두지도 않은 채 닷새가 가면 여기서 물러나게 한다. 안 그러면
+   「아직 안 지켰다」가 영영 따라다닌다.
    닷새로 둔 것은 로그에서 콜백이 돌아오는 데 걸린 날이 닷새였기 때문이다. */
 const PROMISE_DAYS=5;
 const loadPromise=()=>{try{return JSON.parse(localStorage.getItem("null_promise"))||{}}catch(e){return{}}};

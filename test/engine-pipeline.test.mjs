@@ -2299,13 +2299,24 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
      먼저 말하는 턴(greet)도 그때다. 단톡에는 그 자리가 없다. */
   const dueBody = (daysAgo, extra) => ({ ...BASE, room: "minhyun",
     promise: { text: "늦으면 데리러 갈게요", daysAgo }, ...(extra || {}) });
-  const due = await run({}, dueBody(1));
+  const KEPT = JSON.stringify({ messages: [{ text: "데리러 왔어요. 지금 나와요." }] });
+  const WITHDRAWN = JSON.stringify({ messages: [{ text: "못 가겠어요, 오늘은." }] });
+  const due = await run({}, dueBody(1), [KEPT]);
   const dueVol = volOf();
   eq("하루 지난 약속이 감지로 올라간다 — 예약도 ack도 없다",
     [due.data.trace.route.tier, due.data.trace.route.reason, "scene_ack" in due.data],
     ["critical", "promise_due", false]);
-  eq("답이 나오면 그 말이 닫힌다",
+  /* 닫는 것은 답이다 — 승인된 장면이라도 답이 그 말을 지키지도 거두지도
+     않았으면 장부가 남아 다음 턴에 다시 선다(memory_reveal의 MEMORY_TOUCH와
+     같은 계약). 처음엔 사유만 보고 닫았다 — 답이 「그냥.」이어도 닫혔다. */
+  eq("지킨 답이면 그 말이 닫힌다",
     (due.data.effects || []).filter(e => e.type === "promise_done").map(e => e.room), ["minhyun"]);
+  const shrug = await run({}, dueBody(1));
+  eq("지키지도 거두지도 않은 답에는 안 닫힌다",
+    [shrug.data.trace.route.reason, (shrug.data.effects || []).some(e => e.type === "promise_done")],
+    ["promise_due", false]);
+  const gaveUp = await run({}, dueBody(1), [WITHDRAWN]);
+  eq("거둔 답도 닫는다", (gaveUp.data.effects || []).some(e => e.type === "promise_done"), true);
   eq("그 턴의 프롬프트는 지키거나 거두거나다",
     [/어제 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(dueVol),
      /오늘 그 말대로 네가 먼저 움직인다/.test(dueVol),
@@ -2313,7 +2324,7 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
      /지금 그때가 아니면 꺼내지 않는다/.test(dueVol),
      /## \[지금 장면\]\n며칠 전 한 말을 지키거나 거둔다/.test(dueVol)],
     [true, true, true, false, true]);
-  const dueGreet = await run({}, dueBody(1, { greet: true }));
+  const dueGreet = await run({}, dueBody(1, { greet: true }), [KEPT]);
   eq("인물이 먼저 말하는 턴도 그때다",
     [dueGreet.data.trace.route.reason, (dueGreet.data.effects || []).some(e => e.type === "promise_done")],
     ["promise_due", true]);
@@ -2326,6 +2337,19 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("단톡에는 그 자리가 없다",
     [noSeat.data.trace.route.tier, (noSeat.data.effects || []).some(e => e.type === "promise_done")],
     ["normal", false]);
+  /* ── 유저가 방금 한 말이 장부보다 먼저다 ──
+     처음엔 promise_due를 감지 맨 앞에 뒀다. 하루 지난 약속이 있는 날엔 유저가
+     「키스해도 돼요?」를 쳐도 약속이 이겨서 키스 화면이 안 떴고, 재언 방에서
+     공부방을 캐물어도 약속이 됐다. 말에서 오는 사유가 있으면 그게 먼저고,
+     약속은 안 닫힌 채 장부에 남아 다음 턴에 선다. */
+  const kissDue = await run({}, { ...kissBody("minhyun"), partner: "minhyun",
+    promise: { text: "늦으면 데리러 갈게요", daysAgo: 1 } });
+  eq("하루 지난 약속이 있어도 키스를 청하면 키스가 먼저다",
+    [kissDue.data.trace.route.reason, !!kissDue.data.kiss,
+     (kissDue.data.effects || []).some(e => e.type === "promise_done")],
+    ["kiss", true, false]);
+  const probeDue = await run({}, { ...PROBE, promise: { text: "내일 챙겨 올게요", daysAgo: 1 } });
+  eq("기억을 캐물으면 기억 공개가 먼저다", probeDue.data.trace.route.reason, "memory_reveal");
 
   console.log("  ok   §15 이번 판들이 요청 경로에서 산다");
   pass++;
