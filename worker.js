@@ -5629,32 +5629,41 @@ const YES_SAY = /^\s*(?:네+|넹|녜|응+|어+|그래|그럼요?|좋아요?|좋�
 const MEMORY_TOUCH = /기억|공부방|사탕|목걸이|20년|그때|그\s*아이/;
 /* ── 그 말을 지켰거나 거뒀는가 ──
    promise_due 장면의 답이 이걸 지나야 promise_done이 나간다.
-   두 판을 적대 검증이 깼다. 첫 판은 답의 **모양**만 봤다(「까먹었어요」「방금
-   봤어요」) — 무엇을 까먹었는지 안 봤다. 둘째 판은 약속의 낱말이 답에 다시
-   나오고 절 어딘가에 완료형(받침 ㅆ)이 있으면 지킨 걸로 봤다 — 「들어볼게요」
-   뒤의 인사 「잘 들어갔어요?」가 닫혔고(들어≈들어갔, 갔의 ㅆ), 「챙겨줄게요」
-   뒤의 「아침 챙겨 먹었어요」가 닫혔다. 실제 기록의 약속 15개 × 인물 대사
-   2,910줄 = 43,650쌍에서 true 47쌍, 그중 지킴은 0이었다.
-   셋째 판은 **약속의 동사 그 자체를 완료형으로 바꿔** 답에서 찾는다.
-     「데리러 갈게요」→ 데리러 갔·왔    「들어볼게요」→ 들어봤·들었
-     「챙겨 올게요」→ 챙겨 왔         「끓여 놓을게요」→ 끓여 놓았·놨·놓은
-     「씹을게요」→ 씹었               「전화할게요」→ 전화했
-   받침은 정규식이 아니라 자모 산수로 푼다(가+았→갔, 주+었→줬, 리+었→렸).
-   한 글자 완료형(갔·왔·줬·봤·했)은 약속의 앞말이 붙어야 한다 — 「왔어요」
-   한 마디는 「저 왔어요」일 수 있다. 「-어 보다/주다」류는 본동사의 완료형도
-   받는다(들어봤↔들었, 구워 줬↔구웠). 그래서 지킴을 못 알아보는 약속이 있다 —
-   「다시 올게요」(한 글자 동사에 앞말이 「다시」) — 거둠은 그래도 보고,
-   장부는 닷새면 물러난다.
-   지킴이 아닌 것: 물음 절(「챙겨 왔어요?」), 「아직·못·안·않·깜빡」이 있는 절,
-   완료형 뒤에 「으면·을·다 올·다고·어야·던」이 붙은 것(갔으면·갔을·갔다 올게요·
-   왔어야), 「-고 있었」의 있었. 완료형은 어절 머리에서만 찾는다(잠들었≠들었).
+   세 판이 적대 검증에 깨졌다. 첫 판은 답의 **모양**만 봤다(「까먹었어요」) —
+   무엇을 까먹었는지 안 봤다. 둘째 판은 약속의 낱말이 답에 다시 나오고 절
+   어딘가에 완료형(받침 ㅆ)이 있으면 지킨 걸로 봤다 — 「들어볼게요」 뒤의 인사
+   「잘 들어갔어요?」가 닫혔다. 셋째 판은 약속의 동사를 완료형으로 바꿔 찾았는데
+   두 글자 맨 꼴을 그대로 받아서 「있을게요」→「일이 좀 있었어」, 「먹어볼게요」→
+   「아침 먹었어요」, 「알아볼게요」→「알았어요」가 닫혔다 — 실제 기록의 약속 15개
+   × 인물 대사 2,873줄 = 43,095쌍에서 true 52쌍, 지킴은 0.
+   넷째 판(이것)은 **약속 자체의 낱말이 앞에 붙은 꼴**만 지킴으로 받는다.
+     「데리러 갈게요」→ 데리러 갔·왔      「챙겨 올게요」→ 챙겨 왔·챙겼
+     「끓여 놓을게요」→ 끓여 놓았·놨·놓은·둔   「탕수는 먹어볼게요」→ 탕수 먹었·먹어봤
+   맨 꼴(앞말 없이)은 **세 음절 어간**만이다 — 기다렸·데려다줬·전화했·추천드렸.
+   두 글자 이하 어간의 맨 꼴(있었·먹었·들었·씹었·알았·말했)은 일상 답에 너무
+   흔해 안 받는다. 그래서 「이따 먹을게요」「내일 씹을게요」「다시 올게요」는
+   지킴을 못 알아본다 — 거둠은 보고, 장부는 닷새면 물러난다. 오탐이 미탐보다
+   비싸다: 미탐은 장부가 하루 더 남을 뿐이고, 오탐은 지키지도 않은 말을 지운다.
+   받침은 정규식이 아니라 자모 산수로 푼다(가+았→갔, 주+었→줬, 리+었→렸, 하→했).
+   「-어 주다/놓다/두다/드리다」는 앞말의 완료형도 지킨 것이다(구워 줄게요↔구웠,
+   챙겨줄게요↔챙겼) — 「-어 보다」는 아니다(알아보다≠알다, 먹어 보다≠먹다). 여·려로
+   끝나는 앞말은 피동과 겹쳐 뺀다(보여줄게요→「보였」은 「피곤해 보였어요」다).
+   주↔드리, 놓↔두는 서로의 말이다. 부정 약속(「안 쓸게요」)은 지킴을 안 본다.
+   지킴이 아닌 것: 물음 절(「챙겨 왔어요?」), 「아직·못·안·않·없·깜빡」이 있는 절,
+   완료형 뒤에 「으면·을·다 올·다고·대요·겠·길래·는지·어야·던」이 붙은 것(갔으면·
+   갔다 올게요·했대요·했겠죠·갔길래), 「-고 있었」. 완료형은 어절 머리에서만 찾는다.
+   앞말은 한글·영숫자만 쓴다 — 「*진짜*」가 정규식에 들어가 터진 적이 있다(적대
+   검증이 재현: 그 방의 턴이 닷새 동안 502였을 것이다). 그래도 만들다 터지면
+   지킴을 안 본다.
    거둠 = 그 말을 접는 말 — 「못 지키겠」「없던 걸로」「거둘게」. 좁고 뚜렷하다.
-     「못 가겠」「못 갈 것 같」은 가는 약속(데리러·데려다·갈게·올게)에만 거둠이다.
-     「오늘은·지금은·다음에」가 같은 절에 있으면 미룬 것이지 거둔 게 아니다.
+     「못 가겠」「못 갈 것 같」은 가는 약속(데리러·데려다·갈게·올게)에만 거둠이고,
+     「학교는 못 가겠어요」처럼 딴 데를 못 간다는 말은 아니다.
+     「오늘은·지금은·이번 주는·다음에」가 같은 절에 있으면 미룬 것이지 거둔 게 아니고,
+     「아직」「못 가겠다 싶었어요」(회상)·「못 지키겠다고요?」(되묻기)도 아니다.
      「안 되겠어요」「못 하겠어요」「약속은 못」은 아무 데서나 나오는 말이라 안 넣는다.
-   좁게 잡는다 — 오탐이 미탐보다 비싸다. 미탐은 장부가 하루 더 남을 뿐이고
-   닷새면 물러나지만, 오탐은 지키지도 않은 말을 지운다.
-   「미안」도 뺐다 — 기록의 미안 넷은 전부 약속과 무관했다. */
+   「미안」도 뺐다 — 기록의 미안 넷은 전부 약속과 무관했다.
+   실제 기록 전수(약속 15개 × 인물 대사 2,873줄)에서 이 판이 닫는 쌍은 시험이
+   센다 — 늘면 오탐이다. */
 const isSyl = ch => { const c = ch.charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3; };
 const jamo = ch => { const s = ch.charCodeAt(0) - 0xAC00; return [Math.floor(s / 588), Math.floor((s % 588) / 28), s % 28]; };
 const syl = (i, m, f) => String.fromCharCode(0xAC00 + i * 588 + m * 28 + f);
@@ -5685,70 +5694,97 @@ function pastOfStem(stem) {
   if (last === "가") out.push(head + "왔");                          // 갈게요 → 「왔어요」가 지킨 것
   return out;
 }
-/* 놓·두는 서로의 말이기도 하다 — 「끓여 놓을게요」를 「끓여 둔 거 있어요」가 지킨다 */
-const stemKin = st => /두$/.test(st) ? [st, st.slice(0, -1) + "놓"] : /놓$/.test(st) ? [st, st.slice(0, -1) + "두"] : [st];
+/* 놓·두, 주·드리는 서로의 말이다 — 「끓여 놓을게요」를 「끓여 둔 거 있어요」가,
+   「들려줄게요」를 「들려드렸잖아요」가 지킨다 */
+const stemKin = st => /두$/.test(st) ? [st, st.slice(0, -1) + "놓"] : /놓$/.test(st) ? [st, st.slice(0, -1) + "두"]
+  : /주$/.test(st) ? [st, st.slice(0, -1) + "드리"] : /드리$/.test(st) ? [st, st.slice(0, -2) + "주"] : [st];
+/* 앞말의 -어 꼴에 받침 ㅆ만 얹으면 본동사의 완료형이다(챙겨→챙겼, 구워→구웠) */
+const pastOfConn = ch => { const [i, m, f] = jamo(ch); return f === 0 ? syl(i, m, 20) : ""; };
 /* 약속의 어미까지만 본다 — 장부의 말은 절 하나(60자)라 뒤에 딴말이 붙는다
    (「늦으면 데리러 갈게요, 걱정 마요」). 「걱정」은 약속이 아니다 */
 const PROMISE_CORE = /[^]*?(?:게요|께요|드릴|줄게|볼게)/;
-/* 동사 앞말로 못 쓰는 것 — 「다시 올게요」의 다시는 「다시 왔어요」를 못 만든다 */
+/* 앞말로 못 쓰는 것 — 「다시 올게요」의 다시는 「다시 왔어요」를 못 만든다 */
 const PROMISE_PREV_STOP = new Set(["그냥", "진짜", "정말", "그럼", "그러면", "저도", "나도", "한번",
-  "한", "번", "오늘", "내일", "이따", "나중에", "다음에", "다음엔", "그때", "제가", "내가", "근데",
-  "조금", "많이", "다시", "먼저", "같이", "혹시", "아마", "일단", "이제", "지금", "여기", "거기",
-  "어제", "방금", "꼭", "좀", "더", "덜", "안", "못", "다", "잘", "또", "빨리", "금방", "이번엔",
-  "이번에", "따로", "직접", "제대로", "진짜로", "정말로", "살짝", "그때는", "언젠가", "담에", "저는", "나는"]);
-/* 「-어 보다/주다/놓다/두다/드리다」 — 앞의 -어 꼴에 받침 ㅆ만 얹으면 본동사의 완료형이다
-   (들어→들었, 챙겨→챙겼, 구워→구웠). 가·오는 안 넣는다 — 「들어갈게요」는 듣는 게 아니다 */
-const AUX_STEM = /^(.+)(보|주|놓|두|드리)$/;
-const pastOfConn = ch => { const [i, m, f] = jamo(ch); return f === 0 ? syl(i, m, 20) : ""; };
-/* 약속 → 답에서 찾을 완료형 정규식. 없으면 null(지킴을 못 알아보는 약속) */
+  "한", "번", "오늘", "내일", "이따", "나중", "다음", "그때", "제가", "내가", "근데", "조금", "많이",
+  "다시", "먼저", "같이", "혹시", "아마", "일단", "이제", "지금", "여기", "거기", "어제", "방금", "꼭",
+  "좀", "더", "덜", "안", "못", "다", "잘", "또", "빨리", "금방", "이번", "따로", "직접", "제대로",
+  "진짜로", "정말로", "살짝", "언젠가", "담에", "저는", "나는", "저", "나", "우리", "그거", "이거",
+  "그건", "이건", "그게", "이게", "뭐", "뭘", "그렇게", "이렇게", "그런", "이런", "그래도", "그리고",
+  "그래서", "그러니까", "이따가", "있다가", "거의", "전부", "모두", "얼른", "일찍", "늦게", "매일"]);
+const PROMISE_PARTICLE = /(?:에서는|에게는|으로는|에서|에게|으로|이랑|부터|까지|처럼|보다|은|는|이|가|을|를|도|만|에|로|와|과|랑|의|요)$/;
+/* 완료형 뒤에 붙으면 한 일이 아니다 — 가정·미래·인용·전문·추측·내포의문 */
+const KEPT_NOT_AFTER = /^(?:으면|을|다\s*(?:올|가|와|오|주|줄)|다고|다는|다면|다던|다며|다니(?!까)|다길래|던|대요|대[.!?…\s]|답니다|어야|아야|었으면|았으면|었을|았을|나요|냐|을까|을지|겠|길래|는지|더라면|더라도|어도|아도|나\s*봐|나\s*싶)/;
+/* 두 글자 이하 어간은 앞말이 붙어야 한다. 세 음절이라도 대화에서 아무 때나
+   나오는 「생각했·얘기했·말했」은 앞말이 붙어야 한다 */
+const BARE_STEM_BLOCK = /(?:생각하|얘기하|이야기하|말하|시작하)$/;
+/* 약속 → 답에서 찾을 완료형 정규식 조각들. 비면 지킴을 못 알아보는 약속이다 */
 function promiseKeptForms(promiseText) {
   const core = (String(promiseText || "").match(PROMISE_CORE) || [""])[0];
   const toks = core.split(/[\s,.!?…~「」'"()\[\]]+/).filter(Boolean);
   if (!toks.length) return [];
   const verb = toks[toks.length - 1].replace(/요$/, "").replace(/[게께]$/, "");
-  const prev = toks.length > 1 && !PROMISE_PREV_STOP.has(toks[toks.length - 2]) ? toks[toks.length - 2] : "";
   if (!verb || !isSyl(verb[verb.length - 1])) return [];
+  if (toks.length > 1 && /^(?:안|못)$/.test(toks[toks.length - 2])) return [];   // 부정 약속
+  const prevRaw = toks.length > 1 ? toks[toks.length - 2] : "";
+  /* 앞말 — 약속의 다른 낱말 전부(토씨 뗀 것). 조건절(「늦으면」)은 아니다.
+     한글·영숫자만 — 정규식에 그대로 들어간다 */
+  const anchors = [...new Set(toks.slice(0, -1).map(t => t.replace(PROMISE_PARTICLE, ""))
+    .filter(t => t.length >= 2 && !PROMISE_PREV_STOP.has(t) && !/면$/.test(t) && /^[가-힣A-Za-z0-9]+$/.test(t)))];
   const last = verb[verb.length - 1], [i, m, f] = jamo(last);
   const stems = [];
   if (verb.length >= 2 && last === "을" && isSyl(verb[verb.length - 2]) && jamo(verb[verb.length - 2])[2] !== 0)
     stems.push(verb.slice(0, -1));                                   // 씹을·먹을·들을·놓을
-  else if (f === 8) stems.push(verb.slice(0, -1) + syl(i, m, 0), verb); // 갈→가 · 만들
+  else if (f === 8) { stems.push(verb.slice(0, -1) + syl(i, m, 0)); if (verb.length >= 2) stems.push(verb); } // 갈→가 · 만들
   else stems.push(verb);
   const forms = new Set();
-  const add = p => { if (p.length >= 2) forms.add(p); if (prev) forms.add(prev + "\\s*" + p); };
-  for (const st of stems.flatMap(stemKin)) {
-    for (const p of pastOfStem(st)) add(p);
-    /* 「-어 보다/주다」: 본동사의 완료형도 지킨 것이다 — 들어봤↔들었, 챙겨줬↔챙겼 */
-    const aux = st.match(AUX_STEM);
-    const base = aux ? aux[1] : (prev && /^(?:보|주|놓|두|드리)$/.test(st)) ? prev : "";
-    if (base.length >= 2 && isSyl(base[base.length - 1])) {
-      const p = pastOfConn(base[base.length - 1]);
-      if (p) forms.add(base.slice(0, -1) + p);
-    }
+  /* 앞말 + (토씨) + (짧은 말 하나) + 완료형 — 「탕수는 어제 먹었」까지. 둘 이상
+     끼면 앞말이 뜻을 잃는다(「탕수 말고 다른 거 먹었」) */
+  const anchored = p => { for (const a of anchors) forms.add(a + "(?:[은는이가을를도만에서로]{0,2}),?\\s*(?:\\S{1,4}\\s+)?" + p); };
+  const add = (p, bare) => { if (bare && p.length >= 2) forms.add(p); anchored(p); };
+  const connBase = base => base.length >= 2 && isSyl(base[base.length - 1]) && !/[여려해]$/.test(base)
+    ? base.slice(0, -1) + pastOfConn(base[base.length - 1]) : "";
+  for (const st0 of stems) {
+    const bare = st0.length >= 3 && !BARE_STEM_BLOCK.test(st0);
+    for (const st of stemKin(st0)) for (const p of pastOfStem(st)) add(p, bare);
+    /* 「-어 보/주/놓/두/드리」: 앞말의 완료형도 지킨 것이다 — 앞말이 붙은 꼴로.
+       맨 꼴은 세 음절 앞말에만, 그것도 「-어 보」는 아니다(알아보다≠알다) */
+    const aux = st0.match(/^(.+)(보|주|놓|두|드리)$/);
+    const base = aux ? aux[1] : (prevRaw && /^(?:보|주|놓|두|드리)$/.test(st0)) ? prevRaw : "";
+    const auxKind = aux ? aux[2] : st0;
+    const c = base ? connBase(base) : "";
+    if (c) add(c, base.length >= 3 && auxKind !== "보" && !BARE_STEM_BLOCK.test(base));
+    /* 「들어볼게요」를 「들어 봤어요」로 띄어 써도 같은 말이다 */
+    if (aux) for (const p of pastOfStem(aux[2])) add(aux[1] + "\\s*" + p, bare);
   }
   return [...forms];
 }
-const KEPT_NOT_AFTER = /^(?:으면|을|다\s*(?:올|가|와|오|주|줄)|다고|다는|다면|다던|던|어야|아야|었으면|았으면|었을|았을|나요|냐|을까|을지)/;
-const NOT_YET = /아직|깜빡|까먹|잊었|잊고|잊어|않|(?:^|\s)못(?=[\s가-힣])|(?:^|\s)안(?:\s|했|됐|되|돼|갔|왔|봤|들었|먹|읽|샀|해|챙|끓)/;
-const DEFER = /오늘은|오늘만|지금은|지금만|이번엔|이번은|당장은|다음에|나중에|내일/;
+const NOT_YET = /아직|깜빡|까먹|잊었|잊고|잊어|않|없(?!던)|(?:^|\s)못(?=[\s가-힣])|(?:^|\s)안(?:\s|했|됐|되|돼|갔|왔|봤|들었|먹|읽|샀|해|챙|끓)/;
+const DEFER = /오늘은|오늘만|지금은|지금만|이번엔|이번은|이번\s*주|주말|요일|당장은|다음에|나중에|내일/;
 const WITHDRAW = /못\s*지키겠|지킬\s*수(?:가)?\s*없|없던\s*걸로|거둘게|거둬야|거둘\s*수밖에|약속\s*(?:은|을)?\s*(?:취소|깼|깨야|깨게|물러|접(?:을|어|었|게))/;
 const WITHDRAW_GO = /못\s*(?:가겠|갈\s*것\s*같|데리러|데려다)/;
+const WITHDRAW_ELSEWHERE = /(?:는|은|엔|에는)\s*못\s*(?:가|갈)/;      // 학교는 못 가겠어요
+const WITHDRAW_NOT = /아직|싶었|더라고|겠다고|겠다는|다고요|자고요|냐고|길래/;
 const PROMISE_GO = /데리러|데려다|갈게|갈\s*테니|올게|갈\s*거|가\s*볼게/;
+const QUESTION_END = /[?？]\s*[!.~ㅋㅎ)…]*$/;
 function promiseTouched(promiseText, said) {
-  const forms = promiseKeptForms(promiseText);
-  const kept = forms.length ? new RegExp("(^|[\\s,「\"'(])(" + forms.join("|") + ")", "g") : null;
+  let kept = null;
+  try {
+    const forms = promiseKeptForms(promiseText);
+    if (forms.length) kept = new RegExp("(^|[\\s,「\"'(])(" + forms.join("|") + ")", "gi");
+  } catch (e) { kept = null; }
   const goPromise = PROMISE_GO.test(String(promiseText || ""));
-  for (const raw of String(said || "").match(/[^.!?…\n]+[.!?…]*/g) || []) {
+  for (const raw of String(said || "").match(/[^.!?？…\n]+[.!?？…]*/g) || []) {
     const clause = raw.trim();
-    if (!clause) continue;
-    if ((WITHDRAW.test(clause) || (goPromise && WITHDRAW_GO.test(clause))) && !DEFER.test(clause))
+    if (!clause || QUESTION_END.test(clause)) continue;
+    if ((WITHDRAW.test(clause) || (goPromise && WITHDRAW_GO.test(clause) && !WITHDRAW_ELSEWHERE.test(clause)))
+        && !DEFER.test(clause) && !WITHDRAW_NOT.test(clause))
       return true;
-    if (!kept || /\?$/.test(clause) || NOT_YET.test(clause)) continue;
+    if (!kept || NOT_YET.test(clause)) continue;
     kept.lastIndex = 0;
     let m;
     while ((m = kept.exec(clause))) {
       const before = clause.slice(0, m.index) + m[1];
-      if (m[2].startsWith("있") && /고\s*$/.test(before)) continue;       // 「-고 있었」
+      if (/있었$/.test(m[2]) && /고\s*$/.test(before)) continue;       // 「-고 있었」
       if (!KEPT_NOT_AFTER.test(clause.slice(m.index + m[0].length))) return true;
     }
   }
