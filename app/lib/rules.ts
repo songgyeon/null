@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=296";
+const AV_V = "?v=297";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -699,7 +699,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=296";
+const AV="?v=297";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1431,6 +1431,13 @@ const promiseFor=(char,now)=>{
   for(let d=0;d<=PROMISE_DAYS;d++)
     if(dayKey(base-d*864e5)===p.day)return {text:p.text,daysAgo:d};
   return null;                                  // 닷새보다 오래된 말은 물러난다
+};
+/* 지켰다 — 또는 거뒀다. 그 방의 말만 지운다. 되풀이해도 같다.
+   장부의 규칙대로 쓰고 나서 다시 읽어 확인한다. */
+const clearPromise=char=>{
+  const p=loadPromise(); if(!p[char])return true;
+  const next={...p}; delete next[char];
+  return !!savePromise(next)&&!loadPromise()[char];
 };
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
@@ -2483,6 +2490,7 @@ return {
   savePromise,
   markPromise,
   promiseFor,
+  clearPromise,
   loadWend,
   saveWend,
   jos,
@@ -2821,6 +2829,7 @@ export const {
   savePromise,
   markPromise,
   promiseFor,
+  clearPromise,
   loadWend,
   saveWend,
   jos,

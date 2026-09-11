@@ -14,6 +14,7 @@
 | WHO (상대 선택 화면) | 있음 | **없음** | `pickWho`에 해당하는 화면이 없다. App.tsx의 「WHO GETS THIS」는 선물 수신자 선택일 뿐 상대 선택이 아니다 |
 | partner 선택 저장 | 있음 | **없음** | `savePartner`를 import만 하고(App.tsx) 호출하는 곳이 없다 |
 | partner_confirm·partner_known 장면 예약 | 있음 | **없음** | 위 UI가 없으므로 예약 자체가 생성되지 않는다 |
+| 약속(promise · promise_done Effect) | 있음 | **없음** | 장부(`markPromise`·`promiseFor`·`clearPromise`)는 `rules.ts`로 건너가지만 App.tsx의 effect 적용기에 `promise`·`promise_done` 가지가 없다(모르는 타입은 넘긴다). 그래서 앱은 약속을 적지도 닫지도 않고, `payload.promise`도 안 실어 보내 promise_due가 서지 않는다 |
 
 이번에 **앱에도 같이 넣은 것**: get cha 창(첫 만남이 끝나면 그 사람의
 메신저가 생긴다) · 아직 만나지 않은 사람의 방 잠금(학교에 있을 때만 먼저

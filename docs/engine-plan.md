@@ -541,6 +541,11 @@ partnerKnown이 아직 안 뒤집혀 있으므로 `partnerSceneFacts`가 이번 
 다시 올라가고, 되돌릴 수 없는 상태가 머그컵 건네는 턴에 소모됐다(적대 검증이
 실행으로 재현한 결함 — 커밋 전에 잡았다).
 
+예외 하나 — `promise_due`는 재료가 말이 아니라 **장부**다. 브라우저는 며칠 전
+말인지만 싣고(하루의 경계가 거기 있다), 그때인지는 워커가 정한다. 그래서 유저
+발화가 없는 greet 턴에도 오른다: 인물이 먼저 움직이는 자리가 바로 그때다.
+닫는 것도 ack가 아니라 Effect(`promise_done`)다 — 예약이 없으니 지울 예약도 없다.
+
 ### 사유별 승인 조건 (E6) — 뭉뚱그리지 않는다
 
 | 사유 | 조건 |
@@ -551,6 +556,7 @@ partnerKnown이 아직 안 뒤집혀 있으므로 `partnerSceneFacts`가 이번 
 | partner_known | 실제 partnerId 존재 · **다른 쪽의 정확한 1:1 방**(room = other — group·health는 아니다) · 그 사람이 아직 모른다 |
 | partner_confirm | partnerId 존재 · **본인 방**(room = partner) |
 | partner_first_reaction | partnerId 존재 · **본인 방** — 정해진 직후의 첫 반응은 고른 쪽의 장면이다 |
+| promise_due | 1:1 방 · 브라우저가 실어 보낸 약속이 있다(닷새 안) · **하루는 지났다**(daysAgo ≥ 1). 예약이 아니라 **감지**다 — 재료가 말이 아니라 장부인 유일한 감지(아래 E4). 프롬프트는 「기다려라」에서 「지키거나 거두거나」로 바뀌고, 답이 나오면 `promise_done` Effect가 그 말을 닫는다(`clearPromise`). 감지 장면이라 scene_ack는 없다 |
 | irreversible · conflict_result | **승인 안 함** — 아직 코드가 확인할 상태 근거가 없다. 근거 없이 올리지 않는다 |
 | dday_choice · ending · parting | 실습 만료일 도달 |
 

@@ -632,7 +632,7 @@ function makeTurnContext(state, t) {
    선택이 끝난 뒤 코드가 `request_id + type + 대상 + item/key`로 만든다.
    모델이 임의 ID를 쓰거나 재시도마다 다른 ID를 내면 같은 선물이 두 번
    지급된다. 재시도해도 같은 재료면 같은 id가 나오는 것이 요점이다. */
-const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary", "refusal", "promise"];
+const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary", "refusal", "promise", "promise_done"];
 
 function mintEffectId(requestId, type, target, key) {
   return [String(requestId || ""), String(type || ""),
@@ -675,6 +675,15 @@ function makeEffect(requestId, e) {
     const room = String(o.room || ""), text = String(o.text || "");
     if (!room || !text) throw new Error("promise에 room/text가 없다");
     return { id: mintEffectId(requestId, type, room, text.slice(0, 24)), type, room, text };
+  }
+  /* ── 그 말을 지켰다 — 또는 거뒀다 ──
+     승인된 promise_due 장면이 답까지 나왔다. 감지로 오른 장면이라 scene_ack가
+     없다(예약이 아니므로) — 닫는 것은 이 Effect다. 장부의 말이 무엇이었든
+     그 방의 것을 닫는다. */
+  if (type === "promise_done") {
+    const room = String(o.room || "");
+    if (!room) throw new Error("promise_done에 room이 없다");
+    return { id: mintEffectId(requestId, type, room, "due"), type, room };
   }
   if (type === "invite") {
     const place = String(o.place || ""), char = String(o.char || "");
@@ -752,6 +761,14 @@ function materializeEffects(requestId, picked, ctx) {
   if ((g.room === "jaeeon" || g.room === "minhyun")
       && !g.refusedToday && pickRefusal(g.lastUser, g.lastChar))
     out.push(makeEffect(requestId, { type: "refusal", room: g.room }));
+  /* ── 그때가 와서 움직였다 ──
+     이 턴이 promise_due로 올라 답까지 나왔으면 그 말은 지켜졌거나 거둬진
+     것이다. 브라우저가 장부에서 지우면 다음 턴부터 안 실려 오고 감지도 선다.
+     **닫는 것이 새 약속보다 먼저다** — 같은 턴에 새 말이 잡히면 옛 말을 닫은
+     뒤 새 말이 적혀야 한다. 적용은 배열 순서라 여기가 앞이어야 한다. */
+  if ((g.room === "jaeeon" || g.room === "minhyun") && g.sceneReason === "promise_due"
+      && g.promise && g.promise.text)
+    out.push(makeEffect(requestId, { type: "promise_done", room: g.room }));
   /* ── 인물이 한 약속 ──
      유저의 말이 아니라 **인물이 방금 한 말**에서 온다. 그래서 이 턴의 응답이
      아니라 직전 턴의 발화를 본다 — 이번 턴에 인물이 무슨 약속을 할지는
@@ -2788,13 +2805,25 @@ function buildRefusal(ctx) {
    그 무게를 정하는 것은 인물이지 코드가 아니다.
    지켰는지는 안 잰다. 잴 방법이 없고, 재려 들면 안 지킨 것으로 몰거나
    지킨 것을 또 지키게 만든다 — 인물이 제 말을 읽고 알아서 한다. */
-function buildPromise(promise) {
+function buildPromise(promise, sceneReason) {
   const p = promise || {};
   const text = String(p.text || "").trim();
   if (!text) return "";
   const d = Math.max(0, Math.floor(Number(p.daysAgo) || 0));
   const when = d === 0 ? "오늘" : d === 1 ? "어제" : `${d}일 전`;
-  return `\n## 네가 한 말\n${when} 네가 이렇게 말했다 — 「${text}」\n`
+  const head = `\n## 네가 한 말\n${when} 네가 이렇게 말했다 — 「${text}」\n`;
+  /* ── 그때가 왔다 ──
+     「그때가 오면 먼저 움직여라」만 적어두면 언제가 그때인지는 모델이 정했고,
+     미루면 닷새 뒤 아무 일 없이 사라졌다. 로그에서 좋았던 콜백은 운이었다.
+     브라우저가 하루 지난 말을 장면으로 예약해 오면 이 턴이 그때다. 길은
+     둘뿐이다 — 지키거나, 지킬 수 없게 됐으면 그 말을 다시 꺼내 거두거나.
+     「나중에」는 셋째 길이고 그 길은 이 자리에 없다. */
+  if (sceneReason === "promise_due")
+    return head
+      + `- 오늘 그 말대로 네가 먼저 움직인다. 유저가 먼저 꺼내기를 기다리지 않는다.\n`
+      + `- 지킬 수 없게 됐으면 그 말을 네 입으로 다시 꺼내 거둔다. 못 지킨 것을 모른 척하지 않는다.\n`
+      + `- 지키든 거두든 이 턴에서 끝낸다. 「나중에」로 미루지 않는다.\n`;
+  return head
        + `- 그 말은 아직 유효하다. 그때가 오면 네가 먼저 움직인다.\n`
        + `- 지금 그때가 아니면 꺼내지 않는다. 지킬 마음을 매번 말로 확인받지 않는다.\n`;
 }
@@ -3975,7 +4004,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
               userName)
           + buildBag(bag || [], room, userName)
           + buildRefusal(ctx)
-          + buildPromise(ctx && ctx.promise)
+          + buildPromise(ctx && ctx.promise, ctx && ctx.sceneReason)
           + buildReturned(ctx && ctx.returned, userName)
           + buildLeft(left, userName)
           + buildPlace(place, placeItemOwned, room, placeOver, came, placeItemAvailable)
@@ -5498,6 +5527,7 @@ const CRITICAL_REASONS = {
   parting: "헤어지거나 떠나거나 다시 만난다",
   ending: "이야기가 갈린다",
   conflict_result: "갈등이 되돌릴 수 없는 결과를 낳는다",
+  promise_due: "며칠 전 한 말을 지키거나 거둔다",
 };
 
 /* ── 텍스트 감지는 여기 한 곳뿐이다 (E4) ──
@@ -5642,6 +5672,13 @@ function approveReason(r, ctx) {
       const other = partner === "jaeeon" ? "minhyun" : "jaeeon";
       return ctx.room === other && !((st.partnerKnown || {})[other]);
     }
+    case "promise_due":
+      /* 며칠 전 인물이 한 말. 그 방에서만, 그 말이 아직 살아 있을 때만
+         (닷새 안이면 브라우저가 실어 보낸다), 그리고 **오늘 한 말은 아니다** —
+         하루는 지나야 「그때」가 올 수 있다. 예약이 아니라 감지(detectScene)가
+         부른다 — 같은 조건이라 한 곳에 둔다. */
+      return (ctx.room === "jaeeon" || ctx.room === "minhyun")
+        && !!(ctx.promise && ctx.promise.text) && Number(ctx.promise.daysAgo) >= 1;
     case "dday_choice": case "ending": case "parting":
       return days >= ENROLL_DAYS;
     case "memory_reveal":
@@ -5685,6 +5722,14 @@ function approveReason(r, ctx) {
    값이 두 배가 되고 어조까지 무거워진다. 상태는 문을 열어두는 것이고,
    문을 지나는 것은 말이다. */
 function detectScene(ctx) {
+  /* ── 그때가 왔다 ──
+     재료가 말이 아니라 장부다. 브라우저는 며칠 전 말인지만 싣고(하루의 경계가
+     거기 있다), 「그때」인지는 여기서 정한다 — 클라이언트가 예약하는 것은
+     화면의 선택뿐이다(E4). 「그때가 오면 먼저 움직여라」만 적어두면 언제가
+     그때인지를 모델이 정했고, 미루면 닷새 뒤 아무 일 없이 사라졌다.
+     인물이 먼저 말하는 턴(greet)도 그때다 — 「데리러 갈게요」의 다음 날
+     방을 열면 그 사람이 먼저 입을 여는 것이 그 말을 지키는 모양이다. */
+  if (ctx.mode === "chat" && approveReason("promise_due", ctx)) return "promise_due";
   if (ctx.mode !== "chat" || ctx.greet) return "";
   if (ctx.room === "jaeeon" && ((ctx.story || {}).jaeeonMemory !== "acknowledged")
       && MEMORY_PROBE.test(String(ctx.lastUser || ""))) return "memory_reveal";
@@ -6815,6 +6860,11 @@ export default {
           room, mode, greet: body.greet === true,
           partner: body.partner, days, unlocked: unlockedKeys(counts, days),
           story, originPhase: String(body.origin_phase || ""),
+          /* 승인 조건이 보는 것은 여기 실린 것뿐이다. kiss는 자리를 요구하는데
+             place가 안 실려 있어서 예약된 키스는 한 번도 critical로 못
+             올라갔다 — 감지 경로(detectScene)만 살아 있어 안 보였다.
+             promise_due는 그 말이 아직 살아 있는지를 본다. */
+          place, promise,
           lastUser, lastChar, stageIdx });
     const tier = routed.tier;
     if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);

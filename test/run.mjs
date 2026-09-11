@@ -4538,7 +4538,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['296', 'db1251179992']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['297', '8a5cd76d9ad3']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
@@ -9770,6 +9770,13 @@ eq('시간표 단추는 peek보다 좁다',
     /* 지킬 마음을 매번 확인받게 하면 그게 곧 되풀이다 */
     eq('그때가 아니면 안 꺼낸다',
       /지금 그때가 아니면 꺼내지 않는다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 })), true);
+    /* 그때가 왔다 — 예약된 장면으로 오면 「기다려라」가 아니라 「지키거나 거두거나」다 */
+    eq('그때가 오면 지키거나 거둔다',
+      [/오늘 그 말대로 네가 먼저 움직인다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'promise_due')),
+       /지킬 수 없게 됐으면 그 말을 네 입으로 다시 꺼내 거둔다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'promise_due')),
+       /지금 그때가 아니면 꺼내지 않는다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'promise_due')),
+       /지금 그때가 아니면 꺼내지 않는다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'confession'))],
+      [true, true, false, true]);
     eq('약속이 없으면 한 줄도 없다',
       [buildPromise(null), buildPromise({}), buildPromise({ text: '  ' })], ['', '', '']);
 
@@ -9780,7 +9787,7 @@ eq('시간표 단추는 peek보다 좁다',
         setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
       const P = new Function('localStorage', 'location',
         webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-        + '\nreturn {markPromise,promiseFor,loadPromise,PROMISE_DAYS};')(ls, { search: '' });
+        + '\nreturn {markPromise,promiseFor,loadPromise,clearPromise,PROMISE_DAYS};')(ls, { search: '' });
       eq('찍으면 오늘 한 말이 된다',
         [P.markPromise('minhyun', '늦으면 데리러 갈게요'), P.promiseFor('minhyun')],
         [true, { text: '늦으면 데리러 갈게요', daysAgo: 0 }]);
@@ -9799,7 +9806,20 @@ eq('시간표 단추는 peek보다 좁다',
       })(), ['내일 챙겨 올게요', 1]);
       eq('방마다 따로 든다', P.promiseFor('jaeeon'), null);
       eq('빈 말은 안 찍는다', P.markPromise('jaeeon', '   '), false);
+      /* 지켰다 — 닫힌다. 되풀이해도 같고, 남의 방은 안 건드린다 */
+      eq('지킨 말은 지워진다', (() => {
+        P.markPromise('jaeeon', '내일 갈게요');
+        return [P.clearPromise('minhyun'), P.promiseFor('minhyun'), P.promiseFor('jaeeon').text,
+                P.clearPromise('minhyun')];
+      })(), [true, null, '내일 갈게요', true]);
     }
+    /* ── 그때인지는 워커가 정한다 ── 클라이언트는 며칠 전 말인지만 싣고 예약하지
+       않는다(E4). 닫는 것은 promise_done Effect고, 장부를 거쳐 적용된다 */
+    eq('지킨 말은 장부를 거쳐 닫힌다',
+      /e\.type==="promise_done"[\s\S]{0,300}clearPromise\(e\.room\)/
+        .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+    eq('클라이언트는 약속을 예약하지 않는다',
+      /markScene\([^)]*"promise_due"\)/.test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), false);
     eq('약속도 장부를 거쳐 적용된다',
       /e\.type==="promise"[\s\S]{0,260}markPromise\(e\.room,e\.text\)/
         .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);

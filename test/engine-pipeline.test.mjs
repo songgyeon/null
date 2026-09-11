@@ -2243,12 +2243,13 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
       { role: "user", content: "네" }] });
   eq("지금 하는 말에는 아무것도 안 남는다",
     (now.data.effects || []).filter(e => e.type === "promise").length, 0);
-  /* 며칠 전 것인지는 브라우저가 재서 보낸다 */
+  /* 며칠 전 것인지는 브라우저가 재서 보낸다. 오늘 한 말은 아직 그때가 아니라
+     「기다려라」 모양으로 실린다 — 하루가 지나면 아래 promise_due가 그때다 */
   await run({}, { ...BASE, room: "minhyun",
-    promise: { text: "늦으면 데리러 갈게요", daysAgo: 5 } });
+    promise: { text: "늦으면 데리러 갈게요", daysAgo: 0 } });
   const kept = volOf();
-  eq("며칠 전 한 말이 프롬프트로 돌아온다",
-    [/## 네가 한 말/.test(kept), /5일 전 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(kept),
+  eq("한 말이 프롬프트로 돌아온다",
+    [/## 네가 한 말/.test(kept), /오늘 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(kept),
      /지금 그때가 아니면 꺼내지 않는다/.test(kept)], [true, true, true]);
   await run({}, { ...BASE, room: "minhyun" });
   eq("약속이 없으면 조용하다", /네가 한 말/.test(volOf()), false);
@@ -2277,6 +2278,54 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     history: [...BASE.history.slice(0, 2), { role: "user", content: "키스해도 돼요?" }] });
   const off = await run({}, kissBody("minhyun"));
   eq("정한 뒤 딴 방에서는 키스가 안 실린다", !!off.data.kiss, false);
+  /* ── 예약된 키스가 실제로 올라간다 ──
+     approveReason("kiss")는 자리를 요구하는데 sceneTier 호출에 place가 안 실려
+     있었다. 예약 경로의 키스는 한 번도 critical로 못 올라갔고, 감지 경로만
+     살아 있어서 안 보였다 — 여기가 그 양성 시험이다. */
+  const kissUp = await run({}, { ...kissBody("jaeeon"), scene_reason: "kiss" });
+  eq("예약된 키스가 자리와 함께 올라간다",
+    [kissUp.data.trace.route.tier, kissUp.data.trace.route.reason, kissUp.data.scene_ack],
+    ["critical", "kiss", "kiss"]);
+  const kissNoPlace = await run({}, { ...kissBody("jaeeon"), place: "", scene_reason: "kiss" });
+  eq("자리 없이는 예약도 안 올라간다 — 문자로 오는 얼굴은 셀카다",
+    [kissNoPlace.data.trace.route.tier, "scene_ack" in kissNoPlace.data], ["normal", false]);
+
+  /* ── 약속이 그때가 되어 돌아온다 ──
+     재료는 말이 아니라 장부다 — 브라우저는 며칠 전 말인지만 싣고, 「그때」인지는
+     워커가 정한다(클라이언트가 예약하는 것은 화면의 선택뿐이다, E4). 하루 지난
+     말이 실려 오면 **감지**로 critical에 오르고, 프롬프트는 「지키거나
+     거두거나」로 바뀌고, 답이 나오면 promise_done Effect가 그 말을 닫는다 —
+     감지 장면이라 scene_ack는 없다. 오늘 한 말은 아직 그때가 아니다. 인물이
+     먼저 말하는 턴(greet)도 그때다. 단톡에는 그 자리가 없다. */
+  const dueBody = (daysAgo, extra) => ({ ...BASE, room: "minhyun",
+    promise: { text: "늦으면 데리러 갈게요", daysAgo }, ...(extra || {}) });
+  const due = await run({}, dueBody(1));
+  const dueVol = volOf();
+  eq("하루 지난 약속이 감지로 올라간다 — 예약도 ack도 없다",
+    [due.data.trace.route.tier, due.data.trace.route.reason, "scene_ack" in due.data],
+    ["critical", "promise_due", false]);
+  eq("답이 나오면 그 말이 닫힌다",
+    (due.data.effects || []).filter(e => e.type === "promise_done").map(e => e.room), ["minhyun"]);
+  eq("그 턴의 프롬프트는 지키거나 거두거나다",
+    [/어제 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(dueVol),
+     /오늘 그 말대로 네가 먼저 움직인다/.test(dueVol),
+     /지킬 수 없게 됐으면 그 말을 네 입으로 다시 꺼내 거둔다/.test(dueVol),
+     /지금 그때가 아니면 꺼내지 않는다/.test(dueVol),
+     /## \[지금 장면\]\n며칠 전 한 말을 지키거나 거둔다/.test(dueVol)],
+    [true, true, true, false, true]);
+  const dueGreet = await run({}, dueBody(1, { greet: true }));
+  eq("인물이 먼저 말하는 턴도 그때다",
+    [dueGreet.data.trace.route.reason, (dueGreet.data.effects || []).some(e => e.type === "promise_done")],
+    ["promise_due", true]);
+  const notYet = await run({}, dueBody(0));
+  eq("오늘 한 말은 아직 그때가 아니다",
+    [notYet.data.trace.route.tier, (notYet.data.effects || []).some(e => e.type === "promise_done"),
+     /지금 그때가 아니면/.test(volOf())],
+    ["normal", false, true]);
+  const noSeat = await run({}, dueBody(1, { room: "group" }));
+  eq("단톡에는 그 자리가 없다",
+    [noSeat.data.trace.route.tier, (noSeat.data.effects || []).some(e => e.type === "promise_done")],
+    ["normal", false]);
 
   console.log("  ok   §15 이번 판들이 요청 경로에서 산다");
   pass++;

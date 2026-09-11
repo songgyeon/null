@@ -363,6 +363,11 @@ function GameApp(){
          밀어낸다 — 되풀이해도 결과가 같다. */
       if(e.room!=="jaeeon"&&e.room!=="minhyun")return{status:"not_applicable"};
       if(!markPromise(e.room,e.text))return{status:"storage_error",key:"null_promise"};
+    }else if(e.type==="promise_done"){
+      /* 그 말을 지켰다 — 또는 거뒀다. 워커가 승인된 장면의 답 뒤에 낸다.
+         닫는 것은 장부다. 되풀이해도 결과가 같다. */
+      if(e.room!=="jaeeon"&&e.room!=="minhyun")return{status:"not_applicable"};
+      if(!clearPromise(e.room))return{status:"storage_error",key:"null_promise"};
     }else if(e.type==="boundary"){
       /* 유저가 그은 선. 워커가 유저의 말에서 읽어내고 여기서 장부에 적는다 —
          선물과 같은 길이다. 두 번 적용해도 결과가 같다. */

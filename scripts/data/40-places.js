@@ -242,6 +242,13 @@ const promiseFor=(char,now)=>{
     if(dayKey(base-d*864e5)===p.day)return {text:p.text,daysAgo:d};
   return null;                                  // 닷새보다 오래된 말은 물러난다
 };
+/* 지켰다 — 또는 거뒀다. 그 방의 말만 지운다. 되풀이해도 같다.
+   장부의 규칙대로 쓰고 나서 다시 읽어 확인한다. */
+const clearPromise=char=>{
+  const p=loadPromise(); if(!p[char])return true;
+  const next={...p}; delete next[char];
+  return !!savePromise(next)&&!loadPromise()[char];
+};
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
 const saveWend=v=>{try{localStorage.setItem("null_wend",JSON.stringify(v))}catch(e){}};
