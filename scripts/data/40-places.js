@@ -399,12 +399,8 @@ const SCENE_SHOT={
   "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]}},
   "보건실":   {jaeeon:["jaeeon-work","jaeeon-chart","jaeeon-nurse-mid","jaeeon-nurse-near"],
                minhyun:["minhyun-candy"]},
-  /* 자리 하나에 사진이 여럿인 것은 제약이 아니라 설계다 — sceneShot이 그 자리의
-     배열에서 하나를 뽑는다. 그림이 늘면 자리를 새로 만들 게 아니라 배열을 늘린다.
-     같은 자리에 다시 앉았을 때 같은 그림만 나오면 그 자리는 사진 한 장이 된다. */
   "옥상":     {jaeeon:["jaeeon-rooftop"],
-               minhyun:["minhyun-vending","minhyun-rooftop-mid","minhyun-rooftop-near",
-                        "minhyun-rooftop-dusk"]},
+               minhyun:["minhyun-vending","minhyun-rooftop-mid","minhyun-rooftop-near"]},
   "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-fridge","minhyun-ramen"]},
   "도서관":   {jaeeon:["jaeeon-shelf","jaeeon-book"], minhyun:["minhyun-shelf"]},
   "레코드샵": {jaeeon:["jaeeon-record"], minhyun:["minhyun-crate","minhyun-record","minhyun-mirror"]},
@@ -420,8 +416,7 @@ const SCENE_SHOT={
   /* 재언 집이지만 강현도 산다. 재언은 부엌에 서 있고, 강현은 막 일어난
      참이거나 엘리베이터에서 올라오는 길이다 */
   "집":       {jaeeon:["jaeeon-cook","jaeeon-night","jaeeon-home-mid","jaeeon-home-near"],
-               minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near",
-                        "minhyun-home-sofa","minhyun-home-window"]},
+               minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
      빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
   /* 귀갓길은 같이 버스를 탄 자리다. 정류장 사진은 기다리는 그림이라

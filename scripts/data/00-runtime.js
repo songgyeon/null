@@ -49,7 +49,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=298";
+const AV_V = "?v=297";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -63,12 +63,11 @@ const CHARS = {
       "jaeeon-laundry-seat.webp","jaeeon-laundry-mid.webp","jaeeon-laundry-near.webp",
       "jaeeon-home-mid.webp","jaeeon-home-near.webp",
       "jaeeon-night.webp","jaeeon-book.webp"]},
-  minhyun:{name:"이강현",rom:"kanghyun",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"100%",pos:"50% 40%",
+  minhyun:{name:"이강현",rom:"kanghyun",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
       "minhyun-laundry-mid.webp","minhyun-laundry-near.webp",
-      "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp","minhyun-rooftop-dusk.webp",
+      "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp",
       "minhyun-home-mid.webp","minhyun-home-near.webp",
-      "minhyun-home-sofa.webp","minhyun-home-window.webp",
       "minhyun-fridge.webp"]},
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
