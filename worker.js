@@ -86,8 +86,70 @@ const MODELS = [
 /* replay 전용 도전자의 모델 snapshot과 주소. 별칭이 아니라 날짜가 박힌
    판이다 — 별칭은 조용히 갈아타서 「같은 조건」이 깨진다. 클라이언트
    입력이 이 값을 바꿀 길은 없다(요청 본문을 안 본다). */
-const OPENAI_MODEL = "gpt-4.1-2025-04-14";
+/* ── 쓰는 자리에 앉은 손 ──
+   이 자리는 이제 replay 도전자가 아니라 **운영의 쓰는 손**이다. 그래서
+   이름 규칙이 하나 바뀐다: 예전에는 날짜가 박힌 판만 앉혔다(별칭은 조용히
+   갈아타서 「같은 조건」이 깨지니까). 그 규칙은 **두 모델을 나란히 재려고**
+   있던 것이고, 지금은 재는 게 아니라 쓰는 것이다. 이 진영이 이 손에
+   날짜 판을 안 내주면 별칭이 유일한 이름이다.
+
+   지켜야 할 계약은 그대로다 — **코드가 정하고 요청 본문이 못 바꾼다.**
+   클라이언트 입력은 이 값 근처에도 못 온다(요청 본문을 안 본다).
+   갈아끼우려면 대시보드의 OPENAI_WRITER_MODEL이고, 되돌리기는 그 값을
+   지우면 끝이다. */
+const OPENAI_MODEL = "gpt-5.6-luna";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+/* ── 도전자 자리의 손을 갈아끼우는 문 ──
+   기본값은 위의 snapshot 그대로다 — 재던 조건을 이 문이 건드리면 안 된다.
+   대시보드에 OPENAI_WRITER_MODEL을 적었을 때만 그 이름으로 나간다.
+   되돌리기는 그 값을 지우면 끝이고 배포가 필요 없다.
+
+   ── 왜 프록시를 안 거치나 ──
+   이 진영의 모델을 이 진영에 직접 부르는 데 중개를 한 겹 끼우면 값(수수료)·
+   지연·장애 지점이 늘 뿐이다. 중개가 필요한 것은 **다른 진영**의 손을
+   앉힐 때고, 그 자리는 따로 있다(ENGINE_MODE=openrouter).
+
+   ── 블록을 안 살려도 되는 이유 ──
+   이 진영의 캐시는 접두 기반이다. 매 턴 같은 문자열로 시작하기만 하면
+   잡히므로, joinBlocks가 고정부 세 장을 한 줄로 이어도 경계가 필요 없다.
+   경계를 명시해야 하는 것은 cache_control을 읽는 진영뿐이다. */
+function openaiModel(env) {
+  return String((env && (env.OPENAI_WRITER_MODEL || env.openai_writer_model)) || "").trim()
+    || OPENAI_MODEL;
+}
+/* ── 사고에 얼마를 줄 것인가 ──
+   이 파일 맨 위가 겪은 것을 다른 진영에서 다시 겪지 않으려고 둔다:
+   사고와 답이 같은 통을 쓰고 사고가 먼저 쓰면, 값은 다 내면서 답이
+   쪼그라든다(「비싼데 밋밋함」). 말풍선 한둘짜리 대화에 사고는 안 쓰인다.
+
+   기본은 **안 싣는다.** 이 손이 이 파라미터를 어떤 모양으로 받는지
+   확인한 바가 없고, 모르는 모양은 400이다 — 대사 자리에서 400은 화면의
+   재시도다. 대시보드에 OPENAI_REASONING을 적었을 때만 그 값으로 나간다.
+   지우면 원래대로 안 싣는다. 값은 이 진영이 쓰는 낱말 그대로 적는다. */
+function openaiReasoning(env) {
+  const v = String((env && (env.OPENAI_REASONING || env.openai_reasoning)) || "").trim();
+  return /^[a-z]+$/.test(v) ? v : "";
+}
+/* ── OpenRouter 도전자의 주소 ──
+   OpenAI 호환 엔드포인트라 요청 모양은 도전자 경로와 같다. 다른 것은 셋:
+   주소·열쇠(OPENROUTER_API_KEY)·모델 id(OPENROUTER_MODEL).
+
+   모델 id를 여기에 안 적는 이유가 있다. 이 자리는 **후보를 바꿔 끼우며
+   재는 자리**다 — id를 코드에 박으면 후보 하나를 재려고 배포를 해야 하고,
+   그러면 「같은 코드로 두 모델을 나란히」가 깨진다. 대시보드에서 값만
+   갈아끼운다(engineMode를 지우면 원래 자리로 돌아온다). */
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+/* 고른 손. 이 자리에 앉히기로 한 모델이다 — 대시보드에서 ENGINE_MODE만
+   켜면 이름을 따로 안 적어도 이걸로 돈다. 다른 후보를 재려면 env로 덮는다.
+   snapshot이 아니라 별칭인 것은 이 진영이 그렇게 부르기 때문이다. */
+const ROUTER_MODEL = "openai/gpt-5.6-luna";
+/* 클라이언트 입력은 이 값을 못 바꾼다 — env만 본다. 빈 값이면 위의 기본,
+   그것도 비면 부르기 전에 멈춘다(callOpenAI). 모르는 모델로 조용히
+   나가지 않는다. */
+function routerModel(env) {
+  return String((env && (env.OPENROUTER_MODEL || env.openrouter_model)) || "").trim()
+    || ROUTER_MODEL;
+}
 
 const ENGINE = {
   /* ── 쓰는 자리는 상급이다 ──
@@ -121,11 +183,23 @@ const ENGINE = {
      thinking과 비기본 샘플링에 400을 내므로 기본 동작 그대로 부른다(G2 스윕과 같다). */
   pairWriter5: { id: (MODELS.find(m => m.id === "claude-sonnet-5") || {}).id,
                  effort: null, noThinking: false },
-  /* ── replay 전용 도전자 ──
-     ENGINE_MODE=gpt41을 명시했을 때만 쓰인다. openai 표지가 붙은 자리는
-     callModel이 다른 진영으로 보낸다 — 열쇠도 주소도 다르다.
-     운영 기본 경로(solo)는 이 자리를 한 번도 안 본다. */
+  /* ── 쓰는 자리 ──
+     깃발을 안 주면 여기다(engineMode의 기본이 gpt41). openai 표지가 붙은
+     자리는 callModel이 다른 진영으로 보낸다 — 열쇠도 주소도 다르다.
+     id는 openaiModel(env)이 정한다: 표의 이름이 기본이고, 대시보드의
+     OPENAI_WRITER_MODEL이 있으면 그것이 이긴다.
+     옛 배선(solo·hybrid·legacy·single·single5)은 이 자리를 안 본다. */
   gptWriter: { id: OPENAI_MODEL, openai: true, effort: null, noThinking: true },
+  /* ── OpenRouter 도전자 ──
+     ENGINE_MODE=openrouter를 명시했을 때만 쓰인다. id는 비어 있다 —
+     stageModel이 env(OPENROUTER_MODEL)에서 채운다. 여기에 후보 이름을
+     적어두면 그 후보가 기본값처럼 굳는다.
+
+     router 표지가 도전자(openai)와 따로 있는 이유: 주소·열쇠가 다르고,
+     무엇보다 **블록을 안 뭉갠다**. 도전자 경로는 system 세 장을 문자열
+     하나로 이어 붙이는데(joinBlocks), 그러면 cache_control이 사라진다.
+     이 프롬프트는 92%가 고정부라 캐시가 죽으면 싼 모델이 더 비싸진다. */
+  orWriter: { id: "", openai: true, router: true, effort: null, noThinking: true },
   /* ── 쓰는 손을 갈아끼우는 자리 ──
      ENGINE_MODE=sonnet5 · sonnet46을 명시했을 때만 쓰인다. id는 둘 다
      MODELS에 이미 등록된 항목을 그대로 재사용한다 — 새 id를 지어내지 않는다.
@@ -222,7 +296,8 @@ function engineMode(env) {
        : v === "sonnet5-pair-haiku" ? "sonnet5-pair-haiku"
        : v === "solo" ? "solo"
        : v === "hybrid" ? "hybrid"
-       : v === "sonnet45" || v === "sonnet5" || v === "sonnet46" ? "gpt41" : "gpt41";
+       : v === "sonnet45" || v === "sonnet5" || v === "sonnet46"
+         || v === "openrouter" ? "gpt41" : "gpt41";
 }
 /* 쓰는 자리에 누가 앉나. 기본 배선(gpt41)에서만 갈린다 —
    ENGINE_MODE=sonnet45면 상급 Writer, 그 밖에는 도전자(GPT)다.
@@ -232,11 +307,13 @@ function writerSeat(env) {
   if (engineMode(env) !== "gpt41") return "own";
   return v === "sonnet45" ? "sonnet"
        : v === "sonnet5"  ? "sonnet5"
-       : v === "sonnet46" ? "sonnet46" : "gpt";
+       : v === "sonnet46" ? "sonnet46"
+       : v === "openrouter" ? "router" : "gpt";
 }
 /* 화면·trace에 적는 이름. 배선 이름만 적으면 sonnet45가 「gpt41」로 보인다 —
    「고쳤는데 반영이 안 된다」를 헤매게 만드는 바로 그 거짓말이다. */
-const SEAT_LABEL = { sonnet: "sonnet45", sonnet5: "sonnet5", sonnet46: "sonnet46" };
+const SEAT_LABEL = { sonnet: "sonnet45", sonnet5: "sonnet5", sonnet46: "sonnet46",
+  router: "openrouter" };
 function engineLabel(env) {
   const em = engineMode(env);
   return (em === "gpt41" && SEAT_LABEL[writerSeat(env)]) || em;
@@ -555,7 +632,7 @@ function makeTurnContext(state, t) {
    선택이 끝난 뒤 코드가 `request_id + type + 대상 + item/key`로 만든다.
    모델이 임의 ID를 쓰거나 재시도마다 다른 ID를 내면 같은 선물이 두 번
    지급된다. 재시도해도 같은 재료면 같은 id가 나오는 것이 요점이다. */
-const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary", "refusal", "promise"];
+const EFFECT_TYPES = ["item_transfer", "invite", "story_transition", "disclosure", "boundary", "refusal", "promise", "promise_done"];
 
 function mintEffectId(requestId, type, target, key) {
   return [String(requestId || ""), String(type || ""),
@@ -598,6 +675,15 @@ function makeEffect(requestId, e) {
     const room = String(o.room || ""), text = String(o.text || "");
     if (!room || !text) throw new Error("promise에 room/text가 없다");
     return { id: mintEffectId(requestId, type, room, text.slice(0, 24)), type, room, text };
+  }
+  /* ── 그 말을 지켰다 — 또는 거뒀다 ──
+     승인된 promise_due 장면에서 답이 그 말을 실제로 지키거나 거뒀다
+     (promiseTouched). 감지로 오른 장면이라 scene_ack가 없다(예약이 아니므로) —
+     닫는 것은 이 Effect다. 장부의 말이 무엇이었든 그 방의 것을 닫는다. */
+  if (type === "promise_done") {
+    const room = String(o.room || "");
+    if (!room) throw new Error("promise_done에 room이 없다");
+    return { id: mintEffectId(requestId, type, room, "due"), type, room };
   }
   if (type === "invite") {
     const place = String(o.place || ""), char = String(o.char || "");
@@ -647,6 +733,9 @@ function materializeEffects(requestId, picked, ctx) {
   const out = [];
   if (!picked) return out;
   const g = ctx || {};
+  /* 답 전체를 한 줄로. 상태를 움직이는 자리마다 이걸 본다 — 승인된 장면이라도
+     답이 그 장면을 실제로 지나갔는지는 말이 말한다. */
+  const saidByChar = (picked.messages || []).map(m => (m && m.text) || "").join(" ");
   /* ── 물건은 유저가 두 마디는 하고 나서만 ──
      placeItemAvailable은 talkedEnough까지 포함해 **부르기 전에** 계산된
      값이다. 여기서 다시 세지 않는다 — 두 곳에서 세면 갈린다. */
@@ -675,6 +764,21 @@ function materializeEffects(requestId, picked, ctx) {
   if ((g.room === "jaeeon" || g.room === "minhyun")
       && !g.refusedToday && pickRefusal(g.lastUser, g.lastChar))
     out.push(makeEffect(requestId, { type: "refusal", room: g.room }));
+  /* ── 그때가 와서 움직였다 ──
+     이 턴이 promise_due로 올랐고 **답이 그 말을 지키거나 거뒀으면** 닫는다.
+     사유만 보고 닫았던 앞 판에서는 답이 「그냥.」이어도 닫혔다 — 꺼낸 것과
+     지킨 것이 구별이 안 됐다. memory_reveal이 MEMORY_TOUCH로 답을 보는 것과
+     같은 계약이다: 장면은 다시 오면 되지만 장부를 지우는 것은 되돌릴 수 없다.
+     지키지도 거두지도 않은 답이면 장부가 남아 다음 턴에 다시 선다.
+     답의 모양이 아니라 **그 약속에 대한 말인지**를 본다(promiseTouched) —
+     「까먹었어요」는 무엇을 까먹었는지 모른다.
+     MEMORY_TOUCH와 다른 점 하나 — 선톡(greet)도 본다. 기억은 유저의 턴에만
+     움직이지만, 「데리러 왔어요」로 먼저 입을 열었으면 그게 지킨 것이다.
+     **닫는 것이 새 약속보다 먼저다** — 같은 턴에 새 말이 잡히면 옛 말을 닫은
+     뒤 새 말이 적혀야 한다. 적용은 배열 순서라 여기가 앞이어야 한다. */
+  if ((g.room === "jaeeon" || g.room === "minhyun") && g.sceneReason === "promise_due"
+      && g.promise && g.promise.text && promiseTouched(g.promise.text, saidByChar))
+    out.push(makeEffect(requestId, { type: "promise_done", room: g.room }));
   /* ── 인물이 한 약속 ──
      유저의 말이 아니라 **인물이 방금 한 말**에서 온다. 그래서 이 턴의 응답이
      아니라 직전 턴의 발화를 본다 — 이번 턴에 인물이 무슨 약속을 할지는
@@ -697,7 +801,6 @@ function materializeEffects(requestId, picked, ctx) {
      클라이언트가 보낸 지금 상태(g.story)에서 다음 칸으로 가는 전환만 낸다.
      적용은 클라이언트 장부가 한다 — 워커는 아무것도 기억하지 않는다. */
   const st = g.story;
-  const saidByChar = (picked.messages || []).map(m => (m && m.text) || "").join(" ");
   /* 선톡 턴에는 상태가 안 움직인다 — 유저의 턴이 아니다 */
   if (st && g.room === "minhyun" && !g.greet) {
     /* 강현의 첫 만남 설명. 물었는데(pending) 답에 정사 낱말(병원·옥상·재활)이
@@ -2504,7 +2607,17 @@ function buildStage(mode, room, counts, days, after) {
      세계에는 이제 끝나는 날이 없다. 대신 함께 지낸 날을 센다 — 남은 날을
      세던 자리에 아무것도 안 적으면 모델은 「지금까지」가 통째로 빈 것으로
      읽고 첫날처럼 군다. */
-  const parts = [after
+  /* ── 지났는지는 날짜가 먼저 안다 ──
+     앞 판은 이 갈림을 ctx.after 하나에만 걸었다. 그런데 그 값은 클라이언트가
+     **엔딩을 끝냈을 때만** 보낸다(dday_done). 끝내지 않고 그냥 계속 말을
+     거는 판에서는 영원히 false다 — 서른하루째에도, 예순째에도.
+     그러면 아래 뺄셈이 늘 0이라 매 턴 「떠나기까지 0일 남았다」가 나갔고,
+     실제 기록에 그 결과가 남았다: 「오늘이네요」가 엿새에 걸쳐 여섯 번.
+     모델이 오늘을 떠나는 날로 안 것이 아니라 매 턴 그렇게 적어 보냈다.
+     날짜가 서른을 넘었으면 그날은 이미 지난 것이다. 그건 승인이 필요한
+     판단이 아니라 뺄셈이다. */
+  const past = after || d > ENROLL_DAYS;
+  const parts = [past
     ? `- 떠나는 날은 이미 지났다. 유저는 떠나지 않고 남았고, 함께 지낸 지 ${Math.max(1, d - ENROLL_DAYS + 1)}일째다.`
       + ` 남은 날은 세지 않는다 — 이제 끝나는 날이 없다. 헤어짐을 앞둔 사람처럼 굴지 않는다.`
     /* 「만난 지 0일째」는 아무 말도 아니다. 첫날은 첫날이라고 적어야 한다 —
@@ -2699,15 +2812,28 @@ function buildRefusal(ctx) {
    지어낸 약속이고, 인물이 한 말은 이미 저 문장이다.
    며칠 전인지만 같이 준다. 어제 한 말과 사흘 전에 한 말은 무게가 다르고,
    그 무게를 정하는 것은 인물이지 코드가 아니다.
-   지켰는지는 안 잰다. 잴 방법이 없고, 재려 들면 안 지킨 것으로 몰거나
-   지킨 것을 또 지키게 만든다 — 인물이 제 말을 읽고 알아서 한다. */
-function buildPromise(promise) {
+   여기서는 지켰는지 안 잰다 — 그건 답이 나온 뒤 materializeEffects가
+   promiseTouched로 본다. 프롬프트가 미리 「안 지켰다」로 몰면 지킨 것을 또
+   지키게 만든다 — 인물이 제 말을 읽고 알아서 한다. */
+function buildPromise(promise, sceneReason) {
   const p = promise || {};
   const text = String(p.text || "").trim();
   if (!text) return "";
   const d = Math.max(0, Math.floor(Number(p.daysAgo) || 0));
   const when = d === 0 ? "오늘" : d === 1 ? "어제" : `${d}일 전`;
-  return `\n## 네가 한 말\n${when} 네가 이렇게 말했다 — 「${text}」\n`
+  const head = `\n## 네가 한 말\n${when} 네가 이렇게 말했다 — 「${text}」\n`;
+  /* ── 그때가 왔다 ──
+     「그때가 오면 먼저 움직여라」만 적어두면 언제가 그때인지는 모델이 정했고,
+     미루면 닷새 뒤 아무 일 없이 사라졌다. 로그에서 좋았던 콜백은 운이었다.
+     하루 지난 말을 워커가 감지로 올리면 이 턴이 그때다. 길은
+     둘뿐이다 — 지키거나, 지킬 수 없게 됐으면 그 말을 다시 꺼내 거두거나.
+     「나중에」는 셋째 길이고 그 길은 이 자리에 없다. */
+  if (sceneReason === "promise_due")
+    return head
+      + `- 오늘 그 말대로 네가 먼저 움직인다. 유저가 먼저 꺼내기를 기다리지 않는다.\n`
+      + `- 지킬 수 없게 됐으면 그 말을 네 입으로 다시 꺼내 거둔다. 못 지킨 것을 모른 척하지 않는다.\n`
+      + `- 지키든 거두든 이 턴에서 끝낸다. 「나중에」로 미루지 않는다.\n`;
+  return head
        + `- 그 말은 아직 유효하다. 그때가 오면 네가 먼저 움직인다.\n`
        + `- 지금 그때가 아니면 꺼내지 않는다. 지킬 마음을 매번 말로 확인받지 않는다.\n`;
 }
@@ -3888,7 +4014,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
               userName)
           + buildBag(bag || [], room, userName)
           + buildRefusal(ctx)
-          + buildPromise(ctx && ctx.promise)
+          + buildPromise(ctx && ctx.promise, ctx && ctx.sceneReason)
           + buildReturned(ctx && ctx.returned, userName)
           + buildLeft(left, userName)
           + buildPlace(place, placeItemOwned, room, placeOver, came, placeItemAvailable)
@@ -3971,6 +4097,33 @@ function joinBlocks(v) {
   if (typeof v === "string") return v;
   return (Array.isArray(v) ? v : []).map(b => (b && b.text) || "").join("\n");
 }
+/* ── OpenRouter용 변환 — 블록을 뭉개지 않는다 ──
+   joinBlocks는 세 장을 문자열 하나로 잇는다. 도전자(OpenAI 직결)는 자동
+   캐싱뿐이라 그래도 됐지만, OpenRouter는 블록의 cache_control을 그대로
+   읽어 캐시 경계로 쓴다. 뭉개면 경계가 사라지고 고정부(전체의 92%)를
+   매 턴 정가로 다시 읽는다 — 싸게 갈아탔는데 더 비싸지는 자리가 여기다.
+
+   그래서 system은 **한 장의 메시지 안에 여러 text 블록**으로 보낸다.
+   system 메시지를 여러 장으로 쪼개지 않는 이유: 어떤 진영은 위쪽에서
+   그것들을 하나로 합쳐버려서 블록 경계가 남는다는 보장이 없다.
+
+   ttl은 떼고 보낸다. 지금 Anthropic 직결은 1시간(CACHE.ttl)을 쓰지만
+   OpenRouter 뒤의 모델은 5분만 있는 쪽이 있고, 모르는 ttl 값에 400을
+   내는 진영이 있다. 경계는 살리고 수명은 진영 기본값에 맡긴다. */
+function toRouterMessages(system, messages) {
+  const src = Array.isArray(system) ? system
+    : (system ? [{ text: String(system) }] : []);
+  const blocks = src.filter(b => b && b.text).map(b => ({
+    type: "text", text: b.text,
+    ...(b.cache_control ? { cache_control: { type: "ephemeral" } } : {}),
+  }));
+  const out = blocks.length ? [{ role: "system", content: blocks }] : [];
+  for (const m of (messages || [])) {
+    out.push({ role: m.role === "assistant" ? "assistant" : "user",
+               content: joinBlocks(m.content) });
+  }
+  return out;
+}
 /* Anthropic 요청을 OpenAI messages로 옮긴다. system은 맨 앞 한 장이고,
    나머지는 역할·순서 그대로다. 내용은 한 글자도 안 바꾼다. */
 function toOpenAIMessages(system, messages) {
@@ -3987,29 +4140,57 @@ function toOpenAIMessages(system, messages) {
    입력」이 같은 자리를 잰다. 캐시 쓰기 비용은 없다(자동 캐싱). */
 function openAIUsage(u, model) {
   if (!u) return null;
-  const cached = (u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) || 0;
+  const d = u.prompt_tokens_details || {};
+  const cached = d.cached_tokens || 0;
+  /* 캐시 **쓰기**는 도전자(자동 캐싱)에는 없지만 OpenRouter 뒤의 진영에는
+     있고 값이 붙는다(입력의 1.25~2배). 안 잡으면 replay 보고가 첫 턴을
+     공짜로 세고, 그 숫자로 「싸다」를 판정하게 된다. 이름이 진영마다
+     달라서 아는 자리를 차례로 본다 — 없으면 0이다. */
+  const written = u.cache_write_tokens || u.cache_creation_input_tokens
+    || d.cache_write_tokens || d.cache_creation_tokens || 0;
   return {
-    input_tokens: Math.max(0, (u.prompt_tokens || 0) - cached),
+    input_tokens: Math.max(0, (u.prompt_tokens || 0) - cached - written),
     output_tokens: u.completion_tokens || 0,
     cache_read_input_tokens: cached,
-    cache_creation_input_tokens: 0,
+    cache_creation_input_tokens: written,
     model, stop_reason: null,
   };
 }
-async function callOpenAI(env, system, messages, maxTokens) {
-  const key = (env && env.OPENAI_API_KEY ? String(env.OPENAI_API_KEY) : "").trim();
+async function callOpenAI(env, system, messages, maxTokens, m) {
+  const router = !!(m && m.router);
+  const keyName = router ? "OPENROUTER_API_KEY" : "OPENAI_API_KEY";
+  const key = (env && env[keyName] ? String(env[keyName]) : "").trim();
   /* 열쇠가 없으면 **부르기 전에** 멈춘다. 없는 채로 나가면 401 본문이
      오류 메시지가 되고, 그게 산출물에 실린다. */
-  if (!key) return { ok: false, status: 0, body: "OPENAI_API_KEY가 없다 (replay 전용 경로)" };
+  if (!key) return { ok: false, status: 0, body: `${keyName}가 없다 (replay 전용 경로)` };
+  /* 모델 id도 마찬가지다 — OpenRouter 좌석은 표에 id가 없고 env가 준다.
+     빈 채로 나가면 「모델을 안 적었다」가 400 본문으로 돌아오고, 그게
+     대사 자리의 오류로 보인다. 여기서 끊는다. */
+  const model = router ? routerModel(env) : openaiModel(env);
+  const reasoning = openaiReasoning(env);
+  if (!model) return { ok: false, status: 0, body: "OPENROUTER_MODEL이 없다 (replay 전용 경로)" };
   let r;
   try {
-    r = await fetch(OPENAI_URL, {
+    r = await fetch(router ? OPENROUTER_URL : OPENAI_URL, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: OPENAI_MODEL,          // 별칭이 아니라 snapshot 고정. 요청 본문이 못 바꾼다
-        max_tokens: maxTokens,
-        messages: toOpenAIMessages(system, messages),
+        model,                        // 별칭이 아니라 snapshot 고정. 요청 본문이 못 바꾼다
+        /* 새 이름을 쓴다 — max_tokens는 이 문 앞에서 낡은 이름이 됐다.
+           도전자(OpenAI 직결)는 원래 이름 그대로 둔다: 재던 조건을 이
+           작업이 건드리면 안 된다. */
+        ...(router ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens }),
+        /* 적었을 때만 실린다 — 위 주석이 그 이유다 */
+        ...(reasoning ? { reasoning: { effort: reasoning } } : {}),
+        messages: router ? toRouterMessages(system, messages)
+                         : toOpenAIMessages(system, messages),
+        /* ── 조용한 갈아타기를 막는다 ──
+           같은 모델 이름이라도 뒤에 선 공급자가 다르면 같은 판이 아니다.
+           이 파일 맨 위가 못박은 계약(별칭은 조용히 갈아탄다)을 여기서도
+           지킨다: 공급자를 못 찾으면 다른 데로 넘어가지 말고 실패하라.
+           data_collection은 값이 아니라 원칙이다 — 유저가 여기 적는 말은
+           보관하는 곳으로 안 보낸다. */
+        ...(router ? { provider: { allow_fallbacks: false, data_collection: "deny" } } : {}),
       }),
     });
   } catch (e) {
@@ -4024,12 +4205,12 @@ async function callOpenAI(env, system, messages, maxTokens) {
   const data = await r.json();
   const text = (((data.choices || [])[0] || {}).message || {}).content || "";
   return { ok: true, text: String(text).trim(),
-           usage: openAIUsage(data.usage, data.model || OPENAI_MODEL) };
+           usage: openAIUsage(data.usage, data.model || model) };
 }
 
 async function callModel(env, m, system, messages, maxTokens, effort) {
   /* 도전자 경로 — 생성 자리만 갈아탄다(m.openai가 붙은 단계) */
-  if (m && m.openai) return await callOpenAI(env, system, messages, maxTokens);
+  if (m && m.openai) return await callOpenAI(env, system, messages, maxTokens, m);
   const body = {
     model: m.id,
     max_tokens: maxTokens,
@@ -4173,9 +4354,14 @@ function stageModel(env, stage) {
   /* 쓰는 손이 갈리는 자리는 GPT_STAGES 그대로다 — 도전자든 최상급이든
      같은 자리를 갈아끼운다. 검사(canon)는 어느 쪽에서도 안 바뀐다. */
   const seat = writerSeat(env);
-  if (seat === "gpt" && GPT_STAGES.has(stage)) return ENGINE.gptWriter;
+  if (seat === "gpt" && GPT_STAGES.has(stage))
+    return { ...ENGINE.gptWriter, id: openaiModel(env) };
   if (seat === "sonnet5" && GPT_STAGES.has(stage)) return ENGINE.writer5;
   if (seat === "sonnet46" && GPT_STAGES.has(stage)) return ENGINE.writer46;
+  /* id는 표가 아니라 env가 준다 — 빈 값이면 빈 채로 내려간다. 조용히
+     다른 모델로 넘어가지 않고 callOpenAI가 부르기 전에 멈춘다. */
+  if (seat === "router" && GPT_STAGES.has(stage))
+    return { ...ENGINE.orWriter, id: routerModel(env) };
   /* override는 G2 스윕의 두 자리(single/anchor)에만 닿는다 — G3의
      sonnet45_fallback이 singleWriter 설정을 재사용해도 갈아끼워지지 않고,
      haiku_director는 더더욱 아니다. */
@@ -5351,6 +5537,7 @@ const CRITICAL_REASONS = {
   parting: "헤어지거나 떠나거나 다시 만난다",
   ending: "이야기가 갈린다",
   conflict_result: "갈등이 되돌릴 수 없는 결과를 낳는다",
+  promise_due: "며칠 전 한 말을 지키거나 거둔다",
 };
 
 /* ── 텍스트 감지는 여기 한 곳뿐이다 (E4) ──
@@ -5440,6 +5627,200 @@ const YES_SAY = /^\s*(?:네+|넹|녜|응+|어+|그래|그럼요?|좋아요?|좋�
    한 마디도 안 건드리면 상태를 전진시키지 않는다. 장면은 다시 올 수 있지만
    전진은 되돌릴 수 없다. */
 const MEMORY_TOUCH = /기억|공부방|사탕|목걸이|20년|그때|그\s*아이/;
+/* ── 그 말을 지켰거나 거뒀는가 ──
+   promise_due 장면의 답이 이걸 지나야 promise_done이 나간다.
+   세 판이 적대 검증에 깨졌다. 첫 판은 답의 **모양**만 봤다(「까먹었어요」) —
+   무엇을 까먹었는지 안 봤다. 둘째 판은 약속의 낱말이 답에 다시 나오고 절
+   어딘가에 완료형(받침 ㅆ)이 있으면 지킨 걸로 봤다 — 「들어볼게요」 뒤의 인사
+   「잘 들어갔어요?」가 닫혔다. 셋째 판은 약속의 동사를 완료형으로 바꿔 찾았는데
+   두 글자 맨 꼴을 그대로 받아서 「있을게요」→「일이 좀 있었어」, 「먹어볼게요」→
+   「아침 먹었어요」, 「알아볼게요」→「알았어요」가 닫혔다 — 실제 기록의 약속 15개
+   × 인물 대사 2,873줄 = 43,095쌍에서 true 52쌍, 지킴은 0.
+   넷째 판(이것)은 **약속 자체의 낱말이 앞에 붙은 꼴**만 지킴으로 받는다.
+     「데리러 갈게요」→ 데리러 갔·왔      「챙겨 올게요」→ 챙겨 왔·챙겼
+     「끓여 놓을게요」→ 끓여 놓았·놨·놓은·둔   「탕수는 먹어볼게요」→ 탕수 먹었·먹어봤
+   맨 꼴(앞말 없이)은 **세 음절 어간**만이다 — 기다렸·데려다줬·전화했·추천드렸.
+   두 글자 이하 어간의 맨 꼴(있었·먹었·들었·씹었·알았·말했)은 일상 답에 너무
+   흔해 안 받는다. 그래서 「이따 먹을게요」「내일 씹을게요」「다시 올게요」는
+   지킴을 못 알아본다 — 거둠은 보고, 장부는 닷새면 물러난다. 오탐이 미탐보다
+   비싸다: 미탐은 장부가 하루 더 남을 뿐이고, 오탐은 지키지도 않은 말을 지운다.
+   받침은 정규식이 아니라 자모 산수로 푼다(가+았→갔, 주+었→줬, 리+었→렸, 하→했).
+   「-어 주다/놓다/두다/드리다」는 앞말의 완료형도 지킨 것이다(우산 챙겨줄게요↔
+   우산 챙겼, 만들어 줄게요↔만들었) — 「-어 보다」는 아니다(알아보다≠알다, 먹어
+   보다≠먹다). 여·려·해로 끝나는 앞말은 피동·흔한 말과 겹쳐 뺀다(보여줄게요→
+   「보였」은 「피곤해 보였어요」다). 앞말은 마지막 조건절 뒤의 것만이고 사람은
+   아니다 — 「삼촌 오면 갈게요」의 삼촌이 「삼촌 왔어요」를 지킴으로 만들면 안 된다.
+   남이 한 일(「삼촌이 데리러 왔어요」)과 의문사 있는 물음(「누가 왔어요」)도 아니다.
+   주↔드리, 놓↔두는 서로의 말이다. 부정 약속(「안 쓸게요」)은 지킴을 안 본다.
+   지킴이 아닌 것: 물음 절(「챙겨 왔어요?」), 「아직·못·안·않·없·깜빡」이 있는 절,
+   완료형 뒤에 「으면·을·다 올·다고·대·더라·겠·길래·는지·나 봐·어야·던」이 붙은 것
+   (갔으면·갔다 올게요·했대·왔더라고요·했겠죠·갔길래), 「-고 있었」. 완료형은 어절
+   머리에서만 찾는다.
+   앞말은 한글·영숫자만 쓴다 — 「*진짜*」가 정규식에 들어가 터진 적이 있다(적대
+   검증이 재현: 그 방의 턴이 닷새 동안 502였을 것이다). 그래도 만들다 터지면
+   지킴을 안 본다.
+   거둠 = 그 말을 접는 말 — 「못 지키겠」「없던 걸로」「거둘게」. 좁고 뚜렷하다.
+     「못 가겠」「못 갈 것 같」은 가는 약속(데리러·데려다·갈게·올게)에만 거둠이고,
+     「학교는 못 가겠어요」처럼 딴 데를 못 간다는 말은 아니다.
+     「오늘은·지금은·이번 주는·다음에」가 같은 절에 있으면 미룬 것이지 거둔 게 아니고,
+     「아직」「못 가겠다 싶었어요」(회상)·「못 지키겠다고요?」(되묻기)도 아니다.
+     「안 되겠어요」「못 하겠어요」「약속은 못」은 아무 데서나 나오는 말이라 안 넣는다.
+   「미안」도 뺐다 — 기록의 미안 넷은 전부 약속과 무관했다.
+   실제 기록 전수(약속 15개 × 인물 대사 2,873줄)에서 이 판이 닫는 쌍은 시험이
+   센다 — 늘면 오탐이다. */
+const isSyl = ch => { const c = ch.charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3; };
+const jamo = ch => { const s = ch.charCodeAt(0) - 0xAC00; return [Math.floor(s / 588), Math.floor((s % 588) / 28), s % 28]; };
+const syl = (i, m, f) => String.fromCharCode(0xAC00 + i * 588 + m * 28 + f);
+const wantsA = m => m === 0 || m === 2 || m === 8 || m === 12;   // ㅏ·ㅑ·ㅗ·ㅛ → 았
+/* 받침 없는 음절 + 았/었 — 축약형(갔·줬·렸·했)과 풀어 쓴 꼴(보았·주었) 둘 다 */
+function pastOfOpen(ch) {
+  const [i, m] = jamo(ch);
+  if (i === 18 && m === 0) return ["했"];
+  const out = [];
+  const squeeze = { 0: 0, 1: 1, 2: 2, 4: 4, 5: 5, 6: 6, 7: 7, 8: 9, 11: 10, 13: 14, 16: 15, 20: 6 }[m];
+  if (squeeze !== undefined) out.push(syl(i, squeeze, 20));
+  if (m === 18) out.push(syl(i, 4, 20), syl(i, 0, 20));           // 쓰→썼 · 따르→따랐
+  out.push(ch + (wantsA(m) ? "았" : "었"));
+  return out;
+}
+/* 어간 → 완료형 후보 */
+function pastOfStem(stem) {
+  if (!stem || !isSyl(stem[stem.length - 1])) return [];
+  const last = stem[stem.length - 1], head = stem.slice(0, -1);
+  const [i, m, f] = jamo(last);
+  const out = [];
+  if (f === 0) out.push(...pastOfOpen(last).map(p => head + p));
+  else {
+    out.push(stem + (wantsA(m) ? "았" : "었"));
+    if (f === 27) { out.push(stem + "은"); if (m === 8) out.push(head + syl(i, 9, 20)); }   // 놓은 · 놨
+  }
+  if (last === "두") out.push(head + "둔");
+  return out;
+}
+/* 놓·두, 주·드리는 서로의 말이다 — 「끓여 놓을게요」를 「끓여 둔 거 있어요」가,
+   「들려줄게요」를 「들려드렸잖아요」가 지킨다 */
+const stemKin = st => /두$/.test(st) ? [st, st.slice(0, -1) + "놓"] : /놓$/.test(st) ? [st, st.slice(0, -1) + "두"]
+  : /주$/.test(st) ? [st, st.slice(0, -1) + "드리"] : /드리$/.test(st) ? [st, st.slice(0, -2) + "주"] : [st];
+/* 앞말의 -어 꼴에 받침 ㅆ만 얹으면 본동사의 완료형이다(챙겨→챙겼, 구워→구웠) */
+const pastOfConn = ch => { const [i, m, f] = jamo(ch); return f === 0 ? syl(i, m, 20) : ""; };
+/* 약속의 어미까지만 본다 — 장부의 말은 절 하나(60자)라 뒤에 딴말이 붙는다
+   (「늦으면 데리러 갈게요, 걱정 마요」). 「걱정」은 약속이 아니다 */
+const PROMISE_CORE = /[^]*?(?:게요|께요|드릴|줄게|볼게)/;
+/* 앞말로 못 쓰는 것 — 「다시 올게요」의 다시는 「다시 왔어요」를 못 만든다 */
+const PROMISE_PREV_STOP = new Set(["그냥", "진짜", "정말", "그럼", "그러면", "저도", "나도", "한번",
+  /* 사람은 앞말이 못 된다 — 「삼촌 가게 갈게요」의 삼촌이 「삼촌이 왔어요」를 지킴으로 만든다 */
+  "삼촌", "재언", "민현", "강현", "리리", "선생님", "선생", "엄마", "아빠", "친구", "담임", "누나",
+  "오빠", "언니", "이모", "고모", "할머니", "할아버지", "애들", "사람", "누가", "누구", "우리",
+  "이재언", "이민현", "이강현", "제자", "학생", "학생들", "아이들",
+  "한", "번", "오늘", "내일", "이따", "나중", "다음", "그때", "제가", "내가", "근데", "조금", "많이",
+  "다시", "먼저", "같이", "혹시", "아마", "일단", "이제", "지금", "여기", "거기", "어제", "방금", "꼭",
+  "좀", "더", "덜", "안", "못", "다", "잘", "또", "빨리", "금방", "이번", "따로", "직접", "제대로",
+  "진짜로", "정말로", "살짝", "언젠가", "담에", "저는", "나는", "저", "나", "우리", "그거", "이거",
+  "그건", "이건", "그게", "이게", "뭐", "뭘", "그렇게", "이렇게", "그런", "이런", "그래도", "그리고",
+  "그래서", "그러니까", "이따가", "있다가", "거의", "전부", "모두", "얼른", "일찍", "늦게", "매일"]);
+const PROMISE_PARTICLE = /(?:에서는|에게는|으로는|에서|에게|으로|이랑|부터|까지|처럼|보다|은|는|이|가|을|를|도|만|에|로|와|과|랑|의|요)$/;
+/* 완료형 뒤에 붙으면 한 일이 아니다 — 가정·미래·인용·전문·추측·내포의문 */
+const KEPT_NOT_AFTER = /^(?:으면|을|다\s*(?:올|가|와|오|주|줄|해도|하더라도|한들|치|생각)|다고|다는|다면|다던|다며|다니(?!까)|다길래|다더|다네|다[지죠]|다잖|단|던|댔|대요|대(?![가-힣])|대[서도]|답니다|어야|아야|었으면|았으면|었을|았을|어도|아도|나요|냐|을까|을지|겠|길래|는지|더라|더니|나\s*(?:보|봐|싶|모르|했)|나\s*$|니\s*$|지\s*싶|으려나)/;
+/* 남이 한 일은 내 약속의 지킴이 아니다 — 「삼촌이 데리러 왔어요」 */
+const OTHER_SUBJECT = /(?:삼촌|재언|민현|강현|리리|선생님|엄마|아빠|친구|담임|누가|누군가|애들|사람|누나|오빠|언니|형|이모|고모|할머니|할아버지|학생들|아이들)(?:이|가|께서|은|는|도)?\s/;
+/* 물음표 없는 물음 — 의문사가 있으면 묻는 말이다 */
+const ASKING = /(?:^|\s)(?:누가|누구|언제|어디서|어디에|왜|혹시|설마|몇\s*시|뭘|무슨)\s/;
+/* 두 글자 이하 어간은 앞말이 붙어야 한다. 세 음절이라도 대화에서 아무 때나
+   나오는 「생각했·얘기했·말했」은 앞말이 붙어야 한다 */
+const BARE_STEM_BLOCK = /(?:생각하|얘기하|이야기하|말하|시작하|일어나|취소하|정리하)$/;
+/* 약속 → 답에서 찾을 완료형 정규식 조각들. 비면 지킴을 못 알아보는 약속이다 */
+function promiseKeptForms(promiseText) {
+  const core = (String(promiseText || "").match(PROMISE_CORE) || [""])[0];
+  const toks = core.split(/[\s,.!?…~「」'"()\[\]]+/).filter(Boolean);
+  if (!toks.length) return [];
+  const verb = toks[toks.length - 1].replace(/요$/, "").replace(/[게께]$/, "");
+  if (!verb || !isSyl(verb[verb.length - 1]) || !/^[가-힣A-Za-z0-9]+$/.test(verb)) return [];
+  if (toks.length > 1 && /^(?:안|못)$/.test(toks[toks.length - 2])) return [];   // 부정 약속
+  const prevRaw = toks.length > 1 ? toks[toks.length - 2] : "";
+  /* 앞말 — 약속의 다른 낱말(토씨 뗀 것). 조건절과 그 앞은 아니다 — 「삼촌 오면
+     갈게요」의 삼촌은 오는 사람이지 가는 약속의 낱말이 아니다. 마지막 조건·연결
+     어절(면·고·서·다가·니까) 뒤의 낱말만 쓴다. 한글·영숫자만 — 정규식에 그대로 들어간다 */
+  const body = toks.slice(0, -1);
+  let from = 0;
+  body.forEach((t, k) => { if (/(?:면|고|서|다가|니까)$/.test(t)) from = k + 1; });
+  const anchors = [...new Set(body.slice(from).map(t => t.replace(PROMISE_PARTICLE, ""))
+    .filter(t => t.length >= 2 && !PROMISE_PREV_STOP.has(t) && /^[가-힣A-Za-z0-9]+$/.test(t)))];
+  const last = verb[verb.length - 1], [i, m, f] = jamo(last);
+  const stems = [];
+  if (verb.length >= 2 && last === "을" && isSyl(verb[verb.length - 2]) && jamo(verb[verb.length - 2])[2] !== 0)
+    stems.push(verb.slice(0, -1));                                   // 씹을·먹을·들을·놓을
+  else if (f === 8) { stems.push(verb.slice(0, -1) + syl(i, m, 0)); if (verb.length >= 2) stems.push(verb); } // 갈→가 · 만들
+  else stems.push(verb);
+  const forms = new Set();
+  /* 앞말 + (토씨) + (짧은 말 하나) + 완료형 — 「탕수는 어제 먹었」까지. 둘 이상
+     끼면 앞말이 뜻을 잃는다(「탕수 말고 다른 거 먹었」) */
+  const anchored = p => { for (const a of anchors) forms.add(a + "(?:[은는이가을를도만에서로]{0,2}),?\\s*(?:\\S{1,4}\\s+)?" + p); };
+  const add = (p, bare) => { if (bare && p.length >= 2) forms.add(p); anchored(p); };
+  /* 앞말의 -어 꼴 + ㅆ. 받침이 있으면(사탕·선물) -어 꼴이 아니라 빈 것이다 — 앞 판은
+     여기서 「사」를 돌려줘 「사탕 … 사」가 아무 말이나 닫았다(적대 검증이 재현).
+     여·려·해로 끝나면 피동·흔한 말과 겹쳐(보였·들렸·했) 뺀다 */
+  const connBase = base => {
+    if (base.length < 2 || !isSyl(base[base.length - 1]) || /[여려해]$/.test(base) || !/^[가-힣A-Za-z0-9]+$/.test(base)) return "";
+    const t = pastOfConn(base[base.length - 1]);
+    return t ? base.slice(0, -1) + t : "";
+  };
+  /* 동사 바로 앞말이 정말 -어/-아/-여/-워/-와 꼴일 때만 그 완료형을 본다 — 「가게 볼게요」의
+     가게는 -어 꼴이 아니다 */
+  const connPrev = w => { if (w.length < 2 || !isSyl(w[w.length - 1])) return false; const [, m, f] = jamo(w[w.length - 1]); return f === 0 && [0, 4, 6, 9, 14].includes(m); };
+  for (const st0 of stems) {
+    for (const st of stemKin(st0)) {
+      const bare = st.length >= 3 && !BARE_STEM_BLOCK.test(st);
+      for (const p of pastOfStem(st)) add(p, bare);
+    }
+    /* 「데리러 갈게요」는 「데리러 왔어요」가 지킨 것이다 — -러 앞말이 있을 때만.
+       「학교 갈게요」에 「왔」을 열면 「학교에 삼촌이 왔어요」가 닫힌다 */
+    if (st0 === "가" && /러$/.test(prevRaw)) add("왔", false);
+    /* 「-어 보/주/놓/두/드리」: 앞말의 완료형도 지킨 것이다 — 앞말이 붙은 꼴로.
+       맨 꼴은 세 음절 앞말에만, 그것도 「-어 보」는 아니다(알아보다≠알다) */
+    const aux = st0.match(/^(.+)(보|주|놓|두|드리)$/);
+    const base = aux ? aux[1] : (prevRaw && /^(?:보|주|놓|두|드리)$/.test(st0) && connPrev(prevRaw)) ? prevRaw : "";
+    const auxKind = aux ? aux[2] : st0;
+    const c = base ? connBase(base) : "";
+    if (c) add(c, base.length >= 3 && auxKind !== "보" && !BARE_STEM_BLOCK.test(base));
+    /* 「들어볼게요」를 「들어 봤어요」로 띄어 써도 같은 말이다 */
+    if (aux) for (const p of pastOfStem(aux[2])) add(aux[1] + "\\s*" + p, st0.length >= 3 && !BARE_STEM_BLOCK.test(st0));
+  }
+  return [...forms];
+}
+const NOT_YET = /아직|깜빡|까먹|잊었|잊고|잊어|않|없(?!던)|잘못|(?:^|\s)못(?=[\s가-힣])|(?:^|\s)안(?:\s|했|됐|되|돼|갔|왔|봤|들었|먹|읽|샀|해|챙|끓)/;
+const DEFER = /오늘은|오늘만|지금은|지금만|이번엔|이번은|이번\s*주|주말|요일|당장은|다음에|나중에|내일|(?:^|\s)(?:지금|당장|바로|오늘)\s/;
+const WITHDRAW = /못\s*지키겠|못\s*지켰|지킬\s*수(?:가)?\s*없(?!는)|없던\s*걸로|거둘게|거둬야|거둘\s*수밖에|약속\s*(?:은|을)?\s*(?:취소|깼|깨야|깨게|물러|접(?:을|어|었|게))/;
+const WITHDRAW_GO = /못\s*(?:가겠|갈\s*(?:것|거)\s*같|데리러|데려다)/;
+/* 딴 데를 못 간다는 말 — 「학교는 못 가겠어요」. 「저는·데리러는」은 딴 데가 아니다 */
+const WITHDRAW_ELSEWHERE = /(?<!저|나|데리러|데려다)(?:는|은|엔|에는|에)\s*못\s*(?:가|갈)/;
+const WITHDRAW_NOT = /아직|싶었|더라고|겠다고|겠다는|겠대|겠다네|겠단|다고요|자고요|냐고|길래|아니|[가-힣]면(?=\s|$|[,.!?…])|뻔|줄\s*알|(?:할|순|수는|수가)\s*없|(?:^|\s)안\s/;
+const PROMISE_GO = /데리러|데려다|갈게|갈\s*테니|올게|갈\s*거|가\s*볼게/;
+const QUESTION_END = /[?？]\s*[!.~ㅋㅎ)…]*$/;
+function promiseTouched(promiseText, said) {
+  let kept = null;
+  try {
+    const forms = promiseKeptForms(promiseText);
+    if (forms.length) kept = new RegExp("(^|[\\s,「\"'(])(" + forms.join("|") + ")", "gi");
+  } catch (e) { kept = null; }
+  const goPromise = PROMISE_GO.test(String(promiseText || ""));
+  const clauses = (String(said || "").match(/[^.!?？…\n]+[.!?？…]*/g) || []).map(c => c.trim()).filter(Boolean);
+  for (let k = 0; k < clauses.length; k++) {
+    const clause = clauses[k], next = clauses[k + 1] || "";
+    if (QUESTION_END.test(clause) || OTHER_SUBJECT.test(clause)) continue;
+    /* 미룸은 다음 절에 올 수도 있다 — 「못 가겠어요. 오늘은 좀.」 */
+    if ((WITHDRAW.test(clause) || (goPromise && WITHDRAW_GO.test(clause) && !WITHDRAW_ELSEWHERE.test(clause)))
+        && !DEFER.test(clause) && !WITHDRAW_NOT.test(clause) && !DEFER.test(next))
+      return true;
+    if (!kept || NOT_YET.test(clause) || ASKING.test(clause)) continue;
+    kept.lastIndex = 0;
+    let m;
+    while ((m = kept.exec(clause))) {
+      if (/고\s*있었$/.test(m[2]) || (/있었$/.test(m[2]) && /고\s*$/.test(clause.slice(0, m.index) + m[1]))) continue;   // 「-고 있었」
+      if (!KEPT_NOT_AFTER.test(clause.slice(m.index + m[0].length))) return true;
+    }
+  }
+  return false;
+}
 /* NULL 출처를 파고드는 말. 「무슨 말이에요」는 어디서나 나오는 말이라
    이것 하나로는 못 쓴다 — 직전 문답 조건(마지막 인물 발화가 「처음부터」)이
    같이 맞아야 한다. approveReason이 그 둘을 본다. */
@@ -5495,6 +5876,13 @@ function approveReason(r, ctx) {
       const other = partner === "jaeeon" ? "minhyun" : "jaeeon";
       return ctx.room === other && !((st.partnerKnown || {})[other]);
     }
+    case "promise_due":
+      /* 며칠 전 인물이 한 말. 그 방에서만, 그 말이 아직 살아 있을 때만
+         (닷새 안이면 브라우저가 실어 보낸다), 그리고 **오늘 한 말은 아니다** —
+         하루는 지나야 「그때」가 올 수 있다. 예약이 아니라 감지(detectScene)가
+         부른다 — 같은 조건이라 한 곳에 둔다. */
+      return (ctx.room === "jaeeon" || ctx.room === "minhyun")
+        && !!(ctx.promise && ctx.promise.text) && Number(ctx.promise.daysAgo) >= 1;
     case "dday_choice": case "ending": case "parting":
       return days >= ENROLL_DAYS;
     case "memory_reveal":
@@ -5532,18 +5920,34 @@ function approveReason(r, ctx) {
 /* 예약이 없어도 말이 그 장면이면 올린다 — 기억·고백·정체는 화면 단추가
    아니라 말에서 온다. 예약 사유(D-0·WHO)는 여기 안 넣는다.
 
-   ── 감지의 근거는 말뿐이다 ──
+   ── 감지의 근거는 말뿐이다 — 예외는 장부 하나(promise_due, 아래) ──
    memory_reveal의 히든 키 근거는 **예약 승인**에서만 쓴다. 감지에도 쓰면
    일기가 열린 날부터 「점심 뭐 먹지」까지 전부 중요 장면이 된다 — 매 턴
    값이 두 배가 되고 어조까지 무거워진다. 상태는 문을 열어두는 것이고,
    문을 지나는 것은 말이다. */
 function detectScene(ctx) {
-  if (ctx.mode !== "chat" || ctx.greet) return "";
-  if (ctx.room === "jaeeon" && ((ctx.story || {}).jaeeonMemory !== "acknowledged")
-      && MEMORY_PROBE.test(String(ctx.lastUser || ""))) return "memory_reveal";
-  /* 고백·정체는 조건 자체가 실제 발화를 요구한다 — 상태만으로는 못 오른다 */
-  for (const r of ["kiss", "confession", "null_identity"])
-    if (approveReason(r, ctx)) return r;
+  if (ctx.mode !== "chat") return "";
+  /* ── 유저가 방금 한 말이 장부보다 먼저다 ──
+     기억·키스·고백·정체는 말에서 온다. 그 말이 있는 턴에는 그게 이긴다 —
+     약속은 안 닫히고 장부에 남아 다음 턴에 선다. 선톡(greet)에는 유저 말이
+     없으니 여기를 건너뛴다. */
+  if (!ctx.greet) {
+    if (ctx.room === "jaeeon" && ((ctx.story || {}).jaeeonMemory !== "acknowledged")
+        && MEMORY_PROBE.test(String(ctx.lastUser || ""))) return "memory_reveal";
+    /* 고백·정체는 조건 자체가 실제 발화를 요구한다 — 상태만으로는 못 오른다 */
+    for (const r of ["kiss", "confession", "null_identity"])
+      if (approveReason(r, ctx)) return r;
+  }
+  /* ── 그때가 왔다 ──
+     재료가 말이 아니라 장부다. 브라우저는 며칠 전 말인지만 싣고(하루의 경계가
+     거기 있다), 「그때」인지는 여기서 정한다 — 클라이언트가 예약하는 것은
+     화면의 선택뿐이다(E4). 「그때가 오면 먼저 움직여라」만 적어두면 언제가
+     그때인지를 모델이 정했고, 미루면 닷새 뒤 아무 일 없이 사라졌다.
+     말에서 오는 사유가 하나도 없을 때만 선다 — 처음엔 맨 앞에 뒀더니 하루
+     지난 약속이 있는 날엔 「키스해도 돼요?」까지 약속에 먹혔다.
+     인물이 먼저 말하는 턴(greet)도 그때다 — 「데리러 갈게요」의 다음 날
+     방을 열면 그 사람이 먼저 입을 여는 것이 그 말을 지키는 모양이다. */
+  if (approveReason("promise_due", ctx)) return "promise_due";
   return "";
 }
 
@@ -6668,6 +7072,11 @@ export default {
           room, mode, greet: body.greet === true,
           partner: body.partner, days, unlocked: unlockedKeys(counts, days),
           story, originPhase: String(body.origin_phase || ""),
+          /* 승인 조건이 보는 것은 여기 실린 것뿐이다. kiss는 자리를 요구하는데
+             place가 안 실려 있어서 예약된 키스는 한 번도 critical로 못
+             올라갔다 — 감지 경로(detectScene)만 살아 있어 안 보였다.
+             promise_due는 그 말이 아직 살아 있는지를 본다. */
+          place, promise,
           lastUser, lastChar, stageIdx });
     const tier = routed.tier;
     if (tier === "critical") console.log(`[NULL] 중요 장면 ▶ ${routed.reason}`);
@@ -7782,7 +8191,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
-         buildReturned, buildPromise, pickPromise, buildPlace,
+         buildReturned, buildPromise, pickPromise, promiseTouched, promiseKeptForms, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
@@ -7798,6 +8207,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          CRITICAL_REASONS, sceneTier, approveReason, detectScene, kissMoment, storyFacts, partnerSceneFacts,
          userLine,
          OPENAI_MODEL, GPT_STAGES, joinBlocks, toOpenAIMessages, openAIUsage, callOpenAI, stageModel,
+         OPENROUTER_URL, ROUTER_MODEL, routerModel, toRouterMessages, openaiModel, openaiReasoning,
          unlockedKeys,
          FIRSTMEET_OPEN, FIRSTMEET_REPLY,
          MEMORY_PROBE, FIRSTMEET_ASK, FIRSTMEET_EXPLAIN, FIRSTMEET_TAKE, FIRSTMEET_DENY,

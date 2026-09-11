@@ -220,8 +220,9 @@ const stampRefuse=(char,now)=>refusedToday(char,now)||saveRefuseDay({...loadRefu
    쌓으면 인물이 지킬 것 목록을 읽는 사람이 되고, 그건 사람이 아니라 일정표다.
 
    며칠이 지났는지는 여기서 잰다(하루의 경계가 여기 있다). PROMISE_DAYS가
-   지나면 아예 안 실어 보낸다 — 지켰는지를 잴 방법이 없으니, 대신 오래된
-   말은 스스로 물러나게 한다. 안 그러면 「아직 안 지켰다」가 영영 따라다닌다.
+   지나면 아예 안 실어 보낸다 — 지킨 답은 워커가 promise_done으로 닫지만,
+   지키지도 거두지도 않은 채 닷새가 가면 여기서 물러나게 한다. 안 그러면
+   「아직 안 지켰다」가 영영 따라다닌다.
    닷새로 둔 것은 로그에서 콜백이 돌아오는 데 걸린 날이 닷새였기 때문이다. */
 const PROMISE_DAYS=5;
 const loadPromise=()=>{try{return JSON.parse(localStorage.getItem("null_promise"))||{}}catch(e){return{}}};
@@ -241,6 +242,13 @@ const promiseFor=(char,now)=>{
   for(let d=0;d<=PROMISE_DAYS;d++)
     if(dayKey(base-d*864e5)===p.day)return {text:p.text,daysAgo:d};
   return null;                                  // 닷새보다 오래된 말은 물러난다
+};
+/* 지켰다 — 또는 거뒀다. 그 방의 말만 지운다. 되풀이해도 같다.
+   장부의 규칙대로 쓰고 나서 다시 읽어 확인한다. */
+const clearPromise=char=>{
+  const p=loadPromise(); if(!p[char])return true;
+  const next={...p}; delete next[char];
+  return !!savePromise(next)&&!loadPromise()[char];
 };
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};

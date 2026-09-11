@@ -56,7 +56,10 @@ async function run(envExtra, body, replies, hooks) {
     sentReq.push({ url: String(url), headers: (init && init.headers) || {}, body: c });
     /* 도전자 진영은 요청 모양이 다르다 — system이 messages 맨 앞 한 장이다.
        단계 판별은 **같은 문구**로 한다: 프롬프트 원문이 같아야 하니까. */
-    const oai = String(url).includes("api.openai.com");
+    /* OpenRouter도 같은 모양으로 답한다 — 호환 엔드포인트라 요청도 응답도
+       그 진영의 것이다. 주소만 다르다. */
+    const oai = String(url).includes("api.openai.com")
+             || String(url).includes("openrouter.ai");
     const oaiRole = r => (c.messages || []).filter(m => m.role === r)
       .map(m => m.content).join("\n");
     const sys = oai ? oaiRole("system") : flatSys(c);
@@ -1967,7 +1970,7 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("기본이 도전자 진영이다 — 쓰기 한 번", writersOf(r), 1);
   eq("쓰는 자리만 다른 진영으로 나간다", oaiReqs().length, 1);
   eq("주소가 그 진영의 것이다", oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
-  eq("계측에 남는 모델도 도전자다", r.data.stages[0].model, "gpt-4.1-2025-04-14");
+  eq("계측에 남는 모델도 그 손이다", r.data.stages[0].model, ENG.OPENAI_MODEL);
 
   /* 클라이언트 입력은 진영도 모델도 못 바꾼다 — env만이 정한다.
      기본을 옛 배선으로 되돌리려는 시도도 안 먹는다. */
@@ -1977,12 +1980,22 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("요청 본문으로는 모델도 못 바꾼다", spoof.data.stages[0].model, ENG.OPENAI_MODEL);
 }
 
-/* ── 15.3 별칭이 아니라 snapshot이다 ── */
+/* ── 15.3 이름은 코드가 정한다 ──
+   예전에는 여기서 「날짜가 박힌 판인가」를 쟀다. 그 자리가 replay 도전자
+   였을 때의 규칙이다 — 두 모델을 나란히 재려면 별칭이 조용히 갈아타면
+   안 되니까. 지금 이 자리는 운영의 쓰는 손이고, 이 진영이 날짜 판을
+   안 내주면 별칭이 유일한 이름이다. 그래서 재는 것을 바꾼다: 이름의
+   **모양**이 아니라 **누가 정하는가**다. */
 {
-  eq("snapshot 문자열이 박혀 있다", ENG.OPENAI_MODEL, "gpt-4.1-2025-04-14");
-  eq("날짜가 붙은 고정 판이다", /^gpt-4\.1-\d{4}-\d{2}-\d{2}$/.test(ENG.OPENAI_MODEL), true);
+  eq("이름이 코드에 박혀 있다", typeof ENG.OPENAI_MODEL === "string"
+    && ENG.OPENAI_MODEL.length > 0, true);
   await run({}, BASE);
-  eq("요청 본문의 모델이 그 snapshot이다", oaiReqs()[0].body.model, "gpt-4.1-2025-04-14");
+  eq("요청 본문의 모델이 그 이름이다", oaiReqs()[0].body.model, ENG.OPENAI_MODEL);
+  /* 클라이언트가 어느 이름으로 불러도 이 값 근처에 못 온다 */
+  for (const key of ["model", "OPENAI_MODEL", "OPENAI_WRITER_MODEL", "engine"]) {
+    await run({}, { ...BASE, [key]: "몰래-바꾼-손" });
+    eq(`요청 본문의 ${key}로는 못 바꾼다`, oaiReqs()[0].body.model, ENG.OPENAI_MODEL);
+  }
 }
 
 /* ── 15.4 열쇠가 없으면 부르기 전에 멈춘다 ──
@@ -2078,7 +2091,7 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     [1, "canon"]);
   eq("쓰는 자리만 도전자다",
     r.data.stages.filter(s => s.stage === "writer")
-      .every(s => s.model === "gpt-4.1-2025-04-14"), true);
+      .every(s => s.model === ENG.OPENAI_MODEL), true);
   eq("정사 검사는 기존 저비용 그대로다",
     r.data.stages.filter(s => s.stage !== "writer").map(s => s.model),
     [MID.canon]);
@@ -2104,8 +2117,25 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
   eq("D-∞ 요청에는 남은 날이 없다",
     [/떠나는 날은 이미 지났다/.test(inf), /함께 지낸 지 5일째/.test(inf),
      /떠나기까지/.test(inf)], [true, true, false]);
+  /* ── 지났는지는 날짜가 먼저 안다 ──
+     앞 판의 이 자리는 「안 보낸 판은 여전히 남은 날을 센다」를 기대값으로
+     박아뒀다. dday_done은 **엔딩을 끝냈을 때만** 오는 값인데, 끝내지 않고
+     계속 말을 거는 판에서 그 기대는 「서른하루째에도 떠나기까지 0일」을
+     정답으로 굳힌 것이었다. 실제 기록이 그 대가를 보여줬다 —
+     「오늘이네요」가 엿새에 걸쳐 여섯 번, 「오늘」계열 낱말이 31회.
+     버그를 시험으로 굳히면 시험이 통과하는 동안 제품이 망가진다. */
   await run({}, { ...BASE, days: 34 });
-  eq("안 보낸 판은 여전히 남은 날을 센다", /떠나기까지 0일 남았다/.test(volOf()), true);
+  const late = volOf();
+  eq("안 보내도 날짜가 지났으면 안 센다",
+    [/떠나는 날은 이미 지났다/.test(late), /함께 지낸 지 5일째/.test(late),
+     /떠나기까지/.test(late)], [true, true, false]);
+  /* 그날 당일은 아직 지난 게 아니다 — 경계는 하루 뒤다 */
+  await run({}, { ...BASE, days: 30 });
+  const onDay = volOf();
+  eq("떠나는 날 당일은 아직 센다",
+    [/떠나기까지 0일 남았다/.test(onDay), /이미 지났다/.test(onDay)], [true, false]);
+  await run({}, { ...BASE, days: 29 });
+  eq("전날은 하루 남았다", /떠나기까지 1일 남았다/.test(volOf()), true);
   /* D-0 당일은 진짜로 0일 남았다 — 그날까지 세는 것이 맞다 */
   await run({}, { ...BASE, days: 30, dday_done: false });
   eq("D-0 당일은 아직 세는 날이다",
@@ -2213,12 +2243,13 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
       { role: "user", content: "네" }] });
   eq("지금 하는 말에는 아무것도 안 남는다",
     (now.data.effects || []).filter(e => e.type === "promise").length, 0);
-  /* 며칠 전 것인지는 브라우저가 재서 보낸다 */
+  /* 며칠 전 것인지는 브라우저가 재서 보낸다. 오늘 한 말은 아직 그때가 아니라
+     「기다려라」 모양으로 실린다 — 하루가 지나면 아래 promise_due가 그때다 */
   await run({}, { ...BASE, room: "minhyun",
-    promise: { text: "늦으면 데리러 갈게요", daysAgo: 5 } });
+    promise: { text: "늦으면 데리러 갈게요", daysAgo: 0 } });
   const kept = volOf();
-  eq("며칠 전 한 말이 프롬프트로 돌아온다",
-    [/## 네가 한 말/.test(kept), /5일 전 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(kept),
+  eq("한 말이 프롬프트로 돌아온다",
+    [/## 네가 한 말/.test(kept), /오늘 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(kept),
      /지금 그때가 아니면 꺼내지 않는다/.test(kept)], [true, true, true]);
   await run({}, { ...BASE, room: "minhyun" });
   eq("약속이 없으면 조용하다", /네가 한 말/.test(volOf()), false);
@@ -2247,9 +2278,330 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     history: [...BASE.history.slice(0, 2), { role: "user", content: "키스해도 돼요?" }] });
   const off = await run({}, kissBody("minhyun"));
   eq("정한 뒤 딴 방에서는 키스가 안 실린다", !!off.data.kiss, false);
+  /* ── 예약된 키스가 실제로 올라간다 ──
+     approveReason("kiss")는 자리를 요구하는데 sceneTier 호출에 place가 안 실려
+     있었다. 예약 경로의 키스는 한 번도 critical로 못 올라갔고, 감지 경로만
+     살아 있어서 안 보였다 — 여기가 그 양성 시험이다. */
+  const kissUp = await run({}, { ...kissBody("jaeeon"), scene_reason: "kiss" });
+  eq("예약된 키스가 자리와 함께 올라간다",
+    [kissUp.data.trace.route.tier, kissUp.data.trace.route.reason, kissUp.data.scene_ack],
+    ["critical", "kiss", "kiss"]);
+  const kissNoPlace = await run({}, { ...kissBody("jaeeon"), place: "", scene_reason: "kiss" });
+  eq("자리 없이는 예약도 안 올라간다 — 문자로 오는 얼굴은 셀카다",
+    [kissNoPlace.data.trace.route.tier, "scene_ack" in kissNoPlace.data], ["normal", false]);
+
+  /* ── 약속이 그때가 되어 돌아온다 ──
+     재료는 말이 아니라 장부다 — 브라우저는 며칠 전 말인지만 싣고, 「그때」인지는
+     워커가 정한다(클라이언트가 예약하는 것은 화면의 선택뿐이다, E4). 하루 지난
+     말이 실려 오면 **감지**로 critical에 오르고, 프롬프트는 「지키거나
+     거두거나」로 바뀌고, 답이 그 말을 실제로 지키거나 거뒀을 때만 promise_done
+     Effect가 닫는다 — 감지 장면이라 scene_ack는 없다. 오늘 한 말은 아직 그때가 아니다. 인물이
+     먼저 말하는 턴(greet)도 그때다. 단톡에는 그 자리가 없다. */
+  const dueBody = (daysAgo, extra) => ({ ...BASE, room: "minhyun",
+    promise: { text: "늦으면 데리러 갈게요", daysAgo }, ...(extra || {}) });
+  const KEPT = JSON.stringify({ messages: [{ text: "데리러 왔어요. 지금 나와요." }] });
+  const WITHDRAWN = JSON.stringify({ messages: [{ text: "못 가겠어요. 그 말은 없던 걸로 해요." }] });
+  const DEFERRED = JSON.stringify({ messages: [{ text: "못 가겠어요, 오늘은." }] });
+  const due = await run({}, dueBody(1), [KEPT]);
+  const dueVol = volOf();
+  eq("하루 지난 약속이 감지로 올라간다 — 예약도 ack도 없다",
+    [due.data.trace.route.tier, due.data.trace.route.reason, "scene_ack" in due.data],
+    ["critical", "promise_due", false]);
+  /* 닫는 것은 답이다 — 승인된 장면이라도 답이 그 말을 지키지도 거두지도
+     않았으면 장부가 남아 다음 턴에 다시 선다(memory_reveal의 MEMORY_TOUCH와
+     같은 계약). 처음엔 사유만 보고 닫았다 — 답이 「그냥.」이어도 닫혔다. */
+  eq("지킨 답이면 그 말이 닫힌다",
+    (due.data.effects || []).filter(e => e.type === "promise_done").map(e => e.room), ["minhyun"]);
+  const shrug = await run({}, dueBody(1));
+  eq("지키지도 거두지도 않은 답에는 안 닫힌다",
+    [shrug.data.trace.route.reason, (shrug.data.effects || []).some(e => e.type === "promise_done")],
+    ["promise_due", false]);
+  const gaveUp = await run({}, dueBody(1), [WITHDRAWN]);
+  eq("거둔 답도 닫는다", (gaveUp.data.effects || []).some(e => e.type === "promise_done"), true);
+  /* 「오늘은 못」은 미룬 것이다 — 프롬프트가 「나중에」를 금해도 답은 미룰 수
+     있고, 코드가 그걸 거둔 걸로 읽으면 지키지도 않은 말이 지워진다 */
+  const later = await run({}, dueBody(1), [DEFERRED]);
+  eq("미룬 답에는 안 닫힌다 — 장부가 남는다",
+    (later.data.effects || []).some(e => e.type === "promise_done"), false);
+  eq("그 턴의 프롬프트는 지키거나 거두거나다",
+    [/어제 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(dueVol),
+     /오늘 그 말대로 네가 먼저 움직인다/.test(dueVol),
+     /지킬 수 없게 됐으면 그 말을 네 입으로 다시 꺼내 거둔다/.test(dueVol),
+     /지금 그때가 아니면 꺼내지 않는다/.test(dueVol),
+     /## \[지금 장면\]\n며칠 전 한 말을 지키거나 거둔다/.test(dueVol)],
+    [true, true, true, false, true]);
+  const dueGreet = await run({}, dueBody(1, { greet: true }), [KEPT]);
+  eq("인물이 먼저 말하는 턴도 그때다",
+    [dueGreet.data.trace.route.reason, (dueGreet.data.effects || []).some(e => e.type === "promise_done")],
+    ["promise_due", true]);
+  const notYet = await run({}, dueBody(0));
+  eq("오늘 한 말은 아직 그때가 아니다",
+    [notYet.data.trace.route.tier, (notYet.data.effects || []).some(e => e.type === "promise_done"),
+     /지금 그때가 아니면/.test(volOf())],
+    ["normal", false, true]);
+  const noSeat = await run({}, dueBody(1, { room: "group" }));
+  eq("단톡에는 그 자리가 없다",
+    [noSeat.data.trace.route.tier, (noSeat.data.effects || []).some(e => e.type === "promise_done")],
+    ["normal", false]);
+  /* ── 유저가 방금 한 말이 장부보다 먼저다 ──
+     처음엔 promise_due를 감지 맨 앞에 뒀다. 하루 지난 약속이 있는 날엔 유저가
+     「키스해도 돼요?」를 쳐도 약속이 이겨서 키스 화면이 안 떴고, 재언 방에서
+     공부방을 캐물어도 약속이 됐다. 말에서 오는 사유가 있으면 그게 먼저고,
+     약속은 안 닫힌 채 장부에 남아 다음 턴에 선다. */
+  const kissDue = await run({}, { ...kissBody("minhyun"), partner: "minhyun",
+    promise: { text: "늦으면 데리러 갈게요", daysAgo: 1 } });
+  eq("하루 지난 약속이 있어도 키스를 청하면 키스가 먼저다",
+    [kissDue.data.trace.route.reason, !!kissDue.data.kiss,
+     (kissDue.data.effects || []).some(e => e.type === "promise_done")],
+    ["kiss", true, false]);
+  const probeDue = await run({}, { ...PROBE, promise: { text: "내일 챙겨 올게요", daysAgo: 1 } });
+  eq("기억을 캐물으면 기억 공개가 먼저다", probeDue.data.trace.route.reason, "memory_reveal");
 
   console.log("  ok   §15 이번 판들이 요청 경로에서 산다");
   pass++;
+}
+
+/* ── 15.10 도전자 자리의 손을 갈아끼운다 ──
+   같은 진영 안에서 모델만 바꾸는 문. 좌석도 배선도 안 늘린다. */
+{
+  eq("기본은 표의 snapshot 그대로다", ENG.openaiModel({}), ENG.OPENAI_MODEL);
+  eq("적었을 때만 그 이름이다",
+    ENG.openaiModel({ OPENAI_WRITER_MODEL: "다른-손" }), "다른-손");
+  eq("빈 값은 안 적은 것과 같다",
+    ENG.openaiModel({ OPENAI_WRITER_MODEL: "   " }), ENG.OPENAI_MODEL);
+
+  const SWAP = { OPENAI_API_KEY: "sk-가짜", OPENAI_WRITER_MODEL: "갈아낀-손" };
+  const r = await run(SWAP, BASE);
+  eq("요청 본문의 모델이 갈아낀 손이다", oaiReqs()[0].body.model, "갈아낀-손");
+  eq("계측에 남는 모델도 그것이다", r.data.stages[0].model, "갈아낀-손");
+  eq("주소는 그대로 그 진영이다",
+    oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
+  eq("중개를 안 끼운다",
+    sentReq.filter(x => String(x.url).includes("openrouter.ai")).length, 0);
+  /* 배선도 요청 모양도 안 움직인다 — 바뀌는 것은 이름 하나다 */
+  eq("배선은 그대로다", writersOf(r), 1);
+  eq("예산 이름도 그대로다", typeof oaiReqs()[0].body.max_tokens, "number");
+  eq("고정부는 한 장으로 잇는 그대로다",
+    typeof oaiReqs()[0].body.messages[0].content, "string");
+  eq("캐시 경계를 새로 안 만든다",
+    JSON.stringify(oaiReqs()[0].body).includes("cache_control"), false);
+
+  /* 검사는 이 문으로 안 갈린다 */
+  eq("검사는 기존 진영·기존 모델 그대로다",
+    ENG.stageModel(SWAP, "canon").id, ENG.ENGINE.canon.id);
+  /* 클라이언트 입력은 이 문도 못 연다 */
+  await run({ OPENAI_API_KEY: "sk-가짜" },
+    { ...BASE, OPENAI_WRITER_MODEL: "몰래-바꾼-손", model: "몰래-바꾼-손" });
+  eq("요청 본문으로는 이 문을 못 연다", oaiReqs()[0].body.model, ENG.OPENAI_MODEL);
+  /* ── 사고 몫 ──
+     기본은 안 싣는다. 이 손이 이 파라미터를 어떤 모양으로 받는지 확인한
+     바가 없고, 모르는 모양은 400이다 — 대사 자리에서 400은 재시도 화면이다. */
+  eq("기본은 안 싣는다", ENG.openaiReasoning({}), "");
+  eq("적었을 때만이다", ENG.openaiReasoning({ OPENAI_REASONING: "none" }), "none");
+  eq("낱말이 아니면 안 싣는다",
+    ["none; drop", "", "  ", "None", "3"].map(v => ENG.openaiReasoning({ OPENAI_REASONING: v })),
+    ["", "", "", "", ""]);
+  await run({ OPENAI_API_KEY: "sk-가짜" }, BASE);
+  eq("안 적으면 요청에 없다", "reasoning" in oaiReqs()[0].body, false);
+  await run({ OPENAI_API_KEY: "sk-가짜", OPENAI_REASONING: "none" }, BASE);
+  eq("적으면 그 값으로 실린다",
+    JSON.stringify(oaiReqs()[0].body.reasoning), '{"effort":"none"}');
+  eq("그것 말고는 안 바뀐다",
+    [oaiReqs()[0].body.model, typeof oaiReqs()[0].body.max_tokens],
+    [ENG.OPENAI_MODEL, "number"]);
+  await run({ OPENAI_API_KEY: "sk-가짜" },
+    { ...BASE, OPENAI_REASONING: "high", reasoning: { effort: "high" } });
+  eq("요청 본문으로는 못 켠다", "reasoning" in oaiReqs()[0].body, false);
+
+  /* 갈아낄 손이 단가표에 있어야 보고가 INVALID로 안 죽는다 */
+  eq("직결 이름도 단가표에 있다",
+    !!RP.PRICES[String(ENG.ROUTER_MODEL).replace(/^openai\//, "")], true);
+}
+
+/* ══════════ 16. OpenRouter 좌석 ══════════
+   후보를 바꿔 끼우며 재는 자리다. 재는 자리가 재는 값을 망가뜨리면 안 되므로
+   잰다: 기본 경로는 이 자리를 안 보고, 열쇠 없이는 안 나가고, 무엇보다
+   **블록이 안 뭉개진다**. 고정부가 프롬프트의 92%라 캐시 경계가 사라지면
+   싼 모델이 더 비싸진다 — 이 좌석이 존재하는 이유가 통째로 없어진다. */
+const OR = u => String(u).includes("openrouter.ai");
+const orReqs = () => sentReq.filter(r => OR(r.url));
+const ROUTE = { ENGINE_MODE: "openrouter", OPENROUTER_API_KEY: "sk-or-가짜" };
+
+/* ── 16.1 배선은 그대로, 손만 바뀐다 ── */
+{
+  eq("배선 판정은 도전자 그대로다", ENG.engineMode({ ENGINE_MODE: "openrouter" }), "gpt41");
+  eq("앉는 손만 갈린다", ENG.writerSeat({ ENGINE_MODE: "openrouter" }), "router");
+  eq("화면에 적히는 이름은 배선이 아니라 손이다",
+    ENG.engineLabel({ ENGINE_MODE: "openrouter" }), "openrouter");
+  const r = await run(ROUTE, BASE);
+  eq("일반 턴은 쓰기 한 번 그대로다", writersOf(r), 1);
+  eq("한 자리만 그 진영으로 나간다", orReqs().length, 1);
+  eq("주소가 그 진영의 것이다", orReqs()[0].url, ENG.OPENROUTER_URL);
+  eq("검사·나머지는 다른 진영으로 안 샌다",
+    sentReq.filter(x => OAI(x.url)).length, 0);
+}
+
+/* ── 16.2 깃발이 없으면 이 자리를 한 번도 안 본다 ── */
+{
+  await run({ OPENROUTER_API_KEY: "sk-or-가짜", OPENROUTER_MODEL: "누가/무엇" }, BASE);
+  eq("열쇠와 모델이 있어도 깃발 없이는 안 간다", orReqs().length, 0);
+  eq("기본은 도전자 진영 그대로다", oaiReqs()[0].url, "https://api.openai.com/v1/chat/completions");
+  eq("기본 모델 배치가 그대로다", ENGINE_ID("writer"), "claude-sonnet-4-5-20250929");
+  eq("좌석 표에 후보 이름을 안 박아뒀다", ENG.ENGINE.orWriter.id, "");
+}
+
+/* ── 16.3 앉히기로 한 손 ── */
+{
+  eq("고른 손이 기본이다", ENG.routerModel({}), "openai/gpt-5.6-luna");
+  eq("그 이름이 상수로 있다", ENG.ROUTER_MODEL, "openai/gpt-5.6-luna");
+  await run(ROUTE, BASE);
+  eq("이름을 안 적어도 그 손이 나간다", orReqs()[0].body.model, ENG.ROUTER_MODEL);
+  await run({ ...ROUTE, OPENROUTER_MODEL: "다른/후보" }, BASE);
+  eq("env로 다른 후보를 덮을 수 있다", orReqs()[0].body.model, "다른/후보");
+  /* 클라이언트 입력은 모델도 진영도 못 바꾼다 */
+  const spoof = await run(ROUTE, { ...BASE, model: "누가/무엇",
+    OPENROUTER_MODEL: "누가/무엇", engine: { writer: "누가/무엇" } });
+  eq("요청 본문으로는 모델을 못 바꾼다", orReqs()[0].body.model, ENG.ROUTER_MODEL);
+  eq("계측에 남는 모델도 그 손이다", spoof.data.stages[0].model, ENG.ROUTER_MODEL);
+}
+
+/* ── 16.4 블록이 안 뭉개진다 — 이 좌석의 존재 이유 ──
+   도전자 경로(joinBlocks)는 세 장을 문자열 하나로 잇는다. 그 길로 가면
+   cache_control이 사라지고 고정부를 매 턴 정가로 다시 읽는다. */
+{
+  await run(ROUTE, BASE);
+  const msgs = orReqs()[0].body.messages;
+  const sys = msgs.filter(m => m.role === "system");
+  eq("system은 한 장이다", sys.length, 1);
+  eq("그 한 장 안이 블록 배열이다", Array.isArray(sys[0].content), true);
+  eq("블록 수가 고정부 그대로다", sys[0].content.length, 3);
+  eq("세 블록 다 캐시 경계를 달고 있다",
+    sys[0].content.map(b => !!b.cache_control), [true, true, true]);
+  eq("경계 모양은 진영 기본에 맡긴다 — ttl을 안 싣는다",
+    sys[0].content.map(b => JSON.stringify(b.cache_control)),
+    ['{"type":"ephemeral"}', '{"type":"ephemeral"}', '{"type":"ephemeral"}']);
+
+  /* ── 변환은 옮기기뿐이다 — 내용이 한 글자도 안 바뀐다 ── */
+  const built = ENG.buildSystem
+    ? null : null;   // 원문은 도전자 경로와 나란히 비교한다(아래)
+  await run({ ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜" }, BASE);
+  const flat = oaiReqs()[0].body.messages.filter(m => m.role === "system")
+    .map(m => m.content).join("\n");
+  await run(ROUTE, BASE);
+  const joined = orReqs()[0].body.messages.filter(m => m.role === "system")
+    .map(m => m.content.map(b => b.text).join("\n")).join("\n");
+  eq("블록을 도로 이으면 도전자 경로의 원문과 같다", joined, flat);
+  eq("빈 블록이 끼지 않는다",
+    orReqs()[0].body.messages[0].content.every(b => b.text && b.text.length > 0), true);
+  eq("이력은 역할·순서 그대로다",
+    orReqs()[0].body.messages.slice(1).map(m => m.role), ["user", "assistant", "user"]);
+  void built;
+}
+
+/* ── 16.5 조용한 갈아타기를 막는다 ──
+   같은 이름이라도 뒤에 선 공급자가 다르면 같은 판이 아니다. 그리고 유저가
+   여기 적는 말은 보관하는 곳으로 안 보낸다. */
+{
+  await run(ROUTE, BASE);
+  const b = orReqs()[0].body;
+  eq("공급자 폴백을 끈다", b.provider.allow_fallbacks, false);
+  eq("보관하는 공급자를 거른다", b.provider.data_collection, "deny");
+  eq("도전자 경로에는 그 표가 안 붙는다 — 재던 조건을 안 건드린다", (() => {
+    return oaiReqs().length === 0;
+  })(), true);
+}
+
+/* ── 16.6 예산 이름 ── */
+{
+  await run(ROUTE, BASE);
+  eq("새 이름을 쓴다", typeof orReqs()[0].body.max_completion_tokens, "number");
+  eq("낡은 이름은 안 싣는다", orReqs()[0].body.max_tokens, undefined);
+  await run({ ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜" }, BASE);
+  eq("도전자 경로는 원래 이름 그대로다", typeof oaiReqs()[0].body.max_tokens, "number");
+}
+
+/* ── 16.7 열쇠 ── */
+{
+  let called = 0;
+  const keep = globalThis.fetch;
+  globalThis.fetch = async () => { called++; throw new Error("불렀다"); };
+  let out;
+  try {
+    out = await ENG.callOpenAI({}, "세계", [{ role: "user", content: "안녕" }], 100,
+      { openai: true, router: true });
+  } finally { globalThis.fetch = keep; }
+  eq("열쇠가 없으면 실패로 돌아온다", [out.ok, out.status], [false, 0]);
+  eq("무엇이 없는지 말한다", out.body.includes("OPENROUTER_API_KEY"), true);
+  eq("부르지 않고 멈춘다", called, 0);
+
+  await run(ROUTE, BASE);
+  const h = orReqs()[0].headers || {};
+  const flat = JSON.stringify(h);
+  eq("열쇠는 authorization 한 곳뿐이다",
+    Object.keys(h).filter(k => String(h[k]).includes("sk-or-가짜")), ["authorization"]);
+  eq("본문에는 열쇠가 없다", JSON.stringify(orReqs()[0].body).includes("sk-or-가짜"), false);
+  eq("다른 진영의 머리를 안 단다", /x-api-key|anthropic-version/.test(flat), false);
+}
+
+/* ── 16.8 가져가는 자리는 쓰는 손뿐이다 ── */
+{
+  const crit = { ...BASE, scene_reason: "memory_reveal",
+    history: [...BASE.history.slice(0, 2),
+      { role: "user", content: "선생님 혹시 옛날에 공부방 하셨어요? 저 기억 안 나세요?" }] };
+  await run(ROUTE, crit);
+  const routed = orReqs().map(r => r.body.model);
+  eq("그 진영으로는 쓰는 손만 나간다",
+    routed.every(m => m === ENG.ROUTER_MODEL), true);
+  eq("검사는 기존 진영·기존 모델 그대로다",
+    sentReq.filter(r => String(r.url).includes("api.anthropic.com"))
+      .every(r => r.body.model === ENG.ENGINE.canon.id), true);
+}
+
+/* ── 16.9 단가표를 실제로 읽는가 ──
+   cachedIn은 표에 적혀 있었는데 costOf가 안 읽었다. 적어두고 안 읽으면
+   적어둔 적 없는 것과 같고, 그 상태로 모델을 비교하면 싼 쪽을 더 싸게 본다. */
+{
+  const row = (model, over) => ({ model, input_tokens: 0, output_tokens: 0,
+    cache_read_input_tokens: 0, cache_creation_input_tokens: 0, ...over });
+  const c = (model, over) => +RP.costOf([row(model, over)]).toFixed(9);
+  /* 읽기 — gpt-4.1은 0.25배($0.50)지 기본 0.1배($0.20)가 아니다 */
+  eq("캐시 읽기에 표의 값을 쓴다",
+    c("gpt-4.1", { cache_read_input_tokens: 1e6 }), 0.5);
+  eq("표에 없으면 예전 기본(0.1배)이다",
+    c("claude-sonnet-5", { cache_read_input_tokens: 1e6 }), 0.2);
+  /* 쓰기 — 워커의 1시간 계약은 2배, 5분만 있는 진영은 1.25배 */
+  eq("캐시 쓰기도 진영마다 다르다", [
+    c("claude-sonnet-5", { cache_creation_input_tokens: 1e6 }),
+    c("openai/gpt-5.6-luna", { cache_creation_input_tokens: 1e6 })], [4, 0.25]);
+  /* 좌석의 후보가 표에 있어야 보고가 INVALID로 안 죽는다 */
+  eq("앉히기로 한 손이 표에 있다", !!RP.PRICES[ENG.ROUTER_MODEL], true);
+  eq("모르는 모델은 조용히 $0이 아니라 적힌다", (() => {
+    const before = RP.unknownModels.size;
+    RP.costOf([row("없는/모델")]);
+    return RP.unknownModels.size > before;
+  })(), true);
+  /* 이 저장소가 잰 한 턴(고정 13,000 · 가변 1,200 · 출력 100) */
+  const turn = x => +RP.costOf([{ model: x, input_tokens: 1200, output_tokens: 100,
+    cache_read_input_tokens: 13000, cache_creation_input_tokens: 0 }]).toFixed(6);
+  eq("한 턴 값이 잰 대로 나온다",
+    [turn("claude-sonnet-5"), turn(ENG.ROUTER_MODEL)], [0.006, 0.00062]);
+  /* 캐시가 도는 한 「정가가 싼 쪽」이 늘 싼 것은 아니다 — 도전자는
+     정가가 sonnet-5와 같지만($2) 읽기 할인이 얕아서 한 턴이 더 비싸다.
+     이 줄이 깨지면 「싼 모델로 갈아탔는데 더 나갔다」가 조용히 일어난다. */
+  eq("읽기 할인이 얕으면 정가가 같아도 더 비싸다",
+    turn("gpt-4.1") > turn("claude-sonnet-5"), true);
+}
+
+console.log("  ok   §16 OpenRouter 좌석");
+pass++;
+
+/* README가 이 묶음의 수도 적는다 — run.mjs의 수는 run.mjs가 재는데 이쪽은
+   아무도 안 재서 넉 개 밀린 채 있었다 */
+{
+  const want = pass + fail + 1;
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const got = (readme.match(/생성 경로 회귀 ([\d,]+)개/) || [])[1];
+  eq(`README가 생성 경로 시험 수를 맞게 적었다 (지금 ${want}개)`, Number((got || "").replace(/,/g, "")), want);
 }
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);

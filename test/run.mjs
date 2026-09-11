@@ -559,7 +559,7 @@ const flashCss = readCss();
   const D = new Function('localStorage', 'location',
     webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {saveFlash,loadFlash,FLASH_KEYS,FLASH_BOX,FLASH_MAX,FLASH_ALT,'
+    + '\nreturn {saveFlash,loadFlash,FLASH_KEYS,FLASH_LINES,FLASH_MAX,FLASH_ALT,'
     + 'FLASH_FRONT,FLASH_BACK,FLASH_RISE,FLASH_HOLD,FLASH_TURN,loadStory};')(g.localStorage, g.location);
 
   /* 셋이 다 차야 저장한다 — 하나라도 비면 이 화면이 할 일이 남아 있다 */
@@ -582,11 +582,17 @@ const flashCss = readCss();
     '내가 책임질 사이에나 그런 말을 하는 거랬더니',
     '한 대 더 꺼내길래 그만 피우라고 했다.',
     '내가 책임지겠다고.',
-    '걔는 □ 표정으로 날 보면서 □ 라고 했다.',
+    '걔는 □ 표정으로',
+    '날 보면서 □ 라고 했다.',
     '다시 만나면 □ 고 싶다.',
   ]);
   eq('빈칸은 상대의 반응과 내 소망 셋이다', D.FLASH_KEYS, ['face', 'said', 'wish']);
-  eq('빈칸 자리가 셋이고 순서가 같다', D.FLASH_BOX.map(b => b.key), D.FLASH_KEYS);
+  /* 좌표 표(FLASH_BOX)는 없앴다 — 사진에 인쇄된 네모 위로 입력칸을 맞추던
+     자리다. 지금은 빈 종이에 글을 그리므로 글줄 안의 {열쇠}가 그 순서다. */
+  eq('글줄이 열쇠를 순서대로 물고 있다',
+    D.FLASH_LINES.join('\n').match(/\{([a-z]+)\}/g).map(x => x.slice(1, -1)), D.FLASH_KEYS);
+  eq('보이는 글과 읽어주는 글이 같다',
+    D.FLASH_LINES.map(l => l.replace(/\{[a-z]+\}/g, '□')), D.FLASH_ALT);
 
   /* ── 언제 뜨나 ──
      실제로 강현을 만났고, 아직 안 채웠고, 그가 이미 말을 걸어둔 뒤다.
@@ -630,8 +636,10 @@ const flashCss = readCss();
     [D.FLASH_RISE > 0, D.FLASH_HOLD > 0, D.FLASH_TURN > 0], [true, true, true]);
   eq('넘어가는 것은 앉은 다음이다',
     /setTurn\(true\),FLASH_RISE\+FLASH_HOLD/.test(web), true);
+  /* 칸은 DiaryInk가 그리므로 ref를 칸에 직접 못 건다(함수 부품이다) —
+     종이 겹에 ref를 걸고 그 안에서 첫 칸을 찾아 세운다. */
   eq('커서는 다 넘어간 다음에 선다',
-    /if\(!turn\)return;[\s\S]{0,120}first\.current\.focus\(\)\},FLASH_TURN/.test(web), true);
+    /if\(!turn\)return;[\s\S]{0,260}first\.current\.querySelector\("\.dblank\.blank"\)[\s\S]{0,80}FLASH_TURN/.test(web), true);
   /* 앉는 것과 넘어가는 것을 두 겹으로 나눈다 — 한 겹이면 앉는 애니메이션이
      transform을 끝까지 붙들어서 넘어가는 게 화면에 안 나온다 */
   eq('앉는 겹과 넘어가는 겹이 다르다',
@@ -639,8 +647,10 @@ const flashCss = readCss();
     && !/\.fcard\{[^}]*animation:frise/.test(flashCss), true);
   /* 말풍선이 아니라 화면 전환이다 — 말풍선으로 오면 「상대가 보낸 셀카」가 된다 */
   eq('말풍선이 아니라 화면이다', /\.flash\{position:absolute;inset:0;z-index:58;/.test(flashCss), true);
-  /* 두 장을 다 쓴다 — 앞면이 그날의 옥상이고 뒷면이 일기다 */
-  eq('앞뒤 두 장을 쓴다', [D.FLASH_FRONT, D.FLASH_BACK], ['card-rooftop.webp', 'card-note.webp']);
+  /* 두 장을 다 쓴다 — 앞면이 그날의 옥상이고 뒷면이 **빈 종이**다.
+     전에는 글이 인쇄된 사진(card-note)을 쓰고 그 위 네모에 입력칸을 좌표로
+     맞췄는데, 상자 비율이 조금만 어긋나도 글자가 네모 밖으로 밀렸다. */
+  eq('앞뒤 두 장을 쓴다', [D.FLASH_FRONT, D.FLASH_BACK], ['card-rooftop.webp', 'card-paper.webp']);
 }
 
 /* ── 거리 곡선 ──
@@ -848,7 +858,7 @@ const flashCss = readCss();
   /* 빈칸이 그 겹 안에 들어 있어야 퍼센트가 사진 기준이 된다 */
   eq('빈칸이 그 겹 안에 있다', [
     /<div className="dfit dinkfit">\s*\n\s*<DiaryInk kind="child"/.test(web),
-    /<div className="dfit">\s*\n\s*\{FLASH_BOX\.map/.test(web),
+    /<div className="dfit">[\s\S]{0,400}<DiaryInk kind="flash"/.test(web),
   ], [true, true]);
   /* 종이와 단추를 auto 행으로 가르고 넘치면 이 오버레이만 스크롤한다. */
   eq('사진 칸과 단추 칸이 갈려 있다',
@@ -4528,12 +4538,19 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['293', '4bcf7e3581b0']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['299', '1d5bc41274ee']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
     eq('그림도 같은 판 번호를 쓴다',
       new RegExp('const AV="\\?v=' + v[0][1] + '";').test(web), true);
+    /* 앱 쪽 번호(AV_V)와 demo-lines도 같은 판이다 — 해시만 새로 적고 이 둘을
+       안 올리면 앱은 옛 그림을 든다(적대 검증이 짚은 빈틈) */
+    eq('앱 번호와 demo-lines도 같은 판이다', [
+      new RegExp('const AV_V = "\\?v=' + v[0][1] + '";')
+        .test(readFileSync(join(ROOT, 'scripts/data/00-runtime.js'), 'utf8')),
+      html.includes('demo-lines.js?v=' + v[0][1]),
+    ], [true, true]);
   }
   /* 자리 배경은 파일 이름이 그대로인 채 안에 든 그림만 바뀐다(사진 다시 뽑기).
      판 번호를 안 붙이면 브라우저가 옛 그림을 영영 들고 있어서, 새 사진을
@@ -6737,9 +6754,17 @@ eq('시간표 단추는 peek보다 좁다',
      /writer5:  \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-5"\)/.test(eng),
      /writer46: \{ id: \(MODELS\.find\(m => m\.id === "claude-sonnet-4-6"\)/.test(eng)],
     [true, true, true]);
-  /* 쓰는 손은 셋인데 배선은 하나다 — 셋 다 engineMode에서 gpt41을 돌려받는다 */
+  /* 쓰는 손은 넷인데 배선은 하나다 — 넷 다 engineMode에서 gpt41을 돌려받는다.
+     문자열 모양이 아니라 **함수를 실제로 불러서** 잰다. 줄바꿈 한 번에
+     깨지는 시험은 계약이 아니라 서식을 지키는 시험이다. */
   eq('쓰는 손 깃발이 배선을 안 건드린다',
-    /: v === "sonnet45" \|\| v === "sonnet5" \|\| v === "sonnet46" \? "gpt41" : "gpt41";/.test(wk), true);
+    ["sonnet45", "sonnet5", "sonnet46", "openrouter"]
+      .map(v => ENG.engineMode({ ENGINE_MODE: v })),
+    ["gpt41", "gpt41", "gpt41", "gpt41"]);
+  eq('쓰는 손 깃발마다 앉는 손이 다르다',
+    ["sonnet45", "sonnet5", "sonnet46", "openrouter", ""]
+      .map(v => ENG.writerSeat({ ENGINE_MODE: v })),
+    ["sonnet", "sonnet5", "sonnet46", "router", "gpt"]);
 
   /* ── 폴백 금지 ──
      실패하면 다른 모델로 넘어가지 않는다. 진짜 오류를 그대로 올린다. */
@@ -9752,6 +9777,13 @@ eq('시간표 단추는 peek보다 좁다',
     /* 지킬 마음을 매번 확인받게 하면 그게 곧 되풀이다 */
     eq('그때가 아니면 안 꺼낸다',
       /지금 그때가 아니면 꺼내지 않는다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 })), true);
+    /* 그때가 왔다 — 예약된 장면으로 오면 「기다려라」가 아니라 「지키거나 거두거나」다 */
+    eq('그때가 오면 지키거나 거둔다',
+      [/오늘 그 말대로 네가 먼저 움직인다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'promise_due')),
+       /지킬 수 없게 됐으면 그 말을 네 입으로 다시 꺼내 거둔다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'promise_due')),
+       /지금 그때가 아니면 꺼내지 않는다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'promise_due')),
+       /지금 그때가 아니면 꺼내지 않는다/.test(buildPromise({ text: 'ㄱ', daysAgo: 1 }, 'confession'))],
+      [true, true, false, true]);
     eq('약속이 없으면 한 줄도 없다',
       [buildPromise(null), buildPromise({}), buildPromise({ text: '  ' })], ['', '', '']);
 
@@ -9762,7 +9794,7 @@ eq('시간표 단추는 peek보다 좁다',
         setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
       const P = new Function('localStorage', 'location',
         webData.replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-        + '\nreturn {markPromise,promiseFor,loadPromise,PROMISE_DAYS};')(ls, { search: '' });
+        + '\nreturn {markPromise,promiseFor,loadPromise,clearPromise,PROMISE_DAYS};')(ls, { search: '' });
       eq('찍으면 오늘 한 말이 된다',
         [P.markPromise('minhyun', '늦으면 데리러 갈게요'), P.promiseFor('minhyun')],
         [true, { text: '늦으면 데리러 갈게요', daysAgo: 0 }]);
@@ -9781,7 +9813,20 @@ eq('시간표 단추는 peek보다 좁다',
       })(), ['내일 챙겨 올게요', 1]);
       eq('방마다 따로 든다', P.promiseFor('jaeeon'), null);
       eq('빈 말은 안 찍는다', P.markPromise('jaeeon', '   '), false);
+      /* 지켰다 — 닫힌다. 되풀이해도 같고, 남의 방은 안 건드린다 */
+      eq('지킨 말은 지워진다', (() => {
+        P.markPromise('jaeeon', '내일 갈게요');
+        return [P.clearPromise('minhyun'), P.promiseFor('minhyun'), P.promiseFor('jaeeon').text,
+                P.clearPromise('minhyun')];
+      })(), [true, null, '내일 갈게요', true]);
     }
+    /* ── 그때인지는 워커가 정한다 ── 클라이언트는 며칠 전 말인지만 싣고 예약하지
+       않는다(E4). 닫는 것은 promise_done Effect고, 장부를 거쳐 적용된다 */
+    eq('지킨 말은 장부를 거쳐 닫힌다',
+      /e\.type==="promise_done"[\s\S]{0,300}clearPromise\(e\.room\)/
+        .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
+    eq('클라이언트는 약속을 예약하지 않는다',
+      /markScene\([^)]*"promise_due"\)/.test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), false);
     eq('약속도 장부를 거쳐 적용된다',
       /e\.type==="promise"[\s\S]{0,260}markPromise\(e\.room,e\.text\)/
         .test(readFileSync(join(ROOT, 'scripts/game.js'), 'utf8')), true);
@@ -10624,6 +10669,18 @@ eq('시간표 단추는 peek보다 좁다',
       lastUser: '점심 뭐 먹지' })).tier, 'critical');
   eq('선톡 턴에는 감지가 없다',
     detectScene(CTX({ greet: true, lastUser: '공부방 기억나요?' })), '');
+  /* 선톡에는 유저 말이 없다 — 그래서 약속은 여기서 선다. 그 사람이 먼저 입을
+     여는 자리가 「데리러 갈게요」를 지키는 모양이다 */
+  eq('선톡 턴에도 약속은 선다',
+    detectScene(CTX({ room: 'minhyun', greet: true, promise: { text: 'ㄱ', daysAgo: 1 } })), 'promise_due');
+  /* 처음엔 약속을 감지 맨 앞에 뒀다 — 하루 지난 약속이 있는 날엔 「키스해도
+     돼요?」까지 약속에 먹혔다. 말에서 오는 사유가 있으면 그게 먼저다 */
+  eq('유저가 방금 한 말이 장부보다 먼저다', [
+    detectScene(CTX({ room: 'minhyun', place: '보건실', lastUser: '키스해도 돼요?',
+      promise: { text: 'ㄱ', daysAgo: 1 } })),
+    detectScene(CTX({ lastUser: '공부방 기억나요?', promise: { text: 'ㄱ', daysAgo: 1 } })),
+    detectScene(CTX({ room: 'minhyun', lastUser: '점심 뭐 먹지', promise: { text: 'ㄱ', daysAgo: 1 } })),
+  ], ['kiss', 'memory_reveal', 'promise_due']);
   eq('관전 경로에는 감지가 없다',
     detectScene(CTX({ mode: 'auto', lastUser: '공부방 기억나요?' })), '');
   /* 감지의 재료는 이력 **맨 끝**의 유저 발화다. 끝이 지문이면 이번 턴에
@@ -10738,6 +10795,171 @@ eq('시간표 단추는 peek보다 좁다',
      장면은 다시 오면 되지만 전진은 되돌릴 수 없다 */
   eq('도망간 답에는 기억이 안 움직인다',
     materializeEffects('r1', CAND(['…아뇨. 밥은 먹었어요?']), JC({})), []);
+  /* 약속도 같은 계약이다 — 승인된 promise_due 장면이라도 답이 그 말을
+     지키거나 거두지 않았으면 안 닫힌다. 처음엔 사유만 보고 닫았다 */
+  const PC = o => ({ room: 'minhyun', story: makeStoryState({}), sceneReason: 'promise_due',
+    promise: { text: '늦으면 데리러 갈게요', daysAgo: 1 }, ...o });
+  const DONE = { id: mintEffectId('r1', 'promise_done', 'minhyun', 'due'), type: 'promise_done', room: 'minhyun' };
+  eq('지킨 답이면 약속이 닫힌다', materializeEffects('r1', CAND(['데리러 왔어요.']), PC({})), [DONE]);
+  eq('거둔 답이면 약속이 닫힌다',
+    materializeEffects('r1', CAND(['못 가겠어요. 그 말은 없던 걸로 해요.']), PC({})), [DONE]);
+  eq('지키지도 거두지도 않은 답에는 약속이 안 닫힌다',
+    materializeEffects('r1', CAND(['그냥.']), PC({})), []);
+  /* 적대 검증이 재현한 오탐 셋 — 미룬 것·꺼낸 것·딴 약속을 안 하겠다는 것은
+     지킴도 거둠도 아니다. 앞 판은 답의 모양만 봐서 셋 다 닫았다 */
+  eq('「오늘은 못」은 미룬 것이지 거둔 게 아니다',
+    materializeEffects('r1', CAND(['못 가겠어요, 오늘은.']), PC({})), []);
+  eq('꺼내기만 한 답에는 안 닫힌다',
+    materializeEffects('r1', CAND(['약속한 거 알아요. 근데 오늘은 좀 늦을 것 같고.']), PC({})), []);
+  eq('새 약속을 안 하겠다는 말은 옛 약속을 거둔 게 아니다',
+    materializeEffects('r1', CAND(['매일은 약속은 못 하겠어요.']), PC({})), []);
+  eq('선톡의 답도 지켰으면 닫힌다 — 그게 먼저 움직인 것이다',
+    materializeEffects('r1', CAND(['데리러 왔어요.']), PC({ greet: true })), [DONE]);
+  eq('승인 없는 턴에는 약속이 안 닫힌다',
+    materializeEffects('r1', CAND(['데리러 왔어요.']), PC({ sceneReason: '' })), []);
+  /* ── 지킴은 「약속 자체의 낱말이 앞에 붙은 완료형」, 거둠은 그 말을 접는 말 ──
+     세 판이 적대 검증에 깨졌다. 답의 모양만 보던 판은 「까먹었어요」를 아무 약속에나
+     거둠으로 읽었고, 낱말 겹침 + 아무 완료형을 보던 판은 「들어볼게요」 뒤의 인사
+     「잘 들어갔어요?」를 지킴으로 읽었고, 동사의 완료형을 맨 꼴로 받던 판은
+     「있을게요」→「일이 좀 있었어」, 「알아볼게요」→「알았어요」를 지킴으로 읽었다
+     (실제 기록 약속 15개 × 인물 대사 2,873줄에서 52쌍, 지킴 0). 지금은 약속의
+     앞말이 붙은 꼴(데리러 왔·챙겨 왔·탕수 먹었)과 세 음절 어간의 맨 꼴(기다렸·
+     데려다줬·전화했)만 받는다. 실제 기록 전수에서 닫히는 쌍은 0이어야 한다 */
+  const GO = '늦으면 데리러 갈게요';
+  const F = p => ENG.promiseKeptForms(p);
+  eq('약속의 동사가 앞말 붙은 완료형이 된다', [
+    F(GO).some(f => /^데리러.*왔$/.test(f)), F(GO).includes('갔'),
+    F('내일 전화할게요').includes('전화했'), F('정문에서 기다릴게요').includes('기다렸'),
+    /* 두 글자 이하 어간의 맨 꼴은 없다 — 있었·먹었·씹었·알았은 아무 답에나 있다 */
+    F('내일 씹을게요'), F('이따 먹을게요'), F('다시 올게요'),
+    F('싫으면 관둬요, 나 여기서 그냥 있을게요').includes('있었'),
+    F('다음에 알아볼게요').includes('알았'), F('내일 말할게요').includes('말했'),
+    /* 부정 약속·앞말에 기호 — 지킴을 안 본다 */
+    F('그러면 저도 신경 안 쓸게요'), F('내일 *진짜* 줄게요').some(f => f.includes('*')),
+  ], [true, false, true, true, [], [], [], false, false, false, [], false]);
+  eq('실제 기록의 지킴·거둠은 그 약속에 걸린다', [
+    ['CD 한번 들어볼게요', 'CD 들었어요, 아까.'],
+    ['야자 끝나면 한 번 들어볼게요', '들어 봤는데요.'],
+    ['보리차 끓여 놓을게요', '보리차 끓여놓은 거 있어요.'],
+    ['보리차 더 끓여둘게요', '보리차 끓여놓은 거 있어요.'],
+    ['보리차 끓여 놓을게요', '보리차 끓여 둔 거 있어요.'],
+    [GO, '데리러 왔어요.'], [GO, '데리러 왔어요. 아직 안 나왔어요?'],
+    [GO, '데리러 왔으니까 나와요.'], [GO, '데리러 지금 왔어요.'],
+    [GO + ', 걱정 마요', '데리러 왔어요.'], [GO, '약속 깼어요. 미안해요.'],
+    ['내일 챙겨 올게요', '챙겨 왔어요, 어제 말한 거.'],
+    ['정문에서 기다릴게요', '정문에서 기다렸어요.'],
+    ['정문에서 기다릴게요', '기다렸어요. 늦었네요.'],
+    ['다음에 데려다줄게요', '데려다줬잖아요, 어제.'],
+    ['내일 전화할게요', '전화했어요, 아침에.'],
+    ['내일 구워 줄게요', '구워 줬어요.'], ['내일 챙겨줄게요', '챙겨줬어요.'],
+    ['내일 LP 들려줄게요', '들려줬어요.'], ['내일 LP 들려줄게요', '들려드렸잖아요.'],
+    ['그러면 탕수는 한번 먹어볼게요', '탕수 먹었어요.'],
+    ['그러면 탕수는 한번 먹어볼게요', '먹어봤어요, 탕수.'],
+    ['가능하면 얇은 걸로 추천드릴게요', '추천드렸잖아요.'],
+    ['내일 사진 보내줄게요', '사진 보냈어요.'], ['내일 만들어 줄게요', '만들었어요.'],
+    ['그럼 다음에 덜 받게 해드릴게요', '덜 받게 해 드렸어요.'],
+    [GO, '그 말은 없던 걸로 해요.'], [GO, '약속 못 지키겠어요.'],
+    [GO, '못 가겠어요, 미안해요.'], ['다시 올게요', '그 말은 없던 걸로 해요.'],
+    [GO, '못 갈 거 같아요.'], [GO, '저는 못 가겠어요.'], [GO, '약속 못 지켰어요, 미안해요.'],
+    ['내일 학교 갈게요', '학교 갔어요.'], ['내일 우산 챙겨줄게요', '우산 챙겼어요.'],
+    [GO, '데리러 왔다니까요.'], ['그러면 탕수는 한번 먹어볼게요', '탕수 먹었잖아요.'],
+  ].filter(([p, t]) => !ENG.promiseTouched(p, t)), []);
+  /* 적대 검증이 실제 기록과 합성으로 꺼낸 오탐들 — 앞 판들에서 닫혔다 */
+  eq('딴 동사·맨 꼴·물음·전문·꺼내기만 한 말·미룬 말·일반 답은 안 걸린다', [
+    ['야자 끝나면 한 번 들어볼게요', '잘 들어갔어요?'],
+    ['야자 끝나면 한 번 들어볼게요', '새벽 두세 시쯤 들어왔어요, 그때는.'],
+    ['야자 끝나면 한 번 들어볼게요', '그럼 말해봐요, 왜 그런 생각이 들었는지.'],
+    ['야자 끝나면 한 번 들어볼게요', '삼촌이 들었다길래요.'],
+    ['싫으면 관둬요, 나 여기서 그냥 있을게요', '일이 좀 있었어.'],
+    ['싫으면 관둬요, 나 여기서 그냥 있을게요', '피할 수 있었어요.'],
+    ['싫으면 관둬요, 나 여기서 그냥 있을게요', '아까까지도 잊고 있었잖아요.'],
+    ['그러면 탕수는 한번 먹어볼게요', '아침 먹었어요, 오늘은.'],
+    ['그러면 탕수는 한번 먹어볼게요', '저녁 다 됐는데 밥은 먹었어요, 리리.'],
+    ['그러면 탕수는 한번 먹어볼게요', '탕수 먹었어요?!'],
+    ['그러면 탕수는 한번 먹어볼게요', '탕수 먹었다니 다행이네요.'],
+    ['이따 먹을게요', '저녁 먹었어요.'], ['이따 먹을게요', '삼촌은 먹었대요.'],
+    ['다음에 알아볼게요', '알았어요.'], ['이따 생각해 볼게요', '저도 그렇게 생각했어요.'],
+    ['내일 말할게요', '상견례는 선생님이 먼저 말했잖아요.'],
+    ['다음에 사진 보여줄게요', '어제 좀 피곤해 보였어요.'],
+    ['내일 LP 들려줄게요', '밖에서 무슨 소리가 들렸는데.'],
+    ['내일 연락할게요', '연락했대요.'], ['내일 연락할게요', '연락했나 봐요, 삼촌이.'],
+    ['내일 연락할게요', '연락했겠죠.'], ['이따 집에 갈게요', '집에 갔길래 저도 갔어요.'],
+    ['비 오면 더 챙겨줄게요, 그냥', '아침 챙겨 먹었어요.'],
+    ['비 오면 더 챙겨줄게요, 그냥', '우산 챙겼어요.'],
+    ['오늘 오면 줄게요', '일이 줄었어요.'], [GO, '어항 물 갈았어요.'],
+    ['끓여 놓을게요, 이따', '끓여 놓은 거 없어요.'], ['보리차 끓여 놓을게요', '마음 놓았어요.'],
+    ['그럼 야식 안 먹을게요', '저녁 먹었어요.'],
+    ['내일 *진짜* 줄게요', '아무 말이나.'], ['내일 ㅋ| 줄게요', '네 줬어요.'],
+    [GO, '아직 못 데리러 갔어요.'], [GO, '학교는 못 가겠어요, 감기 때문에.'],
+    [GO, '그때는 도저히 못 가겠다 싶었어요.'], [GO, '약속 취소예요? 왜요?'],
+    [GO, '없던 걸로 하자고요?'], [GO, '이번 주는 못 갈 것 같아요.'],
+    [GO, '데리러 간다고 했었죠. 근데 오늘은 좀'], [GO, '늦으면 데리러 간다고 했잖아요'],
+    [GO, '데리러 가려고 했는데 차가 막혔어요.'], [GO, '데리러 갈 뻔했어요.'],
+    [GO, '데리러 가고 싶었어요.'], [GO, '데리러 갔으면 됐잖아요.'], [GO, '늦으면 큰일났어요.'],
+    [GO, '데리러 갔던 날 있잖아요.'], [GO, '데리러 왔어요？'],
+    ['내일 챙겨 올게요', '챙겨 오려고 했는데 집에 두고 왔어요.'],
+    ['내일 챙겨 올게요', '챙겨 올 걸 그랬어요.'], ['내일 챙겨 올게요', '챙겨 왔어야 했는데.'],
+    ['내일 챙겨 올게요', '챙겨 왔어요? 우산.'], ['내일 가져올게요', '두 개 가져왔어요?'],
+    ['CD 한번 들어볼게요', 'CD 케이스가 깨졌어요.'], ['CD 한번 들어볼게요', 'CD 들으려다 잠들었어요.'],
+    ['보리차 끓여 놓을게요', '보리차 다 떨어졌어요.'], ['보리차 끓여 놓을게요', '보리차 끓여 놓을 걸 그랬어요.'],
+    ['정문에서 기다릴게요', '기다리다 갔어요.'], ['내일 LP 들려줄게요', 'LP 뜯었어요, 저.'],
+    ['그러면 저도 신경 안 쓸게요', '그냥 신경 쓰였어요.'],
+    ['그럼 여기 두고 가면 내가 씻을게요', '두고 갔어요? 컵.'],
+    ['뭐 먹고 싶어요, 말해보면 알려줄게요', '그럼 말해봐요, 왜 그런 생각이 들었는지.'],
+    [GO, '까먹었어요.'], [GO, '매일은 약속은 못 하겠어요.'], [GO, '방금 봤어요, 메시지.'],
+    [GO, '약속한 거 알아요. 근데 오늘은 좀 늦을 것 같고.'],
+    [GO, '오늘은 못 하겠어요. 삼촌 가게 봐야 해서.'], [GO, '기다렸어요. 늦었네요.'],
+    [GO, '못 가겠어요, 오늘은.'], ['CD 한번 들어볼게요', '못 가겠어요.'],
+    [GO, '데리러 갔다 올게요.'], [GO, '데리러 가지 않았어요.'],
+    [GO + ', 걱정 마요', '걱정했어요, 많이.'], [GO, '약속 깨면 안 되죠.'],
+    ['내일 챙겨 올게요', '안 챙겨 왔어요.'], ['내일 챙겨 올게요', '챙겨 온다는 게 깜빡했어요.'],
+    ['보리차 끓여 놓을게요', '보리차는 아직이에요.'],
+    ['CD 한번 들어볼게요', 'CD는 아직 못 들어봤어요, 선생님.'],
+    ['CD 한번 들어볼게요', 'CD는 계속 주머니에 있어요.'],
+    /* 넷째 판이 적대 검증에 내준 것들 — 받침 앞말의 가짜 완료형(「사탕 … 사」),
+       조건절의 낱말이 앞말이 되는 것, 남이 한 일, 전문·회상 어미, 거둠의 부정문 */
+    ['내일 사탕 줄게요', '사탕 사 올게요.'], ['내일 선물 줄게요', '선물 선생님이 골라요.'],
+    ['내일 가게 볼게요', '가게 가겠어요.'], ['삼촌 오면 갈게요', '삼촌 왔어요.'],
+    ['학교 끝나면 데리러 갈게요', '학교 갔어요.'], ['내일 병원 갈게요', '병원에서 전화 왔어요.'],
+    [GO, '삼촌이 데리러 왔어요.'], ['내일 전화할게요', '삼촌이 전화했어요.'],
+    ['내일 삼촌 가게 갈게요', '삼촌이 왔어요.'], [GO, '데리러 삼촌이 왔어요.'],
+    ['내일 전화할게요', '전화했대'], ['내일 전화할게요', '전화했다더라고요.'],
+    ['내일 전화할게요', '전화했단 소리예요.'], ['내일 연락할게요', '연락했대요.'],
+    [GO, '데리러 왔더라고요, 삼촌이.'], [GO, '데리러 왔나 보네요.'], [GO, '데리러 왔지 싶어요.'],
+    [GO, '데리러 왔다 해도 늦었을 거예요.'], ['그러면 탕수는 한번 먹어볼게요', '탕수 먹었어도 배고팠을 거예요.'],
+    [GO, '약속 취소는 아니에요.'], [GO, '지킬 수 없는 약속은 안 해요.'], [GO, '없던 걸로 할 순 없죠.'],
+    [GO, '삼촌이 약속 깼어요.'], [GO, '못 가겠으면 미리 말해요.'], [GO, '삼촌이 못 가겠대요.'],
+    [GO, '학교에 못 가겠어요.'], [GO, '지금 못 가겠어요, 삼촌 가게 봐야 해서.'],
+    [GO, '못 데리러 갈 뻔했어요.'], [GO, '못 가겠어요. 오늘은 좀.'],
+    ['그러면 탕수는 한번 먹어볼게요', '혹시 탕수 먹었어요'], [GO, '누가 데리러 왔어요'],
+    ['내일 사진 보내줄게요', '사진 잘못 보냈어요.'], ['내일 진|짜 줄게요', '진짜요.'],
+    ['사무실에 있을게요', '사무실 가고 있었어요.'], ['그럼 다음에 덜 받게 해드릴게요', '제가 다 해줬어요.'],
+    /* 허용 미탐 — 두 글자 이하 어간의 맨 꼴은 안 받는다(문서에 적힌 것) */
+    ['다시 올게요', '왔어요.'], ['이따 먹을게요', '먹었어요.'], ['내일 씹을게요', '껌 씹었어요, 아까.'],
+    ['CD 한번 들어볼게요', 'CD, 방금 겨우 한 번 들었어요.'], ['내일 구워 줄게요', '구웠어요.'],
+    ...['그냥.', '네.', '왜요.', '알았어요.', '오늘이네요.', '퇴근했어요.', '밥은 먹었어요.',
+      '듣고 있어요.', '받았어요.', '잘 자요.', '삼촌, 저 왔어요. 좀 늦었죠.', '왔어요.',
+      '두 개 가져왔어요?', '밥은 먹고 왔어요?', '내일 봐요.', '내일 씹을게요.',
+      '오늘 비 안 오네요.', '커피 내렸어요.', '다음엔 진짜로 데려다줄게요.',
+      '오늘은 좀 늦을 것 같고.', '아까까지도 잊고 있었잖아요.'].map(t => [GO, t]),
+  ].filter(([p, t]) => ENG.promiseTouched(p, t)), []);
+  /* ── 실제 기록 전수 — 이 판이 닫는 쌍이 늘면 오탐이다 ──
+     두 기록의 인물 대사 전부에서 pickPromise가 잡는 약속 15개를 뽑아, 그 약속을
+     인물 대사 전부에 댄다. 지킴·거둠으로 읽히는 쌍은 기록에 하나도 없으므로
+     닫히는 쌍도 0이어야 한다. 앞 판들은 여기서 47·52쌍이 닫혔다 */
+  {
+    const said = [];
+    for (const f of ['2026-08-19', '2026-10-16'])
+      for (const l of readFileSync(join(ROOT, `docs/playlog/${f}.txt`), 'utf8').split('\n')) {
+        const m = l.match(/^\[[^\]]*\]\s*(?:이재언|이민현|이강현):\s*(.*)$/);
+        if (m) said.push(m[1]);
+      }
+    const promises = [...new Set(said.map(ENG.pickPromise).filter(Boolean))];
+    eq('기록에서 잡히는 인물 약속은 열다섯이다', [said.length, promises.length], [2873, 15]);
+    const closed = [];
+    for (const p of promises) for (const t of said) if (ENG.promiseTouched(p, t)) closed.push([p, t]);
+    eq('실제 기록 전수에서 닫히는 쌍이 없다', closed, []);
+  }
   /* 선톡 턴에는 상태가 안 움직인다 — 유저의 턴이 아니다 */
   eq('선톡 턴에는 전환이 없다', [
     materializeEffects('r1', CAND(['…그때 그 공부방.']), JC({ greet: true })),
@@ -11288,7 +11510,7 @@ eq('시간표 단추는 peek보다 좁다',
   const D = new Function('localStorage', 'location',
     webData
       .replace(/^const \{useState,useEffect,useRef\} = React;$/m, '')
-    + '\nreturn {userPics,saveDiary,saveFlash,DIARY_PAPER_IMG,FLASH_FRONT,FLASH_BACK,FLASH_BOX,FLASH_KEYS};')(ls, { search: '' });
+    + '\nreturn {userPics,saveDiary,saveFlash,DIARY_PAPER_IMG,FLASH_FRONT,FLASH_BACK,FLASH_LINES,FLASH_KEYS};')(ls, { search: '' });
   const dlg2 = readFileSync(join(ROOT, 'app/screens/Dialogs.tsx'), 'utf8');
   const appSrc3 = readFileSync(join(ROOT, 'app/App.tsx'), 'utf8');
   const css2 = readCss();
@@ -11310,8 +11532,10 @@ eq('시간표 단추는 peek보다 좁다',
   eq('엽서까지 채우면 두 장', mine.length, 2);
   /* 앞면은 옥상 사진 한 장이다 — 채운 칸은 뒷면에 있다 */
   eq('엽서 앞면에는 채운 칸이 없다', [(mine[1].fill || []).length, mine[1].src], [0, D.FLASH_FRONT]);
-  eq('뒷면에 셋이 제자리로 간다',
-    [mine[1].back, mine[1].backFill.map(f => [f.key, f.text])],
+  /* 좌표로 앉히던 자리다(backFill). 지금은 빈 종이에 글을 그리므로 값만
+     넘기고 쓰는 화면과 같은 렌더러가 그린다 — 쓸 때와 볼 때가 갈리면 안 된다. */
+  eq('뒷면에 셋이 값 그대로 간다',
+    [mine[1].back, D.FLASH_KEYS.map(k => [k, mine[1].backInk[k]])],
     [D.FLASH_BACK, [['face', '이상한'], ['said', '진짜요'], ['wish', '또 보고']]]);
   /* 빈칸 값은 여전히 기기 밖으로 안 나간다 — 여기서 하는 일은 보여주기뿐 */
   eq('보여줘도 서버로는 안 간다',

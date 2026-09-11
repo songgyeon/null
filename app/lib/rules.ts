@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=293";
+const AV_V = "?v=299";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -256,7 +256,12 @@ const saveDiary=v=>{try{
    빈칸 자리는 사진에 그려진 네모를 실제로 재서 넣었다(1024×1536 기준).
    눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다. */
 const FLASH_FRONT="card-rooftop.webp";
-const FLASH_BACK="card-note.webp";
+/* 뒷면은 **빈 종이**다. 전에는 글이 인쇄된 사진을 쓰고 그 위 네모에 입력칸을
+   좌표로 맞췄는데, 그러면 상자 비율이 조금만 어긋나도 글자가 네모 밖으로
+   밀리고(실제로 났다), 본문은 사진이라 크기가 고정인데 빈칸만 CSS라 글씨
+   크기도 따로 놀았다. 옛 일기와 지금 일기가 이미 쓰는 방식으로 맞춘다 —
+   빈 종이 위에 글을 그리고, 네모는 **쓰는 동안에만** 뜬다. */
+const FLASH_BACK="card-paper.webp";
 const FLASH_ALT=[
   "병원 옥상에서 흡연 중인 고등학생을 만났다.",
   "나는 아무 말도 하지 않았다.",
@@ -264,17 +269,21 @@ const FLASH_ALT=[
   "내가 책임질 사이에나 그런 말을 하는 거랬더니",
   "한 대 더 꺼내길래 그만 피우라고 했다.",
   "내가 책임지겠다고.",
-  "걔는 □ 표정으로 날 보면서 □ 라고 했다.",
+  /* 원본 종이에서 이 문장은 두 줄이다 — 재서 맞췄다(글줄이 28%~77%에 여덟 줄).
+     한 줄로 두면 화면 폭에 따라 접히는 자리가 매번 달라진다. */
+  "걔는 □ 표정으로",
+  "날 보면서 □ 라고 했다.",
   "다시 만나면 □ 고 싶다.",
 ];
 /* 셋의 뜻. 저장도 이 열쇠로 하고, 나중에 가변부로 나갈 때도 이 이름이다 */
 const FLASH_KEYS=["face","said","wish"];
-const FLASH_BOX=[
-  {key:"face", left:24.71, top:59.90, w:33.01, h:4.04},
-  {key:"said", left:32.13, top:66.47, w:37.01, h:4.17},
-  {key:"wish", left:36.04, top:73.50, w:30.08, h:4.10},
-];
 const FLASH_MAX=10;
+/* 화면에 그리는 본문. FLASH_ALT의 □를 일기와 같은 {열쇠} 문법으로 바꾼
+   것뿐이라 문장은 한 글자도 안 다르다 — 읽어주는 글(alt)과 보이는 글이
+   갈리면 안 된다. 줄은 그대로 여덟 줄이고, 화면에서도 줄마다 한 문단이다. */
+const FLASH_LINES=(()=>{ let i=0;
+  return FLASH_ALT.map(l=>l.replace(/□/g,()=>`{${FLASH_KEYS[i++]}}`)); })();
+const FLASH_BLANKS=Object.fromEntries(FLASH_KEYS.map(k=>[k,FLASH_MAX]));
 /* ── 얼마나 천천히 ──
    숫자를 화면과 시험이 같이 본다. 한쪽에만 적으면 「천천히」가 두 뜻이 된다.
    앞면이 앉고(1.4초) 잠깐 그대로 있다가(1.6초) 넘어간다(1.2초). */
@@ -582,7 +591,7 @@ const userPics=(name,giftsOverride)=>{
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
     /* 채운 칸은 뒷면에 있다 — 앞면은 옥상 사진 한 장이다 */
-    backFill:FLASH_BOX.map(b=>({...b,text:f[b.key]||""}))});
+    backInk:f});
   return out;
 };
 
@@ -690,7 +699,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=293";
+const AV="?v=299";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1401,8 +1410,9 @@ const stampRefuse=(char,now)=>refusedToday(char,now)||saveRefuseDay({...loadRefu
    쌓으면 인물이 지킬 것 목록을 읽는 사람이 되고, 그건 사람이 아니라 일정표다.
 
    며칠이 지났는지는 여기서 잰다(하루의 경계가 여기 있다). PROMISE_DAYS가
-   지나면 아예 안 실어 보낸다 — 지켰는지를 잴 방법이 없으니, 대신 오래된
-   말은 스스로 물러나게 한다. 안 그러면 「아직 안 지켰다」가 영영 따라다닌다.
+   지나면 아예 안 실어 보낸다 — 지킨 답은 워커가 promise_done으로 닫지만,
+   지키지도 거두지도 않은 채 닷새가 가면 여기서 물러나게 한다. 안 그러면
+   「아직 안 지켰다」가 영영 따라다닌다.
    닷새로 둔 것은 로그에서 콜백이 돌아오는 데 걸린 날이 닷새였기 때문이다. */
 const PROMISE_DAYS=5;
 const loadPromise=()=>{try{return JSON.parse(localStorage.getItem("null_promise"))||{}}catch(e){return{}}};
@@ -1422,6 +1432,13 @@ const promiseFor=(char,now)=>{
   for(let d=0;d<=PROMISE_DAYS;d++)
     if(dayKey(base-d*864e5)===p.day)return {text:p.text,daysAgo:d};
   return null;                                  // 닷새보다 오래된 말은 물러난다
+};
+/* 지켰다 — 또는 거뒀다. 그 방의 말만 지운다. 되풀이해도 같다.
+   장부의 규칙대로 쓰고 나서 다시 읽어 확인한다. */
+const clearPromise=char=>{
+  const p=loadPromise(); if(!p[char])return true;
+  const next={...p}; delete next[char];
+  return !!savePromise(next)&&!loadPromise()[char];
 };
 /* 주말은 학교가 정해주는 하루가 아니다. 날짜별로 유저가 적은 넷을 들고 있는다 */
 const loadWend=()=>{try{return JSON.parse(localStorage.getItem("null_wend"))||{}}catch(e){return{}}};
@@ -2317,8 +2334,9 @@ return {
   FLASH_BACK,
   FLASH_ALT,
   FLASH_KEYS,
-  FLASH_BOX,
   FLASH_MAX,
+  FLASH_LINES,
+  FLASH_BLANKS,
   FLASH_RISE,
   FLASH_HOLD,
   FLASH_TURN,
@@ -2473,6 +2491,7 @@ return {
   savePromise,
   markPromise,
   promiseFor,
+  clearPromise,
   loadWend,
   saveWend,
   jos,
@@ -2654,8 +2673,9 @@ export const {
   FLASH_BACK,
   FLASH_ALT,
   FLASH_KEYS,
-  FLASH_BOX,
   FLASH_MAX,
+  FLASH_LINES,
+  FLASH_BLANKS,
   FLASH_RISE,
   FLASH_HOLD,
   FLASH_TURN,
@@ -2810,6 +2830,7 @@ export const {
   savePromise,
   markPromise,
   promiseFor,
+  clearPromise,
   loadWend,
   saveWend,
   jos,
