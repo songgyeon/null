@@ -2294,13 +2294,14 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
      재료는 말이 아니라 장부다 — 브라우저는 며칠 전 말인지만 싣고, 「그때」인지는
      워커가 정한다(클라이언트가 예약하는 것은 화면의 선택뿐이다, E4). 하루 지난
      말이 실려 오면 **감지**로 critical에 오르고, 프롬프트는 「지키거나
-     거두거나」로 바뀌고, 답이 나오면 promise_done Effect가 그 말을 닫는다 —
-     감지 장면이라 scene_ack는 없다. 오늘 한 말은 아직 그때가 아니다. 인물이
+     거두거나」로 바뀌고, 답이 그 말을 실제로 지키거나 거뒀을 때만 promise_done
+     Effect가 닫는다 — 감지 장면이라 scene_ack는 없다. 오늘 한 말은 아직 그때가 아니다. 인물이
      먼저 말하는 턴(greet)도 그때다. 단톡에는 그 자리가 없다. */
   const dueBody = (daysAgo, extra) => ({ ...BASE, room: "minhyun",
     promise: { text: "늦으면 데리러 갈게요", daysAgo }, ...(extra || {}) });
   const KEPT = JSON.stringify({ messages: [{ text: "데리러 왔어요. 지금 나와요." }] });
-  const WITHDRAWN = JSON.stringify({ messages: [{ text: "못 가겠어요, 오늘은." }] });
+  const WITHDRAWN = JSON.stringify({ messages: [{ text: "못 가겠어요. 그 말은 없던 걸로 해요." }] });
+  const DEFERRED = JSON.stringify({ messages: [{ text: "못 가겠어요, 오늘은." }] });
   const due = await run({}, dueBody(1), [KEPT]);
   const dueVol = volOf();
   eq("하루 지난 약속이 감지로 올라간다 — 예약도 ack도 없다",
@@ -2317,6 +2318,11 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     ["promise_due", false]);
   const gaveUp = await run({}, dueBody(1), [WITHDRAWN]);
   eq("거둔 답도 닫는다", (gaveUp.data.effects || []).some(e => e.type === "promise_done"), true);
+  /* 「오늘은 못」은 미룬 것이다 — 프롬프트가 「나중에」를 금해도 답은 미룰 수
+     있고, 코드가 그걸 거둔 걸로 읽으면 지키지도 않은 말이 지워진다 */
+  const later = await run({}, dueBody(1), [DEFERRED]);
+  eq("미룬 답에는 안 닫힌다 — 장부가 남는다",
+    (later.data.effects || []).some(e => e.type === "promise_done"), false);
   eq("그 턴의 프롬프트는 지키거나 거두거나다",
     [/어제 네가 이렇게 말했다 — 「늦으면 데리러 갈게요」/.test(dueVol),
      /오늘 그 말대로 네가 먼저 움직인다/.test(dueVol),
@@ -2588,6 +2594,15 @@ const ROUTE = { ENGINE_MODE: "openrouter", OPENROUTER_API_KEY: "sk-or-가짜" };
 
 console.log("  ok   §16 OpenRouter 좌석");
 pass++;
+
+/* README가 이 묶음의 수도 적는다 — run.mjs의 수는 run.mjs가 재는데 이쪽은
+   아무도 안 재서 넉 개 밀린 채 있었다 */
+{
+  const want = pass + fail + 1;
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const got = (readme.match(/생성 경로 회귀 ([\d,]+)개/) || [])[1];
+  eq(`README가 생성 경로 시험 수를 맞게 적었다 (지금 ${want}개)`, Number((got || "").replace(/,/g, "")), want);
+}
 
 console.log(fail ? `\n실패 — ${pass}개 통과, ${fail}개 실패` : `\n통과 — ${pass}개 통과, 0개 실패`);
 process.exit(fail ? 1 : 0);

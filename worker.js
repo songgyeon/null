@@ -678,7 +678,7 @@ function makeEffect(requestId, e) {
   }
   /* ── 그 말을 지켰다 — 또는 거뒀다 ──
      승인된 promise_due 장면에서 답이 그 말을 실제로 지키거나 거뒀다
-     (PROMISE_TOUCH). 감지로 오른 장면이라 scene_ack가 없다(예약이 아니므로) —
+     (promiseTouched). 감지로 오른 장면이라 scene_ack가 없다(예약이 아니므로) —
      닫는 것은 이 Effect다. 장부의 말이 무엇이었든 그 방의 것을 닫는다. */
   if (type === "promise_done") {
     const room = String(o.room || "");
@@ -770,11 +770,14 @@ function materializeEffects(requestId, picked, ctx) {
      지킨 것이 구별이 안 됐다. memory_reveal이 MEMORY_TOUCH로 답을 보는 것과
      같은 계약이다: 장면은 다시 오면 되지만 장부를 지우는 것은 되돌릴 수 없다.
      지키지도 거두지도 않은 답이면 장부가 남아 다음 턴에 다시 선다.
-     선톡(greet)도 본다 — 「데리러 왔어요」로 먼저 입을 열었으면 그게 지킨 것이다.
+     답의 모양이 아니라 **그 약속에 대한 말인지**를 본다(promiseTouched) —
+     「까먹었어요」는 무엇을 까먹었는지 모른다.
+     MEMORY_TOUCH와 다른 점 하나 — 선톡(greet)도 본다. 기억은 유저의 턴에만
+     움직이지만, 「데리러 왔어요」로 먼저 입을 열었으면 그게 지킨 것이다.
      **닫는 것이 새 약속보다 먼저다** — 같은 턴에 새 말이 잡히면 옛 말을 닫은
      뒤 새 말이 적혀야 한다. 적용은 배열 순서라 여기가 앞이어야 한다. */
   if ((g.room === "jaeeon" || g.room === "minhyun") && g.sceneReason === "promise_due"
-      && g.promise && g.promise.text && PROMISE_TOUCH.test(saidByChar))
+      && g.promise && g.promise.text && promiseTouched(g.promise.text, saidByChar))
     out.push(makeEffect(requestId, { type: "promise_done", room: g.room }));
   /* ── 인물이 한 약속 ──
      유저의 말이 아니라 **인물이 방금 한 말**에서 온다. 그래서 이 턴의 응답이
@@ -2810,7 +2813,7 @@ function buildRefusal(ctx) {
    며칠 전인지만 같이 준다. 어제 한 말과 사흘 전에 한 말은 무게가 다르고,
    그 무게를 정하는 것은 인물이지 코드가 아니다.
    여기서는 지켰는지 안 잰다 — 그건 답이 나온 뒤 materializeEffects가
-   PROMISE_TOUCH로 본다. 프롬프트가 미리 「안 지켰다」로 몰면 지킨 것을 또
+   promiseTouched로 본다. 프롬프트가 미리 「안 지켰다」로 몰면 지킨 것을 또
    지키게 만든다 — 인물이 제 말을 읽고 알아서 한다. */
 function buildPromise(promise, sceneReason) {
   const p = promise || {};
@@ -5624,19 +5627,133 @@ const YES_SAY = /^\s*(?:네+|넹|녜|응+|어+|그래|그럼요?|좋아요?|좋�
    한 마디도 안 건드리면 상태를 전진시키지 않는다. 장면은 다시 올 수 있지만
    전진은 되돌릴 수 없다. */
 const MEMORY_TOUCH = /기억|공부방|사탕|목걸이|20년|그때|그\s*아이/;
-/* ── 약속을 지켰거나 거둔 말 ──
-   promise_due 장면의 답이 이걸 지나야 promise_done이 나간다. 낱말은 실제
-   기록 두 판(2,873줄)에서 왔다 — 「보리차 끓여놓은 거 있어요」「CD, 방금 겨우
-   한 번 들었어요」「약속은 못 하겠어요」「까먹었어요」. 일반 답 쉰 개(「그냥」
-   「네」「받았어요」「퇴근했어요」)는 하나도 안 걸린다.
+/* ── 그 말을 지켰거나 거뒀는가 ──
+   promise_due 장면의 답이 이걸 지나야 promise_done이 나간다.
+   두 판을 적대 검증이 깼다. 첫 판은 답의 **모양**만 봤다(「까먹었어요」「방금
+   봤어요」) — 무엇을 까먹었는지 안 봤다. 둘째 판은 약속의 낱말이 답에 다시
+   나오고 절 어딘가에 완료형(받침 ㅆ)이 있으면 지킨 걸로 봤다 — 「들어볼게요」
+   뒤의 인사 「잘 들어갔어요?」가 닫혔고(들어≈들어갔, 갔의 ㅆ), 「챙겨줄게요」
+   뒤의 「아침 챙겨 먹었어요」가 닫혔다. 실제 기록의 약속 15개 × 인물 대사
+   2,910줄 = 43,650쌍에서 true 47쌍, 그중 지킴은 0이었다.
+   셋째 판은 **약속의 동사 그 자체를 완료형으로 바꿔** 답에서 찾는다.
+     「데리러 갈게요」→ 데리러 갔·왔    「들어볼게요」→ 들어봤·들었
+     「챙겨 올게요」→ 챙겨 왔         「끓여 놓을게요」→ 끓여 놓았·놨·놓은
+     「씹을게요」→ 씹었               「전화할게요」→ 전화했
+   받침은 정규식이 아니라 자모 산수로 푼다(가+았→갔, 주+었→줬, 리+었→렸).
+   한 글자 완료형(갔·왔·줬·봤·했)은 약속의 앞말이 붙어야 한다 — 「왔어요」
+   한 마디는 「저 왔어요」일 수 있다. 「-어 보다/주다」류는 본동사의 완료형도
+   받는다(들어봤↔들었, 구워 줬↔구웠). 그래서 지킴을 못 알아보는 약속이 있다 —
+   「다시 올게요」(한 글자 동사에 앞말이 「다시」) — 거둠은 그래도 보고,
+   장부는 닷새면 물러난다.
+   지킴이 아닌 것: 물음 절(「챙겨 왔어요?」), 「아직·못·안·않·깜빡」이 있는 절,
+   완료형 뒤에 「으면·을·다 올·다고·어야·던」이 붙은 것(갔으면·갔을·갔다 올게요·
+   왔어야), 「-고 있었」의 있었. 완료형은 어절 머리에서만 찾는다(잠들었≠들었).
+   거둠 = 그 말을 접는 말 — 「못 지키겠」「없던 걸로」「거둘게」. 좁고 뚜렷하다.
+     「못 가겠」「못 갈 것 같」은 가는 약속(데리러·데려다·갈게·올게)에만 거둠이다.
+     「오늘은·지금은·다음에」가 같은 절에 있으면 미룬 것이지 거둔 게 아니다.
+     「안 되겠어요」「못 하겠어요」「약속은 못」은 아무 데서나 나오는 말이라 안 넣는다.
    좁게 잡는다 — 오탐이 미탐보다 비싸다. 미탐은 장부가 하루 더 남을 뿐이고
    닷새면 물러나지만, 오탐은 지키지도 않은 말을 지운다.
-   「아직 못 들었어요」「다음엔 진짜로」「오늘은 좀 늦을 것 같고」는 지킴도
-   거둠도 아니라 일부러 안 넣었다 — CD는 지키기 전 일주일간 「아직」이 열 번이었다.
-   「미안」도 뺐다 — 기록의 미안 넷은 전부 약속과 무관했다.
-   반말 「들고 왔어.」는 안 잡는다(어미를 어요·습니다·는데로 좁혔다) —
-   그건 관전방 말투고 이 검사는 1:1 방에서만 돈다. */
-const PROMISE_TOUCH = /(?:데리러\s*(?:왔|가요|갈\s*테니|나와요)|데려다\s*(?:주러|줄\s*테니)|(?:가져|가지고|들고|챙겨)\s*왔(?:어요|습니다|는데)(?!\s*\?)|챙겨\s*(?:뒀|놨|드렸|줬)(?:어요|습니다|는데)|끓여\s*(?:놓|뒀|놨|둔)|기다리고\s*있었|기다렸(?:어요|습니다|는데)|(?:방금|겨우|드디어)[^.!?]{0,10}(?:들었|봤|읽었|씹었|샀|달았|해봤|먹어봤)|약속(?:한|했던)\s*(?:거|대로)|약속은\s*못|말한\s*대로|그때\s*말한|못\s*(?:가겠|갈\s*것\s*같|지키겠|하겠|데리러)|안\s*되겠(?:어요|습니다)|깜빡했|까먹었|거둘게|거둬야|없던\s*걸로)/;
+   「미안」도 뺐다 — 기록의 미안 넷은 전부 약속과 무관했다. */
+const isSyl = ch => { const c = ch.charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3; };
+const jamo = ch => { const s = ch.charCodeAt(0) - 0xAC00; return [Math.floor(s / 588), Math.floor((s % 588) / 28), s % 28]; };
+const syl = (i, m, f) => String.fromCharCode(0xAC00 + i * 588 + m * 28 + f);
+const wantsA = m => m === 0 || m === 2 || m === 8 || m === 12;   // ㅏ·ㅑ·ㅗ·ㅛ → 았
+/* 받침 없는 음절 + 았/었 — 축약형(갔·줬·렸·했)과 풀어 쓴 꼴(보았·주었) 둘 다 */
+function pastOfOpen(ch) {
+  const [i, m] = jamo(ch);
+  if (i === 18 && m === 0) return ["했"];
+  const out = [];
+  const squeeze = { 0: 0, 1: 1, 2: 2, 4: 4, 5: 5, 6: 6, 7: 7, 8: 9, 11: 10, 13: 14, 16: 15, 20: 6 }[m];
+  if (squeeze !== undefined) out.push(syl(i, squeeze, 20));
+  if (m === 18) out.push(syl(i, 4, 20), syl(i, 0, 20));           // 쓰→썼 · 따르→따랐
+  out.push(ch + (wantsA(m) ? "았" : "었"));
+  return out;
+}
+/* 어간 → 완료형 후보 */
+function pastOfStem(stem) {
+  if (!stem || !isSyl(stem[stem.length - 1])) return [];
+  const last = stem[stem.length - 1], head = stem.slice(0, -1);
+  const [i, m, f] = jamo(last);
+  const out = [];
+  if (f === 0) out.push(...pastOfOpen(last).map(p => head + p));
+  else {
+    out.push(stem + (wantsA(m) ? "았" : "었"));
+    if (f === 27) { out.push(stem + "은"); if (m === 8) out.push(head + syl(i, 9, 20)); }   // 놓은 · 놨
+  }
+  if (last === "두") out.push(head + "둔");
+  if (last === "가") out.push(head + "왔");                          // 갈게요 → 「왔어요」가 지킨 것
+  return out;
+}
+/* 놓·두는 서로의 말이기도 하다 — 「끓여 놓을게요」를 「끓여 둔 거 있어요」가 지킨다 */
+const stemKin = st => /두$/.test(st) ? [st, st.slice(0, -1) + "놓"] : /놓$/.test(st) ? [st, st.slice(0, -1) + "두"] : [st];
+/* 약속의 어미까지만 본다 — 장부의 말은 절 하나(60자)라 뒤에 딴말이 붙는다
+   (「늦으면 데리러 갈게요, 걱정 마요」). 「걱정」은 약속이 아니다 */
+const PROMISE_CORE = /[^]*?(?:게요|께요|드릴|줄게|볼게)/;
+/* 동사 앞말로 못 쓰는 것 — 「다시 올게요」의 다시는 「다시 왔어요」를 못 만든다 */
+const PROMISE_PREV_STOP = new Set(["그냥", "진짜", "정말", "그럼", "그러면", "저도", "나도", "한번",
+  "한", "번", "오늘", "내일", "이따", "나중에", "다음에", "다음엔", "그때", "제가", "내가", "근데",
+  "조금", "많이", "다시", "먼저", "같이", "혹시", "아마", "일단", "이제", "지금", "여기", "거기",
+  "어제", "방금", "꼭", "좀", "더", "덜", "안", "못", "다", "잘", "또", "빨리", "금방", "이번엔",
+  "이번에", "따로", "직접", "제대로", "진짜로", "정말로", "살짝", "그때는", "언젠가", "담에", "저는", "나는"]);
+/* 「-어 보다/주다/놓다/두다/드리다」 — 앞의 -어 꼴에 받침 ㅆ만 얹으면 본동사의 완료형이다
+   (들어→들었, 챙겨→챙겼, 구워→구웠). 가·오는 안 넣는다 — 「들어갈게요」는 듣는 게 아니다 */
+const AUX_STEM = /^(.+)(보|주|놓|두|드리)$/;
+const pastOfConn = ch => { const [i, m, f] = jamo(ch); return f === 0 ? syl(i, m, 20) : ""; };
+/* 약속 → 답에서 찾을 완료형 정규식. 없으면 null(지킴을 못 알아보는 약속) */
+function promiseKeptForms(promiseText) {
+  const core = (String(promiseText || "").match(PROMISE_CORE) || [""])[0];
+  const toks = core.split(/[\s,.!?…~「」'"()\[\]]+/).filter(Boolean);
+  if (!toks.length) return [];
+  const verb = toks[toks.length - 1].replace(/요$/, "").replace(/[게께]$/, "");
+  const prev = toks.length > 1 && !PROMISE_PREV_STOP.has(toks[toks.length - 2]) ? toks[toks.length - 2] : "";
+  if (!verb || !isSyl(verb[verb.length - 1])) return [];
+  const last = verb[verb.length - 1], [i, m, f] = jamo(last);
+  const stems = [];
+  if (verb.length >= 2 && last === "을" && isSyl(verb[verb.length - 2]) && jamo(verb[verb.length - 2])[2] !== 0)
+    stems.push(verb.slice(0, -1));                                   // 씹을·먹을·들을·놓을
+  else if (f === 8) stems.push(verb.slice(0, -1) + syl(i, m, 0), verb); // 갈→가 · 만들
+  else stems.push(verb);
+  const forms = new Set();
+  const add = p => { if (p.length >= 2) forms.add(p); if (prev) forms.add(prev + "\\s*" + p); };
+  for (const st of stems.flatMap(stemKin)) {
+    for (const p of pastOfStem(st)) add(p);
+    /* 「-어 보다/주다」: 본동사의 완료형도 지킨 것이다 — 들어봤↔들었, 챙겨줬↔챙겼 */
+    const aux = st.match(AUX_STEM);
+    const base = aux ? aux[1] : (prev && /^(?:보|주|놓|두|드리)$/.test(st)) ? prev : "";
+    if (base.length >= 2 && isSyl(base[base.length - 1])) {
+      const p = pastOfConn(base[base.length - 1]);
+      if (p) forms.add(base.slice(0, -1) + p);
+    }
+  }
+  return [...forms];
+}
+const KEPT_NOT_AFTER = /^(?:으면|을|다\s*(?:올|가|와|오|주|줄)|다고|다는|다면|다던|던|어야|아야|었으면|았으면|었을|았을|나요|냐|을까|을지)/;
+const NOT_YET = /아직|깜빡|까먹|잊었|잊고|잊어|않|(?:^|\s)못(?=[\s가-힣])|(?:^|\s)안(?:\s|했|됐|되|돼|갔|왔|봤|들었|먹|읽|샀|해|챙|끓)/;
+const DEFER = /오늘은|오늘만|지금은|지금만|이번엔|이번은|당장은|다음에|나중에|내일/;
+const WITHDRAW = /못\s*지키겠|지킬\s*수(?:가)?\s*없|없던\s*걸로|거둘게|거둬야|거둘\s*수밖에|약속\s*(?:은|을)?\s*(?:취소|깼|깨야|깨게|물러|접(?:을|어|었|게))/;
+const WITHDRAW_GO = /못\s*(?:가겠|갈\s*것\s*같|데리러|데려다)/;
+const PROMISE_GO = /데리러|데려다|갈게|갈\s*테니|올게|갈\s*거|가\s*볼게/;
+function promiseTouched(promiseText, said) {
+  const forms = promiseKeptForms(promiseText);
+  const kept = forms.length ? new RegExp("(^|[\\s,「\"'(])(" + forms.join("|") + ")", "g") : null;
+  const goPromise = PROMISE_GO.test(String(promiseText || ""));
+  for (const raw of String(said || "").match(/[^.!?…\n]+[.!?…]*/g) || []) {
+    const clause = raw.trim();
+    if (!clause) continue;
+    if ((WITHDRAW.test(clause) || (goPromise && WITHDRAW_GO.test(clause))) && !DEFER.test(clause))
+      return true;
+    if (!kept || /\?$/.test(clause) || NOT_YET.test(clause)) continue;
+    kept.lastIndex = 0;
+    let m;
+    while ((m = kept.exec(clause))) {
+      const before = clause.slice(0, m.index) + m[1];
+      if (m[2].startsWith("있") && /고\s*$/.test(before)) continue;       // 「-고 있었」
+      if (!KEPT_NOT_AFTER.test(clause.slice(m.index + m[0].length))) return true;
+    }
+  }
+  return false;
+}
 /* NULL 출처를 파고드는 말. 「무슨 말이에요」는 어디서나 나오는 말이라
    이것 하나로는 못 쓴다 — 직전 문답 조건(마지막 인물 발화가 「처음부터」)이
    같이 맞아야 한다. approveReason이 그 둘을 본다. */
@@ -5736,7 +5853,7 @@ function approveReason(r, ctx) {
 /* 예약이 없어도 말이 그 장면이면 올린다 — 기억·고백·정체는 화면 단추가
    아니라 말에서 온다. 예약 사유(D-0·WHO)는 여기 안 넣는다.
 
-   ── 감지의 근거는 말뿐이다 ──
+   ── 감지의 근거는 말뿐이다 — 예외는 장부 하나(promise_due, 아래) ──
    memory_reveal의 히든 키 근거는 **예약 승인**에서만 쓴다. 감지에도 쓰면
    일기가 열린 날부터 「점심 뭐 먹지」까지 전부 중요 장면이 된다 — 매 턴
    값이 두 배가 되고 어조까지 무거워진다. 상태는 문을 열어두는 것이고,
@@ -8007,7 +8124,7 @@ export { parseMessages, splitLines, trimTics, dropEcho, lastSaid, sanitizePhotos
          renderFortuneKeyword, fortuneSelectionLine,
          makeEffect, mintEffectId, EFFECT_TYPES,
          PLACE_ITEMS, placeOf, pickGive, placeGiver, pickBoundary, pickRefusal, buildRefusal,
-         buildReturned, buildPromise, pickPromise, PROMISE_TOUCH, buildPlace,
+         buildReturned, buildPromise, pickPromise, promiseTouched, promiseKeptForms, buildPlace,
          ENGINE, CANDIDATE_MODE, CANDIDATE_N, RETRY_MAX, engineMode, writerSeat, engineLabel, candidateMode, writerAsk, splitCandidates, hardFilter, softSignals,
          /* G 비교 — replay 하네스가 anchor 판정과 관계 단계 계산에 쓴다 */
          STAGE_ENGINE, WRITER_STAGES, ANCHOR_REASONS, anchorReason, stageOf, STAGES,
