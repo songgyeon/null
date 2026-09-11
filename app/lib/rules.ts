@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=297";
+const AV_V = "?v=298";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -70,11 +70,12 @@ const CHARS = {
       "jaeeon-laundry-seat.webp","jaeeon-laundry-mid.webp","jaeeon-laundry-near.webp",
       "jaeeon-home-mid.webp","jaeeon-home-near.webp",
       "jaeeon-night.webp","jaeeon-book.webp"]},
-  minhyun:{name:"이강현",rom:"kanghyun",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"150%",pos:"50% 22%",
+  minhyun:{name:"이강현",rom:"kanghyun",color:"#FF9E80",dk:"#f0764a",pale:"#ffe0d2",img:"minhyun-profile.webp",zoom:"100%",pos:"50% 40%",
     gallery:["minhyun-candy.webp","minhyun-corridor.webp","minhyun-rain.webp","minhyun-gate.webp","minhyun-morning.webp","minhyun-elevator.webp","minhyun-alley.webp","minhyun-gym.webp","minhyun-busstop.webp","minhyun-busride.webp","minhyun-winter.webp","minhyun-snow.webp","minhyun-bench.webp","minhyun-desk.webp","minhyun-stair.webp","minhyun-vending.webp","minhyun-laundry.webp","minhyun-nap.webp","minhyun-neon.webp","minhyun-ramen.webp","minhyun-window.webp","minhyun-mirror.webp","minhyun-crate.webp","minhyun-record.webp","minhyun-shelf.webp",
       "minhyun-laundry-mid.webp","minhyun-laundry-near.webp",
-      "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp",
+      "minhyun-rooftop-mid.webp","minhyun-rooftop-near.webp","minhyun-rooftop-dusk.webp",
       "minhyun-home-mid.webp","minhyun-home-near.webp",
+      "minhyun-home-sofa.webp","minhyun-home-window.webp",
       "minhyun-fridge.webp"]},
 };
 /* 교생 실습 기간. etc.의 D-카운트가 여기서 나온다 */
@@ -699,7 +700,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=297";
+const AV="?v=298";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -1589,8 +1590,12 @@ const SCENE_SHOT={
   "교실":     {minhyun:{day:["minhyun-window","minhyun-desk"], eve:["minhyun-nap"]}},
   "보건실":   {jaeeon:["jaeeon-work","jaeeon-chart","jaeeon-nurse-mid","jaeeon-nurse-near"],
                minhyun:["minhyun-candy"]},
+  /* 자리 하나에 사진이 여럿인 것은 제약이 아니라 설계다 — sceneShot이 그 자리의
+     배열에서 하나를 뽑는다. 그림이 늘면 자리를 새로 만들 게 아니라 배열을 늘린다.
+     같은 자리에 다시 앉았을 때 같은 그림만 나오면 그 자리는 사진 한 장이 된다. */
   "옥상":     {jaeeon:["jaeeon-rooftop"],
-               minhyun:["minhyun-vending","minhyun-rooftop-mid","minhyun-rooftop-near"]},
+               minhyun:["minhyun-vending","minhyun-rooftop-mid","minhyun-rooftop-near",
+                        "minhyun-rooftop-dusk"]},
   "편의점":   {jaeeon:["jaeeon-conv"], minhyun:["minhyun-fridge","minhyun-ramen"]},
   "도서관":   {jaeeon:["jaeeon-shelf","jaeeon-book"], minhyun:["minhyun-shelf"]},
   "레코드샵": {jaeeon:["jaeeon-record"], minhyun:["minhyun-crate","minhyun-record","minhyun-mirror"]},
@@ -1606,7 +1611,8 @@ const SCENE_SHOT={
   /* 재언 집이지만 강현도 산다. 재언은 부엌에 서 있고, 강현은 막 일어난
      참이거나 엘리베이터에서 올라오는 길이다 */
   "집":       {jaeeon:["jaeeon-cook","jaeeon-night","jaeeon-home-mid","jaeeon-home-near"],
-               minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near"]},
+               minhyun:["minhyun-morning","minhyun-elevator","minhyun-home-mid","minhyun-home-near",
+                        "minhyun-home-sofa","minhyun-home-window"]},
   /* 귀갓길은 지도에 없는 자리라 PLACES에 안 들어간다. 그래도 규칙은 같다 —
      빈 자리로 시작해서 그 사람이 입을 열면 그 사람이 화면이 된다. */
   /* 귀갓길은 같이 버스를 탄 자리다. 정류장 사진은 기다리는 그림이라
