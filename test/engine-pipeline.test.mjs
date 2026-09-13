@@ -9,7 +9,7 @@
      staged         anchor 턴만 single, 중요 장면과 겹치면 기존 경로가 이긴다
 
    따로 돈다: node test/engine-pipeline.test.mjs
-   (test/run.mjs의 1858개와 별개다 — G 계약이 명시한 새 하네스의 자리) */
+   (test/run.mjs와 별개다 — G 계약이 명시한 새 하네스의 자리) */
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -112,8 +112,8 @@ async function run(envExtra, body, replies, hooks) {
 /* 쓰는 쪽 요청(첫 호출)의 전체 프롬프트 — 고정부+이력+가변부 */
 const writerReq = () => sent[0];
 const stagesOf = d => (d.data.stages || []).map(s => s.stage);
-/* 검사 둘이 모든 턴에 붙는 배선이라, 「발견 갈래인가 일반인가」는 단계 목록이
-   아니라 **쓰는 호출이 몇 번인가**로 갈린다. 재는 것은 그거다. */
+/* 「발견 갈래인가 일반인가」는 단계 목록이 아니라 **쓰는 호출이 몇 번인가**로
+   갈린다. 재는 것은 그거다. */
 const writersOf = d => stagesOf(d).filter(x => x === "writer").length;
 
 /* ── 옛 경로를 재는 시험은 그 깃발을 명시한다 ──
@@ -341,9 +341,9 @@ const PROBE = { ...BASE,
 
 /* ══════════ 7. 운영 기본은 그대로다 ══════════ */
 {
-  const prod = await run({}, BASE);           // ENGINE_MODE도 TRACE도 없는 운영 모양
-  /* ── 기본 경로는 solo다 ──
-     쓰기 한 번, 고르는 단계 없음. 일반 턴에서 저비용 Writer도 Director도
+  const prod = await run({}, BASE);           // ENGINE_MODE 없는 운영 모양(run()이 TRACE는 늘 켠다)
+  /* ── 기본 경로는 쓰기 한 번이다 ──
+     고르는 단계 없음. 일반 턴에서 저비용 Writer도 Director도
      안 부른다 — 그게 이 배선의 요점이다. */
   eq("기본 경로는 쓰기 한 번이다", writersOf(prod), 1);
   eq("일반 턴에는 검사가 안 붙는다",
@@ -1746,7 +1746,7 @@ const PROBE = { ...BASE,
     [typeof r.data.trace.selected.intent, r.data.trace.selected.material.kind],
     ["string", "user_ask"]);
 
-  /* 앞서 지시한 네 가지만 적혀 있다 — 새 말투 규칙을 더 만들지 않는다 */
+  /* 앞서 지시한 것만 적혀 있다 — 새 말투 규칙을 더 만들지 않는다 */
   const C = ENG.SELECTED_COMMON;
   eq("직접 답변", C.includes("**먼저** 반응한다"), true);
   eq("질문 제한", C.includes("질문만 던지고 끝내지 않는다"), true);
@@ -1940,16 +1940,16 @@ const PROBE = { ...BASE,
   })(), 1);
 }
 
-/* ══════════ 15. 도전자 경로 — replay 전용 GPT-4.1 ══════════
-   운영 기본(Sonnet 4.5 solo)은 한 글자도 안 움직인다. 도전자는 명시한
-   깃발에서만 살고, 가져가는 자리는 「쓰는 손」 둘뿐이며, 열쇠는 머리
-   한 곳에만 실린다. 아래는 그 넷을 실행으로 잰다. */
+/* ══════════ 15. 도전자 경로 — ENGINE_MODE=gpt41(OpenAI 직결) ══════════
+   지금은 깃발 없는 기본이 이 진영이고(15.1·15.2), 옛 상급 배선은
+   ENGINE_MODE=solo 뒤에 남아 있다. 가져가는 자리는 「쓰는 손」 둘뿐이며,
+   열쇠는 머리 한 곳에만 실린다. 아래는 그것을 실행으로 잰다. */
 const ENGINE_ID = k => ENG.ENGINE[k].id;
 const OAI = u => String(u).includes("api.openai.com");
 const oaiReqs = () => sentReq.filter(r => OAI(r.url));
 const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠" };
 
-/* ── 15.1 기본 경로는 그대로 Sonnet 4.5 solo다 ── */
+/* ── 15.1 기본은 도전자 진영이고, solo는 명시해야 나온다 ── */
 {
   eq("기본 엔진 모드가 도전자 진영이다", ENG.engineMode({}), "gpt41");
   eq("solo는 명시해야 나온다", ENG.engineMode({ ENGINE_MODE: "solo" }), "solo");
@@ -1964,7 +1964,7 @@ const GPT = { ENGINE_MODE: "gpt41", OPENAI_API_KEY: "sk-가짜-도전자-열쇠"
     ["claude-sonnet-4-5-20250929", "claude-haiku-4-5", "claude-haiku-4-5", "claude-haiku-4-5"]);
 }
 
-/* ── 15.2 깃발을 명시했을 때만 도전자가 뜬다 ── */
+/* ── 15.2 깃발 없이도 기본이 도전자다 ── */
 {
   const r = await run({}, BASE);
   eq("기본이 도전자 진영이다 — 쓰기 한 번", writersOf(r), 1);

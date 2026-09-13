@@ -121,8 +121,9 @@ const ITEMS={
   lp:      {name:"중고 LP",     cat:"기록", say:"surface : scratched / playable"},
   coin:    {name:"동전 한 줌",  cat:"소품", say:"credit : 500 × 5 / keep the rest"},
   key:     {name:"여벌 열쇠",   cat:"소품", say:"HOME access : granted ♡"},
-  /* 자리에서 받는 게 아니라 야자 감독인 주에 시스템이 쥐여주는 것.
-     그래서 where가 없다 — 어디서 받았는지가 없는 유일한 물건이다. */
+  /* wrist는 체육관에서 받는다(PLACES·worker.js PLACE_ITEMS). ebar만 자리에서
+     받는 게 아니라 야자 감독인 주에 시스템이 쥐여주는 것이다(scripts/game.js).
+     그래서 ebar에는 where가 없다 — 어디서 받았는지가 없는 유일한 물건이다. */
   wrist:   {name:"손목 보호대", cat:"소품", say:"support : still on"},
   ebar:    {name:"에너지바",    cat:"간식", say:"energy level : restored +20 ♡"},
 };
@@ -326,7 +327,7 @@ const placeHours=(p,now)=>{
 
    ⚠️ 이 표는 **사진첩에도 자리 사진에도 안 들어간다.** 0단계에서 이 사진이
    나가면 관계 단계 급발진의 이미지판이다. 여는 것은 관계 단계와 장면 조건
-   이중 게이트뿐이고, 그 배선이 서기 전까지 어느 화면도 이 표를 안 본다.
+   이중 게이트뿐이고(워커의 kissMoment), 이 표를 보는 데는 kissNext 하나다.
    시험이 그 사실을 잰다. */
 const KISS_SHOT={
   "보건실": {jaeeon:"jaeeon-nurse-kiss"},
@@ -362,9 +363,8 @@ const kissNext=k=>{
   return {shot,shots:kissCuts(shot),char:String(k.char),place:String(k.place)};
 };
 /* ── 세 컷 ── 멀리 → 가까이 → 눈 감음.
-   표에 적힌 것은 짝마다 한 장뿐이라, -2·-3이 아직 없는 짝은 같은 장을 그대로
-   이어 쓴다. 컷이 안 갈릴 뿐 다가감·초점·어둠은 그대로 간다. 그림이 들어오는
-   날 이 표만 채우면 화면은 안 고쳐도 된다. */
+   짝마다 mid·near·kiss 세 장이다. 표에 없는 짝이나 빈 칸은 같은 장을 그대로
+   이어 쓴다 — 컷이 안 갈릴 뿐 다가감·초점·어둠은 그대로 간다. */
 const KISS_CUTS={
   "jaeeon-nurse-kiss":    ["jaeeon-nurse-mid",   "jaeeon-nurse-near",   "jaeeon-nurse-kiss"],
   "jaeeon-laundry-kiss":  ["jaeeon-laundry-mid", "jaeeon-laundry-near", "jaeeon-laundry-kiss"],
@@ -646,7 +646,7 @@ const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):l
    고친 것은 원문과 짝으로 따로 쌓아둔다. 배포 전에 프롬프트를 손볼 때
    그대로 견본이 된다 — 「이렇게 말해야지」라는 설명이 아니라 실제 대사라서
    대화 예시에 바로 옮길 수 있다. 이 프로덕트에서 안 지켜지는 규칙을 만나면
-   먼저 고칠 곳이 견본이라는 것을 두 번 겪었다(docs/playlog-review.md ②·⑦).
+   먼저 고칠 곳이 견본이라는 것을 두 번 겪었다(플레이 기록 검수).
 
    모델에게 시켜서 알아서 모으게 하는 길도 있는데 안 골랐다. ① 그 말이
    인물에게도 보이므로 인물이 거기 답한다. ② 알아채는 게 확률이라 놓치는

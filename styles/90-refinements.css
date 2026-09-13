@@ -1,5 +1,5 @@
 /* NULL CSS · 공용 유리 프레임과 최신 화면 보정
-   파일 순서는 null.css에서 관리한다. */
+   파일 순서는 index.html에서 관리한다. */
 
 /* ══ 183 · 내부 UI도 오프닝과 같은 유리 창 부품을 쓴다 ══ */
 .glasswindow{position:relative;container-type:inline-size}

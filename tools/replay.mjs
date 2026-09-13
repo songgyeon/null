@@ -60,12 +60,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const worker = workerDefault;
 
 /* ── 클라이언트와 같은 창 ──
-   app.js의 값 그대로다. 값이 갈리면 재생이 실사용과 딴 창을 보게 된다 —
-   test/engine-pipeline.test.mjs가 app.js 소스와 맞대 검사한다. */
+   scripts/game.js의 값 그대로다. 값이 갈리면 재생이 실사용과 딴 창을 보게 된다 —
+   test/engine-pipeline.test.mjs가 scripts/game.js 소스와 맞대 검사한다. */
 export const HISTORY_CHARS = 12000;
 export const SUM_AT = 12000, TAIL_KEEP = 4000;
 
-/* app.js buildHistory의 재생용 사본 — 클라이언트를 흉내 내는 것이 하네스의
+/* scripts/game.js buildHistory의 재생용 사본 — 클라이언트를 흉내 내는 것이 하네스의
    일이라 복제가 본질이다. 모양이 갈리면 위의 소스 검사가 잡는다. */
 export const buildHistory = ms => {
   const all = ms.map(m => ({ role: m.sender === "user" ? "user" : "assistant", sender: m.sender,
@@ -82,7 +82,7 @@ export const buildHistory = ms => {
   return out;
 };
 const sinceSum = (upto, ms) => ms.filter(m => m.ts > (upto || 0));
-/* app.js recentPhotos의 사본 — 최근 24개에서 뒤부터, 겹치지 않게 넷까지 */
+/* scripts/game.js recentPhotos의 사본 — 최근 24개에서 뒤부터, 겹치지 않게 넷까지 */
 const recentPhotosOf = ms => {
   const tail = (ms || []).slice(-24), out = [];
   for (let i = tail.length - 1; i >= 0 && out.length < 4; i--)
@@ -167,7 +167,8 @@ export const PRICES = {
   /* 요약의 폴백(askClaude의 MODELS)까지 — 폴백이 탄 호출이 새면 안 된다 */
   "claude-sonnet-4-6": { in: 3.00, out: 15.00 },
   "claude-sonnet-5":   { in: 2.00, out: 10.00 },
-  /* 운영 기본의 쓰는 자리. 캐시 읽기는 기본 단가의 0.25배다(진영마다 다르다)
+  /* 옛 운영의 쓰는 자리 — 지금 운영은 worker.js OPENAI_MODEL(gpt-5.6-luna)이다.
+     캐시 읽기는 기본 단가의 0.25배다(진영마다 다르다)
      — priceFor의 기본 0.1배를 쓰면 실제보다 싸게 잰다. */
   "gpt-4.1":           { in: 2.00, out: 8.00, cachedIn: 0.50 },
   /* ── OpenRouter 좌석의 후보들 ──

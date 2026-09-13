@@ -1,5 +1,5 @@
 /* NULL CSS · rooms, map, cam, hidden, 채팅, 프로필
-   파일 순서는 null.css에서 관리한다. */
+   파일 순서는 index.html에서 관리한다. */
 
 /* 방 목록: 크롬 스타 월페이퍼 위 메신저 창 */
 .desk{background:#c3b2f0 url("../bg-desk.webp") center/cover no-repeat}

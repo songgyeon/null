@@ -1,5 +1,5 @@
 /* NULL CSS · 채팅 프레임, 입력줄, 진행도, 키스타임
-   파일 순서는 null.css에서 관리한다. */
+   파일 순서는 index.html에서 관리한다. */
 
 /* ══════════════════════════════════════════════════════════════════
    세계 확정창 — 다시
@@ -700,7 +700,7 @@
    잘린 채 그대로 멈췄다 — 작은 폰이나 키보드가 올라온 때가 그렇다.
    넘치면 굴러가게 두고, 넘치지 않을 때만 가운데로 모은다.
    justify-content:center 는 넘칠 때 위쪽까지 잘라먹으므로 margin:auto 를 쓴다.
-   ※ .cssprofile 규칙이 이 파일에 두 벌 있다. 이 덮어쓰기는 맨 끝이라야 산다 */
+   ※ .cssprofile 규칙이 40-opening-profile.css에 두 벌 있다. 이 덮어쓰기는 그 뒤라야 산다 */
 .cssprofile{align-items:flex-start;justify-content:center;
  overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
  -webkit-overflow-scrolling:touch}

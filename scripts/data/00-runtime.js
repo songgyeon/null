@@ -49,7 +49,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=299";
+const AV_V = "?v=300";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -186,7 +186,8 @@ const devToLeft=(curLeft,want)=>{
   const d=(Number(curLeft)||0)-Math.max(0,Number(want)||0);
   if(d>0)devAddDay(d);
 };
-/* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
+/* 옛 +30일 판이 남긴 값이다. 지금은 아무 데서도 쓰지 않는다(시험이 setItem이 없음을 잰다) —
+   관계를 고르면 60-dday-choice.js가 걷어내고, 남아 있는 옛 세이브만 여기서 읽는다. */
 const loadExtend=()=>{try{return +localStorage.getItem("null_extend")||0}catch(e){return 0}};
 /* 첫날의 통보. 하루가 끝나기 전에 판돈을 알려준다 — 방법은 빼고.
    「24시간 안에」로 잡으면 그 시간에 앱을 안 연 사람에게는 영영 안 뜬다.

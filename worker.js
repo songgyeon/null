@@ -66,12 +66,12 @@ const MODELS = [
    대사를 쓰는 일과 고르는 일은 다른 일이다. 쓰는 쪽은 여러 갈래를 빨리
    떠올려야 하고, 고르는 쪽은 그 중 어느 쪽이 이 사람다운지를 봐야 한다.
 
-   ── 위를 쓰는 자리는 하나뿐이다 ──
+   ── 고르는 자리는 위가 아니다 ──
    한동안 고르는 쪽에도 위를 썼다. 그러면 「평소에는 싼 것, 중요할 때만
    위」라는 말과 실제가 어긋난다 — 일반 턴마다 위를 부르고 있었다.
    고르는 일은 쓰는 일보다 쉽다. 후보 둘을 놓고 어느 쪽이 이 사람인지
    고르는 데는 세계를 새로 지어낼 힘이 필요 없다.
-   그래서 마무리 하나만 위다. 그 자리에서는 정확성만큼 감정의 체온·
+   그래서 고르는 자리는 저비용이고 마무리는 위다. 그 자리에서는 정확성만큼 감정의 체온·
    머뭇거림·말하지 않은 부분이 중요하고, 그건 고르기로는 안 되기 때문이다.
 
      일반 턴    쓰기 1 → 고르기 1                        2호출
@@ -83,9 +83,6 @@ const MODELS = [
    넘어가지 않고 실제 오류를 돌려준다. 화면에는 재시도가 뜬다.
    MODELS의 순차 폴백은 이 엔진을 안 탄다 — 요약처럼 말맛과 무관한
    뒷일에만 남는다. */
-/* replay 전용 도전자의 모델 snapshot과 주소. 별칭이 아니라 날짜가 박힌
-   판이다 — 별칭은 조용히 갈아타서 「같은 조건」이 깨진다. 클라이언트
-   입력이 이 값을 바꿀 길은 없다(요청 본문을 안 본다). */
 /* ── 쓰는 자리에 앉은 손 ──
    이 자리는 이제 replay 도전자가 아니라 **운영의 쓰는 손**이다. 그래서
    이름 규칙이 하나 바뀐다: 예전에는 날짜가 박힌 판만 앉혔다(별칭은 조용히
@@ -100,7 +97,7 @@ const MODELS = [
 const OPENAI_MODEL = "gpt-5.6-luna";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 /* ── 도전자 자리의 손을 갈아끼우는 문 ──
-   기본값은 위의 snapshot 그대로다 — 재던 조건을 이 문이 건드리면 안 된다.
+   기본값은 위의 OPENAI_MODEL 그대로다.
    대시보드에 OPENAI_WRITER_MODEL을 적었을 때만 그 이름으로 나간다.
    되돌리기는 그 값을 지우면 끝이고 배포가 필요 없다.
 
@@ -132,12 +129,7 @@ function openaiReasoning(env) {
 }
 /* ── OpenRouter 도전자의 주소 ──
    OpenAI 호환 엔드포인트라 요청 모양은 도전자 경로와 같다. 다른 것은 셋:
-   주소·열쇠(OPENROUTER_API_KEY)·모델 id(OPENROUTER_MODEL).
-
-   모델 id를 여기에 안 적는 이유가 있다. 이 자리는 **후보를 바꿔 끼우며
-   재는 자리**다 — id를 코드에 박으면 후보 하나를 재려고 배포를 해야 하고,
-   그러면 「같은 코드로 두 모델을 나란히」가 깨진다. 대시보드에서 값만
-   갈아끼운다(engineMode를 지우면 원래 자리로 돌아온다). */
+   주소·열쇠(OPENROUTER_API_KEY)·모델 id(OPENROUTER_MODEL). */
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 /* 고른 손. 이 자리에 앉히기로 한 모델이다 — 대시보드에서 ENGINE_MODE만
    켜면 이름을 따로 안 적어도 이걸로 돈다. 다른 후보를 재려면 env로 덮는다.
@@ -157,13 +149,13 @@ const ENGINE = {
      저비용 Writer에 그 결과물을 견본으로 줘서 흉내내게 하는 길은 실측으로
      실패했다 — 반응 방식은 옮겨지는데 문장을 만드는 힘은 안 옮겨졌고,
      나온 대사가 전부 두 줄짜리 「짧게 받고 되묻기」였다.
-     그래서 배치를 바꾼다. 이건 실험 깃발이 아니라 **운영 기본값**이다. */
+     그래서 배치를 바꿨다. 그 뒤 무플래그 기본은 gpt41(아래 gptWriter)로 갔고,
+     이 자리는 solo·hybrid 같은 옛 배선의 쓰는 자리로 남는다. */
   writer:    { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
   /* 고르는 자리는 기본 경로에서 안 불린다(solo) — 실험 경로만 쓴다 */
   director:  { id: "claude-haiku-4-5",            effort: null, noThinking: true },
   canon:     { id: "claude-haiku-4-5",            effort: null, noThinking: true },
   character: { id: "claude-haiku-4-5",            effort: null, noThinking: true },
-  /* 위를 쓰는 자리는 여기 하나다 */
   finalizer: { id: "claude-sonnet-4-5-20250929",  effort: null, noThinking: true },
   /* ── G 비교 전용 — 운영 기본 경로가 아니다 ──
      single-sonnet 경로(ENGINE_MODE=single)와 staged의 anchor 턴이 쓰는
@@ -192,8 +184,8 @@ const ENGINE = {
   gptWriter: { id: OPENAI_MODEL, openai: true, effort: null, noThinking: true },
   /* ── OpenRouter 도전자 ──
      ENGINE_MODE=openrouter를 명시했을 때만 쓰인다. id는 비어 있다 —
-     stageModel이 env(OPENROUTER_MODEL)에서 채운다. 여기에 후보 이름을
-     적어두면 그 후보가 기본값처럼 굳는다.
+     stageModel이 routerModel(env)로 채운다(대시보드의 OPENROUTER_MODEL,
+     없으면 ROUTER_MODEL).
 
      router 표지가 도전자(openai)와 따로 있는 이유: 주소·열쇠가 다르고,
      무엇보다 **블록을 안 뭉갠다**. 도전자 경로는 system 세 장을 문자열
@@ -261,15 +253,14 @@ const RETRY_MAX = 1;           // 계속 실패하면 각본으로 덮지 않고
 function engineMode(env) {
   const v = String((env && (env.ENGINE_MODE || env.engine_mode)) || "").trim().toLowerCase();
   /* single은 G 비교의 세 번째 갈래다 — 상급 Writer 한 호출, 고르기도
-     검사도 없이 같은 후처리만 탄다. replay 도구가 env로 켠다. 운영 대시보드
-     기본값은 hybrid 그대로다. */
+     검사도 없이 같은 후처리만 탄다. replay 도구가 env로 켠다. */
   /* sonnet5-pair-haiku는 G3 비교의 실험 갈래다 — 최상급 Writer가 한 호출로
      후보 A·B를 쓰고, 저비용 Director가 고르고, 못 고를 때만 상급 Writer가 한
-     번 폴백한다. replay 도구가 env로 켠다. 운영 대시보드 기본값은 hybrid다. */
+     번 폴백한다. replay 도구가 env로 켠다. */
   /* single5는 G4의 실험 갈래다 — single과 같은 배선(한 호출·같은 검사·
      재시도 1회·폴백 없음)에서 Writer 자리만 최상급이다. replay 도구가
-     env로 켠다. 운영 대시보드 기본값은 hybrid 그대로다. */
-  /* ── 기본값은 solo다 ──
+     env로 켠다. */
+  /* ── solo — gpt41 전의 기본값 ──
      쓰는 자리 한 번, 고르는 단계 없음. 후보를 둘 만들어 저비용 Director가
      고르던 구조(hybrid)는 **실험 깃발 뒤로** 내린다 — ENGINE_MODE=hybrid로
      명시해야 그 길이다. 일반 턴에서 저비용 Writer도 Director도 안 부른다.
@@ -300,7 +291,8 @@ function engineMode(env) {
          || v === "openrouter" ? "gpt41" : "gpt41";
 }
 /* 쓰는 자리에 누가 앉나. 기본 배선(gpt41)에서만 갈린다 —
-   ENGINE_MODE=sonnet45면 상급 Writer, 그 밖에는 도전자(GPT)다.
+   ENGINE_MODE=sonnet45·sonnet5·sonnet46이면 그 Claude Writer,
+   openrouter면 OpenRouter 손, 그 밖에는 도전자(GPT)다.
    다른 갈래(solo·hybrid·single…)는 제 자리 모델을 그대로 쓴다. */
 function writerSeat(env) {
   const v = String((env && (env.ENGINE_MODE || env.engine_mode)) || "").trim().toLowerCase();
@@ -2560,7 +2552,7 @@ const DAY_WORDS = ["일요일", "월요일", "화요일", "수요일", "목요�
 const STATE_WORDS = ["보건실", "퇴근", "집", "자는 중", "수업 중", "점심", "야자", "안 자는 중", "꺼짐"];
 /* ── 이 세계의 계절 ──
    프론트가 달력에서 뽑아 보내던 것을 여기서 못박는다. 팔월에 계절을 보내는데도
-   눈이 여섯 번 왔다(docs/playlog-review-2.md ①). 필터가 진 게 아니라 세계가
+   눈이 여섯 번 왔다(두 번째 플레이 기록 검수). 필터가 진 게 아니라 세계가
    겨울로 쓰여 있어서다 — WORLD 첫 줄이 「겨울이 끝나가는 시점」이고, 강현의
    생활 목록에 「긴 겨울」이 있고, 사진에 「눈 온 날」이 있고, 선물이 장갑·
    목도리·핫팩·비니다. 캐시 첫 덩어리가 겨울이라고 말하는데 가변부 끝의 낱말
@@ -2943,8 +2935,7 @@ const INVITES = {
   jaeeon:  [{ at: 40, place: "옥상" }, { at: 80, place: "도서관" }, { at: 120, place: "빨래방" }],
   minhyun: [{ at: 40, place: "편의점" }, { at: 80, place: "레코드샵" }, { at: 120, place: "체육관" }],
 };
-/* 이번 답에 같이 가자고 할 자리. 없으면 null.
-   done(다녀온 곳)·refused(거절당한 곳)는 프론트가 들고 있다가 보내준다. */
+/* done(다녀온 곳)·refused(거절당한 곳)는 프론트가 들고 있다가 보내준다. */
 /* 지금 꺼낼 수 있는 자리들. 고르는 건 모델이 한다.
    전에는 서버가 "이번 답에 옥상 가자고 해라"라고 꽂았다. 조건이 대화 수
    하나뿐이라 그 뒤로 매 턴 참이었고, 그래서 묻는 말에 답도 안 하고 딴 데
@@ -3986,7 +3977,7 @@ function buildVolatile(mode, room, userName, signals, recentPhotos, userProfile,
      지금 여기가 어디가 되는지 알 수가 없다.
      상태도 자리에서는 뺀다 — 마주 앉아 있는데 「수업 중」이 붙으면 화면과
      딴말이 된다. 그 방에 나오는 사람 것만 남긴다. 관전방은 안 받는다 —
-     그 방은 「집이거나 보건실」로 못박혀 있어서 시간표와 어긋날 수 있다. */
+     그 방의 자리는 watchPlace가 때에서 정하므로(집이거나 보건실) 프론트 상태와 어긋날 수 있다. */
   const st = {};
   if (!place && mode !== "auto" && states) {
     for (const c of room === "group" ? ["jaeeon", "minhyun"] : [room]) {
@@ -4074,13 +4065,14 @@ function isEdgeBlock(status, headers) {
 
 // 모델 하나로 한 번 호출한다. 성공하면 {ok:true, text}, 실패하면 {ok:false, status, body}.
 /* ══════════════════════════════════════════════════════════════
-   OpenAI 도전자 — replay 전용
+   OpenAI 진영 호출 — 운영의 쓰는 손
 
    ── 무엇인가 ──
-   운영은 건드리지 않는다. `ENGINE_MODE=gpt41`을 **명시했을 때만** 생성
-   자리(Writer·Finalizer)가 이 길로 간다. 검사 둘(Canon·Character)은
-   기존 모델·기존 규칙 그대로다 — 바뀌는 것은 「쓰는 손」뿐이고, 그래야
-   나온 대사의 차이를 모델 탓으로 읽을 수 있다.
+   처음엔 replay 전용 도전자였다 — `ENGINE_MODE=gpt41`을 명시했을 때만
+   생성 자리가 이 길로 갔다. 지금은 깃발이 없을 때의 기본 배선이다
+   (engineMode의 기본이 gpt41 — 이 파일 맨 위 참조). 검사는 승인된 중요
+   장면의 정사 하나뿐이고 그건 기존 모델 그대로다 — 바뀌는 것은 「쓰는 손」
+   뿐이고, 그래야 나온 대사의 차이를 모델 탓으로 읽을 수 있다.
 
    ── 무엇을 안 바꾸나 ──
    같은 system 원문·같은 블록 순서·같은 TurnContext·같은 사실 투영·같은
@@ -4350,7 +4342,9 @@ function stageModel(env, stage) {
   const key = STAGE_ENGINE[stage];
   const m = ENGINE[key || stage];
   if (!m) return null;
-  /* ENGINE_MODE=gpt41을 **명시했을 때만**. 운영 기본(solo)은 여기 안 온다 */
+  /* writerSeat이 own이 아닐 때만 — 무플래그 기본(gpt41)과 쓰는 손만 바꾸는
+     깃발(sonnet5·sonnet46·openrouter)이다. 옛 배선(solo·hybrid·legacy·
+     single·single5)은 own이라 여기 안 온다 */
   /* 쓰는 손이 갈리는 자리는 GPT_STAGES 그대로다 — 도전자든 최상급이든
      같은 자리를 갈아끼운다. 검사(canon)는 어느 쪽에서도 안 바뀐다. */
   const seat = writerSeat(env);
@@ -4527,7 +4521,7 @@ const LEAD_DOTS = /^[.·ㆍ…]{2,}\s*/;
 const HAN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g;
 /* 한자가 한글에 붙어 있으면 단어 안에 낀 것이다 — 「生수」 「便의점」.
    여기서 한자만 빼면 「수」 「의점」이 남아 문장 가운데가 구멍 난다.
-   기록에서 그렇게 깨진 말풍선이 셋 나왔다(docs/playlog-review.md). 한 줄
+   기록에서 그렇게 깨진 말풍선이 셋 나왔다(플레이 기록 검수). 한 줄
    없어지는 것은 티가 안 나는데 깨진 단어는 티가 난다. 그래서 붙어 있으면
    그 말풍선을 통째로 버리고, 떨어져 있으면(「那, 도서관 갈래요」)
    예전처럼 지우기만 한다. */
@@ -4770,7 +4764,7 @@ function isStageLine(text) {
 /* ── 제 이름을 호칭 자리에 쓴 것 ──
    「식사 맛있게 하세요」에 「이재언도요.」가 돌아왔다. 「선생님도요」가
    나와야 할 자리다. 유저가 「?」로 되물으니 같은 말을 한 번 더 하면서
-   우겼다(docs/playlog-review.md).
+   우겼다(플레이 기록 검수).
    처음에는 「유저 이름 치환이 제 이름을 집었다」고 적었는데 그건 틀렸다.
    {user_name}은 body.user_name으로만 치환되고 인물 이름이 거기 들어갈
    길이 없다. 치환 버그가 아니라 「선생님도요」 틀을 잘못 베낀 것이고,
@@ -4828,7 +4822,7 @@ function dropMeta(list) {
 }
 
 /* ── 자는 사람은 말이 없다 ──
-   1:1은 프론트가 아예 안 부른다(app.js의 allAsleep). 남는 건 단톡방이다 —
+   1:1은 프론트가 아예 안 부른다(웹 scripts/game.js·앱 App.tsx의 allAsleep). 남는 건 단톡방이다 —
    새벽 두 시면 재언은 자고 강현은 깨어 있어서 호출은 정상인데, 그 방에서
    자는 쪽까지 대답해버리면 목록에는 「자는 중」이 떠 있는 사람이 말을 하는
    그림이 된다. [지금] 줄로 이미 알려주지만 그건 부탁이고 이건 자물쇠다.
@@ -4919,7 +4913,7 @@ function parseTagged(text, allowed) {
    전에는 첫 「{」부터 문자열 끝까지 잘라서 파싱했다. 그래서 JSON 뒤에 뭐가
    하나라도 붙으면 — 닫는 코드펜스의 백틱 하나든, 모델이 덧붙인 설명이든 —
    JSON.parse가 터지고 아래 폴백이 원문을 통째로 말풍선에 찍었다.
-   실제로 기록에서 13번 그렇게 샜다(docs/playlog-review.md).
+   실제로 기록에서 13번 그렇게 샜다(플레이 기록 검수).
    문자열 안의 중괄호와 이스케이프를 세면서 짝이 맞는 데까지만 자른다. */
 function carveJson(s) {
   const start = s.indexOf("{");
@@ -6066,16 +6060,12 @@ function intentOf(mode, room, ctx, lastUser, opts) {
      4 최근 대화에서 아직 안 받은 구체적인 것 (아는 낱말 목록에서만)
      5 지금 자리와 때
    한 턴에 하나다. 둘을 주면 둘 다 얕게 스친다. */
-/* 청하는 말과 마음을 말하는 말. **검사가 아니다** — 이번 턴에 답해야 할
-   것이 있는지 고르는 표지라, 놓쳐도 다음 순위 재료로 내려갈 뿐이다.
-   CONFESS_SAY는 장면 승인용이라 좁게 잡혀 있다(「저 선생님 좋아해요」를
-   안 잡는다). 그 감지기를 넓히면 라우팅이 바뀌므로 여기서만 보탠다. */
 /* 청하는 말과 마음을 말하는 말. **좁게 잡는다** — 여기 걸리면 1순위라
    다른 재료를 전부 누르기 때문이다. 전에는 「까요·나요·는데요·을래요」가
    들어 있어서 「화가 나요」·「밥 먹었는데요」·「아까요」가 전부 질문이
    됐고, 그러면 프롬프트가 「유저가 물었으니 먼저 답하라」고 지시한다.
    물음표가 제일 믿을 만한 표지이고, 나머지는 명백한 청유·고백만 본다.
-   CONFESS_SAY는 장면 승인용이라 좁다(「저 선생님 좋아해요」를 안 잡는다).
+   CONFESS_SAY는 장면 승인용이라 좁다(문장 머리에 안 오는 「좋아해요」는 안 잡는다).
    그 감지기를 넓히면 라우팅이 바뀌므로 여기서만 보탠다. */
 const ASK_TAIL = /(해\s*주세요|해\s*줘|해\s*줄래|줄래요|주세요|알려\s*주|가르쳐\s*주|좋아해요|사랑해요)/;
 function turnMaterial(mode, room, ctx, lastUser, opts) {
@@ -6125,9 +6115,8 @@ function turnMaterial(mode, room, ctx, lastUser, opts) {
 }
 
 /* ── Writer에 붙는 장 (selected-v1) ──
-   견본은 **온도와 반응 방식**만 참고하게 한다. 문장 복사와 「견본에 있으니
-   써도 되는 사실」을 둘 다 금지한다 — 그 둘이 견본을 쓰는 순간 생기는
-   두 가지 사고다. 방별 투영은 견본 선택이 이미 했다(required_fact_ids). */
+   견본은 안 붙는다(위 「견본은 왜 없나」). 행동 규칙과 화자별 한 줄, 그리고
+   이번 턴의 재료 하나(turnMaterial)뿐이다. */
 const SELECTED_COMMON = `[이 턴에 지켜야 할 것]
 - 유저가 묻거나 말한 핵심에 **먼저** 반응한다. 답을 미루고 되묻지 않는다.
 - 핵심에 답한 뒤에만 질문할 수 있다. 질문만 던지고 끝내지 않는다.
@@ -6391,9 +6380,7 @@ function criticPacket(ctx, cands, which) {
   return L.join("\n");
 }
 
-/* 검사 답을 읽는다. 후보 표식을 살린다 — {candidate, note}.
-   옛 모양(문자열 배열)도 읽는다: 표식이 없으면 후보를 안 가린 것으로 본다.
-   (파싱 실패를 RETRY로 올리는 것은 D단계다. 여기서는 모양만 바꾼다.) */
+/* 검사 답을 읽는다. 후보 표식을 살린다 — {candidate, critic, fact_id|rule_id, code}. */
 /* ── 못 읽은 것은 「문제 없음」이 아니다 ──
    전에는 파싱이 실패하면 빈 배열을 돌려줬다. 그러면 검사가 헛소리를 해도
    **깨끗하다고 보고**하고 그대로 마무리로 넘어간다 — 검사가 있는데 없는
@@ -6982,8 +6969,8 @@ export default {
     const canGo = (mode === "chat" && room !== "group" && Array.isArray(body.can_go)
       ? body.can_go : [])
       .filter(p => typeof p === "string" && PLACE_ITEMS[p]).slice(0, 9);
-    /* 지도에서 불러낸 자리. 1:1에서만 의미가 있다 — 단톡이나 관전방에
-       마주 앉을 자리는 없다. bag은 이미 받은 것들이라 두 번 안 준다. */
+    /* 지도에서 불러낸 자리. 1:1에서만 의미가 있는 것은 위 canGo와 같다.
+       bag은 이미 받은 것들이라 두 번 안 준다. */
     const place = mode === "chat" ? placeOf(body.place) : null;
     /* 그 자리에 어떻게 갔나. 자리가 있을 때만 뜻이 있다.
        "asked" — 유저가 같이 가자고 했다(동행을 고르는 자리, 같이 자리 옮기기)
@@ -7096,11 +7083,11 @@ export default {
       body.disclosed);
     /* ── 선물 관측 사건 판정 (§8.5) ──
        관전 턴에 gift 사건이 실려 왔고 사실이 실제로 비대칭일 때만 선다.
-       화자 순차 경로는 hybrid 전용이다 — single·single5는 「모든 생성이 한
+       화자 순차 경로는 gpt41·solo·hybrid에서만 돈다 — single·single5는 「모든 생성이 한
        호출」이 계약이고, s5pair·legacy는 각자의 갈래를 그대로 탄다. */
     const disclose = mode === "auto" && event && event.kind === "gift"
       ? discloseEvent(event, allFacts, room) : null;
-    /* 발견 갈래는 기본 경로(solo)와 옛 hybrid 둘 다에서 돈다. 여기를
+    /* 발견 갈래는 기본 경로(gpt41)와 옛 solo·hybrid에서 돈다. 여기를
        hybrid로만 두면 기본값이 바뀌는 순간 이 장면이 통째로 죽는다. */
     const discloseNow = !!disclose
       && ["solo", "gpt41", "hybrid"].includes(engineMode(env));
@@ -7324,7 +7311,7 @@ export default {
          고른다 → ④ 못 고르는 모든 갈래에서 폴백 Writer(상급)가 **한 번** 선다.
          최상급 재호출은 없다. critical의 검사·마무리 경로는 여기서 안
          탄다 — 라우팅(tier)·Fact 투영·Effect 검증·scene_ack 계약은 그대로다.
-         운영 기본값(hybrid)에는 아무 영향이 없다 — env로만 켜진다. */
+         운영 기본값(gpt41)에는 아무 영향이 없다 — env로만 켜진다. */
       if (engineMode(env) === "sonnet5-pair-haiku") {
         const s5 = { candidates: null, checks: {}, directorOut: null,
                      directorChoice: null, fallback: false, fallbackWhy: [] };
@@ -7606,8 +7593,8 @@ export default {
           ? { id: picked.id, originalMessages: picked.originalMessages } : null,
       } };
       traceOfRef = traceOf;
-      /* 후보를 담을 자리를 넉넉히 준다. 천장이지 청구서가 아니라서 열어둔다고
-         값이 오르지 않는다 — 실제로 뽑은 만큼만 낸다. */
+      /* 후보를 담을 자리를 넉넉히 준다 — 천장이지 청구서가 아닌 것은 위
+         budget0 주석과 같다. */
       const cMode = mode === "auto" || singleNow || soloNow ? "one" : candidateMode(env);
       const nCand = CANDIDATE_N[cMode];
       /* parallel은 같은 입력을 두 번 내고 각각 하나씩 받는다 — 지시를 안 붙인다.

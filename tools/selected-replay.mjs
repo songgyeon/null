@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ── 기본 경로 replay — 상급 Writer 한 번 + 행동 규칙·턴 재료 ──
-   깃발을 하나도 안 준다 — 운영이 실제로 도는 그 배선이다. Writer에
+   ENGINE_MODE=solo를 명시한다 — 이 실험이 선 옛 상급 배선이다(아래 ENV). Writer에
    [이번 턴 재료] 하나와 행동 규칙을 붙인다. 호출은 일반 턴에 상급 Writer
    한 번(고르는 단계 없음), 중요 장면에 Writer·Canon·Character·Finalizer,
    관전 발견에 화자 순차 둘 + 소유자 정사 검사.
@@ -36,8 +36,6 @@ const argOf = (name, dflt) => {
 const has = name => process.argv.includes(`--${name}`);
 const die = msg => { console.error(`[replay] ${msg}`); process.exit(1); };
 
-/* 운영 기본 경로 그대로다 — 깃발을 하나도 안 준다. 행동 규칙과 이번 턴
-   재료는 이제 기본값이고, 쓰는 자리는 상급 Writer 한 번이다. */
 /* ── 이 하네스가 재는 배선 ──
    selected-v1 실험은 **상급 Sonnet 단독 Writer**(solo) 위에서 행동 규칙과
    턴 재료를 재려고 만든 것이다. 무플래그 기본값이 바뀐 뒤에도 그 실험이

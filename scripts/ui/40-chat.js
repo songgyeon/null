@@ -45,9 +45,7 @@ const SCENE_LINES=6;
 function ChatRoom({room,msgs,busy,failed,onBack,onSend,onRetry,onProfile,dLeft,scene,onLeaveScene,onMinimize,onCart,fixed,onFix,locked,ended}){
   const [v,setV]=useState("");
   const [zoom,setZoom]=useState(null);   // 사진 확대해서 보기
-  /* 고칠 것 메모. 말풍선을 길게 누르거나(600ms) 우클릭하면 열린다 —
-     손가락과 마우스가 다 있어야 한다. 짧게 누르는 것은 원래 하던 일
-     (사진 확대)이라 안 건드린다. */
+  /* 고칠 것 메모 */
   const [fixing,setFixing]=useState(null);
   const [draft,setDraft]=useState("");
   const holdRef=useRef(null);

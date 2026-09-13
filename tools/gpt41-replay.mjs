@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /* ── 도전자 replay — 생성 자리만 다른 진영으로 ──
-   `ENGINE_MODE=gpt41`. 운영 기본(solo)과 **같은 배선**이고, 바뀌는 것은
-   쓰는 손 하나뿐이다:
+   `ENGINE_MODE=gpt41` — 지금은 무플래그 기본값이다. 옛 기본(solo)과 쓰는
+   자리의 배선이 같고, 바뀌는 것은 쓰는 손 하나뿐이다:
 
      Writer            도전자
-     중요 장면 Finalizer  도전자
-     Canon·Character   기존 모델·기존 규칙 그대로
+     중요 장면 Finalizer  없음 (gpt41은 마무리를 안 부른다 — worker.js noFinalizer)
+     Canon             기존 모델·기존 규칙 그대로 (Character는 안 부른다 — canonOnly)
      일반 턴 Director   없음 (solo와 같다 — 새로 만들지 않는다)
 
    같은 system 원문·같은 블록 순서·같은 TurnContext·같은 사실 투영·같은
@@ -33,7 +33,7 @@
      --out=DIR (기본 replay-out-gpt41)
 
    열쇠는 env로만 읽는다. 요청 헤더·열쇠를 출력이나 파일에 남기지 않는다.
-   Anthropic 열쇠도 필요하다 — 검사 둘(Canon·Character)이 기존 모델이다. */
+   Anthropic 열쇠도 필요하다 — 중요 장면의 정사 검사(Canon)가 기존 모델이다. */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,8 +51,9 @@ const die = msg => { console.error(`[gpt41] ${msg}`); process.exit(1); };
 /* 도전자 경로를 켜는 유일한 자리. 그 밖의 깃발은 안 준다 —
    나머지는 운영 기본값 그대로여야 비교가 성립한다. */
 const ENV = { ENGINE_MODE: "gpt41" };
-/* --baseline: 같은 18항목을 **운영 기본 경로**(깃발 없음 = Sonnet 4.5 solo)로
-   돌린다. 비교 대상이 있어야 도전자의 대사를 읽을 수 있다 — 입력·상태·규칙·
+/* --baseline: 같은 18항목을 **깃발 없는 경로**로 돌린다. 무플래그 기본값이
+   gpt41로 바뀌어 이제 Sonnet 4.5 solo 기준선이 아니다 — solo는 ENGINE_MODE=solo를
+   명시해야 한다. 비교 대상이 있어야 도전자의 대사를 읽을 수 있다 — 입력·상태·규칙·
    후처리·재시도 조건이 전부 같고 다른 것은 쓰는 손 하나뿐이다. */
 /* 열쇠는 **부를 때** 환경변수에서 읽어 워커 env로만 건넨다. 파일 어디에도
    적지 않고, trace·보고·로그에도 안 싣는다. --fake는 자리표시자를 쓴다. */

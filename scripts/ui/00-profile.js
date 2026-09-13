@@ -28,8 +28,6 @@ const CharIcon=({id,size=15})=>id==="jaeeon"?<CrossIcon size={size} color={CHARS
 /* ── Y2K 스티커 세트 ──
    전부 인라인 SVG다. 파일을 안 받으므로 로딩이 없고 색도 코드로 맞춘다.
    많이 뿌리면 촌스러워지니 자리를 정해두고 거기에만 쓴다. */
-/* 선물 아이콘. 사진이 아니라 그림이라 파일이 없어도 지금 바로 보인다.
-   장바구니에 뜨는 건 이것이고, 배경으로 걸리는 건 gift-*.webp 쪽이다. */
 /* 가방 — 받은 것들이 들어간다. 선물 상자와 헷갈리면 안 되므로 손잡이를 단다 */
 const BagIcon=({size=15})=><svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.1">
   <path d="M8.4 9V6.6C8.4 4.6 10 3.2 12 3.2s3.6 1.4 3.6 3.4V9" fill="none" stroke="#5d5490"/>
@@ -38,8 +36,6 @@ const BagIcon=({size=15})=><svg width={size} height={size} viewBox="0 0 24 24" s
   <circle cx="12" cy="15.4" r="1.5" fill="#fff" stroke="#5d5490" strokeWidth=".9"/></svg>;
 
 const GiftIcon={
-  /* 담아서 결제하는 화면이 아니라 골라서 포장해 보내는 화면이라 카트가 아니다.
-     ♡로 사는 건데 카트가 붙어 있으면 돈 붙은 줄 안다. */
   /* 담아서 결제하는 화면이 아니라 골라서 포장해 보내는 화면이라 카트가 아니다.
      ♡로 사는데 카트가 붙어 있으면 돈 붙은 줄 안다.
      선 그림으로 뽑으니 17px에서 윤곽만 남아 밋밋했다. 아래 선물들과 같은
@@ -128,8 +124,7 @@ function Avatar({room,size=42,onProfile,heat,nu}){
 /* ── 캐릭터 프로필 ──
    관계 단계에 따라 상태메시지와 프로필 뮤직이 바뀐다.
    단계 기준(0/16/40/80)은 worker.js의 STAGES와 같아야 한다. */
-/* 프로필이 바뀌는 지점. 마지막 120은 .hidden의 일기가 열리는 지점과 같다 —
-   마지막 달에 배경과 일기가 함께 열린다.
+/* 프로필이 바뀌는 지점.
    worker.js의 STAGES는 0/16/40/80 네 단계로 모델의 연기 톤을 정한다.
    그쪽은 "관계가 어디까지 왔나"고 이쪽은 "화면이 어떻게 보이나"라 길이가 달라도 된다.
    다만 HEAT는 이 배열과 길이가 같아야 한다. */
@@ -159,17 +154,15 @@ const TRACKS={
   "minhyun-2":{file:"minhyun2.mp3",artist:"Cherry Crash",     title:"Online at 2AM"},
   "minhyun-3":{file:"minhyun3.mp3",artist:"Plastic Halo",     title:"Don't Look at Me Like That"},
   "minhyun-4":{file:"minhyun4.mp3",artist:"Last Exit Kids",   title:"Stay Until the Song Ends"},
-  // 메신저 자체의 BGM — 데스크 가운데 CD를 누르면 나온다.
-  // R2에 null1.mp3를 올리면 살아난다. 없으면 CD가 "no disc"만 띄운다.
+  // 메신저 자체의 BGM — 앱(lib/profiles.ts)의 MAIN_TRACK과 같은 열쇠다.
   "null-1":   {file:"null1.mp3",   artist:"",          title:""},
 };
 const MAIN_TRACK="null-1";
 const trackOf=k=>{const t=k&&TRACKS[k];return t&&t.file?{...t,src:MEDIA+t.file}:null};
 
 /* 단계별 프로필 — 상태메시지(빈 문자열이면 안 띄운다) / 배경 / BGM.
-   bg는 관계가 깊어질수록 바뀐다. app/profiles.ts의 stages와 같아야 한다 —
-   어긋나면 같은 사람 프로필이 웹과 앱에서 다른 배경으로 나온다.
-   단계 경계(0/16/40/80)는 stageIdx가 정하고, worker.js의 STAGES와 맞춰져 있다. */
+   bg는 관계가 깊어질수록 바뀐다. app/lib/profiles.ts의 stages와 같아야 한다 —
+   어긋나면 같은 사람 프로필이 웹과 앱에서 다른 배경으로 나온다. */
 const PROFILES={
   /* 재언 — 밝은 데서 어두운 데로. 미술관에서 시작해 계단참, 복도, 밤 차 안을
      지나 마지막이 부엌이다. 씻어서 엎어놓은 그릇이 두 개인 부엌.
@@ -214,8 +207,7 @@ const stageDiff=(char,seen,now)=>{
   return ["bg","track","status"].filter(k=>(a[k]||"")!==(b[k]||""));
 };
 
-/* 프로필 뮤직 — 눌러야 나온다. 곡 정보가 비어 있으면 "BGM 없음"으로 둔다.
-   (없는 곡 제목을 지어내지 않기 위해 TRACKS의 artist/title은 비워둔 상태다) */
+/* 프로필 뮤직 — 눌러야 나온다. 곡 정보가 비어 있으면 "no bgm"으로 둔다. */
 /* 배경 파일이 아직 없을 수 있다(사진은 나중에 올라온다).
    CSS background-image는 파일이 없어도 알려주지 않고 그냥 빈 화면이 되므로,
    먼저 불러보고 실패하면 그 인물의 기존 배경으로 돌아간다.
@@ -243,7 +235,7 @@ function MusicBar({track,color,onPlay}){
   const toggle=()=>{
     const a=ref.current;if(!a)return;
     if(playing){a.pause();setPlaying(false)}
-    // 인물 BGM이 시작되면 데스크 CD는 멈춘다 — 두 곡이 겹쳐 나오면 안 된다
+    // onPlay는 다른 소리를 멈추라는 신호다 — 두 곡이 겹쳐 나오면 안 된다
     else a.play().then(()=>{onPlay&&onPlay();setPlaying(true)}).catch(()=>setDead(true));
   };
   return <React.Fragment>

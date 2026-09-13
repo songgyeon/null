@@ -1,5 +1,5 @@
 /* NULL CSS · gift, bag, 장소 선택, 선물 메모
-   파일 순서는 null.css에서 관리한다. */
+   파일 순서는 index.html에서 관리한다. */
 
 /* ── 장바구니 ── 작은 다이얼로그가 아니라 창 하나를 통째로 쓴다 */
 .cartscreen{position:absolute;inset:0;z-index:39;display:flex;flex-direction:column;

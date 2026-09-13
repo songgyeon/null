@@ -56,7 +56,7 @@ const apiUrl=()=>{const k=loadKey();return k?API+"?k="+encodeURIComponent(k):API
 
 /* 프사를 교체해도 파일명이 같으면 브라우저·CDN이 옛 이미지를 계속 쓴다.
    사진을 갈아끼울 때마다 이 숫자를 올린다. */
-const AV_V = "?v=299";
+const AV_V = "?v=300";
 
 /* 캐릭터 / 방 정의 */
 const CHARS = {
@@ -193,7 +193,8 @@ const devToLeft=(curLeft,want)=>{
   const d=(Number(curLeft)||0)-Math.max(0,Number(want)||0);
   if(d>0)devAddDay(d);
 };
-/* D-0에 "계속 살아갈까"에 y를 누르면 한 달이 더 붙는다 */
+/* 옛 +30일 판이 남긴 값이다. 지금은 아무 데서도 쓰지 않는다(시험이 setItem이 없음을 잰다) —
+   관계를 고르면 60-dday-choice.js가 걷어내고, 남아 있는 옛 세이브만 여기서 읽는다. */
 const loadExtend=()=>{try{return +localStorage.getItem("null_extend")||0}catch(e){return 0}};
 /* 첫날의 통보. 하루가 끝나기 전에 판돈을 알려준다 — 방법은 빼고.
    「24시간 안에」로 잡으면 그 시간에 앱을 안 연 사람에게는 영영 안 뜬다.
@@ -251,10 +252,7 @@ const saveDiary=v=>{try{
    뒷면으로 천천히 넘어간다. 뒷면이 일기고 빈칸이 셋이다.
 
    정사는 전부 고정이다 — 옥상, 담배, 금연, 책임. 유저가 짓는 것은 자기
-   행동이 아니라 **상대의 반응**(표정·말)과 **자기 소망**이다.
-
-   빈칸 자리는 사진에 그려진 네모를 실제로 재서 넣었다(1024×1536 기준).
-   눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다. */
+   행동이 아니라 **상대의 반응**(표정·말)과 **자기 소망**이다. */
 const FLASH_FRONT="card-rooftop.webp";
 /* 뒷면은 **빈 종이**다. 전에는 글이 인쇄된 사진을 쓰고 그 위 네모에 입력칸을
    좌표로 맞췄는데, 그러면 상자 비율이 조금만 어긋나도 글자가 네모 밖으로
@@ -304,7 +302,7 @@ const saveFlash=o=>{try{
 }catch(e){return null}};
 
 /* ── ⑩ 지금의 일기 ──
-   옛 일기(diary-jaeeon.webp)는 20년 전 **물건**이라 사진 위에 빈칸이 앉는다.
+   옛 일기(DIARY_PAPER_IMG)는 20년 전 **물건**이라 사진 위에 빈칸이 앉는다.
    이건 유저가 지금 쓰는 것이라 사진이 없다 — 흐르는 글 안에 칸이 박힌다.
    같은 빈칸이어도 재질이 다르다.
 
@@ -699,7 +697,7 @@ const roomOf = id => ROOMS.find(r=>r.id===id);
    화면에는 옛 사물함이 그대로 떴다 — 브라우저가 같은 이름의 옛 파일을 계속
    쓴 것이다. index.html이 갈라진 파일에 붙이는 ?v= 와 같은 번호를 그림에도
    붙인다. 번호가 갈리면 시험이 잡는다. */
-const AV="?v=299";
+const AV="?v=300";
 const av=s=>s?s+AV:s;
 
 /* 사진: 백엔드가 보내는 key ↔ 실제 파일(key.webp). 목록에 없는 key는 무시한다. */
@@ -709,7 +707,7 @@ const photoSrc = k => (k&&av(PHOTO_FILES[k]))||null;
 
 /* .hidden: 대화가 쌓이면 백엔드가 해금해준다 */
 /* .hidden — room/at은 worker.js의 UNLOCKS와 같아야 한다.
-   어긋나면 화면에 표시되는 "N번 남음"이 실제 해금 시점과 달라진다. */
+   어긋나면 데모(demoUnlocked)가 여는 시점이 실제 해금 시점과 달라진다. */
 const HIDDEN=[
   /* 첫 쌍만 날짜를 안 본다(day:0). 열두 마디는 첫날에도 채울 수 있다 —
      사흘을 기다려야 첫 칸이 열리면 그때까지 이 탭은 잠긴 상자 열여덟 개이고,
@@ -877,14 +875,11 @@ const loadProfile=()=>{try{return JSON.parse(localStorage.getItem("null_profile"
 /* 시간 포맷 */
 
 /* ── 데모 모드 ──
-   키가 없거나 API가 죽어도 빈 화면을 보여주지 않는다. 각본이라도 움직이는 편이 낫다.
-   ?demo=1 로 켜지면 계속 데모다. 그게 아니면 실패한 턴만 각본으로 메우고
-   다음 전송에서 진짜를 다시 시도한다 — 전에는 한 번 실패하면 세션 내내
-   데모였다. 429 한 번에 그 뒤의 모든 대화가 조용히 각본이 됐고, 며칠 쌓인
-   세이브를 가진 사람에게 그건 구조가 아니라 사고다. auto는 「지난 호출이
-   실패했다」는 표시일 뿐이고 성공하면 꺼진다.
-   실패 원인은 콘솔에 그대로 남기고 하단 바에 demo 표시가 뜬다 — 조용히 가짜로
-   바뀌면 진짜 장애를 못 알아채기 때문이다.
+   ?demo=1 로 켜지면 계속 데모다. 한때는 실패한 턴을 각본으로 메웠고, 그 전에는
+   한 번 실패하면 세션 내내 데모였다 — 429 한 번에 그 뒤의 모든 대화가 조용히
+   각본이 됐고, 며칠 쌓인 세이브를 가진 사람에게 그건 구조가 아니라 사고다.
+   지금은 둘 다 없다(아래 auto 주석). 하단 바에 demo 표시가 뜬다 — 조용히
+   가짜로 바뀌면 진짜 장애를 못 알아채기 때문이다.
 
    대사와 매칭은 demo-lines.js에 있다. 그 파일은 docs/dialogue-corpus.md에서
    만들어진다 — 대사를 고칠 때는 문구집을 고치고 node tools/build-demo.mjs를 돌린다.
@@ -913,7 +908,7 @@ const demoClose=(msgs,room)=>((((msgs||{})[room])||[]).length)>=40;
 const demoReply=(bucket,lastText,userName,msgs,gift)=>
   demoAnswer(bucket,lastText,userName,{close:demoClose(msgs,bucket),gift:gift});
 /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
-   여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
+   여기서 센다 — 안 그러면 .hidden이 영영 0/18로 남는다. */
 const demoUnlocked=msgs=>{const d=daysSince({msgs});return HIDDEN.filter(h=>(((msgs||{})[h.room]||[]).length)>=h.at&&d>=h.day).map(h=>h.key)};
 /* 문구집에 물어볼 말. 유저가 방금 친 말이다. 시스템 줄("…을(를) 받았다")은
    유저가 한 말이 아니라서 그대로 넘기면 아무것도 안 걸린다. */
@@ -980,7 +975,7 @@ const seasonWord=()=>"겨울";
    그런데 강현에게도 꺼진 시간(3~8시)이 생겼다 — 점은 「꺼짐」인데 그 사람
    말풍선이 오면 처음 고치려던 그림 그대로다. 시계를 둘 두지 않는다.
    목록의 점을 정하는 presence가 선톡도 정한다 — off면 안 건다.
-   재언은 여섯 시에 깨니(1~6시 off) 예전과 같은 시각에 인사가 온다.
+   재언은 네 시 반에 깨니(1시~4시 반 off) 그 뒤에야 인사가 온다.
 
    그래서 새벽에 시작한 사람은 첫 화면에서 두 가지를 공짜로 안다 —
    한 명은 이 시간에 깨 있는 애고 한 명은 자는 어른이라는 것,
@@ -1311,8 +1306,9 @@ const ITEMS={
   lp:      {name:"중고 LP",     cat:"기록", say:"surface : scratched / playable"},
   coin:    {name:"동전 한 줌",  cat:"소품", say:"credit : 500 × 5 / keep the rest"},
   key:     {name:"여벌 열쇠",   cat:"소품", say:"HOME access : granted ♡"},
-  /* 자리에서 받는 게 아니라 야자 감독인 주에 시스템이 쥐여주는 것.
-     그래서 where가 없다 — 어디서 받았는지가 없는 유일한 물건이다. */
+  /* wrist는 체육관에서 받는다(PLACES·worker.js PLACE_ITEMS). ebar만 자리에서
+     받는 게 아니라 야자 감독인 주에 시스템이 쥐여주는 것이다(scripts/game.js).
+     그래서 ebar에는 where가 없다 — 어디서 받았는지가 없는 유일한 물건이다. */
   wrist:   {name:"손목 보호대", cat:"소품", say:"support : still on"},
   ebar:    {name:"에너지바",    cat:"간식", say:"energy level : restored +20 ♡"},
 };
@@ -1516,7 +1512,7 @@ const placeHours=(p,now)=>{
 
    ⚠️ 이 표는 **사진첩에도 자리 사진에도 안 들어간다.** 0단계에서 이 사진이
    나가면 관계 단계 급발진의 이미지판이다. 여는 것은 관계 단계와 장면 조건
-   이중 게이트뿐이고, 그 배선이 서기 전까지 어느 화면도 이 표를 안 본다.
+   이중 게이트뿐이고(워커의 kissMoment), 이 표를 보는 데는 kissNext 하나다.
    시험이 그 사실을 잰다. */
 const KISS_SHOT={
   "보건실": {jaeeon:"jaeeon-nurse-kiss"},
@@ -1552,9 +1548,8 @@ const kissNext=k=>{
   return {shot,shots:kissCuts(shot),char:String(k.char),place:String(k.place)};
 };
 /* ── 세 컷 ── 멀리 → 가까이 → 눈 감음.
-   표에 적힌 것은 짝마다 한 장뿐이라, -2·-3이 아직 없는 짝은 같은 장을 그대로
-   이어 쓴다. 컷이 안 갈릴 뿐 다가감·초점·어둠은 그대로 간다. 그림이 들어오는
-   날 이 표만 채우면 화면은 안 고쳐도 된다. */
+   짝마다 mid·near·kiss 세 장이다. 표에 없는 짝이나 빈 칸은 같은 장을 그대로
+   이어 쓴다 — 컷이 안 갈릴 뿐 다가감·초점·어둠은 그대로 간다. */
 const KISS_CUTS={
   "jaeeon-nurse-kiss":    ["jaeeon-nurse-mid",   "jaeeon-nurse-near",   "jaeeon-nurse-kiss"],
   "jaeeon-laundry-kiss":  ["jaeeon-laundry-mid", "jaeeon-laundry-near", "jaeeon-laundry-kiss"],
@@ -1836,7 +1831,7 @@ const saveScene=v=>{try{v?localStorage.setItem("null_scene",JSON.stringify(v)):l
    고친 것은 원문과 짝으로 따로 쌓아둔다. 배포 전에 프롬프트를 손볼 때
    그대로 견본이 된다 — 「이렇게 말해야지」라는 설명이 아니라 실제 대사라서
    대화 예시에 바로 옮길 수 있다. 이 프로덕트에서 안 지켜지는 규칙을 만나면
-   먼저 고칠 곳이 견본이라는 것을 두 번 겪었다(docs/playlog-review.md ②·⑦).
+   먼저 고칠 곳이 견본이라는 것을 두 번 겪었다(플레이 기록 검수).
 
    모델에게 시켜서 알아서 모으게 하는 길도 있는데 안 골랐다. ① 그 말이
    인물에게도 보이므로 인물이 거기 답한다. ② 알아채는 게 확률이라 놓치는

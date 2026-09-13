@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ── G5. golden-v1 replay — hybrid-pair + 행동 규칙 실험 ──
-   ENGINE_MODE는 hybrid(기본값). DIALOGUE_RULESET=golden-v1로 Writer에 행동
+   ENGINE_MODE는 hybrid(명시 — 지금 기본값이 아니다). DIALOGUE_RULESET=golden-v1로 Writer에 행동
    규칙을 붙이고, Director에 구조화 판정(SELECT_A/SELECT_B/RETRY + 10개 코드)
    을 쓴다. 호출 구조는 hybrid-pair 그대로 — Writer 1회 + Director 1회,
    재시도 포함 최대 4회.

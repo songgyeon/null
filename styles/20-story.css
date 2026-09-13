@@ -1,5 +1,5 @@
 /* NULL CSS · 오프닝 장면, 일기, 등록 진입
-   파일 순서는 null.css에서 관리한다. */
+   파일 순서는 index.html에서 관리한다. */
 @font-face{font-family:"ManSeh Diary";src:url("../app/assets/fonts/ManSeh.ttf") format("truetype");
  font-display:swap;font-style:normal;font-weight:400}
 @font-face{font-family:"Gyuri Diary";src:url("../assets/fonts/GyuriDiary.woff") format("woff");

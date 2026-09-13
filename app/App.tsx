@@ -89,7 +89,7 @@ function demoReply(room:string, lastText?:string, userName?:string, gift?:string
 }
 
 /* 프사를 교체해도 파일명이 같으면 앱의 이미지 캐시가 옛 사진을 계속 쓴다.
-   사진을 갈아끼울 때마다 이 숫자를 올린다. */
+   사진을 갈아끼울 때마다 규칙 파일의 AV_V(scripts/data/00-runtime.js)를 올린다. */
 const face = (id:string) => IMG + id + '-profile.webp' + AV_V;
 
 /* 계산해서 만든 퍼센트 문자열. 그냥 (n*100)+'%'로 쓰면 타입이 string으로 넓어져
@@ -273,7 +273,7 @@ const ENR_FIELDS:{k:string;lab:string;tail:string;w?:number}[] = [
   {k:'likes',    lab:'LIKES',   tail:'를 좋아하고'},
   {k:'dislikes', lab:'HATES',   tail:'를 싫어한다'},
 ];
-/* 등록 창의 제목줄. Marquee는 아래에 정의돼 있지만 함수 선언이라 끌어올려진다 */
+/* 등록 창의 제목줄 */
 /* 같은 말을 두 번 하지 않는다 — 바로 앞 화면(Intro)이 전체 화면으로 그 말을
    하고, 유저는 그걸 읽고 단추를 눌러 여기로 온다. 웹의 .etb와 같은 자리다. */
 function EnrTitle(){ return <Text style={en.tbT}>NULL.exe</Text>; }
@@ -307,9 +307,6 @@ function Enroll({name,profile,onSaveField,onRename,onDone,mode,onMode}:{
   /* 키보드가 올라오면 카드를 그만큼 띄운다. 안 그러면 아래 두 칸이 가린다 */
   return <Animated.View style={[en.root,{opacity:fade,paddingBottom:26+kb}]}>
     <View style={en.card}>
-      {/* ── 제목줄이 말한다 ── 현실의 나는 □□이고 이 세계에서만 값이 생긴다.
-          배너를 얹는 대신 창틀에 앉힌다. 길어서 흐른다 — 방 목록 맨 위 띠와
-          같은 Marquee다(웹의 .etbrun과 같은 자리) */}
       <View style={en.tb}><EnrTitle/></View>
       <View style={en.body}>
         <View style={en.nameRow}>
@@ -532,8 +529,6 @@ const en=StyleSheet.create({
            shadowOffset:{width:0,height:2},elevation:2},
   modeT:{...F,fontSize:11,letterSpacing:1.7,color:'#a897dd'},
   modeTOn:{color:'#6b5fa8'},
-  /* 설명은 알약 밑으로 내린다 — 라벨 밑에 붙으면 어느 알약 얘기인지 안 보인다.
-     66(라벨) + 5(gap) 만큼 들여써서 알약과 왼쪽을 맞춘다 */
   bar:{marginTop:15,height:6,borderRadius:999,backgroundColor:'#eae1fb',borderWidth:1,borderColor:'#d9cbf3',overflow:'hidden'},
   fill:{height:'100%',backgroundColor:'#ff8fbe'},
   msg:{...F,marginTop:8,fontSize:8.5,letterSpacing:1.8,color:'#a290d4'},
@@ -541,7 +536,6 @@ const en=StyleSheet.create({
   go:{marginTop:13,paddingVertical:10,alignItems:'center',borderRadius:999,backgroundColor:'#ffd9ec',
       borderWidth:1.5,borderColor:'#fff'},
   goT:{...F,fontSize:12,letterSpacing:3.6,color:'#6b5fa8'},
-  /* 세계 확정 화면 — 등록 카드 안의 세 줄뿐이다. 새 껍데기를 만들지 않는다 */
   cq:{...F,marginTop:18,textAlign:'center',fontSize:13,lineHeight:26,letterSpacing:.5,color:'#4a4276'},
   chint:{...F,marginTop:11,textAlign:'center',fontSize:9.5,letterSpacing:.8,color:'#b09ecf'},
   cback:{...F,marginTop:10,textAlign:'center',fontSize:8.5,letterSpacing:1.4,color:'#c9bfe4'},
@@ -748,7 +742,7 @@ const sp=StyleSheet.create({
 });
 
 // ═══ 장바구니 — 검색 → 아이템 → 받는 사람 + 쪽지 ═══
-// 웹(index.html)의 Cart와 같은 흐름. 아이콘만 SVG가 아니라 이모지다.
+// 웹(index.html)의 Cart와 같은 흐름.
 function CartScreen({gifts,hearts,onSend,onBack}:any) {
   const [q,setQ]=useState('');
   const [cat,setCat]=useState('전체');
@@ -910,7 +904,7 @@ const ct=StyleSheet.create({
   backT:{...F,fontSize:11,letterSpacing:3,color:P.ink},
 });
 
-// ═══ 프로필 화면 — Y2K 미니홈피 카드 (배경: 재언=전시회 / 강현=락페) ═══
+// ═══ 프로필 화면 — Y2K 미니홈피 카드 ═══
 function Profile({char,onBack,refresh,dLeft,back,days}:{char:string;onBack:()=>void;refresh?:number;dLeft?:number;back?:boolean;days?:number}) {
   const [stage,setStage]=useState<any>(null);
   const [count,setCount]=useState(0);
@@ -1862,7 +1856,7 @@ function Root() {
   /* 응답에 딸려오는 해금 목록과 상태메시지를 저장한다.
      이걸 안 하면 .hidden이 영영 안 열리고 프로필 상태메시지도 늘 비어 있다. */
   /* ── 같은 사건을 두 번 새기지 않는다 ──
-     웹 app.js의 applyEffects와 같은 의미다. 같은 Effect 묶음을 두 번
+     웹 applyEffect와 같은 의미다. 같은 Effect 묶음을 두 번
      처리해도 결과는 한 번과 같아야 한다.
      전에는 applyExtras가 give를 **아예 안 봤다** — 앱에서는 자리 물건을
      영영 못 받았고, 그 구멍을 자동 지급이 가리고 있었다. */
@@ -2649,7 +2643,7 @@ function Root() {
   },[name,view,msgs,demo]);
   useEffect(()=>{ Object.keys(msgs).forEach(k=>{ demoCount[k]=((msgs as any)[k]||[]).length }) },[msgs]);
   /* 해금은 원래 서버가 세어서 내려준다. 데모에는 서버가 없으니 같은 기준으로
-     여기서 센다 — 안 그러면 .hidden이 영영 0/12로 남는다. */
+     여기서 센다 — 안 그러면 .hidden이 영영 0/18로 남는다. */
   useEffect(()=>{ if(!demoOn())return;
     const got=HIDDEN.filter(h=>(((msgs as any)[h.room]||[]).length)>=h.at&&dayN>=h.day).map(h=>h.key);
     if(got.length) applyExtras({ unlocked:got });

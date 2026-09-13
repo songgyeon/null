@@ -4,7 +4,7 @@
 /* ── Y2K 파스텔 OS 팔레트 ──
    잉크 #4a4276 · 보더 #5d5490/#8a7fc0/#b0a6d8 · 크롬 #dcd6f2 · 핑크 #ff9ec6 · 라벤더 #c3b2f0 */
 /* ── 글꼴 ──
-   Galmuri는 CDN에서 오고, 아래 둘은 저장소가 직접 들고 있다.
+   Galmuri는 CDN에서 오고, 아래 셋은 저장소가 직접 들고 있다.
    swap이라 글꼴이 늦게 와도 글자는 먼저 뜬다 — 안 그러면 메뉴가 잠깐 빈다.
    모나12는 한글 39,803자를 다 들고 있어서 woff2로 눌러도 1.2MB다.
    대신 채팅 어느 글자에서도 다른 글꼴로 새지 않는다. */
@@ -64,7 +64,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
  mask-composite:exclude;
  opacity:.82;filter:drop-shadow(0 0 2px rgba(238,221,255,.7))}
 /* 좁은 화면에서는 껍데기가 화면을 통째로 쓴다.
-   높이는 100dvh 가 아니라 index.html 이 재서 적어준 --vh 다 — 안드로이드
+   높이는 100dvh 가 아니라 scripts/data/00-runtime.js 가 재서 적어준 --vh 다 — 안드로이드
    키보드가 올라오면 dvh 는 안 따라오거나 늦게 따라와서, 껍데기가 옛 높이로
    남고 브라우저가 페이지를 굴려 아래에 흰 띠가 생겼다.
    position:fixed 로 못박아 페이지가 굴러갈 곳 자체를 없앤다. */

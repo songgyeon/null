@@ -104,9 +104,6 @@ function Timetable({wend,onFillWend,onClose}){
              에너지바가 NULL 지켜줄 거야 <span className="kao">(𓂂꜆◕⩊◕꜀𓂂)</span> 💗
            </div>
           :(()=>{
-             /* 하루의 양 끝은 시간표가 정해주는 것이 없다 — 켜지기 전, 일과가
-                끝난 뒤, 그리고 값이 비는 밤. 그 세 자리에는 말이 따로 있다.
-                가운데(출근·수업·점심·퇴근·야자)는 「지금은 ○○이에요」 그대로다. */
              /* 첫 줄(「지금은 ○○이에요」)은 어느 때든 그대로다. 갈아끼우는 것은
                 아랫줄뿐이다 — 하루가 켜지기 전이면 Loading, 끝난 뒤면 Ending.
                 ON·OFF는 표에서 다른 칸과 똑같이 서 있고, 그 두 칸이 무엇인지는
@@ -185,7 +182,7 @@ function Bag({bag,store,scene,onReturn,onClose}){
   </div></div>;
 }
 
-/* [대화 → 찾기] 방을 넘나들며 찾는다. 어디서 그 말을 했는지 기억나지 않을 때. */
+/* [chat → search] 방을 넘나들며 찾는다. 어디서 그 말을 했는지 기억나지 않을 때. */
 function FindPanel({store,name,onOpen}){
   const [q,setQ]=useState("");
   const key=q.trim();
@@ -210,7 +207,6 @@ function FindPanel({store,name,onOpen}){
   </div>;
 }
 
-/* [당신] 프로필 카드 */
 /* 장바구니 — 목록에서 고르고, 누구에게 보낼지와 쪽지를 그 자리에서 정한다.
    작은 다이얼로그가 아니라 창 하나를 통째로 쓴다. 목록 + 쪽지까지 들어가면
    290px 상자로는 스크롤만 생긴다. */
@@ -573,8 +569,8 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       </span>
       {mb("luck","LUCK",openLuck)}
       {mb("help","etc.",()=>{setMenu(null);setDlg("help")})}
-      {/* 🎁 선물은 메뉴 항목이다 — 버튼은 peek 하나뿐이어야 그게 특별한
-          동작으로 보인다. 메뉴바는 조용해야 한다. */}
+      {/* 🎁 선물은 메뉴 항목이다 — 단추(toolkey)는 시간표·peek 둘뿐이어야 그게
+          특별한 동작으로 보인다. 메뉴바는 조용해야 한다. */}
       <span className="mbtn ico" style={{marginLeft:"auto"}} title="give something"
         onClick={()=>{setMenu(null);onCart()}}><img className="navpixel" src={av("ui/null-gift-icon.png")} alt=""/>gift</span>
       {/* gift는 준 것, bag은 받은 것. 나란히 둔다 — 한쪽만 있으면 주기만 하는 앱이 된다 */}

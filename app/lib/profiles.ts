@@ -116,7 +116,6 @@ export async function saveDisclosed(d: Record<string,string[]>) {
 // 재언은 밝은 데서 어두운 데로 — 미술관, 계단참, 복도, 밤 차 안, 그리고 부엌.
 // 마지막 부엌에 씻어서 엎어놓은 그릇이 두 개다.
 // 강현은 안에서 밖으로 — 레코드샵, 버스, 골목, 그리고 옥상.
-// 마지막 120은 .hidden의 일기가 열리는 지점과 같다.
 export const PROFILES: Record<string, { fallback: string; stages: Stage[] }> = {
   jaeeon: {
     fallback: 'jaeeon-gallery.webp',

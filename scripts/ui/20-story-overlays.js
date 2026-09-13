@@ -64,7 +64,7 @@ function DiaryInk({kind,entry,values={},auto={},readOnly=false,onChange,onEnter}
 }
 
 /* ── 사진 보기 ──
-   이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag·map·yaja.exe).
+   이 앱에서 「앱 위에 얹히는 것」은 전부 창이다(gift·bag).
    사진도 창에 담으면 규칙이 하나로 서고, 창틀이 「이게 무엇인지」도 말해준다.
 
    전에는 검은 공백에 사진만 띄웠다. 그런데 이 사진들은 전부 표면 위에 놓인
@@ -421,7 +421,7 @@ function KissTime({shot,onDone}){
 /* 탭하면 입력으로 바뀌는 빈칸 */
 /* 열린 상태를 밖에서 쥘 수 있다(open/onOpen). 등록 화면은 그렇게 해서
    엔터 한 번에 다음 칸으로 넘긴다. 안 넘기면 제 안의 edit로 혼자 돈다 —
-   프로필 창은 예전 그대로다. */
+   시간표 창이 그렇게 쓴다. */
 function Blank({value,onSave,width,open,onOpen,onNext,saveEmptyNow=false}){
   const ctl=typeof open==="boolean";
   const [edit,setEdit]=useState(false);
@@ -436,7 +436,7 @@ function Blank({value,onSave,width,open,onOpen,onNext,saveEmptyNow=false}){
   return <span className={"blank"+(value?" filled":"")} onClick={()=>set(true)}>{value||""}</span>;
 }
 
-/* [편집 → 기록] 지금까지 채운 빈칸을 숫자로 보여준다.
+/* [chat → my stats] 지금까지 채운 빈칸을 숫자로 보여준다.
    대사로 못 하는 말을 통계가 대신한다 — 이 앱의 주제 그대로. */
 function LogPanel({store,counts,unlocked,album}){
   const allPhotos=Object.values(CHARS).reduce((n,c)=>n+c.gallery.length,0);

@@ -40,12 +40,9 @@ app/package.json      # SDK 54 의존성. expo-asset·expo-constants가 명시�
 app/package-lock.json # 트리 고정 — 이게 없으면 npm이 SDK를 안 보고 최신을 끌어온다
 docs/dialogue-corpus.md  # 문구집 원본 — 488개 의도 · 2,047줄. 손으로 고치는 건 여기뿐
 docs/status-messages.md  # 상태메시지 — 쓰는 것과 안 쓴 것
-docs/playlog-review.md   # 플레이 기록 검수 — 화면에 나오면 안 되는 것, 메아리 133회
-docs/playlog-review-2.md # 두 번째 검수 — 8월 17~22일 엿새, 작가 플레이
 docs/playlog/            # 검수한 기록 원본 — 8월 19일 하루치 · 10월 16일 아흐레치(스피드 판)
 docs/known-gaps.md       # 없는 것을 없다고 적는 자리 — 웹에는 있고 앱에는 없는 것
 docs/art-direction.md    # 그림 방향 — 왜 서른아홉으로 보였나, 무엇을 몇 장 다시 뽑나
-docs/art-prompts.md      # 재언 재생성 프롬프트 33장 — BASE + 장별 SCENE
 tools/demo-engine.js     # 매칭 엔진 — 웹·앱 결과물에 그대로 이어 붙는다
 tools/build-demo.mjs     # 문구집 → demo-lines.js + app/lib/demoLines.ts
 tools/build-rules.mjs    # scripts/data → app/lib/rules.ts (규칙은 손으로 안 베낀다)

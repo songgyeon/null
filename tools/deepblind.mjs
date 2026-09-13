@@ -44,7 +44,7 @@ const die = msg => { console.error(`[deep] ${msg}`); process.exit(1); };
    이름은 여기에만 있다. blind 산출물에는 한 번도 안 나간다. */
 const CAMPS = ["gpt41", "sonnet45"];
 /* 마무리를 안 부르는 것은 양쪽 공통이다. 진영을 가르는 것은 ENGINE_MODE
-   하나뿐 — sonnet45는 깃발이 없는 운영 기본 배선 그대로다. */
+   하나뿐 — sonnet45 진영은 ENGINE_MODE=solo(옛 상급 배선)를 명시한다. */
 const envFor = (camp, okey, pure) => camp === "gpt41"
   ? { ENGINE_MODE: "gpt41", NO_FINALIZER: "1",
       /* --pure — 다른 진영의 눈까지 뗀다. 쓰는 자리 한 번과 코드 검사만 */

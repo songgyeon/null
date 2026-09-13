@@ -153,9 +153,7 @@ const total = out.intents.reduce((a,e)=>a+(e.jaeeon?.length||0)+(e.minhyun?.leng
 console.log('1:1 답변', total, '줄 ·', (n(out)/1024).toFixed(0)+'KB');
 writeFileSync('/tmp/corpus.json', JSON.stringify(out, null, 1));
 
-/* ── 내보내기 ──
-   웹은 <script src>로 부르고 앱은 import한다. 내용은 같아야 하므로
-   같은 데이터와 같은 엔진에서 두 벌을 만든다. 검사에서 둘을 대조한다. */
+/* ── 내보내기 — 두 벌. 까닭은 머리 주석 ── */
 const engine = readFileSync('tools/demo-engine.js', 'utf8');
 const head = `/* 자동 생성 — 고치지 말 것.\n`
   + `   대사는 docs/dialogue-corpus.md가 정본이고, 엔진은 tools/demo-engine.js다.\n`
