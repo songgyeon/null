@@ -854,11 +854,10 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
       </div>
       {/* 되돌릴 수 없다는 말보다 숫자가 손을 멈춘다. 지우는 건 기록만이 아니라
           시계와 해금까지다 — 그걸 글로 쓰지 말고 지금 상태로 보여준다.
-          엔딩 뒤에도 restart는 남는다. 영화관 엔딩을 넣을 때 continue가 그 자리를
-          차지해서, 끝까지 본 사람만 새 판을 열 길이 없었다. continue는 옆에 선다. */}
+          엔딩 뒤에도 이 자리는 restart다. 영화관 엔딩을 넣을 때 다른 단추가 이
+          자리를 차지해서, 끝까지 본 사람만 새 판을 열 길이 없었다. */}
       {!confirming
         ?<div className="etcrow" style={{marginTop:18}}>
-          {ended&&<button className="etcdel" aria-label="↻ continue" onClick={()=>setDlg(null)}><span className="rr">↻</span>continue</button>}
           <button className="etcdel" onClick={()=>setConfirming(true)}><span className="rr">↺</span>restart</button>
         </div>
         :<div className="etcwarn">

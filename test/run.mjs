@@ -3257,15 +3257,15 @@ eq('앱 프로필 창에도 지우기가 없다',
   /setPopup\('reset'\)/.test(appSrc.slice(appSrc.indexOf("popup==='profile'"),
     appSrc.indexOf("popup==='reset'"))), false);
 /* 영화관 엔딩을 넣을 때 etc.의 restart 자리를 continue가 차지했다. 끝까지 본
-   사람만 새 판을 열 길이 없었다 — continue는 옆에 서고 restart는 남는다 */
+   사람만 새 판을 열 길이 없었다 — 엔딩 뒤에도 그 자리는 restart다 */
 {
   const s0 = web.indexOf('dlg==="help"&&<Dialog');
   const etc = web.slice(s0, web.indexOf('</Dialog>}', s0));
   eq('엔딩 뒤에도 etc.에 restart가 있다', [
-    /\{ended&&<button className="etcdel" aria-label="↻ continue"/.test(etc),
+    /aria-label="↻ continue"/.test(etc),
     /\{!confirming\s*\?<div className="etcrow"[^]*?<span className="rr">↺<\/span>restart<\/button>/.test(etc),
     /\{ended\s*\?<div className="etcrow"/.test(etc),
-  ], [true, true, false]);
+  ], [false, true, false]);
 }
 /* "되돌릴 수 없다"는 추상이고 숫자는 구체다. 지우는 건 기록만이 아니라
    시계와 해금까지인데, 옛 경고문은 그 말을 안 했다. 엔딩 뒤에는 남은 날이
@@ -4540,7 +4540,7 @@ eq('앱도 같은 열쇠 자리를 본다',
       ...WEB_UI_FILES, 'scripts/game.js', 'app.js'])
       seal.update(readFileSync(join(ROOT, f)));
     eq('판 번호가 지금 내용의 것이다',
-      [v[0][1], seal.digest('hex').slice(0, 12)], ['294', '90059bb7b15f']);
+      [v[0][1], seal.digest('hex').slice(0, 12)], ['294', '721ee107cb23']);
     /* 그림도 같은 번호를 쓴다. 파일 이름은 그대로인데 안에 든 그림만 바뀌는
        일이 잦아서(사물함 원화·선물 아이콘) 번호가 없으면 옛 그림이 그대로 뜬다.
        두 번호가 갈리면 한쪽만 새것이 된다 */
