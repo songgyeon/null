@@ -853,19 +853,17 @@ function RoomList({store,name,unlocked,counts,seenStage,groupOn,onCart,onPlate,o
         {["✿","★","♡","✧","☾"].map((x,i)=><span key={i} style={{color:["#c3b2f0","#b9a7e6","#a78fe0","#8fd8e8","#d5c8ff"][i]}}>{x}</span>)}
       </div>
       {/* 되돌릴 수 없다는 말보다 숫자가 손을 멈춘다. 지우는 건 기록만이 아니라
-          시계와 해금까지다 — 그걸 글로 쓰지 말고 지금 상태로 보여준다. */}
-      {ended
-        ?<div className="etcrow" style={{marginTop:18}}>
-          <button className="etcdel" aria-label="↻ continue" onClick={()=>setDlg(null)}><span className="rr">↻</span>continue</button>
-        </div>
-        :!confirming
+          시계와 해금까지다 — 그걸 글로 쓰지 말고 지금 상태로 보여준다.
+          엔딩 뒤에도 이 자리는 restart다. 영화관 엔딩을 넣을 때 다른 단추가 이
+          자리를 차지해서, 끝까지 본 사람만 새 판을 열 길이 없었다. */}
+      {!confirming
         ?<div className="etcrow" style={{marginTop:18}}>
           <button className="etcdel" onClick={()=>setConfirming(true)}><span className="rr">↺</span>restart</button>
         </div>
         :<div className="etcwarn">
           <div className="w">delete it all?? 4 real??</div>
           <div className="n">no take backs ♡ everything goes bye</div>
-          <div className="n2">d-{dLeft} · hidden {unlocked.length}/{HIDDEN.length} · {totalN} words</div>
+          <div className="n2">{ended?"d-∞":`d-${dLeft}`} · hidden {unlocked.length}/{HIDDEN.length} · {totalN} words</div>
           <div className="dlgbtns">
             <button className="wbtn" onClick={()=>setConfirming(false)}>nvm ♡</button>
             <button className="wbtn kill" onClick={onReset}>yes rly</button>
