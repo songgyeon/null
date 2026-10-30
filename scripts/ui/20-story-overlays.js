@@ -31,6 +31,21 @@ function DiaryInk({kind,entry,values={},auto={},readOnly=false,onChange,onEnter}
       label="옛 일기의 마지막 빈칸"
       onChange={v=>onChange&&onChange("why",v)} onEnter={e=>onEnter&&onEnter("why",e)}/>{DIARY_TAIL_B}</p>
   </div>;
+  /* ── 엽서 뒷면 ──
+     빈 종이에 그리는 것은 일기와 같다. 다른 것은 줄이 여덟이라 줄마다 한
+     문단이라는 것뿐이다. 쓰는 화면(Flash)과 사진 창(PhotoWin)이 이 하나를
+     같이 쓴다 — 각자 그리면 같은 종이가 화면마다 다르게 열린다. */
+  if(kind==="flash")return <div className="dink fink" role="document">
+    {FLASH_LINES.map((line,i)=><p key={i}>
+      {myDiaryParts(line).map((part,j)=>part.blank
+        ?<DiaryField key={part.blank} name={part.blank} value={values[part.blank]||""}
+          max={FLASH_MAX} plain={readOnly}
+          label={`빈칸 ${FLASH_KEYS.indexOf(part.blank)+1}`}
+          onChange={v=>onChange&&onChange(part.blank,v)}
+          onEnter={e=>onEnter&&onEnter(part.blank,e)}/>
+        :<React.Fragment key={j}>{part.text}</React.Fragment>)}
+    </p>)}
+  </div>;
   if(!entry)return null;
   const keys=Object.keys(entry.blanks),mine=keys.filter(k=>!myDiarySystemOwned(entry,k));
   return <div className={`dink dcurrent dcurrent-${entry.at}`} role="document">
@@ -79,7 +94,10 @@ function PhotoWin({shot,onClose,onNext}){
   const flip=one?null:shot.back;
   const diary=one?null:shot.diary;
   const now=diary?diary.src:(back&&flip?flip:src);
-  const fill=diary?[]:(back&&flip?(shot.backFill||[]):(one?[]:(shot.fill||[])))||[];
+  /* 엽서 뒷면은 좌표로 앉히던 자리다. 지금은 종이 위에 글을 그리므로
+     일기와 같은 렌더러를 쓴다 — 쓸 때와 볼 때가 갈리면 안 된다. */
+  const backInk=!one&&back&&flip?shot.backInk:null;
+  const fill=diary||backInk?[]:(one?[]:(shot.fill||[]))||[];
   return <div className="pvwin" onClick={onClose}>
     <div className="pvframe" onClick={e=>e.stopPropagation()}>
     <ProfileFrame title="photo" onClose={onClose} frameClass="pvdlg" bodyClass="pvframebody">
@@ -93,6 +111,8 @@ function PhotoWin({shot,onClose,onNext}){
           <img src={diary?av(now):now} alt={diary?"":label||""}/>
           {diary?<div className="pvfit dpvfit">
             <DiaryInk kind={diary.kind} entry={diary.entry} values={diary.values} readOnly/>
+          </div>:backInk?<div className="pvfit dpvfit">
+            <DiaryInk kind="flash" values={backInk} readOnly/>
           </div>:!!fill.length&&<div className="pvfit">
             {fill.map((f,i)=><span key={i} className="pvfill" style={{left:f.left+"%",top:f.top+"%",
               width:f.w+"%",height:f.h+"%"}}>{f.text}</span>)}
@@ -315,10 +335,15 @@ function Flash({onDone}){
     const t=setTimeout(()=>setTurn(true),FLASH_RISE+FLASH_HOLD);
     return()=>clearTimeout(t);
   },[]);
-  /* 넘어간 뒤에 커서가 선다. 넘어가는 중에 잡으면 뒤집히는 종이를 누르는 게 된다 */
+  /* 넘어간 뒤에 커서가 선다. 넘어가는 중에 잡으면 뒤집히는 종이를 누르는 게 된다.
+     칸은 DiaryField가 그리므로 ref를 넘길 수 없다(함수 부품이다) — 종이에서
+     첫 칸을 찾아 세운다. autoFocus는 마운트 때라 넘어가는 것을 못 기다린다. */
   useEffect(()=>{
     if(!turn)return;
-    const t=setTimeout(()=>{if(first.current)first.current.focus()},FLASH_TURN);
+    const t=setTimeout(()=>{
+      const el=first.current&&first.current.querySelector(".dblank.blank");
+      if(el)el.focus();
+    },FLASH_TURN);
     return()=>clearTimeout(t);
   },[turn]);
   const full=FLASH_KEYS.every(k=>v[k].trim());
@@ -333,16 +358,20 @@ function Flash({onDone}){
       <div className="fside ffront"><img src={av(FLASH_FRONT)} alt="눈 내리는 병원 옥상"/></div>
       <div className="fside fback">
         <img src={av(FLASH_BACK)} alt={FLASH_ALT.join(" ")}/>
-        {/* 빈칸은 상자가 아니라 사진에 앉는다 — .dfit과 같은 이유다 */}
+        {/* 빈 종이에 글을 그린다. 사진에 인쇄된 글 위로 좌표를 맞추던 자리다 —
+            그러면 상자 비율이 조금만 어긋나도 글자가 네모 밖으로 밀리고,
+            본문(사진)과 빈칸(CSS)의 글씨 크기가 따로 논다. 일기와 같은
+            부품을 쓴다: 네모는 DiaryField가 **쓰는 동안에만** 그린다. */}
         <div className="dfit">
-          {FLASH_BOX.map((b,i)=>
-            <input key={b.key} ref={i===0?first:null} className="fblank"
-              value={v[b.key]} maxLength={FLASH_MAX} tabIndex={turn?0:-1}
-              style={{left:b.left+"%",top:b.top+"%",width:b.w+"%",height:b.h+"%"}}
-              onChange={e=>set(b.key,e.target.value)}
-              onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();
-                const n=e.target.closest(".fback").querySelectorAll(".fblank")[i+1];
-                if(n)n.focus(); else done()}}}/>)}
+          <div ref={first}>
+            <DiaryInk kind="flash" values={v}
+              onChange={(k,t)=>set(k,t)}
+              onEnter={(k,e)=>{
+                const n=e.target.closest(".fback").querySelectorAll(".dblank.blank")[
+                  FLASH_KEYS.indexOf(k)+1];
+                if(n)n.focus(); else done();
+              }}/>
+          </div>
         </div>
       </div>
     </div>

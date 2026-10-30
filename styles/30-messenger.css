@@ -503,7 +503,7 @@ input.hlabel.hin::placeholder{color:#c3b6e4;letter-spacing:.12em}
 .pvfit{position:absolute;inset:0;pointer-events:none}
 /* 일기장·엽서의 빈칸과 같은 연필이다 — 같은 종이에 같은 사람이 쓴 글씨다 */
 .pvfill{position:absolute;display:flex;align-items:center;justify-content:center;
- padding:0 4px;font-family:inherit;font-size:13px;line-height:1;
+ padding:0 4px;font-family:"Gyuri Diary",sans-serif;font-size:13px;line-height:1;
  color:#4f4636;white-space:nowrap;overflow:hidden}
 /* 뒷면이 있는 것은 엽서 하나다. 단추를 달지 않는다 — 엽서를 뒤집는 데
    단추가 필요한 적은 없었다. 누르면 넘어간다는 것만 커서로 알린다 */

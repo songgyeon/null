@@ -42,7 +42,12 @@ const saveDiary=v=>{try{
    빈칸 자리는 사진에 그려진 네모를 실제로 재서 넣었다(1024×1536 기준).
    눈으로 맞추면 화면 크기가 바뀔 때마다 어긋난다. */
 const FLASH_FRONT="card-rooftop.webp";
-const FLASH_BACK="card-note.webp";
+/* 뒷면은 **빈 종이**다. 전에는 글이 인쇄된 사진을 쓰고 그 위 네모에 입력칸을
+   좌표로 맞췄는데, 그러면 상자 비율이 조금만 어긋나도 글자가 네모 밖으로
+   밀리고(실제로 났다), 본문은 사진이라 크기가 고정인데 빈칸만 CSS라 글씨
+   크기도 따로 놀았다. 옛 일기와 지금 일기가 이미 쓰는 방식으로 맞춘다 —
+   빈 종이 위에 글을 그리고, 네모는 **쓰는 동안에만** 뜬다. */
+const FLASH_BACK="card-paper.webp";
 const FLASH_ALT=[
   "병원 옥상에서 흡연 중인 고등학생을 만났다.",
   "나는 아무 말도 하지 않았다.",
@@ -50,17 +55,21 @@ const FLASH_ALT=[
   "내가 책임질 사이에나 그런 말을 하는 거랬더니",
   "한 대 더 꺼내길래 그만 피우라고 했다.",
   "내가 책임지겠다고.",
-  "걔는 □ 표정으로 날 보면서 □ 라고 했다.",
+  /* 원본 종이에서 이 문장은 두 줄이다 — 재서 맞췄다(글줄이 28%~77%에 여덟 줄).
+     한 줄로 두면 화면 폭에 따라 접히는 자리가 매번 달라진다. */
+  "걔는 □ 표정으로",
+  "날 보면서 □ 라고 했다.",
   "다시 만나면 □ 고 싶다.",
 ];
 /* 셋의 뜻. 저장도 이 열쇠로 하고, 나중에 가변부로 나갈 때도 이 이름이다 */
 const FLASH_KEYS=["face","said","wish"];
-const FLASH_BOX=[
-  {key:"face", left:24.71, top:59.90, w:33.01, h:4.04},
-  {key:"said", left:32.13, top:66.47, w:37.01, h:4.17},
-  {key:"wish", left:36.04, top:73.50, w:30.08, h:4.10},
-];
 const FLASH_MAX=10;
+/* 화면에 그리는 본문. FLASH_ALT의 □를 일기와 같은 {열쇠} 문법으로 바꾼
+   것뿐이라 문장은 한 글자도 안 다르다 — 읽어주는 글(alt)과 보이는 글이
+   갈리면 안 된다. 줄은 그대로 여덟 줄이고, 화면에서도 줄마다 한 문단이다. */
+const FLASH_LINES=(()=>{ let i=0;
+  return FLASH_ALT.map(l=>l.replace(/□/g,()=>`{${FLASH_KEYS[i++]}}`)); })();
+const FLASH_BLANKS=Object.fromEntries(FLASH_KEYS.map(k=>[k,FLASH_MAX]));
 /* ── 얼마나 천천히 ──
    숫자를 화면과 시험이 같이 본다. 한쪽에만 적으면 「천천히」가 두 뜻이 된다.
    앞면이 앉고(1.4초) 잠깐 그대로 있다가(1.6초) 넘어간다(1.2초). */
@@ -368,7 +377,7 @@ const userPics=(name,giftsOverride)=>{
   const f=loadFlash();
   if(f)out.push({src:FLASH_FRONT,back:FLASH_BACK,label:"병원 옥상",
     /* 채운 칸은 뒷면에 있다 — 앞면은 옥상 사진 한 장이다 */
-    backFill:FLASH_BOX.map(b=>({...b,text:f[b.key]||""}))});
+    backInk:f});
   return out;
 };
 
